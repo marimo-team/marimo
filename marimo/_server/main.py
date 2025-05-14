@@ -2,14 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.routing import Mount
 
 from marimo import _loggers
+from marimo._mcp.server.main import create_mcp_server
 from marimo._server.api.auth import (
     RANDOM_SECRET,
     CustomAuthenticationMiddleware,
@@ -20,7 +22,7 @@ from marimo._server.api.middleware import (
     AuthBackend,
     OpenTelemetryMiddleware,
     ProxyMiddleware,
-    SkewProtectionMiddleware,
+    # SkewProtectionMiddleware,
 )
 from marimo._server.api.router import build_routes
 from marimo._server.api.status import (
@@ -29,6 +31,7 @@ from marimo._server.api.status import (
 from marimo._server.errors import handle_error
 from marimo._server.lsp import LspServer
 from marimo._server.registry import MIDDLEWARE_REGISTRY
+from marimo._server.sessions import SessionManager
 
 if TYPE_CHECKING:
     from starlette.types import Lifespan
@@ -45,6 +48,7 @@ class LspPorts:
 # Create app
 def create_starlette_app(
     *,
+    session_manager: SessionManager,
     base_url: str,
     host: Optional[str] = None,
     middleware: Optional[list[Middleware]] = None,
@@ -52,6 +56,7 @@ def create_starlette_app(
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
     lsp_servers: Optional[list[LspServer]] = None,
+    enable_mcp: bool = True,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
 
@@ -85,7 +90,7 @@ def create_starlette_app(
                 allow_methods=["*"],
                 allow_headers=["*"],
             ),
-            Middleware(SkewProtectionMiddleware),
+            # Middleware(SkewProtectionMiddleware),
             _create_mpl_proxy_middleware(),
         ]
     )
@@ -100,8 +105,20 @@ def create_starlette_app(
 
     final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
 
+    routes: list[Any] = build_routes(base_url=base_url)
+    if enable_mcp:
+        routes = [
+            # add to the front of the list
+            Mount(
+                "/mcp-server",
+                app=create_mcp_server(session_manager).http_app(),
+                name="mcp-server",
+            ),
+            *routes,
+        ]
+
     return Starlette(
-        routes=build_routes(base_url=base_url),
+        routes=routes,
         middleware=final_middlewares,
         lifespan=lifespan,
         exception_handlers={

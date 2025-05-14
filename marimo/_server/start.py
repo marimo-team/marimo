@@ -161,6 +161,7 @@ def start(
 
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
     app = create_starlette_app(
+        session_manager=session_manager,
         base_url=base_url,
         host=external_host,
         lifespan=Lifespans(
