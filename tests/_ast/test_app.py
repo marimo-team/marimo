@@ -890,6 +890,37 @@ class TestAppComposition:
         assert y.value == 3
 
 
+    @staticmethod
+    def test_setup_not_exposed() -> None:
+        app = App()
+
+        with app.setup:
+            if False:
+                # Forces to be a def
+                app = 1
+            try:
+                x = app is not None
+            except NameError:
+                x = False
+
+        assert x == False
+        _, defs = app.run()
+        assert defs["x"] == False
+        assert "app" not in defs
+
+    @staticmethod
+    def test_setup_in_memory() -> None:
+        app = App()
+
+        with app.setup:
+            x = 0
+
+        assert x == 0
+        _, defs = app.run()
+        assert defs["x"] == 0
+        assert "app" not in defs
+
+
 class TestAppKernelRunnerRegistry:
     def test_get_runner(self, k: Kernel) -> None:
         # `k` fixture installs a context, needed for AppKernelRunner
