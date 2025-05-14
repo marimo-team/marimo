@@ -226,6 +226,7 @@ class TestHash:
         @app1.cell
         def _():
             import marimo as mo
+
             return mo
 
         @app1.cell
@@ -257,6 +258,7 @@ class TestHash:
         @app2.cell
         def _():
             import marimo as mo
+
             return mo
 
         @app2.cell

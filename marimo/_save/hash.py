@@ -932,7 +932,13 @@ class BlockHasher:
         ref_cells = set().union(
             *[self.graph.definitions.get(ref, set()) for ref in refs]
         )
-        return ancestors & ref_cells
+        cell_basis = ancestors & ref_cells
+        return (
+            set().union(
+                *[self.graph.ancestors(cell_id) for cell_id in cell_basis]
+            )
+            | cell_basis
+        )
 
 
 def cache_attempt_from_hash(
