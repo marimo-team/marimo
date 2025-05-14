@@ -209,6 +209,10 @@ export class MarkdownLanguageAdapter
 
     // Only activate completions for f-strings
     const isFStringActive = () => {
+      if (!view) {
+        return true;
+      }
+
       const metadata = view?.state.field(languageMetadataField);
       if (metadata === undefined) {
         return false;
