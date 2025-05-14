@@ -177,4 +177,4 @@ def communicate_with_timeout(
         return process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         process.kill()
-        return "Error: Process timed out", ""
+        return "", "Error: Process timed out"
