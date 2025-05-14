@@ -305,7 +305,7 @@ class TestHash:
             # Line numbers are ignored
             #
             #
-            value, _ = mo.state(getframeinfo(currentframe()).lineno > 2)
+            value, _ = mo.state(getframeinfo(currentframe()).lineno > 3)
 
         @app1.cell
         def cache_1(args, mo):
@@ -336,7 +336,7 @@ class TestHash:
         def _():
             from inspect import currentframe, getframeinfo
 
-            value, _ = mo.state(getframeinfo(currentframe()).lineno > 2)
+            value, _ = mo.state(getframeinfo(currentframe()).lineno > 3)
 
         @app2.cell
         def cache_2(args, mo):
