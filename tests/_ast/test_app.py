@@ -889,6 +889,16 @@ class TestAppComposition:
         assert x.value == 2
         assert y.value == 3
 
+    @staticmethod
+    def test_app_not_changed() -> None:
+        app = App()
+
+        with app.setup:
+            app = 1
+
+        _, defs = app.run()
+        assert defs["app"] == 1
+
 
     @staticmethod
     def test_setup_not_exposed() -> None:
@@ -903,10 +913,10 @@ class TestAppComposition:
             except NameError:
                 x = False
 
-        assert x == False
         _, defs = app.run()
         assert defs["x"] == False
         assert "app" not in defs
+        assert x == False
 
     @staticmethod
     def test_setup_in_memory() -> None:
