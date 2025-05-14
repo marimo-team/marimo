@@ -11,7 +11,11 @@ const adapter = new MarkdownLanguageAdapter();
 describe("MarkdownLanguageAdapter", () => {
   describe("defaultMetadata", () => {
     it("should be set", () => {
-      expect(adapter.defaultMetadata).toMatchInlineSnapshot();
+      expect(adapter.defaultMetadata).toMatchInlineSnapshot(`
+        {
+          "quotePrefix": "r",
+        }
+      `);
     });
   });
 

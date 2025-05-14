@@ -22,7 +22,15 @@ const adapter = new SQLLanguageAdapter();
 describe("SQLLanguageAdapter", () => {
   describe("defaultMetadata", () => {
     it("should be set", () => {
-      expect(adapter.defaultMetadata).toMatchInlineSnapshot();
+      expect(adapter.defaultMetadata).toMatchInlineSnapshot(`
+        {
+          "commentLines": [],
+          "dataframeName": "_df",
+          "engine": "__marimo_duckdb",
+          "quotePrefix": "f",
+          "showOutput": true,
+        }
+      `);
     });
   });
 
