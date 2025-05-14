@@ -181,21 +181,6 @@ function objectToArgs(
   return Object.entries(obj).map(([key, value]) => new FunctionArg(key, value));
 }
 
-export function functionCallToPythonCodeList(
-  functionCalls: FunctionCall[],
-  prefix: string,
-): PythonCode {
-  if (functionCalls.length === 0) {
-    return new Literal(functionCalls);
-  }
-  return new Literal(
-    functionCalls.map((fc) => fc.toCode()).join(", "),
-    true,
-    false,
-    false,
-  );
-}
-
 /**
  * Converts an array of objects to a PythonCode object.
  * If there is only one object, it returns the object as a function call.
