@@ -18,12 +18,13 @@ import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
 import { convertDataTypeToVega } from "./types";
 import type { ColorScheme } from "vega";
 import type { Aggregate } from "vega-lite/build/src/aggregate";
+import type { BinParams } from "vega-lite/build/src/bin";
 
 export function getBinEncoding(
   selectedDataType: SelectableDataType,
   binValues?: z.infer<typeof BinSchema>,
   chartType?: ChartType,
-) {
+): boolean | BinParams | undefined {
   if (chartType === ChartType.HEATMAP) {
     return { maxbins: binValues?.maxbins };
   }
@@ -37,7 +38,19 @@ export function getBinEncoding(
     return undefined;
   }
 
-  return { bin: true, step: binValues.step, maxbins: binValues.maxbins };
+  const binParams: BinParams = {};
+  if (binValues.step) {
+    binParams.step = binValues.step;
+  }
+  if (binValues.maxbins) {
+    binParams.maxbins = binValues.maxbins;
+  }
+
+  if (Object.keys(binParams).length === 0) {
+    return true;
+  }
+
+  return binParams;
 }
 
 export function getColorInScale(formValues: ChartSchemaType) {

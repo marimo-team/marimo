@@ -40,8 +40,7 @@ export function generateAltairChart(
     const encodings = spec.encoding;
 
     if (encodings?.x) {
-      const xCode = objectsToPythonCode([encodings.x], "alt.X");
-      encodeArgs.x = xCode;
+      encodeArgs.x = objectsToPythonCode([encodings.x], "alt.X");
     }
 
     if (encodings?.y) {
