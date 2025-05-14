@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -217,22 +218,140 @@ class TestHash:
             return shared
 
     @staticmethod
-    def test_transitive_content_hash(app) -> None:
-        @app.cell
-        def load() -> tuple[int]:
-            from marimo._save.save import persistent_cache
-            from tests._save.loaders.mocks import MockLoader
+    def test_transitive_content_hash() -> None:
+        app1 = App()
+        app1._anonymous_file = True
+        app1._pytest_rewrite = True
 
-            shared = [None, object()]
-            return persistent_cache, MockLoader, shared
+        @app1.cell
+        def _():
+            import marimo as mo
+            return mo
 
-        @app.cell
-        def one(persistent_cache, MockLoader, shared) -> tuple[int]:
-            _a = len(shared)
-            with persistent_cache(name="one", _loader=MockLoader()) as cache:
-                Y = 8 + _a
-            assert cache._cache.cache_type == "ContentAddressed"
-            return (Y,)
+        @app1.cell
+        def _():
+            value = False
+
+        @app1.cell
+        def cache_1(args, mo):
+            with mo.persistent_cache("cache_bug") as cache:
+                output = args.value
+            assert cache.cache_type == "ExecutionPath"
+
+        @app1.cell
+        def _(value):
+            class Unhashable:
+                def __eq__(self, other):
+                    return isinstance(other, Unhashable)
+
+                __hash__ = None  # Makes instances unhashable
+
+            args = Unhashable()
+            args.value = value
+            return (args,)
+
+        app2 = App()
+        app2._anonymous_file = True
+        app2._pytest_rewrite = True
+
+        @app2.cell
+        def _():
+            import marimo as mo
+            return mo
+
+        @app2.cell
+        def _():
+            value = True
+
+        @app2.cell
+        def cache_2(args, mo):
+            with mo.persistent_cache("cache_bug") as cache:
+                output = args.value
+            assert cache.cache_type == "ExecutionPath"
+
+        @app2.cell
+        def _(value):
+            class Unhashable:
+                def __eq__(self, other):
+                    return isinstance(other, Unhashable)
+
+                __hash__ = None  # Makes instances unhashable
+
+            args = Unhashable()
+            args.value = value
+            return (args,)
+
+        _, defs1 = app1.run()
+        _, defs2 = app2.run()
+
+        assert defs1["cache"]._cache.hash != defs2["cache"]._cache.hash
+        assert defs1["output"] != defs2["output"]
+
+    @staticmethod
+    def test_transitive_state_hash() -> None:
+        app1 = App()
+        app1._anonymous_file = True
+        app1._pytest_rewrite = True
+
+        with app1.setup:
+            import marimo as mo
+
+        @app1.cell
+        def _():
+            value, _ = mo.state(False)
+
+        @app1.cell
+        def cache_1(args, mo):
+            with mo.persistent_cache("cache_bug") as cache:
+                output = args.value
+            assert cache.cache_type == "ExecutionPath"
+
+        @app1.cell
+        def _(value):
+            class Unhashable:
+                def __eq__(self, other):
+                    return isinstance(other, Unhashable)
+
+                __hash__ = None  # Makes instances unhashable
+
+            args = Unhashable()
+            args.value = value
+            return (args,)
+
+        app2 = App()
+        app2._anonymous_file = True
+        app2._pytest_rewrite = True
+
+        with app2.setup:
+            import marimo as mo
+
+        @app2.cell
+        def _():
+            value, _ = mo.state(True)
+
+        @app2.cell
+        def cache_2(args, mo):
+            with mo.persistent_cache("cache_bug") as cache:
+                output = args.value
+            assert cache.cache_type == "ExecutionPath"
+
+        @app2.cell
+        def _(value):
+            class Unhashable:
+                def __eq__(self, other):
+                    return isinstance(other, Unhashable)
+
+                __hash__ = None  # Makes instances unhashable
+
+            args = Unhashable()
+            args.value = value()
+            return (args,)
+
+        _, defs1 = app1.run()
+        _, defs2 = app2.run()
+
+        assert defs1["cache"]._cache.hash != defs2["cache"]._cache.hash
+        assert defs1["output"] != defs2["output"]
 
     @staticmethod
     def test_function_ui_content_hash(app) -> None:
