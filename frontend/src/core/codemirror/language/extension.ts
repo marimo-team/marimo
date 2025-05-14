@@ -136,7 +136,7 @@ function updateLanguageAdapterAndCode(
     finalCode = code;
     if (currentLanguage.type !== nextLanguage.type) {
       // Set the metadata to the default metadata
-      metadata = nextLanguage.defaultMetadata;
+      metadata = { ...nextLanguage.defaultMetadata };
     }
   } else {
     const [codeOut, cursorDiff1] = currentLanguage.transformOut(code, metadata);
