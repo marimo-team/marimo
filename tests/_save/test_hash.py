@@ -290,81 +290,6 @@ class TestHash:
         assert defs1["output"] != defs2["output"]
 
     @staticmethod
-    def test_transitive_state_hash() -> None:
-        app1 = App()
-        app1._anonymous_file = True
-        app1._pytest_rewrite = True
-
-        with app1.setup:
-            import marimo as mo
-
-        @app1.cell
-        def _():
-            from inspect import currentframe, getframeinfo
-
-            # Line numbers are ignored
-            #
-            #
-            value, _ = mo.state(getframeinfo(currentframe()).lineno > 3)
-
-        @app1.cell
-        def cache_1(args, mo):
-            with mo.persistent_cache("cache_bug") as cache:
-                output = args.value
-            assert cache.cache_type == "ExecutionPath"
-
-        @app1.cell
-        def _(value):
-            class Unhashable:
-                def __eq__(self, other):
-                    return isinstance(other, Unhashable)
-
-                __hash__ = None  # Makes instances unhashable
-
-            args = Unhashable()
-            args.value = value
-            return (args,)
-
-        app2 = App()
-        app2._anonymous_file = True
-        app2._pytest_rewrite = True
-
-        with app2.setup:
-            import marimo as mo
-
-        @app2.cell
-        def _():
-            from inspect import currentframe, getframeinfo
-
-            value, _ = mo.state(getframeinfo(currentframe()).lineno > 3)
-
-        @app2.cell
-        def cache_2(args, mo):
-            with mo.persistent_cache("cache_bug") as cache:
-                output = args.value
-            assert cache.cache_type == "ExecutionPath"
-
-        @app2.cell
-        def _(value):
-            class Unhashable:
-                def __eq__(self, other):
-                    return isinstance(other, Unhashable)
-
-                __hash__ = None  # Makes instances unhashable
-
-            args = Unhashable()
-            args.value = value()
-            return (args,)
-
-        _, defs1 = app1.run()
-        _, defs2 = app2.run()
-
-        assert defs1["cache"]._cache != defs2["cache"]._cache
-        assert defs1["output"] != defs2["output"]
-        assert defs1["value"]() != defs2["value"]()
-        assert defs1["cache"]._cache.hash != defs2["cache"]._cache.hash
-
-    @staticmethod
     def test_function_ui_content_hash(app) -> None:
         @app.cell
         def load() -> tuple[Any]:
@@ -967,6 +892,52 @@ class TestDataHash:
             )
             assert _A == 28
             return (two,)
+
+
+class TestDynamicHash:
+    @staticmethod
+    async def test_transitive_state_hash(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("import marimo as mo; from pathlib import Path"),
+                exec_req.get("value, set_value = mo.state(False)"),
+                exec_req.get("""
+                class Unhashable:
+                    def __eq__(self, other):
+                        return isinstance(other, Unhashable)
+
+                    __hash__ = None  # Makes instances unhashable
+
+                args = Unhashable()
+                args.value = value
+                """),
+                exec_req.get(f"""
+                with mo.persistent_cache("cache", save_path=Path("{tmp_path.as_posix()}")) as cache:
+                    output = args.value
+                """),
+            ]
+        )
+        assert not k.errors
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert not k.globals["cache"]._cache.hit
+
+        hash_1 = k.globals["cache"]._cache.hash
+        output_1 = k.globals["output"]
+
+        await k.run([exec_req.get("set_value(True)")])
+        assert not k.errors
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert not k.globals["cache"]._cache.hit
+
+        hash_2 = k.globals["cache"]._cache.hash
+        output_2 = k.globals["output"]
+
+        assert hash_1 != hash_2
+        assert output_1 != output_2
 
 
 class TestSideEffects:
