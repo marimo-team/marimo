@@ -56,3 +56,39 @@ so we are resetting this back to initial. */
 :host:host {
   display: initial;
 }
+
+/* The slides  is full width, but centers the inside content to fit the width of the content. */
+.mo-slide-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+
+  /* width is normally set to 100%, but we want the content to be centered around
+  the width needed. */
+  .output {
+    /* center the output vertically if there is space,
+    we use flexbox to center the output horizontally */
+    margin: auto 0;
+    max-width: 100%;
+    width: unset;
+  }
+
+  /* Components that should be full width when in slides mode */
+  div:has(> marimo-ui-element > marimo-vega) {
+    display: block !important;
+    flex: 1;
+
+    @media (min-width: 500px) {
+      min-width: 350px;
+    }
+  }
+}
+
+/* helpful for debugging */
+/* .mo-slide-content {
+  background-color: red;
+
+  .output {
+    background-color: green;
+  }
+} */

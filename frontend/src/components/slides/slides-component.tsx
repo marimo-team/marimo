@@ -104,8 +104,7 @@ const SlidesComponent = ({
                 isFullscreen ? "p-20" : "p-6",
               )}
             >
-              {/* this centers the contents */}
-              <div className="m-auto max-w-full">{child}</div>
+              <div className="mo-slide-content">{child}</div>
             </div>
           </SwiperSlide>
         );
