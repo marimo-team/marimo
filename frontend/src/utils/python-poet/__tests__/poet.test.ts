@@ -62,7 +62,7 @@ describe("Python Poet", () => {
       expect(literal.toCode()).toBe("");
 
       // When removeUndefined is false, undefined is converted to None
-      const literal2 = new Literal(undefined, false, false, false);
+      const literal2 = new Literal(undefined, { removeUndefined: false });
       expect(literal2.toCode()).toBe("None");
     });
 
@@ -70,8 +70,8 @@ describe("Python Poet", () => {
       const literal = new Literal(null);
       expect(literal.toCode()).toBe("None");
 
-      // When removeNull is false, null is converted to empty string
-      const literal2 = new Literal(null, false, true);
+      // When removeNull is true, null is converted to empty string
+      const literal2 = new Literal(null, { removeNull: true });
       expect(literal2.toCode()).toBe("");
     });
 
@@ -98,8 +98,8 @@ describe("Python Poet", () => {
 ]`);
     });
 
-    it("should remove undefined values", () => {
-      const literal = new Literal([1, undefined, 3], false, false, true);
+    it("should remove undefined values from list", () => {
+      const literal = new Literal([1, undefined, 3]);
       expect(literal.toCode()).toBe(`[
     1,
     3
@@ -128,8 +128,8 @@ describe("Python Poet", () => {
     it("should convert object to dict", () => {
       const literal = new Literal({ a: 1, b: 2 });
       expect(literal.toCode()).toBe(`{
-    a: 1,
-    b: 2
+    'a': 1,
+    'b': 2
 }`);
     });
 
@@ -140,12 +140,12 @@ describe("Python Poet", () => {
         f: [1, 2, 3],
       });
       expect(literal.toCode()).toBe(`{
-    a: 1,
-    b: {
-        c: 2,
-        d: None
+    'a': 1,
+    'b': {
+        'c': 2,
+        'd': None
     },
-    f: [
+    'f': [
         1,
         2,
         3
@@ -154,7 +154,7 @@ describe("Python Poet", () => {
     });
 
     it("should return direct field names when objectAsFieldNames is true", () => {
-      const literal = new Literal({ a: 1, b: 2 }, true);
+      const literal = new Literal({ a: 1, b: 2 }, { objectAsFieldNames: true });
       expect(literal.toCode()).toBe(`
     a=1,
     b=2
@@ -162,13 +162,16 @@ describe("Python Poet", () => {
     });
 
     it("should maintain nested object structure when objectAsFieldNames is true", () => {
-      const literal = new Literal({ a: 1, b: { c: 1, d: null, e: "5" } }, true);
+      const literal = new Literal(
+        { a: 1, b: { c: 1, d: null, e: "5" } },
+        { objectAsFieldNames: true },
+      );
       expect(literal.toCode()).toBe(`
     a=1,
     b={
-        c: 1,
-        d: None,
-        e: '5'
+        'c': 1,
+        'd': None,
+        'e': '5'
     }
 `);
     });

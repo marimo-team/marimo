@@ -41,33 +41,33 @@ export function generateAltairChart(
 
     if (encodings?.x) {
       encodeArgs.x = new FunctionCall("alt.X", [
-        new Literal(encodings.x, true),
+        new Literal(encodings.x, { objectAsFieldNames: true }),
       ]);
     }
 
     if (encodings?.y) {
       encodeArgs.y = new FunctionCall("alt.Y", [
-        new Literal(encodings.y, true),
+        new Literal(encodings.y, { objectAsFieldNames: true }),
       ]);
     }
 
     if (encodings?.color) {
       encodeArgs.color = new FunctionCall("alt.Color", [
-        new Literal(encodings.color, true),
+        new Literal(encodings.color, { objectAsFieldNames: true }),
       ]);
     }
 
     const hasRow = encodings && "row" in encodings;
     if (hasRow && encodings.row) {
       encodeArgs.row = new FunctionCall("alt.Row", [
-        new Literal(encodings.row, true),
+        new Literal(encodings.row, { objectAsFieldNames: true }),
       ]);
     }
 
     const hasColumn = encodings && "column" in encodings;
     if (hasColumn && encodings.column) {
       encodeArgs.column = new FunctionCall("alt.Column", [
-        new Literal(encodings.column, true),
+        new Literal(encodings.column, { objectAsFieldNames: true }),
       ]);
     }
 

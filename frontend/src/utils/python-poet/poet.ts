@@ -32,25 +32,34 @@ export class Variable implements PythonCode {
   }
 }
 
+interface LiteralOptions {
+  objectAsFieldNames?: boolean;
+  removeNull?: boolean;
+  removeUndefined?: boolean;
+}
+
 export class Literal implements PythonCode {
   constructor(
     public value: unknown,
-    public objectAsFieldNames = false,
-    public removeNull = false,
-    public removeUndefined = true,
+    public opts: LiteralOptions = {
+      objectAsFieldNames: false,
+      removeNull: false,
+      removeUndefined: true,
+    },
   ) {}
 
   toCode(): string {
     const EMPTY_VALUE = "";
+    const { objectAsFieldNames, removeNull, removeUndefined } = this.opts;
 
     if (this.value === undefined) {
-      if (this.removeUndefined) {
+      if (removeUndefined) {
         return EMPTY_VALUE;
       }
       return "None";
     }
     if (this.value === null) {
-      if (this.removeNull) {
+      if (removeNull) {
         return EMPTY_VALUE;
       }
       return "None";
@@ -61,6 +70,7 @@ export class Literal implements PythonCode {
     if (typeof this.value === "boolean") {
       return this.value ? "True" : "False";
     }
+
     if (Array.isArray(this.value)) {
       if (this.value.length === 0) {
         return "[]";
@@ -72,6 +82,7 @@ export class Literal implements PythonCode {
           .join(",\n"),
       )}\n]`;
     }
+
     if (typeof this.value === "object") {
       const entries = Object.entries(this.value as Record<string, unknown>);
       if (entries.length === 0) {
@@ -80,19 +91,24 @@ export class Literal implements PythonCode {
 
       const formatEntry = (key: string, value: unknown, separator: string) => {
         const code = new Literal(value).toCode();
-        return code === "" ? "" : `${key}${separator}${code}`;
+        if (code === "") {
+          return "";
+        }
+        // Quote keys when in dictionary mode (not objectAsFieldNames)
+        const formattedKey = objectAsFieldNames ? key : `'${key}'`;
+        return `${formattedKey}${separator}${code}`;
       };
 
       // When objectAsFieldNames is true, we use = as the separator (eg. field=value)
       // Otherwise, we use : (eg. field: value)
       const formattedEntries = entries
         .map(([key, value]) =>
-          formatEntry(key, value, this.objectAsFieldNames ? "=" : ": "),
+          formatEntry(key, value, objectAsFieldNames ? "=" : ": "),
         )
         .filter(Boolean)
         .join(",\n");
 
-      return this.objectAsFieldNames
+      return objectAsFieldNames
         ? `\n${indent(formattedEntries)}\n`
         : `{\n${indent(formattedEntries)}\n}`;
     }

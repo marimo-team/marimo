@@ -19,6 +19,7 @@ import { convertDataTypeToVega } from "./types";
 import type { ColorScheme } from "vega";
 import type { Aggregate } from "vega-lite/build/src/aggregate";
 import type { BinParams } from "vega-lite/build/src/bin";
+import type { Scale } from "vega-lite/build/src/scale";
 
 export function getBinEncoding(
   selectedDataType: SelectableDataType,
@@ -53,16 +54,18 @@ export function getBinEncoding(
   return binParams;
 }
 
-export function getColorInScale(formValues: ChartSchemaType) {
+export function getColorInScale(
+  formValues: ChartSchemaType,
+): Scale | undefined {
   const colorRange = formValues.color?.range;
   if (colorRange?.length) {
     return { range: colorRange };
   }
 
   const scheme = formValues.color?.scheme;
-  return scheme === DEFAULT_COLOR_SCHEME
-    ? undefined
-    : { scheme: scheme as ColorScheme };
+  if (scheme && scheme !== DEFAULT_COLOR_SCHEME) {
+    return { scheme: scheme as ColorScheme };
+  }
 }
 
 export function getColorEncoding(
