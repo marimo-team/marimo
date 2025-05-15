@@ -681,10 +681,7 @@ const DataTableComponent = ({
     if (maxColumns === "all") {
       return memoizedUnclampedFieldTypes;
     }
-    if (typeof maxColumns === "number") {
-      return memoizedUnclampedFieldTypes.slice(0, maxColumns);
-    }
-    return memoizedUnclampedFieldTypes;
+    return memoizedUnclampedFieldTypes.slice(0, maxColumns);
   }, [maxColumns, memoizedUnclampedFieldTypes]);
 
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
