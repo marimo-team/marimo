@@ -8,6 +8,7 @@ exports[`create vega spec > should create and augment a spec 1`] = `
     "values": [],
   },
   "encoding": {
+    "color": undefined,
     "column": undefined,
     "row": undefined,
     "tooltip": undefined,
