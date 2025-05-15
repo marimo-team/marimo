@@ -5,7 +5,6 @@ import { DataTable } from "../../components/data-table/data-table";
 import {
   generateColumns,
   inferFieldTypes,
-  MAX_COLUMNS,
 } from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -116,7 +115,7 @@ interface Data<T> {
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   totalColumns: number;
-  maxColumns?: number | "None";
+  maxColumns?: number | "all";
   hasStableRowId: boolean;
   lazy: boolean;
 }
@@ -184,7 +183,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         )
         .nullish(),
       totalColumns: z.number(),
-      maxColumns: z.union([z.number(), z.literal("None")]).optional(),
+      maxColumns: z.union([z.number(), z.literal("all")]).optional(),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       // Whether to load the data lazily.
@@ -678,18 +677,15 @@ const DataTableComponent = ({
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);
 
-  // Do not clamp field types if maxColumns is "None". Display all columns.
-  const maxColumnsToUse =
-    maxColumns === "None"
-      ? undefined // No limit case
-      : typeof maxColumns === "number"
-        ? maxColumns
-        : MAX_COLUMNS; // Set to default if invalid or undefined
-
-  const memoizedClampedFieldTypes = useMemo(
-    () => memoizedUnclampedFieldTypes.slice(0, maxColumnsToUse),
-    [maxColumnsToUse, memoizedUnclampedFieldTypes],
-  );
+  const memoizedClampedFieldTypes = useMemo(() => {
+    if (maxColumns === "all") {
+      return memoizedUnclampedFieldTypes;
+    }
+    if (typeof maxColumns === "number") {
+      return memoizedUnclampedFieldTypes.slice(0, maxColumns);
+    }
+    return memoizedUnclampedFieldTypes;
+  }, [maxColumns, memoizedUnclampedFieldTypes]);
 
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);

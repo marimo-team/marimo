@@ -440,7 +440,7 @@ class table(
         # Holds the original data
         self._manager = get_table_manager(data)
         self._max_columns = max_columns
-        max_columns_arg = "None" if max_columns is None else max_columns
+        max_columns_arg = "all" if max_columns is None else max_columns
 
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows
