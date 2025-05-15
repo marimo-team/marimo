@@ -440,6 +440,7 @@ class table(
         # Holds the original data
         self._manager = get_table_manager(data)
         self._max_columns = max_columns
+        max_columns_arg = "None" if max_columns is None else max_columns
 
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows
@@ -595,6 +596,7 @@ class table(
                 "data": search_result_data,
                 "total-rows": total_rows,
                 "total-columns": num_columns,
+                "max-columns": max_columns_arg,
                 "banner-text": self._get_banner_text(),
                 "pagination": pagination,
                 "page-size": page_size,

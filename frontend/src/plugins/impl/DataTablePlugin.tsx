@@ -116,6 +116,7 @@ interface Data<T> {
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   totalColumns: number;
+  maxColumns?: number | null | "None";
   hasStableRowId: boolean;
   lazy: boolean;
 }
@@ -183,6 +184,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         )
         .nullish(),
       totalColumns: z.number(),
+      maxColumns: z
+        .union([z.number(), z.literal("None")])
+        .nullable()
+        .optional(),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       // Whether to load the data lazily.
@@ -606,6 +611,7 @@ const DataTableComponent = ({
   label,
   data,
   totalRows,
+  maxColumns,
   pagination,
   selection,
   value,
@@ -674,9 +680,21 @@ const DataTableComponent = ({
 
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);
+
+  let maxColumnsToUse = MAX_COLUMNS;
+  if (
+    maxColumns === "None" ||
+    (maxColumns && maxColumns > memoizedUnclampedFieldTypes.length)
+  ) {
+    // do not slice the field types
+    maxColumnsToUse = memoizedUnclampedFieldTypes.length;
+  } else if (maxColumns) {
+    maxColumnsToUse = maxColumns;
+  }
+
   const memoizedClampedFieldTypes = useMemo(
-    () => memoizedUnclampedFieldTypes.slice(0, MAX_COLUMNS),
-    [memoizedUnclampedFieldTypes],
+    () => memoizedUnclampedFieldTypes.slice(0, maxColumnsToUse),
+    [maxColumnsToUse, memoizedUnclampedFieldTypes],
   );
 
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
