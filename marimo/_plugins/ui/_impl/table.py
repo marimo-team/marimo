@@ -99,8 +99,8 @@ class ColumnSummaries:
 
 DEFAULT_MAX_COLUMNS = 50
 
-MaxColumnsNotProvided = Literal["max_columns_not_provided"]
-MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "max_columns_not_provided"
+MaxColumnsNotProvided = Literal["inherit"]
+MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
 
 
 @dataclass(frozen=True)
