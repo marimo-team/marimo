@@ -116,7 +116,7 @@ interface Data<T> {
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   totalColumns: number;
-  maxColumns?: number | null | "None";
+  maxColumns?: number | "None";
   hasStableRowId: boolean;
   lazy: boolean;
 }
@@ -184,10 +184,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         )
         .nullish(),
       totalColumns: z.number(),
-      maxColumns: z
-        .union([z.number(), z.literal("None")])
-        .nullable()
-        .optional(),
+      maxColumns: z.union([z.number(), z.literal("None")]).optional(),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       // Whether to load the data lazily.

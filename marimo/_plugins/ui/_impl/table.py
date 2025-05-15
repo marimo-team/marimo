@@ -962,8 +962,8 @@ class table(
                 - sort: Optional sorting configuration
                 - filters: Optional list of filter conditions
                 - limit: Optional row limit
-                - max_columns: Optional max number of columns to display. If
-                  `MAX_COLUMNS_NOT_PROVIDED`, default to table's max columns.
+                - max_columns: Optional max number of columns. None means show all columns,
+                  MAX_COLUMNS_NOT_PROVIDED means use the table's max_columns setting.
 
         Returns:
             SearchTableResponse: Response containing:
