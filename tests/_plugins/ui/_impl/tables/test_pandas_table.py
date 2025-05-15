@@ -1083,3 +1083,33 @@ class TestPandasTableManager(unittest.TestCase):
         # Large integers should be converted to strings
         assert json_data[1]["A"] == "9007199254740992"
         assert json_data[1]["B"] == "-9007199254740992"
+
+    def test_to_json_uuid_encoding(self) -> None:
+        import uuid
+
+        import pandas as pd
+
+        # Create data with UUIDs that might cause UTF-8 encoding issues
+        data = pd.DataFrame(
+            {
+                "id": [
+                    uuid.UUID("00000000-0000-0000-0000-000000000000"),
+                    uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+                    uuid.UUID("123e4567-e89b-12d3-a456-426614174000"),
+                ],
+                "name": ["test1", "test2", "test3"],
+            }
+        )
+        manager = self.factory.create()(data)
+
+        # This should not raise any encoding errors
+        json_data = json.loads(manager.to_json())
+
+        # Verify the data was properly encoded
+        assert len(json_data) == 3
+        assert json_data[0]["id"] == "00000000-0000-0000-0000-000000000000"
+        assert json_data[1]["id"] == "ffffffff-ffff-ffff-ffff-ffffffffffff"
+        assert json_data[2]["id"] == "123e4567-e89b-12d3-a456-426614174000"
+        assert json_data[0]["name"] == "test1"
+        assert json_data[1]["name"] == "test2"
+        assert json_data[2]["name"] == "test3"

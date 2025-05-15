@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.16"
+__generated_with = "0.13.9"
 app = marimo.App(width="medium")
 
 
@@ -71,9 +71,45 @@ def _(alt, df_lib_select, mo, timedelta, to_display):
         .properties(width=800, height=200)
     )
     chart = mo.ui.altair_chart(bars)
+    return bars, chart
 
-    mo.vstack([bars, chart])
-    return bars, chart, df_buckets, df_lib
+
+@app.cell
+def _(bars):
+    bars
+    return
+
+
+@app.cell
+def _(chart):
+    chart
+    return
+
+
+@app.cell
+def _(alt, bars, mo):
+    with alt.data_transformers.enable("marimo_json"):
+        mo.output.replace(bars)
+    return
+
+
+@app.cell
+def _(alt, bars, mo):
+    with alt.data_transformers.enable("marimo_csv"):
+        mo.output.replace(bars)
+    return
+
+
+@app.cell
+def _(bars, mo):
+    mo.ui.altair_chart(bars)
+    return
+
+
+@app.cell
+def _(bars, mo):
+    mo.iframe(bars.to_html())
+    return
 
 
 if __name__ == "__main__":

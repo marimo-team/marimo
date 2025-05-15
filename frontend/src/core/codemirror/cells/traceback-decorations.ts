@@ -56,7 +56,16 @@ class ErrorHighlighter implements PluginValue {
     );
 
     this.unsubscribe = errorsObservable.sub((errors) => {
+      // Prev length
+      const prevLength = this.decorations.size;
       this.decorations = createErrorDecorations(view.state, errors);
+
+      if (prevLength !== this.decorations.size) {
+        // Force a re-render
+        view.dispatch({
+          userEvent: "marimo.error-decoration-update",
+        });
+      }
     });
   }
 

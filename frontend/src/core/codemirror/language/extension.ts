@@ -134,6 +134,10 @@ function updateLanguageAdapterAndCode(
   let finalCode: string;
   if (opts.keepCodeAsIs) {
     finalCode = code;
+    if (currentLanguage.type !== nextLanguage.type) {
+      // Set the metadata to the default metadata
+      metadata = { ...nextLanguage.defaultMetadata };
+    }
   } else {
     const [codeOut, cursorDiff1] = currentLanguage.transformOut(code, metadata);
     const [newCode, cursorDiff2, metadataOut] =

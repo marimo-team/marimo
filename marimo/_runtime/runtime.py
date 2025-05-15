@@ -548,6 +548,7 @@ class Kernel:
         self._post_execution_hooks.append(render_toplevel_defs)
 
         self._globals_lock = threading.RLock()
+        self._state_lock = threading.RLock()
         self._completion_worker_started = False
 
         self.debugger = debugger_override
@@ -1403,9 +1404,11 @@ class Kernel:
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
         await runner.run_all()
-        cells_with_stale_state = runner.resolve_state_updates(
-            self.state_updates
-        )
+        with self._state_lock:
+            cells_with_stale_state = runner.resolve_state_updates(
+                self.state_updates
+            )
+            self.state_updates.clear()
         self.state_updates.clear()
         return cells_with_stale_state
 
@@ -1417,9 +1420,16 @@ class Kernel:
         # store the state and the currently executing cell
         ctx = get_context()
         assert ctx.execution_context is not None
-        self.state_updates[state] = ctx.execution_context.cell_id
-        # TODO(akshayka): Send VariableValues message for any globals
-        # bound to this state object (just like UI elements)
+        cell_id = ctx.execution_context.cell_id
+        with self._state_lock:
+            self.state_updates[state] = cell_id
+        to_update = self.update_stateful_values(
+            ctx.state_registry.bound_names(state), state._value
+        )
+        if self.reactive_execution_mode == "autorun":
+            # If autorun, run the cells that depend on the state
+            self.graph.set_stale(to_update)
+            self._execute_stale_cells_callback()
 
     @kernel_tracer.start_as_current_span("delete_cell")
     async def delete_cell(self, request: DeleteCellRequest) -> None:
@@ -1770,43 +1780,14 @@ class Kernel:
                 else:
                     updated_components.append(component)
 
-            bound_names = (
+            bound_names = {
                 name
                 for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
+            }
+            referring_cells.update(
+                self.update_stateful_values(bound_names, value)
             )
-
-            variable_values: list[VariableValue] = []
-            for name in bound_names:
-                # TODO update variable values even for namespaces? lenses? etc
-                variable_values.append(
-                    VariableValue(name=name, value=component)
-                )
-                try:
-                    # subtracting self.graph.definitions[name]: never rerun the
-                    # cell that created the name
-                    referring_cells.update(
-                        self.graph.get_referring_cells(name, language="python")
-                        - self.graph.get_defining_cells(name)
-                    )
-                except Exception:
-                    # Internal marimo error
-                    sys.stderr.write(
-                        "An exception was raised when finding cells that "
-                        f"refer to a UIElement value, for bound name {name}. "
-                        "This is a bug in marimo. "
-                        "Please copy the below traceback and paste it in an "
-                        "issue: https://github.com/marimo-team/marimo/issues\n"
-                    )
-                    tmpio = io.StringIO()
-                    traceback.print_exc(file=tmpio)
-                    tmpio.seek(0)
-                    write_traceback(tmpio.read())
-                    # Entering undefined behavior territory ...
-                    continue
-
-            if variable_values:
-                VariableValues(variables=variable_values).broadcast()
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
@@ -1854,6 +1835,41 @@ class Kernel:
 
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
+
+    def update_stateful_values(
+        self, bound_names: set[str], value: Any
+    ) -> set[CellId_t]:
+        variable_values: list[VariableValue] = []
+        referring_cells: set[CellId_t] = set()
+        for name in bound_names:
+            # TODO update variable values even for namespaces? lenses? etc
+            variable_values.append(VariableValue(name=name, value=value))
+            try:
+                # subtracting self.graph.definitions[name]: never rerun the
+                # cell that created the name
+                referring_cells |= self.graph.get_referring_cells(
+                    name, language="python"
+                ) - self.graph.get_defining_cells(name)
+            except Exception:
+                # Internal marimo error
+                sys.stderr.write(
+                    "An exception was raised when finding cells that "
+                    f"refer to a UIElement value, for bound name {name}. "
+                    "This is a bug in marimo. "
+                    "Please copy the below traceback and paste it in an "
+                    "issue: https://github.com/marimo-team/marimo/issues\n"
+                )
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
+                # Entering undefined behavior territory ...
+                continue
+
+        if variable_values:
+            VariableValues(variables=variable_values).broadcast()
+
+        return referring_cells
 
     @kernel_tracer.start_as_current_span("function_call_request")
     async def function_call_request(

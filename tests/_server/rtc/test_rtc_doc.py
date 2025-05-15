@@ -1,13 +1,16 @@
 import asyncio
+import sys
 from collections.abc import AsyncGenerator
 from typing import cast
 
 import pytest
-from loro import LoroDoc, LoroText
 
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.rtc.doc import LoroDocManager
 from marimo._types.ids import CellId_t
+
+if sys.version_info >= (3, 11):
+    from loro import LoroDoc, LoroText
 
 doc_manager = LoroDocManager()
 
@@ -26,6 +29,7 @@ async def setup_doc_manager() -> AsyncGenerator[None, None]:
     doc_manager.loro_docs_cleaners.clear()
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_quick_reconnection(setup_doc_manager: None) -> None:
     """Test that quick reconnection properly handles cleanup task cancellation"""
     del setup_doc_manager
@@ -61,6 +65,7 @@ async def test_quick_reconnection(setup_doc_manager: None) -> None:
     )  # Original client + reconnected client
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_two_users_sync(setup_doc_manager: None) -> None:
     """Test that two users can connect and sync text properly without duplicates"""
     del setup_doc_manager
@@ -106,6 +111,7 @@ async def test_two_users_sync(setup_doc_manager: None) -> None:
     assert lang_text_typed.to_string() == "python"
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_concurrent_doc_creation(setup_doc_manager: None) -> None:
     """Test concurrent doc creation doesn't cause issues"""
     del setup_doc_manager
@@ -124,6 +130,7 @@ async def test_concurrent_doc_creation(setup_doc_manager: None) -> None:
     assert len(doc_manager.loro_docs) == 1
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_concurrent_client_operations(
     setup_doc_manager: None,
 ) -> None:
@@ -150,6 +157,7 @@ async def test_concurrent_client_operations(
     assert len(doc_manager.loro_docs_clients[file_key]) == 0
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_cleanup_task_management(setup_doc_manager: None) -> None:
     """Test cleanup task management and cancellation"""
     del setup_doc_manager
@@ -181,6 +189,7 @@ async def test_cleanup_task_management(setup_doc_manager: None) -> None:
     await doc_manager.remove_client(file_key, new_queue)
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_broadcast_update(setup_doc_manager: None) -> None:
     """Test broadcast update functionality"""
     del setup_doc_manager
@@ -206,6 +215,7 @@ async def test_broadcast_update(setup_doc_manager: None) -> None:
             assert await queue.get() == message
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_remove_nonexistent_doc(setup_doc_manager: None) -> None:
     """Test removing a doc that doesn't exist"""
     del setup_doc_manager
@@ -216,6 +226,7 @@ async def test_remove_nonexistent_doc(setup_doc_manager: None) -> None:
     assert file_key not in doc_manager.loro_docs_cleaners
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_remove_nonexistent_client(setup_doc_manager: None) -> None:
     """Test removing a client that doesn't exist"""
     del setup_doc_manager
@@ -225,6 +236,7 @@ async def test_remove_nonexistent_client(setup_doc_manager: None) -> None:
     assert file_key not in doc_manager.loro_docs_clients
 
 
+@pytest.mark.skipif("sys.version_info < (3, 11)")
 async def test_concurrent_doc_removal(setup_doc_manager: None) -> None:
     """Test concurrent doc removal doesn't cause issues"""
     del setup_doc_manager
@@ -240,3 +252,84 @@ async def test_concurrent_doc_removal(setup_doc_manager: None) -> None:
     assert file_key not in doc_manager.loro_docs
     assert file_key not in doc_manager.loro_docs_clients
     assert file_key not in doc_manager.loro_docs_cleaners
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="Python 3.10+ required for Barrier"
+)
+async def test_prevent_lock_deadlock(setup_doc_manager: None) -> None:
+    """Test that our deadlock prevention measures work correctly.
+
+    This test simulates the scenario that could cause a deadlock:
+    1. A client disconnects, starting the cleanup process
+    2. Another operation acquires the lock before cleanup timer finishes
+    3. Cleanup timer expires and tries to acquire the lock
+
+    The fixed implementation should handle this without deadlocking.
+    """
+    del setup_doc_manager
+    file_key = MarimoFileKey("test_file")
+
+    # Create a doc and add a client
+    doc = LoroDoc()
+    doc_manager.loro_docs[file_key] = doc
+    queue = asyncio.Queue[bytes]()
+    doc_manager.add_client_to_doc(file_key, queue)
+
+    # Set a very short cleanup timeout for testing
+    original_timeout = 60.0
+    cleanup_timeout = 0.1  # 100ms
+
+    # Create a barrier to coordinate tasks
+    barrier = asyncio.Barrier(2)
+    long_operation_done = asyncio.Event()
+
+    # Task 1: Remove client, which will schedule cleanup with short timeout
+    async def remove_client_task() -> None:
+        await doc_manager.remove_client(file_key, queue)
+        # Wait at barrier to synchronize with the long operation
+        await barrier.wait()
+        # Wait for long operation to complete
+        await long_operation_done.wait()
+
+    # Task 2: Simulate a long operation that holds the lock
+    async def long_lock_operation() -> None:
+        # Wait for remove_client to schedule the cleanup
+        await barrier.wait()
+
+        # Acquire the lock and hold it for longer than the cleanup timeout
+        async with doc_manager.loro_docs_lock:
+            # Sleep while holding the lock (longer than cleanup timeout)
+            await asyncio.sleep(cleanup_timeout * 2)
+
+        # Signal that we're done holding the lock
+        long_operation_done.set()
+
+    # Modified test version of _clean_loro_doc with shorter timeout
+    original_clean_loro_doc = doc_manager._clean_loro_doc
+
+    async def test_clean_loro_doc(
+        file_key: MarimoFileKey, timeout: float = original_timeout
+    ) -> None:
+        del timeout
+        # Override timeout with our test value
+        await original_clean_loro_doc(file_key, cleanup_timeout)
+
+    # Override the method for this test
+    doc_manager._clean_loro_doc = test_clean_loro_doc
+
+    try:
+        # Run both tasks simultaneously
+        task1 = asyncio.create_task(remove_client_task())
+        task2 = asyncio.create_task(long_lock_operation())
+
+        # This should complete without deadlocking
+        await asyncio.gather(task1, task2)
+
+        # Verify the doc was properly cleaned up
+        assert file_key not in doc_manager.loro_docs
+        assert file_key not in doc_manager.loro_docs_clients
+        assert file_key not in doc_manager.loro_docs_cleaners
+    finally:
+        # Restore the original method
+        doc_manager._clean_loro_doc = original_clean_loro_doc

@@ -57,6 +57,7 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
         align === "left" && "flex-row items-center gap-x-1.5 pr-2",
         align === "right" && "flex-row-reverse items-center gap-x-1.5 pr-2",
         fullWidth && "block space-y-2",
+        !fullWidth && "w-fit",
         className,
       )}
     >

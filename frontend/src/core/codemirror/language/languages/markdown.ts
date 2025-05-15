@@ -61,6 +61,9 @@ export class MarkdownLanguageAdapter
 {
   readonly type = "markdown";
   readonly defaultCode = 'mo.md(r"""\n""")';
+  readonly defaultMetadata: MarkdownLanguageAdapterMetadata = {
+    quotePrefix: "r",
+  };
 
   static fromMarkdown(markdown: string) {
     return `mo.md(r"""\n${markdown}\n""")`;
@@ -71,9 +74,7 @@ export class MarkdownLanguageAdapter
   ): [string, number, MarkdownLanguageAdapterMetadata] {
     pythonCode = pythonCode.trim();
 
-    const metadata: MarkdownLanguageAdapterMetadata = {
-      quotePrefix: "r",
-    };
+    const metadata = { ...this.defaultMetadata };
 
     // empty string
     if (pythonCode === "") {
@@ -208,6 +209,10 @@ export class MarkdownLanguageAdapter
 
     // Only activate completions for f-strings
     const isFStringActive = () => {
+      if (!view) {
+        return true;
+      }
+
       const metadata = view?.state.field(languageMetadataField);
       if (metadata === undefined) {
         return false;

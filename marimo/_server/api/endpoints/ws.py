@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -44,6 +45,10 @@ if TYPE_CHECKING:
     from loro import DiffEvent
 
 LOGGER = _loggers.marimo_logger()
+
+
+LORO_ALLOWED = sys.version_info >= (3, 11)
+
 
 router = APIRouter()
 
@@ -118,8 +123,11 @@ async def ws_sync(
     """
     Websocket endpoint for LoroDoc synchronization
     """
-    if not DependencyManager.loro.has():
-        LOGGER.warning("RTC: Loro is not installed, closing websocket")
+    if not (LORO_ALLOWED and DependencyManager.loro.has()):
+        if not LORO_ALLOWED:
+            LOGGER.warning("RTC: Python version is not supported")
+        else:
+            LOGGER.warning("RTC: Loro is not installed, closing websocket")
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_LORO_NOT_INSTALLED"
         )
@@ -294,7 +302,7 @@ class WebsocketHandler(SessionConsumer):
 
             # If RTC is enabled, initialize the LoroDoc with cell code
             if self.rtc_enabled and self.mode == SessionMode.EDIT:
-                if not DependencyManager.loro.has():
+                if not (LORO_ALLOWED and DependencyManager.loro.has()):
                     LOGGER.warning(
                         "RTC: Loro is not installed, disabling real-time collaboration"
                     )
@@ -722,11 +730,11 @@ class WebsocketHandler(SessionConsumer):
             # so we can just store this in memory.
             # We still want to check for updates (which are debounced 24 hours)
             # but don't keep toasting.
-            global HAS_TOASTED
-            if HAS_TOASTED:
+            global has_toasted
+            if has_toasted:
                 return
 
-            HAS_TOASTED = True
+            has_toasted = True
 
             title = f"Update available {current_version} → {latest_version}"
             release_url = "https://github.com/marimo-team/marimo/releases"
@@ -755,4 +763,4 @@ class WebsocketHandler(SessionConsumer):
         self._replay_previous_session(session)
 
 
-HAS_TOASTED = False
+has_toasted = False

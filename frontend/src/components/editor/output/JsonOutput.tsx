@@ -15,7 +15,6 @@ import {
 
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";
-import { TextOutput } from "./TextOutput";
 import { VideoOutput } from "./VideoOutput";
 import { logNever } from "../../../utils/assertNever";
 import { useTheme } from "../../../theme/useTheme";
@@ -309,7 +308,7 @@ const JSON_VALUE_TYPES = [
 function leafData(leaf: string): string {
   const delimIndex = leaf.indexOf(":");
   if (delimIndex === -1) {
-    throw new Error("Invalid leaf");
+    return leaf;
   }
   return leaf.slice(delimIndex + 1);
 }
@@ -325,13 +324,12 @@ function leafData(leaf: string): string {
  */
 function renderLeaf(
   leaf: string,
-  render: (data: string) => JSX.Element,
-): JSX.Element {
-  try {
+  render: (data: string) => React.ReactNode,
+): React.ReactNode {
+  if (leaf.includes(":")) {
     return render(leafData(leaf));
-  } catch {
-    return <TextOutput text={`Invalid leaf: ${leaf}`} />;
   }
+  return <span>{leaf}</span>;
 }
 
 const MIME_PREFIXES = Object.keys(LEAF_RENDERERS);

@@ -35,7 +35,7 @@ dependencies = [
     # websockets for use with starlette, and for lsp
     "websockets >= 10.0.0",
     # loro for collaborative editing
-    "loro>=1.5.0",
+    "loro>=1.5.0; python_version >= '3.11'",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.11'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
@@ -222,7 +222,7 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-asyncio~=0.26.0",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -250,7 +250,7 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-asyncio~=0.26.0",
     "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
@@ -540,11 +540,11 @@ vimrc = "configs/.vimrc"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
-nodejs = "20.*"
-pnpm = "9.*"
+nodejs = "22.*"
+pnpm = "10.*"
 hatch = ">=1.14.0,<2"
 make = ">=4.4.1,<5"
 pre_commit = ">=4.2.0,<5"

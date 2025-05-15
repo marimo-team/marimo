@@ -22,7 +22,7 @@ A non-exhaustive list of settings:
 - Outputs above or below code cells
 - [Disable/enable autorun](../reactivity.md#configuring-how-marimo-runs-cells)
 - Package installation
-- Vim keybindings
+- [Vim keybindings](#vim-keybindings)
 - Dark mode
 - Auto-save
 - Auto-complete

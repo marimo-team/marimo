@@ -20,6 +20,7 @@ import type { CellId } from "@/core/cells/ids";
 export interface LanguageAdapter<M = Record<string, any>> {
   readonly type: LanguageAdapterType;
   readonly defaultCode: string;
+  readonly defaultMetadata: Readonly<M>;
 
   transformIn(code: string): [string, number, M];
   transformOut(code: string, metadata: M): [string, number];

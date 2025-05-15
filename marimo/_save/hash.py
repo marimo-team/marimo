@@ -30,6 +30,7 @@ from marimo._runtime.primitives import (
 )
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import SetFunctor, State
+from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType
 from marimo._types.ids import CellId_t
 
@@ -261,7 +262,7 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
     try:
         return type_sign(common_container_to_bytes(value), label)
     # Fallback to raw state for eval in content hash.
-    except TypeError:
+    except (TypeError, ValueError):
         return value
 
 
@@ -329,10 +330,13 @@ class BlockHasher:
            these methods is that Nix sandboxes all execution, preventing external file access, and
            internet. Sources of non-determinism are not accounted for in this implementation, and are
            left to the user.
+           NB. The ContextExecutionPath is an extended case of ExecutionPath hashing, just utilizing
+           additional context.
 
-        In both cases, as long as the module is deterministic, the output will be deterministic. NB.
-        The ContextExecutionPath is an extended case of ExecutionPath hashing, just utilizing
-        additional context.
+        In these cases, as long as the module is deterministic, the output will be deterministic.
+        A side effects api is implemented to account for "uncontrollable external state" when
+        utilizing builtin functions like `mo.watch.file`, but the onus is put on the user currently
+        to manage external state.
 
         For optimization, the content hash is performed after the execution cache- however the content
         references are collected first. This deferred content hash is useful in cases like repeated
@@ -660,7 +664,14 @@ class BlockHasher:
             if value is not None and (
                 ref not in scope or isinstance(scope[ref], State)
             ):
-                scope[ref] = attempt_signed_bytes(value(), "state")
+                if isinstance(value, PathState):
+                    # Path state only contains the path as value, it should
+                    # contain the path contents.
+                    scope[ref] = attempt_signed_bytes(
+                        repr(value).encode(), "pathstate"
+                    )
+                else:
+                    scope[ref] = attempt_signed_bytes(value(), "state")
                 if ctx:
                     for state_name in ctx.state_registry.bound_names(value):
                         scope[state_name] = scope[ref]
@@ -924,7 +935,13 @@ class BlockHasher:
         ref_cells = set().union(
             *[self.graph.definitions.get(ref, set()) for ref in refs]
         )
-        return ancestors & ref_cells
+        cell_basis = ancestors & ref_cells
+        return (
+            set().union(
+                *[self.graph.ancestors(cell_id) for cell_id in cell_basis]
+            )
+            | cell_basis
+        )
 
 
 def cache_attempt_from_hash(

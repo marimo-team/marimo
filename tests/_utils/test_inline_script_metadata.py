@@ -7,6 +7,7 @@ from marimo._utils.inline_script_metadata import (
     _pyproject_toml_to_requirements_txt,
     is_marimo_dependency,
 )
+from marimo._utils.platform import is_windows
 from marimo._utils.scripts import read_pyproject_from_script
 
 
@@ -135,6 +136,7 @@ def test_pyproject_toml_to_requirements_txt_with_url_sources():
     ]
 
 
+@pytest.mark.skipif(is_windows(), reason="only testing posix paths")
 def test_pyproject_toml_to_requirements_txt_with_local_path():
     pyproject = {
         "dependencies": [
@@ -157,6 +159,7 @@ def test_pyproject_toml_to_requirements_txt_with_local_path():
     ]
 
 
+@pytest.mark.skipif(is_windows(), reason="only testing posix paths")
 def test_pyproject_toml_to_requirements_txt_with_relative_path():
     pyproject = {
         "dependencies": [
