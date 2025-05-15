@@ -678,7 +678,7 @@ const DataTableComponent = ({
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);
 
-  // Do not clamp number of columns if maxColumns is "None"
+  // Do not clamp field types if maxColumns is "None". Display all columns.
   const maxColumnsToUse =
     maxColumns === "None" ? undefined : maxColumns || MAX_COLUMNS;
 
