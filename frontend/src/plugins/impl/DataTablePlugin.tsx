@@ -680,7 +680,11 @@ const DataTableComponent = ({
 
   // Do not clamp field types if maxColumns is "None". Display all columns.
   const maxColumnsToUse =
-    maxColumns === "None" ? undefined : maxColumns || MAX_COLUMNS;
+    maxColumns === "None"
+      ? undefined // No limit case
+      : typeof maxColumns === "number"
+        ? maxColumns
+        : MAX_COLUMNS; // Set to default if invalid or undefined
 
   const memoizedClampedFieldTypes = useMemo(
     () => memoizedUnclampedFieldTypes.slice(0, maxColumnsToUse),
