@@ -678,16 +678,9 @@ const DataTableComponent = ({
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);
 
-  let maxColumnsToUse = MAX_COLUMNS;
-  if (
-    maxColumns === "None" ||
-    (maxColumns && maxColumns > memoizedUnclampedFieldTypes.length)
-  ) {
-    // do not slice the field types
-    maxColumnsToUse = memoizedUnclampedFieldTypes.length;
-  } else if (maxColumns) {
-    maxColumnsToUse = maxColumns;
-  }
+  // Do not clamp number of columns if maxColumns is "None"
+  const maxColumnsToUse =
+    maxColumns === "None" ? undefined : maxColumns || MAX_COLUMNS;
 
   const memoizedClampedFieldTypes = useMemo(
     () => memoizedUnclampedFieldTypes.slice(0, maxColumnsToUse),
