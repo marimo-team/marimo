@@ -375,4 +375,33 @@ describe("generateAltairChart", () => {
       )"
     `);
   });
+
+  it("should handle complex x/y axis", () => {
+    const spec = createSpec({
+      mark: Mocks.marks.bar,
+      encoding: {
+        x: Mocks.xAxisFull,
+        y: Mocks.yAxisFull,
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar(
+          opacity=0.8,
+          color='red'
+      )
+      .encode(
+          x=alt.X(field='category', axis={
+              'title': 'X Axis'
+          }),
+          y=alt.Y(field='value', axis={
+              'title': 'Y Axis'
+          })
+      )"
+    `);
+  });
 });
