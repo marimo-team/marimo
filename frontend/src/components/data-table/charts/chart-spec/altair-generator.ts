@@ -21,16 +21,23 @@ export function generateAltairChart(
 
   const hasMarkProperty = "mark" in spec;
   if (hasMarkProperty) {
-    const markSpec = spec.mark;
     const markType =
-      typeof markSpec === "string"
-        ? markSpec
-        : "type" in markSpec
-          ? markSpec.type
-          : undefined;
+      typeof spec.mark === "string" ? spec.mark : spec.mark?.type;
 
     if (markType) {
-      code = code.chain(`mark_${markType}`, []);
+      const markProps =
+        typeof spec.mark === "object" && "type" in spec.mark
+          ? Object.fromEntries(
+              Object.entries(spec.mark)
+                .filter(([key]) => key !== "type")
+                .map(([key, value]) => [key, new Literal(value)]),
+            )
+          : {};
+
+      code = code.chain(
+        `mark_${markType}`,
+        Object.keys(markProps).length > 0 ? markProps : [],
+      );
     }
   }
 
@@ -54,6 +61,12 @@ export function generateAltairChart(
     if (encodings?.color) {
       encodeArgs.color = new FunctionCall("alt.Color", [
         new Literal(encodings.color, { objectAsFieldNames: true }),
+      ]);
+    }
+
+    if (encodings?.theta) {
+      encodeArgs.theta = new FunctionCall("alt.Theta", [
+        new Literal(encodings.theta, { objectAsFieldNames: true }),
       ]);
     }
 
@@ -94,6 +107,21 @@ export function generateAltairChart(
     }
 
     code = code.chain("resolve_scale", axisArgs);
+  }
+
+  const propertiesArgs: Record<string, PythonCode> = {};
+  if (spec.title) {
+    propertiesArgs.title = new Literal(spec.title);
+  }
+  if ("height" in spec) {
+    propertiesArgs.height = new Literal(spec.height);
+  }
+  if ("width" in spec) {
+    propertiesArgs.width = new Literal(spec.width);
+  }
+
+  if (Object.keys(propertiesArgs).length > 0) {
+    code = code.chain("properties", propertiesArgs);
   }
 
   return code;

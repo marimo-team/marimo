@@ -25,7 +25,7 @@ describe("getAxisEncoding", () => {
     expect(result).toEqual({
       aggregate: "count",
       type: "quantitative",
-      bin: { bin: true, step: 10 },
+      bin: { step: 10 },
       title: undefined,
       stack: true,
     });
@@ -204,19 +204,26 @@ describe("getTooltips", () => {
 
     const result = getTooltips({
       general: {
-        xColumn: { field: "x", selectedDataType: "string" },
+        xColumn: {
+          field: "x",
+          selectedDataType: "string",
+          sort: "ascending",
+          timeUnit: "year",
+          aggregate: "sum",
+        },
         yColumn: { field: "y", selectedDataType: "number" },
       },
       tooltips: autoTooltips,
+      xAxis: { label: "X Axis" },
     });
 
     const expected = [
       {
         field: "x",
         format: undefined,
-        timeUnit: undefined,
-        title: undefined,
-        aggregate: undefined,
+        timeUnit: "year",
+        title: "X Axis",
+        aggregate: "sum",
       },
       {
         field: "y",

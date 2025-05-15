@@ -61,7 +61,8 @@ import { IconWithText } from "./layouts";
 import { useChartFormContext } from "../context";
 import type { NumberFieldProps } from "@/components/ui/number-field";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
-import type { ChartSchemaType } from "../schemas";
+import type { BinSchema, ChartSchemaType } from "../schemas";
+import type { z } from "zod";
 
 const CLEAR_VALUE = "__clear__";
 type FieldName = Path<ChartSchemaType>;
@@ -74,6 +75,7 @@ export interface Field {
 export interface Tooltip {
   field: string;
   type: DataType;
+  bin?: z.infer<typeof BinSchema>;
 }
 
 export const ColumnSelector = ({

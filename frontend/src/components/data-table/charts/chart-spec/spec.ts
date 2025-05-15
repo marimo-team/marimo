@@ -2,11 +2,11 @@
 import type { TopLevelSpec } from "vega-lite";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type {
-  BinSchema,
   AxisSchema,
   RowFacet,
   ColumnFacet,
   ChartSchemaType,
+  BinSchema,
 } from "../schemas";
 import { ChartType } from "../types";
 import type { z } from "zod";
@@ -36,6 +36,8 @@ import type { Resolve } from "vega-lite/build/src/resolve";
  */
 
 export type ErrorMessage = TypedString<"ErrorMessage">;
+export const X_AXIS_REQUIRED = "X-axis column is required" as ErrorMessage;
+export const Y_AXIS_REQUIRED = "Y-axis column is required" as ErrorMessage;
 
 export function createSpecWithoutData(
   chartType: ChartType,
@@ -60,10 +62,10 @@ export function createSpecWithoutData(
 
   // Validate required fields
   if (!isFieldSet(xColumn?.field)) {
-    return "X-axis column is required" as ErrorMessage;
+    return X_AXIS_REQUIRED;
   }
   if (!isFieldSet(yColumn?.field)) {
-    return "Y-axis column is required" as ErrorMessage;
+    return Y_AXIS_REQUIRED;
   }
 
   // Determine encoding keys based on chart type
@@ -87,10 +89,14 @@ export function createSpecWithoutData(
     chartType,
   );
 
-  const rowFacet = facet?.row.field ? getFacetEncoding(facet.row) : undefined;
-  const columnFacet = facet?.column.field
-    ? getFacetEncoding(facet.column)
+  const rowFacet = facet?.row.field
+    ? getFacetEncoding(facet.row, chartType)
     : undefined;
+  const columnFacet = facet?.column.field
+    ? getFacetEncoding(facet.column, chartType)
+    : undefined;
+
+  const colorByEncoding = getColorEncoding(chartType, formValues);
 
   // Create the final spec
   return {
@@ -100,8 +106,13 @@ export function createSpecWithoutData(
       [xEncodingKey]: horizontal ? yEncoding : xEncoding,
       [yEncodingKey]: horizontal ? xEncoding : yEncoding,
       xOffset: getOffsetEncoding(chartType, formValues),
-      ...getColorEncoding(chartType, formValues),
-      tooltip: getTooltips(formValues),
+      color: colorByEncoding,
+      tooltip: getTooltips({
+        formValues,
+        xEncoding,
+        yEncoding,
+        colorByEncoding,
+      }),
       row: rowFacet,
       column: columnFacet,
     },
@@ -132,7 +143,7 @@ export function getAxisEncoding(
     return {
       aggregate: "count",
       type: "quantitative",
-      bin: getBinEncoding(selectedDataType, binValues, chartType),
+      bin: getBinEncoding(chartType, selectedDataType, binValues),
       title: label === COUNT_FIELD ? undefined : label,
       stack: stack,
     };
@@ -141,7 +152,7 @@ export function getAxisEncoding(
   return {
     field: column.field,
     type: convertDataTypeToVega(column.selectedDataType || "unknown"),
-    bin: getBinEncoding(selectedDataType, binValues, chartType),
+    bin: getBinEncoding(chartType, selectedDataType, binValues),
     title: label,
     stack: stack,
     aggregate: getAggregate(column.aggregate, selectedDataType),
@@ -151,14 +162,16 @@ export function getAxisEncoding(
 
 export function getFacetEncoding(
   facet: z.infer<typeof RowFacet> | z.infer<typeof ColumnFacet>,
+  chartType: ChartType,
 ): FacetFieldDef<Field, ExprRef | SignalRef> {
-  let binValues = undefined;
-  // Only allow binning for number data types
-  if (facet.binned && facet.selectedDataType === "number") {
-    binValues = {
+  const binValues = getBinEncoding(
+    chartType,
+    facet.selectedDataType || "string",
+    {
       maxbins: facet.maxbins,
-    };
-  }
+      binned: facet.binned,
+    },
+  );
 
   return {
     field: facet.field,
@@ -210,7 +223,12 @@ function getPieChartSpec(
     encoding: {
       theta: thetaEncoding,
       color: colorEncoding,
-      tooltip: getTooltips(formValues),
+      tooltip: getTooltips({
+        formValues,
+        xEncoding: thetaEncoding,
+        yEncoding: thetaEncoding,
+        colorByEncoding: colorEncoding,
+      }),
     },
   };
 }

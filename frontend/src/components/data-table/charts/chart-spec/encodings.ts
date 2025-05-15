@@ -22,11 +22,14 @@ import type { BinParams } from "vega-lite/build/src/bin";
 import type { Scale } from "vega-lite/build/src/scale";
 
 export function getBinEncoding(
+  chartType: ChartType,
   selectedDataType: SelectableDataType,
   binValues?: z.infer<typeof BinSchema>,
-  chartType?: ChartType,
 ): boolean | BinParams | undefined {
   if (chartType === ChartType.HEATMAP) {
+    if (!binValues?.maxbins) {
+      return undefined;
+    }
     return { maxbins: binValues?.maxbins };
   }
 
@@ -71,7 +74,7 @@ export function getColorInScale(
 export function getColorEncoding(
   chartType: ChartType,
   formValues: ChartSchemaType,
-): { color?: ColorDef<string> } | undefined {
+): ColorDef<string> | undefined {
   if (
     chartType === ChartType.PIE ||
     !isFieldSet(formValues.general?.colorByColumn?.field)
@@ -82,10 +85,8 @@ export function getColorEncoding(
   const colorByColumn = formValues.general.colorByColumn;
   if (colorByColumn.field === COUNT_FIELD) {
     return {
-      color: {
-        aggregate: "count",
-        type: "quantitative",
-      },
+      aggregate: "count",
+      type: "quantitative",
     };
   }
 
@@ -94,13 +95,11 @@ export function getColorEncoding(
   const aggregate = formValues.general.colorByColumn.aggregate;
 
   return {
-    color: {
-      field: colorByColumn.field,
-      type: convertDataTypeToVega(selectedDataType),
-      scale: getColorInScale(formValues),
-      aggregate: getAggregate(aggregate, selectedDataType),
-      bin: getBinEncoding(selectedDataType, colorBin, chartType),
-    },
+    field: colorByColumn.field,
+    type: convertDataTypeToVega(selectedDataType),
+    scale: getColorInScale(formValues),
+    aggregate: getAggregate(aggregate, selectedDataType),
+    bin: getBinEncoding(chartType, selectedDataType, colorBin),
   };
 }
 
