@@ -80,26 +80,22 @@ const ResizableComponent = ({
     onResize,
   });
 
-  const renderResizeHandler = (
-    ref: React.RefObject<HTMLDivElement>,
-    groupHover: boolean,
-  ) => {
-    const hoverClass = groupHover ? "group-hover" : "hover";
-
+  const renderResizeHandler = (ref: React.RefObject<HTMLDivElement>) => {
     return (
       <div
         ref={ref}
-        className={`w-1 cursor-col-resize transition-colors duration-200 z-10
-        relative before:content-[''] before:absolute before:inset-y-0 before:-left-[4px] before:right-[-4px] before:w-[11px] before:z-[-1]
-        ${hoverClass}/column:bg-[var(--slate-3)] dark:${hoverClass}/column:bg-[var(--slate-5)]
-        ${hoverClass}/column:hover:bg-primary/60 dark:${hoverClass}/column:hover:bg-primary/60`}
+        className={`w-[3px] cursor-col-resize transition-colors duration-200 z-[100]
+          relative before:content-[''] before:absolute before:inset-y-0 before:-left-[3px] 
+          before:right-[-3px] before:w-[9px] before:z-[-1]
+          hover/column:bg-[var(--slate-3)] dark:hover/column:bg-[var(--slate-5)]
+          hover/column:hover:bg-primary/60 dark:hover/column:hover:bg-primary/60`}
       />
     );
   };
 
   return (
     <div className="flex flex-row">
-      {renderResizeHandler(handleRefs.left, false)}
+      {renderResizeHandler(handleRefs.left)}
       <div
         ref={resizableDivRef}
         className="flex flex-col gap-5 box-content min-h-[100px] px-11 py-6 min-w-[500px] z-1"
@@ -107,7 +103,7 @@ const ResizableComponent = ({
       >
         {children}
       </div>
-      {renderResizeHandler(handleRefs.right, true)}
+      {renderResizeHandler(handleRefs.right)}
     </div>
   );
 };
