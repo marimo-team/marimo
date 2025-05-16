@@ -1101,6 +1101,33 @@ def test_calculate_top_k_rows_metadata_only_frame() -> None:
     assert result == [(3, 2), (None, 2), (2, 1), (1, 1)]
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [[1, 2], [1, 2], [3, 4]]}, include=["polars", "pandas"]
+    ),
+)
+def test_calculate_top_k_rows_nested_lists(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+    assert result == [([1, 2], 2), ([3, 4], 1)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [{"a": 1, "b": 2}, {"a": 1, "b": 2}, {"a": 3, "b": 4}]},
+        include=["polars", "pandas"],
+    ),
+)
+def test_calculate_top_k_rows_dicts(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+    assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
+
+
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
     """Normalize None and NaN values for comparison."""
     return [
