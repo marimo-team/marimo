@@ -8,7 +8,6 @@ import {
 } from "@/utils/python-poet/poet";
 
 import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
-import { Objects } from "@/utils/objects";
 
 /**
  * Generates Python code for an Altair chart.
@@ -145,5 +144,13 @@ ${variableName}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeKwargs<T extends Record<string, any>>(obj: T) {
-  return Objects.mapValues(obj, (v) => new Literal(v));
+  const result: Record<string, PythonCode> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = new Literal(value);
+    }
+  }
+
+  return result;
 }

@@ -10,7 +10,7 @@ function createSpec(spec: {
   mark: string | Record<string, unknown>;
   encoding: Record<
     string,
-    | { field: string }
+    | { field: string; type?: string }
     | Array<{ field: string; tooltip?: Record<string, string> }>
   >;
   resolve?: Record<string, unknown>;
@@ -89,6 +89,23 @@ const Mocks = {
 };
 
 describe("generateAltairChart", () => {
+  it("should remove undefined values", () => {
+    const spec = createSpec({
+      mark: "bar",
+      encoding: {
+        x: { ...Mocks.xAxis, type: undefined },
+      },
+    });
+
+    const result = generateAltairChart(spec, "df").toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_bar()
+      .encode(x=alt.X(field='category'))"
+    `);
+  });
+
   it("should generate a basic bar chart", () => {
     const spec = createSpec({
       mark: "bar",
