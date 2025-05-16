@@ -177,6 +177,10 @@ class NarwhalsTableManager(
             .collect()
         )
 
+        except Exception as e:
+            LOGGER.error("Error calculating top k rows", exc_info=e)
+            return []
+
         return [
             (
                 unwrap_py_scalar(row[0]),

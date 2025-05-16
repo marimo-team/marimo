@@ -49,6 +49,7 @@ import {
   CommandList,
 } from "../ui/command";
 import { DraggablePopover } from "../ui/draggable-popover";
+import { renderUnknownValue } from "./renderers";
 
 const TOP_K_ROWS = 30;
 
@@ -475,10 +476,7 @@ const PopoverFilterByValues = <TData, TValue>({
             )}
             {filteredData.map(([value, count], rowIndex) => {
               const isSelected = chosenValues.has(value);
-              const valueString =
-                typeof value === "object"
-                  ? JSON.stringify(value)
-                  : String(value);
+              const valueString = renderUnknownValue({ value });
 
               return (
                 <CommandItem
