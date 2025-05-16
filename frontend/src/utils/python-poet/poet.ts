@@ -33,24 +33,23 @@ export class Variable implements PythonCode {
 }
 
 interface LiteralOptions {
-  objectAsFieldNames?: boolean;
   removeNull?: boolean;
   removeUndefined?: boolean;
 }
 
 export class Literal implements PythonCode {
   constructor(
-    public value: unknown,
-    public opts: LiteralOptions = {
-      objectAsFieldNames: false,
-      removeNull: false,
-      removeUndefined: true,
-    },
+    public readonly value: unknown,
+    public readonly opts: LiteralOptions = {},
   ) {}
+
+  static from(value: unknown, opts: LiteralOptions = {}): Literal {
+    return new Literal(value, opts);
+  }
 
   toCode(): string {
     const EMPTY_VALUE = "";
-    const { objectAsFieldNames, removeNull, removeUndefined } = this.opts;
+    const { removeNull = false, removeUndefined = true } = this.opts;
 
     if (this.value === undefined) {
       if (removeUndefined) {
@@ -71,13 +70,18 @@ export class Literal implements PythonCode {
       return this.value ? "True" : "False";
     }
 
+    // If a PythonCode object
+    if (typeof this.value === "object" && "toCode" in this.value) {
+      return (this.value as PythonCode).toCode();
+    }
+
     if (Array.isArray(this.value)) {
       if (this.value.length === 0) {
         return "[]";
       }
       return `[\n${indent(
         this.value
-          .map((item) => new Literal(item).toCode())
+          .map((item) => new Literal(item, this.opts).toCode())
           .filter((item) => item !== EMPTY_VALUE)
           .join(",\n"),
       )}\n]`;
@@ -89,28 +93,21 @@ export class Literal implements PythonCode {
         return "{}";
       }
 
-      const formatEntry = (key: string, value: unknown, separator: string) => {
-        const code = new Literal(value).toCode();
+      const formatEntry = (entry: [string, unknown]) => {
+        const [key, value] = entry;
+        const code = new Literal(value, this.opts).toCode();
         if (code === "") {
           return "";
         }
-        // Quote keys when in dictionary mode (not objectAsFieldNames)
-        const formattedKey = objectAsFieldNames ? key : `'${key}'`;
-        return `${formattedKey}${separator}${code}`;
+        return `'${key}': ${code}`;
       };
 
-      // When objectAsFieldNames is true, we use = as the separator (eg. field=value)
-      // Otherwise, we use : (eg. field: value)
       const formattedEntries = entries
-        .map(([key, value]) =>
-          formatEntry(key, value, objectAsFieldNames ? "=" : ": "),
-        )
+        .map(formatEntry)
         .filter(Boolean)
         .join(",\n");
 
-      return objectAsFieldNames
-        ? `\n${indent(formattedEntries)}\n`
-        : `{\n${indent(formattedEntries)}\n}`;
+      return `{\n${indent(formattedEntries)}\n}`;
     }
     return String(this.value);
   }
@@ -176,14 +173,11 @@ export class FunctionCall implements PythonCode {
   ): FunctionCall {
     args = objectToArgs(args);
 
-    if (this.multiLine) {
-      return new FunctionCall(
-        `${this.toCode()}\n.${name}`,
-        args,
-        this.multiLine,
-      );
-    }
-    const fullName = `${this.toCode()}.${name}`;
+    // If the function call is multi-line, we need to add a newline to the name
+    const fullName = this.multiLine
+      ? `${this.toCode()}\n.${name}`
+      : `${this.toCode()}.${name}`;
+
     return new FunctionCall(fullName, args, this.multiLine);
   }
 }
@@ -194,37 +188,9 @@ function objectToArgs(
   if (Array.isArray(obj)) {
     return obj;
   }
-  return Object.entries(obj).map(([key, value]) => new FunctionArg(key, value));
-}
-
-/**
- * Converts an array of objects to a PythonCode object.
- * If there is only one object, it returns the object as a function call.
- * If there are multiple objects, it returns the objects wrapped in a list.
- */
-export function objectsToPythonCode(obj: object[], prefix: string): PythonCode {
-  if (obj.length === 0) {
-    return new Literal(obj);
+  const entries = Object.entries(obj);
+  if (entries.length === 0) {
+    return [];
   }
-
-  const functionCalls = obj.map((o) => {
-    const args = Object.fromEntries(
-      Object.entries(o)
-        .filter(([, value]) => value !== undefined)
-        .map(([key, value]) => {
-          return [key, new Literal(value)];
-        }),
-    );
-    return new FunctionCall(prefix, args);
-  });
-
-  // If there's only one object, return it directly
-  if (obj.length === 1) {
-    return functionCalls[0];
-  }
-
-  // Otherwise, return a list of function calls
-  return {
-    toCode: () => `[${indentList(functionCalls)}]`,
-  };
+  return entries.map(([key, value]) => new FunctionArg(key, value));
 }

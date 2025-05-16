@@ -152,29 +152,6 @@ describe("Python Poet", () => {
     ]
 }`);
     });
-
-    it("should return direct field names when objectAsFieldNames is true", () => {
-      const literal = new Literal({ a: 1, b: 2 }, { objectAsFieldNames: true });
-      expect(literal.toCode()).toBe(`
-    a=1,
-    b=2
-`);
-    });
-
-    it("should maintain nested object structure when objectAsFieldNames is true", () => {
-      const literal = new Literal(
-        { a: 1, b: { c: 1, d: null, e: "5" } },
-        { objectAsFieldNames: true },
-      );
-      expect(literal.toCode()).toBe(`
-    a=1,
-    b={
-        'c': 1,
-        'd': None,
-        'e': '5'
-    }
-`);
-    });
   });
 
   describe("Altair Charts", () => {

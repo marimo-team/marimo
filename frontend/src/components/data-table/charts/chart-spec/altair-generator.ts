@@ -2,7 +2,6 @@
 import {
   FunctionCall,
   Literal,
-  objectsToPythonCode,
   type PythonCode,
   Variable,
   VariableDeclaration,
@@ -25,19 +24,17 @@ export function generateAltairChart(
       typeof spec.mark === "string" ? spec.mark : spec.mark?.type;
 
     if (markType) {
-      const markProps =
-        typeof spec.mark === "object" && "type" in spec.mark
-          ? Object.fromEntries(
-              Object.entries(spec.mark)
-                .filter(([key]) => key !== "type")
-                .map(([key, value]) => [key, new Literal(value)]),
-            )
-          : {};
+      let markProps: Record<string, PythonCode> = {};
 
-      code = code.chain(
-        `mark_${markType}`,
-        Object.keys(markProps).length > 0 ? markProps : [],
-      );
+      if (typeof spec.mark === "object" && "type" in spec.mark) {
+        markProps = Object.fromEntries(
+          Object.entries(spec.mark)
+            .filter(([key]) => key !== "type")
+            .map(([key, value]) => [key, new Literal(value)]),
+        );
+      }
+
+      code = code.chain(`mark_${markType}`, markProps);
     }
   }
 
@@ -47,48 +44,49 @@ export function generateAltairChart(
     const encodings = spec.encoding;
 
     if (encodings?.x) {
-      encodeArgs.x = new FunctionCall("alt.X", [
-        new Literal(encodings.x, { objectAsFieldNames: true }),
-      ]);
+      const kwargs = makeKwargs(encodings.x);
+      encodeArgs.x = new FunctionCall("alt.X", kwargs);
     }
 
     if (encodings?.y) {
-      encodeArgs.y = new FunctionCall("alt.Y", [
-        new Literal(encodings.y, { objectAsFieldNames: true }),
-      ]);
+      const kwargs = makeKwargs(encodings.y);
+      encodeArgs.y = new FunctionCall("alt.Y", kwargs);
     }
 
     if (encodings?.color) {
-      encodeArgs.color = new FunctionCall("alt.Color", [
-        new Literal(encodings.color, { objectAsFieldNames: true }),
-      ]);
+      const kwargs = makeKwargs(encodings.color);
+      encodeArgs.color = new FunctionCall("alt.Color", kwargs);
     }
 
     if (encodings?.theta) {
-      encodeArgs.theta = new FunctionCall("alt.Theta", [
-        new Literal(encodings.theta, { objectAsFieldNames: true }),
-      ]);
+      const kwargs = makeKwargs(encodings.theta);
+      encodeArgs.theta = new FunctionCall("alt.Theta", kwargs);
     }
 
     const hasRow = encodings && "row" in encodings;
     if (hasRow && encodings.row) {
-      encodeArgs.row = new FunctionCall("alt.Row", [
-        new Literal(encodings.row, { objectAsFieldNames: true }),
-      ]);
+      const kwargs = makeKwargs(encodings.row);
+      encodeArgs.row = new FunctionCall("alt.Row", kwargs);
     }
 
     const hasColumn = encodings && "column" in encodings;
     if (hasColumn && encodings.column) {
-      encodeArgs.column = new FunctionCall("alt.Column", [
-        new Literal(encodings.column, { objectAsFieldNames: true }),
-      ]);
+      const kwargs = makeKwargs(encodings.column);
+      encodeArgs.column = new FunctionCall("alt.Column", kwargs);
     }
 
     if (encodings?.tooltip) {
       const tooltip = encodings.tooltip;
-      const tooltipArray = Array.isArray(tooltip) ? tooltip : [tooltip];
-      const tooltipCode = objectsToPythonCode(tooltipArray, "alt.Tooltip");
-      encodeArgs.tooltip = tooltipCode;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const makeTooltip = (t: Record<string, any>) => {
+        const kwargs = makeKwargs(t);
+        return new FunctionCall("alt.Tooltip", kwargs);
+      };
+
+      const tooltipArray = Array.isArray(tooltip)
+        ? new Literal(tooltip.map(makeTooltip))
+        : makeTooltip(tooltip);
+      encodeArgs.tooltip = tooltipArray;
     }
 
     code = code.chain("encode", encodeArgs);
@@ -110,14 +108,11 @@ export function generateAltairChart(
   }
 
   const propertiesArgs: Record<string, PythonCode> = {};
-  if (spec.title) {
-    propertiesArgs.title = new Literal(spec.title);
-  }
-  if ("height" in spec) {
-    propertiesArgs.height = new Literal(spec.height);
-  }
-  if ("width" in spec) {
-    propertiesArgs.width = new Literal(spec.width);
+  const propertiesKeys = ["title", "height", "width"];
+  for (const key of propertiesKeys) {
+    if (key in spec) {
+      propertiesArgs[key] = new Literal(spec[key as keyof VegaLiteSpec]);
+    }
   }
 
   if (Object.keys(propertiesArgs).length > 0) {
@@ -145,4 +140,17 @@ export function generateAltairChartSnippet(
 ${new VariableDeclaration(variableName, code).toCode()}
 ${variableName}
   `.trim();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeKwargs<T extends Record<string, any>>(obj: T) {
+  const result: Record<string, PythonCode> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = new Literal(value);
+    }
+  }
+
+  return result;
 }
