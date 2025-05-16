@@ -562,6 +562,74 @@ class TestTransformHandler:
     @pytest.mark.parametrize(
         ("df", "expected"),
         [
+            pytest.param(
+                pl.DataFrame({"A": [[1, 2], [3, 4]]}),
+                pl.DataFrame({"A": [[1, 2]]}),
+                marks=pytest.mark.xfail(
+                    reason="Polars doesn't yet support list values in filter"
+                ),
+            ),
+            (
+                pd.DataFrame({"A": [[1, 2], [3, 4]]}),
+                pd.DataFrame({"A": [[1, 2]]}),
+            ),
+            (
+                ibis.memtable({"A": [[1, 2], [3, 4]]}),
+                ibis.memtable({"A": [[1, 2]]}),
+            ),
+        ],
+    )
+    def test_filter_rows_in_operator_nested_list(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="in", value=[[1, 2]])],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
+                pl.DataFrame({"A": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]}),
+                pl.DataFrame({"A": [{"a": 1, "b": 2}]}),
+            ),
+            (
+                pd.DataFrame({"A": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]}),
+                pd.DataFrame({"A": [{"a": 1, "b": 2}]}),
+            ),
+            pytest.param(
+                ibis.memtable({"A": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]}),
+                ibis.memtable({"A": [{"a": 1, "b": 2}]}),
+                marks=pytest.mark.xfail(
+                    reason="Ibis doesn't yet support dict values in filter"
+                ),
+            ),
+        ],
+    )
+    def test_filter_rows_in_operator_dicts(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="A", operator="in", value=[{"a": 1, "b": 2}]
+                )
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
             (
                 pd.DataFrame({"A": [1, 2, None], "B": [4, 5, 6]}),
                 pd.DataFrame({"A": [np.nan], "B": [6]}),
