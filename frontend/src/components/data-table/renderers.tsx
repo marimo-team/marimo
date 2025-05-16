@@ -187,7 +187,7 @@ function columnSizingHandler<TData>(
 export function renderUnknownValue(opts: {
   value: unknown;
   nullAsEmptyString?: boolean;
-}) {
+}): string {
   const { value, nullAsEmptyString = false } = opts;
 
   if (typeof value === "object" && value !== null) {
