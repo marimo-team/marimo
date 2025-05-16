@@ -174,6 +174,39 @@ model = "claude-3-7-sonnet-20250219"
 api_key = "sk-ant-..."
 ```
 
+#### AWS Bedrock
+
+AWS Bedrock provides access to foundation models from leading AI companies through a unified AWS API.
+
+To use AWS Bedrock with marimo:
+
+1. Set up an [AWS account](https://aws.amazon.com/) with access to the AWS Bedrock service.
+2. [Enable model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) for the specific models you want to use in the AWS Bedrock console.
+3. Install the boto3 Python client: `pip install boto3`
+4. Configure AWS credentials using one of these methods:
+   - AWS CLI: Run `aws configure` to set up credentials
+   - Environment variables: Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+   - AWS credentials file at `~/.aws/credentials`
+5. Add the following to your `marimo.toml`:
+
+```toml title="marimo.toml"
+[ai.open_ai]
+model = "anthropic.claude-3-sonnet-20240229"
+# Models are identified by provider.model_name
+# Examples:
+# - anthropic.claude-3-sonnet-20240229
+# - meta.llama3-8b-instruct-v1:0
+# - amazon.titan-text-express-v1
+# - cohere.command-r-plus-v1
+
+[ai.bedrock]
+region_name = "us-east-1" # AWS region where Bedrock is available
+# Optional AWS profile name (from ~/.aws/credentials)
+profile_name = "my-profile" 
+```
+
+If you're using an AWS named profile different from your default, specify the profile_name. For explicit credentials (not recommended), you can use environment variables instead.
+
 #### Google AI
 
 To use Google AI with marimo:
