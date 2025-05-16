@@ -99,8 +99,8 @@ class ColumnSummaries:
 
 DEFAULT_MAX_COLUMNS = 50
 
-MaxColumnsNotProvided = Literal["max_columns_not_provided"]
-MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "max_columns_not_provided"
+MaxColumnsNotProvided = Literal["inherit"]
+MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
 
 
 @dataclass(frozen=True)
@@ -440,6 +440,7 @@ class table(
         # Holds the original data
         self._manager = get_table_manager(data)
         self._max_columns = max_columns
+        max_columns_arg = "all" if max_columns is None else max_columns
 
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows
@@ -595,6 +596,7 @@ class table(
                 "data": search_result_data,
                 "total-rows": total_rows,
                 "total-columns": num_columns,
+                "max-columns": max_columns_arg,
                 "banner-text": self._get_banner_text(),
                 "pagination": pagination,
                 "page-size": page_size,
@@ -960,8 +962,8 @@ class table(
                 - sort: Optional sorting configuration
                 - filters: Optional list of filter conditions
                 - limit: Optional row limit
-                - max_columns: Optional max number of columns to display. If
-                  `MAX_COLUMNS_NOT_PROVIDED`, default to table's max columns.
+                - max_columns: Optional max number of columns. None means show all columns,
+                  MAX_COLUMNS_NOT_PROVIDED means use the table's max_columns setting.
 
         Returns:
             SearchTableResponse: Response containing:

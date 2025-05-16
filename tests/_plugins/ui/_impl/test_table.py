@@ -11,6 +11,8 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
+    DEFAULT_MAX_COLUMNS,
+    MAX_COLUMNS_NOT_PROVIDED,
     CalculateTopKRowsArgs,
     CalculateTopKRowsResponse,
     DownloadAsArgs,
@@ -1283,6 +1285,7 @@ def test_column_clamping():
     table = ui.table(data)
     assert len(table._manager.get_column_names()) == 100
     assert table._component_args["total-columns"] == 100
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     assert len(json.loads(table._component_args["data"])[0].keys()) == 50
     assert table._component_args["field-types"] is None
 
@@ -1290,6 +1293,7 @@ def test_column_clamping():
     table = ui.table(data, max_columns=20)
     assert len(table._manager.get_column_names()) == 100
     assert table._component_args["total-columns"] == 100
+    assert table._component_args["max-columns"] == 20
     assert len(json.loads(table._component_args["data"])[0].keys()) == 20
     assert table._component_args["field-types"] is None
 
@@ -1297,6 +1301,7 @@ def test_column_clamping():
     table = ui.table(data, max_columns=None)
     assert len(table._manager.get_column_names()) == 100
     assert table._component_args["total-columns"] == 100
+    assert table._component_args["max-columns"] == "all"
     assert len(json.loads(table._component_args["data"])[0].keys()) == 100
     assert table._component_args["field-types"] is None
 
@@ -1308,6 +1313,7 @@ def test_column_clamping_with_small_data():
     table = ui.table(data)
     assert len(table._manager.get_column_names()) == 10
     assert table._component_args["total-columns"] == 10
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     assert len(json.loads(table._component_args["data"])[0].keys()) == 10
     assert table._component_args["field-types"] is None
 
@@ -1374,6 +1380,7 @@ def test_column_clamping_with_exact_max_columns():
     # Check that the table is not clamped
     assert len(table._manager.get_column_names()) == 50
     assert table._component_args["total-columns"] == 50
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     assert len(json.loads(table._component_args["data"])[0].keys()) == 50
     assert table._component_args["field-types"] is None
 
@@ -1385,6 +1392,7 @@ def test_column_clamping_with_more_than_max_columns():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     assert len(json.loads(table._component_args["data"])[0].keys()) == 50
     assert table._component_args["field-types"] is None
 
@@ -1395,6 +1403,7 @@ def test_column_clamping_with_no_columns():
     # Check that the table handles no columns gracefully
     assert len(table._manager.get_column_names()) == 1
     assert table._component_args["total-columns"] == 1
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     assert len(json.loads(table._component_args["data"])) == 0
     assert table._component_args["field-types"] is None
 
@@ -1406,6 +1415,7 @@ def test_column_clamping_with_single_column():
     # Check that the table handles a single column gracefully
     assert len(table._manager.get_column_names()) == 1
     assert table._component_args["total-columns"] == 1
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     assert len(json.loads(table._component_args["data"])[0].keys()) == 1
     assert table._component_args["field-types"] is None
 
@@ -1422,6 +1432,7 @@ def test_column_clamping_with_polars():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
     assert len(headers) == 50  # 50 columns
@@ -1433,6 +1444,7 @@ def test_column_clamping_with_polars():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
+    assert table._component_args["max-columns"] == 40
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
     assert len(headers) == 40  # 40 columns
@@ -1444,6 +1456,7 @@ def test_column_clamping_with_polars():
     # Check that the table is not clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
+    assert table._component_args["max-columns"] == "all"
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
 
@@ -1469,6 +1482,7 @@ def test_dataframe_with_int_column_names():
     # Check that the table handles integer column names correctly
     assert table._manager.get_column_names() == [0, 1, 2]
     assert table._component_args["total-columns"] == 3
+    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
 
 
 def test_cell_initial_style():
@@ -1640,6 +1654,7 @@ def test_lazy_dataframe() -> None:
         assert table._component_args["pagination"] is False
         assert table._component_args["data"] == []
         assert table._component_args["total-columns"] == 0
+        assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
         assert table._component_args["field-types"] is None
 
         # Verify that search response indicates "too_many" for total_rows
@@ -1763,3 +1778,121 @@ def _convert_data_bytes_to_pandas_df(
         return pd.read_parquet(io.BytesIO(data_bytes))
     else:
         raise ValueError(f"Unsupported data_format: {data_format}")
+
+
+def test_max_columns_not_provided():
+    # Create data with many columns
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+    table = ui.table(data)
+
+    # Test default behavior (should use DEFAULT_MAX_COLUMNS=50)
+    search_args = SearchTableArgs(
+        page_size=10, page_number=0, max_columns=MAX_COLUMNS_NOT_PROVIDED
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 50
+
+    # Test when not set (uses MAX_COLUMNS_NOT_PROVIDED as the default)
+    search_args = SearchTableArgs(page_size=10, page_number=0)
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 50
+
+    # Test with explicit max_columns
+    search_args = SearchTableArgs(page_size=10, page_number=0, max_columns=20)
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 20
+
+    # Test with max_columns=None (show all columns)
+    search_args = SearchTableArgs(
+        page_size=10, page_number=0, max_columns=None
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 100
+
+
+def test_max_columns_not_provided_with_sort():
+    # Create data with many columns
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+    table = ui.table(data)
+
+    # Test sort with default max_columns
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        sort=SortArgs(by="col0", descending=True),
+        max_columns=MAX_COLUMNS_NOT_PROVIDED,
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 50
+
+    # Test sort with explicit max_columns
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        sort=SortArgs(by="col0", descending=True),
+        max_columns=20,
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 20
+
+    # Test sort with max_columns=None
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        sort=SortArgs(by="col0", descending=True),
+        max_columns=None,
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 100
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(),
+    reason="Pandas not installed",
+)
+def test_max_columns_not_provided_with_filters():
+    # Create data with many columns
+    import polars as pl
+
+    data = pl.DataFrame({f"col{i}": [1, 2, 3] for i in range(100)})
+    table = ui.table(data)
+
+    # Test filters with default max_columns
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        filters=[Condition(column_id="col0", operator="==", value=1)],
+        max_columns=MAX_COLUMNS_NOT_PROVIDED,
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 50
+
+    # Test filters with explicit max_columns
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        filters=[Condition(column_id="col0", operator="==", value=1)],
+        max_columns=20,
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 20
+
+    # Test filters with max_columns=None
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        filters=[Condition(column_id="col0", operator="==", value=1)],
+        max_columns=None,
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+    assert len(result_data[0].keys()) == 101  # +1 for marimo_row_id

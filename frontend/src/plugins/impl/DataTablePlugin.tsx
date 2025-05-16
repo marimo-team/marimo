@@ -5,7 +5,6 @@ import { DataTable } from "../../components/data-table/data-table";
 import {
   generateColumns,
   inferFieldTypes,
-  MAX_COLUMNS,
 } from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -116,6 +115,7 @@ interface Data<T> {
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   totalColumns: number;
+  maxColumns: number | "all";
   hasStableRowId: boolean;
   lazy: boolean;
 }
@@ -183,6 +183,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         )
         .nullish(),
       totalColumns: z.number(),
+      maxColumns: z.union([z.number(), z.literal("all")]),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       // Whether to load the data lazily.
@@ -606,6 +607,7 @@ const DataTableComponent = ({
   label,
   data,
   totalRows,
+  maxColumns,
   pagination,
   selection,
   value,
@@ -674,10 +676,13 @@ const DataTableComponent = ({
 
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);
-  const memoizedClampedFieldTypes = useMemo(
-    () => memoizedUnclampedFieldTypes.slice(0, MAX_COLUMNS),
-    [memoizedUnclampedFieldTypes],
-  );
+
+  const memoizedClampedFieldTypes = useMemo(() => {
+    if (maxColumns === "all") {
+      return memoizedUnclampedFieldTypes;
+    }
+    return memoizedUnclampedFieldTypes.slice(0, maxColumns);
+  }, [maxColumns, memoizedUnclampedFieldTypes]);
 
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
