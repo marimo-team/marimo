@@ -185,15 +185,50 @@ class NarwhalsTableManager(
                 "Cannot specify a count column name, please rename your column"
             )
 
-        # column is also sorted to ensure nulls are last
-        result = (
-            self.data.group_by(column)
-            .agg(nw.len().alias(chosen_column_name))
-            .sort(
-                [chosen_column_name, column], descending=True, nulls_last=True
+        try:
+            # Special handling for pandas DataFrames with unhashable types
+            if self.data.implementation.is_pandas():
+                import pandas as pd
+
+                df = self.data.to_native()
+                assert isinstance(df, pd.DataFrame)
+
+                if not df.empty and isinstance(
+                    df[column].iloc[0], (list, dict)
+                ):
+                    # For unhashable types, group by string representation
+                    groups = (
+                        df.groupby(df[column].apply(str)).size().reset_index()
+                    )
+                    groups.columns = pd.Index([column, chosen_column_name])
+                    groups = groups.sort_values(
+                        [chosen_column_name, column], ascending=[False, True]
+                    ).head(k)
+
+                    # Convert back to original values
+                    str_to_val = {str(val): val for val in df[column]}
+                    return [
+                        (
+                            str_to_val.get(row[column], row[column]),
+                            int(unwrap_py_scalar(row[chosen_column_name])),
+                        )
+                        for _, row in groups.iterrows()
+                    ]
+
+            result = (
+                self.data.group_by(column)
+                .agg(nw.len().alias(chosen_column_name))
+                .sort(
+                    [chosen_column_name, column],
+                    descending=True,
+                    nulls_last=True,
+                )
+                .head(k)
             )
-            .head(k)
-        )
+
+        except Exception as e:
+            LOGGER.error("Error calculating top k rows", exc_info=e)
+            return []
 
         return [
             (

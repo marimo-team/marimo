@@ -10,6 +10,7 @@ import { Badge } from "../ui/badge";
 import type { ColumnFilterValue } from "./filters";
 import { logNever } from "@/utils/assertNever";
 import { XIcon } from "lucide-react";
+import { renderUnknownValue } from "./renderers";
 
 interface Props<TData> {
   filters: ColumnFiltersState | undefined;
@@ -79,7 +80,10 @@ function formatValue(value: ColumnFilterValue) {
     return `is ${value.value ? "True" : "False"}`;
   }
   if (value.type === "select") {
-    return `is in [${value.options.join(", ")}]`;
+    const stringifiedOptions = value.options.map((o) =>
+      renderUnknownValue({ value: o }),
+    );
+    return `is in [${stringifiedOptions.join(", ")}]`;
   }
   if (value.type === "text") {
     return `contains "${value.text}"`;
