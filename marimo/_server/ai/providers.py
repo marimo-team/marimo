@@ -35,18 +35,17 @@ if TYPE_CHECKING:
     from anthropic.types import (  # type: ignore[import-not-found]
         RawMessageStreamEvent,
     )
-    # Used for Bedrock, unified interface for all models
-    from litellm import (
-        completion as litellm_completion, # type: ignore[import-not-found]
-        ModelResponse as LitellmResponse, # type: ignore[import-not-found]
-        CustomStreamWrapper as LitellmStream, # type: ignore[import-not-found]
-        ModelResponseStream as LitellmStreamResponse, # type: ignore[import-not-found]
-    )
     from google.generativeai import (  # type: ignore[import-not-found]
         GenerativeModel,
     )
     from google.generativeai.types import (  # type: ignore[import-not-found]
         GenerateContentResponse,
+    )
+
+    # Used for Bedrock, unified interface for all models
+    from litellm import (  # type: ignore[import-not-found]
+        CustomStreamWrapper as LitellmStream,
+        ModelResponseStream as LitellmStreamResponse,
     )
     from openai import (  # type: ignore[import-not-found]
         OpenAI,
@@ -153,11 +152,16 @@ def _get_key(config: Any, name: str) -> str:
     if name == "Bedrock":
         if "profile_name" in config:
             profile_name = config.get("profile_name", "")
-            return cast(str, f'profile:{profile_name}')
-        elif "aws_access_key_id" in config and "aws_secret_access_key" in config:
-            return cast(str, f'{config["aws_access_key_id"]}:{config["aws_secret_access_key"]}')
+            return cast(str, f"profile:{profile_name}")
+        elif (
+            "aws_access_key_id" in config and "aws_secret_access_key" in config
+        ):
+            return cast(
+                str,
+                f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}",
+            )
         else:
-            return cast(str, '')
+            return cast(str, "")
     if "api_key" in config:
         key = config["api_key"]
         if key:
@@ -170,8 +174,8 @@ def _get_key(config: Any, name: str) -> str:
 
 def _get_base_url(config: Any, name: str = "") -> Optional[str]:
     if name == "Bedrock":
-        if "region" in config:
-            return cast(str, config["region"])
+        if "region_name" in config:
+            return cast(str, config["region_name"])
         else:
             return None
     elif "base_url" in config:
@@ -460,10 +464,12 @@ class GoogleProvider(
         return None
 
 
-class BedrockProvider(CompletionProvider[
-    "LitellmStreamResponse",
-    "LitellmStream",
-]):
+class BedrockProvider(
+    CompletionProvider[
+        "LitellmStreamResponse",
+        "LitellmStream",
+    ]
+):
     def setup_credentials(self, config: AnyProviderConfig) -> None:
         # Use profile name if provided, otherwise use API key
         try:
@@ -472,8 +478,8 @@ class BedrockProvider(CompletionProvider[
                 os.environ["AWS_PROFILE"] = profile_name
             elif len(config.api_key) > 0:
                 # If access_key_id and secret_access_key is provided directly, use it
-                aws_access_key_id=config.api_key.split(":")[0]
-                aws_secret_access_key=config.api_key.split(":")[1]
+                aws_access_key_id = config.api_key.split(":")[0]
+                aws_secret_access_key = config.api_key.split(":")[1]
                 os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key_id
                 os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
         except Exception as e:
@@ -489,13 +495,10 @@ class BedrockProvider(CompletionProvider[
         system_prompt: str,
         max_tokens: int,
     ) -> LitellmStream:
-        DependencyManager.litellm.require(
-            why="for AI assistance with Bedrock"
-        )
-        DependencyManager.boto3.require(
-            why="for AI assistance with Bedrock"
-        )
+        DependencyManager.litellm.require(why="for AI assistance with Bedrock")
+        DependencyManager.boto3.require(why="for AI assistance with Bedrock")
         from litellm import completion as litellm_completion
+
         self.setup_credentials(self.config)
 
         return litellm_completion(

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 import os
 from typing import Callable, Optional, cast
 
@@ -440,6 +439,8 @@ class bedrock(ChatModel):
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
     ):
+        if not model.startswith("bedrock/"):
+            model = f"bedrock/{model}"
         self.model = model
         self.system_message = system_message
         self.region_name = region_name
@@ -474,12 +475,16 @@ class bedrock(ChatModel):
             # Make API call
             response = litellm_completion(
                 model=self.model,
-                messages=convert_to_openai_messages(messages),
+                messages=convert_to_openai_messages(
+                    [ChatMessage(role="system", content=self.system_message)]
+                    + messages
+                ),
                 max_tokens=config.max_tokens,
                 temperature=config.temperature,
                 top_p=config.top_p,
                 frequency_penalty=config.frequency_penalty,
                 presence_penalty=config.presence_penalty,
+                stream=False,
             )
 
             return response.choices[0].message.content

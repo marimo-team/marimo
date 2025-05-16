@@ -191,13 +191,13 @@ To use AWS Bedrock with marimo:
 
 ```toml title="marimo.toml"
 [ai.open_ai]
-model = "anthropic.claude-3-sonnet-20240229"
-# Models are identified by provider.model_name
+model = "bedrock/anthropic.claude-3-sonnet-20240229"
+# Models are identified by bedrock/provider.model_name
 # Examples:
-# - anthropic.claude-3-sonnet-20240229
-# - meta.llama3-8b-instruct-v1:0
-# - amazon.titan-text-express-v1
-# - cohere.command-r-plus-v1
+# - bedrock/anthropic.claude-3-sonnet-20240229
+# - bedrock/meta.llama3-8b-instruct-v1:0
+# - bedrock/amazon.titan-text-express-v1
+# - bedrock/cohere.command-r-plus-v1
 
 [ai.bedrock]
 region_name = "us-east-1" # AWS region where Bedrock is available

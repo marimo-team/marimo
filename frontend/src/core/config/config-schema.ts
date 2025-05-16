@@ -145,6 +145,14 @@ export const UserConfigSchema = z
             api_key: z.string().optional(),
           })
           .optional(),
+        bedrock: z
+          .object({
+            region_name: z.string().optional(),
+            profile_name: z.string().optional(),
+            aws_access_key_id: z.string().optional(),
+            aws_secret_access_key: z.string().optional(),
+          })
+          .optional(),
       })
       .passthrough()
       .default({}),

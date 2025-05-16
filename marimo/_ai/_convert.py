@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import base64
-import json
 from typing import TYPE_CHECKING, Any
 
-from marimo._ai._types import ChatMessage, ChatModelConfig
+from marimo._ai._types import ChatMessage
 
 if TYPE_CHECKING:
     from google.generativeai.types import (  # type: ignore[import-not-found]

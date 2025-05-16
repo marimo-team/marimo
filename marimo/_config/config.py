@@ -305,6 +305,7 @@ class BedrockConfig(TypedDict, total=False):
     aws_access_key_id: NotRequired[str]
     aws_secret_access_key: NotRequired[str]
 
+
 @dataclass
 class PythonLanguageServerConfig(TypedDict, total=False):
     """

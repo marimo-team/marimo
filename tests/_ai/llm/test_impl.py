@@ -11,6 +11,7 @@ from marimo._ai._types import ChatMessage, ChatModelConfig
 from marimo._ai.llm._impl import (
     DEFAULT_SYSTEM_MESSAGE,
     anthropic,
+    bedrock,
     google,
     groq,
     openai,
@@ -106,6 +107,22 @@ def mock_azure_openai_client():
         mock_client.chat.completions.create.return_value = mock_response
 
         yield mock_client, mock_azure_openai_class
+
+
+@pytest.fixture
+def mock_litellm_completion():
+    """Fixture for mocking the OpenAI client."""
+    with patch("litellm.completion") as mock_litellm_completion:
+        # Setup the response structure
+        mock_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = "Test response"
+        mock_choice.message = mock_message
+        mock_response.choices = [mock_choice]
+        mock_litellm_completion.return_value = mock_response
+
+        yield mock_litellm_completion
 
 
 @pytest.fixture
@@ -892,3 +909,76 @@ class TestAnthropic:
         model = anthropic("claude-3-opus-20240229")
         with pytest.raises(ValueError):
             _ = model._require_api_key
+
+
+@pytest.mark.skipif(
+    not DependencyManager.boto3.has() or not DependencyManager.litellm.has(),
+    reason="boto3 or litellm is not installed",
+)
+class TestBedrock:
+    """Test the Bedrock model class"""
+
+    def test_init(self):
+        """Test initialization of the bedrock model class"""
+        model = bedrock(
+            "anthropic.claude-3-sonnet-20240229",
+            system_message="Test system message",
+            region_name="us-east-1",
+        )
+
+        # bedrock automatically prefixes with bedrock/ for litellm usage
+        assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
+        assert model.system_message == "Test system message"
+        assert model.region_name == "us-east-1"
+        assert model.profile_name is None
+        assert model.aws_access_key_id is None
+        assert model.aws_secret_access_key is None
+
+    def test_init_with_credentials(self):
+        """Test initialization with explicit credentials"""
+        model = bedrock(
+            "anthropic.claude-3-sonnet-20240229",
+            aws_access_key_id="test-key",
+            aws_secret_access_key="test-secret",
+        )
+
+        assert model.aws_access_key_id == "test-key"
+        assert model.aws_secret_access_key == "test-secret"
+
+    def test_init_with_profile(self):
+        """Test initialization with AWS profile"""
+        model = bedrock(
+            "anthropic.claude-3-sonnet-20240229",
+            profile_name="test-profile",
+        )
+
+        assert model.profile_name == "test-profile"
+
+    def test_call(self, mock_litellm_completion, test_messages, test_config):
+        """Test calling the bedrock class with LiteLLM client."""
+        model_name = "anthropic.claude-3-sonnet-20240229"
+
+        # Create model with API key to avoid _require_api_key
+        model = bedrock(model_name)
+
+        result = model(test_messages, test_config)
+
+        # Verify result
+        assert result == "Test response"
+
+        # Verify API call
+        mock_litellm_completion.assert_called_once()
+        call_args = mock_litellm_completion.call_args[1]
+        assert call_args["model"] == f"bedrock/{model_name}"
+        assert len(call_args["messages"]) == 2
+        assert call_args["messages"][0]["role"] == "system"
+        assert call_args["messages"][0]["content"] == DEFAULT_SYSTEM_MESSAGE
+        assert call_args["messages"][1]["role"] == "user"
+        assert call_args["messages"][1]["content"] == "Test prompt"
+        assert call_args["max_tokens"] == 100
+        # Use pytest.approx for floating point comparisons
+        assert call_args["temperature"] == pytest.approx(0.7)
+        assert call_args["top_p"] == pytest.approx(0.9)
+        assert call_args["frequency_penalty"] == pytest.approx(0.5)
+        assert call_args["presence_penalty"] == pytest.approx(0.5)
+        assert call_args["stream"] is False
