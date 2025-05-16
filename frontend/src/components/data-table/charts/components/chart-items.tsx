@@ -91,20 +91,12 @@ export const XAxis: React.FC = () => {
   const context = useChartFormContext();
 
   const xColumn = formValues.general?.xColumn;
-  const xColumnExists = isFieldSet(xColumn?.field);
 
   const inferredXDataType = xColumn?.type
     ? convertDataTypeToSelectable(xColumn.type)
     : "string";
 
   const selectedXDataType = xColumn?.selectedDataType || inferredXDataType;
-  const isXCountField = xColumn?.field === COUNT_FIELD;
-
-  const shouldShowXAggregation =
-    xColumnExists && selectedXDataType !== "temporal" && !isXCountField;
-
-  const shouldShowXTimeUnit =
-    xColumnExists && selectedXDataType === "temporal" && !isXCountField;
 
   return (
     <FieldSection>
@@ -114,7 +106,7 @@ export const XAxis: React.FC = () => {
           fieldName="general.xColumn.field"
           columns={context.fields}
         />
-        {shouldShowXAggregation && (
+        {isNonTemporalField(xColumn) && (
           <AggregationSelect
             fieldName="general.xColumn.aggregate"
             selectedDataType={selectedXDataType}
@@ -122,27 +114,27 @@ export const XAxis: React.FC = () => {
           />
         )}
       </div>
-      {xColumnExists && !isXCountField && (
+      {isNonCountField(xColumn) && (
         <DataTypeSelect
           label="Data Type"
           fieldName="general.xColumn.selectedDataType"
           defaultValue={inferredXDataType}
         />
       )}
-      {shouldShowXTimeUnit && (
+      {isTemporalField(xColumn) && (
         <TimeUnitSelect
           fieldName="general.xColumn.timeUnit"
           label="Time Resolution"
         />
       )}
-      {xColumnExists && !isXCountField && (
+      {isNonCountField(xColumn) && (
         <>
           <SortField
             fieldName="general.xColumn.sort"
             label="Sort"
             defaultValue={formValues.general?.xColumn?.sort}
           />
-          <BinFields fieldName="xAxis" />
+          {isNumberField(xColumn) && <BinFields fieldName="xAxis" />}
         </>
       )}
     </FieldSection>
@@ -164,13 +156,6 @@ export const YAxis: React.FC = () => {
     : "string";
 
   const selectedYDataType = yColumn?.selectedDataType || inferredYDataType;
-  const isYCountField = yColumn?.field === COUNT_FIELD;
-
-  const shouldShowYAggregation =
-    yColumnExists && selectedYDataType !== "temporal" && !isYCountField;
-
-  const shouldShowYTimeUnit =
-    yColumnExists && selectedYDataType === "temporal" && !isYCountField;
 
   return (
     <FieldSection>
@@ -180,7 +165,7 @@ export const YAxis: React.FC = () => {
           fieldName="general.yColumn.field"
           columns={context.fields}
         />
-        {shouldShowYAggregation && (
+        {isNonTemporalField(yColumn) && (
           <AggregationSelect
             fieldName="general.yColumn.aggregate"
             selectedDataType={selectedYDataType}
@@ -189,14 +174,14 @@ export const YAxis: React.FC = () => {
         )}
       </div>
 
-      {yColumnExists && !isYCountField && (
+      {isNonCountField(yColumn) && (
         <DataTypeSelect
           label="Data Type"
           fieldName="general.yColumn.selectedDataType"
           defaultValue={inferredYDataType}
         />
       )}
-      {shouldShowYTimeUnit && (
+      {isTemporalField(yColumn) && (
         <TimeUnitSelect
           fieldName="general.yColumn.timeUnit"
           label="Time Resolution"
@@ -205,6 +190,7 @@ export const YAxis: React.FC = () => {
       {yColumnExists && xColumnExists && (
         <BooleanField fieldName="general.horizontal" label="Invert axis" />
       )}
+      {isNumberField(yColumn) && <BinFields fieldName="yAxis" />}
     </FieldSection>
   );
 };
@@ -220,6 +206,8 @@ export const ColorByAxis: React.FC = () => {
     selectedColorByDataType = "string";
   }
 
+  const showBinFields = isNumberField(formValues.general?.colorByColumn);
+
   return (
     <FieldSection>
       <Title text="Color by" />
@@ -234,6 +222,7 @@ export const ColorByAxis: React.FC = () => {
           binFieldName="color.bin.binned"
         />
       </div>
+      {showBinFields && <BinFields fieldName="color" />}
     </FieldSection>
   );
 };
@@ -252,10 +241,6 @@ export const Facet: React.FC = () => {
     const inferredDataType = field?.type
       ? convertDataTypeToSelectable(field.type)
       : "string";
-    const selectedDataType = field?.selectedDataType || inferredDataType;
-
-    const shouldShowTimeUnit = fieldExists && selectedDataType === "temporal";
-    const canShowBin = fieldExists && selectedDataType === "number";
 
     const linkFieldName =
       facet === "row"
@@ -278,13 +263,13 @@ export const Facet: React.FC = () => {
               fieldName={`general.facet.${facet}.selectedDataType`}
               defaultValue={inferredDataType}
             />
-            {shouldShowTimeUnit && (
+            {isTemporalField(field) && (
               <TimeUnitSelect
                 fieldName={`general.facet.${facet}.timeUnit`}
                 label="Time Resolution"
               />
             )}
-            {canShowBin && (
+            {isNumberField(field) && (
               <div className="flex flex-row justify-between">
                 <BooleanField
                   fieldName={`general.facet.${facet}.binned`}
@@ -315,3 +300,30 @@ export const Facet: React.FC = () => {
     </FieldSection>
   );
 };
+
+function isNonCountField(field?: {
+  field?: string;
+}) {
+  return isFieldSet(field?.field) && field?.field !== COUNT_FIELD;
+}
+
+function isNumberField(field?: {
+  field?: string;
+  selectedDataType?: string;
+}) {
+  return field?.selectedDataType === "number" && isNonCountField(field);
+}
+
+function isTemporalField(field?: {
+  field?: string;
+  selectedDataType?: string;
+}) {
+  return field?.selectedDataType === "temporal" && isNonCountField(field);
+}
+
+function isNonTemporalField(field?: {
+  field?: string;
+  selectedDataType?: string;
+}) {
+  return field?.selectedDataType !== "temporal" && isNonCountField(field);
+}
