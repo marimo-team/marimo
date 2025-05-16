@@ -175,68 +175,69 @@ class NarwhalsTableManager(
             raise ValueError(f"Column {column} not found in table.")
 
         # Find a column name for the count that doesn't conflict with existing columns
-        chosen_column_name: str | None = None
+        count_column: str | None = None
         for col in ["count", f"count of {column}", "num_rows"]:
             if col not in columns:
-                chosen_column_name = col
+                count_column = col
                 break
-        if chosen_column_name is None:
+        if count_column is None:
             raise ValueError(
                 "Cannot specify a count column name, please rename your column"
             )
 
-        try:
-            # Special handling for pandas DataFrames with unhashable types
-            if self.data.implementation.is_pandas():
-                import pandas as pd
-
-                df = self.data.to_native()
-                assert isinstance(df, pd.DataFrame)
-
-                if not df.empty and isinstance(
-                    df[column].iloc[0], (list, dict)
-                ):
-                    # For unhashable types, group by string representation
-                    groups = (
-                        df.groupby(df[column].apply(str)).size().reset_index()
-                    )
-                    groups.columns = pd.Index([column, chosen_column_name])
-                    groups = groups.sort_values(
-                        [chosen_column_name, column], ascending=[False, True]
-                    ).head(k)
-
-                    # Convert back to original values
-                    str_to_val = {str(val): val for val in df[column]}
-                    return [
-                        (
-                            str_to_val.get(row[column], row[column]),
-                            int(unwrap_py_scalar(row[chosen_column_name])),
-                        )
-                        for _, row in groups.iterrows()
-                    ]
-
-            result = (
-                self.data.group_by(column)
-                .agg(nw.len().alias(chosen_column_name))
+        def _calculate_top_rows(df: nw.DataFrame[Any]) -> nw.DataFrame[Any]:
+            return (
+                df.group_by(column)
+                .agg(nw.len().alias(count_column))
                 .sort(
-                    [chosen_column_name, column],
+                    [count_column, column],
                     descending=True,
                     nulls_last=True,
                 )
                 .head(k)
             )
 
+        try:
+            # Handle pandas DataFrames with unhashable types (lists/dicts)
+            if self.data.implementation.is_pandas():
+                import pandas as pd
+
+                df = self.data.to_native()
+
+                if (
+                    isinstance(df, pd.DataFrame)
+                    and not df.empty
+                    and isinstance(df[column].iloc[0], (list, dict))
+                ):
+                    # Convert to string for grouping, then map back to original values
+                    str_data = self.data.select(
+                        self.data[column].cast(nw.String)
+                    )
+                    result = _calculate_top_rows(str_data)
+                    str_to_val = {str(val): val for val in df[column]}
+                    return [
+                        (
+                            str_to_val.get(
+                                unwrap_py_scalar(row[column]), row[column]
+                            ),
+                            int(unwrap_py_scalar(row[count_column])),
+                        )
+                        for row in result.iter_rows(named=True)
+                    ]
+
+            # Default case - calculate top rows directly
+            result = _calculate_top_rows(self.data)
+            return [
+                (
+                    unwrap_py_scalar(row[column]),
+                    int(unwrap_py_scalar(row[count_column])),
+                )
+                for row in result.iter_rows(named=True)
+            ]
+
         except Exception as e:
             LOGGER.error("Error calculating top k rows", exc_info=e)
             return []
-
-        return [
-            (
-                unwrap_py_scalar(row[column]),
-                int(unwrap_py_scalar(row[chosen_column_name])),
-            )
-            for row in result.iter_rows(named=True)
-        ]
 
     @staticmethod
     def is_type(value: Any) -> bool:
