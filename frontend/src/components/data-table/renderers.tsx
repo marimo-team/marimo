@@ -178,3 +178,23 @@ function columnSizingHandler<TData>(
     [column.id]: thead.getBoundingClientRect().width,
   }));
 }
+
+/**
+ * Render an unknown value as a string. Converts objects to JSON strings.
+ * @param opts.value - The value to render.
+ * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
+ */
+export function renderUnknownValue(opts: {
+  value: unknown;
+  nullAsEmptyString?: boolean;
+}): string {
+  const { value, nullAsEmptyString = false } = opts;
+
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  if (value === null && nullAsEmptyString) {
+    return "";
+  }
+  return String(value);
+}

@@ -49,6 +49,7 @@ import {
   CommandList,
 } from "../ui/command";
 import { DraggablePopover } from "../ui/draggable-popover";
+import { renderUnknownValue } from "./renderers";
 
 const TOP_K_ROWS = 30;
 
@@ -475,10 +476,12 @@ const PopoverFilterByValues = <TData, TValue>({
             )}
             {filteredData.map(([value, count], rowIndex) => {
               const isSelected = chosenValues.has(value);
+              const valueString = renderUnknownValue({ value });
+
               return (
                 <CommandItem
                   key={rowIndex}
-                  value={String(value)}
+                  value={valueString}
                   className="[&:not(:last-child)]:border-b rounded-none px-3"
                   onSelect={() => handleToggle(value)}
                 >
@@ -488,7 +491,7 @@ const PopoverFilterByValues = <TData, TValue>({
                     className="mr-3 h-3.5 w-3.5"
                   />
                   <span className="flex-1 overflow-hidden max-h-20 line-clamp-3">
-                    {String(value)}
+                    {valueString}
                   </span>
                   <span className="ml-3">{count}</span>
                 </CommandItem>
