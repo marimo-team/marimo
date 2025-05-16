@@ -3,8 +3,6 @@
 import { XAxis, YAxis, ColorByAxis, Facet } from "../components/chart-items";
 import { useFormContext, useWatch } from "react-hook-form";
 import { isFieldSet } from "../chart-spec/spec";
-import type { ChartSchema } from "../schemas";
-import type { z } from "zod";
 import {
   BooleanField,
   InputField,
@@ -25,9 +23,10 @@ import {
   FormSectionHorizontalRule,
 } from "../components/layouts";
 import { useChartFormContext } from "../context";
+import type { ChartSchemaType } from "../schemas";
 
 export const CommonChartForm: React.FC = () => {
-  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const form = useFormContext<ChartSchemaType>();
 
   const formValues = useWatch({ control: form.control });
   const yColumn = formValues.general?.yColumn;
@@ -130,7 +129,7 @@ export const StyleForm: React.FC = () => {
 export const OtherOptions: React.FC = () => {
   const { saveForm } = useChartFormContext();
 
-  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const form = useFormContext<ChartSchemaType>();
   const formValues = useWatch({ control: form.control });
   const autoTooltips = formValues.tooltips?.auto;
 

@@ -1,31 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { StringFieldDef } from "vega-lite/build/src/channeldef";
-import type { z } from "zod";
-import type { AxisSchema, ChartSchema } from "../schemas";
-import type { TimeUnitTooltip } from "../types";
+import type {
+  ColorDef,
+  PositionDef,
+  StringFieldDef,
+} from "vega-lite/build/src/channeldef";
+import type { ChartSchemaType } from "../schemas";
 import type { DataType } from "@/core/kernel/messages";
-import type { Tooltip } from "../components/form-fields";
-import type { Aggregate } from "vega-lite/build/src/aggregate";
 import { isFieldSet } from "./spec";
-import { COUNT_FIELD } from "../constants";
-import { getAggregate } from "./encodings";
-
-function getTooltipAggregate(
-  field: string,
-  yColumn?: z.infer<typeof AxisSchema>,
-): Aggregate | undefined {
-  if (field !== yColumn?.field) {
-    return undefined;
-  }
-
-  if (yColumn?.field === COUNT_FIELD) {
-    return "count";
-  }
-
-  const selectedDataType = yColumn?.selectedDataType;
-  return getAggregate(yColumn.aggregate, selectedDataType || "string");
-}
 
 function getTooltipFormat(dataType: DataType): string | undefined {
   switch (dataType) {
@@ -38,85 +20,143 @@ function getTooltipFormat(dataType: DataType): string | undefined {
   }
 }
 
-function getTooltipTimeUnit(
-  tooltip: Tooltip,
-  formValues: z.infer<typeof ChartSchema>,
-): TimeUnitTooltip | undefined {
-  const xColumn = formValues.general.xColumn;
-  const yColumn = formValues.general.yColumn;
-  const colorByColumn = formValues.general.colorByColumn;
-  const columns = [xColumn, yColumn, colorByColumn];
-
-  // Check if tooltip field matches any temporal column with timeUnit
-  const matchingColumn = columns.find(
-    (col) =>
-      tooltip.field === col?.field &&
-      col?.selectedDataType === "temporal" &&
-      col?.timeUnit,
-  );
-
-  if (matchingColumn?.timeUnit) {
-    return matchingColumn.timeUnit;
-  }
-
-  switch (tooltip.type) {
-    case "datetime":
-      return "yearmonthdatehoursminutesseconds";
-    case "date":
-      return "yearmonthdate";
-    case "time":
-      return "hoursminutesseconds";
-    default:
-      return undefined;
-  }
+interface GetTooltipParams {
+  formValues: ChartSchemaType;
+  xEncoding: PositionDef<string>;
+  yEncoding: PositionDef<string>;
+  colorByEncoding?: ColorDef<string>;
 }
 
-export function getTooltips(formValues: z.infer<typeof ChartSchema>) {
+export function getTooltips(
+  params: GetTooltipParams,
+): Array<StringFieldDef<string>> | undefined {
+  const { formValues, xEncoding, yEncoding, colorByEncoding } = params;
+
   if (!formValues.tooltips) {
     return undefined;
   }
 
-  let tooltips = formValues.tooltips.fields ?? [];
+  // We need to add the same params defined in the columns to the tooltip
+  // Else, the tooltips will alter the display of the chart
+  function addTooltip(
+    encoding: PositionDef<string> | ColorDef<string>,
+    type: DataType,
+    title?: string,
+  ): StringFieldDef<string> | undefined {
+    // For count of records, there will not be a field set
+    if (
+      "aggregate" in encoding &&
+      encoding.aggregate === "count" &&
+      !isFieldSet(encoding.field)
+    ) {
+      return { aggregate: "count" };
+    }
+
+    if (encoding && "field" in encoding && isFieldSet(encoding.field)) {
+      const tooltip: StringFieldDef<string> = {
+        field: encoding.field,
+        aggregate: encoding.aggregate,
+        timeUnit: encoding.timeUnit,
+        format: getTooltipFormat(type),
+        title: title,
+        bin: encoding.bin,
+      };
+      return tooltip;
+    }
+  }
 
   // If autoTooltips is enabled, we manually add the x, y, and color columns to the tooltips
   if (formValues.tooltips.auto) {
-    const newTooltips: Tooltip[] = [];
-    const xColumn = formValues.general.xColumn;
-    const yColumn = formValues.general.yColumn;
-    const colorByColumn = formValues.general.colorByColumn;
-
-    if (isFieldSet(xColumn?.field)) {
-      newTooltips.push({
-        field: xColumn.field,
-        type: xColumn.type || "string",
-      });
+    const tooltips: Array<StringFieldDef<string>> = [];
+    const xTooltip = addTooltip(
+      xEncoding,
+      formValues.general?.xColumn?.type || "string",
+      formValues.xAxis?.label,
+    );
+    if (xTooltip) {
+      tooltips.push(xTooltip);
     }
 
-    if (isFieldSet(yColumn?.field)) {
-      newTooltips.push({
-        field: yColumn.field,
-        type: yColumn.type || "string",
-      });
+    const yTooltip = addTooltip(
+      yEncoding,
+      formValues.general?.yColumn?.type || "string",
+      formValues.yAxis?.label,
+    );
+    if (yTooltip) {
+      tooltips.push(yTooltip);
     }
 
-    if (isFieldSet(colorByColumn?.field)) {
-      newTooltips.push({
-        field: colorByColumn.field,
-        type: colorByColumn.type || "string",
-      });
+    const colorTooltip = addTooltip(
+      colorByEncoding || {},
+      formValues.general?.colorByColumn?.type || "string",
+    );
+    if (colorTooltip) {
+      tooltips.push(colorTooltip);
     }
 
-    tooltips = newTooltips;
+    return tooltips;
   }
 
-  return tooltips.map((tooltip): StringFieldDef<string> => {
-    const timeUnit = getTooltipTimeUnit(tooltip, formValues);
-    return {
+  // Selected tooltips from the form.
+  const selectedTooltips = formValues.tooltips.fields ?? [];
+  const tooltips: Array<StringFieldDef<string>> = [];
+
+  // We need to find the matching columns for the selected tooltips if they exist
+  // Otherwise, we can add them without other parameters
+  for (const tooltip of selectedTooltips) {
+    if (
+      "field" in xEncoding &&
+      isFieldSet(xEncoding.field) &&
+      xEncoding.field === tooltip.field
+    ) {
+      const xTooltip = addTooltip(
+        xEncoding,
+        formValues.general?.xColumn?.type || "string",
+        formValues.xAxis?.label,
+      );
+      if (xTooltip) {
+        tooltips.push(xTooltip);
+      }
+      continue;
+    }
+
+    if (
+      "field" in yEncoding &&
+      isFieldSet(yEncoding.field) &&
+      yEncoding.field === tooltip.field
+    ) {
+      const yTooltip = addTooltip(
+        yEncoding,
+        formValues.general?.yColumn?.type || "string",
+        formValues.yAxis?.label,
+      );
+      if (yTooltip) {
+        tooltips.push(yTooltip);
+      }
+      continue;
+    }
+
+    if (
+      colorByEncoding &&
+      "field" in colorByEncoding &&
+      isFieldSet(colorByEncoding.field) &&
+      colorByEncoding.field === tooltip.field
+    ) {
+      const colorTooltip = addTooltip(
+        colorByEncoding,
+        formValues.general?.colorByColumn?.type || "string",
+      );
+      if (colorTooltip) {
+        tooltips.push(colorTooltip);
+      }
+      continue;
+    }
+
+    const otherTooltip: StringFieldDef<string> = {
       field: tooltip.field,
-      aggregate: getTooltipAggregate(tooltip.field, formValues.general.yColumn),
-      format: getTooltipFormat(tooltip.type),
-      timeUnit: timeUnit,
-      title: timeUnit ? tooltip.field : undefined,
     };
-  });
+    tooltips.push(otherTooltip);
+  }
+
+  return tooltips;
 }

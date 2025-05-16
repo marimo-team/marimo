@@ -6,6 +6,8 @@ import { AGGREGATION_FNS, ChartType, STRING_AGGREGATION_FNS } from "../types";
 import { COUNT_FIELD } from "../constants";
 import { NONE_AGGREGATION } from "../types";
 import { getTooltips } from "../chart-spec/tooltips";
+import type { ChartSchemaType } from "../schemas";
+import type { PositionDef } from "vega-lite/build/src/channeldef";
 
 describe("getAxisEncoding", () => {
   it("should return correct encoding for COUNT_FIELD", () => {
@@ -25,7 +27,7 @@ describe("getAxisEncoding", () => {
     expect(result).toEqual({
       aggregate: "count",
       type: "quantitative",
-      bin: { bin: true, step: 10 },
+      bin: { step: 10 },
       title: undefined,
       stack: true,
     });
@@ -188,9 +190,13 @@ describe("getAxisEncoding", () => {
 describe("getTooltips", () => {
   it("should return no tooltips if undefined", () => {
     const result = getTooltips({
-      general: {
-        xColumn: { field: "x", selectedDataType: "string" },
+      formValues: {
+        general: {
+          xColumn: { field: "x", type: "string" as const },
+        },
       },
+      xEncoding: { field: "x", type: "nominal" },
+      yEncoding: {},
     });
 
     expect(result).toBeUndefined();
@@ -202,25 +208,50 @@ describe("getTooltips", () => {
       fields: [],
     };
 
-    const result = getTooltips({
+    const formValues: ChartSchemaType = {
       general: {
-        xColumn: { field: "x", selectedDataType: "string" },
-        yColumn: { field: "y", selectedDataType: "number" },
+        xColumn: {
+          type: "string" as const,
+        },
+        yColumn: {
+          type: "number" as const,
+        },
+        colorByColumn: {
+          type: "integer" as const,
+        },
       },
       tooltips: autoTooltips,
+      xAxis: { label: "X Axis" },
+    };
+
+    const xEncoding = {
+      field: "x",
+      type: "nominal",
+      timeUnit: "year",
+      aggregate: "sum",
+      bin: { step: 10 },
+    } as PositionDef<string>;
+
+    const result = getTooltips({
+      formValues,
+      xEncoding,
+      yEncoding: { field: "y", type: "quantitative" },
     });
 
     const expected = [
       {
         field: "x",
         format: undefined,
-        timeUnit: undefined,
-        title: undefined,
-        aggregate: undefined,
+        timeUnit: "year",
+        title: "X Axis",
+        aggregate: "sum",
+        bin: {
+          step: 10,
+        },
       },
       {
         field: "y",
-        format: undefined,
+        format: ",.2f", // For number fields, we should use 2 decimal places
         timeUnit: undefined,
         title: undefined,
         aggregate: undefined,
@@ -230,19 +261,17 @@ describe("getTooltips", () => {
     expect(result).toEqual(expected);
 
     const resultWithColor = getTooltips({
-      general: {
-        xColumn: { field: "x", selectedDataType: "string" },
-        yColumn: { field: "y", selectedDataType: "number" },
-        colorByColumn: { field: "color", selectedDataType: "string" },
-      },
-      tooltips: autoTooltips,
+      formValues,
+      xEncoding,
+      yEncoding: { field: "y", type: "quantitative" },
+      colorByEncoding: { field: "color", type: "nominal" },
     });
 
     expect(resultWithColor).toEqual([
       ...expected,
       {
         field: "color",
-        format: undefined,
+        format: ",.0f", // For integer fields, we should use no decimal places
         timeUnit: undefined,
         title: undefined,
         aggregate: undefined,
@@ -252,34 +281,113 @@ describe("getTooltips", () => {
 
   it("should return no fields when auto is false", () => {
     const result = getTooltips({
-      general: {
-        xColumn: { field: "x", selectedDataType: "string" },
-        yColumn: { field: "y", selectedDataType: "number" },
+      formValues: {
+        general: {
+          xColumn: { field: "x", type: "string" as const },
+          yColumn: { field: "y", type: "number" as const },
+        },
+        tooltips: {
+          auto: false,
+          fields: [],
+        },
       },
-      tooltips: {
-        auto: false,
-        fields: [],
-      },
+      xEncoding: { field: "x", type: "nominal" },
+      yEncoding: { field: "y", type: "quantitative" },
     });
 
     expect(result).toEqual([]);
   });
 
-  it("should return fields when provided", () => {
-    const result = getTooltips({
+  it("should enhance tooltips with encoding parameters when field name matches encoding field", () => {
+    const formValues = {
       general: {
-        xColumn: { field: "x", selectedDataType: "string" },
-        yColumn: { field: "y", selectedDataType: "number" },
+        xColumn: { type: "string" as const },
+        yColumn: { type: "number" as const },
+        colorByColumn: { type: "string" as const },
       },
       tooltips: {
         auto: false,
-        fields: [{ field: "x", type: "string" }],
+        fields: [
+          { field: "category", type: "string" as const },
+          { field: "revenue", type: "number" as const },
+          { field: "region", type: "string" as const },
+          { field: "other", type: "string" as const },
+        ],
       },
+      xAxis: { label: "Product Category" },
+      yAxis: { label: "Total Revenue" },
+    };
+
+    const result = getTooltips({
+      formValues,
+      xEncoding: {
+        field: "category",
+        type: "nominal",
+      },
+      yEncoding: {
+        field: "revenue",
+        type: "quantitative",
+        aggregate: "sum",
+      },
+      colorByEncoding: { field: "region", type: "nominal" },
     });
 
     expect(result).toEqual([
       {
-        field: "x",
+        field: "category",
+        format: undefined,
+        timeUnit: undefined,
+        title: "Product Category",
+        aggregate: undefined,
+      },
+      {
+        field: "revenue",
+        format: ",.2f",
+        timeUnit: undefined,
+        title: "Total Revenue",
+        aggregate: "sum",
+      },
+      {
+        field: "region",
+        format: undefined,
+        timeUnit: undefined,
+        title: undefined,
+        aggregate: undefined,
+      },
+      {
+        field: "other",
+      },
+    ]);
+  });
+
+  it("should handle count aggregate with no field set", () => {
+    const formValues = {
+      general: {
+        xColumn: { field: "category", type: "string" as const },
+        yColumn: { field: COUNT_FIELD, type: "number" as const },
+      },
+      tooltips: {
+        auto: true,
+        fields: [],
+      },
+    };
+
+    const result = getTooltips({
+      formValues,
+      xEncoding: { field: "category", type: "nominal" },
+      yEncoding: { aggregate: "count", type: "quantitative" },
+    });
+
+    expect(result).toEqual([
+      {
+        field: "category",
+        format: undefined,
+        timeUnit: undefined,
+        title: undefined,
+        aggregate: undefined,
+      },
+      {
+        aggregate: "count",
       },
     ]);
   });
