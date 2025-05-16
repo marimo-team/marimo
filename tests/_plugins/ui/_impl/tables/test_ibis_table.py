@@ -382,3 +382,23 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert pd.isna(result[0][0])
         assert result[0][1] == 3
         assert set(result[1:]) == {(1, 1), (2, 1), (3, 1)}
+
+    def test_calculate_top_k_rows_nested_lists(self) -> None:
+        import ibis
+
+        # Test nested lists
+        table = ibis.memtable({"A": [[1, 2], [1, 2], [3, 4]]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert result == [([1, 2], 2), ([3, 4], 1)]
+
+    def test_calculate_top_k_rows_dicts(self) -> None:
+        import ibis
+
+        # Test dicts
+        table = ibis.memtable(
+            {"A": [{"a": 1, "b": 2}, {"a": 1, "b": 2}, {"a": 3, "b": 4}]}
+        )
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
