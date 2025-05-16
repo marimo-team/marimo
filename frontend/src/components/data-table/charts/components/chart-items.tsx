@@ -9,7 +9,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { CHART_TYPE_ICON, COUNT_FIELD, EMPTY_VALUE } from "../constants";
+import { CHART_TYPE_ICON, COUNT_FIELD, type EMPTY_VALUE } from "../constants";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { buttonVariants } from "@/components/ui/button";
 import { useFormContext, useWatch } from "react-hook-form";
@@ -25,12 +25,88 @@ import {
   SortField,
   NumberField,
   BinFields,
+  type FieldName,
 } from "./form-fields";
-import { CHART_TYPES, type ChartType } from "../types";
+import { CHART_TYPES, type ChartType, type SelectableDataType } from "../types";
 import React from "react";
 import { FieldSection, Title } from "./layouts";
 import { useChartFormContext } from "../context";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
+import type { DataType } from "@/core/kernel/messages";
+
+type SelectedDataType = SelectableDataType | typeof EMPTY_VALUE;
+type FieldDataType = DataType | typeof EMPTY_VALUE;
+
+// Utility functions for field type checking
+function isNonCountField(field?: {
+  field?: string;
+}) {
+  return isFieldSet(field?.field) && field?.field !== COUNT_FIELD;
+}
+
+function isNumberField(field?: {
+  field?: string;
+  selectedDataType?: SelectedDataType;
+}) {
+  return field?.selectedDataType === "number" && isNonCountField(field);
+}
+
+function isTemporalField(field?: {
+  field?: string;
+  selectedDataType?: SelectedDataType;
+}) {
+  return field?.selectedDataType === "temporal" && isNonCountField(field);
+}
+
+function isNonTemporalField(field?: {
+  field?: string;
+  selectedDataType?: SelectedDataType;
+}) {
+  return field?.selectedDataType !== "temporal" && isNonCountField(field);
+}
+
+// Helper to determine inferred and selected data types
+function getColumnDataTypes(column?: {
+  type?: FieldDataType;
+  selectedDataType?: SelectedDataType;
+}) {
+  const inferredDataType = column?.type
+    ? convertDataTypeToSelectable(column.type)
+    : "string";
+
+  return {
+    inferredDataType,
+    selectedDataType: column?.selectedDataType || inferredDataType,
+  };
+}
+
+const ColumnSelectorWithAggregation: React.FC<{
+  columnFieldName: FieldName;
+  column?: {
+    field?: string;
+    type?: FieldDataType;
+    selectedDataType?: SelectedDataType;
+  };
+  columns: Array<{ name: string; type: DataType }>;
+  binFieldName: FieldName;
+}> = ({ columnFieldName, column, columns, binFieldName }) => {
+  const { selectedDataType } = getColumnDataTypes(column);
+
+  return (
+    <div className="flex flex-row justify-between">
+      <ColumnSelector fieldName={columnFieldName} columns={columns} />
+      {isNonTemporalField(column) && (
+        <AggregationSelect
+          fieldName={
+            columnFieldName.replace(".field", ".aggregate") as FieldName
+          }
+          selectedDataType={selectedDataType}
+          binFieldName={binFieldName}
+        />
+      )}
+    </div>
+  );
+};
 
 export const ChartLoadingState: React.FC = () => (
   <div className="flex items-center gap-2 justify-center h-full w-full">
@@ -91,34 +167,22 @@ export const XAxis: React.FC = () => {
   const context = useChartFormContext();
 
   const xColumn = formValues.general?.xColumn;
-
-  const inferredXDataType = xColumn?.type
-    ? convertDataTypeToSelectable(xColumn.type)
-    : "string";
-
-  const selectedXDataType = xColumn?.selectedDataType || inferredXDataType;
+  const { inferredDataType } = getColumnDataTypes(xColumn);
 
   return (
     <FieldSection>
       <Title text="X-Axis" />
-      <div className="flex flex-row justify-between">
-        <ColumnSelector
-          fieldName="general.xColumn.field"
-          columns={context.fields}
-        />
-        {isNonTemporalField(xColumn) && (
-          <AggregationSelect
-            fieldName="general.xColumn.aggregate"
-            selectedDataType={selectedXDataType}
-            binFieldName="xAxis.bin.binned"
-          />
-        )}
-      </div>
+      <ColumnSelectorWithAggregation
+        columnFieldName="general.xColumn.field"
+        column={xColumn}
+        columns={context.fields}
+        binFieldName="xAxis.bin.binned"
+      />
       {isNonCountField(xColumn) && (
         <DataTypeSelect
           label="Data Type"
           fieldName="general.xColumn.selectedDataType"
-          defaultValue={inferredXDataType}
+          defaultValue={inferredDataType}
         />
       )}
       {isTemporalField(xColumn) && (
@@ -150,35 +214,23 @@ export const YAxis: React.FC = () => {
   const yColumnExists = isFieldSet(yColumn?.field);
   const xColumn = formValues.general?.xColumn;
   const xColumnExists = isFieldSet(xColumn?.field);
-
-  const inferredYDataType = yColumn?.type
-    ? convertDataTypeToSelectable(yColumn.type)
-    : "string";
-
-  const selectedYDataType = yColumn?.selectedDataType || inferredYDataType;
+  const { inferredDataType } = getColumnDataTypes(yColumn);
 
   return (
     <FieldSection>
       <Title text="Y-Axis" />
-      <div className="flex flex-row justify-between">
-        <ColumnSelector
-          fieldName="general.yColumn.field"
-          columns={context.fields}
-        />
-        {isNonTemporalField(yColumn) && (
-          <AggregationSelect
-            fieldName="general.yColumn.aggregate"
-            selectedDataType={selectedYDataType}
-            binFieldName="yAxis.bin.binned"
-          />
-        )}
-      </div>
+      <ColumnSelectorWithAggregation
+        columnFieldName="general.yColumn.field"
+        column={yColumn}
+        columns={context.fields}
+        binFieldName="yAxis.bin.binned"
+      />
 
       {isNonCountField(yColumn) && (
         <DataTypeSelect
           label="Data Type"
           fieldName="general.yColumn.selectedDataType"
-          defaultValue={inferredYDataType}
+          defaultValue={inferredDataType}
         />
       )}
       {isTemporalField(yColumn) && (
@@ -199,29 +251,19 @@ export const ColorByAxis: React.FC = () => {
   const { fields } = useChartFormContext();
   const form = useFormContext<z.infer<typeof ChartSchema>>();
   const formValues = useWatch({ control: form.control });
+  const colorByColumn = formValues.general?.colorByColumn;
 
-  let selectedColorByDataType =
-    formValues.general?.colorByColumn?.selectedDataType;
-  if (selectedColorByDataType === EMPTY_VALUE || !selectedColorByDataType) {
-    selectedColorByDataType = "string";
-  }
-
-  const showBinFields = isNumberField(formValues.general?.colorByColumn);
+  const showBinFields = isNumberField(colorByColumn);
 
   return (
     <FieldSection>
       <Title text="Color by" />
-      <div className="flex flex-row justify-between">
-        <ColumnSelector
-          fieldName="general.colorByColumn.field"
-          columns={fields}
-        />
-        <AggregationSelect
-          fieldName="general.colorByColumn.aggregate"
-          selectedDataType={selectedColorByDataType}
-          binFieldName="color.bin.binned"
-        />
-      </div>
+      <ColumnSelectorWithAggregation
+        columnFieldName="general.colorByColumn.field"
+        column={colorByColumn}
+        columns={fields}
+        binFieldName="color.bin.binned"
+      />
       {showBinFields && <BinFields fieldName="color" />}
     </FieldSection>
   );
@@ -237,10 +279,7 @@ export const Facet: React.FC = () => {
   const renderField = (facet: "column" | "row") => {
     const field = formValues.general?.facet?.[facet];
     const fieldExists = isFieldSet(field?.field);
-
-    const inferredDataType = field?.type
-      ? convertDataTypeToSelectable(field.type)
-      : "string";
+    const { inferredDataType } = getColumnDataTypes(field);
 
     const linkFieldName =
       facet === "row"
@@ -300,30 +339,3 @@ export const Facet: React.FC = () => {
     </FieldSection>
   );
 };
-
-function isNonCountField(field?: {
-  field?: string;
-}) {
-  return isFieldSet(field?.field) && field?.field !== COUNT_FIELD;
-}
-
-function isNumberField(field?: {
-  field?: string;
-  selectedDataType?: string;
-}) {
-  return field?.selectedDataType === "number" && isNonCountField(field);
-}
-
-function isTemporalField(field?: {
-  field?: string;
-  selectedDataType?: string;
-}) {
-  return field?.selectedDataType === "temporal" && isNonCountField(field);
-}
-
-function isNonTemporalField(field?: {
-  field?: string;
-  selectedDataType?: string;
-}) {
-  return field?.selectedDataType !== "temporal" && isNonCountField(field);
-}

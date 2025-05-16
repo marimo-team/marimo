@@ -65,7 +65,7 @@ import type { NumberFieldProps } from "@/components/ui/number-field";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
 
 const CLEAR_VALUE = "__clear__";
-type FieldName = Path<z.infer<typeof ChartSchema>>;
+export type FieldName = Path<z.infer<typeof ChartSchema>>;
 
 export interface Field {
   name: string;
