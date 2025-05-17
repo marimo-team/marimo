@@ -27,6 +27,7 @@ def home_page_template(
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
+    mode: SessionMode,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ user_config }}", json.dumps(user_config))
@@ -37,7 +38,11 @@ def home_page_template(
     html = html.replace("{{ title }}", "marimo")
     html = html.replace("{{ app_config }}", json.dumps({}))
     html = html.replace("{{ filename }}", "")
-    html = html.replace("{{ mode }}", "home")
+    # edit -> home
+    # run -> gallery
+    html = html.replace(
+        "{{ mode }}", "home" if mode == SessionMode.EDIT else "gallery"
+    )
 
     # Add custom CSS from display config
     html = _inject_custom_css_for_config(html, user_config)

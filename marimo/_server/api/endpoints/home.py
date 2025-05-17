@@ -11,8 +11,11 @@ from starlette.responses import JSONResponse
 from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
-from marimo._server.file_router import LazyListOfFilesAppFileRouter
-from marimo._server.model import ConnectionState
+from marimo._server.file_router import (
+    LazyListOfFilesAppFileRouter,
+    flatten_files,
+)
+from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -56,7 +59,7 @@ async def read_code(
 
 
 @router.post("/workspace_files")
-@requires("edit")
+@requires("read")
 async def workspace_files(
     *,
     request: Request,
@@ -77,6 +80,20 @@ async def workspace_files(
     """
     body = await parse_request(request, cls=WorkspaceFilesRequest)
     session_manager = AppState(request).session_manager
+
+    # In run mode, we only show marimo files
+    if session_manager.mode == SessionMode.RUN:
+        files = flatten_files(session_manager.file_router.files)
+        marimo_files = [file for file in files if file.is_marimo_file]
+        return WorkspaceFilesResponse(
+            files=marimo_files,
+            root=session_manager.file_router.directory or "",
+        )
+
+    if not session_manager.file_router.directory:
+        return WorkspaceFilesResponse(
+            files=session_manager.file_router.files, root=""
+        )
 
     # Maybe enable markdown
     root = ""
