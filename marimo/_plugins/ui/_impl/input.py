@@ -600,6 +600,7 @@ class checkbox(UIElement[bool, bool]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[bool], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        disabled (bool, optional): Whether the checkbox is disabled. Defaults to False.
     """
 
     _name: Final[str] = "marimo-checkbox"
@@ -609,13 +610,16 @@ class checkbox(UIElement[bool, bool]):
         value: bool = False,
         *,
         label: str = "",
+        disabled: bool = False,
         on_change: Optional[Callable[[bool], None]] = None,
     ) -> None:
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
             label=label,
-            args={},
+            args={
+                "disabled": disabled,
+            },
             on_change=on_change,
         )
 
