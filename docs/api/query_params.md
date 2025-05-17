@@ -11,3 +11,42 @@ state of the notebook while running as an application with `marimo run`.
 
     You can also access command-line arguments passed to the notebook using
     `mo.cli_args`. This allows you to pass arguments to the notebook that are not controllable by the user.
+
+
+## FastAPI Query Parameter Models In App Mode
+
+One of the use cases for URL query parameters is to set the initial state of UI elements.
+
+Passing query parameters into a Pydantic model helps document and validate the parameters.
+
+
+```python
+import marimo as mo
+from fastapi import Query
+from pydantic import BaseModel, Field
+from typing import Annotated
+
+class MyModel(BaseModel):
+    r: int = Field(28, ge=0, le=255, description="Red Channel")
+    g: int = Field(115, ge=0, le=255, description="Green Channel")
+    b: int = Field(97, ge=0, le=255, description="Blue Channel")
+    message: str = Field("<br>", description="Some text")
+
+model = MyModel(**mo.query_params().to_dict())
+
+# UI with initial state from query params
+r_slider = mo.ui.slider(start=0, stop=255, step=1, label="R", value=model.r)
+g_slider = mo.ui.slider(start=0, stop=255, step=1, label="G", value=model.g)
+b_slider = mo.ui.slider(start=0, stop=255, step=1, label="B", value=model.b)
+```
+
+In the next cell: (see [live](https://marimo.app/l/03egkc?g=255))
+```
+bg_color = f"rgb({r_slider.value},{g_slider.value},{b_slider.value})"
+mo.vstack([
+    r_slider, g_slider, b_slider,
+    mo.Html(model.message + bg_color).style(background_color=bg_color, text_align="center")
+])
+```
+
+When using [marimo apps mounted to FastAPI](../guides/deploying/programmatically.md), the Pydantic model can be passed into the [API documentation](https://fastapi.tiangolo.com/tutorial/query-param-models/) for the main app.
