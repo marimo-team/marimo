@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import sys
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._server.file_router import AppFileRouter
+from marimo._server.model import SessionMode
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_session
 
@@ -101,3 +105,90 @@ def test_cant_open_non_tutorial(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert response.json() == {"detail": "Tutorial not found"}
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_in_run_mode(client: TestClient) -> None:
+    """Test workspace files endpoint in run mode."""
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    # Create a temporary directory with some files
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create a marimo file
+        marimo_file = Path(temp_dir) / "notebook.py"
+        marimo_file.write_text("import marimo\napp = marimo.App()")
+
+        # Create a non-marimo file
+        non_marimo_file = Path(temp_dir) / "text.txt"
+        non_marimo_file.write_text("This is not a marimo file")
+
+        # Set the file router to use the temp directory
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        # In run mode, only marimo files should be returned
+        assert len(files) == 1
+        assert files[0]["path"] == str(marimo_file)
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_in_edit_mode(client: TestClient) -> None:
+    """Test workspace files endpoint in edit mode."""
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.EDIT
+
+    # Create a temporary directory with some files
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create a marimo file
+        marimo_file = Path(temp_dir) / "notebook.py"
+        marimo_file.write_text("import marimo\napp = marimo.App()")
+
+        # Create a non-marimo file
+        non_marimo_file = Path(temp_dir) / "text.py"
+        non_marimo_file.write_text("# This is not a marimo file")
+
+        # Set the file router to use the temp directory
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        # In edit mode, all files should be returned
+        assert len(files) == 1
+        assert str(marimo_file) == files[0]["path"]
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_empty_directory(client: TestClient) -> None:
+    """Test workspace files endpoint with an empty directory."""
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    # Create an empty temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Set the file router to use the temp directory
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        # Empty directory should return empty list
+        assert len(files) == 0

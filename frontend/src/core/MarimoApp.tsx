@@ -32,14 +32,23 @@ const LazyRunPage = reactLazyWithPreload(
 const LazyEditPage = reactLazyWithPreload(
   () => import("@/components/pages/edit-page"),
 );
+const LazyGalleryPage = reactLazyWithPreload(
+  () => import("@/components/pages/gallery-page"),
+);
 
 function preload(mode: string) {
-  if (mode === "home") {
-    LazyHomePage.preload();
-  } else if (mode === "read") {
-    LazyRunPage.preload();
-  } else {
-    LazyEditPage.preload();
+  switch (mode) {
+    case "home":
+      LazyHomePage.preload();
+      break;
+    case "gallery":
+      LazyGalleryPage.preload();
+      break;
+    case "read":
+      LazyRunPage.preload();
+      break;
+    default:
+      LazyEditPage.preload();
   }
 }
 preload(initialMode);
@@ -55,6 +64,9 @@ export const MarimoApp: React.FC = memo(() => {
   const renderBody = () => {
     if (initialMode === "home") {
       return <LazyHomePage.Component />;
+    }
+    if (initialMode === "gallery") {
+      return <LazyGalleryPage.Component />;
     }
     if (initialMode === "read") {
       return <LazyRunPage.Component appConfig={appConfig} />;

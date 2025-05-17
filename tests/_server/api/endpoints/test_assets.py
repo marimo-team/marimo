@@ -11,6 +11,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.assets import _inject_service_worker
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
+from marimo._server.model import SessionMode
 from tests._server.mocks import token_header, with_file_router
 
 if TYPE_CHECKING:
@@ -83,6 +84,55 @@ def test_index_with_directory(client: TestClient) -> None:
     content = response.text
     assert "<marimo-filename" in content
     assert "<marimo-mode data-mode='home'" in content
+    assert "<title>marimo</title>" in content
+
+
+@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
+def test_index_with_directory_run_mode(client: TestClient) -> None:
+    """Test index endpoint with directory in run mode."""
+    # Set run mode
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.RUN
+
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200, response.text
+    content = response.text
+    assert "<marimo-filename" in content
+    assert "<marimo-mode data-mode='gallery'" in content
+    assert "<title>marimo</title>" in content
+
+
+@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
+def test_index_with_directory_edit_mode(client: TestClient) -> None:
+    """Test index endpoint with directory in edit mode."""
+    # Set edit mode
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.EDIT
+
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200, response.text
+    content = response.text
+    assert "<marimo-filename" in content
+    assert "<marimo-mode data-mode='home'" in content
+    assert "<title>marimo</title>" in content
+
+
+@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
+def test_index_with_directory_and_files(client: TestClient) -> None:
+    """Test index endpoint with directory containing marimo files."""
+    # Create a marimo file in the temp directory
+    marimo_file = Path(TEMP_DIR.name) / "notebook.py"
+    marimo_file.write_text("import marimo as mo\napp = mo.App()")
+
+    # Set run mode
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.RUN
+
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200, response.text
+    content = response.text
+    assert "<marimo-filename" in content
+    assert "<marimo-mode data-mode='gallery'" in content
     assert "<title>marimo</title>" in content
 
 
