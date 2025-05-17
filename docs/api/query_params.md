@@ -41,7 +41,7 @@ b_slider = mo.ui.slider(start=0, stop=255, step=1, label="B", value=model.b)
 ```
 
 In the next cell: (see [live](https://marimo.app/l/03egkc?g=255))
-```
+```python
 bg_color = f"rgb({r_slider.value},{g_slider.value},{b_slider.value})"
 mo.vstack([
     r_slider, g_slider, b_slider,
@@ -49,4 +49,4 @@ mo.vstack([
 ])
 ```
 
-When using [marimo apps mounted to FastAPI](../guides/deploying/programmatically.md), the Pydantic model can be passed into the [API documentation](https://fastapi.tiangolo.com/tutorial/query-param-models/) for the main app.
+When using [marimo apps mounted to FastAPI](../guides/deploying/programmatically.md), the Pydantic model can be passed into the API documentation for the main app.
