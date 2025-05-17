@@ -85,10 +85,10 @@ For more details see the [guide on reusable functions and classes](../reusing_fu
 
 ### Types and autocompletion
 
-Add type hints to your variables, and marimo will carry over these types
-hints to cells where these variables use. This, combined with declaring
-your inputs in the setup cell, makes it possible for your editor
-to give completions on cell inputs.
+Add type hints to your variables, and marimo will carry over these type hints
+to cells where these variables are used. This, combined with importing modules
+in the setup cell (see below for an example), makes it possible for your editor
+to give completions on the references of your cell.
 
 
 For example:
