@@ -1,17 +1,13 @@
 # Query Parameters
 
+Query parameters are key-value pairs appended to the end of a URL to pass data to the server or customize a request. 
+
 Use `mo.query_params` to access query parameters passed to the notebook. You
 can also use `mo.query_params` to set query parameters in order to keep track
 of state in the URL. This is useful for bookmarking or sharing a particular
 state of the notebook while running as an application with `marimo run`.
 
 ::: marimo.query_params
-
-!!! note "CLI arguments"
-
-    You can also access command-line arguments passed to the notebook using
-    `mo.cli_args`. This allows you to pass arguments to the notebook that are not controllable by the user.
-
 
 ## Pydantic Models for Query Parameters
 
@@ -48,3 +44,8 @@ mo.vstack([
 ```
 
 When using [marimo apps mounted to FastAPI](../guides/deploying/programmatically.md), the Pydantic model can be passed into the API documentation for the main app.
+
+!!! note "CLI arguments"
+
+    You can also access command-line arguments passed to the notebook using
+    `mo.cli_args`. This allows you to pass arguments to the notebook that are not controllable by the user.
