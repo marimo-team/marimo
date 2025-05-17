@@ -13,7 +13,7 @@ state of the notebook while running as an application with `marimo run`.
     `mo.cli_args`. This allows you to pass arguments to the notebook that are not controllable by the user.
 
 
-## FastAPI Query Parameter Models In App Mode
+## Pydantic Models for Query Parameters
 
 One of the use cases for URL query parameters is to set the initial state of UI elements.
 
@@ -22,9 +22,7 @@ Passing query parameters into a Pydantic model helps document and validate the p
 
 ```python
 import marimo as mo
-from fastapi import Query
 from pydantic import BaseModel, Field
-from typing import Annotated
 
 class MyModel(BaseModel):
     r: int = Field(28, ge=0, le=255, description="Red Channel")
