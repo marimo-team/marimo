@@ -18,6 +18,9 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
+    IbisUniqueKeep,
+    PandasUniqueKeep,
+    PolarsUniqueKeep,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -228,10 +231,16 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
     def handle_unique(
         df: pd.DataFrame, transform: UniqueTransform
     ) -> pd.DataFrame:
-        keep = False if transform.keep == "none" else transform.keep
-        if keep not in ["first", "last", False]:
-            assert_never(keep)
-        return df.drop_duplicates(subset=transform.column_ids, keep=keep)
+        keep = cast(PandasUniqueKeep, transform.keep)
+        if keep == "first":
+            return df.drop_duplicates(
+                subset=transform.column_ids, keep="first"
+            )
+        if keep == "last":
+            return df.drop_duplicates(subset=transform.column_ids, keep="last")
+        if isinstance(keep, bool):
+            return df.drop_duplicates(subset=transform.column_ids, keep=keep)
+        assert_never(keep)
 
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
@@ -481,9 +490,17 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
     def handle_unique(
         df: pl.DataFrame, transform: UniqueTransform
     ) -> pl.DataFrame:
-        if transform.keep not in ["first", "last", "none", "any"]:
-            assert_never(transform.keep)
-        return df.unique(transform.column_ids, keep=transform.keep)
+        keep = cast(PolarsUniqueKeep, transform.keep)
+        if (
+            keep == "first"
+            or keep == "last"
+            or keep == "any"
+            or keep == "none"
+        ):
+            return df.unique(
+                subset=cast(Sequence[str], transform.column_ids), keep=keep
+            )
+        assert_never(keep)
 
 
 class IbisTransformHandler(TransformHandler["ibis.Table"]):
@@ -683,10 +700,16 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     def handle_unique(
         df: ibis.Table, transform: UniqueTransform
     ) -> ibis.Table:
-        keep = None if transform.keep == "none" else transform.keep
-        if keep not in ["first", "last", None]:
-            assert_never(keep)
-        return df.distinct(on=transform.column_ids, keep=keep)
+        keep = cast(IbisUniqueKeep, transform.keep)
+
+        if keep == "first":
+            return df.distinct(on=transform.column_ids, keep="first")
+        elif keep == "last":
+            return df.distinct(on=transform.column_ids, keep="last")
+        elif keep is None:
+            return df.distinct(on=transform.column_ids)
+
+        assert_never(keep)
 
     @staticmethod
     def as_python_code(

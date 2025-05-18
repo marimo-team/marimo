@@ -34,6 +34,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
+
   @apply gap-1 mt-2;
 }
 
@@ -75,11 +76,13 @@ progress::-webkit-progress-bar {
 
 progress::-webkit-progress-value {
   transition: width 0.2s ease;
+
   @apply bg-blue-500 dark:bg-primary;
 }
 
 progress::-moz-progress-bar {
   transition: width 0.2s ease;
+
   @apply bg-blue-500 dark:bg-primary;
 }
 

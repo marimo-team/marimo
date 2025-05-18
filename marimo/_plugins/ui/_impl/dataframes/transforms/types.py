@@ -48,6 +48,11 @@ Aggregation = Literal[
     "max",
 ]
 
+PandasUniqueKeep = Literal["first", "last"] | bool
+PolarsUniqueKeep = Literal["first", "last", "none", "any"]
+IbisUniqueKeep = Literal["first", "last", None]
+UniqueKeep = Union[PandasUniqueKeep, PolarsUniqueKeep, IbisUniqueKeep]
+
 
 class TransformType(Enum):
     AGGREGATE = "aggregate"
@@ -168,7 +173,7 @@ class ExpandDictTransform:
 class UniqueTransform:
     type: Literal[TransformType.UNIQUE]
     column_ids: ColumnIds
-    keep: Literal["first", "last", "none", "any"]
+    keep: UniqueKeep
 
 
 Transform = Union[
