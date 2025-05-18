@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Union
 
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
@@ -34,7 +34,9 @@ class AltairFormatter(FormatterFactory):
         register_transformers()
 
         @formatting.formatter(altair.TopLevelMixin)
-        def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
+        def _show_chart(
+            chart: Union[altair.Chart, altair.LayerChart],
+        ) -> tuple[KnownMimeType, str]:
             import altair as alt
 
             # Try to get the _repr_mimebundle_ method from the chart
@@ -104,7 +106,9 @@ class AltairFormatter(FormatterFactory):
 # This is only needed since it seems that altair does not
 # handle this internally.
 # https://github.com/marimo-team/marimo/issues/2302
-def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
+def _apply_embed_options(
+    chart: Union[altair.Chart, altair.LayerChart],
+) -> Union[altair.Chart, altair.LayerChart]:
     import altair as alt
 
     # Respect user-set embed options
@@ -124,7 +128,7 @@ def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
 
 
 def chart_to_json(
-    chart: altair.Chart,
+    chart: Union[altair.Chart, altair.LayerChart],
     spec_format: Literal["vega", "vega-lite"] = "vega-lite",
     validate: bool = True,
 ) -> str:
