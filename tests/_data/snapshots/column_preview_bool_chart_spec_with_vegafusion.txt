@@ -1,0 +1,170 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
+  },
+  "axes": [
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "x",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "ticks": false,
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelAlign": "right",
+      "labelAngle": 270,
+      "labelBaseline": "middle",
+      "orient": "bottom",
+      "scale": "x",
+      "title": "bool_col",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelOverlap": true,
+      "orient": "left",
+      "scale": "y",
+      "tickCount": {
+        "signal": "ceil(height/40)"
+      },
+      "title": "Count of Records",
+      "zindex": 0
+    }
+  ],
+  "background": "white",
+  "data": [
+    {
+      "name": "source_0",
+      "values": [
+        {
+          "__count": 2,
+          "bool_col": true
+        },
+        {
+          "__count": 1,
+          "bool_col": false
+        }
+      ]
+    },
+    {
+      "name": "source_0_x_domain_bool_col",
+      "values": [
+        {
+          "bool_col": true
+        },
+        {
+          "bool_col": false
+        }
+      ]
+    },
+    {
+      "name": "source_0_y_domain___count",
+      "values": [
+        {
+          "max": 2,
+          "min": 1
+        }
+      ]
+    }
+  ],
+  "height": 300,
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "#4c78a8"
+          },
+          "width": {
+            "signal": "max(0.25, bandwidth('x'))"
+          },
+          "x": {
+            "field": "bool_col",
+            "scale": "x"
+          },
+          "y": {
+            "field": "__count",
+            "scale": "y"
+          },
+          "y2": {
+            "scale": "y",
+            "value": 0
+          }
+        }
+      },
+      "from": {
+        "data": "source_0"
+      },
+      "name": "marks",
+      "style": [
+        "bar"
+      ],
+      "type": "rect"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "domain": {
+        "data": "source_0_x_domain_bool_col",
+        "field": "bool_col",
+        "sort": true
+      },
+      "name": "x",
+      "paddingInner": 0.1,
+      "paddingOuter": 0.05,
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "band"
+    },
+    {
+      "domain": [
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).min"
+        },
+        {
+          "signal": "(data(\"source_0_y_domain___count\")[0] || {}).max"
+        }
+      ],
+      "name": "y",
+      "nice": true,
+      "range": [
+        {
+          "signal": "height"
+        },
+        0
+      ],
+      "type": "linear",
+      "zero": true
+    }
+  ],
+  "signals": [
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    }
+  ],
+  "style": "cell"
+}

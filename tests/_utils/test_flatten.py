@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from collections import defaultdict
+from typing import Any
 
 import pytest
 
@@ -11,9 +12,9 @@ from marimo._utils.flatten import (
     flatten,
 )
 
-L = List[Any]
-T = Tuple[Any, ...]
-D = Dict[Any, Any]
+L = list[Any]
+T = tuple[Any, ...]
+D = dict[Any, Any]
 
 
 def test_flat_list() -> None:
@@ -38,6 +39,21 @@ def test_flat_dict() -> None:
     assert v == [4, 5, 6]
     assert u(v) == x
     assert u([7, 8, 9]) == {1: 7, 2: 8, 3: 9}
+
+
+def test_flat_defaultdict() -> None:
+    x: defaultdict[int, int] = defaultdict(int, {1: 4, 2: 5, 3: 6})
+    v, u = flatten(x)
+    assert v == [4, 5, 6]
+    assert u(v) == x
+    assert u([7, 8, 9]) == {1: 7, 2: 8, 3: 9}
+
+    # Test with default_factory
+    y: defaultdict[int, list[int]] = defaultdict(list, {1: [4, 5], 2: [6, 7]})
+    v, u = flatten(y)
+    assert v == [4, 5, 6, 7]
+    assert u(v) == y
+    assert u([8, 9, 10, 11]) == {1: [8, 9], 2: [10, 11]}
 
 
 def test_flat_empty_list() -> None:

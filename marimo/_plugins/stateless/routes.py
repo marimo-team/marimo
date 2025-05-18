@@ -1,13 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Coroutine, Final, Union
+from typing import TYPE_CHECKING, Any, Callable, Final, Union
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless import lazy
 from marimo._plugins.ui._core.ui_element import UIElement
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 
 @mddoc

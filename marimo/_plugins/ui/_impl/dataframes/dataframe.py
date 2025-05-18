@@ -7,9 +7,8 @@ from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
-    Dict,
     Final,
-    List,
+    Literal,
     Optional,
     Union,
 )
@@ -48,10 +47,10 @@ from marimo._utils.parse_dataclass import parse_raw
 @dataclass
 class GetDataFrameResponse:
     url: str
-    total_rows: int
+    total_rows: Union[int, Literal["too_many"]]
     # List of column names that are actually row headers
     # This really only applies to Pandas, that has special index columns
-    row_headers: List[str]
+    row_headers: list[str]
     field_types: FieldTypes
     python_code: Optional[str] = None
     sql_code: Optional[str] = None
@@ -64,7 +63,7 @@ class GetColumnValuesArgs:
 
 @dataclass
 class GetColumnValuesResponse:
-    values: List[str | int | float]
+    values: list[str | int | float]
     too_many_values: bool
 
 
@@ -81,7 +80,7 @@ class GetDataFrameError(Exception):
 
 
 @mddoc
-class dataframe(UIElement[Dict[str, Any], DataFrameType]):
+class dataframe(UIElement[dict[str, Any], DataFrameType]):
     """Run transformations on a DataFrame or series.
 
     Currently only Pandas or Polars DataFrames are supported.
@@ -178,7 +177,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             ),
         )
 
-    def _get_column_types(self) -> List[List[Union[str, int]]]:
+    def _get_column_types(self) -> list[list[Union[str, int]]]:
         return [
             [name, dtype[0], dtype[1]]
             for name, dtype in self._manager.get_field_types()
@@ -199,7 +198,8 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             field_types=manager.get_field_types(),
             python_code=self._handler.as_python_code(
                 self._dataframe_name,
-                manager.get_column_names(),
+                # manager.get_column_names(),
+                self._manager.get_column_names(),
                 self._last_transforms.transforms,
             ),
             sql_code=self._handler.as_sql_code(manager.data),
@@ -229,7 +229,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
                 too_many_values=True,
             )
 
-    def _convert_value(self, value: Dict[str, Any]) -> DataFrameType:
+    def _convert_value(self, value: dict[str, Any]) -> DataFrameType:
         if value is None:
             self._error = None
             return self._data
@@ -241,7 +241,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             self._last_transforms = transformations
             return result
         except Exception as e:
-            error = "Error applying dataframe transform: %s\n\n" % str(e)
+            error = f"Error applying dataframe transform: {str(e)}\n\n"
             sys.stderr.write(error)
             self._error = error
             return self._data
@@ -256,7 +256,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         )
 
         # Save the manager to be used for selection
-        data = result.take(args.page_size, offset).to_data()
+        data = result.take(args.page_size, offset).to_json_str()
         return SearchTableResponse(
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,

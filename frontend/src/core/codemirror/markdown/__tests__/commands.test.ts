@@ -1,6 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorState, EditorView, basicSetup } from "@uiw/react-codemirror";
-import { describe, afterEach, test, expect } from "vitest";
+import {
+  describe,
+  afterEach,
+  test,
+  expect,
+  vi,
+  beforeEach,
+  afterAll,
+} from "vitest";
 import {
   insertBlockquote,
   insertBoldMarker,
@@ -12,6 +20,9 @@ import {
   insertTextFile,
   insertUL,
 } from "../commands";
+import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/filenameAtom";
+import { store } from "@/core/state/jotai";
 
 function createEditor(content: string) {
   const state = EditorState.create({
@@ -154,18 +165,35 @@ describe("insertLink", () => {
   });
 });
 
+vi.mock("@/core/network/requests", () => ({
+  sendCreateFileOrFolder: vi.fn().mockResolvedValue({
+    success: true,
+    info: { path: "hello.png" },
+  }),
+}));
+
 describe("insertImage", () => {
+  const mockPngFile = () => {
+    const png = new Uint8Array([1, 2, 3]);
+    return new File([png], "hello.png", { type: "image/png" });
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(window, "prompt").mockImplementation(() => "hello.png");
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+
   test("inserts image at cursor position", async () => {
     view = createEditor("Hello, world!");
     view.dispatch({
       selection: { anchor: 7, head: 7 },
     });
 
-    const png = new Uint8Array([1, 2, 3]);
-    await insertImage(
-      view,
-      new File([png], "hello.png", { type: "image/png" }),
-    );
+    await insertImage(view, mockPngFile());
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
       `"Hello, ![](data:image/png;base64,AQID)world!"`,
@@ -178,14 +206,135 @@ describe("insertImage", () => {
       selection: { anchor: 7, head: 13 },
     });
 
-    const png = new Uint8Array([1, 2, 3]);
-    await insertImage(
-      view,
-      new File([png], "hello.png", { type: "image/png" }),
-    );
+    await insertImage(view, mockPngFile());
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
       `"Hello, ![world!](data:image/png;base64,AQID)"`,
+    );
+  });
+
+  test("saves image as file when server request succeeds", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+      success: true,
+      info: {
+        path: "public/hello.png",
+        name: "hello.png",
+        isMarimoFile: true,
+        isDirectory: false,
+        lastModified: null,
+        children: [],
+        id: "",
+      },
+    });
+
+    await insertImage(view, mockPngFile());
+
+    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "public",
+      type: "file",
+      name: "hello.png",
+      contents: "AQID",
+    });
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![](public/hello.png)world!"`,
+    );
+  });
+
+  test("saves image in public folder of notebook directory", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    // mock filenameAtom
+    vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === filenameAtom) {
+        return "nested/hello.py";
+      }
+    });
+
+    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+      success: true,
+      info: {
+        path: "nested/public/hello.png",
+        name: "hello.png",
+        children: [],
+        id: "",
+        isDirectory: false,
+        isMarimoFile: true,
+        lastModified: null,
+      },
+    });
+
+    await insertImage(view, mockPngFile());
+
+    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "nested/public", // store in public folder of notebook directory
+      type: "file",
+      name: "hello.png",
+      contents: "AQID",
+    });
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![](nested/public/hello.png)world!"`,
+    );
+  });
+
+  test("saves image as file different extension", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+      success: true,
+      info: {
+        path: "public/hello.jpg",
+        name: "hello.jpg",
+        children: [],
+        id: "",
+        isDirectory: false,
+        isMarimoFile: false,
+      },
+    });
+
+    const mockJpgFile = () => {
+      const jpg = new Uint8Array([1, 2, 3]);
+      return new File([jpg], "hello.jpg", { type: "image/jpeg" });
+    };
+
+    await insertImage(view, mockJpgFile());
+
+    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![](public/hello.jpg)world!"`,
+    );
+  });
+
+  test("falls back to base64 when file creation fails", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+      success: false,
+      message: "Failed to create file",
+    });
+
+    await insertImage(view, mockPngFile());
+
+    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![](data:image/png;base64,AQID)world!"`,
     );
   });
 });
@@ -225,7 +374,7 @@ describe("insertTextFile", () => {
 });
 
 describe("insertBoldMarker", () => {
-  test("inserts bold marker at cursor position", () => {
+  test("do not insert bold marker at cursor position", () => {
     view = createEditor("Hello, world!");
     view.dispatch({
       selection: { anchor: 7, head: 7 },
@@ -233,7 +382,7 @@ describe("insertBoldMarker", () => {
 
     insertBoldMarker(view);
 
-    expect(view.state.doc.toString()).toBe("Hello, **world**!");
+    expect(view.state.doc.toString()).toBe("Hello, world!");
   });
 
   test("inserts bold marker at cursor position with selected text", () => {

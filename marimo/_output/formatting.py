@@ -18,10 +18,11 @@ taking precedence over the MIME protocol.
 from __future__ import annotations
 
 import json
+import os
 import traceback
 from dataclasses import dataclass
 from html import escape
-from typing import Any, Callable, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar, cast
 
 from marimo import _loggers as loggers
 from marimo._messaging.mimetypes import KnownMimeType
@@ -40,13 +41,13 @@ from marimo._utils.methods import is_callable_method
 T = TypeVar("T")
 
 # we use Tuple instead of the builtin tuple for py3.8 compatibility
-Formatter = Callable[[T], Tuple[KnownMimeType, str]]
-FORMATTERS: dict[Type[Any], Formatter[Any]] = {}
-OPINIONATED_FORMATTERS: dict[Type[Any], Formatter[Any]] = {}
+Formatter = Callable[[T], tuple[KnownMimeType, str]]
+FORMATTERS: dict[type[Any], Formatter[Any]] = {}
+OPINIONATED_FORMATTERS: dict[type[Any], Formatter[Any]] = {}
 LOGGER = loggers.marimo_logger()
 
 
-def formatter(t: Type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
+def formatter(t: type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
     """Register a formatter function for a type
 
     Decorator to register a custom formatter for a given type.
@@ -69,7 +70,7 @@ def formatter(t: Type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
 
 
 def opinionated_formatter(
-    t: Type[Any],
+    t: type[Any],
 ) -> Callable[[Formatter[T]], Formatter[T]]:
     """Register an opinionated formatter function for a type
 
@@ -96,7 +97,7 @@ def get_formatter(
     obj: T,
     # Include opinionated formatters by default
     # (e.g., for pandas, polars, arrow, etc.)
-    include_opinionated: bool = True,
+    include_opinionated: Optional[bool] = None,
 ) -> Optional[Formatter[T]]:
     from marimo._runtime.context import ContextNotInitializedError, get_context
 
@@ -111,6 +112,12 @@ def get_formatter(
             # Install formatters when marimo is being used without
             # a kernel (eg, in a unit test or when run as a Python script)
             register_formatters()
+
+    # If not explicitly opinionated, we defer to the environment.
+    if include_opinionated is None:
+        include_opinionated = (
+            os.getenv("MARIMO_NO_JS", "false").lower() == "false"
+        )
 
     # Plain opts out of opinionated formatters
     if isinstance(obj, Plain):
@@ -179,7 +186,9 @@ class FormattedOutput:
         return FormattedOutput(mimetype="text/plain", data="")
 
 
-def try_format(obj: Any, include_opinionated: bool = True) -> FormattedOutput:
+def try_format(
+    obj: Any, include_opinionated: Optional[bool] = None
+) -> FormattedOutput:
     if obj is None:
         return FormattedOutput.empty()
 

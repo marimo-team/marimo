@@ -137,14 +137,6 @@ export const ScratchPad: React.FC = () => {
             status="idle"
             serializedEditorState={null}
             runCell={handleRun}
-            updateCellCode={updateCellCode}
-            createNewCell={Functions.NOOP}
-            deleteCell={Functions.NOOP}
-            focusCell={Functions.NOOP}
-            moveCell={Functions.NOOP}
-            moveToNextCell={undefined}
-            updateCellConfig={Functions.NOOP}
-            clearSerializedEditorState={Functions.NOOP}
             userConfig={userConfig}
             editorViewRef={ref}
             setEditorView={(ev) => {
@@ -163,6 +155,7 @@ export const ScratchPad: React.FC = () => {
             className="output-area"
             cellId={cellId}
             stale={false}
+            loading={false}
           />
         </div>
         <div className="overflow-auto flex-shrink-0 max-h-[35%]">
@@ -216,6 +209,12 @@ export const ScratchPad: React.FC = () => {
       className="flex flex-col h-full overflow-hidden divide-y"
       id={HTMLCellId.create(cellId)}
     >
+      <p className="mx-2 my-2 text-muted-foreground text-sm">
+        Use this scratchpad cell to experiment with code without restrictions on
+        variable names. Scratchpad code is ephemeral: variables defined in the
+        scratchpad aren't saved to notebook memory, and the code is not saved in
+        the notebook file.
+      </p>
       <div className="flex items-center flex-shrink-0">
         <Tooltip content={renderShortcut("cell.run")}>
           <Button

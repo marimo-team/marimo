@@ -79,6 +79,9 @@ const SlidesComponent = ({
         clickable: true,
       }}
       virtual={true}
+      // Instant swipes, which make sequences of slides
+      // that overlay content more legible
+      speed={1}
     >
       {React.Children.map(children, (child, index) => {
         if (child == null) {
@@ -101,8 +104,7 @@ const SlidesComponent = ({
                 isFullscreen ? "p-20" : "p-6",
               )}
             >
-              {/* this centers the contents */}
-              <div className="m-auto">{child}</div>
+              <div className="mo-slide-content">{child}</div>
             </div>
           </SwiperSlide>
         );

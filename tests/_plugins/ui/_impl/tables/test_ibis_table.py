@@ -89,6 +89,18 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert isinstance(data, bytes)
         snapshot("ibis.json", data.decode("utf-8"))
 
+    def test_to_json_format_mapping(self) -> None:
+        import ibis
+
+        table = ibis.memtable({"int": [1, 2, 3]})
+        data = self.factory.create()(table)
+
+        format_mapping = {"int": lambda x: x * 2}
+        json_data = data.to_json(format_mapping)
+
+        json_object = json.loads(json_data.decode("utf-8"))
+        assert json_object == [{"int": 2}, {"int": 4}, {"int": 6}]
+
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
         field_types = complex_data.get_field_types()
@@ -162,6 +174,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             self.manager.take(2, 2).select_columns(["A"]).to_json()
             == b'[{"A":3}]'
         )
+
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
 
     def test_take_zero(self) -> None:
         limited_manager = self.manager.take(0, 0)
@@ -321,3 +336,49 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             3.0,
         ]
         assert np.isnan(sorted_data[3])
+
+    def test_calculate_top_k_rows(self) -> None:
+        import ibis
+
+        table = ibis.memtable({"A": [2, 3, 3], "B": ["a", "b", "c"]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert result == [(3, 2), (2, 1)]
+
+        # Test equal counts with k limit
+        table = ibis.memtable({"A": [1, 1, 2, 2, 3]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 2)
+        assert len(result) == 2
+        assert {(1, 2), (2, 2)} == set(result)
+        assert all(count == 2 for _, count in result)
+
+    def test_calculate_top_k_rows_nulls(self) -> None:
+        import ibis
+        import pandas as pd
+
+        # Test single null value
+        table = ibis.memtable({"A": [3, None, None]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert len(result) == 2
+        assert result[1] == (3, 1)
+        assert pd.isna(result[0][0])
+        assert result[0][1] == 2
+
+        # Test all null values
+        table = ibis.memtable({"A": [None, None, None]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert len(result) == 1
+        assert pd.isna(result[0][0])
+        assert result[0][1] == 3
+
+        # Test mixed values with nulls
+        table = ibis.memtable({"A": [1, None, 2, None, 3, None]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert len(result) == 4
+        assert pd.isna(result[0][0])
+        assert result[0][1] == 3
+        assert set(result[1:]) == {(1, 1), (2, 1), (3, 1)}

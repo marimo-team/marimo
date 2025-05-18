@@ -117,7 +117,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         assert self._virtual_file is not None
         return self._virtual_file
 
-    def create(self, context: "RuntimeContext" | None) -> None:
+    def create(self, context: RuntimeContext | None) -> None:
         """Create the virtual file
 
         Every virtual file gets a unique random name. Uniqueness is
@@ -145,7 +145,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         self._virtual_file = VirtualFile(filename, self.buffer)
         context.virtual_file_registry.add(self._virtual_file, context)
 
-    def dispose(self, context: "RuntimeContext", deletion: bool) -> bool:
+    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
         # Remove the file if the refcount is 0, or if the cell is being
         # deleted. (We can't rely on when the refcount will be decremented, so
         # we need to check for deletion explicitly to prevent leaks.)
@@ -209,9 +209,7 @@ class VirtualFileRegistry:
             return self.registry[filename].refcount
         return 0
 
-    def add(
-        self, virtual_file: VirtualFile, context: "RuntimeContext"
-    ) -> None:
+    def add(self, virtual_file: VirtualFile, context: RuntimeContext) -> None:
         if not context.virtual_files_supported:
             return
 

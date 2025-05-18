@@ -7,7 +7,6 @@ from enum import Enum
 from typing import (
     Any,
     Generic,
-    List,
     Literal,
     Optional,
     TypeVar,
@@ -18,7 +17,7 @@ from typing import (
 DataFrameType = TypeVar("DataFrameType")
 
 ColumnId = Union[str, int]
-ColumnIds = List[ColumnId]
+ColumnIds = list[ColumnId]
 NumpyDataType = str
 Operator = Literal[
     "==",
@@ -76,9 +75,16 @@ class Condition:
 
     def __post_init__(self) -> None:
         if self.operator == "in":
-            assert isinstance(self.value, list), (
-                "value must be a list for 'in' operator"
-            )
+            if isinstance(self.value, list):
+                # Hack to convert to tuple for frozen dataclass
+                # Only tuples can be hashed
+                object.__setattr__(self, "value", tuple(self.value))
+            elif isinstance(self.value, tuple):
+                pass
+            else:
+                raise ValueError(
+                    "value must be a list or tuple for 'in' operator"
+                )
 
 
 @dataclass
@@ -108,7 +114,7 @@ class SortColumnTransform:
 class FilterRowsTransform:
     type: Literal[TransformType.FILTER_ROWS]
     operation: Literal["keep_rows", "remove_rows"]
-    where: List[Condition]
+    where: list[Condition]
 
 
 @dataclass
@@ -123,7 +129,7 @@ class GroupByTransform:
 class AggregateTransform:
     type: Literal[TransformType.AGGREGATE]
     column_ids: ColumnIds
-    aggregations: List[Aggregation]
+    aggregations: list[Aggregation]
 
 
 @dataclass
@@ -182,7 +188,7 @@ Transform = Union[
 
 @dataclass
 class Transformations:
-    transforms: List[Transform]
+    transforms: list[Transform]
 
 
 T = TypeVar("T")
@@ -253,7 +259,7 @@ class TransformHandler(abc.ABC, Generic[T]):
 
     @staticmethod
     def as_python_code(
-        df_name: str, columns: List[str], transforms: List[Transform]
+        df_name: str, columns: list[str], transforms: list[Transform]
     ) -> str | None:
         del df_name, transforms, columns
         return None

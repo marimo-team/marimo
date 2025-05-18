@@ -16,7 +16,7 @@ from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-INTERVAL = 0.1
+INTERVAL = 0.2
 
 
 @pytest.fixture(autouse=True)
@@ -458,7 +458,9 @@ async def test_reload_with_modified_cell(
     assert not k.graph.cells[er_3.cell_id].stale
 
     # modify the first cell and make sure it is still marked as stale;
-    k._maybe_register_cell(er_1.cell_id, f"from {py_modname} import foo; 1")
+    k._maybe_register_cell(
+        er_1.cell_id, f"from {py_modname} import foo; 1", stale=False
+    )
     assert er_1.cell_id in k.graph.get_stale()
 
 

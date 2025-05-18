@@ -87,3 +87,7 @@ video {
   border: 1px solid #ebebeb;
   border-radius: 5px;
 }
+
+.examples-grid img {
+  max-height: 125px;
+}

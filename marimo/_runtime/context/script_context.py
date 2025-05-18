@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._cli.parse_args import args_from_argv
@@ -28,6 +28,8 @@ from marimo._runtime.patches import (
 from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._ast.app import InternalApp
     from marimo._messaging.types import Stream
     from marimo._types.ids import CellId_t
@@ -41,6 +43,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     def __post_init__(self) -> None:
         self._cli_args: CLIArgs | None = None
+        self._argv = sys.argv
         self._query_params = QueryParams({}, _registry=self.state_registry)
 
     @property
@@ -81,6 +84,11 @@ class ScriptRuntimeContext(RuntimeContext):
         if self._cli_args is None:
             self._cli_args = CLIArgs(args_from_argv())
         return self._cli_args
+
+    @property
+    def argv(self) -> list[str]:
+        """Get the original argv."""
+        return self._argv
 
     @property
     def query_params(self) -> QueryParams:
@@ -134,12 +142,14 @@ def initialize_script_context(
     Must be called exactly once for each client thread.
     """
     from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._save.stores import get_store
 
     runtime_context = ScriptRuntimeContext(
         _app=app,
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
+        cache_store=get_store(filename),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),
@@ -150,5 +160,6 @@ def initialize_script_context(
         children=[],
         parent=None,
         filename=filename,
+        app_config=app.config,
     )
     initialize_context(runtime_context=runtime_context)

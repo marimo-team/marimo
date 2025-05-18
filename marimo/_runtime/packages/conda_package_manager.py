@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List
-
 from marimo._runtime.packages.module_name_to_conda_name import (
     module_name_to_conda_name,
 )
@@ -30,7 +28,7 @@ class PixiPackageManager(CondaPackageManager):
     async def uninstall(self, package: str) -> bool:
         return self.run(["pixi", "remove", *split_packages(package)])
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         import json
         import subprocess
 

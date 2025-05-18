@@ -190,7 +190,7 @@ def __(json, os):
                 for _ in range(number_of_examples)
             ]
 
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             choices = json.loads(f.read())
         assert len(choices) == number_of_examples
         return choices
@@ -198,7 +198,7 @@ def __(json, os):
 
     def write_choices(choices, path):
         # Trunacate notes
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(json.dumps(choices))
     return load_choices, write_choices
 

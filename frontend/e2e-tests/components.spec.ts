@@ -20,7 +20,7 @@ test.describe.configure({ mode: "parallel" });
 const pageHelper = (page: Page) => {
   return {
     cell(index: number) {
-      return page.locator(".Cell").nth(index);
+      return page.locator(".marimo-cell").nth(index);
     },
     async selectBasicComponent(type: string) {
       const select = await this.cell(1).locator("select");
@@ -137,6 +137,18 @@ test("file area", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectBasicComponent("file area");
   const element = page.getByText("Drag and drop files here");
+  // Verify is visible
+  await expect(element).toBeVisible();
+  // Verify output
+  await helper.verifyOutput("None");
+
+  await takeScreenshot(page, _filename);
+});
+
+test("file area single", async ({ page }) => {
+  const helper = pageHelper(page);
+  await helper.selectBasicComponent("file area single");
+  const element = page.getByText("Drag and drop a file here");
   // Verify is visible
   await expect(element).toBeVisible();
   // Verify output

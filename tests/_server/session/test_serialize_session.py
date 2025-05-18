@@ -6,11 +6,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+from marimo import __version__
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.ops import CellOp
+from marimo._runtime.requests import ExecuteMultipleRequest
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.session.serialize import (
+    SessionCacheKey,
     SessionCacheManager,
     SessionCacheWriter,
     _hash_code,
@@ -52,7 +55,7 @@ def test_serialize_session_with_error():
         status="idle",
         output=CellOutput(
             channel=CellChannel.MARIMO_ERROR,
-            mimetype="text/plain",
+            mimetype="application/vnd.marimo+error",
             data=[UnknownError(type="unknown", msg="Something went wrong")],
         ),
         console=[],
@@ -172,6 +175,7 @@ def test_deserialize_session_with_error():
     cell = view.cell_operations["cell1"]
     assert cell.output is not None
     assert cell.output.channel == CellChannel.MARIMO_ERROR
+    assert cell.output.mimetype == "application/vnd.marimo+error"
     assert isinstance(cell.output.data, list)
     error = cell.output.data[0]
     assert isinstance(error, MarimoExceptionRaisedError)
@@ -348,6 +352,34 @@ def test_deserialize_empty_data():
     assert cell.output is None
 
 
+def test_serialize_session_with_dict_error():
+    """Test serialization of a session with a dictionary error"""
+    view = SessionView()
+    view.cell_operations["cell1"] = CellOp(
+        cell_id="cell1",
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.MARIMO_ERROR,
+            mimetype="application/vnd.marimo+error",
+            data=[
+                {"type": "unknown", "msg": "Something went wrong"}
+            ],  # Dictionary instead of Error object
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code["cell1"] = (
+        "raise RuntimeError('Something went wrong')"
+    )
+
+    result = serialize_session_view(view)
+    assert len(result["cells"]) == 1
+    assert len(result["cells"][0]["outputs"]) == 1
+    assert result["cells"][0]["outputs"][0]["type"] == "error"
+    assert result["cells"][0]["outputs"][0]["ename"] == "unknown"
+    assert result["cells"][0]["outputs"][0]["evalue"] == "Something went wrong"
+
+
 class TestSessionCacheManager:
     """Test SessionCacheManager functionality"""
 
@@ -379,7 +411,12 @@ class TestSessionCacheManager:
         """Test reading session view without path"""
         view = SessionView()
         manager = SessionCacheManager(view, None, 0.1)
-        assert manager.read_session_view() == view
+        assert (
+            manager.read_session_view(
+                SessionCacheKey(codes=tuple(), marimo_version="-1")
+            )
+            == view
+        )
 
     def test_read_session_view_no_cache(self):
         """Test reading session view with no cache file"""
@@ -387,7 +424,12 @@ class TestSessionCacheManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "notebook.py"
             manager = SessionCacheManager(view, path, 0.1)
-            assert manager.read_session_view() == view
+            assert (
+                manager.read_session_view(
+                    SessionCacheKey(codes=tuple(), marimo_version="-1")
+                )
+                == view
+            )
 
     async def test_read_session_view_with_cache(self):
         """Test reading session view from cache file"""
@@ -415,8 +457,129 @@ class TestSessionCacheManager:
 
             # Read back
             manager = SessionCacheManager(SessionView(), path, 0.1)
-            loaded_view = manager.read_session_view()
+            loaded_view = manager.read_session_view(
+                SessionCacheKey(codes=(None,), marimo_version=__version__)
+            )
             assert "cell1" in loaded_view.cell_operations
             cell = loaded_view.cell_operations["cell1"]
             assert cell.output is not None
             assert cell.output.data == "test data"
+
+    async def test_read_session_view_cache_miss_code(self):
+        """Test reading session view from cache file"""
+        view = SessionView()
+        view.cell_operations["cell1"] = CellOp(
+            cell_id="cell1",
+            status="idle",
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="test data",
+            ),
+            console=[],
+            timestamp=0,
+        )
+        view.add_control_request(
+            ExecuteMultipleRequest(cell_ids=["cell1"], codes=["a"])
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "notebook.py"
+            cache_file = get_session_cache_file(path)
+            cache_file.parent.mkdir(parents=True)
+
+            # Write cache file
+            data = serialize_session_view(view)
+            cache_file.write_text(json.dumps(data))
+
+            # Read back
+            manager = SessionCacheManager(SessionView(), path, 0.1)
+            loaded_view = manager.read_session_view(
+                # foo != a, cache miss
+                SessionCacheKey(codes=("foo",), marimo_version=__version__)
+            )
+            assert not loaded_view.cell_operations
+
+    async def test_read_session_view_cache_miss_version(self):
+        """Test reading session view from cache file"""
+        view = SessionView()
+        view.add_control_request(
+            ExecuteMultipleRequest(cell_ids=["1", "2"], codes=["a", "b"])
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "notebook.py"
+            cache_file = get_session_cache_file(path)
+            cache_file.parent.mkdir(parents=True)
+
+            # Write cache file
+            data = serialize_session_view(view)
+            cache_file.write_text(json.dumps(data))
+
+            # Read back
+            manager = SessionCacheManager(SessionView(), path, 0.1)
+            loaded_view = manager.read_session_view(
+                SessionCacheKey(
+                    codes=(
+                        "a",
+                        "b",
+                    ),
+                    marimo_version="-1",
+                )
+            )
+            assert not loaded_view.cell_operations
+
+    async def test_read_session_view_cache_hit(self):
+        """Test reading session view from cache file"""
+        view = SessionView()
+        view.cell_operations["cell1"] = CellOp(
+            cell_id="cell1",
+            status="idle",
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="test data",
+            ),
+            console=[],
+            timestamp=0,
+        )
+        view.cell_operations["cell2"] = CellOp(
+            cell_id="cell2",
+            status="idle",
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="test data",
+            ),
+            console=[],
+            timestamp=0,
+        )
+
+        view.add_control_request(
+            ExecuteMultipleRequest(
+                cell_ids=["cell1", "cell2"], codes=["a", "b"]
+            )
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "notebook.py"
+            cache_file = get_session_cache_file(path)
+            cache_file.parent.mkdir(parents=True)
+
+            # Write cache file
+            data = serialize_session_view(view)
+            cache_file.write_text(json.dumps(data))
+
+            # Read back
+            manager = SessionCacheManager(SessionView(), path, 0.1)
+            loaded_view = manager.read_session_view(
+                SessionCacheKey(
+                    codes=(
+                        "a",
+                        "b",
+                    ),
+                    marimo_version=__version__,
+                )
+            )
+            # cache hit: codes and version match
+            assert len(loaded_view.cell_operations) == 2

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, List, Optional, cast
+from typing import Callable, Optional, cast
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -27,17 +27,16 @@ class simple(ChatModel):
     Convenience class for wrapping a ChatModel or callable to
     take a single prompt
 
-    **Args:**
-
-    - delegate: A callable that takes a
-        single prompt and returns a response
+    Args:
+        delegate: A callable that takes a
+            single prompt and returns a response
     """
 
     def __init__(self, delegate: Callable[[str], object]):
         self.delegate = delegate
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         del config
         prompt = str(messages[-1].content)
@@ -48,15 +47,14 @@ class openai(ChatModel):
     """
     OpenAI ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the OPENAI_API_KEY environment variable or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the OPENAI_API_KEY environment variable or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -99,7 +97,7 @@ class openai(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
             "chat model requires openai. `pip install openai`"
@@ -133,7 +131,7 @@ class openai(ChatModel):
         else:
             client = OpenAI(
                 api_key=self._require_api_key,
-                base_url=self.base_url,
+                base_url=self.base_url or None,
             )
 
         openai_messages = convert_to_openai_messages(
@@ -142,8 +140,8 @@ class openai(ChatModel):
         )
         response = client.chat.completions.create(
             model=self.model,
-            messages=cast(List[ChatCompletionMessageParam], openai_messages),
-            max_tokens=config.max_tokens,
+            messages=cast(list[ChatCompletionMessageParam], openai_messages),
+            max_completion_tokens=config.max_tokens,
             temperature=config.temperature,
             top_p=config.top_p,
             frequency_penalty=config.frequency_penalty,
@@ -160,16 +158,15 @@ class anthropic(ChatModel):
     """
     Anthropic ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Anthropic models page](https://docs.anthropic.com/en/docs/about-claude/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the ANTHROPIC_API_KEY environment variable
-        or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [Anthropic models page](https://docs.anthropic.com/en/docs/about-claude/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the ANTHROPIC_API_KEY environment variable
+            or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -184,7 +181,6 @@ class anthropic(ChatModel):
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
-        self.system_message = system_message
 
     @property
     def _require_api_key(self) -> str:
@@ -213,7 +209,7 @@ class anthropic(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.anthropic.require(
             "chat model requires anthropic. `pip install anthropic`"
@@ -235,8 +231,8 @@ class anthropic(ChatModel):
         response = client.messages.create(
             model=self.model,
             system=self.system_message,
-            max_tokens=config.max_tokens or 1000,
-            messages=cast(List[MessageParam], anthropic_messages),
+            max_tokens=config.max_tokens or 4096,
+            messages=cast(list[MessageParam], anthropic_messages),
             top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
             top_k=config.top_k if config.top_k is not None else NOT_GIVEN,
             stream=False,
@@ -258,15 +254,14 @@ class google(ChatModel):
     """
     Google AI ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Gemini models page](https://ai.google.dev/gemini-api/docs/models/gemini)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the GOOGLE_AI_API_KEY environment variable
-        or the user's config.
+    Args:
+        model: The model to use.
+            Can be found on the [Gemini models page](https://ai.google.dev/gemini-api/docs/models/gemini)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the GOOGLE_AI_API_KEY environment variable
+            or the user's config.
     """
 
     def __init__(
@@ -307,7 +302,7 @@ class google(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
             "chat model requires google. `pip install google-generativeai`"
@@ -317,6 +312,7 @@ class google(ChatModel):
         genai.configure(api_key=self._require_api_key)
         client = genai.GenerativeModel(
             model_name=self.model,
+            system_instruction=self.system_message,
             generation_config=genai.GenerationConfig(
                 max_output_tokens=config.max_tokens,
                 temperature=config.temperature,
@@ -338,15 +334,14 @@ class groq(ChatModel):
     """
     Groq ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Groq models page](https://console.groq.com/docs/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the GROQ_API_KEY environment variable or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [Groq models page](https://console.groq.com/docs/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the GROQ_API_KEY environment variable or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -390,7 +385,7 @@ class groq(ChatModel):
         )
 
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.groq.require(
             "chat model requires groq. `pip install groq`"

@@ -5,7 +5,6 @@ import time
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterable,
     Literal,
     Optional,
     TypeVar,
@@ -20,7 +19,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterable
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -359,7 +358,7 @@ class progress_bar:
 
     def __iter__(self) -> Iterable[S | int]:
         for item in self.collection:
-            yield item
+            yield item  # type: ignore[misc]
             if not self.disabled:
                 self.progress.update(increment=self.step)
         self._finish()

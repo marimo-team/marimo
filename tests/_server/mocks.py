@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from marimo._config.manager import get_default_config_manager
 from marimo._server.file_router import AppFileRouter
+from marimo._server.lsp import NoopLspServer
 from marimo._server.model import SessionMode
-from marimo._server.sessions import NoopLspServer, SessionManager
+from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._utils.marimo_path import MarimoPath
 
@@ -24,7 +25,7 @@ def get_mock_session_manager() -> SessionManager:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
     temp_file.write(
-        """
+        b"""
 import marimo
 
 __generated_with = "0.0.1"
@@ -39,7 +40,7 @@ def __():
 
 if __name__ == "__main__":
     app.run()
-""".encode()
+"""
     )
 
     temp_file.close()
@@ -53,8 +54,9 @@ if __name__ == "__main__":
         quiet=False,
         include_code=True,
         lsp_server=lsp_server,
-        user_config_manager=get_default_config_manager(current_path=None),
+        config_manager=get_default_config_manager(current_path=None),
         cli_args={},
+        argv=None,
         auth_token=AuthToken("fake-token"),
         redirect_console_to_browser=False,
         ttl_seconds=None,

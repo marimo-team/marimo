@@ -6,29 +6,32 @@ import {
   StateField,
 } from "@codemirror/state";
 import type { LanguageAdapter } from "./types";
-import {
-  type EditorView,
-  type Panel,
-  keymap,
-  showPanel,
-} from "@codemirror/view";
+import { type EditorView, keymap, showPanel } from "@codemirror/view";
 import { clamp } from "@/utils/math";
-import type { CompletionConfig } from "@/core/config/config-schema";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  LSPConfig,
+} from "@/core/config/config-schema";
 import {
+  cellIdState,
   completionConfigState,
   hotkeysProviderState,
-  movementCallbacksState,
+  lspConfigState,
   placeholderState,
 } from "../config/extension";
+import type { PlaceholderType } from "../config/types";
 import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
 import { getEditorCodeAsPython } from "./utils";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { CodeMirrorSetupOpts } from "../cm";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
-import { LanguagePanelComponent } from "./panel";
+import { LanguagePanelComponent } from "./panel/panel";
+import type { CellId } from "@/core/cells/ids";
+import type { LanguageMetadata } from "./metadata";
+import { languageMetadataField, setLanguageMetadata } from "./metadata";
 
 /**
  * Compartment to keep track of the current language and extension.
@@ -39,14 +42,14 @@ const languageCompartment = new Compartment();
 /**
  * State effect to set the language adapter.
  */
-const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
+export const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
 
 /**
  * State field to keep track of the current language adapter.
  */
 export const languageAdapterState = StateField.define<LanguageAdapter>({
   create() {
-    return LanguageAdapters.python();
+    return LanguageAdapters.python;
   },
   update(value, tr) {
     for (const effect of tr.effects) {
@@ -62,12 +65,14 @@ export const languageAdapterState = StateField.define<LanguageAdapter>({
       if (value.type === "python") {
         return null;
       }
-      return createLanguagePanel;
+      return (view) => createPanel(view, LanguagePanelComponent);
     }),
 });
 
-// Keymap to toggle between languages
-function languageToggle() {
+/**
+ * Keymap to toggle between languages
+ */
+function languageToggleKeymaps() {
   const languages = getLanguageAdapters();
   // Cycle through the language to find the next one that supports the code
   const findNextLanguage = (code: string, index: number): LanguageAdapter => {
@@ -116,7 +121,9 @@ function updateLanguageAdapterAndCode(
   const completionConfig = view.state.facet(completionConfigState);
   const hotkeysProvider = view.state.facet(hotkeysProviderState);
   const placeholderType = view.state.facet(placeholderState);
-  const movementCallbacks = view.state.facet(movementCallbacksState);
+  const cellId = view.state.facet(cellIdState);
+  const lspConfig = view.state.facet(lspConfigState);
+  let metadata = view.state.field(languageMetadataField);
   let cursor = view.state.selection.main.head;
 
   // If keepCodeAsIs is true, we just keep the original code
@@ -127,26 +134,34 @@ function updateLanguageAdapterAndCode(
   let finalCode: string;
   if (opts.keepCodeAsIs) {
     finalCode = code;
+    if (currentLanguage.type !== nextLanguage.type) {
+      // Set the metadata to the default metadata
+      metadata = { ...nextLanguage.defaultMetadata };
+    }
   } else {
-    const [codeOut, cursorDiff1] = currentLanguage.transformOut(code);
-    const [newCode, cursorDiff2] = nextLanguage.transformIn(codeOut);
+    const [codeOut, cursorDiff1] = currentLanguage.transformOut(code, metadata);
+    const [newCode, cursorDiff2, metadataOut] =
+      nextLanguage.transformIn(codeOut);
     // Update the cursor position
     cursor += cursorDiff1;
     cursor -= cursorDiff2;
     cursor = clamp(cursor, 0, newCode.length);
     finalCode = newCode;
+    metadata = metadataOut as LanguageMetadata;
   }
 
   // Update the state
   view.dispatch({
     effects: [
       setLanguageAdapter.of(nextLanguage),
+      setLanguageMetadata.of(metadata),
       languageCompartment.reconfigure(
         nextLanguage.getExtension(
+          cellId,
           completionConfig,
           hotkeysProvider,
           placeholderType,
-          movementCallbacks,
+          lspConfig,
         ),
       ),
       // Clear history
@@ -154,12 +169,14 @@ function updateLanguageAdapterAndCode(
       // Let downstream extensions know that this is a formatting change
       formattingChangeEffect.of(true),
     ],
-    changes: {
-      from: 0,
-      to: view.state.doc.length,
-      insert: finalCode,
-    },
-    selection: EditorSelection.cursor(cursor),
+    changes: opts.keepCodeAsIs
+      ? undefined
+      : {
+          from: 0,
+          to: view.state.doc.length,
+          insert: finalCode,
+        },
+    selection: opts.keepCodeAsIs ? undefined : EditorSelection.cursor(cursor),
   });
 
   // Add history back
@@ -168,54 +185,33 @@ function updateLanguageAdapterAndCode(
   });
 }
 
-function createLanguagePanel(view: EditorView): Panel {
-  return createPanel(view, LanguagePanelComponent);
-}
-
 /**
  * Set of extensions to enable adaptive language configuration.
  */
-export function adaptiveLanguageConfiguration(
-  opts: Pick<
-    CodeMirrorSetupOpts,
-    | "completionConfig"
-    | "hotkeys"
-    | "showPlaceholder"
-    | "enableAI"
-    | "cellMovementCallbacks"
-  >,
-) {
-  const {
-    showPlaceholder,
-    enableAI,
-    completionConfig,
-    hotkeys,
-    cellMovementCallbacks,
-  } = opts;
-
-  const placeholderType = showPlaceholder
-    ? "marimo-import"
-    : enableAI
-      ? "ai"
-      : "none";
+export function adaptiveLanguageConfiguration(opts: {
+  placeholderType: PlaceholderType;
+  completionConfig: CompletionConfig;
+  hotkeys: HotkeyProvider;
+  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig };
+  cellId: CellId;
+}) {
+  const { placeholderType, completionConfig, hotkeys, cellId, lspConfig } =
+    opts;
 
   return [
-    // Store state
-    completionConfigState.of(completionConfig),
-    hotkeysProviderState.of(hotkeys),
-    placeholderState.of(placeholderType),
-    movementCallbacksState.of(cellMovementCallbacks),
     // Language adapter
-    languageToggle(),
+    languageToggleKeymaps(),
     languageCompartment.of(
-      LanguageAdapters.python().getExtension(
+      LanguageAdapters.python.getExtension(
+        cellId,
         completionConfig,
         hotkeys,
         placeholderType,
-        cellMovementCallbacks,
+        lspConfig,
       ),
     ),
     languageAdapterState,
+    languageMetadataField,
   ];
 }
 
@@ -224,19 +220,26 @@ export function adaptiveLanguageConfiguration(
  */
 export function getInitialLanguageAdapter(state: EditorView["state"]) {
   const doc = getEditorCodeAsPython({ state }).trim();
+  return languageAdapterFromCode(doc);
+}
+
+/**
+ * Get the best language adapter given the editor's current code.
+ */
+export function languageAdapterFromCode(doc: string): LanguageAdapter {
   // Empty doc defaults to Python
   if (!doc) {
-    return LanguageAdapters.python();
+    return LanguageAdapters.python;
   }
 
-  if (LanguageAdapters.markdown().isSupported(doc)) {
-    return LanguageAdapters.markdown();
+  if (LanguageAdapters.markdown.isSupported(doc)) {
+    return LanguageAdapters.markdown;
   }
-  if (LanguageAdapters.sql().isSupported(doc)) {
-    return LanguageAdapters.sql();
+  if (LanguageAdapters.sql.isSupported(doc)) {
+    return LanguageAdapters.sql;
   }
 
-  return LanguageAdapters.python();
+  return LanguageAdapters.python;
 }
 
 /**
@@ -253,8 +256,7 @@ export function switchLanguage(
     return;
   }
 
-  const newLanguage = LanguageAdapters[language];
-  updateLanguageAdapterAndCode(view, newLanguage(), {
+  updateLanguageAdapterAndCode(view, LanguageAdapters[language], {
     keepCodeAsIs: opts.keepCodeAsIs ?? false,
   });
 }
@@ -270,16 +272,18 @@ export function reconfigureLanguageEffect(
   view: EditorView,
   completionConfig: CompletionConfig,
   hotkeysProvider: HotkeyProvider,
+  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig },
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
-  const movementCallbacks = view.state.facet(movementCallbacksState);
+  const cellId = view.state.facet(cellIdState);
   return languageCompartment.reconfigure(
     language.getExtension(
+      cellId,
       completionConfig,
       hotkeysProvider,
       placeholderType,
-      movementCallbacks,
+      lspConfig,
     ),
   );
 }

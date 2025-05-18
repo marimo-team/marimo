@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from math import isnan
 from typing import Any
 
 import narwhals.stable.v1 as nw
@@ -15,6 +16,7 @@ from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._utils.platform import is_windows
 from tests.mocks import snapshotter
 
 HAS_DEPS = DependencyManager.polars.has()
@@ -43,6 +45,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "strings": ["a", "b", "c"],
                 "bool": [True, False, True],
                 "int": [1, 2, 3],
+                "large_int": [2**64, 2**65 + 1, 2**66 + 2],
                 "float": [1.0, 2.0, 3.0],
                 "datetime": [
                     datetime.datetime(2021, 1, 1),
@@ -62,6 +65,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "list": pl.Series(
                     [[1, 2], [3, 4], [5, 6]], dtype=pl.List(pl.Int64)
                 ),
+                "nested_lists": pl.Series(
+                    [[[1, 2]], [[3, 4]], [[5, 6]]],
+                    dtype=pl.List(pl.List(pl.Int64)),
+                ),
+                "nested_arrays": pl.Series(
+                    [[[1, 2]], [[3, 4]], [[5, 6]]],
+                    dtype=pl.Array(pl.Array(pl.Int64, shape=(2,)), shape=(1,)),
+                ),
                 "array": pl.Series(
                     [[1], [2], [3]], dtype=pl.Array(pl.Int64, 1)
                 ),
@@ -78,14 +89,26 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 ],
                 "duration": [
                     datetime.timedelta(days=1),
-                    datetime.timedelta(days=2),
-                    datetime.timedelta(days=3),
+                    datetime.timedelta(microseconds=315),
+                    datetime.timedelta(hours=2, minutes=30),
                 ],
                 "mixed_list": [
                     [1, "two"],
                     [3.0, False],
                     [None, datetime.datetime(2021, 1, 1)],
                 ],
+                "structs_with_list": pl.Series(
+                    "mixed",
+                    [{"a": [1, 2], "b": 2}, {"a": [3, 4], "b": 4}, [5, 6]],
+                ),
+                "list_with_structs": pl.Series(
+                    "list_with_structs",
+                    [
+                        [{"a": 1}, {"c": 3}],
+                        [{"e": 5}],
+                        [],
+                    ],
+                ),
             },
             strict=False,
         )
@@ -122,9 +145,26 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
 
+    @pytest.mark.skipif(
+        is_windows(),
+        reason="Windows doesn't show microseconds unicode properly",
+    )
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
+        # CSV does not support nested data types
+        columns = [
+            col
+            for col in complex_data.get_column_names()
+            if col
+            not in [
+                "nested_lists",
+                "nested_arrays",
+                "list_with_structs",
+                "structs_with_list",
+            ]
+        ]
+        manager = complex_data.select_columns(columns)
+        data = manager.to_csv()
         assert isinstance(data, bytes)
         snapshot("polars.csv", data.decode("utf-8"))
 
@@ -139,26 +179,38 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(df)
         assert isinstance(manager.to_csv(), bytes)
 
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
+
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 
+    def test_to_json_apply_format_mapping(self) -> None:
+        import polars as pl
+
+        format_mapping: FormatMapping = {
+            "A": lambda x: x * 2,
+        }
+        json_bytes = self.manager.to_json(format_mapping)
+        assert isinstance(json_bytes, bytes)
+
+        formatted_data = pl.read_json(json_bytes)
+        assert formatted_data["A"].to_list() == [2, 4, 6]
+
+    @pytest.mark.skipif(
+        is_windows(),
+        reason="Windows doesn't show microseconds unicode properly",
+    )
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
-        # pl.Time and pl.Object are not supported in JSON
-        other_columns = [
-            col
-            for col in complex_data.get_column_names()
-            if col
-            not in [
-                "time",
-                "set",
-                "imaginary",
-            ]
-        ]
-        manager = complex_data.select_columns(other_columns)
-        data = manager.to_json()
+        data = complex_data.to_json()
         assert isinstance(data, bytes)
         snapshot("polars.json", data.decode("utf-8"))
+
+        json_data = json.loads(data)
+        assert json_data[0]["duration"] == "1d"
+        assert json_data[1]["duration"] == "315µs"
+        assert json_data[2]["duration"] == "2h 30m"
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
@@ -766,7 +818,23 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         df = pl.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].to_list() == [None, 3, 2, 1]
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            3.0,
+            2.0,
+            1.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
+
+        # ascending
+        sorted_manager = manager.sort_values("A", descending=False)
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            1.0,
+            2.0,
+            3.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
 
     def test_get_field_types_with_datetime(self):
         import polars as pl
@@ -795,3 +863,84 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "datetime[μs]",
         )
         assert manager.get_field_type("time_col") == ("time", "Time")
+
+    @pytest.mark.skipif(
+        not DependencyManager.pillow.has(), reason="pillow not installed"
+    )
+    def test_get_field_types_with_pil_images(self):
+        import numpy as np
+        import polars as pl
+        from PIL import Image
+
+        # Create a simple image
+        img_array = np.zeros((10, 10, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+
+        # Create a dataframe with an image column
+        data = pl.DataFrame(
+            {"image_col": [img, img, img], "text_col": ["a", "b", "c"]}
+        )
+
+        manager = self.factory.create()(data)
+
+        # PIL images should be treated as objects
+        assert manager.get_field_type("image_col") == ("unknown", "object")
+        assert manager.get_field_type("text_col") == ("string", "str")
+
+        as_json = manager.to_json_str()
+        assert "data:image/png" in as_json
+
+    def test_lazy_frame(self):
+        import warnings
+
+        import polars as pl
+
+        with warnings.catch_warnings(record=True) as recorded_warnings:
+            df = pl.LazyFrame(
+                {
+                    "A": range(100000),
+                    "B": range(100000),
+                }
+            )
+            manager = self.factory.create()(df)
+            assert manager.get_num_columns() == 2
+            assert manager.get_num_rows(force=False) is None
+            assert manager.get_num_rows(force=True) == 100000
+            assert manager.get_field_types() == [
+                ("A", ("integer", "i64")),
+                ("B", ("integer", "i64")),
+            ]
+            assert manager.take(count=10, offset=0).get_num_rows() == 10
+
+            # This is ok and expected, since we don't support pagination for lazy frames
+            with pytest.raises(TypeError):
+                manager.take(count=10, offset=10)
+
+        # TODO: Fix this, it should be 1
+        assert len(recorded_warnings) == 1
+
+    def test_to_json_bigint(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "A": [
+                    20,
+                    9007199254740992,
+                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+                "B": [
+                    -20,
+                    -9007199254740992,
+                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+            }
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json())
+
+        # Regular integers should remain as numbers
+        assert json_data[0]["A"] == 20
+        assert json_data[0]["B"] == -20
+
+        # Large integers should be converted to strings
+        assert json_data[1]["A"] == "9007199254740992"
+        assert json_data[1]["B"] == "-9007199254740992"

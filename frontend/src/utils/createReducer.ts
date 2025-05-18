@@ -86,27 +86,39 @@ export function createReducerAndAtoms<
   const { reducer, createActions } = createReducer(initialState, reducers);
 
   const reducerWithMiddleware = (state: State, action: ReducerAction<any>) => {
-    const newState = reducer(state, action);
-    if (middleware) {
-      for (const mw of middleware) {
-        mw(state, newState, action);
+    try {
+      const newState = reducer(state, action);
+      if (middleware) {
+        for (const mw of middleware) {
+          try {
+            mw(state, newState, action);
+          } catch (error) {
+            Logger.error(
+              `Error in middleware for action ${action.type}:`,
+              error,
+            );
+          }
+        }
       }
+      return newState;
+    } catch (error) {
+      Logger.error(`Error in reducer for action ${action.type}:`, error);
+      return state;
     }
-    return newState;
   };
 
   const valueAtom = atom(initialState());
   // map of SetAtom => Actions
   const actionsMap = new WeakMap();
 
-  function useActions() {
+  function useActions(): ReducerActions<RH> {
     const setState = useSetAtom(valueAtom);
 
     if (!actionsMap.has(setState)) {
       actionsMap.set(
         setState,
-        createActions((action) => {
-          setState((state) => reducerWithMiddleware(state, action));
+        createActions((action: ReducerAction<any>) => {
+          setState((state: State) => reducerWithMiddleware(state, action));
         }),
       );
     }

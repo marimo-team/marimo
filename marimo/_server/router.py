@@ -66,11 +66,17 @@ class APIRouter(Router):
                     return response
 
                 if dataclasses.is_dataclass(response):
-                    return JSONResponse(
-                        content=deep_to_camel_case(
-                            dataclasses.asdict(response)
+                    # Handle both dataclass instance and dataclass type
+                    if isinstance(response, type):
+                        # If it's a type, we can't call asdict on it
+                        return JSONResponse(content=deep_to_camel_case({}))
+                    else:
+                        # If it's an instance, we can call asdict
+                        return JSONResponse(
+                            content=deep_to_camel_case(
+                                dataclasses.asdict(response)
+                            )
                         )
-                    )
 
                 return JSONResponse(content=json.dumps(response))
 
@@ -112,11 +118,17 @@ class APIRouter(Router):
                     return response
 
                 if dataclasses.is_dataclass(response):
-                    return JSONResponse(
-                        content=deep_to_camel_case(
-                            dataclasses.asdict(response)
+                    # Handle both dataclass instance and dataclass type
+                    if isinstance(response, type):
+                        # If it's a type, we can't call asdict on it
+                        return JSONResponse(content=deep_to_camel_case({}))
+                    else:
+                        # If it's an instance, we can call asdict
+                        return JSONResponse(
+                            content=deep_to_camel_case(
+                                dataclasses.asdict(response)
+                            )
                         )
-                    )
 
                 return response  # type: ignore[no-any-return]
 

@@ -6,10 +6,10 @@ import os
 import pathlib
 import signal
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Generator, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
-from marimo._config.config import WidthType
+from marimo._config.config import SqlOutputType, WidthType
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import natural_sort_file
@@ -18,6 +18,7 @@ from marimo._server.models.home import MarimoFile
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from types import FrameType
 
 LOGGER = _loggers.marimo_logger()
@@ -47,7 +48,7 @@ class AppFileRouter(abc.ABC):
             return AppFileRouter.from_directory(path)
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail="Path {0} is not a valid file or directory".format(path),
+            detail=f"Path {path} is not a valid file or directory",
         )
 
     @staticmethod
@@ -66,7 +67,7 @@ class AppFileRouter(abc.ABC):
         return LazyListOfFilesAppFileRouter(directory, include_markdown=False)
 
     @staticmethod
-    def from_files(files: List[MarimoFile]) -> AppFileRouter:
+    def from_files(files: list[MarimoFile]) -> AppFileRouter:
         return ListOfFilesAppFileRouter(files)
 
     @staticmethod
@@ -74,29 +75,40 @@ class AppFileRouter(abc.ABC):
         return NewFileAppFileRouter()
 
     def get_single_app_file_manager(
-        self, default_width: WidthType | None = None
+        self,
+        default_width: WidthType | None = None,
+        default_sql_output: SqlOutputType | None = None,
     ) -> AppFileManager:
         key = self.get_unique_file_key()
         assert key is not None, "Expected a single file"
-        return self.get_file_manager(key, default_width)
+        return self.get_file_manager(key, default_width, default_sql_output)
 
     def get_file_manager(
         self,
         key: MarimoFileKey,
         default_width: WidthType | None = None,
+        default_sql_output: SqlOutputType | None = None,
     ) -> AppFileManager:
         """
         Given a key, return an AppFileManager.
         """
         if key.startswith(AppFileRouter.NEW_FILE):
-            return AppFileManager(None, default_width)
+            return AppFileManager(
+                None,
+                default_width=default_width,
+                default_sql_output=default_sql_output,
+            )
 
         if os.path.exists(key):
-            return AppFileManager(key, default_width)
+            return AppFileManager(
+                key,
+                default_width=default_width,
+                default_sql_output=default_sql_output,
+            )
 
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="File {0} not found".format(key),
+            detail=f"File {key} not found",
         )
 
     @abc.abstractmethod
@@ -115,7 +127,7 @@ class AppFileRouter(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def files(self) -> List[FileInfo]:
+    def files(self) -> list[FileInfo]:
         """
         Get all files in a recursive tree.
         """
@@ -130,16 +142,16 @@ class NewFileAppFileRouter(AppFileRouter):
         return None
 
     @property
-    def files(self) -> List[FileInfo]:
+    def files(self) -> list[FileInfo]:
         return []
 
 
 class ListOfFilesAppFileRouter(AppFileRouter):
-    def __init__(self, files: List[MarimoFile]) -> None:
+    def __init__(self, files: list[MarimoFile]) -> None:
         self._files = files
 
     @property
-    def files(self) -> List[FileInfo]:
+    def files(self) -> list[FileInfo]:
         return [
             FileInfo(
                 id=file.path,
@@ -173,7 +185,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         # pass through Path to canonicalize, strips trailing slashes
         self._directory = str(pathlib.Path(directory))
         self.include_markdown = include_markdown
-        self._lazy_files: Optional[List[FileInfo]] = None
+        self._lazy_files: Optional[list[FileInfo]] = None
 
     @property
     def directory(self) -> str:
@@ -193,12 +205,12 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         self._lazy_files = None
 
     @property
-    def files(self) -> List[FileInfo]:
+    def files(self) -> list[FileInfo]:
         if self._lazy_files is None:
             self._lazy_files = self._load_files()
         return self._lazy_files
 
-    def _load_files(self) -> List[FileInfo]:
+    def _load_files(self) -> list[FileInfo]:
         import time
 
         start_time = time.time()
@@ -206,7 +218,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
         def recurse(
             directory: str, depth: int = 0
-        ) -> Optional[List[FileInfo]]:
+        ) -> Optional[list[FileInfo]]:
             if depth > MAX_DEPTH:
                 return None
 
@@ -222,8 +234,8 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                 LOGGER.debug("OSError scanning directory: %s", str(e))
                 return None
 
-            files: List[FileInfo] = []
-            folders: List[FileInfo] = []
+            files: list[FileInfo] = []
+            folders: list[FileInfo] = []
 
             for entry in entries:
                 # Skip hidden files and directories
@@ -303,7 +315,7 @@ def timeout(seconds: int, message: str) -> Generator[None, None, None]:
         del signum, frame
         raise HTTPException(
             status_code=HTTPStatus.REQUEST_TIMEOUT,
-            detail="Request timed out: {0}".format(message),
+            detail=f"Request timed out: {message}",
         )
 
     # Set the timeout handler

@@ -11,7 +11,8 @@ dynamic = ["version"]
 # Dependencies should have lower bounds, which should be as loose as possible.
 dependencies = [
     # For maintainable cli
-    "click>=8.0,<9",
+    # - 8.2.0 introduced a bug where boolean flags broke
+    "click>=8.0,!=8.2.0,<9",
     # code completion
     "jedi>=0.18.0",
     # compile markdown to html
@@ -32,10 +33,10 @@ dependencies = [
     # - 0.26.1 introduced lifespans, which we use
     # - starlette 0.36.0 introduced a bug
     "starlette>=0.26.1,!=0.36.0",
-    # websockets for use with starlette
+    # websockets for use with starlette, and for lsp
     "websockets >= 10.0.0",
-    # pycrdt for collaborative editing
-    "pycrdt >=0.11.0,<0.12.0",
+    # loro for collaborative editing
+    "loro>=1.5.0; python_version >= '3.11'",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.11'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
@@ -46,9 +47,6 @@ dependencies = [
     "itsdangerous>=2.0.0",
     # for dataframe support
     "narwhals>=1.12.0",
-    # for cell formatting; if user version is not compatible, no-op
-    # so no lower bound needed
-    "ruff",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
 ]
@@ -68,6 +66,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
@@ -76,6 +75,12 @@ marimo = "marimo._cli.cli:main"
 
 [project.urls]
 homepage = "https://github.com/marimo-team/marimo"
+
+[project.entry-points."docstring_to_markdown"]
+marimo_converter = "marimo._utils.docs:MarimoConverter"
+
+[project.entry-points."pylsp"]
+marimo_plugin = "marimo._server.lsp"
 
 [project.optional-dependencies]
 sql = [
@@ -86,6 +91,7 @@ sql = [
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
+# This includes the `sql` deps
 recommended = [
     "duckdb>=1.0.0",            # SQL cells
     "altair>=5.4.0",            # Plotting in datasource viewer
@@ -109,6 +115,11 @@ dev = [
     "ruff~=0.9.1",
     # For AI
     "openai>=1.55.3",
+]
+
+lsp = [
+    "python-lsp-server>=1.10.0",
+    "python-lsp-ruff>=2.0.0",
 ]
 
 docs = [
@@ -174,26 +185,34 @@ format = "ruff format"
 python = "3.12"
 installer = "uv"
 dependencies = [
-    "mypy~=1.10.1",
+    "mypy~=1.15.0",
     # Types for mypy
+    "altair>=5.4.0",
     "leafmap~=0.39.2",
     "panel~=1.5.3",
     "polars~=1.9.0",
     "narwhals>=1.12.0",
     "matplotlib>=3.8.0",
-    "pyarrow-stubs>=17.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy>=2.0.40",
+    "loro>=1.5.0",
+    "python-lsp-server>=1.12.1",
     "pandas-stubs>=1.5.3.230321",
+    "pyiceberg>=0.9.0",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
+    "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
-check = "mypy marimo/"
+# tutorials shouldn't be type-checked (should be excluded), but they get
+# included due to import following; so ensure tutorial imports are type
+# ignored.
+check = "mypy marimo --exclude=marimo/_tutorials/"
+tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
 extra-dependencies = [
@@ -204,11 +223,11 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-asyncio~=0.26.0",
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
@@ -232,32 +251,38 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-asyncio~=0.26.0",
+    "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
-    "pyarrow",
+    "vegafusion",
+    "pyarrow>=19.0.1",
     "pyarrow_hotfix",
     "altair>=5.4.0",
-    "polars~=1.9.0",
+    "polars~=1.24.0",
     "sqlglot>=23.4",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy>=2.0.40",
+    "pyiceberg>=0.9.0",
+    # For testing clickhouse
+    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
+    "clickhouse-connect>=0.8.17",
     "pandas>=1.5.3",
     "hvplot~=0.11.2",
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1; python_version > '3.9'",
     # FOr testing sql
-    "ibis-framework[duckdb]~=9.5.0; python_version > '3.9'",
+    "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
     # For testing mo.image
     "pillow~=10.4.0",
-    "anywidget~=0.9.13",
+    "anywidget~=0.9.18",
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
     "anthropic==0.34.1",
-    "google-generativeai==0.8.4",
+    "google-generativeai==0.8.5",
     # exporting as ipynb
     "nbformat >=5.10.4",
-    "sympy>=1.13.2",
+    "sympy>=1.13.3",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
@@ -265,7 +290,7 @@ extra-dependencies = [
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 features = ["dev", "docs"]
@@ -283,6 +308,7 @@ deploy = "mkdocs gh-deploy --force {args}"
 
 [tool.ruff]
 line-length = 79
+target-version = "py39"
 include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
     "examples",
@@ -320,6 +346,8 @@ ignore = [
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
     "FA102", # Use `from __future__ import annotations`
+    "UP007", # Use X | Y for type annotations, not supported in 3.9
+    "UP045", # Use X | None for optional type annotations, not supported in 3.9
 ]
 extend-select = [
     # pyflakes
@@ -383,6 +411,8 @@ extend-select = [
     "D211",  # No blank lines allowed before class docstring
     "D214",  # Section is over-indented
     "D215",  # Section underline is over-indented
+    "PLW1514", # Unspecified encoding in open()
+    "UP",  # Upgrades
 ]
 
 # Never try to fix `F401` (unused imports).
@@ -392,7 +422,7 @@ unfixable = ["F401"]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841"]
+"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
@@ -422,6 +452,8 @@ banned-module-level-imports = [
     "ipython",
     "anywidget",
     "packaging",
+    "redis",
+    "typing_extensions",
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
@@ -438,23 +470,22 @@ exclude = [
     'tests/_cli/cli_data',
     'tests/_cli/ipynb_data',
     'tests/_runtime/runtime_data',
-    'marimo/_tutorials/',
     'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
 ]
 warn_unused_ignores = false
 
-# tutorials shouldn't be type-checked (should be excluded), but they
-# get included anyway, maybe due to import following; this is coarse but works
 [[tool.mypy.overrides]]
-module = "marimo._tutorials.*"
-ignore_errors = true
+module = "pylsp"
+# until https://github.com/python-lsp/python-lsp-server/pull/641 is released
+follow_untyped_imports = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
 
 [tool.coverage.run]
@@ -492,7 +523,6 @@ format_on_save = true
 
 [tool.marimo.experimental]
 multi_column = true
-chat_sidebar = true
 
 [tool.marimo.display]
 dataframes = "rich"
@@ -501,3 +531,24 @@ dataframes = "rich"
 watcher_on_save = "autorun"
 output_max_bytes = 10_000_000
 std_stream_max_bytes = 2_000_000
+dotenv = [".env"]
+
+[tool.marimo.package_management]
+manager = "uv"
+
+[tool.marimo.keymap]
+vimrc = "configs/.vimrc"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tool.pixi.dependencies]
+nodejs = "22.*"
+pnpm = "10.*"
+hatch = ">=1.14.0,<2"
+make = ">=4.4.1,<5"
+pre_commit = ">=4.2.0,<5"
+uv = ">=0.6.12,<0.7"
+python = "3.12.*"
+pip = ">=25.0.1,<26"

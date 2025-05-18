@@ -103,8 +103,8 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
           ? timestring(selected)
           : timestring(`${selected}s`); // default to seconds if no units
 
-    // Smallest interval is 1 second
-    asSeconds = Math.max(asSeconds, 1);
+    // Constrain to smallest interval
+    asSeconds = Math.max(asSeconds, MIN_INTERVAL);
 
     const id = setInterval(refresh, asSeconds * 1000);
     return () => clearInterval(id);

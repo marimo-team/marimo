@@ -34,3 +34,40 @@ def test_csv() -> None:
     vfile = mo_data.csv(csv_content)
     assert vfile.filename.endswith(".csv")
     assert vfile.url == "data:text/csv;base64,YSxiLGMKMSwyLDMKNCw1LDY="
+
+
+def test_sanitize_json_bigint() -> None:
+    # Test with string input
+    json_str = '{"bigint": 9007199254740992}'
+    assert (
+        mo_data.sanitize_json_bigint(json_str)
+        == '{"bigint":"9007199254740992"}'
+    )
+
+    # Test with dict input
+    data_dict = {"bigint": 9007199254740992}
+    assert (
+        mo_data.sanitize_json_bigint(data_dict)
+        == '{"bigint":"9007199254740992"}'
+    )
+
+    # Test with list of dicts input
+    data_list = [{"bigint": 9007199254740992}]
+    assert (
+        mo_data.sanitize_json_bigint(data_list)
+        == '[{"bigint":"9007199254740992"}]'
+    )
+
+    # Test with regular numbers (should not be converted)
+    data_dict = {"regular": 42}
+    assert mo_data.sanitize_json_bigint(data_dict) == '{"regular":42}'
+
+    # Test with nested structures
+    data_dict = {
+        "bigint": 9007199254740992,
+        "nested": {"bigint": 9007199254740993, "regular": 42},
+    }
+    assert (
+        mo_data.sanitize_json_bigint(data_dict)
+        == '{"bigint":"9007199254740992","nested":{"bigint":"9007199254740993","regular":42}}'  # noqa: E501
+    )

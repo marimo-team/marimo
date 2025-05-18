@@ -51,7 +51,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": [1, 2, 3], "B": ["a", "a", "a"]},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe(
@@ -126,7 +126,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"1": [1, 2, 3], "2": ["a", "a", "a"]},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_page_size(
@@ -136,8 +136,7 @@ class TestDataframes:
         subject = ui.dataframe(df, page_size=1)
         result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 3
-        assert result.url == "data:text/csv;base64,MSwyCjEsYQo="
-
+        assert result.url == '[{"1":1,"2":"a"}]'
         # search
         search_result = subject._search(
             SearchTableArgs(page_size=1, page_number=0)
@@ -149,7 +148,7 @@ class TestDataframes:
         subject = ui.dataframe(df, page_size=2)
         result = subject._get_dataframe(EmptyArgs())
         assert result.total_rows == 3
-        assert result.url == "data:text/csv;base64,MSwyCjEsYQoyLGEK"
+        assert result.url == '[{"1":1,"2":"a"},{"1":2,"2":"a"}]'
 
         # search
         search_result = subject._search(
@@ -163,17 +162,19 @@ class TestDataframes:
         "df",
         [
             *create_dataframes(
-                {"A": [], "B": []}, exclude=["pyarrow", "duckdb"]
+                {"A": [], "B": []},
+                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Empty DataFrame
             *create_dataframes(
-                {"A": [1], "B": ["a"]}, exclude=["pyarrow", "duckdb"]
+                {"A": [1], "B": ["a"]},
+                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Single row DataFrame
             *create_dataframes(
                 {
                     "A": range(1, 1001),
                     "B": [f"value_{i}" for i in range(1, 1001)],
                 },
-                exclude=["pyarrow", "duckdb"],
+                exclude=["pyarrow", "duckdb", "lazy-polars"],
             ),  # Large DataFrame
         ],
     )
@@ -202,7 +203,8 @@ class TestDataframes:
     @pytest.mark.parametrize(
         "df",
         create_dataframes(
-            {"A": range(100), "B": ["a"] * 100}, exclude=["pyarrow", "duckdb"]
+            {"A": range(100), "B": ["a"] * 100},
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_with_custom_page_size(df: Any) -> None:
@@ -249,7 +251,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": range(1000), "B": ["a"] * 1000},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_with_limit(df: Any) -> None:
@@ -268,7 +270,7 @@ class TestDataframes:
         "df",
         create_dataframes(
             {"A": [1, 2, 3], "B": ["a", "b", "c"]},
-            exclude=["pyarrow", "duckdb"],
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
         ),
     )
     def test_dataframe_error_handling(df: Any) -> None:
@@ -350,6 +352,98 @@ class TestDataframes:
         assert 'pl.col("age")' in code
         assert 'alias("age_max")' in code
         assert 'pl.col("group")' in code  # Original column name in group by
+
+    @staticmethod
+    @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+    def test_ibis_groupby_alias() -> None:
+        """Test that group by operations use original column names correctly."""
+        import ibis
+        import polars as pl
+
+        # Create a test dataframe with age and group columns
+        df = pl.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "age": [10, 20, 30, 40],
+            }
+        )
+
+        # from Polars to Ibis
+        df = ibis.memtable(df)
+
+        # Test the transformation directly using TransformsContainer
+        from marimo._plugins.ui._impl.dataframes.transforms.apply import (
+            TransformsContainer,
+            get_handler_for_dataframe,
+        )
+        from marimo._plugins.ui._impl.dataframes.transforms.types import (
+            GroupByTransform,
+            SortColumnTransform,
+            Transformations,
+            TransformType,
+        )
+
+        handler = get_handler_for_dataframe(df)
+        transform_container = TransformsContainer(df, handler)
+
+        # Create and apply the group_by transformation
+        transform_grp = GroupByTransform(
+            type=TransformType.GROUP_BY,
+            column_ids=["group"],
+            drop_na=True,
+            aggregation="max",
+        )
+
+        # Create and apply the sort transformation
+        # result should be ordered
+        transform_sort = SortColumnTransform(
+            type=TransformType.SORT_COLUMN,
+            column_id="age_max",
+            ascending=True,
+            na_position="first",
+        )
+
+        transformations = Transformations([transform_grp, transform_sort])
+        transformed_df = transform_container.apply(transformations)
+
+        # from Ibis to Polars
+        transformed_df = transformed_df.to_polars()
+
+        # Verify the transformed DataFrame
+        assert isinstance(transformed_df, pl.DataFrame)
+        assert "group" in transformed_df.columns
+        assert "age_max" in transformed_df.columns
+        assert transformed_df.shape == (2, 2)
+        assert transformed_df["age_max"].to_list() == [
+            20,
+            40,
+        ]  # max age for each group
+
+        # The resulting frame should have correct column names and values
+        # Convert to dict and verify values
+        result_dict = {
+            col: transformed_df[col].to_list()
+            for col in transformed_df.columns
+        }
+        assert result_dict == {
+            "group": ["a", "b"],
+            "age_max": [20, 40],
+        }
+
+        # Verify the generated code uses original column names
+        from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
+            python_print_ibis,
+        )
+
+        code = python_print_ibis(
+            "df",
+            ["group", "age"],
+            transform_grp,
+        )
+        assert (
+            'df.group_by(["group"]).aggregate(**{"age_max" : df["age"].max()})'
+            in code
+        )
 
 
 @pytest.mark.skipif(

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import builtins
 import contextlib
 import dataclasses
 import io
@@ -15,26 +14,39 @@ import threading
 import time
 import traceback
 from copy import copy, deepcopy
+from functools import cached_property
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, cast
+from pathlib import Path
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
+    cast,
+)
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.variables import is_local
+from marimo._ast.errors import ImportStarError
+from marimo._ast.names import SETUP_CELL_NAME
+from marimo._ast.variables import BUILTINS, is_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._data.preview_column import (
-    get_column_preview_dataframe,
-    get_column_preview_for_sql,
+    get_column_preview_for_dataframe,
+    get_column_preview_for_duckdb,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
+from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.context import http_request_context, run_id_context
 from marimo._messaging.errors import (
     Error,
+    ImportStarError as MarimoImportStarError,
     MarimoInterruptionError,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
@@ -44,12 +56,15 @@ from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
     DataColumnPreview,
+    DataSourceConnections,
     FunctionCallResult,
     HumanReadableStatus,
     InstallingPackageAlert,
     MissingPackageAlert,
     PackageStatusType,
     RemoveUIElements,
+    SecretKeysResult,
+    SQLTableListPreview,
     SQLTablePreview,
     VariableDeclaration,
     Variables,
@@ -109,8 +124,13 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     FunctionCallRequest,
     InstallMissingPackagesRequest,
+    ListSecretKeysRequest,
+    PdbRequest,
     PreviewDatasetColumnRequest,
+    PreviewDataSourceConnectionRequest,
+    PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
+    RefreshSecretsRequest,
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -125,7 +145,10 @@ from marimo._runtime.runner.hooks import (
     PREPARATION_HOOKS,
 )
 from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
-from marimo._runtime.runner.hooks_post_execution import PostExecutionHookType
+from marimo._runtime.runner.hooks_post_execution import (
+    PostExecutionHookType,
+    render_toplevel_defs,
+)
 from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
 from marimo._runtime.runner.hooks_preparation import PreparationHookType
 from marimo._runtime.scratch import SCRATCH_CELL_ID
@@ -135,25 +158,38 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 )
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
+from marimo._secrets.load_dotenv import (
+    load_dotenv_with_fallback,
+)
+from marimo._secrets.secrets import get_secret_keys
 from marimo._server.model import SessionMode
 from marimo._server.types import QueueType
-from marimo._sql.engines import SQLAlchemyEngine
-from marimo._sql.get_engines import get_engines_from_variables
+from marimo._sql.engines.types import SQLEngine
+from marimo._sql.get_engines import (
+    engine_to_data_source_connection,
+    get_engines_from_variables,
+)
 from marimo._tracer import kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
+from marimo._types.lifespan import Lifespan
 from marimo._utils.assert_never import assert_never
+from marimo._utils.lifespans import Lifespans
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     import queue
-    from collections.abc import Sequence
+    from collections.abc import Awaitable, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
+
+_KERNEL_LIFESPAN_REGISTRY = EntryPointRegistry[Lifespan[None]](
+    "marimo.kernel.lifespan",
+)
 
 
 @mddoc
@@ -191,7 +227,7 @@ def refs() -> tuple[str, ...]:
         return tuple()
 
     # builtins that have not been shadowed by the user
-    unshadowed_builtins = set(builtins.__dict__.keys()).difference(
+    unshadowed_builtins = BUILTINS.difference(
         set(ctx.graph.definitions.keys())
     )
 
@@ -215,7 +251,7 @@ def query_params() -> QueryParams:
         Keep the text input in sync with the URL query parameters:
 
         ```python3
-        # In it's own cell
+        # In its own cell
         query_params = mo.query_params()
 
         # In another cell
@@ -443,6 +479,20 @@ class Kernel:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
         self.cli_args = CLIArgs(app_metadata.cli_args)
+        self.argv = (
+            [app_metadata.filename or ""] + app_metadata.argv
+            if app_metadata.argv is not None
+            else sys.argv
+        )
+
+        # We update sys.argv to be [filename, args after '--'] so modules like
+        # argparse, simple-parser work out of the box.
+        #
+        # TODO(akshayka): The notebook globals share modules with the kernel
+        # process; if we ever isolate them, push this mutation down into the
+        # kernel globals.
+        sys.argv = self.argv
+
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
@@ -452,6 +502,18 @@ class Kernel:
         # the kernel rejects run requests that were issued before that
         # timestamp, to save the user from having to spam the interrupt button
         self.last_interrupt_timestamp: Optional[float] = None
+
+        # Callbacks
+        self.secrets_callbacks = SecretsCallbacks(self)
+        self.datasets_callbacks = DatasetCallbacks(self)
+        self.packages_callbacks = PackagesCallbacks(self)
+
+        # Apply pythonpath from config at initialization
+        pythonpath = user_config["runtime"].get("pythonpath")
+        if pythonpath:
+            for path in pythonpath:
+                if path not in sys.path:
+                    sys.path.insert(0, path)
 
         self._preparation_hooks = (
             preparation_hooks
@@ -472,7 +534,21 @@ class Kernel:
             on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
         )
 
+        self._original_environ = os.environ.copy()
+
+        # Adds in a post_execution hook to run pytest immediately
+        if user_config["runtime"].get("reactive_tests", False):
+            from marimo._runtime.runner.hooks_post_execution import (
+                attempt_pytest,
+            )
+
+            self._post_execution_hooks.append(attempt_pytest)
+
+        # Must be last to properly trigger render.
+        self._post_execution_hooks.append(render_toplevel_defs)
+
         self._globals_lock = threading.RLock()
+        self._state_lock = threading.RLock()
         self._completion_worker_started = False
 
         self.debugger = debugger_override
@@ -515,7 +591,6 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
-        self.package_manager: PackageManager | None = None
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
 
@@ -547,6 +622,14 @@ class Kernel:
 
         exec("import marimo as __marimo__", self.globals)
 
+        # Lifespans
+        lifespan = Lifespans(_KERNEL_LIFESPAN_REGISTRY.get_all())
+        self._lifespan: Optional[
+            contextlib.AbstractAsyncContextManager[None]
+        ] = None
+        if lifespan.has_lifespans():
+            self._lifespan = lifespan(None)
+
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
         if self.stdout is not None:
@@ -566,21 +649,15 @@ class Kernel:
         # manually clear kernel memory.
         self._module.__dict__.clear()
 
+        # Teardown lifespans
+        if self._lifespan is not None:
+            asyncio.run(self._lifespan.__aexit__(None, None, None))
+
     def lazy(self) -> bool:
         return self.reactive_execution_mode == "lazy"
 
     def _execute_stale_cells_callback(self) -> None:
         return self.enqueue_control_request(ExecuteStaleRequest())
-
-    def _execute_install_missing_packages_callback(
-        self, package_manager: str, packages: list[str]
-    ) -> None:
-        version = {pkg: "" for pkg in packages}
-        return self.enqueue_control_request(
-            InstallMissingPackagesRequest(
-                manager=package_manager, versions=version
-            )
-        )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
@@ -588,18 +665,7 @@ class Kernel:
         self.reactive_execution_mode = config["runtime"]["on_cell_change"]
         self.user_config = config
 
-        if (
-            self.package_manager is None
-            or package_manager != self.package_manager.name
-        ):
-            self.package_manager = create_package_manager(package_manager)
-
-            if self._should_update_script_metadata():
-                # All marimo notebooks depend on the marimo package; if the
-                # notebook already has marimo as a dependency, or an optional
-                # dependency group with marimo, such as marimo[sql], this is a
-                # NOOP.
-                self._update_script_metadata(["marimo"])
+        self.packages_callbacks.update_package_manager(package_manager)
 
         if (
             (autoreload_mode == "lazy" or autoreload_mode == "autorun")
@@ -717,7 +783,12 @@ class Kernel:
                         reload=False,
                     )
 
-    def _register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
+    def _register_cell(
+        self,
+        cell_id: CellId_t,
+        cell: CellImpl,
+        stale: bool,
+    ) -> None:
         if cell_id in self.cell_metadata:
             # If we already have a config for this cell id, restore it
             # This can happen when a cell was previously deactivated (due to a
@@ -728,6 +799,8 @@ class Kernel:
             self.cell_metadata[cell_id] = CellMetadata()
 
         self.graph.register_cell(cell_id, cell)
+        if stale:
+            self.graph.cells[cell_id].set_stale(stale=True, broadcast=False)
         # leaky abstraction: the graph doesn't know about stale modules, so
         # we have to check for them here.
         module_reloader = self.module_reloader
@@ -759,7 +832,10 @@ class Kernel:
                 syntax_error[0] = syntax_error[0][
                     syntax_error[0].find("line") :
                 ]
-                error = MarimoSyntaxError(msg="\n".join(syntax_error))
+                if isinstance(e, ImportStarError):
+                    error = MarimoImportStarError(msg=str(e))
+                else:
+                    error = MarimoSyntaxError(msg="\n".join(syntax_error))
             else:
                 tmpio = io.StringIO()
                 traceback.print_exc(file=tmpio)
@@ -768,7 +844,11 @@ class Kernel:
         return cell, error
 
     def _try_registering_cell(
-        self, cell_id: CellId_t, code: str, carried_imports: list[ImportData]
+        self,
+        cell_id: CellId_t,
+        code: str,
+        carried_imports: list[ImportData],
+        stale: bool,
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -780,12 +860,12 @@ class Kernel:
         cell, error = self._try_compiling_cell(cell_id, code, carried_imports)
 
         if cell is not None:
-            self._register_cell(cell_id, cell)
+            self._register_cell(cell_id, cell, stale)
 
         return error
 
     def _maybe_register_cell(
-        self, cell_id: CellId_t, code: str
+        self, cell_id: CellId_t, code: str, stale: bool
     ) -> tuple[set[CellId_t], Optional[Error]]:
         """Register a cell (given by id, code) if not already registered.
 
@@ -827,7 +907,7 @@ class Kernel:
                 previous_children = self._deactivate_cell(cell_id)
 
             error = self._try_registering_cell(
-                cell_id, code, carried_imports=carried_imports
+                cell_id, code, carried_imports=carried_imports, stale=stale
             )
             if error is not None and previous_cell is not None:
                 # The frontend keeps the cell around in the case of a
@@ -841,7 +921,7 @@ class Kernel:
             # packages used by a notebook; that would have the benefit of
             # discovering transitive dependencies, ie if a notebook used a
             # local module that in turn used packages available on PyPI.
-            if self._should_update_script_metadata():
+            if self.packages_callbacks.should_update_script_metadata():
                 cell = self.graph.cells.get(cell_id, None)
                 if cell:
                     prev_imports: set[Name] = (
@@ -850,7 +930,7 @@ class Kernel:
                         else set()
                     )
                     to_add = cell.imported_namespaces - prev_imports
-                    self._update_script_metadata(
+                    self.packages_callbacks.update_script_metadata(
                         import_namespaces_to_add=list(to_add)
                     )
 
@@ -945,25 +1025,10 @@ class Kernel:
         missing_modules_after_deletion = (
             missing_modules_before_deletion & self.module_registry.modules()
         )
-        if (
-            self.package_manager is not None
-            and missing_modules_after_deletion
-            != missing_modules_before_deletion
-        ):
-            packages = list(
-                sorted(
-                    pkg
-                    for mod in missing_modules_after_deletion
-                    if not self.package_manager.attempted_to_install(
-                        pkg := self.package_manager.module_to_package(mod)
-                    )
-                )
+        if missing_modules_after_deletion != missing_modules_before_deletion:
+            self.packages_callbacks.send_missing_packages_alert(
+                missing_modules_after_deletion
             )
-            # Deleting a cell can make the set of missing packages smaller
-            MissingPackageAlert(
-                packages=packages,
-                isolated=is_python_isolated(),
-            ).broadcast()
 
         cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
@@ -1006,10 +1071,8 @@ class Kernel:
         del self.cell_metadata[cell_id]
         cell = self.graph.cells[cell_id]
         cell.import_workspace.imported_defs = set()
-        if self._should_update_script_metadata():
-            self._update_script_metadata(
-                import_namespaces_to_add=[],
-            )
+
+        # Note: we don't remove packages from the inline script-metadata.
 
         return self._deactivate_cell(cell_id)
 
@@ -1017,6 +1080,7 @@ class Kernel:
         self,
         execution_requests: Sequence[ExecutionRequest],
         deletion_requests: Sequence[DeleteCellRequest],
+        cells_starting_stale: set[CellId_t] | None = None,
     ) -> set[CellId_t]:
         """Add and remove cells to/from the graph.
 
@@ -1042,6 +1106,9 @@ class Kernel:
         cells_with_errors_before_mutation = set(self.errors.keys())
         edges_before = deepcopy(self.graph.children)
         definitions_before = set(self.graph.definitions.keys())
+        cells_starting_stale = (
+            set() if cells_starting_stale is None else cells_starting_stale
+        )
 
         # The set of cells that were successfully registered
         registered_cell_ids: set[CellId_t] = set()
@@ -1056,7 +1123,7 @@ class Kernel:
         # Register and delete cells
         for er in execution_requests:
             old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
+                er.cell_id, er.code, stale=er.cell_id in cells_starting_stale
             )
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
@@ -1235,6 +1302,12 @@ class Kernel:
             - cells_registered_without_error
         ) & cells_in_graph
 
+        # If there is a setup cell and it is currently stale
+        if setup_cell := self.graph.cells.get(CellId_t(SETUP_CELL_NAME)):
+            # - then add it to the set of cells to run.
+            # This makes the setup cell like a "root" cell to everything.
+            if setup_cell.stale:
+                cells_registered_without_error.add(setup_cell.cell_id)
         if self.reactive_execution_mode == "lazy":
             self.graph.set_stale(stale_cells, prune_imports=True)
             return cells_registered_without_error
@@ -1267,43 +1340,6 @@ class Kernel:
             # We prune imports so that only cells depending on unimported
             # modules are marked as stale
             self.graph.set_stale(cell_ids, prune_imports=True)
-
-    def _broadcast_missing_packages(self, runner: cell_runner.Runner) -> None:
-        module_not_found_errors = [
-            e
-            for e in runner.exceptions.values()
-            if isinstance(e, ModuleNotFoundError)
-        ]
-        if (
-            len(module_not_found_errors) > 0
-            and self.package_manager is not None
-        ):
-            # Grab missing modules from module registry and from module not found errors
-            missing_modules = self.module_registry.missing_modules() | set(
-                e.name for e in module_not_found_errors if e.name is not None
-            )
-
-            missing_packages = [
-                pkg
-                for mod in missing_modules
-                # filter out packages that we already attempted to install
-                # to prevent an infinite loop
-                if not self.package_manager.attempted_to_install(
-                    pkg := self.package_manager.module_to_package(mod)
-                )
-            ]
-
-            if missing_packages:
-                packages = list(sorted(missing_packages))
-                if self.package_manager.should_auto_install():
-                    self._execute_install_missing_packages_callback(
-                        self.package_manager.name, packages
-                    )
-                else:
-                    MissingPackageAlert(
-                        packages=packages,
-                        isolated=is_python_isolated(),
-                    ).broadcast()
 
     def _propagate_kernel_errors(
         self,
@@ -1356,7 +1392,7 @@ class Kernel:
             on_finish_hooks=(
                 self._on_finish_hooks
                 + [
-                    self._broadcast_missing_packages,
+                    self.packages_callbacks.missing_packages_hook,
                     self._propagate_kernel_errors,
                 ]
             ),
@@ -1368,9 +1404,11 @@ class Kernel:
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
         await runner.run_all()
-        cells_with_stale_state = runner.resolve_state_updates(
-            self.state_updates
-        )
+        with self._state_lock:
+            cells_with_stale_state = runner.resolve_state_updates(
+                self.state_updates
+            )
+            self.state_updates.clear()
         self.state_updates.clear()
         return cells_with_stale_state
 
@@ -1382,9 +1420,16 @@ class Kernel:
         # store the state and the currently executing cell
         ctx = get_context()
         assert ctx.execution_context is not None
-        self.state_updates[state] = ctx.execution_context.cell_id
-        # TODO(akshayka): Send VariableValues message for any globals
-        # bound to this state object (just like UI elements)
+        cell_id = ctx.execution_context.cell_id
+        with self._state_lock:
+            self.state_updates[state] = cell_id
+        to_update = self.update_stateful_values(
+            ctx.state_registry.bound_names(state), state._value
+        )
+        if self.reactive_execution_mode == "autorun":
+            # If autorun, run the cells that depend on the state
+            self.graph.set_stale(to_update)
+            self._execute_stale_cells_callback()
 
     @kernel_tracer.start_as_current_span("delete_cell")
     async def delete_cell(self, request: DeleteCellRequest) -> None:
@@ -1428,12 +1473,16 @@ class Kernel:
                 er.cell_id for er in execution_requests
             }
             graph = dataflow.DirectedGraph()
+            # cells in execution_requests that should be initially marked as
+            # stale:
+            cells_starting_stale: set[CellId_t] = set()
             for cid, er in list(
                 self._uninstantiated_execution_requests.items()
             ):
                 if cid in execution_requests_cell_ids:
                     # Running a previously uninstantiated cell; just remove
                     # it from our cache of uninstantiated execution requests.
+                    cells_starting_stale.add(cid)
                     del self._uninstantiated_execution_requests[cid]
                     continue
 
@@ -1461,6 +1510,7 @@ class Kernel:
                     previously_uninstantiated_requests.append(
                         self._uninstantiated_execution_requests[ancestor_cid]
                     )
+                    cells_starting_stale.add(ancestor_cid)
                     del self._uninstantiated_execution_requests[ancestor_cid]
 
             await self._run_cells(
@@ -1468,6 +1518,7 @@ class Kernel:
                     list(execution_requests)
                     + previously_uninstantiated_requests,
                     deletion_requests=[],
+                    cells_starting_stale=cells_starting_stale,
                 )
             )
 
@@ -1502,11 +1553,23 @@ class Kernel:
 
         await _run_with_uninstantiated_requests(filtered_requests)
 
+    @kernel_tracer.start_as_current_span("pdb_request")
+    async def pdb_request(self, cell_id: CellId_t) -> None:
+        if (
+            self.debugger is None
+            or cell_id not in self.debugger._last_tracebacks
+            or cell_id not in self.graph.cells
+        ):
+            return
+
+        with self._install_execution_context(cell_id):
+            self.debugger.post_mortem_by_cell_id(cell_id)
+
     @kernel_tracer.start_as_current_span("rename_file")
     async def rename_file(self, filename: str) -> None:
         self.globals["__file__"] = filename
         self.app_metadata.filename = filename
-        roots = set()
+        roots: set[CellId_t] = set()
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
                 roots.add(cell.cell_id)
@@ -1547,7 +1610,8 @@ class Kernel:
             pre_execution_hooks=self._pre_execution_hooks,
             post_execution_hooks=self._post_execution_hooks,
             on_finish_hooks=(
-                self._on_finish_hooks + [self._broadcast_missing_packages]
+                self._on_finish_hooks
+                + [self.packages_callbacks.missing_packages_hook]
             ),
         )
 
@@ -1561,6 +1625,7 @@ class Kernel:
             self.mutate_graph(
                 list(self._uninstantiated_execution_requests.values()),
                 deletion_requests=[],
+                cells_starting_stale=cells_to_run,
             )
             self._uninstantiated_execution_requests = {}
 
@@ -1715,43 +1780,14 @@ class Kernel:
                 else:
                     updated_components.append(component)
 
-            bound_names = (
+            bound_names = {
                 name
                 for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
+            }
+            referring_cells.update(
+                self.update_stateful_values(bound_names, value)
             )
-
-            variable_values: list[VariableValue] = []
-            for name in bound_names:
-                # TODO update variable values even for namespaces? lenses? etc
-                variable_values.append(
-                    VariableValue(name=name, value=component)
-                )
-                try:
-                    # subtracting self.graph.definitions[name]: never rerun the
-                    # cell that created the name
-                    referring_cells.update(
-                        self.graph.get_referring_cells(name, language="python")
-                        - self.graph.get_defining_cells(name)
-                    )
-                except Exception:
-                    # Internal marimo error
-                    sys.stderr.write(
-                        "An exception was raised when finding cells that "
-                        f"refer to a UIElement value, for bound name {name}. "
-                        "This is a bug in marimo. "
-                        "Please copy the below traceback and paste it in an "
-                        "issue: https://github.com/marimo-team/marimo/issues\n"
-                    )
-                    tmpio = io.StringIO()
-                    traceback.print_exc(file=tmpio)
-                    tmpio.seek(0)
-                    write_traceback(tmpio.read())
-                    # Entering undefined behavior territory ...
-                    continue
-
-            if variable_values:
-                VariableValues(variables=variable_values).broadcast()
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
@@ -1800,6 +1836,41 @@ class Kernel:
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
 
+    def update_stateful_values(
+        self, bound_names: set[str], value: Any
+    ) -> set[CellId_t]:
+        variable_values: list[VariableValue] = []
+        referring_cells: set[CellId_t] = set()
+        for name in bound_names:
+            # TODO update variable values even for namespaces? lenses? etc
+            variable_values.append(VariableValue(name=name, value=value))
+            try:
+                # subtracting self.graph.definitions[name]: never rerun the
+                # cell that created the name
+                referring_cells |= self.graph.get_referring_cells(
+                    name, language="python"
+                ) - self.graph.get_defining_cells(name)
+            except Exception:
+                # Internal marimo error
+                sys.stderr.write(
+                    "An exception was raised when finding cells that "
+                    f"refer to a UIElement value, for bound name {name}. "
+                    "This is a bug in marimo. "
+                    "Please copy the below traceback and paste it in an "
+                    "issue: https://github.com/marimo-team/marimo/issues\n"
+                )
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
+                # Entering undefined behavior territory ...
+                continue
+
+        if variable_values:
+            VariableValues(variables=variable_values).broadcast()
+
+        return referring_cells
+
     @kernel_tracer.start_as_current_span("function_call_request")
     async def function_call_request(
         self, request: FunctionCallRequest
@@ -1838,15 +1909,13 @@ class Kernel:
                         return status, response, found
             found = False
             error_title = "Function not found"
-            error_message = (
-                "Could not find function given request: %s" % request
-            )
+            error_message = f"Could not find function given request: {request}"
             debug(error_title, error_message)
         elif function.cell_id is None:
             found = True
             error_title = "Function not associated with cell"
             error_message = (
-                "Attempted to call a function without a cell id: %s" % request
+                f"Attempted to call a function without a cell id: {request}"
             )
             debug(error_title, error_message)
         else:
@@ -1880,17 +1949,11 @@ class Kernel:
                     )
                 except MarimoInterrupt:
                     error_title = "Interrupted"
-                    error_message = (
-                        "Function call (%s) was interrupted by the user"
-                        % request.function_name
-                    )
+                    error_message = f"Function call ({request.function_name}) was interrupted by the user"
                     debug(error_title, error_message)
                 except Exception as e:
                     error_title = "Exception"
-                    error_message = (
-                        "Function call (name: %s, args: %s) failed with exception %s"  # noqa: E501
-                        % (request.function_name, request.args, str(e))
-                    )
+                    error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
                     debug(error_title, error_message)
 
         # Couldn't call function, or function call failed
@@ -1909,6 +1972,11 @@ class Kernel:
         During instantiation, UIElements can check for an initial value
         with `get_initial_value`
         """
+        if self._lifespan is not None:
+            await self._lifespan.__aenter__()
+
+        self.load_dotenv()
+
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
@@ -1919,6 +1987,7 @@ class Kernel:
                 initial_value,
             ) in request.set_ui_element_value_request.ids_and_values:
                 self.ui_initializers[object_id] = initial_value
+
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
         else:
@@ -1928,103 +1997,147 @@ class Kernel:
             for cid in self._uninstantiated_execution_requests:
                 CellOp.broadcast_stale(cell_id=cid, stale=True)
 
-    async def install_missing_packages(
-        self, request: InstallMissingPackagesRequest
-    ) -> None:
-        """Attempts to install packages for modules that cannot be imported
+    def load_dotenv(self) -> None:
+        dotenvs = self.user_config["runtime"].get("dotenv", [])
+        if not isinstance(dotenvs, list):
+            LOGGER.warning("dotenv configuration is not a list")
+            return
 
-        Runs cells affected by successful installation.
+        for env in dotenvs:
+            if Path(env).exists():
+                try:
+                    load_dotenv_with_fallback(env)
+                except Exception as e:
+                    LOGGER.error(
+                        "Failed to load dotenv file %s", env, exc_info=e
+                    )
+
+    @cached_property
+    def request_handler(self) -> RequestHandler:
+        handler = RequestHandler()
+
+        async def handle_instantiate(request: CreationRequest) -> None:
+            with http_request_context(request.request):
+                await self.instantiate(request)
+            CompletedRun().broadcast()
+
+        async def handle_execute_multiple(
+            request: ExecuteMultipleRequest,
+        ) -> None:
+            with http_request_context(request.request):
+                await self.run(request.execution_requests)
+            CompletedRun().broadcast()
+
+        async def handle_execute_scratchpad(
+            request: ExecuteScratchpadRequest,
+        ) -> None:
+            with http_request_context(request.request):
+                await self.run_scratchpad(request.code)
+            CompletedRun().broadcast()
+
+        async def handle_execute_stale(request: ExecuteStaleRequest) -> None:
+            with http_request_context(request.request):
+                await self.run_stale_cells()
+            CompletedRun().broadcast()
+
+        async def handle_set_ui_element_value(
+            request: SetUIElementValueRequest,
+        ) -> None:
+            with http_request_context(request.request):
+                await self.set_ui_element_value(request)
+            CompletedRun().broadcast()
+
+        async def handle_pdb_request(request: PdbRequest) -> None:
+            await self.pdb_request(request.cell_id)
+
+        async def handle_rename(request: RenameRequest) -> None:
+            await self.rename_file(request.filename)
+
+        async def handle_function_call(request: FunctionCallRequest) -> None:
+            status, ret, _ = await self.function_call_request(request)
+            LOGGER.debug("Function returned with status %s", status)
+            FunctionCallResult(
+                function_call_id=request.function_call_id,
+                return_value=ret,
+                status=status,
+            ).broadcast()
+
+        async def handle_set_user_config(
+            request: SetUserConfigRequest,
+        ) -> None:
+            self.set_user_config(request)
+
+        async def handle_install_missing_packages(
+            request: InstallMissingPackagesRequest,
+        ) -> None:
+            await self.packages_callbacks.install_missing_packages(request)
+            CompletedRun().broadcast()
+
+        async def handle_stop(request: StopRequest) -> None:
+            del request
+            return None
+
+        handler.register(CreationRequest, handle_instantiate)
+        handler.register(DeleteCellRequest, self.delete_cell)
+        handler.register(ExecuteMultipleRequest, handle_execute_multiple)
+        handler.register(ExecuteScratchpadRequest, handle_execute_scratchpad)
+        handler.register(ExecuteStaleRequest, handle_execute_stale)
+        handler.register(FunctionCallRequest, handle_function_call)
+        handler.register(
+            InstallMissingPackagesRequest, handle_install_missing_packages
+        )
+        handler.register(PdbRequest, handle_pdb_request)
+        handler.register(RenameRequest, handle_rename)
+        handler.register(SetCellConfigRequest, self.set_cell_config)
+        handler.register(SetUIElementValueRequest, handle_set_ui_element_value)
+        handler.register(SetUserConfigRequest, handle_set_user_config)
+        handler.register(StopRequest, handle_stop)
+        # Datasets
+        handler.register(
+            PreviewDatasetColumnRequest,
+            self.datasets_callbacks.preview_dataset_column,
+        )
+        handler.register(
+            PreviewSQLTableRequest, self.datasets_callbacks.preview_sql_table
+        )
+        handler.register(
+            PreviewSQLTableListRequest,
+            self.datasets_callbacks.preview_sql_table_list,
+        )
+        handler.register(
+            PreviewDataSourceConnectionRequest,
+            self.datasets_callbacks.preview_datasource_connection,
+        )
+        # Secrets
+        handler.register(
+            ListSecretKeysRequest, self.secrets_callbacks.list_secrets
+        )
+        handler.register(
+            RefreshSecretsRequest, self.secrets_callbacks.refresh_secrets
+        )
+
+        return handler
+
+    async def handle_message(self, request: ControlRequest) -> None:
+        """Handle a message from the client.
+
+        The message is dispatched to the appropriate method based on its type.
+
+        Coarsely locks globals to avoid race conditions with code completion.
         """
-        assert self.package_manager is not None
-        if request.manager != self.package_manager.name:
-            # Swap out the package manager
-            self.package_manager = create_package_manager(request.manager)
+        # acquiring and releasing an RLock takes ~100ns; the overhead is
+        # negligible because the lock is coarse.
+        LOGGER.debug("Acquiring globals lock to handle request %s", request)
 
-        if not self.package_manager.is_manager_installed():
-            self.package_manager.alert_not_installed()
-            return
+        with self.lock_globals():
+            LOGGER.debug("Handling control request: %s", request)
+            await self.request_handler.handle(request)
+            LOGGER.debug("Handled control request: %s", request)
 
-        missing_packages_set = set(request.versions.keys())
-        # Append all other missing packages from the notebook; the missing
-        # package request only contains the packages from the cell the user
-        # executed.
-        missing_packages_set.update(
-            [
-                self.package_manager.module_to_package(module)
-                for module in self.module_registry.missing_modules()
-            ]
-        )
-        missing_packages = list(sorted(missing_packages_set))
 
-        # Frontend shows package names, not module names
-        package_statuses: PackageStatusType = {
-            pkg: "queued" for pkg in missing_packages
-        }
-        InstallingPackageAlert(packages=package_statuses).broadcast()
-
-        for pkg in missing_packages:
-            if self.package_manager.attempted_to_install(package=pkg):
-                # Already attempted an installation; it must have failed.
-                # Skip the installation.
-                continue
-            package_statuses[pkg] = "installing"
-            InstallingPackageAlert(packages=package_statuses).broadcast()
-            version = request.versions.get(pkg)
-            if await self.package_manager.install(pkg, version=version):
-                package_statuses[pkg] = "installed"
-                InstallingPackageAlert(packages=package_statuses).broadcast()
-            else:
-                package_statuses[pkg] = "failed"
-                mod = self.package_manager.package_to_module(pkg)
-                self.module_registry.excluded_modules.add(mod)
-                InstallingPackageAlert(packages=package_statuses).broadcast()
-
-        installed_modules = [
-            self.package_manager.package_to_module(pkg)
-            for pkg in package_statuses
-            if package_statuses[pkg] == "installed"
-        ]
-
-        # If a package was not installed at cell registration time, it won't
-        # yet be in the script metadata.
-        if self._should_update_script_metadata():
-            self._update_script_metadata(installed_modules)
-
-        cells_to_run = set(
-            cid
-            for module in installed_modules
-            if (cid := self.module_registry.defining_cell(module)) is not None
-        )
-        if cells_to_run:
-            await self._if_autorun_then_run_cells(cells_to_run)
-
-    def _should_update_script_metadata(self) -> bool:
-        return (
-            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
-            and self.app_metadata.filename is not None
-            and self.package_manager is not None
-        )
-
-    def _update_script_metadata(
-        self, import_namespaces_to_add: List[str]
-    ) -> None:
-        filename = self.app_metadata.filename
-
-        if not filename or not self.package_manager:
-            return
-
-        try:
-            LOGGER.debug(
-                "Updating script metadata: %s. Adding namespaces: %s.",
-                filename,
-                import_namespaces_to_add,
-            )
-            self.package_manager.update_notebook_script_metadata(
-                filepath=filename,
-                import_namespaces_to_add=import_namespaces_to_add,
-            )
-        except Exception as e:
-            LOGGER.error("Failed to add script metadata to notebook: %s", e)
+class DatasetCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
 
     @kernel_tracer.start_as_current_span("preview_dataset_column")
     async def preview_dataset_column(
@@ -2046,16 +2159,26 @@ class Kernel:
 
         try:
             if source_type == "duckdb":
-                column_preview = get_column_preview_for_sql(
-                    table_name=table_name,
+                column_preview = get_column_preview_for_duckdb(
+                    fully_qualified_table_name=request.fully_qualified_table_name
+                    or table_name,
                     column_name=column_name,
                 )
             elif source_type == "local":
-                dataset = self.globals[table_name]
-                column_preview = get_column_preview_dataframe(dataset, request)
+                dataset = self._kernel.globals[table_name]
+                column_preview = get_column_preview_for_dataframe(
+                    dataset, request
+                )
             elif source_type == "connection":
                 DataColumnPreview(
                     error="Column preview for connection data sources is not supported",
+                    column_name=column_name,
+                    table_name=table_name,
+                ).broadcast()
+                return
+            elif source_type == "catalog":
+                DataColumnPreview(
+                    error="Column preview for catalog data sources is not supported",
                     column_name=column_name,
                     table_name=table_name,
                 ).broadcast()
@@ -2085,6 +2208,25 @@ class Kernel:
             ).broadcast()
         return
 
+    def _get_sql_engine(
+        self, variable_name: str
+    ) -> tuple[Optional[SQLEngine], Optional[str]]:
+        """Find the SQL engine associated with the given variable name. Returns the engine and the error message if any."""
+        variable_name = cast(VariableName, variable_name)
+
+        try:
+            # Should we find the existing engine instead?
+            engine_val = self._kernel.globals.get(variable_name)
+            engines = get_engines_from_variables([(variable_name, engine_val)])
+            if engines is None or len(engines) == 0:
+                return None, "Engine not found"
+            return engines[0][1], None
+        except Exception as e:
+            LOGGER.warning(
+                "Failed to get engine %s", variable_name, exc_info=e
+            )
+            return None, str(e)
+
     @kernel_tracer.start_as_current_span("preview_sql_table")
     async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
         """Get table details for an SQL table.
@@ -2096,102 +2238,346 @@ class Kernel:
                 - schema: Name of the schema
                 - table_name: Name of the table
         """
-        engine_name = cast(VariableName, request.engine)
-        _database_name = request.database
+        variable_name = cast(VariableName, request.engine)
+        database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
 
-        # TODO: Can we find the existing engine
-        engine_val = self.globals.get(engine_name)
-        try:
-            engines = get_engines_from_variables([(engine_name, engine_val)])
-            if engines is None or len(engines) == 0:
-                LOGGER.warning("Engine %s not found", engine_name)
-                SQLTablePreview(
-                    request_id=request.request_id,
-                    table=None,
-                    error="Engine not found",
-                ).broadcast()
-            engine = engines[0][1]
-        except Exception as e:
-            LOGGER.warning("Failed to get engine %s", engine_name, exc_info=e)
+        engine, error = self._get_sql_engine(variable_name)
+        if error is not None or engine is None:
             SQLTablePreview(
-                request_id=request.request_id, table=None, error=str(e)
+                request_id=request.request_id, table=None, error=error
             ).broadcast()
             return
 
-        if isinstance(engine, SQLAlchemyEngine):
-            table = engine.get_table_details(table_name, schema_name)
-            if table is None:
-                LOGGER.warning("Table %s not found", table_name)
+        try:
+            table = engine.get_table_details(
+                table_name=table_name,
+                schema_name=schema_name,
+                database_name=database_name,
+            )
+
             SQLTablePreview(
                 request_id=request.request_id, table=table
             ).broadcast()
-        else:
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get preview for table %s in schema %s",
+                table_name,
+                schema_name,
+            )
             SQLTablePreview(
                 request_id=request.request_id,
                 table=None,
-                error="Not an SQLAlchemyEngine",
+                error="Failed to get table details: " + str(e),
             ).broadcast()
 
-    async def handle_message(self, request: ControlRequest) -> None:
-        """Handle a message from the client.
+    @kernel_tracer.start_as_current_span("preview_sql_table_list")
+    async def preview_sql_table_list(
+        self, request: PreviewSQLTableListRequest
+    ) -> None:
+        """Get a list of tables from an SQL schema
 
-        The message is dispatched to the appropriate method based on its type.
-
-        Coarsely locks globals to avoid race conditions with code completion.
+        Args:
+            request (PreviewSQLTableListRequest): The request containing:
+                - engine: Name of the SQL engine / connection
+                - database: Name of the database
+                - schema: Name of the schema
         """
-        # acquiring and releasing an RLock takes ~100ns; the overhead is
-        # negligible because the lock is coarse.
-        LOGGER.debug("Acquiring globals lock to handle request %s", request)
-        with self.lock_globals():
-            LOGGER.debug("Handling control request: %s", request)
-            if isinstance(request, CreationRequest):
-                with http_request_context(request.request):
-                    await self.instantiate(request)
-                CompletedRun().broadcast()
-            elif isinstance(request, ExecuteMultipleRequest):
-                with http_request_context(request.request):
-                    await self.run(request.execution_requests)
-                CompletedRun().broadcast()
-            elif isinstance(request, ExecuteScratchpadRequest):
-                with http_request_context(request.request):
-                    await self.run_scratchpad(request.code)
-            elif isinstance(request, ExecuteStaleRequest):
-                await self.run_stale_cells()
-            elif isinstance(request, RenameRequest):
-                await self.rename_file(request.filename)
-            elif isinstance(request, SetCellConfigRequest):
-                await self.set_cell_config(request)
-            elif isinstance(request, SetUserConfigRequest):
-                self.set_user_config(request)
-            elif isinstance(request, SetUIElementValueRequest):
-                with http_request_context(request.request):
-                    await self.set_ui_element_value(request)
-                CompletedRun().broadcast()
-            elif isinstance(request, FunctionCallRequest):
-                status, ret, _ = await self.function_call_request(request)
-                LOGGER.debug("Function returned with status %s", status)
-                FunctionCallResult(
-                    function_call_id=request.function_call_id,
-                    return_value=ret,
-                    status=status,
-                ).broadcast()
-                CompletedRun().broadcast()
-            elif isinstance(request, DeleteCellRequest):
-                await self.delete_cell(request)
-            elif isinstance(request, InstallMissingPackagesRequest):
-                await self.install_missing_packages(request)
-                CompletedRun().broadcast()
-            elif isinstance(request, PreviewDatasetColumnRequest):
-                await self.preview_dataset_column(request)
-            elif isinstance(request, PreviewSQLTableRequest):
-                await self.preview_sql_table(request)
-            elif isinstance(request, StopRequest):
-                return None
+        variable_name = cast(VariableName, request.engine)
+        database_name = request.database
+        schema_name = request.schema
+
+        engine, error = self._get_sql_engine(variable_name)
+        if error is not None or engine is None:
+            SQLTableListPreview(
+                request_id=request.request_id, tables=[], error=error
+            ).broadcast()
+            return
+
+        try:
+            table_list = engine.get_tables_in_schema(
+                schema=schema_name,
+                database=database_name,
+                include_table_details=False,
+            )
+            SQLTableListPreview(
+                request_id=request.request_id, tables=table_list
+            ).broadcast()
+        except Exception as e:
+            LOGGER.exception(
+                "Failed to get table list for schema %s", schema_name
+            )
+            SQLTableListPreview(
+                request_id=request.request_id,
+                tables=[],
+                error="Failed to get table list: " + str(e),
+            )
+
+    @kernel_tracer.start_as_current_span("preview_datasource_connection")
+    async def preview_datasource_connection(
+        self, request: PreviewDataSourceConnectionRequest
+    ) -> None:
+        """Broadcasts a datasource connection for a given engine"""
+        variable_name = cast(VariableName, request.engine)
+        engine, error = self._get_sql_engine(variable_name)
+        if error is not None or engine is None:
+            LOGGER.error("Failed to get engine %s", variable_name)
+            return
+
+        data_source_connection = engine_to_data_source_connection(
+            variable_name, engine
+        )
+
+        LOGGER.debug(
+            "Broadcasting datasource connection for %s engine", variable_name
+        )
+        DataSourceConnections(
+            connections=[data_source_connection],
+        ).broadcast()
+
+
+class SecretsCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
+
+    async def list_secrets(self, request: ListSecretKeysRequest) -> None:
+        secrets = get_secret_keys(
+            self._kernel.user_config, self._kernel._original_environ
+        )
+        SecretKeysResult(
+            request_id=request.request_id, secrets=secrets
+        ).broadcast()
+
+    async def refresh_secrets(self, request: RefreshSecretsRequest) -> None:
+        del request
+        self._kernel.load_dotenv()
+
+
+class PackagesCallbacks:
+    def __init__(self, kernel: Kernel):
+        self._kernel = kernel
+        self.package_manager: PackageManager | None = None
+
+    def update_package_manager(self, package_manager: str) -> None:
+        if (
+            self.package_manager is None
+            or package_manager != self.package_manager.name
+        ):
+            self.package_manager = create_package_manager(package_manager)
+
+            # All marimo notebooks depend on the marimo package; if the
+            # notebook already has marimo as a dependency, or an optional
+            # dependency group with marimo, such as marimo[sql], this is a
+            # NOOP.
+            self._maybe_add_marimo_to_script_metadata()
+
+    def send_missing_packages_alert(self, missing_packages: set[str]) -> None:
+        if self.package_manager is None:
+            return
+
+        packages = list(
+            sorted(
+                pkg
+                for mod in missing_packages
+                if not self.package_manager.attempted_to_install(
+                    pkg := self.package_manager.module_to_package(mod)
+                )
+            )
+        )
+        # Deleting a cell can make the set of missing packages smaller
+        MissingPackageAlert(
+            packages=packages,
+            isolated=is_python_isolated(),
+        ).broadcast()
+
+    def missing_packages_hook(self, runner: cell_runner.Runner) -> None:
+        module_not_found_errors = [
+            e
+            for e in runner.exceptions.values()
+            if isinstance(e, (ModuleNotFoundError, ManyModulesNotFoundError))
+        ]
+
+        if len(module_not_found_errors) == 0:
+            return
+
+        if self.package_manager is None:
+            return
+
+        missing_modules: set[str] = set()
+        missing_packages: set[str] = set()
+
+        # Populate missing_modules and missing_packages
+        # from the errors
+        for e in module_not_found_errors:
+            if isinstance(e, ManyModulesNotFoundError):
+                # filter out packages that we already attempted to install
+                # to prevent an infinite loop
+                missing_packages.update(
+                    {
+                        package
+                        for package in e.package_names
+                        if not self.package_manager.attempted_to_install(
+                            package
+                        )
+                    }
+                )
+            elif e.name is not None:
+                missing_modules.add(e.name)
+
+        # Grab missing modules from module registry and from module not found errors
+        missing_modules = (
+            self._kernel.module_registry.missing_modules() | missing_modules
+        )
+
+        # Convert modules to packages
+        for mod in missing_modules:
+            pkg = self.package_manager.module_to_package(mod)
+            # filter out packages that we already attempted to install
+            # to prevent an infinite loop
+            if not self.package_manager.attempted_to_install(pkg):
+                missing_packages.add(pkg)
+
+        if not missing_packages:
+            return
+
+        packages = list(sorted(missing_packages))
+        if self.package_manager.should_auto_install():
+            version = {pkg: "" for pkg in packages}
+            self._kernel.enqueue_control_request(
+                InstallMissingPackagesRequest(
+                    manager=self.package_manager.name, versions=version
+                )
+            )
+        else:
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ).broadcast()
+
+    async def install_missing_packages(
+        self, request: InstallMissingPackagesRequest
+    ) -> None:
+        """Attempts to install packages for modules that cannot be imported
+
+        Runs cells affected by successful installation.
+        """
+        assert self.package_manager is not None
+        if request.manager != self.package_manager.name:
+            # Swap out the package manager
+            self.package_manager = create_package_manager(request.manager)
+
+        if not self.package_manager.is_manager_installed():
+            self.package_manager.alert_not_installed()
+            return
+
+        missing_packages_set = set(request.versions.keys())
+        # Append all other missing packages from the notebook; the missing
+        # package request only contains the packages from the cell the user
+        # executed.
+        missing_packages_set.update(
+            [
+                self.package_manager.module_to_package(module)
+                for module in self._kernel.module_registry.missing_modules()
+            ]
+        )
+        missing_packages = list(sorted(missing_packages_set))
+
+        # Frontend shows package names, not module names
+        package_statuses: PackageStatusType = {
+            pkg: "queued" for pkg in missing_packages
+        }
+        InstallingPackageAlert(packages=package_statuses).broadcast()
+
+        for pkg in missing_packages:
+            if self.package_manager.attempted_to_install(package=pkg):
+                # Already attempted an installation; it must have failed.
+                # Skip the installation.
+                continue
+            package_statuses[pkg] = "installing"
+            InstallingPackageAlert(packages=package_statuses).broadcast()
+            version = request.versions.get(pkg)
+            if await self.package_manager.install(pkg, version=version):
+                package_statuses[pkg] = "installed"
+                InstallingPackageAlert(packages=package_statuses).broadcast()
             else:
-                raise ValueError(f"Unknown request {request}")
-            LOGGER.debug("Handled control request: %s", request)
+                package_statuses[pkg] = "failed"
+                mod = self.package_manager.package_to_module(pkg)
+                self._kernel.module_registry.excluded_modules.add(mod)
+                InstallingPackageAlert(packages=package_statuses).broadcast()
+
+        installed_modules = [
+            self.package_manager.package_to_module(pkg)
+            for pkg in package_statuses
+            if package_statuses[pkg] == "installed"
+        ]
+
+        # If a package was not installed at cell registration time, it won't
+        # yet be in the script metadata.
+        if self.should_update_script_metadata():
+            self.update_script_metadata(installed_modules)
+
+        cells_to_run = set(
+            cid
+            for module in installed_modules
+            if (cid := self._kernel.module_registry.defining_cell(module))
+            is not None
+        )
+        if cells_to_run:
+            await self._kernel._if_autorun_then_run_cells(cells_to_run)
+
+    def _maybe_add_marimo_to_script_metadata(self) -> None:
+        if self.should_update_script_metadata():
+            self.update_script_metadata(["marimo"])
+
+    def should_update_script_metadata(self) -> bool:
+        return (
+            GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA is True
+            and self._kernel.app_metadata.filename is not None
+            and self.package_manager is not None
+        )
+
+    def update_script_metadata(
+        self, import_namespaces_to_add: list[str]
+    ) -> None:
+        filename = self._kernel.app_metadata.filename
+
+        if not filename or not self.package_manager:
+            return
+
+        try:
+            LOGGER.debug(
+                "Updating script metadata: %s. Adding namespaces: %s.",
+                filename,
+                import_namespaces_to_add,
+            )
+            self.package_manager.update_notebook_script_metadata(
+                filepath=filename,
+                import_namespaces_to_add=import_namespaces_to_add,
+            )
+        except Exception as e:
+            LOGGER.error("Failed to add script metadata to notebook: %s", e)
+
+
+class RequestHandler:
+    def __init__(self) -> None:
+        self._handlers: dict[
+            type[ControlRequest],
+            Callable[[ControlRequest], Awaitable[None]],
+        ] = {}
+
+    def register(
+        self,
+        request_type: type[ControlRequest],
+        handler: Callable[[Any], Awaitable[None]],
+    ) -> None:
+        self._handlers[request_type] = handler
+
+    async def handle(self, request: ControlRequest) -> None:
+        handler = self._handlers.get(type(request))
+        if handler:
+            return await handler(request)
+        raise ValueError(f"Unknown request {request}")
 
 
 def launch_kernel(
@@ -2346,9 +2732,22 @@ def launch_kernel(
     ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
 
     async def control_loop(kernel: Kernel) -> None:
+        from queue import Empty
+
         while True:
             try:
-                request: ControlRequest | None = control_queue.get()
+                TIMEOUT_S = 0.1
+                # 100ms timeout to avoid blocking
+                # this does not mean ControlRequest will be blocked for 100ms
+                # but rather background tasks may not start until 100ms have passed
+                request: ControlRequest | None = control_queue.get(
+                    timeout=TIMEOUT_S
+                )
+            except Empty:
+                # Yield control back to the event loop to give
+                # other tasks a chance to run
+                await asyncio.sleep(0)
+                continue
             except Exception as e:
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)

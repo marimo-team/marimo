@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import ast
 import base64
+import dataclasses
 import hashlib
 import inspect
 import struct
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Callable, Iterable, NamedTuple, Optional
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 
+from marimo._ast.transformers import DeprivateVisitor, strip_function
 from marimo._ast.variables import (
     get_cell_from_local,
     if_local_then_mangle,
@@ -26,12 +28,14 @@ from marimo._runtime.primitives import (
     is_primitive,
     is_pure_function,
 )
+from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import SetFunctor, State
-from marimo._save.ast import DeprivateVisitor, strip_function
+from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from types import CodeType
 
     from marimo._ast.cell import CellImpl
@@ -258,7 +262,7 @@ def attempt_signed_bytes(value: bytes, label: str) -> bytes:
     try:
         return type_sign(common_container_to_bytes(value), label)
     # Fallback to raw state for eval in content hash.
-    except TypeError:
+    except (TypeError, ValueError):
         return value
 
 
@@ -287,6 +291,12 @@ def get_and_update_context_from_scope(
         return ctx
     except ContextNotInitializedError:
         return None
+
+
+@dataclasses.dataclass
+class HashKey:
+    hash: str
+    cache_type: CacheType
 
 
 class BlockHasher:
@@ -320,10 +330,13 @@ class BlockHasher:
            these methods is that Nix sandboxes all execution, preventing external file access, and
            internet. Sources of non-determinism are not accounted for in this implementation, and are
            left to the user.
+           NB. The ContextExecutionPath is an extended case of ExecutionPath hashing, just utilizing
+           additional context.
 
-        In both cases, as long as the module is deterministic, the output will be deterministic. NB.
-        The ContextExecutionPath is an extended case of ExecutionPath hashing, just utilizing
-        additional context.
+        In these cases, as long as the module is deterministic, the output will be deterministic.
+        A side effects api is implemented to account for "uncontrollable external state" when
+        utilizing builtin functions like `mo.watch.file`, but the onus is put on the user currently
+        to manage external state.
 
         For optimization, the content hash is performed after the execution cache- however the content
         references are collected first. This deferred content hash is useful in cases like repeated
@@ -358,6 +371,7 @@ class BlockHasher:
             )
 
         self._hash: Optional[str] = None
+        self._exe_hash: Optional[str] = None
         self.graph = graph
         self.cell_id = cell_id
         self.pin_modules = pin_modules
@@ -413,6 +427,10 @@ class BlockHasher:
         # execution hashing.
         if refs:
             cache_type = "ExecutionPath"
+            if ctx:
+                self.collect_and_hash_side_effects(
+                    self.cells_from_refs(refs), ctx
+                )
             refs = self.hash_and_dequeue_execution_refs(refs)
         self.execution_refs -= refs | self.content_refs
 
@@ -423,8 +441,13 @@ class BlockHasher:
         # provided context.
         if refs:
             cache_type = "ContextExecutionPath"
+            if ctx:
+                self.collect_and_hash_side_effects({self.cell_id}, ctx)
             self.hash_and_verify_context_refs(refs, context)
         self.context_refs -= refs | self.content_refs | self.execution_refs
+
+        # Hold on to execution_path refs before content update.
+        self.exe_alg = self.hash_alg.copy()
 
         # Now run the content hash on the content refs.
         if apply_content_hash:
@@ -434,7 +457,10 @@ class BlockHasher:
 
         # Finally, utilize the unrun block itself, and clean up.
         self.cache_type = cache_type
-        self.hash_alg.update(hash_raw_module(module, hash_type))
+        module_hash = hash_raw_module(module, hash_type)
+        self.hash_alg.update(module_hash)
+        # Update execution path without content data.
+        self.exe_alg.update(module_hash)
 
     @staticmethod
     def from_parent(
@@ -453,7 +479,9 @@ class BlockHasher:
         block.defs = set(parent.defs)
         block.stateful_refs = set(parent.stateful_refs)
         block.hash_alg = parent.hash_alg.copy()
+        block.exe_alg = parent.exe_alg.copy()
         block._hash = None
+        block._exe_hash = parent._exe_hash  # The exe hash is the same
         block.cache_type = parent.cache_type
         block.content_refs = set(parent.content_refs)
         block.execution_refs = set(parent.execution_refs)
@@ -471,8 +499,26 @@ class BlockHasher:
             )
         return self._hash
 
+    @property
+    def exe_hash(self) -> str:
+        if self._exe_hash is None:
+            assert self.exe_alg is not None, "Hash algorithm not initialized."
+            self._exe_hash = (
+                base64.urlsafe_b64encode(self.exe_alg.digest())
+                .decode("utf-8")
+                .strip("=")
+            )
+        return self._exe_hash
+
     def __hash__(self) -> int:
         return hash(self.hash)
+
+    @property
+    def key(self) -> HashKey:
+        return HashKey(
+            hash=self.hash,
+            cache_type=self.cache_type,
+        )
 
     def _apply_content_hash(
         self, content_serialization: dict[Name, bytes]
@@ -618,7 +664,14 @@ class BlockHasher:
             if value is not None and (
                 ref not in scope or isinstance(scope[ref], State)
             ):
-                scope[ref] = attempt_signed_bytes(value(), "state")
+                if isinstance(value, PathState):
+                    # Path state only contains the path as value, it should
+                    # contain the path contents.
+                    scope[ref] = attempt_signed_bytes(
+                        repr(value).encode(), "pathstate"
+                    )
+                else:
+                    scope[ref] = attempt_signed_bytes(value(), "state")
                 if ctx:
                     for state_name in ctx.state_registry.bound_names(value):
                         scope[state_name] = scope[ref]
@@ -782,15 +835,7 @@ class BlockHasher:
         provided, as those references should be accounted for in that context.
         """
         self._hash = None
-
-        refs = set(refs)
-        # Execution path works by just analyzing the input cells to hash.
-        ancestors = self.graph.ancestors(self.cell_id)
-        # Prune to only the ancestors that are tied to the references.
-        ref_cells = set().union(
-            *[self.graph.definitions.get(ref, set()) for ref in refs]
-        )
-        to_hash = ancestors & ref_cells
+        to_hash = self.cells_from_refs(refs)
         for ancestor_id in to_hash:
             cell_impl = self.graph.cells[ancestor_id]
             for ref in cell_impl.defs:
@@ -858,6 +903,46 @@ class BlockHasher:
         self.hash_alg.update(hash_raw_module(context, self.hash_alg.name))
         # refs have been accounted for at this point. Nothing to return
 
+    def collect_and_hash_side_effects(
+        self, cell_ids: set[CellId_t], ctx: RuntimeContext
+    ) -> None:
+        """Collect side effects from the context.
+
+        Args:
+            cell_ids: A set of cell ids to collect side effects from.
+            ctx: The runtime context to use for collection.
+        """
+        side_effects = []
+        for cell_id in cell_ids:
+            if cell_id in ctx.cell_lifecycle_registry.registry:
+                registry = ctx.cell_lifecycle_registry.registry[cell_id]
+                side_effects.extend(
+                    [
+                        obj.hash
+                        for obj in registry
+                        if isinstance(obj, SideEffect)
+                    ]
+                )
+
+        # Hash the side effects
+        self.hash_alg.update(b"".join(sorted(side_effects)))
+
+    def cells_from_refs(self, refs: set[Name]) -> set[CellId_t]:
+        refs = set(refs)
+        # Execution path works by just analyzing the input cells to hash.
+        ancestors = self.graph.ancestors(self.cell_id)
+        # Prune to only the ancestors that are tied to the references.
+        ref_cells = set().union(
+            *[self.graph.definitions.get(ref, set()) for ref in refs]
+        )
+        cell_basis = ancestors & ref_cells
+        return (
+            set().union(
+                *[self.graph.ancestors(cell_id) for cell_id in cell_basis]
+            )
+            | cell_basis
+        )
+
 
 def cache_attempt_from_hash(
     module: ast.Module,
@@ -899,9 +984,8 @@ def cache_attempt_from_hash(
 
     return loader.cache_attempt(
         hasher.defs,
-        hasher.hash,
+        hasher.key,
         hasher.stateful_refs,
-        hasher.cache_type,
     )
 
 
@@ -988,7 +1072,6 @@ def content_cache_attempt_from_base(
 
     return loader.cache_attempt(
         hasher.defs,
-        hasher.hash,
+        hasher.key,
         stateful_refs,
-        hasher.cache_type,
     )

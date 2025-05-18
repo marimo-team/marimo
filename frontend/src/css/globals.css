@@ -1,29 +1,33 @@
-@import url("@radix-ui/colors/grass.css");
-@import url("@radix-ui/colors/grass-dark.css");
-@import url("@radix-ui/colors/gray.css");
-@import url("@radix-ui/colors/gray-dark.css");
-@import url("@radix-ui/colors/lime.css");
-@import url("@radix-ui/colors/lime-dark.css");
-@import url("@radix-ui/colors/red.css");
-@import url("@radix-ui/colors/red-dark.css");
-@import url("@radix-ui/colors/sky.css");
-@import url("@radix-ui/colors/sky-dark.css");
-@import url("@radix-ui/colors/orange.css");
-@import url("@radix-ui/colors/orange-dark.css");
-@import url("@radix-ui/colors/cyan.css");
-@import url("@radix-ui/colors/cyan-dark.css");
-@import url("@radix-ui/colors/slate.css");
-@import url("@radix-ui/colors/slate-dark.css");
-@import url("@radix-ui/colors/sage.css");
-@import url("@radix-ui/colors/sage-dark.css");
-@import url("@radix-ui/colors/amber.css");
 @import url("@radix-ui/colors/amber-dark.css");
-@import url("@radix-ui/colors/yellow.css");
-@import url("@radix-ui/colors/yellow-dark.css");
-@import url("@radix-ui/colors/blue.css");
+@import url("@radix-ui/colors/amber.css");
 @import url("@radix-ui/colors/blue-dark.css");
-@import url("@radix-ui/colors/purple.css");
+@import url("@radix-ui/colors/blue.css");
+@import url("@radix-ui/colors/crimson-dark.css");
+@import url("@radix-ui/colors/crimson.css");
+@import url("@radix-ui/colors/cyan-dark.css");
+@import url("@radix-ui/colors/cyan.css");
+@import url("@radix-ui/colors/grass-dark.css");
+@import url("@radix-ui/colors/grass.css");
+@import url("@radix-ui/colors/gray-dark.css");
+@import url("@radix-ui/colors/gray.css");
+@import url("@radix-ui/colors/green-dark.css");
+@import url("@radix-ui/colors/green.css");
+@import url("@radix-ui/colors/lime-dark.css");
+@import url("@radix-ui/colors/lime.css");
+@import url("@radix-ui/colors/orange-dark.css");
+@import url("@radix-ui/colors/orange.css");
 @import url("@radix-ui/colors/purple-dark.css");
+@import url("@radix-ui/colors/purple.css");
+@import url("@radix-ui/colors/red-dark.css");
+@import url("@radix-ui/colors/red.css");
+@import url("@radix-ui/colors/sage-dark.css");
+@import url("@radix-ui/colors/sage.css");
+@import url("@radix-ui/colors/sky-dark.css");
+@import url("@radix-ui/colors/sky.css");
+@import url("@radix-ui/colors/slate-dark.css");
+@import url("@radix-ui/colors/slate.css");
+@import url("@radix-ui/colors/yellow-dark.css");
+@import url("@radix-ui/colors/yellow.css");
 
 @tailwind base;
 @tailwind components;
@@ -40,6 +44,8 @@
     --text-font: var(--marimo-text-font, "PT Sans", sans-serif);
     --heading-font: var(--marimo-heading-font, "Lora", serif);
     --radius: 8px;
+    /* stylelint-disable-next-line unit-allowed-list */
+    --markdown-max-width: 80ch;
 
     /* Radix light colors: https://github.com/radix-ui/colors/blob/main/src/light.ts */
 

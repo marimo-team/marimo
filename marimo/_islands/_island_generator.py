@@ -5,17 +5,15 @@ import asyncio
 import json
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import __version__, _loggers
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
-from marimo._output.formatting import as_html, mime_to_html
 from marimo._output.utils import uri_encode_component
-from marimo._plugins.ui import code_editor
-from marimo._server.export import run_app_until_completion
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._types.ids import CellId_t
@@ -31,6 +29,17 @@ LOGGER = _loggers.marimo_logger()
 
 
 class MarimoIslandStub:
+    """
+    Args:
+        display_code: Whether to display code.
+        display_output: Whether to display output.
+        is_reactive: Whether it is reactive.
+        cell_id: Cell identifier.
+        app_id: App identifier.
+        app_id: App identifier.
+        code: Code.
+    """
+
     def __init__(
         self,
         display_code: bool = False,
@@ -71,6 +80,7 @@ class MarimoIslandStub:
         display_code: Optional[bool] = None,
         display_output: Optional[bool] = None,
         is_reactive: Optional[bool] = None,
+        as_raw: bool = False,
     ) -> str:
         """
         Render the HTML island code for the cell.
@@ -81,11 +91,14 @@ class MarimoIslandStub:
         - display_code (bool): Whether to display the code in HTML.
         - display_output (bool): Whether to include the output in the HTML.
         - is_reactive (bool): Whether this code block will run with pyodide.
+        - as_raw (bool): Removes some of the HTML to directly include the data.
 
         *Returns:*
 
         - str: The HTML code.
         """
+        from marimo._output.formatting import as_html, mime_to_html
+        from marimo._plugins.ui import code_editor
 
         is_reactive = (
             is_reactive if is_reactive is not None else self._is_reactive
@@ -122,6 +135,21 @@ class MarimoIslandStub:
                 "</marimo-cell-code>"
             )
 
+        if as_raw:
+            # If as_raw is True, output as raw values as possible.
+            # Used primarily for cases with no js (like pdfs)
+            released = (
+                output.text.encode().decode("unicode_escape")
+                if output and display_output
+                else ""
+            )
+            return dedent(
+                f"""
+                    {released}
+                    {code_block}
+                    """
+            ).strip()
+
         # Cell may not have output
         # (e.g. imports, but still needs to be included)
         return remove_empty_lines(
@@ -156,8 +184,7 @@ class MarimoIslandGenerator:
     3. Replace all code snippets with the rendered HTML.
     4. Include the header in the <head> tag.
 
-    # Example
-
+    Examples:
     Using the MarimoIslandGenerator class:
     ```python
     import asyncio
@@ -214,13 +241,15 @@ class MarimoIslandGenerator:
         f.write(html)
     ```
 
+    Args:
+        app_id: The optional identifier of the app, defaults to `main`.
     """
 
     def __init__(self, app_id: str = "main"):
         self.has_run = False
         self._app_id = app_id
         self._app = InternalApp(App())
-        self._stubs: List[MarimoIslandStub] = []
+        self._stubs: list[MarimoIslandStub] = []
         self._config = _AppConfig()
 
     @staticmethod
@@ -309,12 +338,15 @@ class MarimoIslandGenerator:
 
         - App: The built app.
         """
+        from marimo._server.export import run_app_until_completion
+
         if self.has_run:
             raise ValueError("You can only call build() once")
 
         (session, did_error) = await run_app_until_completion(
             file_manager=AppFileManager.from_app(self._app),
             cli_args={},
+            argv=None,
         )
         del did_error
         self.has_run = True

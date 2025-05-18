@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtom, useAtomValue } from "jotai";
+import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { type ReducerWithoutAction, createRef } from "react";
 import type { CellMessage } from "../kernel/messages";
 import {
@@ -47,10 +47,17 @@ import {
   type CellIndex,
   MultiColumn,
 } from "@/utils/id-tree";
-import { isEqual } from "lodash-es";
+import { isEqual, zip } from "lodash-es";
 import { isErrorMime } from "../mime";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
+import { isRtcEnabled } from "../rtc/state";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
+export const SETUP_CELL_ID = "setup" as CellId;
+
+export function isSetupCell(cellId: CellId): boolean {
+  return cellId === SETUP_CELL_ID;
+}
 
 /**
  * The state of the notebook.
@@ -83,6 +90,7 @@ export interface NotebookState {
     serializedEditorState: any;
     column: CellColumnId;
     index: CellIndex;
+    isSetupCell: boolean;
   }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
@@ -617,6 +625,7 @@ const {
           serializedEditorState: serializedEditorState,
           column: column.id,
           index: cellIndex,
+          isSetupCell: cellId === SETUP_CELL_ID,
         },
       ],
       scrollKey: scrollKey,
@@ -634,9 +643,10 @@ const {
       serializedEditorState = { doc: "" },
       column,
       index,
+      isSetupCell,
     } = mostRecentlyDeleted;
 
-    const cellId = CellId.create();
+    const cellId = isSetupCell ? SETUP_CELL_ID : CellId.create();
     const undoCell = createCell({
       id: cellId,
       name,
@@ -735,7 +745,6 @@ const {
         ...cell,
         edited: false,
         lastCodeRun: cell.code.trim(),
-        lastExecutionTime: cell.lastExecutionTime,
       };
     });
   },
@@ -774,7 +783,7 @@ const {
 
     return {
       ...state,
-      cellIds: MultiColumn.from([action.cellIds]),
+      cellIds: MultiColumn.fromWithPreviousShape(action.cellIds, state.cellIds),
       cellData: nextCellData,
       cellRuntime: nextCellRuntime,
       cellHandles: nextCellHandles,
@@ -797,38 +806,53 @@ const {
       cellId: CellId,
     ) => {
       if (!cell) {
-        return createCell({ id: cellId, code });
-      }
-
-      // No change
-      if (cell.code.trim() === code.trim()) {
-        return cell;
-      }
-
-      // Update codemirror if mounted
-      const cellHandle = nextState.cellHandles[cellId].current;
-      if (cellHandle?.editorView) {
-        updateEditorCodeFromPython(cellHandle.editorView, code);
+        return createCell({
+          id: cellId,
+          code,
+          lastCodeRun: action.codeIsStale ? null : code,
+          edited: action.codeIsStale && code.trim().length > 0,
+        });
       }
 
       // If code is stale, we don't promote it to lastCodeRun
       const lastCodeRun = action.codeIsStale ? cell.lastCodeRun : code;
 
+      // Mark as edited if the code has changed
+      const edited = lastCodeRun
+        ? lastCodeRun.trim() !== code.trim()
+        : Boolean(code);
+
+      // No change
+      if (cell.code.trim() === code.trim()) {
+        return {
+          ...cell,
+          code: code,
+          edited,
+          lastCodeRun,
+        };
+      }
+
+      // Update codemirror if mounted
+      // If RTC is enabled, the editor view will already be updated, so we don't need to do this
+      if (!isRtcEnabled()) {
+        const cellHandle = nextState.cellHandles[cellId].current;
+        if (cellHandle?.editorViewOrNull) {
+          updateEditorCodeFromPython(cellHandle.editorViewOrNull, code);
+        }
+      }
+
       return {
         ...cell,
         code: code,
-        // Mark as edited if the code has changed
-        edited: lastCodeRun
-          ? lastCodeRun.trim() !== code.trim()
-          : Boolean(code),
+        edited,
         lastCodeRun,
       };
     };
 
-    for (let i = 0; i < action.codes.length; i++) {
-      const cellId = action.ids[i];
-      const code = action.codes[i];
-
+    for (const [cellId, code] of zip(action.ids, action.codes)) {
+      if (cellId === undefined || code === undefined) {
+        continue;
+      }
       nextState = {
         ...nextState,
         cellData: {
@@ -901,6 +925,12 @@ const {
     action: { cellId: CellId; before: boolean; noCreate?: boolean },
   ) => {
     const { cellId, before, noCreate = false } = action;
+
+    // Can't move focus of scratch cell
+    if (cellId === SCRATCH_CELL_ID) {
+      return state;
+    }
+
     const column = state.cellIds.findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
@@ -948,15 +978,18 @@ const {
       };
     }
 
-    const nextCellId = column.atOrThrow(nextCellIndex);
-    // Just focus, no state change
-    focusAndScrollCellIntoView({
-      cellId: nextCellId,
-      cell: state.cellHandles[nextCellId],
-      config: state.cellData[nextCellId].config,
-      codeFocus: before ? "bottom" : "top",
-      variableName: undefined,
-    });
+    if (nextCellIndex !== -1) {
+      // Don't wrap around from top to bottom
+      const nextCellId = column.atOrThrow(nextCellIndex);
+      // Just focus, no state change
+      focusAndScrollCellIntoView({
+        cellId: nextCellId,
+        cell: state.cellHandles[nextCellId],
+        config: state.cellData[nextCellId].config,
+        codeFocus: before ? "bottom" : "top",
+        variableName: undefined,
+      });
+    }
     return state;
   },
   scrollToTarget: (state) => {
@@ -969,21 +1002,16 @@ const {
     const column = state.cellIds.findWithId(scrollKey);
     const index = column.indexOfOrThrow(scrollKey);
 
-    // Special-case scrolling to the end of the page: bug in Chrome where
-    // browser fails to scrollIntoView an element at the end of a long page
-    if (index === column.length - 1) {
-      const cellId = column.last();
-      state.cellHandles[cellId].current?.editorView.focus();
-    } else {
-      const nextCellId = column.atOrThrow(index);
-      focusAndScrollCellIntoView({
-        cellId: nextCellId,
-        cell: state.cellHandles[nextCellId],
-        config: state.cellData[nextCellId].config,
-        codeFocus: undefined,
-        variableName: undefined,
-      });
-    }
+    const cellId =
+      index === column.length - 1 ? column.last() : column.atOrThrow(index);
+
+    focusAndScrollCellIntoView({
+      cellId: cellId,
+      cell: state.cellHandles[cellId],
+      config: state.cellData[cellId].config,
+      codeFocus: undefined,
+      variableName: undefined,
+    });
 
     return {
       ...state,
@@ -1045,6 +1073,66 @@ const {
         column.expand(cellId),
       ),
       scrollKey: cellId,
+    };
+  },
+  collapseAllCells: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.transformAll((column) => {
+        // Get all the top-level outlines
+        const outlines = column.topLevelIds.map((id) => {
+          const cell = state.cellRuntime[id];
+          return cell.outline;
+        });
+
+        // Find the start/end of the collapsed ranges
+        const nodes = [...column.nodes];
+        const rangeIndexes: Array<{
+          start: CellIndex;
+          end: CellIndex;
+        }> = [];
+        const reversedCollapseRanges = [];
+
+        // Iterate in reverse order (bottom-up) to process children first
+        let i = nodes.length - 1;
+        while (i >= 0) {
+          const range = findCollapseRange(i, outlines);
+          if (range) {
+            const startIndex = i;
+            let endIndex = range[1];
+
+            // Check if the parent's end point is inside any already-collapsed child range
+            const parentEndInChild = rangeIndexes.find(
+              (child) => child.start <= endIndex && child.end === endIndex,
+            );
+
+            if (parentEndInChild) {
+              // Adjust the new endIndex to the child's start
+              endIndex = parentEndInChild.start;
+            }
+
+            // Store this range for future child checks
+            rangeIndexes.push({ start: startIndex, end: endIndex });
+
+            // Add the range to the list of ranges
+            const cellId = column.atOrThrow(startIndex);
+            const until = column.atOrThrow(endIndex);
+            reversedCollapseRanges.push({ id: cellId, until });
+          } else {
+            reversedCollapseRanges.push(null);
+          }
+          i--;
+        }
+
+        const collapseRanges = reversedCollapseRanges.reverse();
+        return column.collapseAll(collapseRanges);
+      }),
+    };
+  },
+  expandAllCells: (state) => {
+    return {
+      ...state,
+      cellIds: state.cellIds.transformAll((column) => column.expandAll()),
     };
   },
   showCellIfHidden: (state, action: { cellId: CellId }) => {
@@ -1163,6 +1251,16 @@ const {
       consoleOutputs: [],
     }));
   },
+  clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return updateCellRuntimeState(state, cellId, (cell) => ({
+      ...cell,
+      // Remove everything except unresponsed stdin
+      consoleOutputs: cell.consoleOutputs.filter(
+        (output) => output.channel === "stdin" && output.response == null,
+      ),
+    }));
+  },
   clearAllCellOutputs: (state) => {
     const newCellRuntime = { ...state.cellRuntime };
     for (const cellId of state.cellIds.inOrderIds) {
@@ -1175,6 +1273,45 @@ const {
     return {
       ...state,
       cellRuntime: newCellRuntime,
+    };
+  },
+  upsertSetupCell: (state, action: { code: string }) => {
+    const { code } = action;
+
+    // First check if setup cell already exists
+    if (SETUP_CELL_ID in state.cellData) {
+      // Update existing setup cell
+      return updateCellData(state, SETUP_CELL_ID, (cell) => ({
+        ...cell,
+        code,
+        edited: code.trim() !== cell.lastCodeRun?.trim(),
+      }));
+    }
+
+    return {
+      ...state,
+      cellIds: state.cellIds.insertId(
+        SETUP_CELL_ID,
+        state.cellIds.atOrThrow(0).id,
+        0,
+      ),
+      cellData: {
+        ...state.cellData,
+        [SETUP_CELL_ID]: createCell({
+          id: SETUP_CELL_ID,
+          name: SETUP_CELL_ID,
+          code,
+          edited: Boolean(code),
+        }),
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [SETUP_CELL_ID]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [SETUP_CELL_ID]: createRef(),
+      },
     };
   },
 });
@@ -1426,6 +1563,46 @@ export function flattenTopLevelNotebookCells(
       ...cellRuntime[cellId],
     })),
   );
+}
+
+export function createTracebackInfoAtom(
+  cellId: CellId,
+): Atom<TracebackInfo[] | undefined> {
+  // We create an intermediate atom that just computes the string
+  // so it prevents downstream recomputations.
+  const tracebackStringAtom = atom<string | undefined>((get) => {
+    const notebook = get(notebookAtom);
+    const data = notebook.cellRuntime[cellId];
+    if (!data) {
+      return undefined;
+    }
+    // Must be errored and idle
+    if (data.status !== "idle") {
+      return undefined;
+    }
+    const outputs = data.consoleOutputs;
+    // console.warn(notebook);
+    if (!outputs || outputs.length === 0) {
+      return undefined;
+    }
+
+    const firstTraceback = outputs.find(
+      (output) => output.mimetype === "application/vnd.marimo+traceback",
+    );
+    if (!firstTraceback) {
+      return undefined;
+    }
+    const traceback = firstTraceback.data;
+    return traceback as string;
+  });
+
+  return atom((get) => {
+    const traceback = get(tracebackStringAtom);
+    if (!traceback) {
+      return undefined;
+    }
+    return extractAllTracebackInfo(traceback);
+  });
 }
 
 /**

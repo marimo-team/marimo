@@ -13,6 +13,7 @@ import {
   indentWithTab,
   indentMore,
 } from "@codemirror/commands";
+import { lintGutter } from "@codemirror/lint";
 import {
   bracketMatching,
   defaultHighlightStyle,
@@ -36,16 +37,16 @@ import {
 } from "@codemirror/view";
 
 import { EditorState, type Extension, Prec } from "@codemirror/state";
-import type { CompletionConfig, KeymapConfig } from "../config/config-schema";
+import type {
+  CompletionConfig,
+  DiagnosticsConfig,
+  KeymapConfig,
+  LSPConfig,
+} from "../config/config-schema";
 import type { Theme } from "../../theme/useTheme";
 
 import { findReplaceBundle } from "./find-replace/extension";
-import {
-  type CodeCallbacks,
-  type MovementCallbacks,
-  cellCodeEditingBundle,
-  cellMovementBundle,
-} from "./cells/extensions";
+import { cellBundle } from "./cells/extensions";
 import type { CellId } from "../cells/ids";
 import { keymapBundle } from "./keymaps/keymaps";
 import { scrollActiveLineIntoView } from "./extensions";
@@ -65,17 +66,26 @@ import { requestEditCompletion } from "./ai/request";
 import { getCurrentLanguageAdapter } from "./language/commands";
 import { aiExtension } from "@marimo-team/codemirror-ai";
 import { getFeatureFlag } from "../config/feature-flag";
+import type { CodemirrorCellActions } from "./cells/state";
+import { cellConfigExtension } from "./config/extension";
+import { completionKeymap } from "./completion/keymap";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
   showPlaceholder: boolean;
   enableAI: boolean;
-  cellMovementCallbacks: MovementCallbacks;
-  cellCodeCallbacks: CodeCallbacks;
+  cellActions: CodemirrorCellActions;
   completionConfig: CompletionConfig;
   keymapConfig: KeymapConfig;
   theme: Theme;
   hotkeys: HotkeyProvider;
+  lspConfig: LSPConfig;
+  diagnosticsConfig: DiagnosticsConfig;
+}
+
+function getPlaceholderType(opts: CodeMirrorSetupOpts) {
+  const { showPlaceholder, enableAI } = opts;
+  return showPlaceholder ? "marimo-import" : enableAI ? "ai" : "none";
 }
 
 /**
@@ -84,26 +94,36 @@ export interface CodeMirrorSetupOpts {
 export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
   const {
     cellId,
-    cellMovementCallbacks,
-    cellCodeCallbacks,
     keymapConfig,
     hotkeys,
     enableAI,
+    cellActions,
+    completionConfig,
+    lspConfig,
+    diagnosticsConfig,
   } = opts;
+  const placeholderType = getPlaceholderType(opts);
 
   return [
     // Editor keymaps (vim or defaults) based on user config
-    keymapBundle(keymapConfig, cellMovementCallbacks),
+    keymapBundle(keymapConfig, hotkeys),
     dndBundle(),
     pasteBundle(),
     jupyterHelpExtension(),
     // Cell editing
-    cellMovementBundle(cellId, cellMovementCallbacks, hotkeys),
-    cellCodeEditingBundle(cellId, cellCodeCallbacks, hotkeys),
+    cellConfigExtension(
+      completionConfig,
+      hotkeys,
+      placeholderType,
+      lspConfig,
+      diagnosticsConfig,
+    ),
+    cellBundle(cellId, hotkeys, cellActions),
     // Comes last so that it can be overridden
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
+    diagnosticsConfig?.enabled ? lintGutter() : [],
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
       ? aiExtension({
@@ -137,7 +157,15 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
-  const { theme, hotkeys, completionConfig } = opts;
+  const {
+    theme,
+    hotkeys,
+    completionConfig,
+    cellId,
+    lspConfig,
+    diagnosticsConfig,
+  } = opts;
+  const placeholderType = getPlaceholderType(opts);
 
   return [
     ///// View
@@ -160,10 +188,11 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     scrollActiveLineIntoView(),
     theme === "dark" ? darkTheme : lightTheme,
 
-    hintTooltip(),
+    hintTooltip(lspConfig),
     copilotBundle(completionConfig),
     foldGutter(),
     closeBrackets(),
+    completionKeymap(),
     // to avoid clash with charDeleteBackward keymap
     Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),
@@ -173,7 +202,13 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     keymap.of(foldKeymap),
 
     ///// Language Support
-    adaptiveLanguageConfiguration(opts),
+    adaptiveLanguageConfiguration({
+      placeholderType,
+      completionConfig,
+      hotkeys,
+      cellId,
+      lspConfig: { ...lspConfig, diagnostics: diagnosticsConfig },
+    }),
 
     ///// Editing
     historyCompartment.of(history()),

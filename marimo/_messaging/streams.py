@@ -10,8 +10,6 @@ from collections import deque
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterable,
-    Iterator,
     Optional,
     Protocol,
 )
@@ -19,7 +17,7 @@ from typing import (
 from marimo import _loggers
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -32,6 +30,7 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     import queue
+    from collections.abc import Iterable, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -237,11 +236,13 @@ class ThreadSafeStdout(Stdout):
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -301,11 +302,13 @@ class ThreadSafeStderr(Stderr):
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -357,7 +360,7 @@ class ThreadSafeStdin(Stdin):
         assert self._stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
-                "prompt must be a str, not %s" % type(prompt).__name__
+                f"prompt must be a str, not {type(prompt).__name__}"
             )
 
         max_bytes = std_stream_max_bytes()

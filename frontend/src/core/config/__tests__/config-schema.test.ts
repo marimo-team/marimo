@@ -15,6 +15,7 @@ test("default AppConfig", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "auto_download": [],
+      "sql_output": "auto",
       "width": "medium",
     }
   `);
@@ -29,6 +30,7 @@ test("another AppConfig", () => {
     {
       "app_title": null,
       "auto_download": [],
+      "sql_output": "auto",
       "width": "medium",
     }
   `);
@@ -49,6 +51,7 @@ test("default UserConfig - empty", () => {
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",
+        "default_table_page_size": 10,
         "default_width": "medium",
         "theme": "light",
       },
@@ -66,6 +69,7 @@ test("default UserConfig - empty", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
       },
@@ -102,6 +106,7 @@ test("default UserConfig - one level", () => {
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",
+        "default_table_page_size": 10,
         "default_width": "medium",
         "theme": "light",
       },
@@ -119,6 +124,7 @@ test("default UserConfig - one level", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "default_sql_output": "auto",
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
       },

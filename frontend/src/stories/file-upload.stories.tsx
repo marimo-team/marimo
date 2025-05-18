@@ -15,6 +15,7 @@ export const AcceptAny = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -30,6 +31,7 @@ export const AcceptLongText = {
       label={"Drop here, ".repeat(100)}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -45,6 +47,7 @@ export const AcceptTxtOnly = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
@@ -60,8 +63,41 @@ export const AcceptTxtOnlyButton = {
       label={null}
       value={[]}
       setValue={() => null}
+      max_size={100_000_000}
     />
   ),
 
   name: "Accept .txt only, button",
+};
+
+export const SingleFileArea = {
+  render: () => (
+    <FileUpload
+      filetypes={[".png", ".jpg", ".jpeg"]}
+      multiple={false}
+      kind="area"
+      label={null}
+      value={[]}
+      setValue={() => null}
+      max_size={100_000_000}
+    />
+  ),
+
+  name: "Single file, area",
+};
+
+export const SingleFileButton = {
+  render: () => (
+    <FileUpload
+      filetypes={[".png", ".jpg", ".jpeg"]}
+      multiple={false}
+      kind="button"
+      label={null}
+      value={[]}
+      setValue={() => null}
+      max_size={100_000_000}
+    />
+  ),
+
+  name: "Single file, button",
 };

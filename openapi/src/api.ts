@@ -49,6 +49,36 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/chat": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description The request body for AI chat */
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ChatRequest"];
+        };
+      };
+      responses: never;
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/ai/completion": {
     parameters: {
       query?: never;
@@ -65,7 +95,7 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      /** @description The prompt to get AI completion for */
+      /** @description The request body for AI completion */
       requestBody: {
         content: {
           "application/json": components["schemas"]["AiCompletionRequest"];
@@ -81,6 +111,46 @@ export interface paths {
             "application/json": {
               [key: string]: unknown;
             };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/ai/inline_completion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description The request body for AI inline completion */
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["AiInlineCompletionRequest"];
+        };
+      };
+      responses: {
+        /** @description Get AI inline completion for code */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
           };
         };
       };
@@ -130,6 +200,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_datasource_connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PreviewDataSourceConnectionRequest"];
+        };
+      };
+      responses: {
+        /** @description Broadcasts a datasource connection */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_sql_table": {
     parameters: {
       query?: never;
@@ -153,6 +262,45 @@ export interface paths {
       };
       responses: {
         /** @description Preview a SQL table */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/datasources/preview_sql_table_list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PreviewSQLTableListRequest"];
+        };
+      };
+      responses: {
+        /** @description Preview a list of tables in an SQL schema */
         200: {
           headers: {
             [name: string]: unknown;
@@ -1248,6 +1396,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/pdb/pm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PdbRequest"];
+        };
+      };
+      responses: {
+        /** @description Run a post mortem on the most recent failed cell. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/read_code": {
     parameters: {
       query?: never;
@@ -1538,7 +1725,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["RunScratchpadRequest"];
+          "application/json": components["schemas"]["ExecuteScratchpadRequest"];
         };
       };
       responses: {
@@ -1888,6 +2075,119 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/secrets/create": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateSecretRequest"];
+        };
+      };
+      responses: {
+        /** @description Create a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Delete a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/keys": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ListSecretKeysRequest"];
+        };
+      };
+      responses: {
+        /** @description List all secret keys */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ListSecretKeysResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/status": {
     parameters: {
       query?: never;
@@ -1995,6 +2295,16 @@ export interface paths {
               cpu: {
                 percent: number;
               };
+              gpu?: {
+                index: number;
+                memory: {
+                  free: number;
+                  percent: number;
+                  total: number;
+                  used: number;
+                };
+                name: string;
+              }[];
               kernel?: {
                 memory?: number;
               };
@@ -2114,22 +2424,24 @@ export interface components {
     AddPackageRequest: {
       package: string;
     };
+    AiCompletionContext: {
+      schema: components["schemas"]["SchemaTable"][];
+      variables: (components["schemas"]["VariableContext"] | string)[];
+    };
     AiCompletionRequest: {
       code: string;
-      context?: {
-        schema: {
-          columns: {
-            name: string;
-            sampleValues: unknown[];
-            type: string;
-          }[];
-          name: string;
-        }[];
-      } | null;
+      context?: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
       prompt: string;
+      selectedText?: string | null;
+    };
+    AiInlineCompletionRequest: {
+      /** @enum {string} */
+      language: "python" | "markdown" | "sql";
+      prefix: string;
+      suffix: string;
     };
     Alert: {
       description: string;
@@ -2138,19 +2450,6 @@ export interface components {
       title: string;
       /** @enum {string|null} */
       variant?: "danger" | null;
-    };
-    AppMetadata: {
-      cliArgs: {
-        [key: string]:
-          | string
-          | boolean
-          | number
-          | (string | boolean | number)[];
-      };
-      filename?: string | null;
-      queryParams: {
-        [key: string]: string | string[];
-      };
     };
     Banner: {
       /** @enum {string|null} */
@@ -2191,6 +2490,7 @@ export interface components {
       name: "cell-op";
       output?: components["schemas"]["CellOutput"];
       run_id?: string | null;
+      serialization?: string | null;
       stale_inputs?: boolean | null;
       status?: components["schemas"]["RuntimeState"];
       timestamp: number;
@@ -2205,6 +2505,26 @@ export interface components {
           };
       mimetype: components["schemas"]["MimeType"];
       timestamp: number;
+    };
+    ChatRequest: {
+      context: components["schemas"]["AiCompletionContext"];
+      includeOtherCode: string;
+      messages: {
+        attachments?:
+          | {
+              contentType?: string | null;
+              name: string;
+              url: string;
+            }[]
+          | null;
+        content: {
+          [key: string]: unknown;
+        };
+        /** @enum {string} */
+        role: "user" | "assistant" | "system";
+      }[];
+      model?: string | null;
+      variables?: (components["schemas"]["VariableContext"] | string)[] | null;
     };
     CodeCompletionRequest: {
       cellId: string;
@@ -2246,6 +2566,13 @@ export interface components {
       destination: string;
       source: string;
     };
+    CreateSecretRequest: {
+      key: string;
+      name: string;
+      /** @enum {string} */
+      provider: "env" | "dotenv";
+      value: string;
+    };
     CycleError: {
       edges_with_vars: [string, string[], string][];
       /** @enum {string} */
@@ -2257,6 +2584,7 @@ export interface components {
       chart_spec?: string | null;
       column_name: string;
       error?: string | null;
+      missing_packages?: string[] | null;
       /** @enum {string} */
       name: "data-column-preview";
       summary?: components["schemas"]["ColumnSummary"];
@@ -2272,6 +2600,8 @@ export interface components {
           tables: components["schemas"]["DataTable"][];
         }[];
       }[];
+      default_database?: string | null;
+      default_schema?: string | null;
       dialect: string;
       display_name: string;
       name: string;
@@ -2292,7 +2622,7 @@ export interface components {
       primary_keys?: string[] | null;
       source: string;
       /** @enum {string} */
-      source_type: "local" | "duckdb" | "connection";
+      source_type: "local" | "duckdb" | "connection" | "catalog";
       /** @enum {string} */
       type: "table" | "view";
       variable_name?: string | null;
@@ -2321,7 +2651,7 @@ export interface components {
     };
     Datasets: {
       /** @enum {string|null} */
-      clear_channel?: "local" | "duckdb" | "connection" | null;
+      clear_channel?: "local" | "duckdb" | "connection" | "catalog" | null;
       /** @enum {string} */
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -2335,9 +2665,14 @@ export interface components {
       /** @enum {string} */
       type: "delete-nonlocal";
     };
+    DeleteSecretRequest: {
+      key: string;
+    };
     Error:
+      | components["schemas"]["SetupRootError"]
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
+      | components["schemas"]["ImportStarError"]
       | components["schemas"]["DeleteNonlocalError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
       | components["schemas"]["MarimoAncestorPreventedError"]
@@ -2357,7 +2692,9 @@ export interface components {
       code: string;
       request?: components["schemas"]["HTTPRequest"];
     };
-    ExecuteStaleRequest: Record<string, never>;
+    ExecuteStaleRequest: {
+      request?: components["schemas"]["HTTPRequest"];
+    };
     ExecutionRequest: {
       cellId: string;
       code: string;
@@ -2471,7 +2808,21 @@ export interface components {
       function_call_id: string;
       /** @enum {string} */
       name: "function-call-result";
-      return_value?: components["schemas"]["JSONType"];
+      return_value?:
+        | (
+            | {
+                [key: string]: components["schemas"]["JSONType"];
+              }
+            | components["schemas"]["JSONType"][]
+            | string
+            | number
+            | boolean
+            | {
+                [key: string]: unknown;
+              }
+            | components["schemas"]["MIME"]
+          )
+        | null;
       status: components["schemas"]["HumanReadableStatus"];
     };
     HTTPRequest: null;
@@ -2480,6 +2831,11 @@ export interface components {
       code: "ok" | "error";
       message?: string | null;
       title?: string | null;
+    };
+    ImportStarError: {
+      msg: string;
+      /** @enum {string} */
+      type: "import-star";
     };
     InstallMissingPackagesRequest: {
       manager: string;
@@ -2512,17 +2868,18 @@ export interface components {
       | null;
     KernelReady: {
       app_config: {
-        _toplevel_fn: boolean;
         app_title?: string | null;
         auto_download: ("html" | "markdown")[];
         css_file?: string | null;
         html_head_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
-        width: "normal" | "compact" | "medium" | "full";
+        sql_output: "polars" | "lazy-polars" | "pandas" | "native" | "auto";
+        /** @enum {string} */
+        width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
-        sql: boolean;
+        pylsp: boolean;
         terminal: boolean;
       };
       cell_ids: string[];
@@ -2549,9 +2906,38 @@ export interface components {
         [key: string]:
           | (
               | {
-                  [key: string]: components["schemas"]["JSONType"];
+                  [key: string]:
+                    | (
+                        | {
+                            [key: string]: components["schemas"]["JSONType"];
+                          }
+                        | components["schemas"]["JSONType"][]
+                        | string
+                        | number
+                        | boolean
+                        | {
+                            [key: string]: unknown;
+                          }
+                        | components["schemas"]["MIME"]
+                      )
+                    | null;
                 }
-              | components["schemas"]["JSONType"][]
+              | (
+                  | (
+                      | {
+                          [key: string]: components["schemas"]["JSONType"];
+                        }
+                      | components["schemas"]["JSONType"][]
+                      | string
+                      | number
+                      | boolean
+                      | {
+                          [key: string]: unknown;
+                        }
+                      | components["schemas"]["MIME"]
+                    )
+                  | null
+                )[]
               | string
               | number
               | boolean
@@ -2565,6 +2951,12 @@ export interface components {
     };
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
+    };
+    ListSecretKeysRequest: {
+      requestId: string;
+    };
+    ListSecretKeysResponse: {
+      keys: components["schemas"]["SecretKeysWithProvider"][];
     };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
@@ -2588,26 +2980,43 @@ export interface components {
         google?: {
           api_key?: string;
         };
+        max_tokens?: number;
         open_ai?: {
           api_key?: string;
           base_url?: string;
+          ca_bundle_path?: string;
+          client_pem?: string;
           model?: string;
+          ssl_verify?: boolean;
         };
         rules?: string;
       };
       completion: {
         activate_on_typing: boolean;
+        api_key?: string | null;
+        base_url?: string | null;
         codeium_api_key?: string | null;
-        copilot: boolean | ("github" | "codeium");
+        copilot: boolean | ("github" | "codeium" | "custom");
+        model?: string | null;
+      };
+      datasources?: {
+        auto_discover_columns?: boolean | "auto";
+        auto_discover_schemas?: boolean | "auto";
+        auto_discover_tables?: boolean | "auto";
+      };
+      diagnostics?: {
+        enabled?: boolean;
       };
       display: {
         /** @enum {string} */
         cell_output: "above" | "below";
         code_editor_font_size: number;
+        custom_css?: string[];
         /** @enum {string} */
         dataframes: "rich" | "plain";
+        default_table_page_size: number;
         /** @enum {string} */
-        default_width: "normal" | "compact" | "medium" | "full";
+        default_width: "normal" | "compact" | "medium" | "full" | "columns";
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };
@@ -2623,6 +3032,18 @@ export interface components {
         };
         /** @enum {string} */
         preset: "default" | "vim";
+        vimrc?: string | null;
+      };
+      language_servers?: {
+        pylsp?: {
+          enable_flake8?: boolean;
+          enable_mypy?: boolean;
+          enable_pydocstyle?: boolean;
+          enable_pyflakes?: boolean;
+          enable_pylint?: boolean;
+          enable_ruff?: boolean;
+          enabled?: boolean;
+        };
       };
       package_management: {
         /** @enum {string} */
@@ -2633,8 +3054,18 @@ export interface components {
         /** @enum {string} */
         auto_reload: "off" | "lazy" | "autorun";
         /** @enum {string} */
+        default_sql_output:
+          | "polars"
+          | "lazy-polars"
+          | "pandas"
+          | "native"
+          | "auto";
+        dotenv?: string[];
+        /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;
+        pythonpath?: string[];
+        reactive_tests: boolean;
         std_stream_max_bytes: number;
         /** @enum {string} */
         watcher_on_save: "lazy" | "autorun";
@@ -2714,11 +3145,9 @@ export interface components {
       | components["schemas"]["Datasets"]
       | components["schemas"]["DataColumnPreview"]
       | components["schemas"]["SQLTablePreview"]
-      | {
-          connections: components["schemas"]["DataSourceConnection"][];
-          /** @enum {string} */
-          name: "data-source-connections";
-        }
+      | components["schemas"]["SQLTableListPreview"]
+      | components["schemas"]["DataSourceConnections"]
+      | components["schemas"]["SecretKeysResult"]
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];
@@ -2780,12 +3209,26 @@ export interface components {
       error?: string | null;
       success: boolean;
     };
+    PdbRequest: {
+      cellId: string;
+      request?: components["schemas"]["HTTPRequest"];
+    };
+    PreviewDataSourceConnectionRequest: {
+      engine: string;
+    };
     PreviewDatasetColumnRequest: {
       columnName: string;
+      fullyQualifiedTableName?: string | null;
       source: string;
       /** @enum {string} */
-      sourceType: "local" | "duckdb" | "connection";
+      sourceType: "local" | "duckdb" | "connection" | "catalog";
       tableName: string;
+    };
+    PreviewSQLTableListRequest: {
+      database: string;
+      engine: string;
+      requestId: string;
+      schema: string;
     };
     PreviewSQLTableRequest: {
       database: string;
@@ -2849,15 +3292,18 @@ export interface components {
       codes: string[];
       request?: components["schemas"]["HTTPRequest"];
     };
-    RunScratchpadRequest: {
-      code: string;
-      request?: components["schemas"]["HTTPRequest"];
-    };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
     /** @enum {string} */
     RuntimeState: "idle" | "queued" | "running" | "disabled-transitively";
+    SQLTableListPreview: {
+      error?: string | null;
+      /** @enum {string} */
+      name: "sql-table-list-preview";
+      request_id: string;
+      tables: components["schemas"]["DataTable"][];
+    };
     SQLTablePreview: {
       error?: string | null;
       /** @enum {string} */
@@ -2888,12 +3334,31 @@ export interface components {
       name: string;
       tables: components["schemas"]["DataTable"][];
     };
+    SchemaColumn: {
+      name: string;
+      sampleValues: unknown[];
+      type: string;
+    };
+    SchemaTable: {
+      columns: components["schemas"]["SchemaColumn"][];
+      name: string;
+    };
+    SecretKeysResult: {
+      /** @enum {string} */
+      name: "secret-keys-result";
+      request_id: string;
+      secrets: components["schemas"]["SecretKeysWithProvider"][];
+    };
+    SecretKeysWithProvider: {
+      keys: string[];
+      name: string;
+      /** @enum {string} */
+      provider: "env" | "dotenv";
+    };
     SendUIElementMessage: {
       buffers?: string[] | null;
       message: {
-        [key: string]: {
-          [key: string]: unknown;
-        };
+        [key: string]: unknown;
       };
       /** @enum {string} */
       name: "send-ui-element-message";
@@ -2914,6 +3379,11 @@ export interface components {
     };
     SetUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    SetupRootError: {
+      edges_with_vars: [string, string[], string][];
+      /** @enum {string} */
+      type: "setup-refs";
     };
     ShutdownSessionRequest: {
       sessionId: string;
@@ -2957,6 +3427,11 @@ export interface components {
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
+    };
+    VariableContext: {
+      name: string;
+      previewValue: unknown;
+      valueType: string;
     };
     VariableDeclaration: {
       declared_by: string[];

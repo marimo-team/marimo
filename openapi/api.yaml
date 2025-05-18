@@ -7,42 +7,29 @@ components:
       required:
       - package
       type: object
+    AiCompletionContext:
+      properties:
+        schema:
+          items:
+            $ref: '#/components/schemas/SchemaTable'
+          type: array
+        variables:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
+          type: array
+      required:
+      - schema
+      - variables
+      type: object
     AiCompletionRequest:
       properties:
         code:
           type: string
         context:
+          $ref: '#/components/schemas/AiCompletionContext'
           nullable: true
-          properties:
-            schema:
-              items:
-                properties:
-                  columns:
-                    items:
-                      properties:
-                        name:
-                          type: string
-                        sampleValues:
-                          items: {}
-                          type: array
-                        type:
-                          type: string
-                      required:
-                      - name
-                      - type
-                      - sampleValues
-                      type: object
-                    type: array
-                  name:
-                    type: string
-                required:
-                - name
-                - columns
-                type: object
-              type: array
-          required:
-          - schema
-          type: object
         includeOtherCode:
           type: string
         language:
@@ -53,10 +40,30 @@ components:
           type: string
         prompt:
           type: string
+        selectedText:
+          nullable: true
+          type: string
       required:
       - prompt
       - includeOtherCode
       - code
+      - language
+      type: object
+    AiInlineCompletionRequest:
+      properties:
+        language:
+          enum:
+          - python
+          - markdown
+          - sql
+          type: string
+        prefix:
+          type: string
+        suffix:
+          type: string
+      required:
+      - prefix
+      - suffix
       - language
       type: object
     Alert:
@@ -78,38 +85,6 @@ components:
       - title
       - description
       - name
-      type: object
-    AppMetadata:
-      properties:
-        cliArgs:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - type: boolean
-            - type: integer
-            - type: number
-            - items:
-                oneOf:
-                - type: string
-                - type: boolean
-                - type: integer
-                - type: number
-              type: array
-          type: object
-        filename:
-          nullable: true
-          type: string
-        queryParams:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - items:
-                type: string
-              type: array
-          type: object
-      required:
-      - queryParams
-      - cliArgs
       type: object
     Banner:
       properties:
@@ -187,6 +162,9 @@ components:
         run_id:
           nullable: true
           type: string
+        serialization:
+          nullable: true
+          type: string
         stale_inputs:
           nullable: true
           type: boolean
@@ -221,6 +199,60 @@ components:
       - mimetype
       - data
       - timestamp
+      type: object
+    ChatRequest:
+      properties:
+        context:
+          $ref: '#/components/schemas/AiCompletionContext'
+        includeOtherCode:
+          type: string
+        messages:
+          items:
+            properties:
+              attachments:
+                items:
+                  properties:
+                    contentType:
+                      nullable: true
+                      type: string
+                    name:
+                      type: string
+                    url:
+                      type: string
+                  required:
+                  - url
+                  - name
+                  type: object
+                nullable: true
+                type: array
+              content:
+                additionalProperties: true
+                type: object
+              role:
+                enum:
+                - user
+                - assistant
+                - system
+                type: string
+            required:
+            - role
+            - content
+            type: object
+          type: array
+        model:
+          nullable: true
+          type: string
+        variables:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
+          nullable: true
+          type: array
+      required:
+      - context
+      - includeOtherCode
+      - messages
       type: object
     CodeCompletionRequest:
       properties:
@@ -330,6 +362,25 @@ components:
       - source
       - destination
       type: object
+    CreateSecretRequest:
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        provider:
+          enum:
+          - env
+          - dotenv
+          type: string
+        value:
+          type: string
+      required:
+      - key
+      - value
+      - provider
+      - name
+      type: object
     CycleError:
       properties:
         edges_with_vars:
@@ -365,6 +416,11 @@ components:
         error:
           nullable: true
           type: string
+        missing_packages:
+          items:
+            type: string
+          nullable: true
+          type: array
         name:
           enum:
           - data-column-preview
@@ -412,6 +468,12 @@ components:
             - schemas
             type: object
           type: array
+        default_database:
+          nullable: true
+          type: string
+        default_schema:
+          nullable: true
+          type: string
         dialect:
           type: string
         display_name:
@@ -475,6 +537,7 @@ components:
           - local
           - duckdb
           - connection
+          - catalog
           type: string
         type:
           enum:
@@ -544,6 +607,7 @@ components:
           - local
           - duckdb
           - connection
+          - catalog
           nullable: true
           type: string
         name:
@@ -582,10 +646,19 @@ components:
       - cells
       - type
       type: object
+    DeleteSecretRequest:
+      properties:
+        key:
+          type: string
+      required:
+      - key
+      type: object
     Error:
       oneOf:
+      - $ref: '#/components/schemas/SetupRootError'
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
+      - $ref: '#/components/schemas/ImportStarError'
       - $ref: '#/components/schemas/DeleteNonlocalError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
@@ -626,7 +699,10 @@ components:
       - code
       type: object
     ExecuteStaleRequest:
-      properties: {}
+      properties:
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
       type: object
     ExecutionRequest:
       properties:
@@ -909,7 +985,21 @@ components:
           - function-call-result
           type: string
         return_value:
-          $ref: '#/components/schemas/JSONType'
+          nullable: true
+          oneOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/JSONType'
+            type: object
+          - items:
+              $ref: '#/components/schemas/JSONType'
+            type: array
+          - type: string
+          - type: integer
+          - type: number
+          - type: boolean
+          - additionalProperties: true
+            type: object
+          - $ref: '#/components/schemas/MIME'
         status:
           $ref: '#/components/schemas/HumanReadableStatus'
       required:
@@ -934,6 +1024,18 @@ components:
           type: string
       required:
       - code
+      type: object
+    ImportStarError:
+      properties:
+        msg:
+          type: string
+        type:
+          enum:
+          - import-star
+          type: string
+      required:
+      - msg
+      - type
       type: object
     InstallMissingPackagesRequest:
       properties:
@@ -1003,8 +1105,6 @@ components:
       properties:
         app_config:
           properties:
-            _toplevel_fn:
-              type: boolean
             app_title:
               nullable: true
               type: string
@@ -1024,27 +1124,36 @@ components:
             layout_file:
               nullable: true
               type: string
+            sql_output:
+              enum:
+              - polars
+              - lazy-polars
+              - pandas
+              - native
+              - auto
+              type: string
             width:
               enum:
               - normal
               - compact
               - medium
               - full
+              - columns
               type: string
           required:
           - width
           - auto_download
-          - _toplevel_fn
+          - sql_output
           type: object
         capabilities:
           properties:
-            sql:
+            pylsp:
               type: boolean
             terminal:
               type: boolean
           required:
-          - sql
           - terminal
+          - pylsp
           type: object
         cell_ids:
           items:
@@ -1097,10 +1206,38 @@ components:
             nullable: true
             oneOf:
             - additionalProperties:
-                $ref: '#/components/schemas/JSONType'
+                nullable: true
+                oneOf:
+                - additionalProperties:
+                    $ref: '#/components/schemas/JSONType'
+                  type: object
+                - items:
+                    $ref: '#/components/schemas/JSONType'
+                  type: array
+                - type: string
+                - type: integer
+                - type: number
+                - type: boolean
+                - additionalProperties: true
+                  type: object
+                - $ref: '#/components/schemas/MIME'
               type: object
             - items:
-                $ref: '#/components/schemas/JSONType'
+                nullable: true
+                oneOf:
+                - additionalProperties:
+                    $ref: '#/components/schemas/JSONType'
+                  type: object
+                - items:
+                    $ref: '#/components/schemas/JSONType'
+                  type: array
+                - type: string
+                - type: integer
+                - type: number
+                - type: boolean
+                - additionalProperties: true
+                  type: object
+                - $ref: '#/components/schemas/MIME'
               type: array
             - type: string
             - type: integer
@@ -1130,6 +1267,22 @@ components:
           type: array
       required:
       - packages
+      type: object
+    ListSecretKeysRequest:
+      properties:
+        requestId:
+          type: string
+      required:
+      - requestId
+      type: object
+    ListSecretKeysResponse:
+      properties:
+        keys:
+          items:
+            $ref: '#/components/schemas/SecretKeysWithProvider'
+          type: array
+      required:
+      - keys
       type: object
     MIME:
       properties: {}
@@ -1181,14 +1334,22 @@ components:
                 api_key:
                   type: string
               type: object
+            max_tokens:
+              type: integer
             open_ai:
               properties:
                 api_key:
                   type: string
                 base_url:
                   type: string
+                ca_bundle_path:
+                  type: string
+                client_pem:
+                  type: string
                 model:
                   type: string
+                ssl_verify:
+                  type: boolean
               type: object
             rules:
               type: string
@@ -1197,6 +1358,12 @@ components:
           properties:
             activate_on_typing:
               type: boolean
+            api_key:
+              nullable: true
+              type: string
+            base_url:
+              nullable: true
+              type: string
             codeium_api_key:
               nullable: true
               type: string
@@ -1206,10 +1373,40 @@ components:
               - enum:
                 - github
                 - codeium
+                - custom
                 type: string
+            model:
+              nullable: true
+              type: string
           required:
           - activate_on_typing
           - copilot
+          type: object
+        datasources:
+          properties:
+            auto_discover_columns:
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
+            auto_discover_schemas:
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
+            auto_discover_tables:
+              oneOf:
+              - type: boolean
+              - enum:
+                - auto
+                type: string
+          type: object
+        diagnostics:
+          properties:
+            enabled:
+              type: boolean
           type: object
         display:
           properties:
@@ -1220,17 +1417,24 @@ components:
               type: string
             code_editor_font_size:
               type: integer
+            custom_css:
+              items:
+                type: string
+              type: array
             dataframes:
               enum:
               - rich
               - plain
               type: string
+            default_table_page_size:
+              type: integer
             default_width:
               enum:
               - normal
               - compact
               - medium
               - full
+              - columns
               type: string
             theme:
               enum:
@@ -1244,6 +1448,7 @@ components:
           - cell_output
           - default_width
           - dataframes
+          - default_table_page_size
           type: object
         experimental:
           additionalProperties: {}
@@ -1266,8 +1471,31 @@ components:
               - default
               - vim
               type: string
+            vimrc:
+              nullable: true
+              type: string
           required:
           - preset
+          type: object
+        language_servers:
+          properties:
+            pylsp:
+              properties:
+                enable_flake8:
+                  type: boolean
+                enable_mypy:
+                  type: boolean
+                enable_pydocstyle:
+                  type: boolean
+                enable_pyflakes:
+                  type: boolean
+                enable_pylint:
+                  type: boolean
+                enable_ruff:
+                  type: boolean
+                enabled:
+                  type: boolean
+              type: object
           type: object
         package_management:
           properties:
@@ -1292,6 +1520,18 @@ components:
               - lazy
               - autorun
               type: string
+            default_sql_output:
+              enum:
+              - polars
+              - lazy-polars
+              - pandas
+              - native
+              - auto
+              type: string
+            dotenv:
+              items:
+                type: string
+              type: array
             on_cell_change:
               enum:
               - lazy
@@ -1299,6 +1539,12 @@ components:
               type: string
             output_max_bytes:
               type: integer
+            pythonpath:
+              items:
+                type: string
+              type: array
+            reactive_tests:
+              type: boolean
             std_stream_max_bytes:
               type: integer
             watcher_on_save:
@@ -1309,10 +1555,12 @@ components:
           required:
           - auto_instantiate
           - auto_reload
+          - reactive_tests
           - on_cell_change
           - watcher_on_save
           - output_max_bytes
           - std_stream_max_bytes
+          - default_sql_output
           type: object
         save:
           properties:
@@ -1479,19 +1727,9 @@ components:
       - $ref: '#/components/schemas/Datasets'
       - $ref: '#/components/schemas/DataColumnPreview'
       - $ref: '#/components/schemas/SQLTablePreview'
-      - properties:
-          connections:
-            items:
-              $ref: '#/components/schemas/DataSourceConnection'
-            type: array
-          name:
-            enum:
-            - data-source-connections
-            type: string
-        required:
-        - connections
-        - name
-        type: object
+      - $ref: '#/components/schemas/SQLTableListPreview'
+      - $ref: '#/components/schemas/DataSourceConnections'
+      - $ref: '#/components/schemas/SecretKeysResult'
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
       - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -1609,9 +1847,29 @@ components:
       required:
       - success
       type: object
+    PdbRequest:
+      properties:
+        cellId:
+          type: string
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
+      required:
+      - cellId
+      type: object
+    PreviewDataSourceConnectionRequest:
+      properties:
+        engine:
+          type: string
+      required:
+      - engine
+      type: object
     PreviewDatasetColumnRequest:
       properties:
         columnName:
+          type: string
+        fullyQualifiedTableName:
+          nullable: true
           type: string
         source:
           type: string
@@ -1620,6 +1878,7 @@ components:
           - local
           - duckdb
           - connection
+          - catalog
           type: string
         tableName:
           type: string
@@ -1628,6 +1887,22 @@ components:
       - source
       - tableName
       - columnName
+      type: object
+    PreviewSQLTableListRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
       type: object
     PreviewSQLTableRequest:
       properties:
@@ -1790,16 +2065,6 @@ components:
       - cellIds
       - codes
       type: object
-    RunScratchpadRequest:
-      properties:
-        code:
-          type: string
-        request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
-      required:
-      - code
-      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -1816,6 +2081,26 @@ components:
       - running
       - disabled-transitively
       type: string
+    SQLTableListPreview:
+      properties:
+        error:
+          nullable: true
+          type: string
+        name:
+          enum:
+          - sql-table-list-preview
+          type: string
+        request_id:
+          type: string
+        tables:
+          items:
+            $ref: '#/components/schemas/DataTable'
+          type: array
+      required:
+      - request_id
+      - tables
+      - name
+      type: object
     SQLTablePreview:
       properties:
         error:
@@ -1895,6 +2180,67 @@ components:
       - name
       - tables
       type: object
+    SchemaColumn:
+      properties:
+        name:
+          type: string
+        sampleValues:
+          items: {}
+          type: array
+        type:
+          type: string
+      required:
+      - name
+      - type
+      - sampleValues
+      type: object
+    SchemaTable:
+      properties:
+        columns:
+          items:
+            $ref: '#/components/schemas/SchemaColumn'
+          type: array
+        name:
+          type: string
+      required:
+      - name
+      - columns
+      type: object
+    SecretKeysResult:
+      properties:
+        name:
+          enum:
+          - secret-keys-result
+          type: string
+        request_id:
+          type: string
+        secrets:
+          items:
+            $ref: '#/components/schemas/SecretKeysWithProvider'
+          type: array
+      required:
+      - request_id
+      - secrets
+      - name
+      type: object
+    SecretKeysWithProvider:
+      properties:
+        keys:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        provider:
+          enum:
+          - env
+          - dotenv
+          type: string
+      required:
+      - provider
+      - name
+      - keys
+      type: object
     SendUIElementMessage:
       properties:
         buffers:
@@ -1903,9 +2249,7 @@ components:
           nullable: true
           type: array
         message:
-          additionalProperties:
-            additionalProperties: true
-            type: object
+          additionalProperties: {}
           type: object
         name:
           enum:
@@ -1953,6 +2297,26 @@ components:
           $ref: '#/components/schemas/MarimoConfig'
       required:
       - config
+      type: object
+    SetupRootError:
+      properties:
+        edges_with_vars:
+          items:
+            prefixItems:
+            - type: string
+            - items:
+                type: string
+              type: array
+            - type: string
+            type: array
+          type: array
+        type:
+          enum:
+          - setup-refs
+          type: string
+      required:
+      - edges_with_vars
+      - type
       type: object
     ShutdownSessionRequest:
       properties:
@@ -2073,6 +2437,18 @@ components:
       - objectIds
       - values
       type: object
+    VariableContext:
+      properties:
+        name:
+          type: string
+        previewValue: {}
+        valueType:
+          type: string
+      required:
+      - name
+      - valueType
+      - previewValue
+      type: object
     VariableDeclaration:
       properties:
         declared_by:
@@ -2152,7 +2528,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.7
+  version: 0.13.7
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2173,6 +2549,15 @@ paths:
           description: Get a virtual file
         404:
           description: Invalid byte length in virtual file request
+  /api/ai/chat:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+        description: The request body for AI chat
+        required: true
   /api/ai/completion:
     post:
       requestBody:
@@ -2180,7 +2565,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AiCompletionRequest'
-        description: The prompt to get AI completion for
+        description: The request body for AI completion
         required: true
       responses:
         200:
@@ -2190,6 +2575,22 @@ paths:
                 additionalProperties: true
                 type: object
           description: Get AI completion for a prompt
+  /api/ai/inline_completion:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiInlineCompletionRequest'
+        description: The request body for AI inline completion
+        required: true
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Get AI inline completion for code
   /api/datasources/preview_column:
     post:
       requestBody:
@@ -2204,6 +2605,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a column in a dataset
+  /api/datasources/preview_datasource_connection:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewDataSourceConnectionRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Broadcasts a datasource connection
   /api/datasources/preview_sql_table:
     post:
       requestBody:
@@ -2218,6 +2633,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a SQL table
+  /api/datasources/preview_sql_table_list:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewSQLTableListRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a list of tables in an SQL schema
   /api/documentation/snippets:
     get:
       responses:
@@ -2588,6 +3017,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Interrupt the kernel's execution
+  /api/kernel/pdb/pm:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdbRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Run a post mortem on the most recent failed cell.
   /api/kernel/read_code:
     post:
       responses:
@@ -2686,7 +3129,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunScratchpadRequest'
+              $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
         200:
           content:
@@ -2808,6 +3251,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/secrets/create:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSecretRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Create a secret
+  /api/secrets/delete:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Delete a secret
+  /api/secrets/keys:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListSecretKeysRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSecretKeysResponse'
+          description: List all secret keys
   /api/status:
     get:
       responses:
@@ -2865,6 +3347,35 @@ paths:
                     required:
                     - percent
                     type: object
+                  gpu:
+                    items:
+                      properties:
+                        index:
+                          type: integer
+                        memory:
+                          properties:
+                            free:
+                              type: integer
+                            percent:
+                              type: number
+                            total:
+                              type: integer
+                            used:
+                              type: integer
+                          required:
+                          - total
+                          - used
+                          - free
+                          - percent
+                          type: object
+                        name:
+                          type: string
+                      required:
+                      - index
+                      - memory
+                      - name
+                      type: object
+                    type: array
                   kernel:
                     properties:
                       memory:

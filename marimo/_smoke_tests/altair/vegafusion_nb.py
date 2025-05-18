@@ -4,15 +4,15 @@
 #     "pandas==2.2.3",
 #     "altair==5.5.0",
 #     "marimo",
-#     "vegafusion==2.0.1",
 #     "pyarrow==18.1.0",
 #     "vl-convert-python==1.7.0",
+#     "vegafusion==2.0.2",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.10.9"
+__generated_with = "0.11.18"
 app = marimo.App(width="medium")
 
 

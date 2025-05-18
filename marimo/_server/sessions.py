@@ -18,25 +18,26 @@ import asyncio
 import multiprocessing as mp
 import os
 import queue
-import shutil
 import signal
-import subprocess
 import sys
 import threading
 import time
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._cli.print import red
-from marimo._config.manager import MarimoConfigReader
+from marimo._config.manager import (
+    MarimoConfigManager,
+    MarimoConfigReader,
+    ScriptConfigManager,
+)
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.ops import (
-    Alert,
     FocusCell,
     MessageOperation,
     Reload,
@@ -59,17 +60,18 @@ from marimo._runtime.requests import (
 from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
+from marimo._server.lsp import LspServer
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
 from marimo._server.session.serialize import (
+    SessionCacheKey,
     SessionCacheManager,
 )
 from marimo._server.session.session_view import SessionView
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_, print_tabbed
-from marimo._tracer import server_tracer
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import (
@@ -77,7 +79,6 @@ from marimo._utils.distributor import (
     QueueDistributor,
 )
 from marimo._utils.file_watcher import FileWatcherManager
-from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
 from marimo._utils.typed_connection import TypedConnection
 
@@ -166,7 +167,7 @@ class KernelManager:
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigReader,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
@@ -175,7 +176,7 @@ class KernelManager:
         self.mode = mode
         self.configs = configs
         self.app_metadata = app_metadata
-        self.user_config_manager = user_config_manager
+        self.config_manager = config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
 
         # Only used in edit mode
@@ -204,7 +205,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.get_config(hide_secrets=False),
+                    self.config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     self.queue_manager.win32_interrupt_queue,
@@ -229,9 +230,7 @@ class KernelManager:
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
             # formatters ...)
-            register_formatters(
-                theme=self.user_config_manager.get_config()["display"]["theme"]
-            )
+            register_formatters(theme=self.config_manager.theme)
 
             assert self.queue_manager.stream_queue is not None
             # Make threads daemons so killing the server immediately brings
@@ -249,7 +248,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.user_config_manager.get_config(hide_secrets=False),
+                    self.config_manager.get_config(hide_secrets=False),
                     self._virtual_files_supported,
                     self.redirect_console_to_browser,
                     # win32 interrupt queue
@@ -351,8 +350,8 @@ class Room:
 
     def __init__(self) -> None:
         self.main_consumer: Optional[SessionConsumer] = None
-        self.consumers: Dict[SessionConsumer, ConsumerId] = {}
-        self.disposables: Dict[SessionConsumer, Disposable] = {}
+        self.consumers: dict[SessionConsumer, ConsumerId] = {}
+        self.disposables: dict[SessionConsumer, Disposable] = {}
 
     @property
     def size(self) -> int:
@@ -426,12 +425,13 @@ class Session:
     @classmethod
     def create(
         cls,
+        *,
         initialization_id: str,
         session_consumer: SessionConsumer,
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
@@ -439,6 +439,12 @@ class Session:
         """
         Create a new session.
         """
+        # Inherit config from the session manager
+        # and override with any script-level config
+        config_manager = config_manager.with_overrides(
+            ScriptConfigManager(app_file_manager.path).get_config()
+        )
+
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
@@ -447,17 +453,19 @@ class Session:
             mode,
             configs,
             app_metadata,
-            user_config_manager,
+            config_manager,
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
         )
+
         return cls(
-            initialization_id,
-            session_consumer,
-            queue_manager,
-            kernel_manager,
-            app_file_manager,
-            ttl_seconds,
+            initialization_id=initialization_id,
+            session_consumer=session_consumer,
+            queue_manager=queue_manager,
+            kernel_manager=kernel_manager,
+            app_file_manager=app_file_manager,
+            config_manager=config_manager,
+            ttl_seconds=ttl_seconds,
         )
 
     def __init__(
@@ -467,6 +475,7 @@ class Session:
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
+        config_manager: MarimoConfigManager,
         ttl_seconds: Optional[int],
     ) -> None:
         """Initialize kernel and client connection to it."""
@@ -483,7 +492,7 @@ class Session:
         )
         self.session_view = SessionView()
         self.session_cache_manager: SessionCacheManager | None = None
-
+        self.config_manager = config_manager
         self.kernel_manager.start_kernel()
         # Reads from the kernel connection and distributes the
         # messages to each subscriber.
@@ -697,13 +706,21 @@ class Session:
         Overwrites the existing session view.
         Mutates the existing session.
         """
+        from marimo import __version__
+
         LOGGER.debug("Syncing session view from cache")
         self.session_cache_manager = SessionCacheManager(
             session_view=self.session_view,
             path=self.app_file_manager.path,
             interval=self.SESSION_CACHE_INTERVAL_SECONDS,
         )
-        self.session_view = self.session_cache_manager.read_session_view()
+
+        app = self.app_file_manager.app
+        codes = tuple(
+            cell_data.code for cell_data in app.cell_manager.cell_data()
+        )
+        key = SessionCacheKey(codes=codes, marimo_version=__version__)
+        self.session_view = self.session_cache_manager.read_session_view(key)
         self.session_cache_manager.start()
 
     def __repr__(self) -> str:
@@ -738,8 +755,9 @@ class SessionManager:
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
-        user_config_manager: MarimoConfigReader,
+        config_manager: MarimoConfigManager,
         cli_args: SerializedCLIArgs,
+        argv: list[str] | None,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
@@ -756,9 +774,13 @@ class SessionManager:
         self.watcher_manager = FileWatcherManager()
         self.watch = watch
         self.recents = RecentFilesManager()
-        self.user_config_manager = user_config_manager
         self.cli_args = cli_args
+        self.argv = argv
         self.redirect_console_to_browser = redirect_console_to_browser
+
+        # We should access the config_manager from the session if possible
+        # since this will contain config-level overrides
+        self._config_manager = config_manager
 
         # Auth token and Skew-protection token
         if auth_token is not None:
@@ -771,9 +793,8 @@ class SessionManager:
             self.skew_protection_token = SkewProtectionToken.random()
         else:
             app = file_router.get_single_app_file_manager(
-                default_width=user_config_manager.get_config()["display"][
-                    "default_width"
-                ]
+                default_width=self._config_manager.default_width,
+                default_sql_output=self._config_manager.default_sql_output,
             ).app
             codes = "".join(code for code in app.cell_manager.codes())
             # Because run-mode is read-only and we could have multiple
@@ -788,9 +809,8 @@ class SessionManager:
         """
         return self.file_router.get_file_manager(
             key,
-            default_width=self.user_config_manager.get_config()["display"][
-                "default_width"
-            ],
+            default_width=self._config_manager.default_width,
+            default_sql_output=self._config_manager.default_sql_output,
         )
 
     def create_session(
@@ -805,9 +825,8 @@ class SessionManager:
         if session_id not in self.sessions:
             app_file_manager = self.file_router.get_file_manager(
                 file_key,
-                default_width=self.user_config_manager.get_config()["display"][
-                    "default_width"
-                ],
+                default_width=self._config_manager.default_width,
+                default_sql_output=self._config_manager.default_sql_output,
             )
 
             if app_file_manager.path:
@@ -821,9 +840,11 @@ class SessionManager:
                     query_params=query_params,
                     filename=app_file_manager.path,
                     cli_args=self.cli_args,
+                    argv=self.argv,
+                    app_config=app_file_manager.app.config,
                 ),
                 app_file_manager=app_file_manager,
-                user_config_manager=self.user_config_manager,
+                config_manager=self._config_manager,
                 virtual_files_supported=True,
                 redirect_console_to_browser=self.redirect_console_to_browser,
                 ttl_seconds=self.ttl_seconds,
@@ -873,9 +894,7 @@ class SessionManager:
 
             # Check if we should auto-run cells based on config
             should_autorun = (
-                self.user_config_manager.get_config()["runtime"][
-                    "watcher_on_save"
-                ]
+                self._config_manager.get_config()["runtime"]["watcher_on_save"]
                 == "autorun"
             )
 
@@ -904,7 +923,7 @@ class SessionManager:
                     UpdateCellCodes(
                         cell_ids=cell_ids,
                         codes=codes,
-                        code_is_stale=not should_autorun,
+                        code_is_stale=True,
                     ),
                     from_consumer_id=None,
                 )
@@ -1118,86 +1137,6 @@ class SessionManager:
                 if session.connection_state() == ConnectionState.OPEN
             ]
         )
-
-
-class LspServer:
-    def __init__(self, port: int) -> None:
-        self.port = port
-        self.process: Optional[subprocess.Popen[bytes]] = None
-
-    @server_tracer.start_as_current_span("lsp_server.start")
-    def start(self) -> Optional[Alert]:
-        if self.process is not None:
-            LOGGER.debug("LSP server already started")
-            return None
-
-        binpath = shutil.which("node")
-        if binpath is None:
-            LOGGER.error("Node.js not found; cannot start LSP server.")
-            return Alert(
-                title="GitHub Copilot: Connection Error",
-                description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
-                variant="danger",
-            )
-
-        cmd = None
-        try:
-            LOGGER.debug("Starting LSP server at port %s...", self.port)
-            lsp_bin = os.path.join(
-                str(import_files("marimo").joinpath("_lsp")),
-                "index.js",
-            )
-
-            # Check if the LSP binary exists
-            if not os.path.exists(lsp_bin):
-                # Only debug since this may not exist in conda environments
-                LOGGER.debug("LSP binary not found at %s", lsp_bin)
-                return None
-
-            cmd = f"node {lsp_bin} --port {self.port}"
-            LOGGER.debug("... running command: %s", cmd)
-            self.process = subprocess.Popen(
-                cmd.split(),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-            )
-            LOGGER.debug(
-                "... node process return code (`None` means success): %s",
-                self.process.returncode,
-            )
-            LOGGER.debug("Started LSP server at port %s", self.port)
-        except Exception as e:
-            LOGGER.error(
-                "When starting language server (%s), got error: %s",
-                cmd,
-                e,
-            )
-            self.process = None
-
-        return None
-
-    def is_running(self) -> bool:
-        return self.process is not None
-
-    def stop(self) -> None:
-        if self.process is not None:
-            self.process.terminate()
-            self.process = None
-            LOGGER.debug("Stopped LSP server at port %s", self.port)
-        else:
-            LOGGER.debug("LSP server not running")
-
-
-class NoopLspServer(LspServer):
-    def __init__(self) -> None:
-        super().__init__(0)
-
-    def start(self) -> None:
-        pass
-
-    def stop(self) -> None:
-        pass
 
 
 def send_message_to_consumer(

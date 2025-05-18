@@ -32,9 +32,12 @@ export function createErrorToastingRequests(
     readSnippets: "Failed to fetch snippets",
     previewDatasetColumn: "Failed to fetch data sources",
     previewSQLTable: "Failed to fetch SQL table",
+    previewSQLTableList: "Failed to fetch SQL table list",
+    previewDataSourceConnection: "Failed to preview data source connection",
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
     sendListFiles: "Failed to list files",
+    sendPdb: "Failed to start debug session",
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
     sendRenameFileOrFolder: "Failed to rename file or folder",
@@ -54,6 +57,8 @@ export function createErrorToastingRequests(
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
+    listSecretKeys: "Failed to fetch secrets",
+    writeSecret: "Failed to write secret",
   };
 
   const handlers = {} as EditRequests & RunRequests;

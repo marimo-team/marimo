@@ -6,7 +6,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
 import { type PanelDescriptor, PANELS } from "../types";
-import { MachineStats } from "./machine-stats";
+import { MachineStats } from "./footer-items/machine-stats";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import {
   PowerOffIcon,
@@ -29,10 +29,14 @@ import { ChevronDownIcon } from "lucide-react";
 import { FooterItem } from "./footer-item";
 import { useHotkey } from "@/hooks/useHotkey";
 import { isWasm } from "@/core/wasm/utils";
+import { AIStatusIcon } from "./footer-items/ai-status";
+import { BackendConnection } from "./footer-items/backend-status";
+import { CopilotStatusIcon } from "./footer-items/copilot-status";
+import { RTCStatus } from "./footer-items/rtc-status";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, isTerminalOpen } = useChromeState();
-  const { openApplication, toggleTerminal } = useChromeActions();
+  const { toggleApplication, toggleTerminal } = useChromeActions();
   const [config, setConfig] = useResolvedMarimoConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
@@ -48,11 +52,11 @@ export const Footer: React.FC = () => {
   });
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen">
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-1 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen">
       <FooterItem
         tooltip={errorPanel.tooltip}
         selected={selectedPanel === errorPanel.type}
-        onClick={() => openApplication(errorPanel.type)}
+        onClick={() => toggleApplication(errorPanel.type)}
       >
         {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
@@ -209,7 +213,13 @@ export const Footer: React.FC = () => {
         </Tooltip>
       </ShowInKioskMode>
 
-      <MachineStats />
+      <div className="flex items-center">
+        <MachineStats />
+        <AIStatusIcon />
+        <CopilotStatusIcon />
+        <RTCStatus />
+        <BackendConnection />
+      </div>
     </footer>
   );
 };

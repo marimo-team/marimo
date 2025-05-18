@@ -1,12 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { EditorState, Extension, Text } from "@codemirror/state";
+import {
+  Compartment,
+  type EditorState,
+  type Extension,
+  type Text,
+} from "@codemirror/state";
 import {
   COPILOT_FILENAME,
   LANGUAGE_ID,
   copilotServer,
   getCopilotClient,
 } from "./client";
-import { inlineSuggestion } from "codemirror-extension-inline-suggestion";
+import { inlineCompletion } from "@marimo-team/codemirror-ai";
 import {
   copilotPlugin as codeiumCopilotPlugin,
   Language,
@@ -20,6 +25,22 @@ import type {
   CopilotGetCompletionsResult,
 } from "./types";
 import { Logger } from "@/utils/Logger";
+import { languageAdapterState } from "../language/extension";
+import { API } from "@/core/network/api";
+import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
+import type { EditorView } from "@codemirror/view";
+
+const copilotCompartment = new Compartment();
+
+const commonInlineCompletionConfig = {
+  delay: 500, // default is 500ms
+  includeKeymap: true,
+  events: {
+    // Only show suggestions when the editor is focused
+    shouldShowSuggestion: (view: EditorView) => view.hasFocus,
+    beforeSuggestionFetch: (view: EditorView) => view.hasFocus,
+  },
+};
 
 export const copilotBundle = (config: CompletionConfig): Extension => {
   if (process.env.NODE_ENV === "test") {
@@ -50,8 +71,8 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   if (config.copilot === "github") {
     extensions.push(
-      inlineSuggestion({
-        delay: 500, // default is 500ms
+      inlineCompletion({
+        ...commonInlineCompletionConfig,
         fetchFn: async (state) => {
           if (!isCopilotEnabled()) {
             return "";
@@ -84,10 +105,51 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
     );
   }
 
+  if (config.copilot === "custom") {
+    extensions.push(
+      inlineCompletion({
+        ...commonInlineCompletionConfig,
+        fetchFn: async (state) => {
+          if (state.doc.length === 0) {
+            return "";
+          }
+
+          // If not focused, don't fetch
+          const prefix = state.doc.sliceString(0, state.selection.main.head);
+          const suffix = state.doc.sliceString(
+            state.selection.main.head,
+            state.doc.length,
+          );
+
+          // If no prefix, don't fetch
+          if (prefix.length === 0) {
+            return "";
+          }
+
+          const language = state.field(languageAdapterState).type;
+          let res = await API.post<AiInlineCompletionRequest, string>(
+            "/ai/inline_completion",
+            { prefix, suffix, language },
+          );
+
+          // Sometimes the prefix might get included in the response, so we need to trim it
+          if (prefix && res.startsWith(prefix)) {
+            res = res.slice(prefix.length);
+          }
+          if (suffix && res.endsWith(suffix)) {
+            res = res.slice(0, -suffix.length);
+          }
+
+          return res;
+        },
+      }),
+    );
+  }
+
   return [
     ...extensions,
-    // pop off last 2 elements of the array which are tooltip and autocompletion
-    copilotServer().slice(0, -2),
+    // place in own compartment so it doesn't interfere with other LSP
+    copilotCompartment.of(copilotServer()),
   ];
 };
 

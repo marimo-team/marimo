@@ -24,7 +24,7 @@
     data-reactive="true"
 >
     <marimo-cell-output>
-    <marimo-json-output data-json-data='{&quot;key&quot;: &quot;value&quot;}'></marimo-json-output>
+    <marimo-json-output data-json-data='{&quot;key&quot;: &quot;value&quot;}' data-value-types='&quot;python&quot;'></marimo-json-output>
     </marimo-cell-output>
     <marimo-cell-code hidden>%7B'key'%3A%20'value'%7D</marimo-cell-code>
 </marimo-island>
@@ -34,7 +34,7 @@
     data-reactive="true"
 >
     <marimo-cell-output>
-    <marimo-json-output data-json-data='[1, &quot;text/html:&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Hello&lt;/span&gt;&lt;/span&gt;&quot;]'></marimo-json-output>
+    <marimo-json-output data-json-data='[1, &quot;text/html:&lt;span class=&#92;&quot;markdown prose dark:prose-invert&#92;&quot;&gt;&lt;span class=&#92;&quot;paragraph&#92;&quot;&gt;Hello&lt;/span&gt;&lt;/span&gt;&quot;]' data-value-types='&quot;python&quot;'></marimo-json-output>
     </marimo-cell-output>
     <marimo-cell-code hidden>%5B1%2C%20mo.md('Hello')%5D</marimo-cell-code>
 </marimo-island>

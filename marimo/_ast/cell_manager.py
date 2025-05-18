@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import functools
 import os
 import random
 import string
@@ -9,7 +8,6 @@ import sys
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Iterable,
     Optional,
     TypeVar,
 )
@@ -20,18 +18,32 @@ else:
     from typing import ParamSpec, TypeAlias
 
 from marimo._ast.cell import Cell, CellConfig
-from marimo._ast.compiler import cell_factory, toplevel_cell_factory
+from marimo._ast.compiler import (
+    cell_factory,
+    context_cell_factory,
+    ir_cell_factory,
+    toplevel_cell_factory,
+)
 from marimo._ast.models import CellData
-from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._ast.pytest import wrap_fn_for_pytest
+from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
+from marimo._ast.pytest import process_for_pytest
+from marimo._schemas.serialization import (
+    CellDef,
+    SetupCell,
+)
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from types import FrameType
+
     from marimo._ast.app import InternalApp
 
 P = ParamSpec("P")
 R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
+Cls: TypeAlias = type
+Obj: TypeAlias = "Cls | Fn[P, R]"
 
 
 class CellManager:
@@ -79,32 +91,36 @@ class CellManager:
         self.seen_ids.add(CellId_t(_id))
         return CellId_t(_id)
 
-    # TODO: maybe remove this, it is leaky
     def cell_decorator(
         self,
-        func: Fn[P, R] | None,
+        obj: Obj[P, R] | None,
         column: Optional[int],
         disabled: bool,
         hide_code: bool,
         app: InternalApp | None = None,
         *,
         top_level: bool = False,
-    ) -> Cell | Fn[P, R] | Callable[[Fn[P, R]], Cell | Fn[P, R]]:
+    ) -> Cell | Obj[P, R] | Callable[[Obj[P, R]], Cell | Obj[P, R]]:
         """Create a cell decorator for marimo notebook cells."""
+        # NB. marimo also statically loads notebooks via the marimo/_ast/load
+        # path. This code is only called when run as a script or imported as a
+        # module.
         cell_config = CellConfig(
             column=column, disabled=disabled, hide_code=hide_code
         )
 
-        def _register(func: Fn[P, R]) -> Cell | Fn[P, R]:
+        def _register(obj: Obj[P, R]) -> Cell | Obj[P, R]:
             # Use PYTEST_VERSION here, opposed to PYTEST_CURRENT_TEST, in
             # order to allow execution during test collection.
             is_top_level_pytest = (
                 "PYTEST_VERSION" in os.environ
                 and "PYTEST_CURRENT_TEST" not in os.environ
+            ) or "MARIMO_PYTEST_WASM" in os.environ
+            factory: Callable[..., Cell] = (
+                toplevel_cell_factory if top_level else cell_factory
             )
-            factory = toplevel_cell_factory if top_level else cell_factory
             cell = factory(
-                func,
+                obj,
                 cell_id=self.create_cell_id(),
                 anonymous_file=app._app._anonymous_file if app else False,
                 test_rewrite=is_top_level_pytest
@@ -115,28 +131,45 @@ class CellManager:
 
             # Top level functions are exposed as the function itself.
             if top_level:
-                return func
+                return obj
 
             # Manually set the signature for pytest.
             if is_top_level_pytest:
                 # NB. in place metadata update.
-                functools.wraps(wrap_fn_for_pytest(func, cell))(cell)
+                process_for_pytest(obj, cell)
             return cell
 
-        if func is None:
+        if obj is None:
             # If the decorator was used with parentheses, func will be None,
             # and we return a decorator that takes the decorated function as an
             # argument
-            def decorator(func: Fn[P, R]) -> Cell | Fn[P, R]:
-                return _register(func)
+            def decorator(obj: Obj[P, R]) -> Cell | Obj[P, R]:
+                return _register(obj)
 
             return decorator
         else:
-            return _register(func)
+            return _register(obj)
+
+    def cell_context(
+        self,
+        frame: FrameType,
+        app: InternalApp | None = None,
+    ) -> Cell:
+        """Registers cells when called through a context block."""
+        cell = context_cell_factory(
+            cell_id=CellId_t(SETUP_CELL_NAME),
+            # NB. carry along the frame from the initial call.
+            frame=frame,
+        )
+        cell._cell.configure(CellConfig())
+        self._register_cell(cell, app=app)
+        return cell
 
     def _register_cell(
         self, cell: Cell, app: InternalApp | None = None
     ) -> None:
+        if app is None:
+            raise ValueError("app must not be None")
         if app is not None:
             cell._register_app(app)
         cell_impl = cell._cell
@@ -176,6 +209,20 @@ class CellManager:
             cell=cell,
         )
 
+    def register_ir_cell(
+        self, cell_def: CellDef, app: InternalApp | None = None
+    ) -> None:
+        if isinstance(cell_def, SetupCell):
+            cell_id = CellId_t(SETUP_CELL_NAME)
+        else:
+            cell_id = self.create_cell_id()
+        cell = ir_cell_factory(cell_def, cell_id=cell_id)
+        cell_config = CellConfig.from_dict(
+            cell_def.options,
+        )
+        cell._cell.configure(cell_config)
+        self._register_cell(cell, app=app)
+
     def register_unparsable_cell(
         self,
         code: str,
@@ -192,6 +239,13 @@ class CellManager:
             name: Optional name for the cell
             cell_config: Configuration for the cell
         """
+        # If this is the first cell, and its name is setup, assume that it's
+        # the setup cell.
+        if len(self._cell_data) == 0 and name == SETUP_CELL_NAME:
+            cell_id = CellId_t(SETUP_CELL_NAME)
+        else:
+            cell_id = self.create_cell_id()
+
         # - code.split("\n")[1:-1] disregards first and last lines, which are
         #   empty
         # - line[4:] removes leading indent in multiline string
@@ -202,7 +256,7 @@ class CellManager:
         )
 
         self.register_cell(
-            cell_id=self.create_cell_id(),
+            cell_id=cell_id,
             code=code,
             config=cell_config,
             name=name or DEFAULT_CELL_NAME,
@@ -386,10 +440,13 @@ class CellManager:
         id_mapping = dict(zip(sorted_ids, current_ids))
 
         # Update the cell data in place
-        self._cell_data = {
-            new_id: self._cell_data[old_id]
-            for new_id, old_id in id_mapping.items()
-        }
+        new_cell_data: dict[CellId_t, CellData] = {}
+        for new_id, old_id in id_mapping.items():
+            prev_cell_data = self._cell_data[old_id]
+            prev_cell_data.cell_id = new_id
+            new_cell_data[new_id] = prev_cell_data
+
+        self._cell_data = new_cell_data
 
         # Add the new ids to the set, so we don't reuse them in the future
         for _id in sorted_ids:

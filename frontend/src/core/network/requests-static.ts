@@ -51,9 +51,12 @@ export function createStaticRequests(): EditRequests & RunRequests {
     readSnippets: throwNotInEditMode,
     previewDatasetColumn: throwNotInEditMode,
     previewSQLTable: throwNotInEditMode,
+    previewSQLTableList: throwNotInEditMode,
+    previewDataSourceConnection: throwNotInEditMode,
     openFile: throwNotInEditMode,
     getUsageStats: throwNotInEditMode,
     sendListFiles: throwNotInEditMode,
+    sendPdb: throwNotInEditMode,
     sendCreateFileOrFolder: throwNotInEditMode,
     sendDeleteFileOrFolder: throwNotInEditMode,
     sendRenameFileOrFolder: throwNotInEditMode,
@@ -73,5 +76,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     addPackage: throwNotInEditMode,
     removePackage: throwNotInEditMode,
     getPackageList: throwNotInEditMode,
+    listSecretKeys: throwNotInEditMode,
+    writeSecret: throwNotInEditMode,
   };
 }

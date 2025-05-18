@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -26,6 +27,8 @@ from marimo._server.api.status import (
     HTTPException as MarimoHTTPException,
 )
 from marimo._server.errors import handle_error
+from marimo._server.lsp import LspServer
+from marimo._server.registry import MIDDLEWARE_REGISTRY
 
 if TYPE_CHECKING:
     from starlette.types import Lifespan
@@ -33,18 +36,24 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+@dataclass
+class LspPorts:
+    pylsp: Optional[int]
+    copilot: Optional[int]
+
+
 # Create app
 def create_starlette_app(
     *,
     base_url: str,
     host: Optional[str] = None,
-    middleware: Optional[List[Middleware]] = None,
+    middleware: Optional[list[Middleware]] = None,
     lifespan: Optional[Lifespan[Starlette]] = None,
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
-    lsp_port: Optional[int] = None,
+    lsp_servers: Optional[list[LspServer]] = None,
 ) -> Starlette:
-    final_middlewares: List[Middleware] = []
+    final_middlewares: list[Middleware] = []
 
     if allow_origins is None:
         allow_origins = ("localhost", "127.0.0.1") + (
@@ -81,11 +90,15 @@ def create_starlette_app(
         ]
     )
 
-    if lsp_port is not None:
-        final_middlewares.append(_create_lsp_proxy_middleware(lsp_port))
+    if lsp_servers is not None:
+        final_middlewares.extend(
+            _create_lsps_proxy_middleware(servers=lsp_servers)
+        )
 
     if middleware:
         final_middlewares.extend(middleware)
+
+    final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
 
     return Starlette(
         routes=build_routes(base_url=base_url),
@@ -95,6 +108,7 @@ def create_starlette_app(
             Exception: handle_error,
             HTTPException: handle_error,
             MarimoHTTPException: handle_error,
+            ModuleNotFoundError: handle_error,
         },
     )
 
@@ -119,11 +133,24 @@ def _create_mpl_proxy_middleware() -> Middleware:
     )
 
 
-def _create_lsp_proxy_middleware(lsp_port: int) -> Middleware:
-    return Middleware(
-        ProxyMiddleware,
-        proxy_path="/lsp",
-        target_url=f"http://localhost:{lsp_port}",
-        # Remove the /lsp prefix
-        path_rewrite=lambda path: path.replace("/lsp", ""),
-    )
+def _create_lsps_proxy_middleware(
+    *, servers: list[LspServer]
+) -> list[Middleware]:
+    middlewares: list[Middleware] = []
+    for server in servers:
+
+        def path_rewrite(server_id: str) -> Callable[[str], str]:
+            to_replace = (
+                "/copilot" if server_id == "copilot" else f"/lsp/{server_id}"
+            )
+            return lambda _: to_replace
+
+        middlewares.append(
+            Middleware(
+                ProxyMiddleware,
+                proxy_path=f"/lsp/{server.id}",
+                target_url=f"http://localhost:{server.port}",
+                path_rewrite=path_rewrite(server.id),
+            )
+        )
+    return middlewares

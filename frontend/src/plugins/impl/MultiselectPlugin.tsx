@@ -57,7 +57,7 @@ interface MultiselectProps extends Data {
 const SELECT_ALL_KEY = "__select_all__";
 const DESELECT_ALL_KEY = "__deselect_all__";
 
-const Multiselect = ({
+export const Multiselect = ({
   options,
   label,
   value,
@@ -78,7 +78,7 @@ const Multiselect = ({
   }, [options, searchQuery]);
 
   const handleValueChange = (newValues: string[] | null) => {
-    if (!newValues) {
+    if (!newValues || newValues.length === 0) {
       setValue([]);
       return;
     }

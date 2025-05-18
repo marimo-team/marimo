@@ -3,21 +3,16 @@ from __future__ import annotations
 
 import base64
 import dataclasses
-import os
-import pathlib
 import sys
 import traceback
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
-    Dict,
     Final,
-    List,
     Literal,
     Optional,
-    Sequence,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -39,8 +34,6 @@ from marimo._plugins.validators import (
     warn_js_safe_number,
 )
 from marimo._runtime.functions import Function
-from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.files import FileInfo
 
 LOGGER = _loggers.marimo_logger()
 
@@ -52,43 +45,43 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     """
     A number picker over an interval.
 
-    **Example.**
+    Example:
+        ```python
+        number = mo.ui.number(start=1, stop=10, step=2)
+        ```
 
-    ```python
-    number = mo.ui.number(start=1, stop=10, step=2)
-    ```
+        Or for integer-only values:
 
-    Or for integer-only values:
+        ```python
+        number = mo.ui.number(step=1)
+        ```
 
-    ```python
-    number = mo.ui.number(step=1)
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        number = mo.ui.number.from_series(df["column_name"])
+        ```
 
-    ```python
-    number = mo.ui.number.from_series(df["column_name"])
-    ```
+    Attributes:
+        value (Optional[Numeric]): The value of the number, possibly `None`.
+        start (Optional[float]): The minimum value of the interval.
+        stop (Optional[float]): The maximum value of the interval.
+        step (Optional[float]): The number increment.
 
-    **Attributes.**
+    Args:
+        start (Optional[float]): The minimum value of the interval. Defaults to None.
+        stop (Optional[float]): The maximum value of the interval. Defaults to None.
+        step (Optional[float]): The number increment. Defaults to None.
+        value (Optional[float]): The default value. Defaults to None.
+        debounce (bool): Whether to debounce (rate-limit) value updates from the frontend. Defaults to False.
+        label (str): Markdown label for the element. Defaults to an empty string.
+        on_change (Optional[Callable[[Optional[Numeric]], None]]): Optional callback to run when this element's value changes. Defaults to None.
+        full_width (bool): Whether the input should take up the full width of its container. Defaults to False.
+        disabled (bool, optional): Whether the input is disabled. Defaults to False.
 
-    - `value`: the value of the number, possibly `None`
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the number increment
-
-    **Initialization Args.**
-
-    - `start`: optional, the minimum value of the interval
-    - `stop`: optional, the maximum value of the interval
-    - `step`: the number increment
-    - `value`: default value
-    - `debounce`: whether to debounce (rate-limit) value
-        updates from the frontend
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Methods:
+        from_series(series: DataFrameSeries, **kwargs: Any) -> number:
+            Create a number picker from a dataframe series.
     """
 
     _name: Final[str] = "marimo-number"
@@ -104,6 +97,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         validate_range(min_value=start, max_value=stop)
         validate_between_range(value, min_value=start, max_value=stop)
@@ -132,12 +126,13 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
                 "step": step if step is not None else None,
                 "debounce": debounce,
                 "full-width": full_width,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "number":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> number:
         """Create a number picker from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -152,64 +147,77 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
 
 @mddoc
 class slider(UIElement[Numeric, Numeric]):
-    """
-    A numeric slider over an interval.
+    """A numeric slider over an interval.
 
-    **Example.**
+    Example:
+        ```python
+        slider = mo.ui.slider(start=1, stop=10, step=2)
+        ```
 
-    ```python
-    slider = mo.ui.slider(start=1, stop=10, step=2)
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        slider = mo.ui.slider.from_series(df["column_name"])
+        ```
 
-    ```python
-    slider = mo.ui.slider.from_series(df["column_name"])
-    ```
+        Or using numpy arrays:
 
-    Or using numpy arrays:
+        ```python
+        import numpy as np
 
-    ```python
-    import numpy as np
+        # linear steps
+        steps = np.array([1, 2, 3, 4, 5])
+        slider = mo.ui.slider(steps=steps)
+        # log steps
+        log_slider = mo.ui.slider(steps=np.logspace(0, 3, 4))
+        # power steps
+        power_slider = mo.ui.slider(steps=np.power([1, 2, 3], 2))
+        ```
 
-    # linear steps
-    steps = np.array([1, 2, 3, 4, 5])
-    slider = mo.ui.slider(steps=steps)
-    # log steps
-    log_slider = mo.ui.slider(steps=np.logspace(0, 3, 4))
-    # power steps
-    power_slider = mo.ui.slider(steps=np.power([1, 2, 3], 2))
-    ```
+    Attributes:
+        value (Numeric): The current numeric value of the slider.
+        start (Numeric): The minimum value of the interval.
+        stop (Numeric): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        steps (Optional[Sequence[Numeric]]): List of steps.
 
-    **Attributes.**
+    Args:
+        start (Optional[Numeric]): The minimum value of the interval.
+        stop (Optional[Numeric]): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        value (Optional[Numeric]): Default value.
+        debounce (bool): Whether to debounce the slider to only send the value
+            on mouse-up or drag-end. Defaults to False.
+        disabled (bool, optional): Whether the slider is disabled. Defaults to False.
+        orientation (Literal["horizontal", "vertical"]): The orientation of the
+            slider, either "horizontal" or "vertical". Defaults to "horizontal".
+        show_value (bool): Whether to display the current value of the slider.
+            Defaults to False.
+        include_input (bool): Whether to display an editable input with the current
+            value of the slider. Defaults to False.
+        steps (Optional[Sequence[Numeric]]): List of steps to customize the
+            slider, mutually exclusive with `start`, `stop`, and `step`.
+        label (str): Markdown label for the element. Defaults to an empty string.
+        on_change (Optional[Callable[[Optional[Numeric]], None]]): Optional
+            callback to run when this element's value changes.
+        full_width (bool): Whether the input should take up the full width of
+            its container. Defaults to False.
 
-    - `value`: the current numeric value of the slider
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `steps`: list of steps
+    Raises:
+        ValueError: If `steps` is provided along with `start`, `stop`, or `step`.
+        ValueError: If neither `steps` nor both `start` and `stop` are provided.
+        ValueError: If `stop` is less than `start`.
+        ValueError: If `value` is out of bounds.
+        TypeError: If `steps` is not a sequence of numbers.
 
-    **Initialization Args.**
+    Methods:
+        from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
+            Create a slider from a dataframe series.
 
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `value`: default value
-    - `debounce`: whether to debounce the slider to only send
-        the value on mouse-up or drag-end
-    - `orientation`: the orientation of the slider,
-        either "horizontal" or "vertical"
-    - `show_value`: whether to display the current value of the slider
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
     """
 
     _name: Final[str] = "marimo-slider"
-    _mapping: Optional[Dict[int, Numeric]] = None
+    _mapping: Optional[dict[int, Numeric]] = None
 
     def __init__(
         self,
@@ -218,8 +226,10 @@ class slider(UIElement[Numeric, Numeric]):
         step: Optional[Numeric] = None,
         value: Optional[Numeric] = None,
         debounce: bool = False,
+        disabled: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
+        include_input: bool = False,
         steps: Optional[Sequence[Numeric]] = None,
         *,
         label: str = "",
@@ -288,8 +298,10 @@ class slider(UIElement[Numeric, Numeric]):
                     "step": 1,
                     "steps": steps,
                     "debounce": debounce,
+                    "disabled": disabled,
                     "orientation": orientation,
                     "show-value": show_value,
+                    "include-input": include_input,
                     "full-width": full_width,
                 },
                 on_change=on_change,
@@ -329,15 +341,17 @@ class slider(UIElement[Numeric, Numeric]):
                     "step": step if step is not None else None,
                     "steps": [],
                     "debounce": debounce,
+                    "disabled": disabled,
                     "orientation": orientation,
                     "show-value": show_value,
+                    "include-input": include_input,
                     "full-width": full_width,
                 },
                 on_change=on_change,
             )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "slider":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> slider:
         """Create a slider from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -352,61 +366,61 @@ class slider(UIElement[Numeric, Numeric]):
 
 
 @mddoc
-class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
+class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
     """
     A numeric slider for specifying a range over an interval.
 
-    **Example.**
+    Example:
+        ```python
+        range_slider = mo.ui.range_slider(
+            start=1, stop=10, step=2, value=[2, 6]
+        )
+        ```
 
-    ```python
-    range_slider = mo.ui.range_slider(start=1, stop=10, step=2, value=[2, 6])
-    ```
+        Or from a dataframe series:
 
-    Or from a dataframe series:
+        ```python
+        range_slider = mo.ui.range_slider.from_series(df["column_name"])
+        ```
 
-    ```python
-    range_slider = mo.ui.range_slider.from_series(df["column_name"])
-    ```
+        Or using numpy arrays:
 
-    Or using numpy arrays:
+        ```python
+        import numpy as np
 
-    ```python
-    import numpy as np
+        steps = np.array([1, 2, 3, 4, 5])
+        # linear steps
+        range_slider = mo.ui.range_slider(steps=steps)
+        # log steps
+        log_range_slider = mo.ui.range_slider(steps=np.logspace(0, 3, 4))
+        # power steps
+        power_range_slider = mo.ui.range_slider(steps=np.power([1, 2, 3], 2))
+        ```
 
-    steps = np.array([1, 2, 3, 4, 5])
-    # linear steps
-    range_slider = mo.ui.range_slider(steps=steps)
-    # log steps
-    log_range_slider = mo.ui.range_slider(steps=np.logspace(0, 3, 4))
-    # power steps
-    power_range_slider = mo.ui.range_slider(steps=np.power([1, 2, 3], 2))
-    ```
+    Attributes:
+        value (list[Numeric]): The current range value of the slider.
+        start (Numeric): The minimum value of the interval.
+        stop (Numeric): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        steps (Optional[Sequence[Numeric]]): List of steps.
 
-    **Attributes.**
+    Args:
+        start (Optional[Numeric]): The minimum value of the interval.
+        stop (Optional[Numeric]): The maximum value of the interval.
+        step (Optional[Numeric]): The slider increment.
+        value (Optional[Sequence[Numeric]]): Default value.
+        debounce (bool): Whether to debounce the slider to only send the value on mouse-up or drag-end.
+        orientation (Literal["horizontal", "vertical"]): The orientation of the slider, either "horizontal" or "vertical".
+        show_value (bool): Whether to display the current value of the slider.
+        steps (Optional[Sequence[Numeric]]): List of steps to customize the slider, mutually exclusive with `start`, `stop`, and `step`.
+        label (str): Markdown label for the element.
+        on_change (Optional[Callable[[Sequence[Numeric]], None]]): Optional callback to run when this element's value changes.
+        full_width (bool): Whether the input should take up the full width of its container.
+        disabled (bool, optional): Whether the slider is disabled. Defaults to False.
 
-    - `value`: the current range value of the slider
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `steps`: list of steps
-
-    **Initialization Args.**
-
-    - `start`: the minimum value of the interval
-    - `stop`: the maximum value of the interval
-    - `step`: the slider increment
-    - `value`: default value
-    - `debounce`: whether to debounce the slider to only send
-        the value on mouse-up or drag-end
-    - `orientation`: the orientation of the slider,
-        either "horizontal" or "vertical"
-    - `show_value`: whether to display the current value of the slider
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
-    - `label`: markdown label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    - `full_width`: whether the input should take up the full width of its
-        container
+    Methods:
+        from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
+            Create a range slider from a dataframe series.
     """
 
     _name: Final[str] = "marimo-range-slider"
@@ -426,6 +440,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
@@ -491,6 +506,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                     "orientation": orientation,
                     "show-value": show_value,
                     "full-width": full_width,
+                    "disabled": disabled,
                 },
                 on_change=on_change,
             )
@@ -531,12 +547,13 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                     "orientation": orientation,
                     "show-value": show_value,
                     "full-width": full_width,
+                    "disabled": disabled,
                 },
                 on_change=on_change,
             )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "range_slider":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
         """Create a range slider from a dataframe series."""
         info = get_number_series_info(series)
         start = kwargs.pop("start", info.min)
@@ -544,7 +561,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         label = kwargs.pop("label", info.label)
         return range_slider(start=start, stop=stop, label=label, **kwargs)
 
-    def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
+    def _convert_value(self, value: list[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
             return cast(
                 Sequence[Numeric],
@@ -583,6 +600,7 @@ class checkbox(UIElement[bool, bool]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[bool], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        disabled (bool, optional): Whether the checkbox is disabled. Defaults to False.
     """
 
     _name: Final[str] = "marimo-checkbox"
@@ -592,13 +610,16 @@ class checkbox(UIElement[bool, bool]):
         value: bool = False,
         *,
         label: str = "",
+        disabled: bool = False,
         on_change: Optional[Callable[[bool], None]] = None,
     ) -> None:
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
             label=label,
-            args={},
+            args={
+                "disabled": disabled,
+            },
             on_change=on_change,
         )
 
@@ -673,7 +694,7 @@ class radio(UIElement[Optional[str], Any]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "radio":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> radio:
         """Create a radio group from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -841,6 +862,11 @@ class code_editor(UIElement[str, str]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[str], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        show_copy_button (bool): Whether to show a button to copy the code
+            to the clipboard. Defaults to True.
+        debounce (bool | int, optional): Whether the input is debounced. If number,
+            debounce by that many milliseconds. If True, then value is only emitted
+            when the input loses focus. Defaults to False.
     """
 
     _name: Final[str] = "marimo-code-editor"
@@ -854,6 +880,8 @@ class code_editor(UIElement[str, str]):
         disabled: bool = False,
         min_height: Optional[int] = None,
         max_height: Optional[int] = None,
+        show_copy_button: bool = True,
+        debounce: bool | int = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -878,6 +906,8 @@ class code_editor(UIElement[str, str]):
                 "disabled": disabled,
                 "min-height": min_height,
                 "max-height": max_height,
+                "show-copy-button": show_copy_button,
+                "debounce": debounce,
             },
             on_change=on_change,
         )
@@ -886,8 +916,15 @@ class code_editor(UIElement[str, str]):
         return value
 
 
+def _to_option_name(option: Any) -> str:
+    if isinstance(option, str):
+        return option
+    else:
+        return repr(option)
+
+
 @mddoc
-class dropdown(UIElement[List[str], Any]):
+class dropdown(UIElement[list[str], Any]):
     """A dropdown selector.
 
     Examples:
@@ -924,8 +961,10 @@ class dropdown(UIElement[List[str], Any]):
         selected_key (str, optional): The selected option's key, or None if no selection.
 
     Args:
-        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+        options (Sequence[Any] | dict[str, Any]): Sequence of options, or dict
             mapping option name to option value.
+            If the options are not strings, they will be converted to strings
+            when displayed in the dropdown.
         value (str, optional): Default option name. Defaults to None.
         allow_select_none (bool, optional): Whether to include special option ("--")
             for a None value; when None, defaults to True when value is None.
@@ -942,11 +981,12 @@ class dropdown(UIElement[List[str], Any]):
     _MAX_OPTIONS: Final[int] = 1000
     _name: Final[str] = "marimo-dropdown"
     _selected_key: Optional[str] = None
+    _RESERVED_OPTION: Final[str] = "--"
 
     def __init__(
         self,
-        options: Sequence[str] | dict[str, Any],
-        value: Optional[str] = None,
+        options: Sequence[Any] | dict[str, Any],
+        value: Optional[Any] = None,
         allow_select_none: Optional[bool] = None,
         searchable: bool = False,
         *,
@@ -966,12 +1006,15 @@ class dropdown(UIElement[List[str], Any]):
             )
 
         if not isinstance(options, dict):
-            options = {option: option for option in options}
+            options = {_to_option_name(option): option for option in options}
 
-        if "--" in options:
+            if value is not None and not isinstance(value, str):
+                value = _to_option_name(value)
+
+        if self._RESERVED_OPTION in options:
             raise ValueError(
-                "The option name '--' is reserved by marimo"
-                "; please use another name."
+                f"The option name '{self._RESERVED_OPTION}' "
+                "is reserved by marimo; please use another name."
             )
 
         self.options = options
@@ -998,7 +1041,7 @@ class dropdown(UIElement[List[str], Any]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "dropdown":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> dropdown:
         """Create a dropdown from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -1007,8 +1050,15 @@ class dropdown(UIElement[List[str], Any]):
 
     def _convert_value(self, value: list[str]) -> Any:
         if value:
-            assert len(value) == 1
+            assert len(value) == 1, "Dropdowns only support a single value"
             self._selected_key = value[0]
+            if self._selected_key not in self.options:
+                raise ValueError(
+                    f"The option name '{self._selected_key}' "
+                    "is not a valid option. "
+                    "Please use one of the following options: "
+                    f"{list(self.options.keys())}"
+                )
             return self.options[value[0]]
         else:
             self._selected_key = None
@@ -1021,7 +1071,7 @@ class dropdown(UIElement[List[str], Any]):
 
 
 @mddoc
-class multiselect(UIElement[List[str], List[object]]):
+class multiselect(UIElement[list[str], list[object]]):
     """A multiselect input.
 
     Examples:
@@ -1041,8 +1091,10 @@ class multiselect(UIElement[List[str], List[object]]):
         options (dict): A dict mapping option name to option value.
 
     Args:
-        options (Sequence[str] | dict[str, Any]): Sequence of text options, or dict
+        options (Sequence[Any] | dict[str, Any]): Sequence of options, or dict
             mapping option name to option value.
+            If the options are not strings, they will be converted to strings
+            when displayed in the dropdown.
         value (Sequence[str], optional): A list of initially selected options.
             Defaults to None.
         label (str, optional): Markdown label for the element. Defaults to "".
@@ -1059,11 +1111,11 @@ class multiselect(UIElement[List[str], List[object]]):
 
     def __init__(
         self,
-        options: Sequence[str] | dict[str, Any],
-        value: Optional[Sequence[str]] = None,
+        options: Sequence[Any] | dict[str, Any],
+        value: Optional[Sequence[Any]] = None,
         *,
         label: str = "",
-        on_change: Optional[Callable[[List[object]], None]] = None,
+        on_change: Optional[Callable[[list[object]], None]] = None,
         full_width: bool = False,
         max_selections: Optional[int] = None,
     ) -> None:
@@ -1079,7 +1131,10 @@ class multiselect(UIElement[List[str], List[object]]):
             )
 
         if not isinstance(options, dict):
-            options = {option: option for option in options}
+            options = {_to_option_name(option): option for option in options}
+
+            if value is not None and not isinstance(value, str):
+                value = [_to_option_name(v) for v in value]
 
         self.options = options
         initial_value = list(value) if value is not None else []
@@ -1105,7 +1160,7 @@ class multiselect(UIElement[List[str], List[object]]):
         )
 
     @staticmethod
-    def from_series(series: DataFrameSeries, **kwargs: Any) -> "multiselect":
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> multiselect:
         """Create a multiselect from a dataframe series."""
         info = get_category_series_info(series)
         options = kwargs.pop("options", info.categories)
@@ -1200,11 +1255,10 @@ class button(UIElement[Any, Any]):
             # frontend will send is 1
             return self._initial_value
         try:
-            return self._on_click(self._value)
+            return self._on_click(self._value)  # type: ignore[no-untyped-call]
         except Exception:
             sys.stderr.write(
-                "on_click handler for button (%s) raised an Exception:\n %s\n"
-                % (str(self), traceback.format_exc())
+                f"on_click handler for button ({str(self)}) raised an Exception:\n {traceback.format_exc()}\n"
             )
             return None
 
@@ -1222,7 +1276,7 @@ class FileUploadResults:
 
 
 @mddoc
-class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
+class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
     """A button or drag-and-drop area to upload a file.
 
     Once a file is uploaded, the UI element's value is a list of namedtuples
@@ -1290,6 +1344,8 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         on_change (Callable[[Sequence[FileUploadResults]], None], optional):
             Optional callback to run when this element's value changes.
             Defaults to None.
+        max_size (int, optional): The maximum size of the file to upload
+            (in bytes). Defaults to 100MB.
     """
 
     _name: Final[str] = "marimo-file"
@@ -1300,6 +1356,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         multiple: bool = False,
         kind: Literal["button", "area"] = "button",
         *,
+        max_size: int = 100_000_000,  # 100MB default
         label: str = "",
         on_change: Optional[
             Callable[[Sequence[FileUploadResults]], None]
@@ -1317,6 +1374,9 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
                     f"Invalid types: {', '.join(invalid_types)}"
                 )
 
+        if max_size <= 0:
+            raise ValueError("max_size must be greater than 0")
+
         super().__init__(
             component_name=file._name,
             initial_value=[],
@@ -1325,6 +1385,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "kind": kind,
+                "max_size": max_size,
             },
             on_change=on_change,
         )
@@ -1368,195 +1429,6 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             return None
         else:
             return self.value[index].contents
-
-
-@dataclass
-class ListDirectoryArgs:
-    path: str
-
-
-@dataclass
-class ListDirectoryResponse:
-    files: List[FileInfo]
-
-
-@mddoc
-class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
-    """File browser for browsing and selecting server-side files.
-
-    Examples:
-        Selecting multiple files:
-        ```python
-        file_browser = mo.ui.file_browser(
-            initial_path="path/to/dir", multiple=True
-        )
-
-        # Access the selected file path(s):
-        file_browser.path(index)
-
-        # Get name of selected file(s)
-        file_browser.name(index)
-        ```
-
-    Attributes:
-        value (Sequence[FileInfo]): A sequence of file paths representing selected
-            files.
-
-    Args:
-        initial_path (str, optional): Starting directory. Defaults to current
-            working directory.
-        filetypes (Sequence[str], optional): The file types to display in each
-            directory; for example, filetypes=[".txt", ".csv"]. If None, all
-            files are displayed. Defaults to None.
-        selection_mode (str, optional): Either "file" or "directory". Defaults to
-            "file".
-        multiple (bool, optional): If True, allow the user to select multiple
-            files. Defaults to True.
-        restrict_navigation (bool, optional): If True, prevent the user from
-            navigating any level above the given path. Defaults to False.
-        label (str, optional): Markdown label for the element. Defaults to "".
-        on_change (Callable[[Sequence[FileInfo]], None], optional): Optional
-            callback to run when this element's value changes. Defaults to None.
-    """
-
-    _name: Final[str] = "marimo-file-browser"
-
-    def __init__(
-        self,
-        initial_path: str = "",
-        filetypes: Optional[Sequence[str]] = None,
-        selection_mode: str = "file",
-        multiple: bool = True,
-        restrict_navigation: bool = False,
-        *,
-        label: str = "",
-        on_change: Optional[Callable[[Sequence[FileInfo]], None]] = None,
-    ) -> None:
-        self.filetypes = filetypes
-
-        if (
-            selection_mode != "file"
-            and selection_mode != "directory"
-            and selection_mode != "all"
-        ):
-            raise ValueError(
-                "Invalid argument for selection_mode. "
-                + "Must be either 'file' or 'directory'."
-            )
-        else:
-            self.selection_mode = selection_mode
-
-        if not initial_path:
-            initial_path = os.getcwd()
-
-        # frontend plugin can't handle relative paths
-        initial_path = os.path.realpath(os.path.expanduser(initial_path))
-        # initial path must be a directory
-        if not os.path.isdir(initial_path):
-            raise ValueError(
-                f"Initial path {initial_path} is not a directory."
-            )
-
-        self.restrict_navigation = restrict_navigation
-        self.initial_path = initial_path
-        super().__init__(
-            component_name=file_browser._name,
-            initial_value=[],
-            label=label,
-            args={
-                "initial-path": initial_path,
-                "selection-mode": selection_mode,
-                "filetypes": filetypes if filetypes is not None else [],
-                "multiple": multiple,
-                "restrict-navigation": restrict_navigation,
-            },
-            functions=(
-                Function(
-                    name="list_directory",
-                    arg_cls=ListDirectoryArgs,
-                    function=self._list_directory,
-                ),
-            ),
-            on_change=on_change,
-        )
-
-    def _list_directory(
-        self, args: ListDirectoryArgs
-    ) -> ListDirectoryResponse:
-        # When navigation is restricted, the navigated-to path cannot be
-        # be a parent of the initial path
-        if (
-            self.restrict_navigation
-            and pathlib.Path(args.path)
-            in pathlib.Path(self.initial_path).parents
-        ):
-            raise RuntimeError(
-                "Navigation is restricted; navigating to a "
-                "parent of initial path is not allowed."
-            )
-
-        files = []
-        files_in_path = OSFileSystem().list_files(args.path)
-
-        for file in files_in_path:
-            _, extension = os.path.splitext(file.name)
-
-            if self.selection_mode == "directory" and not file.is_directory:
-                continue
-
-            if self.filetypes and not file.is_directory:
-                if extension not in self.filetypes:
-                    continue
-
-            files.append(file)
-
-        return ListDirectoryResponse(files)
-
-    def _convert_value(
-        self, value: list[Dict[str, Any]]
-    ) -> Sequence[FileInfo]:
-        return tuple(
-            FileInfo(
-                id=file["id"],
-                name=file["name"],
-                path=file["path"],
-                is_directory=file["is_directory"],
-                is_marimo_file=file["is_marimo_file"],
-            )
-            for file in value
-        )
-
-    def name(self, index: int = 0) -> Optional[str]:
-        """Get file name at index.
-
-        Args:
-            index (int, optional): Index of the file to get the name from.
-                Defaults to 0.
-
-        Returns:
-            Optional[str]: The name of the file at the specified index,
-                or None if index is out of range.
-        """
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].name
-
-    def path(self, index: int = 0) -> Optional[str]:
-        """Get file path at index.
-
-        Args:
-            index (int, optional): Index of the file to get the path from.
-                Defaults to 0.
-
-        Returns:
-            Optional[str]: The path of the file at the specified index,
-                or None if index is out of range.
-        """
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].path
 
 
 T = TypeVar("T")

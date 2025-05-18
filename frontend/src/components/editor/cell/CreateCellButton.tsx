@@ -8,9 +8,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from "@/components/ui/context-menu";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
@@ -88,7 +88,7 @@ const CreateCellButtonContextMenu = (props: {
           key="sql"
           onSelect={(evt) => {
             evt.stopPropagation();
-            onClick({ code: new SQLLanguageAdapter().getDefaultCode() });
+            onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >
           <div className="mr-3 text-muted-foreground">

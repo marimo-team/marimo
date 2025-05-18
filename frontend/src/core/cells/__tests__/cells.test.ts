@@ -10,6 +10,7 @@ import {
 } from "vitest";
 import {
   type NotebookState,
+  SETUP_CELL_ID,
   exportedForTesting,
   flattenTopLevelNotebookCells,
 } from "../cells";
@@ -21,7 +22,6 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import type { CellHandle } from "@/components/editor/Cell";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
-import type { MovementCallbacks } from "@/core/codemirror/cells/extensions";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
@@ -48,6 +48,7 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
 });
 
 const FIRST_COLUMN = 0;
+const SECOND_COLUMN = 1;
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
@@ -80,15 +81,15 @@ function createEditor(content: string) {
     extensions: [
       python(),
       adaptiveLanguageConfiguration({
+        cellId: "cell1" as CellId,
         completionConfig: {
           activate_on_typing: true,
           copilot: false,
           codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),
-        showPlaceholder: true,
-        enableAI: true,
-        cellMovementCallbacks: {} as MovementCallbacks,
+        placeholderType: "marimo-import",
+        lspConfig: {},
       }),
     ],
   });
@@ -110,9 +111,10 @@ describe("cell reducer", () => {
     state = reducer(state, action);
     for (const [cellId, handle] of Object.entries(state.cellHandles)) {
       if (!handle.current) {
+        const view = createEditor(state.cellData[cellId as CellId].code);
         const handle: CellHandle = {
-          editorView: createEditor(state.cellData[cellId as CellId].code),
-          registerRun: vi.fn(),
+          editorView: view,
+          editorViewOrNull: view,
         };
         state.cellHandles[cellId as CellId] = { current: handle };
       }
@@ -1331,6 +1333,51 @@ describe("cell reducer", () => {
     });
   });
 
+  it("can can add a new cell with/without stale code", () => {
+    actions.setCellCodes({
+      codes: ["new code"],
+      ids: ["2"] as CellId[],
+      codeIsStale: false,
+    });
+
+    expect(state.cellData["2" as CellId].code).toBe("new code");
+    expect(state.cellData["2" as CellId].edited).toBe(false);
+    expect(state.cellData["2" as CellId].lastCodeRun).toBe("new code");
+
+    actions.setCellCodes({
+      codes: ["new code 2"],
+      ids: ["9"] as CellId[],
+      codeIsStale: true,
+    });
+
+    expect(state.cellData["9" as CellId].code).toBe("new code 2");
+    expect(state.cellData["9" as CellId].edited).toBe(true);
+    expect(state.cellData["9" as CellId].lastCodeRun).toBe(null);
+  });
+
+  it("can partial update cell codes", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({ cellId: "1" as CellId, before: false });
+
+    expect(state.cellIds.inOrderIds).toEqual(["0", "1", "2"]);
+    expect(state.cellData["0" as CellId].code).toBe("");
+    expect(state.cellData["1" as CellId].code).toBe("");
+    expect(state.cellData["2" as CellId].code).toBe("");
+
+    // Update cell 1
+    actions.setCellCodes({
+      codes: ["new code 2"],
+      ids: ["1"] as CellId[],
+      codeIsStale: false,
+    });
+
+    expect(state.cellIds.inOrderIds).toEqual(["0", "1", "2"]);
+    expect(state.cellData["0" as CellId].code).toBe("");
+    expect(state.cellData["1" as CellId].code).toBe("new code 2");
+    expect(state.cellData["1" as CellId].edited).toBe(false);
+    expect(state.cellData["2" as CellId].code).toBe("");
+  });
+
   it("can set cell codes with new cell ids, while preserving the old cell data", () => {
     actions.setCellCodes({
       codes: ["code1", "code2", "code3"],
@@ -1400,6 +1447,128 @@ describe("cell reducer", () => {
 
     actions.expandCell({ cellId: id });
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(id)).toBe(false);
+  });
+
+  it("can collapse and expand all cells in multiple columns", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# First Column Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## First Column Subheader",
+    });
+
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "# Second Column Header",
+    });
+    actions.createNewCell({
+      cellId: "4" as CellId,
+      before: false,
+      code: "## Second Column Subheader",
+    });
+
+    const firstColumnHeaderId = state.cellIds
+      .atOrThrow(FIRST_COLUMN)
+      .atOrThrow(1);
+    state.cellRuntime[firstColumnHeaderId] = {
+      ...state.cellRuntime[firstColumnHeaderId],
+      outline: {
+        items: [
+          { name: "First Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    const secondColumnHeaderId = state.cellIds
+      .atOrThrow(SECOND_COLUMN)
+      .atOrThrow(0);
+    state.cellRuntime[secondColumnHeaderId] = {
+      ...state.cellRuntime[secondColumnHeaderId],
+      outline: {
+        items: [
+          { name: "Second Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    actions.collapseAllCells();
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(true);
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(true);
+
+    actions.expandAllCells();
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(false);
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(false);
+  });
+
+  it("can collapse and expand nested cells in one call", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## Subheader",
+    });
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "### Subsubheader",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const subheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[subheaderId] = {
+      ...state.cellRuntime[subheaderId],
+      outline: {
+        items: [{ name: "Subheader", level: 2, by: { id: "subheader" } }],
+      },
+    };
+
+    // Check if both the parent and child are collapsed
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      true,
+    );
+    actions.collapseCell({ cellId: headerId });
+
+    // Check if both the parent and child are expanded
+    actions.expandAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      false,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      false,
+    );
   });
 
   it("can show hidden cells", () => {
@@ -1782,6 +1951,57 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs).toEqual([]);
   });
 
+  it("can clear console output of a single cell", () => {
+    // Set up initial state with output
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "test output",
+        timestamp: 0,
+      },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "console output",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
+    });
+
+    // Add a stdin console output that should be preserved
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      console: {
+        channel: "stdin",
+        mimetype: "text/plain",
+        data: "stdin prompt",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(34).getTime() as Seconds,
+    });
+
+    // Verify initial state has output and console outputs
+    let cell = cells[0];
+    expect(cell.output).not.toBeNull();
+    expect(cell.consoleOutputs.length).toBe(2);
+
+    // Clear console output
+    actions.clearCellConsoleOutput({ cellId: firstCellId });
+
+    // Verify only console output is cleared, but stdin is preserved
+    cell = cells[0];
+    expect(cell.output).not.toBeNull(); // Output should remain
+    expect(cell.consoleOutputs.length).toBe(1);
+    expect(cell.consoleOutputs[0].channel).toBe("stdin");
+    expect(cell.consoleOutputs[0].data).toBe("stdin prompt");
+  });
+
   it("can clear output of all cells", () => {
     // Create multiple cells with output
     actions.createNewCell({ cellId: firstCellId, before: false });
@@ -1871,5 +2091,54 @@ describe("cell reducer", () => {
       [1] 'import pandas as pd'
       "
     `);
+  });
+
+  it("can create and update a setup cell", () => {
+    // Create the setup cell
+    actions.upsertSetupCell({ code: "# Setup code" });
+
+    // Check that setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Update the setup cell
+    actions.upsertSetupCell({ code: "# Updated setup code" });
+
+    // Check that the same setup cell was updated, not duplicated
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Updated setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+  });
+
+  it("can delete and undelete the setup cell", () => {
+    // Create the setup cell
+    actions.upsertSetupCell({ code: "# Setup code" });
+
+    // Check that setup cell was created
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Delete the setup cell
+    actions.deleteCell({ cellId: SETUP_CELL_ID });
+
+    // Check that setup cell was deleted
+    expect(state.cellData[SETUP_CELL_ID]).toBeDefined(); // we keep old state
+    expect(state.cellIds.inOrderIds).not.toContain(SETUP_CELL_ID);
+
+    // Undo delete the setup cell
+    actions.undoDeleteCell();
+
+    // Check that setup cell was restored
+    expect(state.cellData[SETUP_CELL_ID].id).toBe(SETUP_CELL_ID);
+    expect(state.cellData[SETUP_CELL_ID].name).toBe("setup");
+    expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
+    expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
+    expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
   });
 });

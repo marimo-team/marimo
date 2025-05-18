@@ -8,6 +8,7 @@ from textwrap import dedent
 import pytest
 
 from marimo._ast import visitor
+from marimo._ast.errors import ImportStarError
 from marimo._ast.visitor import (
     ImportData,
     VariableData,
@@ -153,7 +154,11 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["f"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "f": [VariableData(kind="function", required_refs={"x"})]
+        "f": [
+            VariableData(
+                kind="function", required_refs={"x"}, unbounded_refs=set()
+            )
+        ]
     }
 
     expr = "class F(): x = x"
@@ -163,7 +168,11 @@ def test_assign_same_name() -> None:
     assert v.defs == set(["F"])
     assert v.refs == set(["x"])
     assert v.variable_data == {
-        "F": [VariableData(kind="class", required_refs={"x"})]
+        "F": [
+            VariableData(
+                kind="class", required_refs={"x"}, unbounded_refs={"x"}
+            )
+        ]
     }
 
     expr = "{x: x}"
@@ -424,7 +433,13 @@ def test_function_with_defaults() -> None:
     assert v.refs == set(["x", "y", "a"])
     # TODO: Are these required refs?
     assert v.variable_data == {
-        "foo": [VariableData(kind="function", required_refs={"x", "y", "a"})],
+        "foo": [
+            VariableData(
+                kind="function",
+                required_refs={"x", "y", "a"},
+                unbounded_refs={"x", "y", "a"},
+            )
+        ],
     }
 
 
@@ -467,6 +482,54 @@ def test_global_def() -> None:
     }
 
 
+def test_global_not_ref() -> None:
+    code = cleandoc(
+        """
+        x = 0
+        def foo(a):
+          global x
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["foo", "x"])
+    assert v.refs == set()
+
+
+def test_global_not_ref_define_later() -> None:
+    code = cleandoc(
+        """
+        def foo(a):
+          global x
+        x = 0
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["foo", "x"])
+    assert v.refs == set()
+
+
+def test_global_after_scoped_def() -> None:
+    code = cleandoc(
+        """
+        def f():
+            x = 0
+
+            def g():
+                global x
+                x = 1
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["f", "x"])
+    assert not v.refs
+
+
 def test_global_ref() -> None:
     code = cleandoc(
         """
@@ -483,6 +546,22 @@ def test_global_ref() -> None:
     assert v.variable_data == {
         "foo": [VariableData(kind="function", required_refs={"x", "print"})],
     }
+
+
+def test_global_deleted_ref() -> None:
+    code = cleandoc(
+        """
+        def f():
+            global x
+            del x
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["f"])
+    assert v.refs == set(["x"])
+    assert v.deleted_refs == {"x"}
 
 
 def test_nested_local_def_and_global_ref() -> None:
@@ -798,7 +877,7 @@ def test_from_import_star() -> None:
     expr = "from a.b.c import *"
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
-    with pytest.raises(SyntaxError) as e:
+    with pytest.raises(ImportStarError) as e:
         v.visit(mod)
     assert "`import *` is not allowed in marimo." in str(e)
     assert v.defs == set()
@@ -939,6 +1018,81 @@ def test_private_ref_requirement_caught() -> None:
     }
 
 
+def test_outer_ref_not_resolved_by_inner_resolution() -> None:
+    code = cleandoc(
+        """
+        def f():
+            x
+            def g():
+                def h():
+                    x
+                x = 0
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == {"f"}
+    assert v.refs == {"x"}
+
+
+def test_deleted_ref_basic() -> None:
+    code = "del x"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert not v.defs
+    assert v.refs == {"x"}
+    assert v.deleted_refs == {"x"}
+
+
+def test_not_deleted_ref() -> None:
+    code = cleandoc(
+        """
+    x = 0
+    def fn():
+        if False:
+            z = x
+            del x
+    x
+    """
+    )
+
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == {"x", "fn"}
+    assert not v.refs
+    assert not v.deleted_refs
+
+
+@pytest.mark.xfail(reason="Unbound locals are currently treated as refs")
+def test_unbound_local_not_deleted_ref() -> None:
+    # here `x` is an unbound local, because
+    # `del` adds `x` to scope. In particular,
+    # `z = x` raises an UnboundLocalError, even
+    # if `x` is in the global scope, meaning
+    # that technically:
+    #
+    #   1. this code should not have any refs
+    #   2. so del `x` is not deleting a ref
+    code = cleandoc(
+        """
+    def fn():
+        z = x
+        del x
+    """
+    )
+
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == {"fn"}
+    # TODO(akshayka): These assertions currently fail.
+    assert not v.refs
+    assert not v.deleted_refs
+
+
 HAS_DEPS = DependencyManager.duckdb.has()
 
 
@@ -1032,6 +1186,19 @@ def test_print_f_string() -> None:
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
         == "select * from 'null' where name = null"
     )
+
+
+def test_normalize_sql_f_string_with_empty_quotes() -> None:
+    import ast
+
+    joined_str = ast.parse(
+        "f'SELECT comment, REGEXP_REPLACE(comment, \\'*/.\\', \\'\\') regex_name,'"
+    )
+    assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
+    assert (
+        normalize_sql_f_string(joined_str.body[0].value)
+        == "SELECT comment, REGEXP_REPLACE(comment, '*/.', '') regex_name,"
+    )  # type: ignore
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")

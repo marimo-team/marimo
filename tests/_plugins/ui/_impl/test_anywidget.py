@@ -6,7 +6,7 @@ from hashlib import md5
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.from_anywidget import anywidget
+from marimo._plugins.ui._impl.from_anywidget import anywidget, from_anywidget
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -225,12 +225,25 @@ x = as_marimo_element.count
         class NonSerializableWidget(_anywidget.AnyWidget):
             _esm = ""
             serializable = traitlets.Int(1).tag(sync=True)
-            non_serializable = traitlets.Instance(object)
+            non_serializable = traitlets.Instance(object, sync=True)
 
         wrapped = anywidget(NonSerializableWidget())
-        assert "serializable" in wrapped._initial_value
-        assert wrapped._initial_value["non_serializable"] is None
+        assert wrapped._initial_value == {
+            "serializable": 1,
+            "non_serializable": None,
+        }
 
+    @staticmethod
+    async def test_skips_non_sync_traits() -> None:
+        class NonSyncWidget(_anywidget.AnyWidget):
+            _esm = ""
+            non_sync = traitlets.Int(1)
+            sync = traitlets.Int(2).tag(sync=True)
+
+        wrapped = anywidget(NonSyncWidget())
+        assert wrapped._initial_value == {"sync": 2}
+
+    @staticmethod
     @staticmethod
     async def test_frontend_changes(
         k: Kernel, exec_req: ExecReqProvider
@@ -376,3 +389,46 @@ x = as_marimo_element.count
         nested_state = {"y": {"key": "value"}}
         wrapped._update(nested_state)
         assert wrapped.value == {"x": 42, "y": {"key": "value"}}
+
+    @staticmethod
+    def test_unhashable_widget() -> None:
+        """Test that unhashable widgets can still be wrapped."""
+
+        # Create a widget with an unhashable trait (list)
+        class UnhashableWidget(_anywidget.AnyWidget):
+            _esm = ""
+
+            def __hash__(self) -> int:
+                raise TypeError("Unhashable widget")
+
+        # This should work without errors despite the widget being unhashable
+        widget = UnhashableWidget()
+        wrapped = from_anywidget(widget)
+        assert wrapped is not None
+
+    @staticmethod
+    async def test_partial_state_updates() -> None:
+        class MultiTraitWidget(_anywidget.AnyWidget):
+            _esm = ""
+            a = traitlets.Int(1).tag(sync=True)
+            b = traitlets.Int(2).tag(sync=True)
+            c = traitlets.Int(3).tag(sync=True)
+
+        wrapped = anywidget(MultiTraitWidget())
+        assert wrapped.value == {"a": 1, "b": 2, "c": 3}
+
+        # Test partial update
+        wrapped._update({"a": 10})
+        assert wrapped.value == {"a": 10, "b": 2, "c": 3}
+
+        # Test multiple partial updates
+        wrapped._update({"b": 20})
+        assert wrapped.value == {"a": 10, "b": 20, "c": 3}
+
+        # Test updating all traits
+        wrapped._update({"a": 100, "b": 200, "c": 300})
+        assert wrapped.value == {"a": 100, "b": 200, "c": 300}
+
+        # Test updating with new traits
+        wrapped._update({"d": 4})
+        assert wrapped.value == {"a": 100, "b": 200, "c": 300, "d": 4}

@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { AnsiUp } from "ansi_up";
 import type { WithResponse } from "@/core/cells/types";
 import { invariant } from "@/utils/invariant";
+import { ErrorBoundary } from "../boundary/ErrorBoundary";
+import { DebuggerControls } from "@/components/debugger/debugger-code";
+import { ChevronRightIcon } from "lucide-react";
 
 const ansiUp = new AnsiUp();
 
@@ -21,10 +24,19 @@ interface Props {
   stale: boolean;
   debuggerActive: boolean;
   onRefactorWithAI?: (opts: { prompt: string }) => void;
+  onClear?: () => void;
   onSubmitDebugger: (text: string, index: number) => void;
 }
 
-export const ConsoleOutput = (props: Props): React.ReactNode => {
+export const ConsoleOutput = (props: Props) => {
+  return (
+    <ErrorBoundary>
+      <ConsoleOutputInternal {...props} />
+    </ErrorBoundary>
+  );
+};
+
+const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const {
     consoleOutputs,
@@ -32,6 +44,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     cellName,
     cellId,
     onSubmitDebugger,
+    onClear,
     onRefactorWithAI,
     className,
   } = props;
@@ -76,6 +89,16 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
   }
 
   const reversedOutputs = [...consoleOutputs].reverse();
+  const isPdb = reversedOutputs.some(
+    (output) =>
+      typeof output.data === "string" && output.data.includes("(Pdb)"),
+  );
+
+  // Find the index of the last stdin output since we only want to show
+  // the pdb prompt once
+  const lastStdInputIdx = reversedOutputs.findIndex(
+    (output) => output.channel === "stdin",
+  );
 
   return (
     <div
@@ -83,7 +106,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
       data-testid="console-output-area"
       ref={ref}
       className={cn(
-        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full",
+        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3",
         className,
@@ -102,12 +125,14 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
           const originalIdx = consoleOutputs.length - idx - 1;
 
-          if (output.response == null) {
+          if (output.response == null && lastStdInputIdx === idx) {
             return (
               <StdInput
                 key={idx}
                 output={output.data}
+                isPdb={isPdb}
                 onSubmit={(text) => onSubmitDebugger(text, originalIdx)}
+                onClear={onClear}
               />
             );
           }
@@ -142,25 +167,42 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
 const StdInput = (props: {
   onSubmit: (text: string) => void;
+  onClear?: () => void;
   output: string;
   response?: string;
+  isPdb: boolean;
 }) => {
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex gap-2 items-center pt-2">
       {renderText(props.output)}
       <Input
         data-testid="console-input"
+        // This is used in <StdinBlockingAlert> to find the input
+        data-stdin-blocking={true}
         type="text"
         autoComplete="off"
         autoFocus={true}
-        className="m-0"
+        icon={<ChevronRightIcon className="w-5 h-5" />}
+        className="m-0 h-8 focus-visible:shadow-xsSolid"
         placeholder="stdin"
-        onKeyDown={(e) => {
+        // Capture the keydown event to prevent default behavior
+        onKeyDownCapture={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             props.onSubmit(e.currentTarget.value);
+            e.preventDefault();
+            e.stopPropagation();
+          }
+
+          // Prevent running the cell
+          if (e.key === "Enter" && e.metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
           }
         }}
       />
+      {props.isPdb && (
+        <DebuggerControls onSubmit={props.onSubmit} onClear={props.onClear} />
+      )}
     </div>
   );
 };
@@ -177,7 +219,11 @@ const StdInputWithResponse = (props: {
   );
 };
 
-const renderText = (text: string) => {
+const renderText = (text: string | null) => {
+  if (!text) {
+    return null;
+  }
+
   return (
     <span dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }} />
   );

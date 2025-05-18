@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -14,6 +15,8 @@ from marimo._utils.platform import is_pyodide
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from opentelemetry import trace
 
 
@@ -102,13 +105,13 @@ def _set_tracer_provider() -> None:
 
     class FileExporter(SpanExporter):
         def __init__(self, file_path: str) -> None:
-            self.file_path: str = file_path
+            self.file_path = Path(file_path)
             # Clear file
-            open(self.file_path, "w").close()
+            self.file_path.write_bytes(b"")
 
         def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
             try:
-                with open(self.file_path, "a") as f:
+                with self.file_path.open("a", encoding="utf-8") as f:
                     for span in spans:
                         f.write(span.to_json(cast(Any, None)))
                         f.write("\n")
@@ -141,7 +144,7 @@ def _set_tracer_provider() -> None:
     trace.set_tracer_provider(provider)
 
 
-def create_tracer(trace_name: str) -> "trace.Tracer":
+def create_tracer(trace_name: str) -> trace.Tracer:
     """
     Creates a tracer that logs to a file.
 

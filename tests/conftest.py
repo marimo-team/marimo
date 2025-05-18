@@ -8,14 +8,15 @@ import re
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from _pytest import runner
 
 from marimo._ast.app import App, CellManager
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import CellOp, MessageOperation
 from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (
@@ -37,6 +38,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
 
 # register import hooks for third-party module formatters
@@ -93,7 +95,9 @@ class MockStdout(ThreadSafeStdout):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         del mimetype
         self.messages.append(data)
         return len(data)
@@ -111,7 +115,9 @@ class MockStderr(ThreadSafeStderr):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         del mimetype
         self.messages.append(data)
         return len(data)
@@ -158,7 +164,11 @@ class MockedKernel:
             cell_configs={},
             user_config=DEFAULT_CONFIG,
             app_metadata=AppMetadata(
-                query_params={}, filename=None, cli_args={}
+                query_params={},
+                filename=None,
+                cli_args={},
+                argv=None,
+                app_config=_AppConfig(),
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             enqueue_control_request=lambda _: None,
@@ -624,21 +634,66 @@ def app() -> Generator[App, None, None]:
 
 
 # A pytest hook to fail when raw marimo cells are not collected.
+# Meta testing gets a little messy, and may leave you a little testy. This is
+# increasingly coupled with the following specific tests that test testing:
+# _ast/
+#    ./test_pytest
+#    ./test_pytest_toplevel
+#    ./test_pytest_scoped
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
     report = runner.pytest_make_collect_report(collector)
+    # If it's not a module, we can return early.
+    if not isinstance(collector, pytest.Module):
+        return report
+
     # Defined within the file does not seem to hook correctly, as such filter
     # for the test_pytest specific file here.
-    if "test_pytest" in str(collector.path):
-        collected = {fn.originalname for fn in collector.collect()}
+    if "test_pytest" in str(collector.path) and "_ast" in str(collector.path):
+        # Classes may also be registered, but they will be hidden behind a cell.
+        # As such, let's just collect functions.
+        collected = {
+            fn.originalname
+            for fn in collector.collect()
+            if isinstance(fn, pytest.Function)
+        }
+        classes = {
+            cls.name
+            for cls in collector.collect()
+            if isinstance(cls, pytest.Class)
+        }
         from tests._ast.test_pytest import app as app_pytest
+        from tests._ast.test_pytest_scoped import app as app_scoped
         from tests._ast.test_pytest_toplevel import app as app_toplevel
 
         app = {
             "test_pytest": app_pytest,
             "test_pytest_toplevel": app_toplevel,
+            "test_pytest_scoped": app_scoped,
         }[collector.path.stem]
 
+        # Just a quick check to make sure the class is actually exported.
+        if app == app_pytest:
+            if len(classes) == 0:
+                report.outcome = "failed"
+                report.longrepr = (
+                    f"Expected class in {collector.path}, found none "
+                    " (tests/conftest.py)."
+                )
+                return report
+        for cls in classes:
+            if not (
+                cls.startswith("MarimoTestBlock") or cls == "TestClassWorks"
+            ):
+                report.outcome = "failed"
+                report.longrepr = (
+                    f"Unknown class '{cls}' in {collector.path}"
+                    " (tests/conftest.py)."
+                )
+
+                return report
+
+        # Check the functions match cells in the app.
         invalid = []
         for name in app._cell_manager.names():
             if name.startswith("test_") and name not in collected:
@@ -648,5 +703,6 @@ def pytest_make_collect_report(collector):
             report.outcome = "failed"
             report.longrepr = (
                 f"Cannot collect test(s) {', '.join(invalid)} from {tests}"
+                " (tests/conftest.py)."
             )
     return report

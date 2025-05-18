@@ -23,9 +23,7 @@ jobs:
           filters: |
             playwright:
               - '**'
-              - '!docs/**'
-              - '!examples/**'
-              - '!README.md'
+              - '!{docs/**,examples/**,README.md,tests/**}'
 
   test:
     needs: changes
@@ -51,19 +49,21 @@ jobs:
           echo "[experimental]" > .marimo.toml
           echo "layouts=true" >> .marimo.toml
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
 
       - name: 📦 Build frontend
         run: make fe
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@v5

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
-import { languageServerWithTransport } from "codemirror-languageserver";
+import { languageServerWithClient } from "@marimo-team/codemirror-languageserver";
 import { CopilotLanguageServerClient } from "./language-server";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
@@ -12,7 +12,7 @@ import { Logger } from "@/utils/Logger";
 import { toast } from "@/components/ui/use-toast";
 
 // Dummy file for the copilot language server
-export const COPILOT_FILENAME = "/marimo.py";
+export const COPILOT_FILENAME = "/__marimo_copilot__.py";
 export const LANGUAGE_ID = "copilot";
 const FILE_URI = `file://${COPILOT_FILENAME}`;
 
@@ -94,20 +94,25 @@ export const getCopilotClient = once(
   () =>
     new CopilotLanguageServerClient({
       rootUri: FILE_URI,
-      documentUri: FILE_URI,
-      languageId: LANGUAGE_ID,
       workspaceFolders: null,
       transport: createWSTransport(),
     }),
 );
 
 export function copilotServer() {
-  return languageServerWithTransport({
-    rootUri: FILE_URI,
+  return languageServerWithClient({
     documentUri: FILE_URI,
-    workspaceFolders: [],
-    transport: createWSTransport(),
     client: getCopilotClient(),
     languageId: LANGUAGE_ID,
+    // Disable all basic LSP features
+    // we only need textDocument/didChange
+    hoverEnabled: false,
+    completionEnabled: false,
+    definitionEnabled: false,
+    renameEnabled: false,
+    codeActionsEnabled: false,
+    signatureHelpEnabled: false,
+    diagnosticsEnabled: false,
+    sendIncrementalChanges: false,
   });
 }

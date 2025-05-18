@@ -1,14 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
+import functools
+import io
 from functools import cached_property
-from typing import Any, Optional, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 
 import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
+from marimo import _loggers
 from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._output.data.data import sanitize_json_bigint
+from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -17,6 +22,8 @@ from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
+    TableCell,
+    TableCoordinate,
     TableManager,
 )
 from marimo._utils.narwhals_utils import (
@@ -25,8 +32,11 @@ from marimo._utils.narwhals_utils import (
     is_narwhals_integer_type,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
+    is_narwhals_time_type,
     unwrap_py_scalar,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class NarwhalsTableManager(
@@ -52,19 +62,33 @@ class NarwhalsTableManager(
         # of the subclass with the native data.
         return self.__class__(data.to_native())
 
-    def to_csv(
+    def to_csv_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
-    ) -> bytes:
+    ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data).encode("utf-8")
+        return dataframe_to_csv(_data)
 
-    def to_json(self) -> bytes:
-        csv_str = self.to_csv().decode("utf-8")
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
+        try:
+            csv_str = self.to_csv_str(format_mapping=format_mapping)
+        except Exception as e:
+            LOGGER.debug(
+                f"Failed to use format mapping: {str(e)}, falling back to default"
+            )
+            csv_str = self.to_csv_str()
+
         import csv
 
         csv_reader = csv.DictReader(csv_str.splitlines())
-        return json.dumps([row for row in csv_reader]).encode("utf-8")
+        return sanitize_json_bigint([row for row in csv_reader])
+
+    def to_parquet(self) -> bytes:
+        stream = io.BytesIO()
+        self.as_frame().write_parquet(stream)
+        return stream.getvalue()
 
     def apply_formatting(
         self, format_mapping: Optional[FormatMapping]
@@ -88,6 +112,9 @@ class NarwhalsTableManager(
         return True
 
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
+        if not indices:
+            return self.with_new_data(self.data.head(0))
+
         df = self.as_frame()
         # Prefer the index column for selections
         if INDEX_COLUMN_NAME in df.columns:
@@ -100,6 +127,31 @@ class NarwhalsTableManager(
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.select(columns))
 
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        if not cells:
+            return []
+
+        df = self.as_frame()
+        if INDEX_COLUMN_NAME in df.columns:
+            selection: list[TableCell] = []
+            for row, col in cells:
+                filtered: nw.DataFrame[Any] = df.filter(
+                    nw.col(INDEX_COLUMN_NAME) == int(row)
+                )
+                if filtered.is_empty():
+                    continue
+
+                selection.append(
+                    TableCell(row, col, filtered.get_column(col)[0])
+                )
+
+            return selection
+        else:
+            return [
+                TableCell(row, col, df.item(row=int(row), column=col))
+                for row, col in cells
+            ]
+
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.drop(columns, strict=False))
 
@@ -108,29 +160,78 @@ class NarwhalsTableManager(
     ) -> list[str]:
         return []
 
+    @functools.lru_cache(maxsize=5)  # noqa: B019
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
+        if isinstance(self.data, nw.LazyFrame):
+            raise ValueError(
+                "Cannot calculate top k rows for lazy frames, please collect the data first"
+            )
+
+        columns = self.get_column_names()
+
+        if column not in columns:
+            raise ValueError(f"Column {column} not found in table.")
+
+        # Find a column name for the count that doesn't conflict with existing columns
+        chosen_column_name: str | None = None
+        for col in ["count", f"count of {column}", "num_rows"]:
+            if col not in columns:
+                chosen_column_name = col
+                break
+        if chosen_column_name is None:
+            raise ValueError(
+                "Cannot specify a count column name, please rename your column"
+            )
+
+        # column is also sorted to ensure nulls are last
+        result = (
+            self.data.group_by(column)
+            .agg(nw.len().alias(chosen_column_name))
+            .sort(
+                [chosen_column_name, column], descending=True, nulls_last=True
+            )
+            .head(k)
+        )
+
+        return [
+            (
+                unwrap_py_scalar(row[column]),
+                int(unwrap_py_scalar(row[chosen_column_name])),
+            )
+            for row in result.iter_rows(named=True)
+        ]
+
     @staticmethod
     def is_type(value: Any) -> bool:
         return can_narwhalify(value)
 
     @cached_property
     def nw_schema(self) -> nw.Schema:
-        return cast(nw.Schema, self.data.schema)
+        return cast(nw.Schema, self.data.collect_schema())
 
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
+    ) -> tuple[FieldType, ExternalDataType]:
         dtype = self.nw_schema[column_name]
         dtype_string = str(dtype)
         if is_narwhals_string_type(dtype):
             return ("string", dtype_string)
         elif dtype == nw.Boolean:
             return ("boolean", dtype_string)
-        elif is_narwhals_integer_type(dtype):
-            return ("integer", dtype_string)
-        elif is_narwhals_temporal_type(dtype):
-            return ("date", dtype_string)
         elif dtype == nw.Duration:
             return ("number", dtype_string)
+        elif dtype.is_integer():
+            return ("integer", dtype_string)
+        elif is_narwhals_time_type(dtype):
+            return ("time", dtype_string)
+        elif dtype == nw.Date:
+            return ("date", dtype_string)
+        elif dtype == nw.Datetime:
+            return ("datetime", dtype_string)
+        elif dtype.is_temporal():
+            return ("datetime", dtype_string)
         elif dtype.is_numeric():
             return ("number", dtype_string)
         else:
@@ -141,7 +242,11 @@ class NarwhalsTableManager(
             raise ValueError("Count must be a positive integer")
         if offset < 0:
             raise ValueError("Offset must be a non-negative integer")
-        return self.with_new_data(self.data[offset : offset + count])
+
+        if offset == 0:
+            return self.with_new_data(self.data.head(count))
+        else:
+            return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         query = query.lower()
@@ -161,7 +266,6 @@ class NarwhalsTableManager(
             elif (
                 dtype.is_numeric()
                 or is_narwhals_temporal_type(dtype)
-                or dtype == nw.Duration
                 or dtype == nw.Boolean
             ):
                 expressions.append(
@@ -180,17 +284,30 @@ class NarwhalsTableManager(
 
     def get_summary(self, column: str) -> ColumnSummary:
         summary = self._get_summary_internal(column)
-        for key, value in summary.__dict__.items():
-            if value is not None:
-                summary.__dict__[key] = unwrap_py_scalar(value)
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Discarding nonzero nanoseconds in conversion",
+                category=UserWarning,
+            )
+
+            for key, value in summary.__dict__.items():
+                if value is not None:
+                    summary.__dict__[key] = unwrap_py_scalar(value)
         return summary
 
     def _get_summary_internal(self, column: str) -> ColumnSummary:
         # If column is not in the dataframe, return an empty summary
         if column not in self.nw_schema:
             return ColumnSummary()
-        col = self.data[column]
-        total = len(col)
+        data = self.data.select(column)
+        if isinstance(data, nw.LazyFrame):
+            data = data.collect()
+
+        col = data[column]
+        total = col.shape[0]
         if is_narwhals_string_type(col.dtype):
             return ColumnSummary(
                 total=total,
@@ -204,28 +321,24 @@ class NarwhalsTableManager(
                 true=cast(int, col.sum()),
                 false=cast(int, total - col.sum()),
             )
-        if col.dtype == nw.Date:
+        if (col.dtype == nw.Date) or is_narwhals_time_type(col.dtype):
+            # Arrow does not support mean or quantile
+            if self.data.implementation.is_pyarrow():
+                return ColumnSummary(
+                    total=total,
+                    nulls=col.null_count(),
+                    min=col.min(),
+                    max=col.max(),
+                )
+
             return ColumnSummary(
                 total=total,
                 nulls=col.null_count(),
                 min=col.min(),
                 max=col.max(),
                 mean=col.mean(),
-                # Quantile not supported on date type
+                # Quantile not supported on date and time types
                 # median=col.quantile(0.5, interpolation="nearest"),
-            )
-        if is_narwhals_temporal_type(col.dtype):
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-                min=col.min(),
-                max=col.max(),
-                mean=col.mean(),
-                median=col.quantile(0.5, interpolation="nearest"),
-                p5=col.quantile(0.05, interpolation="nearest"),
-                p25=col.quantile(0.25, interpolation="nearest"),
-                p75=col.quantile(0.75, interpolation="nearest"),
-                p95=col.quantile(0.95, interpolation="nearest"),
             )
         if col.dtype == nw.Duration and isinstance(col.dtype, nw.Duration):
             unit_map = {
@@ -242,6 +355,27 @@ class NarwhalsTableManager(
                 min=str(res.min()) + unit,
                 max=str(res.max()) + unit,
                 mean=str(res.mean()) + unit,
+            )
+        if is_narwhals_temporal_type(col.dtype):
+            # Arrow does not support mean or quantile
+            if self.data.implementation.is_pyarrow():
+                return ColumnSummary(
+                    total=total,
+                    nulls=col.null_count(),
+                    min=col.min(),
+                    max=col.max(),
+                )
+            return ColumnSummary(
+                total=total,
+                nulls=col.null_count(),
+                min=col.min(),
+                max=col.max(),
+                mean=col.mean(),
+                median=col.quantile(0.5, interpolation="nearest"),
+                p5=col.quantile(0.05, interpolation="nearest"),
+                p25=col.quantile(0.25, interpolation="nearest"),
+                p75=col.quantile(0.75, interpolation="nearest"),
+                p95=col.quantile(0.95, interpolation="nearest"),
             )
         if (
             col.dtype == nw.List
@@ -310,6 +444,10 @@ class NarwhalsTableManager(
             return self.data[column].cast(nw.String).unique().to_list()
 
     def get_sample_values(self, column: str) -> list[str | int | float]:
+        # Skip lazy frames
+        if isinstance(self.data, nw.LazyFrame):
+            return []
+
         # Sample 3 values from the column
         SAMPLE_SIZE = 3
         try:
@@ -351,11 +489,11 @@ class NarwhalsTableManager(
     ) -> TableManager[Any]:
         if isinstance(self.data, nw.LazyFrame):
             return self.with_new_data(
-                self.data.sort(by, descending=descending)
+                self.data.sort(by, descending=descending, nulls_last=True)
             )
         else:
             return self.with_new_data(
-                self.data.sort(by, descending=descending)
+                self.data.sort(by, descending=descending, nulls_last=True)
             )
 
     def __repr__(self) -> str:
@@ -365,3 +503,21 @@ class NarwhalsTableManager(
         if rows is None:
             return f"{df_type}: {columns:,} columns"
         return f"{df_type}: {rows:,} rows x {columns:,} columns"
+
+    def _sanitize_table_value(self, value: Any) -> Any:
+        """
+        Sanitize a value for display in a table cell.
+
+        Most values are unchanged, but some values are for better
+        display such as Images.
+        """
+        if value is None:
+            return None
+
+        # Handle Pillow images
+        if DependencyManager.pillow.imported():
+            from PIL import Image
+
+            if isinstance(value, Image.Image):
+                return io_to_data_url(value, "image/png")
+        return value

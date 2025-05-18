@@ -10,24 +10,30 @@ import abc
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from marimo._config.config import MarimoConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._messaging.context import HTTP_REQUEST_CTX
-from marimo._messaging.types import Stderr, Stdout
-from marimo._runtime import dataflow
-from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
-from marimo._runtime.functions import FunctionRegistry
-from marimo._runtime.requests import HTTPRequest
 
 if TYPE_CHECKING:
-    from marimo._ast.app import AppKernelRunnerRegistry, InternalApp
-    from marimo._messaging.types import Stream
+    from collections.abc import Iterator
+
+    from marimo._ast.app import (
+        AppKernelRunnerRegistry,
+        InternalApp,
+    )
+    from marimo._config.config import MarimoConfig
+    from marimo._messaging.types import Stderr, Stdout, Stream
     from marimo._output.hypertext import Html
     from marimo._plugins.ui._core.registry import UIElementRegistry
+    from marimo._runtime import dataflow
+    from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
+    from marimo._runtime.functions import FunctionRegistry
     from marimo._runtime.params import CLIArgs, QueryParams
+    from marimo._runtime.requests import HTTPRequest
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._save.stores import Store
     from marimo._types.ids import CellId_t
 
 
@@ -72,6 +78,7 @@ class RuntimeContext(abc.ABC):
     virtual_file_registry: VirtualFileRegistry
     virtual_files_supported: bool
     app_kernel_runner_registry: AppKernelRunnerRegistry
+    cache_store: Store
     # stream, stdout, stderr are _not_ owned by the context
     stream: Stream
     stdout: Stdout | None
@@ -79,6 +86,7 @@ class RuntimeContext(abc.ABC):
     children: list[RuntimeContext]
     parent: RuntimeContext | None
     filename: str | None
+    app_config: _AppConfig
 
     @property
     @abc.abstractmethod
@@ -113,6 +121,12 @@ class RuntimeContext(abc.ABC):
     @abc.abstractmethod
     def cell_id(self) -> Optional[CellId_t]:
         """Get the cell id of the currently executing cell, if any."""
+        pass
+
+    @property
+    @abc.abstractmethod
+    def argv(self) -> list[str]:
+        """The original argv the context was created with."""
         pass
 
     @property

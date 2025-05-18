@@ -85,3 +85,8 @@ def validate_page_size(page_size: int) -> None:
         raise ValueError(
             "Page size limited to 200 rows. If you'd like this increased, please file an issue"
         )
+
+
+def validate_one_of(value: Any, options: list[Any]) -> None:
+    if value not in options:
+        raise ValueError(f"Value must be one of {options}")

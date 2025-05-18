@@ -1,22 +1,28 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 from functools import cached_property
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 import narwhals.stable.v1 as nw
 
+from marimo import _loggers
 from marimo._data.models import ExternalDataType
+from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
+from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     TableManager,
     TableManagerFactory,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 
 class PandasTableManagerFactory(TableManagerFactory):
@@ -32,38 +38,105 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
-                self._original_data = data
-                super().__init__(nw.from_native(data))
+                self._original_data = self._handle_multi_col_indexes(data)
+                super().__init__(nw.from_native(self._original_data))
 
             @cached_property
             def schema(self) -> pd.Series[Any]:
                 return self._original_data.dtypes  # type: ignore
 
-            # We override narwhals's to_csv to handle pandas
+            # We override narwhals's to_csv_str to handle pandas
             # headers
-            def to_csv(
+            def to_csv_str(
                 self, format_mapping: Optional[FormatMapping] = None
-            ) -> bytes:
+            ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
                 # Pandas omits H:M:S for datetimes when H:M:S is identically
                 # 0; this doesn't play well with our frontend table component,
                 # so we use an explicit date format.
-                return (
-                    self.apply_formatting(format_mapping)
-                    ._original_data.to_csv(
-                        # By adding %H:%M:%S and %z, we ensure that the
-                        # datetime is displayed in the frontend with the
-                        # correct timezone.
-                        index=has_headers,
-                        date_format="%Y-%m-%d %H:%M:%S%z",
-                    )
-                    .encode("utf-8")
+                return self.apply_formatting(
+                    format_mapping
+                )._original_data.to_csv(
+                    # By adding %H:%M:%S and %z, we ensure that the
+                    # datetime is displayed in the frontend with the
+                    # correct timezone.
+                    index=has_headers,
+                    date_format="%Y-%m-%d %H:%M:%S%z",
                 )
 
-            def to_json(self) -> bytes:
-                return self._original_data.to_json(orient="records").encode(
-                    "utf-8"
+            def to_json_str(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> str:
+                from pandas.api.types import (
+                    is_complex_dtype,
+                    is_object_dtype,
+                    is_timedelta64_dtype,
+                    is_timedelta64_ns_dtype,
                 )
+
+                _data = self.apply_formatting(format_mapping)._original_data
+                result = _data.copy()  # to avoid SettingWithCopyWarning
+                try:
+                    for col in result.columns:
+                        dtype = result[col].dtype
+                        # Complex dtypes are converted to {'imag': num, 'real': num} by default
+                        # We want to preserve the original display
+                        if is_complex_dtype(dtype):
+                            result[col] = result[col].apply(str)
+                        if is_timedelta64_dtype(
+                            dtype
+                        ) or is_timedelta64_ns_dtype(dtype):
+                            result[col] = result[col].apply(str)
+                        if is_object_dtype(dtype):
+                            result[col] = result[col].apply(
+                                self._sanitize_table_value
+                            )
+
+                except Exception as e:
+                    LOGGER.error(
+                        "Error handling complex or timedelta64 dtype",
+                        exc_info=e,
+                    )
+                    return sanitize_json_bigint(
+                        result.to_json(
+                            orient="records",
+                            date_format="iso",
+                            default_handler=str,
+                        )
+                    )
+
+                # Flatten row multi-index
+                if isinstance(result.index, pd.MultiIndex) or (
+                    isinstance(result.index, pd.Index)
+                    and not isinstance(result.index, pd.RangeIndex)
+                ):
+                    unnamed_indexes = result.index.names[0] is None
+                    index_levels = result.index.nlevels
+                    result = result.reset_index()
+
+                    if unnamed_indexes:
+                        # We could rename, but it doesn't work cleanly for multi-col indexes
+                        result.columns = pd.Index(
+                            [""] + list(result.columns[1:])
+                        )
+
+                        if index_levels > 1:
+                            LOGGER.warning(
+                                "Indexes with more than one level are not supported properly, call reset_index() to flatten"
+                            )
+
+                return sanitize_json_bigint(
+                    result.to_json(
+                        orient="records",
+                        date_format="iso",
+                        default_handler=str,
+                    )
+                )
+
+            def to_arrow_ipc(self) -> bytes:
+                out = io.BytesIO()
+                self._original_data.to_feather(out, compression="uncompressed")
+                return out.getvalue()
 
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]
@@ -80,6 +153,36 @@ class PandasTableManagerFactory(TableManagerFactory):
                             )
                         )
                 return PandasTableManager(_data)
+
+            def _handle_multi_col_indexes(
+                self, data: pd.DataFrame
+            ) -> pd.DataFrame:
+                is_multi_col_index = isinstance(data.columns, pd.MultiIndex)
+                # When in a table with selection, narwhals will convert the columns to a tuple
+                is_multi_col_table = (
+                    INDEX_COLUMN_NAME in data.columns
+                    and len(data.columns) > 1
+                    and any(isinstance(col, tuple) for col in data.columns)
+                )
+
+                # Convert multi-index or tuple columns to comma-separated strings
+                if is_multi_col_index or is_multi_col_table:
+                    data_copy = data.copy()
+                    LOGGER.info(
+                        "Multi-column indexes are not supported, converting to single index"
+                    )
+                    if INDEX_COLUMN_NAME in data_copy.columns:
+                        data_copy.columns = pd.Index(
+                            [INDEX_COLUMN_NAME]
+                            + [",".join(col) for col in data_copy.columns[1:]]
+                        )
+                    else:
+                        data_copy.columns = pd.Index(
+                            [",".join(col) for col in data_copy.columns]
+                        )
+                    return data_copy
+
+                return data
 
             # We override the default implementation to use pandas
             # headers
@@ -119,7 +222,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             # internal fields since they get displayed in the UI.
             def get_field_type(
                 self, column_name: str
-            ) -> Tuple[FieldType, ExternalDataType]:
+            ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns

@@ -8,6 +8,7 @@ are two ways:
   and `<iframe>` the published notebook.
 * `<iframe>` a [playground](playground.md) notebook, and [customize the embedding](playground.md#embedding-in-other-web-pages) with query params.
   (This is what we do throughout docs.marimo.io.)
+* Use the [marimo snippets](from_code_snippets.md) plugin to replace code snippets in HTML or markdown with interactive notebooks.
 
 We plan to provide more turn-key solutions for static site generation with
 marimo notebooks in the future.

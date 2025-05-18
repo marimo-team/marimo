@@ -5,10 +5,12 @@ import pathlib
 import sys
 import textwrap
 from dataclasses import dataclass
-from typing import Sequence
+from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -24,9 +26,7 @@ from marimo._messaging.ops import CellOp
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context.kernel_context import (
-    initialize_kernel_context,
-)
+from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
@@ -41,8 +41,12 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
+from marimo._utils import parse_dataclass
 from marimo._utils.parse_dataclass import parse_raw
 from tests.conftest import ExecReqProvider, MockedKernel
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
@@ -401,6 +405,74 @@ class TestExecution:
         assert k.globals["y"] == 1
         assert k.globals["z"] == 2
         assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_run_all(
+        self, any_kernel: Kernel
+    ) -> None:
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
+                    er2 := ExecutionRequest(cell_id="1", code="y=x+1"),
+                    er3 := ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.run([er1, er2, er3])
+        assert k.globals["y"] == 1
+        assert k.globals["z"] == 2
+        assert not k._uninstantiated_execution_requests
+
+    async def test_instantiate_autorun_false_set_not_stale(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Tests that cells are set to not stale before they start running."""
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code="y=x+1"),
+                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+        assert not k.errors
+        assert "x" not in k.globals
+        assert "y" not in k.globals
+        assert len(k._uninstantiated_execution_requests) == 3
+
+        await k.run([er1])
+        cell_ops = [
+            parse_dataclass.parse_raw(msg[1], CellOp)
+            for msg in k.stream.messages
+            if msg[0] == "cell-op"
+        ]
+        er1_set_not_stale_before_run = False
+        for op in cell_ops:
+            if op.cell_id == er1.cell_id and op.status == "running":
+                break
+            if (
+                op.cell_id == er1.cell_id
+                and op.stale_inputs is not None
+                and not op.stale_inputs
+            ):
+                er1_set_not_stale_before_run = True
+        assert er1_set_not_stale_before_run
 
     async def test_instantiate_autorun_false_delete_cells(
         self, any_kernel: Kernel
@@ -810,6 +882,53 @@ class TestExecution:
         assert set(k.errors.keys()) == {"0", "1"}
         assert not k.graph.cells["1"].stale
 
+    async def test_setup_runs(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        from marimo._ast.names import SETUP_CELL_NAME
+
+        await k.run(
+            [
+                ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=0"),
+                # NB. no explicit tie from setup to er.
+                er := ExecutionRequest(cell_id="1", code="y=1"),
+            ]
+        )
+        assert not k.graph.get_stale()
+        assert k.globals["x"] == 0
+        assert k.globals["y"] == 1
+        assert not k.errors
+
+        await k.run([ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=")])
+        assert SETUP_CELL_NAME not in k.graph.cells
+        assert "1" in k.graph.cells
+        assert "x" not in k.globals
+        if k.lazy():
+            # Opinionated - but because setup is not a true root, it should not
+            # invalidate other cells unless there is explicitly a tie.
+            assert k.graph.get_stale() == set()
+            await k.run([er])
+        assert not k.graph.get_stale()
+        assert "y" in k.globals
+
+        # fix syntax error
+        await k.run([ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=0")])
+        assert k.globals["x"] == 0
+        assert SETUP_CELL_NAME in k.graph.cells
+        assert "1" in k.graph.cells
+        assert not k.errors
+        if k.lazy():
+            # Wasn't stale previously
+            assert k.graph.get_stale() == set()
+            await k.run([er])
+        assert not k.graph.get_stale()
+        assert k.globals["y"] == 1
+
+        # set setup to stale
+        k.graph.cells[SETUP_CELL_NAME].set_stale(True)
+        await k.run([er])
+        # Should have run!
+        assert not k.graph.get_stale()
+
     async def test_syntax_error(self, any_kernel: Kernel) -> None:
         k = any_kernel
         await k.run(
@@ -1039,38 +1158,31 @@ class TestExecution:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="Windows paths behave differently"
     )
+    @patch.dict(
+        sys.modules,
+        {
+            "pyodide": Mock(),
+            "js": Mock(
+                location="https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
+            ),
+        },
+    )
     async def test_notebook_location_for_pyodide(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
         k = any_kernel
-        import sys
-        from types import ModuleType
 
-        # Mock pyodide and js modules
-        sys.modules["pyodide"] = ModuleType("pyodide")
-        js = ModuleType("js")
-        js.location = "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
-        sys.modules["js"] = js
-
-        try:
-            await k.run(
-                [
-                    exec_req.get(
-                        "import marimo as mo; loc = mo.notebook_location()"
-                    )
-                ]
-            )
-            assert (
-                str(k.globals["loc"])
-                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
-            )
-            assert (
-                str(k.globals["loc"] / "public" / "data.csv")
-                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
-            )
-        finally:
-            del sys.modules["pyodide"]
-            del sys.modules["js"]
+        await k.run(
+            [exec_req.get("import marimo as mo; loc = mo.notebook_location()")]
+        )
+        assert (
+            str(k.globals["loc"])
+            == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+        )
+        assert (
+            str(k.globals["loc"] / "public" / "data.csv")
+            == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
+        )
 
     async def test_notebook_dir_for_unnamed_notebook(
         self, tmp_path: pathlib.Path, exec_req: ExecReqProvider
@@ -1085,7 +1197,11 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1146,7 +1262,11 @@ class TestExecution:
                 cell_configs={},
                 user_config=DEFAULT_CONFIG,
                 app_metadata=AppMetadata(
-                    query_params={}, filename=filename, cli_args={}
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
                 ),
                 enqueue_control_request=lambda _: None,
                 module=create_main_module(None, None, None),
@@ -1156,6 +1276,123 @@ class TestExecution:
         finally:
             if str(tmp_path) in sys.path:
                 sys.path.remove(str(tmp_path))
+
+    def test_sys_argv_updated(self, tmp_path: pathlib.Path) -> None:
+        old_argv = sys.argv
+        try:
+            filename = str(tmp_path / "notebook.py")
+            Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=["foo", "bar"],
+                    app_config=_AppConfig(),
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+
+            assert len(sys.argv) == 3
+            assert filename == sys.argv[0]
+            assert sys.argv[1] == "foo"
+            assert sys.argv[2] == "bar"
+        finally:
+            sys.argv = old_argv
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+
+    def test_sys_argv_not_updated_when_none(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        argv = sys.argv
+        try:
+            filename = str(tmp_path / "notebook.py")
+            Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=filename,
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+            assert argv == sys.argv
+        finally:
+            # restore argv in case test failed or accidentally mutated it
+            sys.argv = argv
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+
+    async def test_sys_path_updated_with_exec_req(
+        self, tmp_path: pathlib.Path, exec_req: ExecReqProvider
+    ) -> None:
+        custom_path = pathlib.Path("some") / "path"
+        filename = tmp_path / "notebook.py"
+
+        try:
+            k = Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config={
+                    **DEFAULT_CONFIG,
+                    "runtime": {
+                        **DEFAULT_CONFIG["runtime"],
+                        "pythonpath": [str(custom_path)],
+                    },
+                },
+                app_metadata=AppMetadata(
+                    query_params={},
+                    filename=str(filename),
+                    cli_args={},
+                    argv=None,
+                    app_config=_AppConfig(),
+                ),
+                enqueue_control_request=lambda _: None,
+                module=create_main_module(None, None, None),
+            )
+            initialize_kernel_context(
+                kernel=k,
+                stream=k.stream,
+                stdout=k.stdout,
+                stderr=k.stderr,
+                virtual_files_supported=True,
+                mode=SessionMode.EDIT,
+            )
+
+            # Verify the path was added using exec_req
+            await k.run(
+                [
+                    exec_req.get("import sys"),
+                    exec_req.get("paths = list(sys.path)"),
+                ]
+            )
+
+            assert str(custom_path) in k.globals["paths"]
+            assert str(filename.parent) in k.globals["paths"]
+        finally:
+            teardown_context()
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+            if str(custom_path) in sys.path:
+                sys.path.remove(str(custom_path))
 
     async def test_set_config_before_registering_cell(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -1523,6 +1760,10 @@ class TestStrictExecution:
         assert k.globals["V1"] == 11
 
     @staticmethod
+    @pytest.mark.xfail(
+        sys.version_info >= (3, 13),
+        reason="Namespace handling changes in Python 3.13",
+    )
     async def test_cell_zero_copy_works(
         strict_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -2763,10 +3004,8 @@ class TestErrorHandling:
 
         assert len(errors) == 1
         assert errors[0].type == "exception"
-        assert (
-            errors[0].msg
-            == "This cell raised an exception: ValueError('some secret error')"
-        )
+        assert errors[0].msg == "some secret error"
+        assert errors[0].exception_type == "ValueError"
 
     async def test_error_handling_in_run_mode(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -2805,6 +3044,25 @@ class TestErrorHandling:
 def test_notebook_dir_in_non_notebook_mode() -> None:
     assert notebook_dir() == pathlib.Path().absolute()
     assert notebook_location() == pathlib.Path().absolute()
+
+
+async def test_future_annotations_not_inherited(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+        class A: pass
+        def foo() -> A:
+            ...
+        anno = foo.__annotations__
+        """
+            )
+        ]
+    )
+    assert not k.errors
+    assert k.globals["A"] == k.globals["anno"]["return"]
 
 
 def _parse_error_output(cell_op: CellOp) -> list[Error]:

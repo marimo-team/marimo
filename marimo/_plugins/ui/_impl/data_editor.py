@@ -8,9 +8,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Final,
-    List,
+    Literal,
     Optional,
     TypedDict,
     Union,
@@ -26,6 +25,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.validators import validate_page_size
+from marimo._utils.deprecated import deprecated
 
 LOGGER = _loggers.marimo_logger()
 
@@ -41,7 +41,7 @@ class DataEditorValue:
         data (List[Dict[str, Any]]): Row-oriented data as a list of dictionaries.
     """
 
-    data: List[Dict[str, Any]]
+    data: list[dict[str, Any]]
 
 
 class PositionalEdit(TypedDict):
@@ -65,11 +65,21 @@ class DataEdits(TypedDict):
         edits (List[PositionalEdit]): List of individual cell edits.
     """
 
-    edits: List[PositionalEdit]
+    edits: list[PositionalEdit]
 
 
-RowOrientedData = List[Dict[str, Any]]
-ColumnOrientedData = Dict[str, List[Any]]
+RowOrientedData = list[dict[str, Any]]
+ColumnOrientedData = dict[str, list[Any]]
+
+
+@deprecated(
+    "mo.ui.experimental_data_editor is deprecated. Use mo.ui.data_editor instead"
+)
+def experimental_data_editor(
+    *args: Any,
+    **kwargs: Any,
+) -> data_editor:
+    return data_editor(*args, **kwargs)
 
 
 @mddoc
@@ -79,7 +89,7 @@ class data_editor(
         Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
     ]
 ):
-    """[EXPERIMENTAL] A data editor component for editing tabular data.
+    """A data editor component for editing tabular data.
 
     This component is experimental and intentionally limited in features,
     if you have any feature requests, please file an issue at
@@ -97,21 +107,21 @@ class data_editor(
         import pandas as pd
 
         df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-        editor = mo.ui.experimental_data_editor(data=df, label="Edit Data")
+        editor = mo.ui.data_editor(data=df, label="Edit Data")
         ```
 
         Create a data editor from a list of dicts:
 
         ```python
         data = [{"A": 1, "B": "a"}, {"A": 2, "B": "a"}, {"A": 3, "B": "c"}]
-        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
         Create a data editor from a dict of lists:
 
         ```python
         data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
-        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
     Attributes:
@@ -123,6 +133,10 @@ class data_editor(
             Can be a Pandas dataframe, a list of dicts, or a dict of lists.
         label (str): Markdown label for the element.
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
+        column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
+            `auto` will size columns based on the content, `fit` will size columns to fit the view.
+        pagination (Optional[bool]): Whether to use pagination, enabled by default.
+        page_size (Optional[int]): Page size if pagination is in use, 50 by default.
     """
 
     _name: Final[str] = "marimo-data-editor"
@@ -142,6 +156,7 @@ class data_editor(
                 None,
             ]
         ] = None,
+        column_sizing_mode: Literal["auto", "fit"] = "auto",
     ) -> None:
         validate_page_size(page_size)
         table_manager = get_table_manager(data)
@@ -165,6 +180,7 @@ class data_editor(
                 "field-types": field_types or None,
                 "pagination": pagination,
                 "page-size": page_size,
+                "column-sizing-mode": column_sizing_mode,
             },
             on_change=on_change,
         )

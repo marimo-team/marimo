@@ -3,21 +3,18 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
+from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    Iterator,
-    List,
-    Mapping,
     Optional,
-    Tuple,
     TypeVar,
     Union,
 )
 from uuid import uuid4
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
 from marimo._types.ids import CellId_t, RequestId, UIElementId
@@ -26,13 +23,14 @@ if TYPE_CHECKING:
     from starlette.datastructures import URL
     from starlette.requests import HTTPConnection
 
+
 CompletionRequestId = str
 
 T = TypeVar("T")
-ListOrValue = Union[T, List[T]]
-SerializedQueryParams = Dict[str, ListOrValue[str]]
+ListOrValue = Union[T, list[T]]
+SerializedQueryParams = dict[str, ListOrValue[str]]
 Primitive = Union[str, bool, int, float]
-SerializedCLIArgs = Dict[str, ListOrValue[Primitive]]
+SerializedCLIArgs = dict[str, ListOrValue[Primitive]]
 
 
 @dataclass
@@ -77,7 +75,7 @@ class HTTPRequest(Mapping[str, Any]):
         return f"HTTPRequest(path={self.url['path']}, params={len(self.query_params)})"
 
     @staticmethod
-    def from_request(request: HTTPConnection) -> "HTTPRequest":
+    def from_request(request: HTTPConnection) -> HTTPRequest:
         def _url_to_dict(url: URL) -> dict[str, Any]:
             return {
                 "path": url.path,
@@ -122,6 +120,16 @@ class HTTPRequest(Mapping[str, Any]):
 
 
 @dataclass
+class PdbRequest:
+    cell_id: CellId_t
+    # incoming request, e.g. from Starlette or FastAPI
+    request: Optional[HTTPRequest] = None
+
+    def __repr__(self) -> str:
+        return f"PdbRequest(cell={self.cell_id})"
+
+
+@dataclass
 class ExecutionRequest:
     cell_id: CellId_t
     code: str
@@ -135,15 +143,16 @@ class ExecutionRequest:
 
 
 @dataclass
-class ExecuteStaleRequest: ...
+class ExecuteStaleRequest:
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
 class ExecuteMultipleRequest:
     # ids of cells to run
-    cell_ids: List[CellId_t]
+    cell_ids: list[CellId_t]
     # code to register/run for each cell
-    codes: List[str]
+    codes: list[str]
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
     # time at which the request was received
@@ -153,7 +162,7 @@ class ExecuteMultipleRequest:
         return f"ExecuteMultipleRequest(cells={len(self.cell_ids)})"
 
     @property
-    def execution_requests(self) -> List[ExecutionRequest]:
+    def execution_requests(self) -> list[ExecutionRequest]:
         return [
             ExecutionRequest(
                 cell_id=cell_id,
@@ -174,7 +183,7 @@ class ExecuteMultipleRequest:
 class ExecuteScratchpadRequest:
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -184,8 +193,8 @@ class RenameRequest:
 
 @dataclass
 class SetUIElementValueRequest:
-    object_ids: List[UIElementId]
-    values: List[Any]
+    object_ids: list[UIElementId]
+    values: list[Any]
     # Incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
     # uniquely identifies the request
@@ -201,7 +210,7 @@ class SetUIElementValueRequest:
 
     @staticmethod
     def from_ids_and_values(
-        ids_and_values: List[Tuple[UIElementId, Any]],
+        ids_and_values: list[tuple[UIElementId, Any]],
         request: Optional[HTTPRequest] = None,
     ) -> SetUIElementValueRequest:
         if not ids_and_values:
@@ -216,7 +225,7 @@ class SetUIElementValueRequest:
         )
 
     @property
-    def ids_and_values(self) -> List[Tuple[UIElementId, Any]]:
+    def ids_and_values(self) -> list[tuple[UIElementId, Any]]:
         return list(zip(self.object_ids, self.values))
 
 
@@ -225,7 +234,7 @@ class FunctionCallRequest:
     function_call_id: RequestId
     namespace: str
     function_name: str
-    args: Dict[str, Any]
+    args: dict[str, Any]
 
     def __repr__(self) -> str:
         return f"FunctionCallRequest(id={self.function_call_id}, fn={self.namespace}.{self.function_name})"
@@ -237,6 +246,8 @@ class AppMetadata:
 
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
+    app_config: _AppConfig
+    argv: Union[list[str], None] = None
 
     filename: Optional[str] = None
 
@@ -244,7 +255,7 @@ class AppMetadata:
 @dataclass
 class SetCellConfigRequest:
     # Map from Cell ID to (possibly partial) CellConfig
-    configs: Dict[CellId_t, Dict[str, Any]]
+    configs: dict[CellId_t, dict[str, Any]]
 
 
 @dataclass
@@ -255,7 +266,7 @@ class SetUserConfigRequest:
 
 @dataclass
 class CreationRequest:
-    execution_requests: Tuple[ExecutionRequest, ...]
+    execution_requests: tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
     auto_run: bool
     request: Optional[HTTPRequest] = None
@@ -289,7 +300,7 @@ class InstallMissingPackagesRequest:
     # Map from package name to desired version
     # If the package name is not in the map, the latest version
     # will be installed
-    versions: Dict[str, str]
+    versions: dict[str, str]
 
 
 @dataclass
@@ -299,10 +310,14 @@ class PreviewDatasetColumnRequest:
     # The source of the dataset
     source: str
     # The name of the dataset
-    # This currently corresponds to the variable name
+    # If this is a Python dataframe, this is the variable name
+    # If this is an SQL table, this is the table name
     table_name: str
     # The name of the column
     column_name: str
+    # The fully qualified name of the table
+    # This is the database.schema.table name
+    fully_qualified_table_name: Optional[str] = None
 
 
 @dataclass
@@ -316,19 +331,51 @@ class PreviewSQLTableRequest:
     table_name: str
 
 
+@dataclass
+class PreviewSQLTableListRequest:
+    """Preview list of tables in an SQL schema"""
+
+    request_id: RequestId
+    engine: str
+    database: str
+    schema: str
+
+
+@dataclass
+class PreviewDataSourceConnectionRequest:
+    """Fetch a datasource connection"""
+
+    engine: str
+
+
+@dataclass
+class ListSecretKeysRequest:
+    request_id: RequestId
+
+
+@dataclass
+class RefreshSecretsRequest:
+    pass
+
+
 ControlRequest = Union[
+    CreationRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
     ExecuteStaleRequest,
-    CreationRequest,
-    DeleteCellRequest,
     FunctionCallRequest,
+    InstallMissingPackagesRequest,
+    ListSecretKeysRequest,
+    PdbRequest,
+    PreviewDatasetColumnRequest,
+    PreviewSQLTableListRequest,
+    PreviewDataSourceConnectionRequest,
+    PreviewSQLTableRequest,
+    RefreshSecretsRequest,
     RenameRequest,
     SetCellConfigRequest,
-    SetUserConfigRequest,
     SetUIElementValueRequest,
+    SetUserConfigRequest,
     StopRequest,
-    InstallMissingPackagesRequest,
-    PreviewDatasetColumnRequest,
-    PreviewSQLTableRequest,
 ]

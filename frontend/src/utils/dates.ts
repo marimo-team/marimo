@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { formatDate } from "date-fns";
+import { TZDate } from "@date-fns/tz";
 import { Logger } from "./Logger";
 
 export function prettyDate(
@@ -14,11 +15,15 @@ export function prettyDate(
     // If type is date, drop the timezone by rendering in UTC
     // since dates are absolute
     if (type === "date") {
-      value = new Date(value).toLocaleDateString(undefined, {
+      return new Date(value).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
         timeZone: "UTC",
       });
     }
 
+    // For datetime, we keep the original timezone
     return new Date(value).toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
@@ -34,12 +39,45 @@ export function prettyDate(
  * If the date has sub-second precision, it should say "2024-10-07 17:15:00.123".
  * Otherwise, it should say "2024-10-07 17:15:00".
  */
-export function exactDateTime(value: Date): string {
+export function exactDateTime(
+  value: Date,
+  timezone: string | undefined,
+): string {
   const hasSubSeconds = value.getUTCMilliseconds() !== 0;
-  if (hasSubSeconds) {
-    return formatDate(value, "yyyy-MM-dd HH:mm:ss.SSS");
+  try {
+    if (timezone) {
+      const valueWithTimezone = new TZDate(value, timezone);
+      const shortTimeZone = getShortTimeZone(timezone);
+      if (hasSubSeconds) {
+        return `${formatDate(valueWithTimezone, "yyyy-MM-dd HH:mm:ss.SSS")} ${shortTimeZone}`;
+      }
+      return `${formatDate(valueWithTimezone, "yyyy-MM-dd HH:mm:ss")} ${shortTimeZone}`;
+    }
+
+    if (hasSubSeconds) {
+      return formatDate(value, "yyyy-MM-dd HH:mm:ss.SSS");
+    }
+
+    return formatDate(value, "yyyy-MM-dd HH:mm:ss");
+  } catch (error) {
+    Logger.warn("Failed to parse date", error);
+    return value.toISOString();
   }
-  return formatDate(value, "yyyy-MM-dd HH:mm:ss");
+}
+
+export function getShortTimeZone(timezone: string): string {
+  try {
+    const abbrev = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "short",
+    })
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value;
+    return abbrev ?? "";
+  } catch (error) {
+    Logger.warn("Failed to get abbrev", error);
+    return timezone;
+  }
 }
 
 /**

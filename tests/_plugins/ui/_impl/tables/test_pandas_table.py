@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from math import isnan
 from typing import Any
 from unittest.mock import Mock
 
@@ -151,15 +152,136 @@ class TestPandasTableManager(unittest.TestCase):
         assert isinstance(data, bytes)
         snapshot("pandas.csv", data.decode("utf-8"))
 
+    def factory_create_json_from_df(self, df: Any) -> Any:
+        if isinstance(df, pd.DataFrame):
+            manager = self.factory.create()(df)
+            return json.loads(manager.to_json().decode("utf-8"))
+
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
+
     def test_to_json(self) -> None:
-        expected_json = self.data.to_json(orient="records").encode("utf-8")
+        expected_json = self.data.to_json(
+            orient="records", date_format="iso"
+        ).encode("utf-8")
         assert self.manager.to_json() == expected_json
+
+    def test_to_json_format_mapping(self) -> None:
+        expected_json = (
+            self.data.assign(A=self.data["A"] * 2)
+            .to_json(orient="records", date_format="iso")
+            .encode("utf-8")
+        )
+        format_mapping = {"A": lambda x: x * 2}
+        assert self.manager.to_json(format_mapping) == expected_json, (
+            "Format mapping not applied"
+        )
+
+    def test_to_json_datetime_handling(self) -> None:
+        timestamps = pd.DataFrame(
+            {
+                "timestamp": [pd.to_datetime("2024-12-17")],
+                "timestamp_with_timezone": [
+                    pd.to_datetime("2024-12-17").tz_localize("UTC")
+                ],
+            }
+        )
+        json_data = self.factory_create_json_from_df(timestamps)
+
+        assert json_data[0]["timestamp"] == "2024-12-17T00:00:00.000"
+        assert (
+            json_data[0]["timestamp_with_timezone"]
+            == "2024-12-17T00:00:00.000Z"
+        )
+
+    def test_to_json_complex_number_handling(self) -> None:
+        df = pd.DataFrame({"complex": [1 + 2j]})
+        json_data = self.factory_create_json_from_df(df)
+        assert json_data[0]["complex"] == "(1+2j)"
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(),
+        reason="numpy not installed",
+    )
+    def test_to_json_numpy_complex_handling(self) -> None:
+        import numpy as np
+
+        df = pd.DataFrame({"complex": np.array([1 + 2j])})
+        json_data = self.factory_create_json_from_df(df)
+        assert json_data[0]["complex"] == "(1+2j)"
 
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
         data = complex_data.to_json()
         assert isinstance(data, bytes)
         snapshot("pandas.json", data.decode("utf-8"))
+
+    def test_to_json_index(self) -> None:
+        data = pd.DataFrame({"a": [1, 2, 3]}, index=["c", "d", "e"])
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"": "c", "a": 1},
+            {"": "d", "a": 2},
+            {"": "e", "a": 3},
+        ]
+
+        # Named index
+        data = pd.DataFrame(
+            {"a": [1, 2, 3]}, index=pd.Index(["c", "d", "e"], name="index")
+        )
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"index": "c", "a": 1},
+            {"index": "d", "a": 2},
+            {"index": "e", "a": 3},
+        ]
+
+    def test_to_json_multi_index(self) -> None:
+        # Named index
+        data = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4, 5, 6],
+            },
+            index=pd.MultiIndex.from_tuples(
+                [("x", 1), ("y", 2), ("z", 3)], names=["X", "Y"]
+            ),
+        )
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"X": "x", "Y": 1, "a": 1, "b": 4},
+            {"X": "y", "Y": 2, "a": 2, "b": 5},
+            {"X": "z", "Y": 3, "a": 3, "b": 6},
+        ]
+
+    @pytest.mark.xfail(reason="Implementation not yet supported")
+    def test_to_json_multi_index_unnamed(self) -> None:
+        data = pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "b": [4, 5, 6],
+            },
+            index=pd.MultiIndex.from_tuples([("x", 1), ("y", 2), ("z", 3)]),
+        )
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"level_0": "x", "level_1": 1, "a": 1, "b": 4},
+            {"level_0": "y", "level_1": 2, "a": 2, "b": 5},
+            {"level_0": "z", "level_1": 3, "a": 3, "b": 6},
+        ]
+
+    def test_to_json_multi_col_index(self) -> None:
+        cols = pd.MultiIndex.from_arrays(
+            [["basic_amt"] * 2, ["NSW", "QLD"]], names=[None, "Faculty"]
+        )
+        idx = pd.Index(["All", "Full"])
+        data = pd.DataFrame([(1, 1), (0, 1)], index=idx, columns=cols)
+
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"": "All", "basic_amt,NSW": 1, "basic_amt,QLD": 1},
+            {"": "Full", "basic_amt,NSW": 0, "basic_amt,QLD": 1},
+        ]
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
@@ -844,11 +966,23 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].to_list()[1:] == [
+        assert sorted_manager.data["A"].to_list()[:-1] == [
             3.0,
             2.0,
             1.0,
         ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
+
+        # ascending
+        sorted_manager = manager.sort_values("A", descending=False)
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            1.0,
+            2.0,
+            3.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
 
     def test_dataframe_with_multiindex(self) -> None:
         df = pd.DataFrame(
@@ -897,3 +1031,85 @@ class TestPandasTableManager(unittest.TestCase):
         assert sample_values == [1, 2, 3]
         sample_values = manager.get_sample_values("B")
         assert sample_values == ["a", "b", "c"]
+
+    @pytest.mark.skipif(
+        not DependencyManager.pillow.has(), reason="pillow not installed"
+    )
+    def test_get_field_types_with_pil_images(self):
+        import numpy as np
+        import pandas as pd
+        from PIL import Image
+
+        # Create a simple image
+        img_array = np.zeros((10, 10, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+
+        # Create a dataframe with an image column
+        data = pd.DataFrame(
+            {"image_col": [img, img, img], "text_col": ["a", "b", "c"]}
+        )
+
+        manager = self.factory.create()(data)
+
+        # PIL images should be treated as objects
+        assert manager.get_field_type("image_col") == ("string", "object")
+        assert manager.get_field_type("text_col") == ("string", "object")
+
+        as_json = manager.to_json_str()
+        assert "data:image/png" in as_json
+
+    def test_to_json_bigint(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "A": [
+                    20,
+                    9007199254740992,
+                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+                "B": [
+                    -20,
+                    -9007199254740992,
+                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+            }
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json())
+
+        # Regular integers should remain as numbers
+        assert json_data[0]["A"] == 20
+        assert json_data[0]["B"] == -20
+
+        # Large integers should be converted to strings
+        assert json_data[1]["A"] == "9007199254740992"
+        assert json_data[1]["B"] == "-9007199254740992"
+
+    def test_to_json_uuid_encoding(self) -> None:
+        import uuid
+
+        import pandas as pd
+
+        # Create data with UUIDs that might cause UTF-8 encoding issues
+        data = pd.DataFrame(
+            {
+                "id": [
+                    uuid.UUID("00000000-0000-0000-0000-000000000000"),
+                    uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+                    uuid.UUID("123e4567-e89b-12d3-a456-426614174000"),
+                ],
+                "name": ["test1", "test2", "test3"],
+            }
+        )
+        manager = self.factory.create()(data)
+
+        # This should not raise any encoding errors
+        json_data = json.loads(manager.to_json())
+
+        # Verify the data was properly encoded
+        assert len(json_data) == 3
+        assert json_data[0]["id"] == "00000000-0000-0000-0000-000000000000"
+        assert json_data[1]["id"] == "ffffffff-ffff-ffff-ffff-ffffffffffff"
+        assert json_data[2]["id"] == "123e4567-e89b-12d3-a456-426614174000"
+        assert json_data[0]["name"] == "test1"
+        assert json_data[1]["name"] == "test2"
+        assert json_data[2]["name"] == "test3"

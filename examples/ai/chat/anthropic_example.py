@@ -54,7 +54,7 @@ def __(input_key, mo, os_key):
 def __(key, mo):
     chatbot = mo.ui.chat(
         mo.ai.llm.anthropic(
-            "claude-3-5-sonnet-20240620",
+            "claude-3-7-sonnet-20250219",
             system_message="You are a helpful assistant.",
             api_key=key,
         ),

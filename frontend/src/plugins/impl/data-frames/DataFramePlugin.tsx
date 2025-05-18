@@ -13,11 +13,10 @@ import type { ColumnDataTypes, ColumnId } from "./types";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { LoadingDataTableComponent } from "../DataTablePlugin";
+import { LoadingDataTableComponent, TableProviders } from "../DataTablePlugin";
 import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
 import { memo, useEffect, useRef, useState } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBanner } from "../common/error-banner";
 import type { DataType } from "../vega/vega-loader";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
@@ -129,19 +128,21 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       ),
   })
   .renderer((props) => (
-    <TooltipProvider>
+    <TableProviders>
       <DataFrameComponent
         {...props.data}
         {...props.functions}
         value={props.value}
         setValue={props.setValue}
+        host={props.host}
       />
-    </TooltipProvider>
+    </TableProviders>
   ));
 
 interface DataTableProps extends Data, PluginFunctions {
   value: S;
   setValue: (value: S) => void;
+  host: HTMLElement;
 }
 
 const EMPTY: Transformations = {
@@ -157,6 +158,7 @@ export const DataFrameComponent = memo(
     get_dataframe,
     get_column_values,
     search,
+    host,
   }: DataTableProps): JSX.Element => {
     const { data, error, loading } = useAsyncData(
       () => get_dataframe({}),
@@ -265,6 +267,7 @@ export const DataFrameComponent = memo(
           hasStableRowId={false}
           totalRows={total_rows ?? 0}
           totalColumns={Object.keys(columns).length}
+          maxColumns="all"
           pageSize={pageSize}
           pagination={true}
           fieldTypes={field_types}
@@ -279,6 +282,8 @@ export const DataFrameComponent = memo(
           value={Arrays.EMPTY}
           setValue={Functions.NOOP}
           selection={null}
+          lazy={false}
+          host={host}
         />
       </div>
     );

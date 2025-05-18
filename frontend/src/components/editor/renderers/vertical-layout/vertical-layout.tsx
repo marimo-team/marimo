@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
-import { outputIsStale } from "@/core/cells/cell";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConsoleOutput } from "@/components/editor/output/ConsoleOutput";
 import {
@@ -37,7 +37,7 @@ import { useAtomValue } from "jotai";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { KnownQueryParams } from "@/core/constants";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { isErrorMime } from "@/core/mime";
 import { getMarimoShowCode } from "@/core/dom/marimo-tag";
 
@@ -279,19 +279,24 @@ const VerticalCell = memo(
       },
       false,
     );
+    const loading = outputIsLoading(status);
 
     // Kiosk and not presenting
     const kioskFull = kiosk && mode !== "present";
 
     const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
     const published = !showCode && !kioskFull;
-    const className = cn("Cell", "hover-actions-parent empty:invisible", {
-      published: published,
-      interactive: mode === "edit",
-      "has-error": errored,
-      stopped: stopped,
-      borderless: isPureMarkdown && !published,
-    });
+    const className = cn(
+      "marimo-cell",
+      "hover-actions-parent empty:invisible",
+      {
+        published: published,
+        interactive: mode === "edit",
+        "has-error": errored,
+        stopped: stopped,
+        borderless: isPureMarkdown && !published,
+      },
+    );
 
     const HTMLId = HTMLCellId.create(cellId);
 
@@ -304,6 +309,7 @@ const VerticalCell = memo(
           className="output-area"
           cellId={cellId}
           stale={outputStale}
+          loading={loading}
         />
       );
 
@@ -362,6 +368,7 @@ const VerticalCell = memo(
           className="output-area"
           cellId={cellId}
           stale={outputStale}
+          loading={loading}
         />
       </div>
     );

@@ -8,7 +8,6 @@ from typing import (
     Any,
     Callable,
     Generic,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -48,7 +47,7 @@ def _ro_fail() -> None:
     )
 
 
-def shadow_wrap(ref_cls: Type[_Copy[T]], base: T) -> T:
+def shadow_wrap(ref_cls: type[_Copy[T]], base: T) -> T:
     """
     Wraps the base object by copying all attributes over to slots, and the then
     restricting write access to the object attributes / items directly. This is

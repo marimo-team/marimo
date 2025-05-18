@@ -4,14 +4,15 @@ from __future__ import annotations
 import abc
 import json
 import os
-import pathlib
+import re
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.error import HTTPError
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._cli.print import green
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
@@ -45,7 +46,7 @@ class FileReader(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         """Read the file and return its content and filename."""
         pass
 
@@ -54,13 +55,13 @@ class LocalFileReader(FileReader):
     def can_read(self, name: str) -> bool:
         return not is_url(name)
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
+        file_path = Path(name)
         # Is directory
-        if os.path.isdir(name):
-            return "", os.path.basename(name)
-        with open(name, "r", encoding="utf-8") as f:
-            content = f.read()
-        return content, os.path.basename(name)
+        if file_path.is_dir():
+            return "", file_path.name
+        content = file_path.read_text(encoding="utf-8")
+        return content, file_path.name
 
 
 class GitHubIssueReader(FileReader):
@@ -69,7 +70,7 @@ class GitHubIssueReader(FileReader):
             "https://github.com/marimo-team/marimo/issues/"
         )
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         issue_number = name.split("/")[-1]
         api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
         issue_response = urllib.request.urlopen(api_url).read().decode("utf-8")
@@ -84,15 +85,16 @@ class GitHubIssueReader(FileReader):
 
 
 class StaticNotebookReader(FileReader):
-    CODE_PREFIX = '<marimo-code hidden="">'
-    CODE_SUFFIX = "</marimo-code>"
-    FILENAME_PREFIX = '<marimo-filename hidden="">'
-    FILENAME_SUFFIX = "</marimo-filename>"
+    CODE_TAG = r"marimo-code"
+    CODE_REGEX = re.compile(r"<marimo-code\s+hidden(?:=['\"]{2})?\s*>(.*?)<")
+    FILENAME_REGEX = re.compile(
+        r"<marimo-filename\s+hidden(?:=['\"]{2})?\s*>(.*?)<"
+    )
 
     def can_read(self, name: str) -> bool:
         return self._is_static_marimo_notebook_url(name)[0]
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         _, file_contents = self._is_static_marimo_notebook_url(name)
         code = self._extract_code_from_static_notebook(file_contents)
         filename = self._extract_filename_from_static_notebook(file_contents)
@@ -105,12 +107,12 @@ class StaticNotebookReader(FileReader):
             request = urllib.request.Request(
                 url,
                 # User agent to avoid 403 Forbidden some bot protection
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={"User-Agent": f"marimo/{__version__}"},
             )
             file_contents = (
                 urllib.request.urlopen(request).read().decode("utf-8")
             )
-            return StaticNotebookReader.CODE_PREFIX in file_contents, str(
+            return StaticNotebookReader.CODE_TAG in file_contents, str(
                 file_contents
             )
 
@@ -123,34 +125,40 @@ class StaticNotebookReader(FileReader):
             return download(url)
 
         # Starts with https://static.marimo.app/, append /download
-        if url.startswith("https://static.marimo.app/"):
+        if url.startswith("https://static.marimo.app/static"):
             return download(os.path.join(url, "download"))
+
+        # Other marimo domains
+        DOMAINS = [
+            "marimo.app",
+            "links.marimo.app",
+        ]
+        if any(url.startswith(f"https://{domain}/") for domain in DOMAINS):
+            return download(url)
 
         # Otherwise, not a static marimo notebook
         return False, ""
 
     @staticmethod
     def _extract_code_from_static_notebook(file_contents: str) -> str:
-        # normalize hidden attribute
-        file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        return file_contents.split(StaticNotebookReader.CODE_PREFIX)[1].split(
-            StaticNotebookReader.CODE_SUFFIX
-        )[0]
+        search = re.search(StaticNotebookReader.CODE_REGEX, file_contents)
+        assert search is not None, "<marimo-code> not found in file contents"
+        return urllib.parse.unquote(search.group(1))
 
     @staticmethod
     def _extract_filename_from_static_notebook(file_contents: str) -> str:
-        # normalize hidden attribute
-        file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        return file_contents.split(StaticNotebookReader.FILENAME_PREFIX)[
-            1
-        ].split(StaticNotebookReader.FILENAME_SUFFIX)[0]
+        if search := re.search(
+            StaticNotebookReader.FILENAME_REGEX, file_contents
+        ):
+            return urllib.parse.unquote(search.group(1))
+        return "notebook.py"
 
 
 class GitHubSourceReader(FileReader):
     def can_read(self, name: str) -> bool:
         return is_github_src(name, ext=".py") or is_github_src(name, ext=".md")
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         url = get_github_src_url(name)
         content = urllib.request.urlopen(url).read().decode("utf-8")
         return content, os.path.basename(url)
@@ -160,7 +168,7 @@ class GenericURLReader(FileReader):
     def can_read(self, name: str) -> bool:
         return is_url(name)
 
-    def read(self, name: str) -> Tuple[str, str]:
+    def read(self, name: str) -> tuple[str, str]:
         content = urllib.request.urlopen(name).read().decode("utf-8")
         # Remove query parameters from the URL
         url_without_query = name.split("?")[0]
@@ -177,7 +185,7 @@ class FileContentReader:
             GenericURLReader(),
         ]
 
-    def read_file(self, name: str) -> Tuple[str, str]:
+    def read_file(self, name: str) -> tuple[str, str]:
         """
         Read the file and return its content and filename
 
@@ -204,7 +212,7 @@ class FileHandler(abc.ABC):
     @abc.abstractmethod
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
         pass
 
 
@@ -218,13 +226,13 @@ class LocalFileHandler(FileHandler):
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
         del temp_dir
         import click
 
-        path = pathlib.Path(name)
+        path = Path(name)
 
-        if self.allow_directory and os.path.isdir(name):
+        if self.allow_directory and path.is_dir():
             return name, None
 
         if path.suffix == ".ipynb":
@@ -243,7 +251,7 @@ class LocalFileHandler(FileHandler):
             )
 
         if not self.allow_new_file:
-            if not os.path.exists(name):
+            if not path.exists():
                 raise click.ClickException(
                     f"Invalid NAME - {name} does not exist"
                 )
@@ -264,7 +272,7 @@ class RemoteFileHandler(FileHandler):
 
     def handle(
         self, name: str, temp_dir: TemporaryDirectory[str]
-    ) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
         try:
             content, filename = self.reader.read_file(name)
         except HTTPError as e:
@@ -281,19 +289,18 @@ class RemoteFileHandler(FileHandler):
         content: str, name: str, temp_dir: TemporaryDirectory[str]
     ) -> str:
         LOGGER.info("Creating temporary file")
-        path_to_app = os.path.join(temp_dir.name, name)
+        path_to_app = Path(temp_dir.name) / name
         # If doesn't end in .py, add it
-        if not path_to_app.endswith(".py"):
-            path_to_app += ".py"
-        with open(path_to_app, "w") as f:
-            f.write(content)
+        if not path_to_app.suffix == ".py":
+            path_to_app = path_to_app.with_suffix(".py")
+        path_to_app.write_text(content, encoding="utf-8")
         LOGGER.info("App saved to %s", path_to_app)
-        return path_to_app
+        return str(path_to_app)
 
 
 def validate_name(
     name: str, allow_new_file: bool, allow_directory: bool
-) -> Tuple[str, Optional[TemporaryDirectory[str]]]:
+) -> tuple[str, Optional[TemporaryDirectory[str]]]:
     """
     Validate the file name and return the path to the file.
 

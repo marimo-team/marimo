@@ -18,6 +18,7 @@ class BokehFormatter(FormatterFactory):
         return "bokeh"
 
     def register(self) -> Callable[[], None]:
+        import bokeh.io  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         import bokeh.models  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         import bokeh.plotting  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
@@ -25,6 +26,7 @@ class BokehFormatter(FormatterFactory):
         from marimo._runtime.output import _output
 
         old_show = bokeh.plotting.show
+        old_io_show = bokeh.io.show
         # bokeh always starts with output_notebook() in Jupyter, but this
         # brings in a dependency on IPython, which we don't need.
         old_output_notebook = bokeh.plotting.output_notebook
@@ -49,14 +51,17 @@ class BokehFormatter(FormatterFactory):
 
         bokeh.plotting.show = show
         bokeh.plotting.output_notebook = output_notebook
+        bokeh.io.show = show
 
         def unpatch() -> None:
             bokeh.plotting.show = old_show
             bokeh.plotting.output_notebook = old_output_notebook
+            bokeh.io.show = old_io_show
 
-        @formatting.formatter(bokeh.models.Plot)
+        @formatting.formatter(bokeh.models.Model)
+        @formatting.formatter(bokeh.document.Document)
         def _show_plot(
-            plot: bokeh.models.Plot,
+            plot: bokeh.models.Model | bokeh.document.Document,
         ) -> tuple[KnownMimeType, str]:
             import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
             import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501

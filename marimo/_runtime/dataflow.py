@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import threading
+from collections import deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -12,20 +13,23 @@ from marimo._ast.cell import (
 from marimo._ast.compiler import code_key
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._runtime.executor import execute_cell, execute_cell_async
+from marimo._runtime.executor import (
+    ExecutionConfig,
+    get_executor,
+)
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Collection
 
 
-Edge = Tuple[CellId_t, CellId_t]
+Edge = tuple[CellId_t, CellId_t]
 # EdgeWithVar uses a list rather than a set for the variables linking the cells
 # as sets are not JSON-serializable (required by static_notebook_template()).
 # The first entry is the source node; the second entry is a list of defs from
 # the source read by the destination; and the third entry is the destination
 # node.
-EdgeWithVar = Tuple[CellId_t, List[str], CellId_t]
+EdgeWithVar = tuple[CellId_t, list[str], CellId_t]
 
 LOGGER = _loggers.marimo_logger()
 
@@ -84,34 +88,42 @@ class DirectedGraph:
         """Get all cells that have a ref to `name`.
 
         The variable can be either a Python variable or a SQL variable (table).
-        """
-        children = set()
-        for cid, cell in self.cells.items():
-            if name not in cell.refs:
-                continue
-            elif language == "sql" and cell.language == "python":
-                # SQL variables don't leak to Python cells, but
-                # Python variables do leak to SQL cells
-                continue
-            children.add(cid)
+        SQL variables don't leak to Python cells, but Python variables do leak
+        to SQL.
 
-        return children
+        Only does a local analysis of refs, without taking into consideration
+        whether refs are defined by other cells.
+        """
+        if language == "sql":
+            # For SQL, only return SQL cells that reference the name
+            return {
+                cid
+                for cid, cell in self.cells.items()
+                if name in cell.refs and cell.language == "sql"
+            }
+        else:
+            # For Python, return all cells that reference the name
+            return {
+                cid for cid, cell in self.cells.items() if name in cell.refs
+            }
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
         if source == dst:
             return []
 
-        queue: list[tuple[CellId_t, list[Edge]]] = [(source, [])]
-        found = set()
+        # deque has O(1) append/pop operation
+        queue: deque[tuple[CellId_t, list[Edge]]] = deque([(source, [])])
+        found = {source}  # set has O(1) lookups
+
         while queue:
-            node, path = queue.pop(0)
-            found.add(node)
+            node, path = queue.popleft()  # O(1) operation
             for cid in self.children[node]:
                 if cid not in found:
                     next_path = path + [(node, cid)]
                     if cid == dst:
                         return next_path
+                    found.add(cid)
                     queue.append((cid, next_path))
         return []
 
@@ -167,7 +179,7 @@ class DirectedGraph:
                     self.parents[child].add(cell_id)
 
             for name in cell.refs:
-                other_ids_defining_name = (
+                other_ids_defining_name: set[CellId_t] = (
                     self.definitions[name]
                     if name in self.definitions
                     else set()
@@ -330,14 +342,14 @@ class DirectedGraph:
         return imports
 
     def get_multiply_defined(self) -> list[Name]:
-        names = []
+        names: list[Name] = []
         for name, definers in self.definitions.items():
             if len(definers) > 1:
                 names.append(name)
         return names
 
     def get_deleted_nonlocal_ref(self) -> list[Name]:
-        names = []
+        names: list[Name] = []
         for cell in self.cells.values():
             for ref in cell.deleted_refs:
                 if ref in self.definitions:
@@ -378,19 +390,22 @@ class DirectedGraph:
         """
         # TODO: Consider caching on the graph level and updating on register /
         # delete
-        processed = set()
-        queue = set(refs & self.definitions.keys())
+        processed: set[Name] = set()
+        queue: set[Name] = refs & self.definitions.keys()
         predicate = predicate or (lambda *_: True)
 
         while queue:
             # Should ideally be one cell per ref, but for completion, stay
             # agnostic to potenital cycles.
-            cells = set().union(*[self.definitions[ref] for ref in queue])
+            cells = {
+                cell_id
+                for ref in queue
+                for cell_id in self.definitions.get(ref, set())
+            }
+
             for cell_id in cells:
                 data = self.cells[cell_id].variable_data
-                variables = set(data.keys())
-                # intersection of variables and queue
-                newly_processed = variables & queue
+                newly_processed = set(data.keys()) & queue
                 processed.update(newly_processed)
                 queue.difference_update(newly_processed)
                 for variable in newly_processed:
@@ -402,11 +417,13 @@ class DirectedGraph:
                             queue.update(to_process & self.definitions.keys())
                             # Private variables referenced by public functions
                             # have to be included.
-                            for maybe_private in (
-                                to_process - self.definitions.keys()
-                            ):
-                                if is_mangled_local(maybe_private, cell_id):
-                                    processed.add(maybe_private)
+                            processed.update(
+                                maybe_private
+                                for maybe_private in (
+                                    to_process - self.definitions.keys()
+                                )
+                                if is_mangled_local(maybe_private, cell_id)
+                            )
 
         if inclusive:
             return processed | refs
@@ -435,29 +452,32 @@ def transitive_closure(
     If predicate, only cells satisfying predicate(cell) are included; applied
         after the relatives are computed
     """
-    seen = set()
-    cells = set()
-    queue = list(cell_ids)
+
+    result: set[CellId_t] = cell_ids.copy() if inclusive else set()
+    seen: set[CellId_t] = cell_ids.copy()
+    queue: deque[CellId_t] = deque(cell_ids)
     predicate = predicate or (lambda _: True)
 
     def _relatives(cid: CellId_t) -> set[CellId_t]:
         if relatives is None:
             return graph.children[cid] if children else graph.parents[cid]
-
         return relatives(graph, cid, children)
 
     while queue:
-        cid = queue.pop(0)
-        seen.add(cid)
-        cell = graph.cells[cid]
-        if inclusive and predicate(cell):
-            cells.add(cid)
-        elif cid not in cell_ids and predicate(cell):
-            cells.add(cid)
-        for relative in _relatives(cid):
-            if relative not in seen:
+        cid = queue.popleft()  # O(1) operation
+
+        relatives_set = _relatives(cid)
+        new_relatives = relatives_set - seen
+
+        if new_relatives:
+            # Add new relatives to queue and result if they pass predicate
+            for relative in new_relatives:
+                if predicate(graph.cells[relative]):
+                    result.add(relative)
+                seen.add(relative)
                 queue.append(relative)
-    return cells
+
+    return result
 
 
 def induced_subgraph(
@@ -467,8 +487,8 @@ def induced_subgraph(
 
     Represents the subgraph induced by `cell_ids`.
     """
-    parents = {}
-    children = {}
+    parents: dict[CellId_t, set[CellId_t]] = {}
+    children: dict[CellId_t, set[CellId_t]] = {}
     for cid in cell_ids:
         parents[cid] = set(p for p in graph.parents[cid] if p in cell_ids)
         children[cid] = set(c for c in graph.children[cid] if c in cell_ids)
@@ -494,29 +514,31 @@ def topological_sort(
     When multiple cells have the same parents (including no parents), the tie is broken by
     registration order - cells registered earlier are processed first.
     """
-    from heapq import heappop, heappush
+    from heapq import heapify, heappop, heappush
 
+    # Use a list for O(1) lookup of registration order
+    registration_order = list(graph.cells.keys())
+    top_down_keys = {key: idx for idx, key in enumerate(registration_order)}
+
+    # Build adjacency lists and in-degree counts
     parents, children = induced_subgraph(graph, cell_ids)
-    # Use registration order as tiebreaker
-    top_down_keys = {
-        key: index for index, key in enumerate(graph.cells.keys())
-    }
+    in_degree = {cid: len(parents[cid]) for cid in cell_ids}
 
-    # Initialize heap with roots (nodes with no parents)
-    heap: list[tuple[int, CellId_t]] = []
-    for cid in cell_ids:
-        if not parents[cid]:
-            # Use tuple with registration order as first element for heap ordering
-            heappush(heap, (top_down_keys[cid], cid))
+    # Initialize heap with roots
+    heap = [
+        (top_down_keys[cid], cid) for cid in cell_ids if in_degree[cid] == 0
+    ]
+    heapify(heap)
 
     sorted_cell_ids: list[CellId_t] = []
     while heap:
         _, cid = heappop(heap)
         sorted_cell_ids.append(cid)
 
+        # Process children
         for child in children[cid]:
-            parents[child].remove(cid)
-            if not parents[child]:
+            in_degree[child] -= 1
+            if in_degree[child] == 0:
                 heappush(heap, (top_down_keys[child], child))
 
     return sorted_cell_ids
@@ -537,26 +559,25 @@ def import_block_relatives(
     # We prune definitions that have already been imported from the set of
     # definitions used to find the descendants of this cell.
     unimported_defs = cell.defs - cell.import_workspace.imported_defs
-    children_ids = set().union(
-        *[
-            graph.get_referring_cells(name, language="python")
-            for name in unimported_defs
-        ]
-    )
+
+    children_ids = {
+        child_id
+        for name in unimported_defs
+        for child_id in graph.get_referring_cells(name, language="python")
+    }
 
     # If children haven't been executed, then still use imported defs;
     # handle an edge case when an import cell is interrupted by an
     # exception or user interrupt, so that a module is imported but the
     # cell's children haven't run.
-    for name in cell.import_workspace.imported_defs:
-        for child_id in graph.get_referring_cells(name, language="python"):
-            if graph.cells[child_id].run_result_status in (
-                "interrupted",
-                "cancelled",
-                "marimo-error",
-                None,
-            ):
-                children_ids.add(child_id)
+    if cell.import_workspace.imported_defs:
+        interrupted_states = {"interrupted", "cancelled", "marimo-error", None}
+        children_ids.update(
+            child_id
+            for name in cell.import_workspace.imported_defs
+            for child_id in graph.get_referring_cells(name, language="python")
+            if graph.cells[child_id].run_result_status in interrupted_states
+        )
 
     return children_ids
 
@@ -576,6 +597,7 @@ class Runner:
 
     def __init__(self, graph: DirectedGraph) -> None:
         self._graph = graph
+        self._executor = get_executor(ExecutionConfig())
 
     @staticmethod
     def _returns(cell_impl: CellImpl, glbls: dict[str, Any]) -> dict[str, Any]:
@@ -644,10 +666,12 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            await execute_cell_async(graph.cells[cid], glbls, graph)
+            await self._executor.execute_cell_async(
+                graph.cells[cid], glbls, graph
+            )
 
         Runner._substitute_refs(cell_impl, glbls, kwargs)
-        output = await execute_cell_async(
+        output = await self._executor.execute_cell_async(
             graph.cells[cell_impl.cell_id], glbls, graph
         )
         defs = Runner._returns(cell_impl, glbls)
@@ -683,9 +707,11 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            execute_cell(graph.cells[cid], glbls, graph)
+            self._executor.execute_cell(graph.cells[cid], glbls, graph)
 
         self._substitute_refs(cell_impl, glbls, kwargs)
-        output = execute_cell(graph.cells[cell_impl.cell_id], glbls, graph)
+        output = self._executor.execute_cell(
+            graph.cells[cell_impl.cell_id], glbls, graph
+        )
         defs = Runner._returns(cell_impl, glbls)
         return output, defs

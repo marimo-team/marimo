@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
-from typing import List, Optional
+import tempfile
+from typing import Optional
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
@@ -24,8 +26,8 @@ class PypiPackageManager(CanonicalizingPackageManager):
         return module_name_to_pypi_name()
 
     def _list_packages_from_cmd(
-        self, cmd: List[str]
-    ) -> List[PackageDescription]:
+        self, cmd: list[str]
+    ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
         proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -62,7 +64,7 @@ class PipPackageManager(PypiPackageManager):
             ]
         )
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["pip", "--python", PY_EXE, "list", "--format=json"]
         return self._list_packages_from_cmd(cmd)
 
@@ -97,7 +99,7 @@ class MicropipPackageManager(PypiPackageManager):
         except ValueError:
             return False
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -118,17 +120,26 @@ class UvPackageManager(PypiPackageManager):
 
     async def _install(self, package: str) -> bool:
         return self.run(
-            ["uv", "pip", "install", *split_packages(package), "-p", PY_EXE]
+            [
+                "uv",
+                "pip",
+                "install",
+                # trade installation time for faster start time
+                "--compile",
+                *split_packages(package),
+                "-p",
+                PY_EXE,
+            ]
         )
 
     def update_notebook_script_metadata(
         self,
         filepath: str,
         *,
-        packages_to_add: Optional[List[str]] = None,
-        packages_to_remove: Optional[List[str]] = None,
-        import_namespaces_to_add: Optional[List[str]] = None,
-        import_namespaces_to_remove: Optional[List[str]] = None,
+        packages_to_add: Optional[list[str]] = None,
+        packages_to_remove: Optional[list[str]] = None,
+        import_namespaces_to_add: Optional[list[str]] = None,
+        import_namespaces_to_remove: Optional[list[str]] = None,
     ) -> None:
         """Update the notebook's script metadata with the packages to add/remove.
 
@@ -177,6 +188,81 @@ class UvPackageManager(PypiPackageManager):
             if _is_installed(im)
         ]
 
+        if filepath.endswith(".md") or filepath.endswith(".qmd"):
+            # md and qmd require writing to a faux python file first.
+            return self._process_md_changes(
+                filepath, packages_to_add, packages_to_remove
+            )
+        return self._process_changes(
+            filepath, packages_to_add, packages_to_remove
+        )
+
+    def _process_md_changes(
+        self,
+        filepath: str,
+        packages_to_add: list[str],
+        packages_to_remove: list[str],
+    ) -> None:
+        from marimo._cli.convert.markdown import extract_frontmatter
+        from marimo._utils import yaml
+        from marimo._utils.inline_script_metadata import (
+            get_headers_from_frontmatter,
+        )
+
+        # Get script metadata
+        with open(filepath, encoding="utf-8") as f:
+            frontmatter, body = extract_frontmatter(f.read())
+        headers = get_headers_from_frontmatter(frontmatter)
+        pyproject = bool(headers.get("pyproject", ""))
+        header = (
+            headers.get("pyproject", "")
+            if pyproject
+            else headers.get("header", "")
+        )
+        pyproject = pyproject or not bool(header)
+
+        # Write out and process the header
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".py", encoding="utf-8"
+        ) as temp_file:
+            temp_file.write(header)
+            temp_file.flush()
+        # Have UV modify it
+        self._process_changes(
+            temp_file.name,
+            packages_to_add,
+            packages_to_remove,
+        )
+        with open(temp_file.name, encoding="utf-8") as f:
+            header = f.read()
+        # Clean up the temporary file
+        os.unlink(temp_file.name)
+
+        # Write back the changes to the original file
+        if pyproject:
+            # Strip '# '
+            # and leading/trailing ///
+            header = "\n".join(
+                [line[2:] for line in header.strip().splitlines()[1:-1]]
+            )
+            frontmatter["pyproject"] = header
+        else:
+            frontmatter["header"] = header
+
+        header = yaml.marimo_compat_dump(
+            frontmatter,
+            sort_keys=False,
+        )
+        document = ["---", header.strip(), "---", body]
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write("\n".join(document))
+
+    def _process_changes(
+        self,
+        filepath: str,
+        packages_to_add: list[str],
+        packages_to_remove: list[str],
+    ) -> None:
         if packages_to_add:
             self.run(
                 ["uv", "--quiet", "add", "--script", filepath]
@@ -197,7 +283,7 @@ class UvPackageManager(PypiPackageManager):
             ["uv", "pip", "uninstall", *split_packages(package), "-p", PY_EXE]
         )
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["uv", "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
 
@@ -212,7 +298,7 @@ class RyePackageManager(PypiPackageManager):
     async def uninstall(self, package: str) -> bool:
         return self.run(["rye", "remove", *split_packages(package)])
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["rye", "list", "--format=json"]
         return self._list_packages_from_cmd(cmd)
 
@@ -232,8 +318,8 @@ class PoetryPackageManager(PypiPackageManager):
         )
 
     def _list_packages_from_cmd(
-        self, cmd: List[str]
-    ) -> List[PackageDescription]:
+        self, cmd: list[str]
+    ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
         proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -256,6 +342,6 @@ class PoetryPackageManager(PypiPackageManager):
             )
         return packages
 
-    def list_packages(self) -> List[PackageDescription]:
+    def list_packages(self) -> list[PackageDescription]:
         cmd = ["poetry", "show", "--no-dev"]
         return self._list_packages_from_cmd(cmd)

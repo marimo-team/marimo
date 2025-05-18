@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+import functools
+from typing import Any, Optional
 
 from marimo._data.models import (
     ColumnSummary,
@@ -20,6 +21,8 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
+    TableCell,
+    TableCoordinate,
     TableManager,
     TableManagerFactory,
 )
@@ -38,13 +41,18 @@ class IbisTableManagerFactory(TableManagerFactory):
         class IbisTableManager(TableManager[ibis.Table]):
             type = "ibis"
 
-            def to_csv(
+            def to_csv_str(
                 self, format_mapping: Optional[FormatMapping] = None
-            ) -> bytes:
-                return self._as_table_manager().to_csv(format_mapping)
+            ) -> str:
+                return self._as_table_manager().to_csv_str(format_mapping)
 
-            def to_json(self) -> bytes:
-                return self._as_table_manager().to_json()
+            def to_json_str(
+                self, format_mapping: Optional[FormatMapping] = None
+            ) -> str:
+                return self._as_table_manager().to_json_str(format_mapping)
+
+            def to_parquet(self) -> bytes:
+                return self._as_table_manager().to_parquet()
 
             def supports_download(self) -> bool:
                 return False
@@ -71,6 +79,12 @@ class IbisTableManagerFactory(TableManagerFactory):
                 self, columns: list[str]
             ) -> TableManager[ibis.Table]:
                 return IbisTableManager(self.data.select(columns))
+
+            def select_cells(
+                self, cells: list[TableCoordinate]
+            ) -> list[TableCell]:
+                del cells
+                raise NotImplementedError("Cell selection not supported")
 
             def drop_columns(
                 self, columns: list[str]
@@ -181,9 +195,27 @@ class IbisTableManagerFactory(TableManagerFactory):
                 )
                 return IbisTableManager(sorted_data)
 
+            @functools.lru_cache(maxsize=5)  # noqa: B019
+            def calculate_top_k_rows(
+                self, column: ColumnName, k: int
+            ) -> list[tuple[Any, int]]:
+                count_col_name = f"{column}_count"
+                result = (
+                    self.data[[column]]
+                    .value_counts(name=count_col_name)
+                    .order_by(ibis.desc(count_col_name))
+                    .limit(k)
+                    .execute()
+                )
+
+                return [
+                    (row[0], int(row[1]))
+                    for row in result.itertuples(index=False)
+                ]
+
             def get_field_type(
                 self, column_name: str
-            ) -> Tuple[FieldType, ExternalDataType]:
+            ) -> tuple[FieldType, ExternalDataType]:
                 column = self.data[column_name]
                 dtype = column.type()
                 if dtype.is_string():

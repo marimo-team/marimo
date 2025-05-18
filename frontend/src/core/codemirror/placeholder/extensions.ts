@@ -26,19 +26,17 @@ export function smartPlaceholderExtension(text: string): Extension[] {
 
 function acceptPlaceholder(cm: EditorView, text: string) {
   // if empty, insert the placeholder
-  if (cm.state.doc.length === 0) {
+  const docLength = cm.state.doc.length;
+  if (docLength === 0) {
     cm.dispatch({
       changes: {
         from: 0,
-        to: cm.state.doc.length,
+        to: docLength,
         insert: text,
       },
-    });
-    // move cursor to end of placeholder
-    cm.dispatch({
       selection: {
-        anchor: cm.state.doc.length,
-        head: cm.state.doc.length,
+        head: text.length,
+        anchor: text.length,
       },
     });
     return true;
@@ -53,14 +51,14 @@ export function clickablePlaceholderExtension(opts: {
   beforeText: string;
   linkText: string;
   afterText: string;
-  onClick: () => void;
+  onClick: (ev: EditorView) => void;
 }): Extension[] {
   const { beforeText, linkText, afterText, onClick } = opts;
 
   // Create a placeholder
   // Needs to be a function to keep event listeners
   // See https://github.com/codemirror/dev/issues/1457
-  const createPlaceholder = () => {
+  const createPlaceholder = (ev: EditorView) => {
     const placeholderText = document.createElement("span");
     placeholderText.append(document.createTextNode(beforeText));
     const link = document.createElement("span");
@@ -68,7 +66,7 @@ export function clickablePlaceholderExtension(opts: {
     link.classList.add("cm-clickable-placeholder");
     link.onclick = (evt) => {
       evt.stopPropagation();
-      onClick();
+      onClick(ev);
     };
     placeholderText.append(link);
     placeholderText.append(document.createTextNode(afterText));

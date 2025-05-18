@@ -14,6 +14,7 @@ export const DATA_TYPES = [
   "unknown",
 ] as const;
 export type Banner = OperationMessageData<"banner">;
+export type AiInlineCompletionRequest = schemas["AiInlineCompletionRequest"];
 export type DataTableColumn = schemas["DataTableColumn"];
 export type DataTable = schemas["DataTable"];
 export type Database = schemas["Database"];
@@ -31,6 +32,9 @@ export type PackageInstallationStatus =
   schemas["InstallingPackageAlert"]["packages"];
 export type DataColumnPreview = OperationMessageData<"data-column-preview">;
 export type SQLTablePreview = OperationMessageData<"sql-table-preview">;
+export type SQLTableListPreview =
+  OperationMessageData<"sql-table-list-preview">;
+export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
 
 export type OperationMessageType = schemas["MessageOperation"]["name"];
 export type OperationMessage = {

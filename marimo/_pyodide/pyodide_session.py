@@ -5,13 +5,16 @@ import asyncio
 import base64
 import dataclasses
 import json
+import re
 import signal
-from typing import Any, Callable, Optional
+from pathlib import Path
+from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._messaging.types import KernelMessage
+from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
     PyodideStderr,
     PyodideStdin,
@@ -65,6 +68,7 @@ from marimo._snippets.snippets import read_snippets
 from marimo._types.ids import CellId_t
 from marimo._utils.case import deep_to_camel_case
 from marimo._utils.formatter import DefaultFormatter
+from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -157,14 +161,39 @@ class PyodideSession:
         Find the packages in the code based on the imports,
         and mapping from module names to package names.
         """
-        import pyodide.code  # type: ignore
 
-        imports: list[str] = pyodide.code.find_imports(code)  # type: ignore
-        if not isinstance(imports, list):
+        # Prefer dependencies from script metadata
+        try:
+            reader = PyProjectReader.from_script(code)
+            script_deps = reader.dependencies
+
+            def strip_version(dep: str) -> str:
+                try:
+                    return re.split(r"==|>=|<=|~=", dep)[0]
+                except Exception:
+                    return dep
+
+            if len(script_deps) > 0:
+                return [strip_version(dep) for dep in script_deps]
+        except Exception as e:
+            LOGGER.warning("Error parsing script metadata: %s", e)
+
+        try:
+            import pyodide.code  # type: ignore
+
+            # Get imports from code
+            module_names: list[str] = pyodide.code.find_imports(code)  # type: ignore
+            if not isinstance(module_names, list):
+                return []
+
+            # Convert module names to package names
+            package_manager = MicropipPackageManager()
+            return [
+                package_manager.module_to_package(mod) for mod in module_names
+            ]
+        except Exception as e:
+            LOGGER.warning("Error finding packages: %s", e)
             return []
-
-        package_manager = MicropipPackageManager()
-        return [package_manager.module_to_package(im) for im in imports]
 
 
 class PyodideBridge:
@@ -290,8 +319,7 @@ class PyodideBridge:
     ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
         try:
-            with open(body.path, "w") as file:
-                file.write(body.contents)
+            Path(body.path).write_text(body.contents, encoding="utf-8")
             response = FileUpdateResponse(success=True)
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))
@@ -407,34 +435,3 @@ def _launch_pyodide_kernel(
         await asyncio.gather(listen_messages(), listen_completion())
 
     return RestartableTask(listen)
-
-
-class RestartableTask:
-    def __init__(self, coro: Callable[[], Any]):
-        self.coro = coro
-        self.task: Optional[asyncio.Task[Any]] = None
-        self.stopped = False
-
-    async def start(self) -> None:
-        """Create a task that runs the coro."""
-        while True:
-            if self.stopped:
-                break
-
-            try:
-                self.task = asyncio.create_task(self.coro())
-                await self.task
-            except asyncio.CancelledError:
-                pass
-
-    def stop(self) -> None:
-        # Stop the task and set the stopped flag
-        self.stopped = True
-        assert self.task is not None
-        self.task.cancel()
-
-    def restart(self) -> None:
-        # Cancel the current task, which will cause
-        # the while loop to start a new task
-        assert self.task is not None
-        self.task.cancel()

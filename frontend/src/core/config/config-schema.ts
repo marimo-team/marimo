@@ -29,13 +29,26 @@ const VALID_APP_WIDTHS = [
   "full",
   "columns",
 ] as const;
+
+/**
+ * SQL output formats
+ */
+const VALID_SQL_OUTPUT_FORMATS = [
+  "auto",
+  "native",
+  "polars",
+  "lazy-polars",
+  "pandas",
+] as const;
+export type SqlOutputType = (typeof VALID_SQL_OUTPUT_FORMATS)[number];
+
 export const UserConfigSchema = z
   .object({
     completion: z
       .object({
         activate_on_typing: z.boolean().default(true),
         copilot: z
-          .union([z.boolean(), z.enum(["github", "codeium"])])
+          .union([z.boolean(), z.enum(["github", "codeium", "custom"])])
           .default(false)
           .transform((copilot) => {
             if (copilot === true) {
@@ -83,6 +96,7 @@ export const UserConfigSchema = z
         on_cell_change: z.enum(["lazy", "autorun"]).default("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).default("off"),
         watcher_on_save: z.enum(["lazy", "autorun"]).default("lazy"),
+        default_sql_output: z.enum(VALID_SQL_OUTPUT_FORMATS).default("auto"),
       })
       .passthrough()
       .default({}),
@@ -92,6 +106,7 @@ export const UserConfigSchema = z
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
         dataframes: z.enum(["rich", "plain"]).default("rich"),
+        default_table_page_size: z.number().default(10),
         default_width: z
           .enum(VALID_APP_WIDTHS)
           .default("medium")
@@ -164,10 +179,12 @@ export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
+export type LSPConfig = UserConfig["language_servers"];
+export type DiagnosticsConfig = UserConfig["diagnostics"];
 
-export const AppTitleSchema = z.string().regex(/^[\w '-]*$/, {
-  message: "Invalid application title",
-});
+export const AppTitleSchema = z.string();
+export const SqlOutputSchema = z.enum(VALID_SQL_OUTPUT_FORMATS).default("auto");
+
 export const AppConfigSchema = z
   .object({
     width: z
@@ -183,6 +200,7 @@ export const AppConfigSchema = z
     css_file: z.string().nullish(),
     html_head_file: z.string().nullish(),
     auto_download: z.array(z.enum(["html", "markdown", "ipynb"])).default([]),
+    sql_output: SqlOutputSchema,
   })
   .default({ width: "medium", auto_download: [] });
 export type AppConfig = z.infer<typeof AppConfigSchema>;

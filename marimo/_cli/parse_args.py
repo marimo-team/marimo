@@ -18,7 +18,6 @@ def parse_args(
 
     This does not support lists as values.
     """
-
     args_dict: SerializedCLIArgs = {}
 
     # Combine any arguments that are split by spaces

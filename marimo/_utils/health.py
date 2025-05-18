@@ -6,6 +6,12 @@ import subprocess
 import sys
 from typing import Optional
 
+from marimo import _loggers
+
+LOGGER = _loggers.marimo_logger()
+
+TIMEOUT = 10  # seconds
+
 
 def get_node_version() -> Optional[str]:
     try:
@@ -15,10 +21,13 @@ def get_node_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
-        return stdout.strip().split()[-1]
+        if stdout and (stripped := stdout.strip()):
+            return stripped.split()[-1]
+        else:
+            return None
     except FileNotFoundError:
         return None
 
@@ -36,7 +45,6 @@ def get_required_modules_list() -> dict[str, str]:
         "pygments",
         "pymdown-extensions",
         "pyyaml",
-        "ruff",
         "starlette",
         "tomlkit",
         "typing-extensions",
@@ -53,10 +61,19 @@ def get_optional_modules_list() -> dict[str, str]:
         "anywidget",
         "duckdb",
         "ibis-framework",
+        "nbformat",
+        "openai",
         "opentelemetry",
         "pandas",
         "polars",
         "pyarrow",
+        "loro",
+        "pylsp-mypy",
+        "pytest",
+        "python-lsp-ruff",
+        "python-lsp-server",
+        "ruff",
+        "sqlglot",
     ]
     return _get_versions(packages, include_missing=False)
 
@@ -92,7 +109,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -110,7 +127,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -125,7 +142,7 @@ def get_chrome_version() -> Optional[str]:
             stderr=subprocess.PIPE,
             text=True,
         )
-        stdout, stderr = process.communicate()
+        stdout, stderr = communicate_with_timeout(process)
         if stderr:
             return None
         parts = stdout.strip().split()
@@ -144,7 +161,20 @@ def get_chrome_version() -> Optional[str]:
             return None
     except FileNotFoundError:
         return None
+    except Exception as e:
+        LOGGER.error(f"An error occurred: {e}")
+        return None
 
 
 def get_python_version() -> str:
     return sys.version.split()[0]
+
+
+def communicate_with_timeout(
+    process: subprocess.Popen[str], timeout: float = TIMEOUT
+) -> tuple[str, str]:
+    try:
+        return process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        return "", "Error: Process timed out"

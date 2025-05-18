@@ -140,6 +140,14 @@ const requestHandler = createRPCRequestHandler({
       // Add pandas and duckdb to the code
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
+      code = `import sqlglot\n${code}`;
+
+      // Polars + SQL requires pyarrow, and installing
+      // after notebook load does not work. As a heuristic,
+      // if it appears that the notebook uses polars, add pyarrow.
+      if (code.includes("polars")) {
+        code = `import pyarrow\n${code}`;
+      }
     }
 
     await self.pyodide.loadPackagesFromImports(code, {
@@ -176,12 +184,13 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
 
     const { package: packageName } = opts;
+    const packageNameList = packageName.split(" ").map((name) => name.trim());
     const response = await self.pyodide.runPythonAsync(`
       import micropip
       import json
       response = None
       try:
-        await micropip.install("${packageName}")
+        await micropip.install(${JSON.stringify(packageNameList)})
         response = {"success": True}
       except Exception as e:
         response = {"success": False, "error": str(e)}

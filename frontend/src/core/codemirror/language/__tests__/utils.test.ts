@@ -9,7 +9,8 @@ import { EditorView } from "@codemirror/view";
 import { describe, it, expect } from "vitest";
 import { adaptiveLanguageConfiguration, switchLanguage } from "../extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { MovementCallbacks } from "../../cells/extensions";
+import type { CellId } from "@/core/cells/ids";
+import { cellConfigExtension } from "../../config/extension";
 
 function createEditor(doc: string) {
   return new EditorView({
@@ -23,10 +24,25 @@ function createEditor(doc: string) {
             codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
-          showPlaceholder: true,
-          enableAI: true,
-          cellMovementCallbacks: {} as MovementCallbacks,
+          cellId: "cell1" as CellId,
+          placeholderType: "marimo-import",
+          lspConfig: {},
         }),
+        cellConfigExtension(
+          {
+            activate_on_typing: true,
+            copilot: false,
+            codeium_api_key: null,
+          },
+          new OverridingHotkeyProvider({}),
+          "marimo-import",
+          {
+            pylsp: {
+              enabled: true,
+            },
+          },
+          {},
+        ),
       ],
     }),
   });

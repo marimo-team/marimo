@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import Any, Callable, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo import _loggers
-from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import CellOp
 from marimo._messaging.streams import std_stream_max_bytes
 from marimo._messaging.types import (
@@ -18,6 +18,9 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._types.ids import CellId_t
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -56,11 +59,13 @@ class PyodideStdout(Stdout):
     def seekable(self) -> bool:
         return False
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -70,11 +75,7 @@ class PyodideStdout(Stdout):
             data = data[: int(max_bytes)] + " ... "
         CellOp(
             cell_id=self.stream.cell_id,
-            console=CellOutput(
-                channel=CellChannel.STDOUT,
-                mimetype=mimetype,
-                data=data,
-            ),
+            console=CellOutput.stdout(data, mimetype),
         ).broadcast(self.stream)
         return len(data)
 
@@ -101,11 +102,13 @@ class PyodideStderr(Stderr):
     def seekable(self) -> bool:
         return False
 
-    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+    def _write_with_mimetype(
+        self, data: str, mimetype: ConsoleMimeType
+    ) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
-                "write() argument must be a str, not %s" % type(data).__name__
+                f"write() argument must be a str, not {type(data).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(data) > max_bytes:
@@ -117,11 +120,7 @@ class PyodideStderr(Stderr):
 
         CellOp(
             cell_id=self.stream.cell_id,
-            console=CellOutput(
-                channel=CellChannel.STDERR,
-                mimetype=mimetype,
-                data=data,
-            ),
+            console=CellOutput.stderr(data, mimetype),
         ).broadcast(self.stream)
         return len(data)
 
@@ -148,7 +147,7 @@ class PyodideStdin(Stdin):
         assert self.stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
-                "prompt must be a str, not %s" % type(prompt).__name__
+                f"prompt must be a str, not {type(prompt).__name__}"
             )
         max_bytes = std_stream_max_bytes()
         if sys.getsizeof(prompt) > max_bytes:
@@ -160,16 +159,14 @@ class PyodideStdin(Stdin):
 
         CellOp(
             cell_id=self.stream.cell_id,
-            console=CellOutput(
-                channel=CellChannel.STDIN,
-                mimetype="text/plain",
-                data=prompt,
-            ),
+            console=CellOutput.stdin(prompt),
         ).broadcast(self.stream)
 
+        return self._get_response()
+
+    def _get_response(self) -> str:
         loop = asyncio.get_event_loop()
-        response = loop.run_until_complete(self.stream.input_queue.get())
-        return response
+        return loop.run_until_complete(self.stream.input_queue.get())
 
     def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
         # size only included for compatibility with sys.stdin.readline API;

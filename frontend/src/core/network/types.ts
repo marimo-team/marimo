@@ -4,7 +4,6 @@ import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
 export type AiCompletionRequest = schemas["AiCompletionRequest"];
-export type AppMetadata = schemas["AppMetadata"];
 export type BaseResponse = schemas["BaseResponse"];
 export type CellConfig = schemas["CellConfig"];
 /**
@@ -40,6 +39,7 @@ export type FileUpdateResponse = schemas["FileUpdateResponse"];
 export type FormatRequest = schemas["FormatRequest"];
 export type FormatResponse = schemas["FormatResponse"];
 export type FunctionCallRequest = schemas["FunctionCallRequest"];
+export type ListSecretKeysResponse = schemas["ListSecretKeysResponse"];
 export type InstallMissingPackagesRequest =
   schemas["InstallMissingPackagesRequest"];
 export type AddPackageRequest = schemas["AddPackageRequest"];
@@ -49,14 +49,20 @@ export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateRequest = schemas["InstantiateRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
+export type ListSecretKeysRequest = schemas["ListSecretKeysRequest"];
+export type CreateSecretRequest = schemas["CreateSecretRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
+export type PreviewSQLTableListRequest = schemas["PreviewSQLTableListRequest"];
+export type PreviewDataSourceConnectionRequest =
+  schemas["PreviewDataSourceConnectionRequest"];
+export type PdbRequest = schemas["PdbRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameFileRequest = schemas["RenameFileRequest"];
 export type RunRequest = schemas["RunRequest"];
-export type RunScratchpadRequest = schemas["RunScratchpadRequest"];
+export type ExecuteScratchpadRequest = schemas["ExecuteScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
 export type SaveNotebookRequest = schemas["SaveNotebookRequest"];
@@ -103,7 +109,7 @@ export interface EditRequests {
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
   sendRun: (request: RunRequest) => Promise<null>;
-  sendRunScratchpad: (request: RunScratchpadRequest) => Promise<null>;
+  sendRunScratchpad: (request: ExecuteScratchpadRequest) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatRequest) => Promise<FormatResponse>;
@@ -121,8 +127,14 @@ export interface EditRequests {
   readSnippets: () => Promise<Snippets>;
   previewDatasetColumn: (request: PreviewDatasetColumnRequest) => Promise<null>;
   previewSQLTable: (request: PreviewSQLTableRequest) => Promise<null>;
+  previewSQLTableList: (request: PreviewSQLTableListRequest) => Promise<null>;
+  previewDataSourceConnection: (
+    request: PreviewDataSourceConnectionRequest,
+  ) => Promise<null>;
   openFile: (request: { path: string }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
+  // Debugger
+  sendPdb: (request: PdbRequest) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendCreateFileOrFolder: (
@@ -158,6 +170,9 @@ export interface EditRequests {
   removePackage: (
     request: RemovePackageRequest,
   ) => Promise<PackageOperationResponse>;
+  // Secrets requests
+  listSecretKeys: (request: ListSecretKeysRequest) => Promise<null>;
+  writeSecret: (request: CreateSecretRequest) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

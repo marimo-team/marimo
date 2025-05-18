@@ -1,0 +1,523 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CellStatusComponent > renders completed run with elapsed time 1`] = `
+<div>
+  <div
+    class="cell-status-icon elapsed-time hover-action"
+    data-state="closed"
+    data-status="idle"
+    data-testid="cell-status"
+  >
+    <span>
+      1.50s
+    </span>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders disabled and stale state 1`] = `
+<div>
+  <div
+    class="cell-status-icon cell-status-stale"
+    data-state="closed"
+    data-status="stale"
+    data-testid="cell-status"
+  >
+    <div
+      class="multi-icon relative w-fit"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-ban h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <path
+          d="m4.9 4.9 14.2 14.2"
+        />
+      </svg>
+      <div
+        class="second-icon absolute bottom-[-2px] right-[-2px] rounded-full"
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-refresh-cw h-3 w-3"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+          />
+          <path
+            d="M21 3v5h-5"
+          />
+          <path
+            d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+          />
+          <path
+            d="M8 16H3v5"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders disabled state 1`] = `
+<div>
+  <div
+    class="cell-status-icon cell-status-disabled"
+    data-state="closed"
+    data-status="disabled"
+    data-testid="cell-status"
+  >
+    <svg
+      aria-hidden="true"
+      class="lucide lucide-ban h-5 w-5"
+      fill="none"
+      height="24"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="1.5"
+      viewBox="0 0 24 24"
+      width="24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+      />
+      <path
+        d="m4.9 4.9 14.2 14.2"
+      />
+    </svg>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders disabled transitively state 1`] = `
+<div>
+  <div
+    class="cell-status-icon cell-status-stale"
+    data-state="closed"
+    data-status="disabled-transitively"
+    data-testid="cell-status"
+  >
+    <div
+      class="multi-icon relative w-fit"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-workflow h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect
+          height="8"
+          rx="2"
+          width="8"
+          x="3"
+          y="3"
+        />
+        <path
+          d="M7 11v4a2 2 0 0 0 2 2h4"
+        />
+        <rect
+          height="8"
+          rx="2"
+          width="8"
+          x="13"
+          y="13"
+        />
+      </svg>
+      <div
+        class="second-icon absolute top-[-2px] left-[-2px] rounded-full"
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-ban h-3 w-3"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+          />
+          <path
+            d="m4.9 4.9 14.2 14.2"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders edited state 1`] = `
+<div>
+  <div
+    class="cell-status-icon flex items-center gap-2"
+  >
+    <div
+      class="cell-status-stale"
+      data-state="closed"
+      data-status="outdated"
+      data-testid="cell-status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-refresh-cw h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+        />
+        <path
+          d="M21 3v5h-5"
+        />
+        <path
+          d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+        />
+        <path
+          d="M8 16H3v5"
+        />
+      </svg>
+    </div>
+    <div
+      class="elapsed-time hover-action"
+      data-state="closed"
+      data-status="outdated"
+      data-testid="cell-status"
+    >
+      <span>
+        1.50s
+      </span>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders interrupted state 1`] = `
+<div>
+  <div
+    class="cell-status-icon flex items-center gap-2"
+  >
+    <div
+      class="cell-status-stale"
+      data-state="closed"
+      data-status="outdated"
+      data-testid="cell-status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-refresh-cw h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+        />
+        <path
+          d="M21 3v5h-5"
+        />
+        <path
+          d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+        />
+        <path
+          d="M8 16H3v5"
+        />
+      </svg>
+    </div>
+    <div
+      class="elapsed-time hover-action"
+      data-state="closed"
+      data-status="outdated"
+      data-testid="cell-status"
+    >
+      <span>
+        1.50s
+      </span>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders queued state 1`] = `
+<div>
+  <div
+    class="cell-status-icon cell-status-queued"
+    data-state="closed"
+    data-status="queued"
+    data-testid="cell-status"
+  >
+    <svg
+      aria-hidden="true"
+      class="lucide lucide-ellipsis h-5 w-5"
+      fill="none"
+      height="24"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="1.5"
+      viewBox="0 0 24 24"
+      width="24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="1"
+      />
+      <circle
+        cx="19"
+        cy="12"
+        r="1"
+      />
+      <circle
+        cx="5"
+        cy="12"
+        r="1"
+      />
+    </svg>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders running state 1`] = `
+<div>
+  <div
+    class="cell-status-icon elapsed-time running"
+    data-state="closed"
+    data-status="running"
+    data-testid="cell-status"
+  >
+    <span>
+      0ms
+    </span>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders stale and disabled transitively state 1`] = `
+<div>
+  <div
+    class="cell-status-icon cell-status-stale"
+    data-state="closed"
+    data-status="stale"
+    data-testid="cell-status"
+  >
+    <div
+      class="multi-icon relative w-fit"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-refresh-cw h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+        />
+        <path
+          d="M21 3v5h-5"
+        />
+        <path
+          d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+        />
+        <path
+          d="M8 16H3v5"
+        />
+      </svg>
+      <div
+        class="second-icon absolute bottom-[-2px] right-[-2px] rounded-full"
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-ban h-3 w-3"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+          />
+          <path
+            d="m4.9 4.9 14.2 14.2"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders stale inputs state 1`] = `
+<div>
+  <div
+    class="cell-status-icon flex items-center gap-2"
+  >
+    <div
+      class="cell-status-stale"
+      data-state="closed"
+      data-status="outdated"
+      data-testid="cell-status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-refresh-cw h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+        />
+        <path
+          d="M21 3v5h-5"
+        />
+        <path
+          d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+        />
+        <path
+          d="M8 16H3v5"
+        />
+      </svg>
+    </div>
+    <div
+      class="elapsed-time hover-action"
+      data-state="closed"
+      data-status="outdated"
+      data-testid="cell-status"
+    >
+      <span>
+        1.50s
+      </span>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`CellStatusComponent > renders uninstantiated state 1`] = `
+<div>
+  <div
+    class="cell-status-icon flex items-center gap-2"
+  >
+    <div
+      class="cell-status-stale"
+      data-state="closed"
+      data-status="outdated"
+      data-testid="cell-status"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-refresh-cw h-5 w-5"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"
+        />
+        <path
+          d="M21 3v5h-5"
+        />
+        <path
+          d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"
+        />
+        <path
+          d="M8 16H3v5"
+        />
+      </svg>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`ElapsedTime component > renders elapsed time correctly 1`] = `
+<div>
+  <span
+    class="tracking-wide font-semibold"
+  >
+    1.50s
+  </span>
+</div>
+`;

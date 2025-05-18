@@ -60,7 +60,8 @@ export const EditApp: React.FC<AppProps> = ({
 }) => {
   useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
 
-  const { setCells, mergeAllColumns } = useCellActions();
+  const { setCells, mergeAllColumns, collapseAllCells, expandAllCells } =
+    useCellActions();
   const viewState = useAtomValue(viewStateAtom);
   const numColumns = useAtomValue(numColumnsAtom);
   const hasCells = useAtomValue(hasCellsAtom);
@@ -124,6 +125,12 @@ export const EditApp: React.FC<AppProps> = ({
   });
   useHotkey("global.runAll", () => {
     runAllCells();
+  });
+  useHotkey("global.collapseAllSections", () => {
+    collapseAllCells();
+  });
+  useHotkey("global.expandAllSections", () => {
+    expandAllCells();
   });
 
   const editableCellsArray = (

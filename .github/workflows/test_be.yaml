@@ -24,6 +24,7 @@ jobs:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
+              - '!{marimo/_smoke_tests,frontend}/**'
             docs:
               - 'docs/**'
 
@@ -71,6 +72,9 @@ jobs:
             python-version: '3.12'
             dependencies: 'core'
           - os: ubuntu-latest
+            python-version: '3.13'
+            dependencies: 'core'
+          - os: ubuntu-latest
             python-version: '3.9'
             dependencies: 'core,optional'
           - os: ubuntu-latest
@@ -81,6 +85,9 @@ jobs:
             dependencies: 'core,optional'
           - os: ubuntu-latest
             python-version: '3.12'
+            dependencies: 'core,optional'
+          - os: ubuntu-latest
+            python-version: '3.13'
             dependencies: 'core,optional'
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -117,3 +124,48 @@ jobs:
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
           hatch run +py=${{ matrix.python-version }} test-optional:test -v tests/ -k "not test_cli" --durations=10
+
+  # Only run coverage on `main` so it is not blocking
+  test_coverage:
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    name: Test coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - uses: actions/checkout@v4
+
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
+
+      # This step is needed since some of our tests rely on the index.html file
+      - name: Create assets directory, copy over index.html
+        run: |
+          mkdir -p marimo/_static/assets
+          cp frontend/index.html marimo/_static/index.html
+          cp frontend/public/favicon.ico marimo/_static/favicon.ico
+
+      - name: Test with optional dependencies
+        run: |
+          hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
+          --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+
+      # Only upload coverage on `main` so it is not blocking
+      # and only on `3.12`, `ubuntu-latest`, with optional deps since it is mostly duplicate
+      # coverage from the other matrix jobs.
+      - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

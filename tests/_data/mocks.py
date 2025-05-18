@@ -1,20 +1,28 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from narwhals.typing import IntoDataFrame
 
-DFType = Literal["pandas", "polars", "ibis", "pyarrow", "duckdb"]
+DFType = Literal[
+    "pandas", "polars", "ibis", "pyarrow", "duckdb", "lazy-polars"
+]
+
+NON_EAGER_LIBS: list[DFType] = ["lazy-polars", "duckdb", "ibis"]
+EAGER_LIBS: list[DFType] = ["pandas", "polars", "pyarrow"]
 
 
 def create_dataframes(
-    data: Dict[str, Sequence[Any]],
-    include: Optional[List[DFType]] = None,
-    exclude: Optional[List[DFType]] = None,
+    data: dict[str, Sequence[Any]],
+    *,
+    include: Optional[list[DFType]] = None,
+    exclude: Optional[list[DFType]] = None,
     strict: bool = True,
 ) -> list[IntoDataFrame]:
     dfs: list[IntoDataFrame] = []
@@ -42,6 +50,11 @@ def create_dataframes(
         import polars as pl
 
         dfs.append(pl.DataFrame(data, strict=strict))
+
+    if DependencyManager.polars.has() and should_include("lazy-polars"):
+        import polars as pl
+
+        dfs.append(pl.LazyFrame(data, strict=strict))
 
     if DependencyManager.ibis.has() and should_include("ibis"):
         import ibis  # type: ignore

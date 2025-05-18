@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import mimetypes
 from dataclasses import dataclass
-from typing import List, Literal, Optional, TypedDict
+from typing import Literal, Optional, TypedDict
 
 
 class ChatAttachmentDict(TypedDict):
@@ -16,7 +16,7 @@ class ChatAttachmentDict(TypedDict):
 class ChatMessageDict(TypedDict):
     role: Literal["user", "assistant", "system"]
     content: str
-    attachments: Optional[List[ChatAttachmentDict]]
+    attachments: Optional[list[ChatAttachmentDict]]
 
 
 class ChatModelConfigDict(TypedDict, total=False):
@@ -63,22 +63,33 @@ class ChatMessage:
     content: object
 
     # Optional attachments to the message.
-    attachments: Optional[List[ChatAttachment]] = None
+    attachments: Optional[list[ChatAttachment]] = None
 
 
 @dataclass
 class ChatModelConfig:
+    # Maximum number of tokens.
     max_tokens: Optional[int] = None
+
+    # Temperature for the model (randomness).
     temperature: Optional[float] = None
+
+    # Restriction on the cumulative probability of prediction candidates.
     top_p: Optional[float] = None
+
+    # Number of top prediction candidates to consider.
     top_k: Optional[int] = None
+
+    # Penalty for tokens which appear frequently.
     frequency_penalty: Optional[float] = None
+
+    # Penalty for tokens which already appeared at least once.
     presence_penalty: Optional[float] = None
 
 
 class ChatModel(abc.ABC):
     @abc.abstractmethod
     def __call__(
-        self, messages: List[ChatMessage], config: ChatModelConfig
+        self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         pass

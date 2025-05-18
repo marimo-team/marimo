@@ -5,7 +5,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -81,8 +81,7 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
             return "null"
 
     result = "".join(print_part(part) for part in node.values)
-    # remove any double '' created by the f-string
-    return result.replace("''", "'")
+    return result
 
 
 class TokenExtractor:
@@ -217,7 +216,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
                     # - catalog.table (this is shorthand for catalog.main.table)
                     # - table
 
-                    parts: List[str] = []
+                    parts: list[str] = []
                     while i < len(tokens):
                         part = token_extractor.strip_quotes(
                             token_extractor.token_str(i)
@@ -326,8 +325,8 @@ def find_sql_refs(
     """
 
     # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
-    if not DependencyManager.sqlglot.has():
-        return []
+
+    DependencyManager.sqlglot.require(why="SQL parsing")
 
     from sqlglot import exp, parse
     from sqlglot.errors import ParseError
@@ -361,17 +360,12 @@ def find_sql_refs(
         if expression is None:
             continue
 
-        if is_dml := bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
+        if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
                 append_refs_from_table(table)
 
         # build_scope only works for select statements
         if root := build_scope(expression):
-            if is_dml:
-                LOGGER.warning(
-                    "Scopes should not exist for dml's, may need rework if this occurs"
-                )
-
             for scope in root.traverse():  # type: ignore
                 for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):

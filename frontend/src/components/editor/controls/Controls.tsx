@@ -92,7 +92,7 @@ export const Controls = ({
         )}
       >
         <HideInKioskMode>
-          <SaveComponent kioskMode={false} appConfig={appConfig} />
+          <SaveComponent kioskMode={false} />
         </HideInKioskMode>
 
         <Tooltip content={renderShortcut("global.hideCode")}>

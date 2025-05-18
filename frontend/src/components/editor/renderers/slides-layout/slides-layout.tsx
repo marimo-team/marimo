@@ -7,6 +7,7 @@ import type { CellId } from "@/core/cells/ids";
 import type { CellRuntimeState } from "@/core/cells/types";
 import type { AppMode } from "@/core/mode";
 import { OutputArea } from "../../Output";
+import { outputIsLoading } from "@/core/cells/cell";
 
 type Props = ICellRendererProps<SlidesLayout>;
 
@@ -59,7 +60,7 @@ interface SlideProps extends Pick<CellRuntimeState, "output" | "status"> {
 }
 
 const Slide = memo(({ output, cellId, status }: SlideProps) => {
-  const loading = status === "running" || status === "queued";
+  const loading = outputIsLoading(status);
   return (
     <OutputArea
       className="contents"
@@ -67,6 +68,7 @@ const Slide = memo(({ output, cellId, status }: SlideProps) => {
       output={output}
       cellId={cellId}
       stale={loading}
+      loading={loading}
     />
   );
 });

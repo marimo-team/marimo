@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.11.26"
 app = marimo.App()
 
 
@@ -96,6 +96,51 @@ def _(mo, office_characters):
 
     table
     return (table,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""**Select individual cells**""")
+    return
+
+
+@app.cell
+def _(mo):
+    data = {str(col): [col * 10 + row for row in range(10)] for col in range(10)}
+    mo.ui.table(data, selection="multi-cell", initial_selection=[("3", "5"),("9","8")])
+    return (data,)
+
+
+@app.cell
+def _(mo):
+    mo.md("""**Style individual cells**""")
+    return
+
+
+@app.cell
+def _(mo):
+    def apply_styling(row_id, column_name, value):
+        row = int(row_id)
+        column = int(column_name)
+        r = row / 8 * 12
+        g = column / 2 * 32
+        b = (row + column) / 10 * 16
+        return {
+            "backgroundColor": f"rgb({r % 256}, {g % 256}, {b % 256})",
+            "color": "white"
+            if (r * 0.299 + g * 0.587 + b * 0.114) < 186
+            else "black",
+        }
+
+
+    colors = {
+        str(col): [row * 20 + col  for row in range(320)] for col in range(10)
+    }
+    color_table = mo.ui.table(
+        data=colors, pagination=True, page_size=16, style_cell=apply_styling
+    )
+    color_table
+    return apply_styling, color_table, colors
 
 
 @app.cell
@@ -223,6 +268,11 @@ def _(mo):
         },
     ]
     return (office_characters,)
+
+
+@app.cell
+def _():
+    return
 
 
 if __name__ == "__main__":

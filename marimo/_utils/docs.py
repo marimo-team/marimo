@@ -1,6 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import re
 from textwrap import dedent
+
+from marimo._runtime.patches import patch_jedi_parameter_completion
 
 
 def google_docstring_to_markdown(docstring: str) -> str:
@@ -193,3 +197,23 @@ def google_docstring_to_markdown(docstring: str) -> str:
             output.append(f"- **{err_type}**: {explanation.strip()}")
 
     return "\n".join(output)
+
+
+# See https://github.com/python-lsp/docstring-to-markdown?tab=readme-ov-file#extensibility
+class MarimoConverter:
+    priority = 100
+
+    def __init__(self) -> None:
+        patch_jedi_parameter_completion()
+
+    SECTION_HEADERS = ["Args", "Returns", "Raises", "Examples"]
+
+    def convert(self, docstring: str) -> str:
+        return google_docstring_to_markdown(docstring)
+
+    def can_convert(self, docstring: str) -> bool:
+        for section in self.SECTION_HEADERS:
+            if re.search(rf"{section}:\n", docstring):
+                return True
+
+        return False

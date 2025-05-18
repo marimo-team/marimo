@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.app import AppKernelRunnerRegistry
 from marimo._config.config import MarimoConfig
@@ -21,6 +21,8 @@ from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._server.model import SessionMode
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from marimo._ast.app import InternalApp
     from marimo._messaging.types import Stream
     from marimo._runtime.runtime import Kernel
@@ -77,6 +79,11 @@ class KernelRuntimeContext(RuntimeContext):
     def cli_args(self) -> CLIArgs:
         """Get the CLI args."""
         return self._kernel.cli_args
+
+    @property
+    def argv(self) -> list[str]:
+        """The original argv the kernel was created with."""
+        return self._kernel.argv
 
     @property
     def query_params(self) -> QueryParams:
@@ -144,6 +151,7 @@ def create_kernel_context(
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.state import StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._save.stores import get_store
 
     return KernelRuntimeContext(
         _kernel=kernel,
@@ -152,6 +160,7 @@ def create_kernel_context(
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
+        cache_store=get_store(kernel.app_metadata.filename),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),
@@ -162,6 +171,7 @@ def create_kernel_context(
         children=[],
         parent=parent,
         filename=kernel.app_metadata.filename,
+        app_config=kernel.app_metadata.app_config,
     )
 
 

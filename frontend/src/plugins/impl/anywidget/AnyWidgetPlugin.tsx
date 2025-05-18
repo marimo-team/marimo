@@ -5,12 +5,11 @@ import { z } from "zod";
 import type { IPluginProps } from "@/plugins/types";
 import { useEffect, useMemo, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { dequal } from "dequal";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { ErrorBanner } from "../common/error-banner";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
-import type { AnyModel, AnyWidget, EventHandler, Experimental } from "./types";
+import type { AnyWidget, Experimental } from "@anywidget/types";
 import { Logger } from "@/utils/Logger";
 import {
   type HTMLElementNotDerivedFromRef,
@@ -18,12 +17,15 @@ import {
 } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
+import { Model } from "./model";
+import { isEqual } from "lodash-es";
 
 interface Data {
   jsUrl: string;
   jsHash: string;
   css?: string | null;
   bufferPaths?: Array<Array<string | number>> | null;
+  initialValue: T;
 }
 
 type T = Record<string, any>;
@@ -42,6 +44,7 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
       bufferPaths: z
         .array(z.array(z.union([z.string(), z.number()])))
         .nullish(),
+      initialValue: z.object({}).passthrough(),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -125,8 +128,20 @@ const AnyWidgetSlot = (props: Props) => {
     return <ErrorBanner error={error} />;
   }
 
+  // Find the closest parent element with an attribute of `random-id`
+  const randomId = props.host.closest("[random-id]")?.getAttribute("random-id");
+  const key = randomId ?? jsUrl;
+
   return (
-    <LoadedSlot {...props} widget={module.default} value={valueWithBuffer} />
+    <LoadedSlot
+      // Use the a key to force a re-render when the randomId (or jsUrl) changes
+      // Plugins may be stateful and we cannot make assumptions that we won't be
+      // so it is safer to just re-render.
+      key={key}
+      {...props}
+      widget={module.default}
+      value={valueWithBuffer}
+    />
   );
 };
 
@@ -140,7 +155,7 @@ async function runAnyWidgetModule(
   widgetDef: AnyWidget,
   model: Model<T>,
   el: HTMLElement,
-) {
+): Promise<() => void> {
   const experimental: Experimental = {
     invoke: async (name, msg, options) => {
       const message =
@@ -154,7 +169,10 @@ async function runAnyWidgetModule(
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model, experimental });
-  await widget.render?.({ model, el, experimental });
+  const unsub = await widget.render?.({ model, el, experimental });
+  return () => {
+    unsub?.();
+  };
 }
 
 function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
@@ -166,16 +184,30 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
   );
 }
 
+export function getDirtyFields(value: T, initialValue: T): Set<keyof T> {
+  return new Set(
+    Object.keys(value).filter((key) => !isEqual(value[key], initialValue[key])),
+  );
+}
+
 const LoadedSlot = ({
   value,
   setValue,
   widget,
   functions,
+  data,
   host,
 }: Props & { widget: AnyWidget }) => {
-  const ref = useRef<HTMLDivElement>(null);
+  const htmlRef = useRef<HTMLDivElement>(null);
   const model = useRef<Model<T>>(
-    new Model(value, setValue, functions.send_to_widget),
+    new Model(
+      // Merge the initial value with the current value
+      // since we only send partial updates to the backend
+      { ...data.initialValue, ...value },
+      setValue,
+      functions.send_to_widget,
+      getDirtyFields(value, data.initialValue),
+    ),
   );
 
   // Listen to incoming messages
@@ -188,11 +220,23 @@ const LoadedSlot = ({
   );
 
   useEffect(() => {
-    if (!ref.current) {
+    if (!htmlRef.current) {
       return;
     }
-    runAnyWidgetModule(widget, model.current, ref.current);
-  }, [widget]);
+    const unsubPromise = runAnyWidgetModule(
+      widget,
+      model.current,
+      htmlRef.current,
+    );
+    return () => {
+      unsubPromise.then((unsub) => unsub());
+    };
+    // We re-run the widget when the jsUrl changes, which means the cell
+    // that created the Widget has been re-run.
+    // We need to re-run the widget because it may contain initialization code
+    // that could be reset by the new widget.
+    // See example: https://github.com/marimo-team/marimo/issues/3962#issuecomment-2703184123
+  }, [widget, data.jsUrl]);
 
   // When the value changes, update the model
   const valueMemo = useDeepCompareMemoize(value);
@@ -200,141 +244,12 @@ const LoadedSlot = ({
     model.current.updateAndEmitDiffs(valueMemo);
   }, [valueMemo]);
 
-  return <div ref={ref} />;
+  return <div ref={htmlRef} />;
 };
 
-export class Model<T extends Record<string, any>> implements AnyModel<T> {
-  constructor(
-    private data: T,
-    private onChange: (value: Partial<T>) => void,
-    private send_to_widget: (req: { content?: any }) => Promise<
-      null | undefined
-    >,
-  ) {}
-
-  private dirtyFields = new Set<keyof T>();
-
-  off(eventName?: string | null, callback?: EventHandler | null): void {
-    if (!eventName) {
-      this.listeners = {};
-      return;
-    }
-
-    if (!callback) {
-      this.listeners[eventName] = new Set();
-      return;
-    }
-
-    this.listeners[eventName]?.delete(callback);
-  }
-
-  send(
-    content: any,
-    callbacks?: any,
-    buffers?: ArrayBuffer[] | ArrayBufferView[],
-  ): void {
-    if (buffers) {
-      Logger.warn("buffers not supported in marimo anywidget.send");
-    }
-    this.send_to_widget({ content }).then(callbacks);
-  }
-
-  widget_manager = new Proxy(
-    {},
-    {
-      get() {
-        throw new Error("widget_manager not supported in marimo");
-      },
-      set() {
-        throw new Error("widget_manager not supported in marimo");
-      },
-    },
-  );
-
-  private listeners: Record<string, Set<EventHandler>> = {};
-
-  get<K extends keyof T>(key: K): T[K] {
-    return this.data[key];
-  }
-
-  set<K extends keyof T>(key: K, value: T[K]): void {
-    this.data = { ...this.data, [key]: value };
-    this.dirtyFields.add(key);
-    this.emit(`change:${key as K & string}`, value);
-  }
-
-  save_changes(): void {
-    if (this.dirtyFields.size === 0) {
-      return;
-    }
-    const partialData: Partial<T> = {};
-    this.dirtyFields.forEach((key) => {
-      partialData[key] = this.data[key];
-    });
-    this.dirtyFields.clear();
-    this.onChange(partialData);
-  }
-
-  updateAndEmitDiffs(value: T): void {
-    Object.keys(value).forEach((key) => {
-      const k = key as keyof T;
-      if (!dequal(this.data[k], value[k])) {
-        this.set(k, value[k]);
-      }
-    });
-  }
-
-  /**
-   * When receiving a message from the backend.
-   * We want to notify all listeners with `msg:custom`
-   */
-  receiveCustomMessage(message: any, buffers?: DataView[]): void {
-    const response = WidgetMessageSchema.safeParse(message);
-    if (response.success) {
-      const data = response.data;
-      switch (data.method) {
-        case "update":
-          this.updateAndEmitDiffs(data.state as T);
-          break;
-        case "custom":
-          this.listeners["msg:custom"]?.forEach((cb) =>
-            cb(data.content, buffers),
-          );
-          break;
-      }
-    } else {
-      Logger.error("Failed to parse message", response.error);
-      Logger.error("Message", message);
-    }
-  }
-
-  on(eventName: string, callback: EventHandler): void {
-    if (!this.listeners[eventName]) {
-      this.listeners[eventName] = new Set();
-    }
-    this.listeners[eventName].add(callback);
-  }
-
-  private emit<K extends keyof T>(event: `change:${K & string}`, value: T[K]) {
-    if (!this.listeners[event]) {
-      return;
-    }
-    this.listeners[event].forEach((cb) => cb(value));
-  }
-}
-
-const WidgetMessageSchema = z.union([
-  z.object({
-    method: z.literal("update"),
-    state: z.record(z.any()),
-  }),
-  z.object({
-    method: z.literal("custom"),
-    content: z.any(),
-  }),
-  z.object({
-    method: z.literal("echo_update"),
-    buffer_paths: z.array(z.array(z.union([z.string(), z.number()]))),
-    state: z.record(z.any()),
-  }),
-]);
+export const visibleForTesting = {
+  LoadedSlot,
+  runAnyWidgetModule,
+  isAnyWidgetModule,
+  getDirtyFields,
+};

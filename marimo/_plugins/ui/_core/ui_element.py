@@ -15,10 +15,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Generic,
     Optional,
-    Sequence,
     TypeVar,
     cast,
 )
@@ -37,6 +35,8 @@ from marimo._runtime.functions import Function
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from marimo._plugins.ui._impl.input import form as form_plugin
 
 # S: Type of frontend value
@@ -85,7 +85,7 @@ class MarimoConvertValueException(Exception):
 
 
 @mddoc
-class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
+class UIElement(Html, Generic[S, T]):
     """An HTML element with a value
 
     A `UIElement` is an HTML element with a value; when the value of the
@@ -406,8 +406,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             clear_button_tooltip: The tooltip of the clear button.
             validate: A function that takes the form's value and returns an error message if invalid,
                 or `None` if valid.
-            on_change: A callback that takes the form's value and returns an error message if invalid,
-                or `None` if valid.
+            on_change: Optional callback to run when this element's value changes. Defaults to None.
         """
         from marimo._plugins.ui._impl.input import form as form_plugin
 
@@ -428,7 +427,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         )
 
     def send_message(
-        self, message: Dict[str, object], buffers: Optional[Sequence[bytes]]
+        self, message: dict[str, object], buffers: Optional[Sequence[bytes]]
     ) -> None:
         """
         Send a message to the element rendered on the frontend

@@ -55,7 +55,7 @@ class TestScriptTrace:
         #    y = y / x
         #        ^
         # exact line numbers differ by python version
-        if sys.version_info >= (3, 11):
+        if sys.version_info == (3, 11):
             assert (
                 result.split("y / x")[1].split("\n")[1].startswith("        ^")
             )
@@ -102,6 +102,38 @@ class TestScriptTrace:
             in result
         )
         assert "y = y / x" in result
+
+    @staticmethod
+    def test_script_trace_function() -> None:
+        p = subprocess.run(
+            [
+                sys.executable,
+                "tests/_runtime/script_data/script_exception_function.py",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 1
+
+        result = p.stderr.decode()
+        assert "ZeroDivisionError: division by zero" in result
+        assert ('script_exception_function.py", line 9') in result
+        assert "y / 0" in result
+
+    @staticmethod
+    def test_script_trace_setup_cell() -> None:
+        p = subprocess.run(
+            [
+                sys.executable,
+                "tests/_runtime/script_data/script_exception_setup_cell.py",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 1
+
+        result = p.stderr.decode()
+        assert "ZeroDivisionError" in result
+        assert ('script_exception_setup_cell.py", line 10') in result
+        assert "y / x" in result
 
 
 class TestAppTrace:

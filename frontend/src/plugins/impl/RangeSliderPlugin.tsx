@@ -21,6 +21,7 @@ interface Data {
   orientation: "horizontal" | "vertical";
   showValue: boolean;
   fullWidth: boolean;
+  disabled?: boolean;
 }
 
 export class RangeSliderPlugin implements IPlugin<T, Data> {
@@ -37,6 +38,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
     showValue: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -76,6 +78,7 @@ const RangeSliderComponent = ({
   orientation,
   showValue,
   fullWidth,
+  disabled,
   valueMap,
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
@@ -93,6 +96,7 @@ const RangeSliderComponent = ({
       label={label}
       id={id}
       align={orientation === "horizontal" ? "left" : "top"}
+      className={cn(fullWidth && "my-1 w-full")}
       fullWidth={fullWidth}
     >
       <div
@@ -100,6 +104,7 @@ const RangeSliderComponent = ({
           "flex items-center gap-2",
           orientation === "vertical" &&
             "items-end inline-flex justify-center self-center mx-2",
+          fullWidth && "w-full",
         )}
       >
         <RangeSlider
@@ -114,6 +119,7 @@ const RangeSliderComponent = ({
           max={stop}
           step={step}
           orientation={orientation}
+          disabled={disabled}
           // Triggered on all value changes
           onValueChange={(nextValue: number[]) => {
             setInternalValue(nextValue);
@@ -153,9 +159,5 @@ const RangeSliderComponent = ({
     </Labeled>
   );
 
-  return fullWidth ? (
-    <div className="my-3">{sliderElement}</div>
-  ) : (
-    sliderElement
-  );
+  return sliderElement;
 };

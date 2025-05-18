@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,6 +14,9 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = DependencyManager.numpy.has() and DependencyManager.pillow.has()
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 async def test_image() -> None:
@@ -170,3 +175,37 @@ async def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
             ]
         )
         assert len(get_context().virtual_file_registry.registry) == 1
+
+
+def test_image_constructor(tmp_path: Path):
+    # BytesIO
+    result = image(
+        io.BytesIO(b"hello"),
+    )
+    assert result.text.startswith("<img src='data:image/png;base64,")
+    # Bytes
+    result = image(
+        io.BytesIO(b"hello").getvalue(),
+    )
+    assert result.text.startswith("<img src='data:image/png;base64,")
+    # String
+    result = image(
+        "https://marimo.io/logo.png",
+    )
+    assert result.text.startswith("<img src='https://marimo.io/logo.png' />")
+    # Path
+    img_path = tmp_path / "test.png"
+    img_path.touch()
+    result = image(img_path)
+    assert result.text.startswith("<img src='data:image/png;base64,")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_image_constructor_pil():
+    from PIL import Image
+
+    # PIL Image
+    result = image(
+        Image.new("RGB", (100, 100), color="red"),
+    )
+    assert result.text.startswith("<img src='data:image/png;base64,")

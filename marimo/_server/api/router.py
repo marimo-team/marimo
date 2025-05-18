@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
@@ -23,6 +23,7 @@ from marimo._server.api.endpoints.health import router as health_router
 from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.login import router as login_router
 from marimo._server.api.endpoints.packages import router as packages_router
+from marimo._server.api.endpoints.secrets import router as secrets_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
 from marimo._server.api.endpoints.ws import router as ws_router
 from marimo._server.router import APIRouter
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
 
 
 # Define the app routes
-def build_routes(base_url: str = "") -> List[BaseRoute]:
+def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router = APIRouter(prefix=base_url)
     app_router.include_router(
         execution_router, prefix="/api/kernel", name="execution"
@@ -46,6 +47,9 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
     app_router.include_router(files_router, prefix="/api/kernel", name="files")
     app_router.include_router(
         file_explorer_router, prefix="/api/files", name="file_explorer"
+    )
+    app_router.include_router(
+        secrets_router, prefix="/api/secrets", name="secrets"
     )
     app_router.include_router(
         documentation_router, prefix="/api/documentation", name="documentation"

@@ -5,7 +5,8 @@ import ast
 import os
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Any, Dict
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -22,12 +23,14 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._messaging.errors as errors
     import marimo._messaging.ops as ops
     import marimo._runtime.requests as requests
+    import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
     import marimo._server.models.files as files
     import marimo._server.models.home as home
     import marimo._server.models.models as models
     import marimo._server.models.packages as packages
+    import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
     from marimo import __version__
     from marimo._ast.cell import CellConfig, RuntimeStateType
@@ -55,8 +58,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
         CellConfig,
         MarimoConfig,
         # Errors
+        errors.SetupRootError,
+        errors.MultipleDefinitionError,
         errors.CycleError,
         errors.MultipleDefinitionError,
+        errors.ImportStarError,
         errors.DeleteNonlocalError,
         errors.MarimoInterruptionError,
         errors.MarimoInternalError,
@@ -76,6 +82,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Secrets
+        secrets_models.SecretKeysWithProvider,
+        secrets.CreateSecretRequest,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -99,6 +108,9 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.Datasets,
         ops.DataColumnPreview,
         ops.SQLTablePreview,
+        ops.SQLTableListPreview,
+        ops.DataSourceConnections,
+        ops.SecretKeysResult,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
@@ -107,13 +119,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
-        ops.DataSourceConnections,
     ]
 
     # dataclass components used in requests/responses
     REQUEST_RESPONSES = [
         # Sub components
-        requests.AppMetadata,
         home.MarimoFile,
         files.FileInfo,
         requests.ExecutionRequest,
@@ -122,7 +132,13 @@ def _generate_server_api_schema() -> dict[str, Any]:
         snippets.Snippets,
         requests.SetUIElementValueRequest,
         # Requests/responses
+        completion.VariableContext,
+        completion.SchemaColumn,
+        completion.SchemaTable,
+        completion.AiCompletionContext,
         completion.AiCompletionRequest,
+        completion.AiInlineCompletionRequest,
+        completion.ChatRequest,
         export.ExportAsHTMLRequest,
         export.ExportAsMarkdownRequest,
         export.ExportAsScriptRequest,
@@ -140,6 +156,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileOpenRequest,
         files.FileUpdateRequest,
         files.FileUpdateResponse,
+        secrets.ListSecretKeysResponse,
+        secrets.DeleteSecretRequest,
         packages.AddPackageRequest,
         PackageDescription,
         packages.ListPackagesResponse,
@@ -158,7 +176,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.ReadCodeResponse,
         models.RenameFileRequest,
         models.RunRequest,
-        models.RunScratchpadRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
         models.CopyNotebookRequest,
@@ -175,7 +192,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.ExecutionRequest,
         requests.FunctionCallRequest,
         requests.InstallMissingPackagesRequest,
+        requests.ListSecretKeysRequest,
+        requests.PdbRequest,
         requests.PreviewDatasetColumnRequest,
+        requests.PreviewSQLTableListRequest,
+        requests.PreviewDataSourceConnectionRequest,
         requests.PreviewSQLTableRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
@@ -183,10 +204,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.StopRequest,
     ]
 
-    processed_classes: Dict[Any, str] = {
+    processed_classes: dict[Any, str] = {
         JSONType: "JSONType",
     }
-    component_schemas: Dict[str, Any] = {
+    component_schemas: dict[str, Any] = {
         # Hand-written schema to avoid circular dependencies
         "JSONType": {
             "oneOf": [
@@ -202,7 +223,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     }
     # We must override the names of some Union Types,
     # otherwise, their __name__ is "Union"
-    name_overrides: Dict[Any, str] = {
+    name_overrides: dict[Any, str] = {
         JSONType: "JSONType",
         errors.Error: "Error",
         KnownMimeType: "MimeType",
@@ -278,7 +299,7 @@ def ps() -> None:
     pass
 
 
-def get_marimo_processes() -> list["psutil.Process"]:
+def get_marimo_processes() -> list[psutil.Process]:
     import psutil
 
     def is_marimo_process(proc: psutil.Process) -> bool:
@@ -333,7 +354,6 @@ def killall() -> None:
 
         marimo development ps killall
     """
-    import os
 
     for proc in get_marimo_processes():
         # Ignore self
@@ -351,9 +371,11 @@ def killall() -> None:
 @click.argument(
     "name",
     required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    type=click.Path(
+        path_type=Path, exists=True, file_okay=True, dir_okay=False
+    ),
 )
-def inline_packages(name: str) -> None:
+def inline_packages(name: Path) -> None:
     """
     Example usage:
 
@@ -377,8 +399,8 @@ def inline_packages(name: str) -> None:
         )
 
     # Validate the file exists
-    if not os.path.exists(name):
-        raise click.FileError(name)
+    if not name.exists():
+        raise click.FileError(str(name))
 
     # Validate >=3.10 for sys.stdlib_module_names
     if sys.version_info < (3, 10):
@@ -390,8 +412,7 @@ def inline_packages(name: str) -> None:
     package_names = module_name_to_pypi_name()
 
     def get_pypi_package_names() -> list[str]:
-        with open(name, "r") as file:
-            tree = ast.parse(file.read(), filename=name)
+        tree = ast.parse(name.read_text(encoding="utf-8"), filename=name)
 
         imported_modules = set[str]()
 
@@ -425,7 +446,7 @@ def inline_packages(name: str) -> None:
             "uv",
             "add",
             "--script",
-            name,
+            str(name),
         ]
         + pypi_names
     )

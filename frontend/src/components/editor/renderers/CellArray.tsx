@@ -11,6 +11,7 @@ import {
   columnIdsAtom,
   type NotebookState,
   useCellActions,
+  SETUP_CELL_ID,
 } from "../../../core/cells/cells";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
@@ -38,11 +39,9 @@ import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import type { Milliseconds } from "@/utils/time";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
-import { capabilitiesAtom } from "@/core/config/capabilities";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Kbd } from "@/components/ui/kbd";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import {
   horizontalListSortingStrategy,
@@ -53,6 +52,7 @@ import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Column } from "../columns/cell-column";
 import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
 import type { CellId } from "@/core/cells/ids";
+import { StdinBlockingAlert } from "../stdin-blocking-alert";
 
 interface CellArrayProps {
   mode: AppMode;
@@ -63,6 +63,8 @@ interface CellArrayProps {
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
   const columnIds = useAtomValue(columnIdsAtom);
+
+  // Setup context for sorting
   return (
     <SortableCellsProvider multiColumn={props.appConfig.width === "columns"}>
       <SortableContext
@@ -95,7 +97,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   useHotkey("global.foldCode", actions.foldAll);
   useHotkey("global.unfoldCode", actions.unfoldAll);
   useHotkey("global.formatAll", () => {
-    formatAll(actions.updateCellCode);
+    formatAll();
   });
   // Catch all to avoid native OS behavior
   // Otherwise a user might try to hide a cell and accidentally hide the OS window
@@ -114,6 +116,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
 
   const columns = notebook.cellIds.getColumns();
   const hasOnlyOneCell = notebook.cellIds.hasOnlyOneId();
+  const hasSetupCell = notebook.cellIds.inOrderIds.includes(SETUP_CELL_ID);
 
   return (
     <VerticalLayoutWrapper
@@ -124,6 +127,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       innerClassName="pr-4" // For the floating actions
     >
       <PackageAlert />
+      <StdinBlockingAlert />
       <NotebookBanner width={appConfig.width} />
       <div
         className={cn(
@@ -132,7 +136,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
         )}
       >
         {columns.map((column, index) => (
-          <SortableColumn
+          <CellColumn
             key={column.id}
             column={column}
             index={index}
@@ -146,6 +150,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
             theme={theme}
             hasOnlyOneCell={hasOnlyOneCell}
             invisible={invisible}
+            hasSetupCell={hasSetupCell}
             onDeleteCell={onDeleteCell}
           />
         ))}
@@ -155,7 +160,10 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   );
 };
 
-const SortableColumn: React.FC<{
+/**
+ * A single column of cells.
+ */
+const CellColumn: React.FC<{
   column: CollapsibleTree<CellId>;
   index: number;
   columnsLength: number;
@@ -168,6 +176,7 @@ const SortableColumn: React.FC<{
   theme: Theme;
   hasOnlyOneCell: boolean;
   invisible: boolean;
+  hasSetupCell: boolean;
   onDeleteCell: (payload: { cellId: CellId }) => void;
 }> = ({
   column,
@@ -182,11 +191,15 @@ const SortableColumn: React.FC<{
   theme,
   hasOnlyOneCell,
   invisible,
+  hasSetupCell,
   onDeleteCell,
 }) => {
+  const appClosed = connStatus.state !== WebSocketState.OPEN;
+
   return (
     <Column
       columnId={column.id}
+      index={index}
       canMoveLeft={index > 0}
       canMoveRight={index < columnsLength - 1}
       width={appConfig.width}
@@ -206,7 +219,40 @@ const SortableColumn: React.FC<{
         items={column.topLevelIds}
         strategy={verticalListSortingStrategy}
       >
+        {/* Render the setup cell first, always */}
+        {index === 0 && hasSetupCell && (
+          <Cell
+            key={SETUP_CELL_ID}
+            theme={theme}
+            showPlaceholder={false}
+            allowFocus={!invisible}
+            {...notebook.cellData[SETUP_CELL_ID]}
+            {...notebook.cellRuntime[SETUP_CELL_ID]}
+            {...actions}
+            runElapsedTimeMs={
+              notebook.cellRuntime[SETUP_CELL_ID].runElapsedTimeMs ??
+              (notebook.cellData[SETUP_CELL_ID]
+                .lastExecutionTime as Milliseconds)
+            }
+            canDelete={true}
+            mode={mode}
+            appClosed={appClosed}
+            ref={notebook.cellHandles[SETUP_CELL_ID]}
+            userConfig={userConfig}
+            isCollapsed={false}
+            collapseCount={0}
+            canMoveX={false}
+            actions={actions}
+            deleteCell={onDeleteCell}
+          />
+        )}
+
         {column.topLevelIds.map((cellId) => {
+          // Skip the setup cell later
+          if (cellId === SETUP_CELL_ID) {
+            return null;
+          }
+
           const cellData = notebook.cellData[cellId];
           const cellRuntime = notebook.cellRuntime[cellId];
           return (
@@ -215,36 +261,23 @@ const SortableColumn: React.FC<{
               theme={theme}
               showPlaceholder={hasOnlyOneCell}
               allowFocus={!invisible}
-              id={cellData.id}
-              code={cellData.code}
-              outline={cellRuntime.outline}
-              output={cellRuntime.output}
-              consoleOutputs={cellRuntime.consoleOutputs}
-              status={cellRuntime.status}
-              edited={cellData.edited}
-              interrupted={cellRuntime.interrupted}
-              errored={cellRuntime.errored}
-              stopped={cellRuntime.stopped}
-              staleInputs={cellRuntime.staleInputs}
-              runStartTimestamp={cellRuntime.runStartTimestamp}
-              lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+              {...cellData}
+              {...cellRuntime}
               runElapsedTimeMs={
                 cellRuntime.runElapsedTimeMs ??
                 (cellData.lastExecutionTime as Milliseconds)
               }
-              serializedEditorState={cellData.serializedEditorState}
               canDelete={!hasOnlyOneCell}
               mode={mode}
-              appClosed={connStatus.state !== WebSocketState.OPEN}
+              appClosed={appClosed}
               ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
-              debuggerActive={cellRuntime.debuggerActive}
               config={cellData.config}
               name={cellData.name}
               isCollapsed={column.isCollapsed(cellId)}
               collapseCount={column.getCount(cellId)}
               canMoveX={appConfig.width === "columns"}
-              {...actions}
+              actions={actions}
               deleteCell={onDeleteCell}
             />
           );
@@ -262,7 +295,6 @@ const AddCellButtons: React.FC<{
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const sqlCapabilities = useAtomValue(capabilitiesAtom).sql;
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
@@ -307,42 +339,23 @@ const AddCellButtons: React.FC<{
           <SquareMIcon className="mr-2 size-4 flex-shrink-0" />
           Markdown
         </Button>
-        <Tooltip
-          content={
-            sqlCapabilities ? null : (
-              <div className="flex flex-col">
-                <span>
-                  Additional dependencies required:
-                  <Kbd className="inline">pip install 'marimo[sql]'</Kbd>.
-                </span>
-                <span>
-                  You will need to restart the notebook after installing.
-                </span>
-              </div>
-            )
-          }
-          delayDuration={100}
-          asChild={false}
-        >
-          <Button
-            className={buttonClass}
-            variant="text"
-            size="sm"
-            disabled={!sqlCapabilities}
-            onClick={() => {
-              maybeAddMarimoImport(autoInstantiate, createNewCell);
+        <Button
+          className={buttonClass}
+          variant="text"
+          size="sm"
+          onClick={() => {
+            maybeAddMarimoImport(autoInstantiate, createNewCell);
 
-              createNewCell({
-                cellId: { type: "__end__", columnId },
-                before: false,
-                code: new SQLLanguageAdapter().getDefaultCode(),
-              });
-            }}
-          >
-            <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
-            SQL
-          </Button>
-        </Tooltip>
+            createNewCell({
+              cellId: { type: "__end__", columnId },
+              before: false,
+              code: new SQLLanguageAdapter().defaultCode,
+            });
+          }}
+        >
+          <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
+          SQL
+        </Button>
         <Tooltip
           content={
             aiEnabled ? null : <span>Enable via settings under AI Assist</span>
@@ -358,7 +371,7 @@ const AddCellButtons: React.FC<{
             onClick={isAiButtonOpenActions.toggle}
           >
             <SparklesIcon className="mr-2 size-4 flex-shrink-0" />
-            Generate with AI!!!
+            Generate with AI
           </Button>
         </Tooltip>
       </>

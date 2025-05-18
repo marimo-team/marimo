@@ -6,6 +6,7 @@
   font-size: 110%;
   line-height: inherit;
   text-indent: 0;
+  max-width: var(--markdown-max-width);
 }
 
 .katex * {

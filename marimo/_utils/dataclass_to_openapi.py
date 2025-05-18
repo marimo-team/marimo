@@ -4,18 +4,15 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence as CollectionSequence
 from decimal import Decimal
 from enum import Enum
 from typing import (
     Any,
     ClassVar,
-    Dict,
     ForwardRef,
-    List,
     Literal,
     Optional,
-    Type,
     Union,
     get_args,
     get_origin,
@@ -29,9 +26,11 @@ if sys.version_info < (3, 11):
 else:
     from typing import NotRequired
 
+from typing import Sequence  # noqa: UP035
+
 
 class PythonTypeToOpenAPI:
-    def __init__(self, name_overrides: Dict[Any, str], camel_case: bool):
+    def __init__(self, name_overrides: dict[Any, str], camel_case: bool):
         self.name_overrides = name_overrides
         self.camel_case = camel_case
         self.optional_name_overrides = {
@@ -41,8 +40,8 @@ class PythonTypeToOpenAPI:
     def convert(
         self,
         py_type: Any,
-        processed_classes: Dict[Any, str],
-    ) -> Dict[str, Any]:
+        processed_classes: dict[Any, str],
+    ) -> dict[str, Any]:
         """
         Convert a Python type to an OpenAPI schema.
 
@@ -52,13 +51,15 @@ class PythonTypeToOpenAPI:
         origin = get_origin(py_type)
         optional_name_overrides = self.optional_name_overrides
 
+        if isinstance(py_type, ForwardRef):
+            return {"$ref": f"#/components/schemas/{py_type.__forward_arg__}"}
+
         # Handle NewType by unwrapping to its base type
         if hasattr(py_type, "__supertype__"):  # NewType check
             return self.convert(py_type.__supertype__, processed_classes)
 
         if origin is Union:
             args = get_args(py_type)
-
             if py_type in processed_classes:
                 ref = processed_classes[py_type]
                 return {"$ref": f"#/components/schemas/{ref}"}
@@ -105,13 +106,23 @@ class PythonTypeToOpenAPI:
                         ]
                     )
                 }
-        elif origin in (list, List) or origin is Sequence:
+        elif (
+            origin is list
+            or origin is CollectionSequence
+            or origin is Sequence
+        ):
+            if py_type in processed_classes:
+                ref = processed_classes[py_type]
+                return {"$ref": f"#/components/schemas/{ref}"}
             (item_type,) = get_args(py_type)
             return {
                 "type": "array",
                 "items": self.convert(item_type, processed_classes),
             }
-        elif origin in (dict, Dict) or origin is Mapping:
+        elif origin is dict or origin is Mapping:
+            if py_type in processed_classes:
+                ref = processed_classes[py_type]
+                return {"$ref": f"#/components/schemas/{ref}"}
             _key_type, value_type = get_args(py_type)
             return {
                 "type": "object",
@@ -166,7 +177,7 @@ class PythonTypeToOpenAPI:
             # Remove any keys that are optional
             required = [key for key in required if key not in optional_keys]
 
-            schema: Dict[str, Any] = {
+            schema: dict[str, Any] = {
                 "type": "object",
                 "properties": properties,
             }
@@ -210,8 +221,6 @@ class PythonTypeToOpenAPI:
                 ref = processed_classes[py_type]
                 return {"$ref": f"#/components/schemas/{ref}"}
             return {"type": "string", "enum": [e.value for e in py_type]}
-        elif isinstance(py_type, ForwardRef):
-            return {"$ref": f"#/components/schemas/{py_type.__forward_arg__}"}
         else:
             raise ValueError(
                 f"Unsupported type: py_type={py_type}, origin={origin}"
@@ -219,13 +228,13 @@ class PythonTypeToOpenAPI:
 
     def convert_dataclass(
         self,
-        cls: Type[Any],
-        processed_classes: Dict[Any, str],
-    ) -> Dict[str, Any]:
+        cls: Any,
+        processed_classes: dict[Any, str],
+    ) -> dict[str, Any]:
         """Convert a dataclass to an OpenAPI schema.
 
         Args:
-            cls (Type[Any]): The dataclass to convert.
+            cls (Any): The dataclass type or instance to convert.
             processed_classes (Dict[Any, str]): A dictionary of processed classes.
 
         Raises:
@@ -234,19 +243,27 @@ class PythonTypeToOpenAPI:
         Returns:
             Dict[str, Any]: The OpenAPI schema.
         """
+        # If cls is an instance, get its class
+        if not isinstance(cls, type) and dataclasses.is_dataclass(cls):
+            cls = cls.__class__
+
         if not dataclasses.is_dataclass(cls):
             raise ValueError(f"{cls} is not a dataclass")
 
         if cls in processed_classes:
             return {"$ref": f"#/components/schemas/{processed_classes[cls]}"}
 
-        schema_name = self.name_overrides.get(cls, cls.__name__)
+        # Handle both class and instance for __name__ access
+        if isinstance(cls, type):
+            schema_name = self.name_overrides.get(cls, cls.__name__)
+        else:
+            schema_name = self.name_overrides.get(cls, cls.__class__.__name__)
         processed_classes[cls] = schema_name
 
         type_hints = get_type_hints(cls)
         fields: tuple[dataclasses.Field[Any], ...] = dataclasses.fields(cls)
-        properties: Dict[str, Dict[str, Any]] = {}
-        required: List[str] = []
+        properties: dict[str, dict[str, Any]] = {}
+        required: list[str] = []
 
         for field in fields:
             cased_field_name = (
@@ -273,7 +290,7 @@ class PythonTypeToOpenAPI:
                 }
                 required.append(cased_field_name)
 
-        schema: Dict[str, Any] = {
+        schema: dict[str, Any] = {
             "type": "object",
             "properties": properties,
         }

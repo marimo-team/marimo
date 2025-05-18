@@ -12,9 +12,10 @@ from marimo._runtime.state import SetFunctor
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name
+    from marimo._save.hash import HashKey
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 1
+MARIMO_CACHE_VERSION: int = 2
 
 CacheType = Literal[
     "ContextExecutionPath",
@@ -47,8 +48,8 @@ class CacheException(BaseException):
 class Cache:
     defs: dict[Name, Any]
     hash: str
-    stateful_refs: set[str]
     cache_type: CacheType
+    stateful_refs: set[str]
     hit: bool
     # meta corresponds to internally used data, kept as a dictionary to allow
     # for backwards pickle compatibility with future entries.
@@ -133,3 +134,35 @@ class Cache:
             for var, value in self.defs.items()
             if var not in self.stateful_refs
         }
+
+    @property
+    def key(self) -> HashKey:
+        from marimo._save.hash import HashKey
+
+        return HashKey(hash=self.hash, cache_type=self.cache_type)
+
+    @classmethod
+    def empty(
+        cls, *, key: HashKey, defs: set[str], stateful_refs: set[str]
+    ) -> Cache:
+        return Cache(
+            defs={d: None for d in defs},
+            hash=key.hash,
+            cache_type=key.cache_type,
+            stateful_refs=stateful_refs,
+            hit=False,
+            meta={},
+        )
+
+    @classmethod
+    def new(
+        cls, *, loaded: Cache, key: HashKey, stateful_refs: set[str]
+    ) -> Cache:
+        return Cache(
+            defs=loaded.defs,
+            hash=key.hash,
+            cache_type=key.cache_type,
+            stateful_refs=stateful_refs,
+            hit=True,
+            meta=loaded.meta,
+        )

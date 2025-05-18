@@ -2,13 +2,21 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from importlib.abc import Traversable
 
 
-def import_files(filename: str) -> Any:
+def import_files(filename: str) -> Traversable:
     from importlib.resources import files as importlib_files
 
     return importlib_files(filename)
+
+
+def marimo_package_path() -> Path:
+    return Path(str(import_files("marimo")))
 
 
 def pretty_path(filename: str) -> str:
@@ -29,10 +37,8 @@ def pretty_path(filename: str) -> str:
     return filename
 
 
-def maybe_make_dirs(filepath: str) -> None:
+def maybe_make_dirs(filepath: Path) -> None:
     """
     Create directories if they don't exist.
     """
-    dirname = os.path.dirname(filepath)
-    if dirname:
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    filepath.parent.mkdir(parents=True, exist_ok=True)

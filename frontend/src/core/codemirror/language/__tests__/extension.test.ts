@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   adaptiveLanguageConfiguration,
   getInitialLanguageAdapter,
@@ -8,26 +8,37 @@ import {
 } from "../extension";
 import { EditorState } from "@codemirror/state";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { MovementCallbacks } from "../../cells/extensions";
-import { store } from "@/core/state/jotai";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { EditorView } from "@codemirror/view";
+import type { CellId } from "@/core/cells/ids";
+import { cellConfigExtension } from "../../config/extension";
+import { languageMetadataField } from "../metadata";
 
 function createState(content: string, selection?: { anchor: number }) {
   const state = EditorState.create({
     doc: content,
     extensions: [
       adaptiveLanguageConfiguration({
+        cellId: "cell1" as CellId,
         completionConfig: {
           copilot: false,
           activate_on_typing: true,
           codeium_api_key: null,
         },
+        lspConfig: {},
         hotkeys: new OverridingHotkeyProvider({}),
-        enableAI: true,
-        showPlaceholder: true,
-        cellMovementCallbacks: {} as MovementCallbacks,
+        placeholderType: "marimo-import",
       }),
+      cellConfigExtension(
+        {
+          copilot: false,
+          activate_on_typing: true,
+          codeium_api_key: null,
+        },
+        new OverridingHotkeyProvider({}),
+        "marimo-import",
+        {},
+        {},
+      ),
     ],
     selection,
   });
@@ -36,13 +47,6 @@ function createState(content: string, selection?: { anchor: number }) {
 }
 
 describe("getInitialLanguageAdapter", () => {
-  beforeAll(() => {
-    store.set(capabilitiesAtom, {
-      sql: true,
-      terminal: true,
-    });
-  });
-
   it("should return python", () => {
     let state = createState("def f():\n  return 1");
     expect(getInitialLanguageAdapter(state).type).toBe("python");
@@ -142,9 +146,9 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "mo.md(
           r"""
-          print('Hello')
-          print('Goodbye')
-          """
+      print('Hello')
+      print('Goodbye')
+      """
       )"
     `);
 
@@ -165,5 +169,74 @@ describe("switchLanguage", () => {
           """
       )"
     `);
+  });
+
+  it("sets default metadata when switching from Python to SQL with keepCodeAsIs false", () => {
+    const state = createState("SELECT * FROM df");
+    const mockEditor = new EditorView({ state });
+
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({});
+
+    // Switch to SQL
+    switchLanguage(mockEditor, "sql", { keepCodeAsIs: false });
+
+    // Check that the language was switched
+    expect(mockEditor.state.field(languageAdapterState).type).toBe("sql");
+
+    // Check that the default metadata was set
+    const metadata = mockEditor.state.field(languageMetadataField);
+    expect(metadata).toMatchInlineSnapshot(`
+      {
+        "commentLines": [],
+        "dataframeName": "_df",
+        "engine": "__marimo_duckdb",
+        "quotePrefix": "f",
+        "showOutput": true,
+      }
+    `);
+
+    // Check that the document was transformed correctly
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+  });
+
+  it("handle when switching from Python to Markdown with keepCodeAsIs true", () => {
+    const state = createState("# hello");
+    const mockEditor = new EditorView({ state });
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({});
+
+    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("# hello");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      quotePrefix: "r",
+    });
+  });
+
+  it("handles when switching from Python to Markdown to SQL with keepCodeAsIs true", () => {
+    const state = createState("SELECT * FROM df");
+    const mockEditor = new EditorView({ state });
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({});
+
+    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      quotePrefix: "r",
+    });
+
+    switchLanguage(mockEditor, "sql", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      commentLines: [],
+      dataframeName: "_df",
+      engine: "__marimo_duckdb",
+      quotePrefix: "f",
+      showOutput: true,
+    });
+
+    // Switch back to markdown
+    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      quotePrefix: "r",
+    });
   });
 });

@@ -4,12 +4,11 @@ from __future__ import annotations
 import hashlib
 import weakref
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
@@ -24,17 +23,22 @@ LOGGER = _loggers.marimo_logger()
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache: Dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+cache: dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
-def from_anywidget(widget: "AnyWidget") -> UIElement[Any, Any]:
+def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    if widget not in cache:
-        cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
-    return cache[widget]
+    try:
+        if widget not in cache:
+            cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+        return cache[widget]
+    except TypeError as e:
+        # Unhashable widgets can't be used as keys in a WeakKeyDictionary
+        LOGGER.warning(e)
+        return anywidget(widget)
 
 
-T = Dict[str, Any]
+T = dict[str, Any]
 
 
 @dataclass
@@ -75,13 +79,20 @@ class anywidget(UIElement[T, T]):
         widget (AnyWidget): The widget to wrap.
     """
 
-    def __init__(self, widget: "AnyWidget"):
+    def __init__(self, widget: AnyWidget):
         self.widget = widget
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        # Get all the traits of the widget
-        args: T = widget.trait_values()
+        import ipywidgets  # type: ignore
+
+        _remove_buffers = ipywidgets.widgets.widget._remove_buffers  # type: ignore
+
+        # Get state with custom serializers properly applied
+        state = widget.get_state()
+        _state_no_buffers, buffer_paths, buffers = _remove_buffers(state)  # type: ignore
+
+        # Remove widget-specific system traits not needed for the frontend
         ignored_traits = [
             "comm",
             "layout",
@@ -104,35 +115,28 @@ class anywidget(UIElement[T, T]):
             "_view_module_version",
             "_view_name",
         ]
-        # Remove ignored traits
-        for trait_name in ignored_traits:
-            args.pop(trait_name, None)
 
-        # Keep only classes that are json serialize-able
-        json_args: T = {}
-        for k, v in args.items():
-            try:
-                # Try to see if it is json-serializable
-                WebComponentEncoder.json_dumps(v)
-                # Just add the plain value, it will be json-serialized later
-                json_args[k] = v
-            except TypeError:
-                pass
-            except ValueError:
-                # Handle circular dependencies
-                pass
+        # Filter out system traits from the serialized state
+        # This should include the binary data,
+        # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
+        json_args: T = {
+            k: v for k, v in state.items() if k not in ignored_traits
+        }
 
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
-        import ipywidgets  # type: ignore
-
-        _remove_buffers = ipywidgets.widgets.widget._remove_buffers  # type: ignore
-        _state, buffer_paths, buffers = _remove_buffers(widget.get_state())  # type: ignore
 
         def on_change(change: T) -> None:
             _put_buffers = ipywidgets.widgets.widget._put_buffers  # type: ignore
             _put_buffers(change, buffer_paths, buffers)
-            widget.set_state(change)
+            current_state: dict[str, Any] = widget.get_state()
+            changed_state: dict[str, Any] = {}
+            for k, v in change.items():
+                if k not in current_state:
+                    changed_state[k] = v
+                elif current_state[k] != v:
+                    changed_state[k] = v
+            widget.set_state(changed_state)
 
         js_hash: str = hashlib.md5(
             js.encode("utf-8"), usedforsecurity=False
@@ -163,7 +167,7 @@ class anywidget(UIElement[T, T]):
     def _initialize(
         self,
         initialization_args: InitializationArgs[
-            Dict[str, Any], Dict[str, Any]
+            dict[str, Any], dict[str, Any]
         ],
     ) -> None:
         super()._initialize(initialization_args)
@@ -180,6 +184,10 @@ class anywidget(UIElement[T, T]):
             merged = {**self._prev_state, **value}
             self._prev_state = merged
             return merged
+
+        LOGGER.warning(
+            f"Expected anywidget value to be a dict, got {type(value)}"
+        )
         self._prev_state = value
         return value
 

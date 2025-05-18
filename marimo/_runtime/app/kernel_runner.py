@@ -67,7 +67,13 @@ class AppKernelRunner:
         filename = "<unknown>"
         self._kernel = Kernel(
             cell_configs={},
-            app_metadata=AppMetadata({}, {}, filename),
+            app_metadata=AppMetadata(
+                {},
+                ctx.cli_args.to_dict(),
+                argv=ctx.argv,
+                filename=filename,
+                app_config=app.config,
+            ),
             stream=ctx.stream,
             stdout=None,
             stderr=None,
@@ -101,7 +107,7 @@ class AppKernelRunner:
         # Register cells through the kernel runner, so that compilation only
         # occurs once.
         for cell_id, cell in app.cell_manager.valid_cells():
-            self._kernel._register_cell(cell_id, cell._cell)
+            self._kernel._register_cell(cell_id, cell._cell, stale=False)
 
     @property
     def outputs(self) -> dict[CellId_t, Any]:

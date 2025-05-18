@@ -1,15 +1,30 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import builtins
 import re
-from collections import namedtuple
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from marimo._types.ids import CellId_t
 
-UnmagledLocal = namedtuple("UnmagledLocal", "name cell")
+
+class UnmagledLocal(NamedTuple):
+    name: str
+    cell: CellId_t
+
 
 _EMPTY_CELL_ID = CellId_t("")
+
+BUILTINS = set(
+    {
+        *set(builtins.__dict__.keys()),
+        # resolved from:
+        #   set(globals().keys()) - set(builtins.__dict__.keys())
+        "__builtin__",
+        "__file__",
+        "__builtins__",
+    }
+)
 
 
 def if_local_then_mangle(ref: str, cell_id: CellId_t) -> str:
@@ -24,11 +39,13 @@ def unmangle_local(
     name: str, cell_id: CellId_t = _EMPTY_CELL_ID
 ) -> UnmagledLocal:
     if not is_mangled_local(name, cell_id):
-        return UnmagledLocal(name, "")
+        return UnmagledLocal(name, CellId_t(""))
     private_prefix = r"^_cell_\w+?_"
     if cell_id:
         private_prefix = f"^_cell_{cell_id}_"
-    return UnmagledLocal(re.sub(private_prefix, "_", name), name.split("_")[2])
+    return UnmagledLocal(
+        re.sub(private_prefix, "_", name), CellId_t(name.split("_")[2])
+    )
 
 
 def is_mangled_local(name: str, cell_id: CellId_t = _EMPTY_CELL_ID) -> bool:

@@ -20,7 +20,7 @@ def _():
 @app.cell
 def _():
     y = 0
-    return (y,)
+    return
 
 
 @app.cell

@@ -28,7 +28,7 @@ export const FilterPills = <TData,>({ filters, table }: Props<TData>) => {
     }
 
     return (
-      <Badge key={filter.id} variant="secondary">
+      <Badge key={filter.id} variant="secondary" className="dark:invert">
         {filter.id} {formattedValue}{" "}
         <span
           className="cursor-pointer opacity-60 hover:opacity-100 pl-1 py-[2px]"

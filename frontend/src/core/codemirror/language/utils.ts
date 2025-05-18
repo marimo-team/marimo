@@ -2,6 +2,7 @@
 import type { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
 import type { EditorState } from "@codemirror/state";
+import { languageMetadataField } from "./metadata";
 
 /**
  * Get the editor code as Python
@@ -13,11 +14,15 @@ export function getEditorCodeAsPython(
   toPos?: number,
 ): string {
   const languageAdapter = editor.state.field(languageAdapterState);
+  const metadata = editor.state.field(languageMetadataField);
   const editorText = editor.state.doc.toString();
   if (fromPos !== undefined) {
-    return languageAdapter.transformOut(editorText.slice(fromPos, toPos))[0];
+    return languageAdapter.transformOut(
+      editorText.slice(fromPos, toPos),
+      metadata,
+    )[0];
   }
-  return languageAdapter.transformOut(editorText)[0];
+  return languageAdapter.transformOut(editorText, metadata)[0];
 }
 
 /**
@@ -27,15 +32,16 @@ export function getEditorCodeAsPython(
 export function updateEditorCodeFromPython(
   editor: EditorView,
   pythonCode: string,
-) {
+): string {
   const languageAdapter = editor.state.field(languageAdapterState);
   const [code] = languageAdapter.transformIn(pythonCode);
+  const doc = editor.state.doc;
+  // Noop if the code is the same
+  if (doc.toString() === code) {
+    return code;
+  }
   editor.dispatch({
-    changes: {
-      from: 0,
-      to: editor.state.doc.length,
-      insert: code,
-    },
+    changes: { from: 0, to: doc.length, insert: code },
   });
   return code;
 }

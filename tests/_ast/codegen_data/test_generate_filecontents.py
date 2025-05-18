@@ -14,7 +14,7 @@ def one():
 def two():
     x = 0
     xx = 1
-    return x, xx
+    return (x,)
 
 
 @app.cell
@@ -27,7 +27,7 @@ def three(x):
 def four(np, x, y):
     # comment
     z = np.array(x + y)
-    return (z,)
+    return
 
 
 @app.cell

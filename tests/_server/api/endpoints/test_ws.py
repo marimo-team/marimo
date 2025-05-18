@@ -1,21 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
-from pycrdt import (
-    YMessageType,
-)
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import KernelCapabilities, KernelReady
-from marimo._server.api.endpoints.ws import CellIdAndFileKey, WebSocketCodes
+from marimo._server.api.endpoints.ws import (
+    WebSocketCodes,
+)
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
@@ -359,228 +357,7 @@ def flush_messages(
 def rtc_enabled(config: UserConfigManager):
     prev_config = config.get_config()
     try:
-        config.save_config({"experimental": {"rtc": True}})
+        config.save_config({"experimental": {"rtc_v2": True}})
         yield
     finally:
         config.save_config(prev_config)
-
-
-async def test_ycell_sync(client: TestClient) -> None:
-    """Test that Y-CRDT sync works between multiple clients"""
-    ws_1 = "/ws?session_id=123"
-    ws_2 = "/ws?session_id=456"
-
-    cell_id = "Hbol"
-
-    ws_1_cell_1 = f"/ws/{cell_id}?session_id=123"
-    ws_2_cell_1 = f"/ws/{cell_id}?session_id=456"
-
-    # First connect main websocket to create session
-    with (
-        rtc_enabled(get_user_config_manager(client)),
-        client.websocket_connect(ws_1) as websocket,
-        client.websocket_connect(ws_2) as websocket2,
-    ):
-        data = websocket.receive_json()
-        assert_parse_ready_response(data)
-        data2 = websocket2.receive_json()
-        assert_parse_ready_response(data2)
-
-        # Connect first client to cell websocket
-        with client.websocket_connect(ws_1_cell_1) as cell_ws1:
-            # Should receive initial sync message
-            sync_msg1 = cell_ws1.receive_bytes()
-            assert sync_msg1[0] == YMessageType.SYNC
-
-            # Connect second client
-            with client.websocket_connect(ws_2_cell_1) as cell_ws2:
-                # Should receive initial sync
-                sync_msg2 = cell_ws2.receive_bytes()
-                assert sync_msg2[0] == YMessageType.SYNC
-
-                # Send update from client 1
-                update_msg = bytes([YMessageType.AWARENESS]) + b"test update"
-                cell_ws1.send_bytes(update_msg)
-
-                # Client 2 should receive the update
-                # TODO: This hangs
-                # received = cell_ws2.receive_bytes()
-                # assert received[0] == YMessageType.AWARENESS
-                # assert received[1:] == b"test update"
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
-
-async def test_ycell_cleanup_on_session_close(
-    client: TestClient,
-) -> None:
-    """Test that cell websockets are cleaned up when session closes"""
-    with (
-        rtc_enabled(get_user_config_manager(client)),
-        client.websocket_connect("/ws?session_id=123") as websocket,
-    ):
-        data = websocket.receive_json()
-        assert_kernel_ready_response(data)
-
-        cell_id = "Hbol"
-        # Connect to cell websocket
-        with client.websocket_connect(
-            f"/ws/{cell_id}?session_id=123"
-        ) as cell_ws:
-            sync_msg = cell_ws.receive_bytes()
-            assert sync_msg[0] == YMessageType.SYNC
-
-            # Close main websocket
-            websocket.close()
-
-            # Cell websocket should close automatically
-            # TODO: This hangs
-            # with pytest.raises(WebSocketDisconnect):
-            #     while True:
-            #         cell_ws.receive_bytes()
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
-
-async def test_ycell_persistence(client: TestClient) -> None:
-    """Test that cell content persists between connections"""
-    cell_id = "Hbol"
-    initial_code = "print('hello')"
-
-    # First connection sets initial code
-    with (
-        rtc_enabled(get_user_config_manager(client)),
-        client.websocket_connect("/ws?session_id=123") as websocket,
-    ):
-        data = websocket.receive_json()
-        assert_kernel_ready_response(data)
-
-        with client.websocket_connect(
-            f"/ws/{cell_id}?session_id=123"
-        ) as cell_ws1:
-            sync_msg = cell_ws1.receive_bytes()
-            assert sync_msg[0] == YMessageType.SYNC
-
-            # Send initial code
-            update_msg = (
-                bytes([YMessageType.AWARENESS]) + initial_code.encode()
-            )
-            cell_ws1.send_bytes(update_msg)
-
-    # Second connection should receive persisted code
-    with (
-        rtc_enabled(get_user_config_manager(client)),
-        client.websocket_connect("/ws?session_id=456") as websocket,
-    ):
-        data = websocket.receive_json()
-        assert_kernel_ready_response(data, create_response({"resumed": True}))
-
-        with client.websocket_connect(
-            f"/ws/{cell_id}?session_id=456"
-        ) as cell_ws2:
-            sync_msg = cell_ws2.receive_bytes()
-            # Verify initial code is preserved
-            assert sync_msg[0] == YMessageType.SYNC
-            # Sync message contains binary yjs data, not raw code
-            assert len(sync_msg[1:]) > 0
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
-
-async def test_ycell_cleanup_after_timeout(
-    client: TestClient, temp_marimo_file: str
-) -> None:
-    """Test that cell data is cleaned up after all clients disconnect"""
-    from marimo._server.api.endpoints.ws import clean_cell, ycells
-
-    cell_id = "Hbol"
-
-    with client.websocket_connect(
-        f"/ws?session_id=123&file={temp_marimo_file}"
-    ) as websocket:
-        data = websocket.receive_json()
-        assert_parse_ready_response(data)
-
-        with client.websocket_connect(
-            f"/ws/{cell_id}?session_id=123&file={temp_marimo_file}"
-        ) as cell_ws:
-            key = CellIdAndFileKey(cell_id, temp_marimo_file)
-            sync_msg = cell_ws.receive_bytes()
-            assert sync_msg[0] == YMessageType.SYNC
-            assert key in ycells
-
-            # Close websocket
-            cell_ws.close()
-
-            # Cell should still exist
-            assert key in ycells
-
-            # Wait for cleanup
-            await clean_cell(key, timeout=0.01)
-
-            # Cell should be removed
-            assert key not in ycells
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
-
-async def test_ycell_multiple_clients(
-    client: TestClient, temp_marimo_file: str
-) -> None:
-    """Test multiple clients can connect to same cell"""
-    cell_id = "Hbol"
-
-    with client.websocket_connect(
-        f"/ws?session_id=123&file={temp_marimo_file}"
-    ) as websocket:
-        data = websocket.receive_json()
-        assert_parse_ready_response(data)
-
-        # Connect first client
-        with client.websocket_connect(
-            f"/ws/{cell_id}?session_id=123&file={temp_marimo_file}"
-        ) as cell_ws1:
-            sync_msg1 = cell_ws1.receive_bytes()
-            assert sync_msg1[0] == YMessageType.SYNC
-
-            # Connect second client
-            with client.websocket_connect(
-                f"/ws/{cell_id}?session_id=123&file={temp_marimo_file}"
-            ) as cell_ws2:
-                sync_msg2 = cell_ws2.receive_bytes()
-                assert sync_msg2[0] == YMessageType.SYNC
-
-                # Both should receive updates
-                update_msg = bytes([1]) + b"test"
-                cell_ws1.send_bytes(update_msg)
-
-                # TODO: This hangs
-                # received = cell_ws2.receive_bytes()
-                # assert received[0] == YMessageType.AWARENESS
-                # assert received[1:] == b"test"
-
-                # Verify client count
-                from marimo._server.api.endpoints.ws import ycells
-
-                key = CellIdAndFileKey(cell_id, temp_marimo_file)
-
-                assert ycells[key].clients == 2
-
-                # Close one client
-                cell_ws2.close()
-                await asyncio.sleep(0.1)
-                assert ycells[key].clients == 1
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
-
-async def test_ycell_invalid_session(client: TestClient) -> None:
-    """Test connecting to cell with invalid session is rejected"""
-    cell_id = "Hbol"
-
-    with pytest.raises(WebSocketDisconnect) as exc_info:
-        with client.websocket_connect(f"/ws/{cell_id}?session_id=invalid"):
-            pass
-
-    assert exc_info.value.code == WebSocketCodes.FORBIDDEN
-    assert exc_info.value.reason == "MARIMO_NOT_ALLOWED"

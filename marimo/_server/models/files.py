@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 from marimo._server.models.models import BaseResponse
 
@@ -15,7 +15,7 @@ class FileInfo:
     is_directory: bool
     is_marimo_file: bool
     last_modified: Optional[float] = None
-    children: List["FileInfo"] = field(default_factory=list)
+    children: list[FileInfo] = field(default_factory=list)
 
 
 @dataclass
@@ -79,7 +79,7 @@ class FileUpdateRequest:
 
 @dataclass
 class FileListResponse:
-    files: List[FileInfo]
+    files: list[FileInfo]
     root: str
 
 

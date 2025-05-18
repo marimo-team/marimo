@@ -70,6 +70,10 @@ export function makeSelectable<T extends VegaLiteSpec>(
   if (!("mark" in spec)) {
     return spec;
   }
+  // error, errorbar, boxplot are not interactive
+  if (!Marks.isInteractive(spec.mark)) {
+    return spec;
+  }
 
   let resolvedSpec: VegaLiteUnitSpec = spec;
   resolvedSpec = makeLegendSelectable(resolvedSpec, fieldSelection);
@@ -137,8 +141,8 @@ function makeChartSelectable(
     return spec;
   }
 
-  // We don't do anything if the mark is text or geoshape
-  if (mark === "geoshape" || mark === "text") {
+  // We don't do anything if the mark is geoshape
+  if (mark === "geoshape") {
     return spec;
   }
 
@@ -210,10 +214,7 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
     return spec;
   }
 
-  const mark = Marks.getMarkType(spec.mark);
-
-  // We don't do anything if the mark is text
-  if (mark === "text") {
+  if (!Marks.isInteractive(spec.mark)) {
     return spec;
   }
 
@@ -231,10 +232,10 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
 
 function getBestSelectionForMark(mark: Mark): SelectionType[] | undefined {
   switch (mark) {
-    case "text":
     case "arc":
     case "area":
       return ["point"];
+    case "text":
     case "bar":
       return ["point", "interval"];
     // there is no best selection for line

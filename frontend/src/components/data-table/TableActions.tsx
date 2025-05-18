@@ -4,10 +4,14 @@
 import React from "react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, ChartBarIcon, PanelRightIcon } from "lucide-react";
 import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
+import type { DataTableSelection } from "./types";
+import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { toast } from "../ui/use-toast";
+import { cn } from "@/utils/cn";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -16,10 +20,15 @@ interface TableActionsProps<TData> {
   setIsSearchEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   pagination: boolean;
   totalColumns: number;
-  selection?: "single" | "multi" | null;
+  selection?: DataTableSelection;
   onRowSelectionChange?: (value: RowSelectionState) => void;
   table: Table<TData>;
   downloadAs?: DownloadActionProps["downloadAs"];
+  getRowIds?: GetRowIds;
+  toggleDisplayHeader?: () => void;
+  chartsFeatureEnabled?: boolean;
+  toggleRowViewerPanel?: () => void;
+  isRowViewerPanelOpen?: boolean;
 }
 
 export const TableActions = <TData,>({
@@ -33,9 +42,58 @@ export const TableActions = <TData,>({
   onRowSelectionChange,
   table,
   downloadAs,
+  getRowIds,
+  toggleDisplayHeader,
+  chartsFeatureEnabled,
+  toggleRowViewerPanel,
+  isRowViewerPanelOpen,
 }: TableActionsProps<TData>) => {
+  const handleSelectAllRows = (value: boolean) => {
+    if (!onRowSelectionChange) {
+      return;
+    }
+
+    // Clear all selections
+    if (!value) {
+      onRowSelectionChange({});
+      return;
+    }
+
+    const selectAllRowsByIndex = () => {
+      const allKeys = Array.from(
+        { length: table.getRowCount() },
+        (_, i) => [i, true] as const,
+      );
+      onRowSelectionChange(Object.fromEntries(allKeys));
+    };
+
+    if (!getRowIds) {
+      selectAllRowsByIndex();
+      return;
+    }
+
+    getRowIds({}).then((data) => {
+      if (data.error) {
+        toast({
+          title: "Not available",
+          description: data.error,
+          variant: "danger",
+        });
+        return;
+      }
+
+      if (data.all_rows) {
+        selectAllRowsByIndex();
+      } else {
+        onRowSelectionChange(
+          Object.fromEntries(data.row_ids.map((id) => [id, true])),
+        );
+      }
+    });
+  };
+
   return (
-    <div className="flex items-center justify-between flex-shrink-0 pt-1">
+    <div className="flex items-center flex-shrink-0 pt-1">
       {onSearchQueryChange && enableSearch && (
         <Tooltip content="Search">
           <Button
@@ -48,31 +106,41 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {pagination ? (
+      {chartsFeatureEnabled && (
+        <Tooltip content="Show charts">
+          <Button
+            variant="text"
+            size="xs"
+            className="mb-0"
+            onClick={toggleDisplayHeader}
+          >
+            <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </Tooltip>
+      )}
+      {toggleRowViewerPanel && (
+        <Tooltip content="Toggle row viewer">
+          <Button variant="text" size="xs" onClick={toggleRowViewerPanel}>
+            <PanelRightIcon
+              className={cn(
+                "w-4 h-4 text-muted-foreground",
+                isRowViewerPanelOpen && "text-primary",
+              )}
+            />
+          </Button>
+        </Tooltip>
+      )}
+      {pagination && (
         <DataTablePagination
           totalColumns={totalColumns}
           selection={selection}
-          onSelectAllRowsChange={
-            onRowSelectionChange
-              ? (value: boolean) => {
-                  if (value) {
-                    const allKeys = Array.from(
-                      { length: table.getRowCount() },
-                      (_, i) => [i, true] as const,
-                    );
-                    onRowSelectionChange(Object.fromEntries(allKeys));
-                  } else {
-                    onRowSelectionChange({});
-                  }
-                }
-              : undefined
-          }
+          onSelectAllRowsChange={handleSelectAllRows}
           table={table}
         />
-      ) : (
-        <div />
       )}
-      {downloadAs && <DownloadAs downloadAs={downloadAs} />}
+      <div className="ml-auto">
+        {downloadAs && <DownloadAs downloadAs={downloadAs} />}
+      </div>
     </div>
   );
 };

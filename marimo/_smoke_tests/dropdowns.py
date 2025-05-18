@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.0"
+__generated_with = "0.11.23"
 app = marimo.App(width="medium")
 
 
@@ -68,6 +68,20 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    # Mixed types
+    mixed_types = [1, "string", 3.14, True, None, (1, 2)]
+    dropdown_mixed_types = mo.ui.dropdown(options=mixed_types)
+    return dropdown_mixed_types, mixed_types
+
+
+@app.cell
+def _(dropdown_mixed_types, mo):
+    mo.hstack([dropdown_mixed_types, dropdown_mixed_types.value])
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# multiselect""")
@@ -75,7 +89,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def _(mixed_types, mo):
     # multiselect
     multiselect1 = mo.ui.multiselect(
         options=["Option 1", "Option 2", "Option 3"], value=["Option 1"]
@@ -95,7 +109,15 @@ def _(mo):
     multiselect4 = mo.ui.multiselect(
         options=["Cat", "Dog", "Bird"], value=None, max_selections=2
     )
-    return multiselect1, multiselect2, multiselect3, multiselect4
+
+    multiselect_mixed_types = mo.ui.multiselect(options=mixed_types)
+    return (
+        multiselect1,
+        multiselect2,
+        multiselect3,
+        multiselect4,
+        multiselect_mixed_types,
+    )
 
 
 @app.cell
@@ -106,6 +128,12 @@ def _(multiselect1, multiselect2, multiselect3, multiselect4):
         multiselect3,
         multiselect4,
     ]
+    return
+
+
+@app.cell
+def _(mo, multiselect_mixed_types):
+    mo.hstack([multiselect_mixed_types, multiselect_mixed_types.value])
     return
 
 

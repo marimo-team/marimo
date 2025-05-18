@@ -2,15 +2,19 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Union
 
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
+from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
+from marimo._plugins.ui._impl.charts.altair_transformer import (
+    sanitize_nan_infs,
+)
 
 if TYPE_CHECKING:
-    import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import altair
 
 
 class AltairFormatter(FormatterFactory):
@@ -19,7 +23,7 @@ class AltairFormatter(FormatterFactory):
         return "altair"
 
     def register(self) -> None:
-        import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import altair
 
         from marimo._output import formatting
         from marimo._plugins.ui._impl.charts.altair_transformer import (
@@ -30,7 +34,9 @@ class AltairFormatter(FormatterFactory):
         register_transformers()
 
         @formatting.formatter(altair.TopLevelMixin)
-        def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
+        def _show_chart(
+            chart: Union[altair.Chart, altair.LayerChart],
+        ) -> tuple[KnownMimeType, str]:
             import altair as alt
 
             # Try to get the _repr_mimebundle_ method from the chart
@@ -72,7 +78,7 @@ class AltairFormatter(FormatterFactory):
             if alt.data_transformers.active.startswith("vegafusion"):
                 return (
                     "application/vnd.vega.v5+json",
-                    chart.to_json(format="vega"),
+                    chart_to_json(chart=chart, spec_format="vega"),
                 )
 
             # If the user has not set the max_rows option, we set it to 20_000
@@ -82,8 +88,13 @@ class AltairFormatter(FormatterFactory):
 
             chart = _apply_embed_options(chart)
 
+            chart = maybe_make_full_width(chart)
+
             # Return the chart as a vega-lite chart with embed options
-            return ("application/vnd.vegalite.v5+json", chart.to_json())
+            return (
+                "application/vnd.vegalite.v5+json",
+                chart_to_json(chart=chart, validate=False),
+            )
 
     def apply_theme(self, theme: Theme) -> None:
         del theme
@@ -95,7 +106,9 @@ class AltairFormatter(FormatterFactory):
 # This is only needed since it seems that altair does not
 # handle this internally.
 # https://github.com/marimo-team/marimo/issues/2302
-def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
+def _apply_embed_options(
+    chart: Union[altair.Chart, altair.LayerChart],
+) -> Union[altair.Chart, altair.LayerChart]:
     import altair as alt
 
     # Respect user-set embed options
@@ -112,3 +125,23 @@ def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
         },
     }
     return chart
+
+
+def chart_to_json(
+    chart: Union[altair.Chart, altair.LayerChart],
+    spec_format: Literal["vega", "vega-lite"] = "vega-lite",
+    validate: bool = True,
+) -> str:
+    """
+    Convert an altair chart to a JSON string.
+
+    This function is a wrapper around the altair.Chart.to_json method.
+    It sanitizes the data in the chart if necessary and validates the spec.
+    """
+    try:
+        return chart.to_json(
+            format=spec_format, validate=validate, allow_nan=False
+        )
+    except ValueError:
+        chart.data = sanitize_nan_infs(chart.data)
+        return chart.to_json(format=spec_format, validate=validate)

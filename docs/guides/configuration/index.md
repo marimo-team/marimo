@@ -42,6 +42,7 @@ You can customize the following settings:
 - [VIM keybindings](../editor_features/overview.md#vim-keybindings)
 - Formatting settings
 - [AI assistance](../editor_features/ai_completion.md)
+- [Snippets](snippets.md)
 - Experimental features
 
 ### User configuration file
@@ -78,11 +79,14 @@ For example, the following `pyproject.toml` file overrides the `autosave` settin
 in the user configuration:
 
 ```toml title="pyproject.toml"
-[tool.marimo.format]
+[tool.marimo.formatting]
 line_length = 120
 
 [tool.marimo.display]
 default_width = "full"
+
+[tool.marimo.runtime]
+default_sql_output = "native"
 ```
 
 You can override any user configuration setting in this way. To find these settings run `marimo config show`.

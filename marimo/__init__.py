@@ -22,6 +22,7 @@ __all__ = [
     "MarimoIslandGenerator",
     "MarimoStopError",
     "Thread",
+    "current_thread",
     # Other namespaces
     "ai",
     "ui",
@@ -46,7 +47,7 @@ __all__ = [
     "icon",
     "iframe",
     "image",
-    "import_guard",
+    "json",
     "latex",
     "lazy",
     "left",
@@ -81,11 +82,13 @@ __all__ = [
     "tree",
     "video",
     "vstack",
+    "watch",
 ]
-__version__ = "0.11.8"
+__version__ = "0.13.10"
 
 import marimo._ai as ai
 import marimo._islands as islands
+import marimo._runtime.watch as watch
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands._island_generator import MarimoIslandGenerator
@@ -105,6 +108,7 @@ from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.json_component import json
 from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.nav_menu import nav_menu
@@ -124,7 +128,7 @@ from marimo._runtime.capture import (
     redirect_stderr,
     redirect_stdout,
 )
-from marimo._runtime.context.utils import import_guard, running_in_notebook
+from marimo._runtime.context.utils import running_in_notebook
 from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import (
     app_meta,
@@ -136,7 +140,7 @@ from marimo._runtime.runtime import (
     refs,
 )
 from marimo._runtime.state import state
-from marimo._runtime.threads import Thread
+from marimo._runtime.threads import Thread, current_thread
 from marimo._save.save import cache, lru_cache, persistent_cache
 from marimo._server.asgi import create_asgi_app
 from marimo._sql.sql import sql

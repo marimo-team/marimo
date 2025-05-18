@@ -2,18 +2,18 @@
 import { useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useCellActions } from "@/core/cells/cells";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { BetweenHorizontalStartIcon } from "lucide-react";
 import { EditorView } from "@codemirror/view";
 import Markdown, { type Components } from "react-markdown";
 import { useEffect, useState, memo, useMemo } from "react";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { copyToClipboard } from "@/utils/copy";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useAtomValue } from "jotai";
 import { autoInstantiateAtom } from "@/core/config/config";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { marked } from "marked";
 
 const extensions = [EditorView.lineWrapping];
@@ -121,15 +121,37 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
         onChange={setValue}
       />
       <div className="flex justify-end mt-2 space-x-2">
-        <Button size="xs" variant="outline" onClick={handleCopyCode}>
+        <CopyButton size="xs" variant="outline" onClick={handleCopyCode}>
           Copy
-        </Button>
+        </CopyButton>
         <Button size="xs" variant="outline" onClick={handleInsertCode}>
           Add to Notebook
           <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </div>
+  );
+};
+
+const CopyButton: React.FC<ButtonProps> = ({ onClick, ...props }) => {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (copied) {
+      setTimeout(() => setCopied(false), 1000);
+    }
+  }, [copied]);
+
+  return (
+    <Button
+      {...props}
+      onClick={(e) => {
+        onClick?.(e);
+        setCopied(true);
+      }}
+    >
+      {copied ? "Copied" : "Copy"}
+    </Button>
   );
 };
 

@@ -4,8 +4,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import Any, Optional, Union, cast
 
 from marimo import __version__, _loggers
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -35,21 +36,36 @@ LOGGER = _loggers.marimo_logger()
 
 def serialize_session_view(view: SessionView) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema."""
-    cells: List[Cell] = []
+    cells: list[Cell] = []
 
     for cell_id, cell_op in view.cell_operations.items():
-        outputs: List[OutputType] = []
-        console: List[StreamOutput] = []
+        outputs: list[OutputType] = []
+        console: list[StreamOutput] = []
 
         # Convert output
         if cell_op.output:
             if cell_op.output.channel == CellChannel.MARIMO_ERROR:
-                for error in cast(List[MarimoError], cell_op.output.data):
+                for error in cast(
+                    list[Union[MarimoError, dict[str, Any]]],
+                    cell_op.output.data,
+                ):
+                    # Handle both dictionary and object errors
+                    # Errors can be a dictionary if they are serialized
+                    error_type = (
+                        error.get("type", "Unknown")
+                        if isinstance(error, dict)
+                        else error.type
+                    )
+                    error_value = (
+                        error.get("msg", "")
+                        if isinstance(error, dict)
+                        else error.describe()
+                    )
                     outputs.append(
                         ErrorOutput(
                             type="error",
-                            ename=error.type,
-                            evalue=error.describe(),
+                            ename=error_type,
+                            evalue=error_value,
                             traceback=[],
                         )
                     )
@@ -100,16 +116,14 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
     view = SessionView()
 
     for cell in session["cells"]:
-        cell_outputs: List[CellOutput] = []
+        cell_outputs: list[CellOutput] = []
 
         # Convert outputs
         for output in cell["outputs"]:
             if output["type"] == "error":
                 cell_outputs.append(
-                    CellOutput(
-                        channel=CellChannel.MARIMO_ERROR,
-                        mimetype="text/plain",
-                        data=[
+                    CellOutput.errors(
+                        [
                             MarimoExceptionRaisedError(
                                 type="exception",
                                 exception_type=output["ename"],
@@ -148,7 +162,7 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                 continue
 
         # Convert console
-        console_outputs: List[CellOutput] = []
+        console_outputs: list[CellOutput] = []
         for console in cell["console"]:
             console_outputs.append(
                 CellOutput(
@@ -227,6 +241,12 @@ class SessionCacheWriter(AsyncBackgroundTask):
                 break
 
 
+@dataclass
+class SessionCacheKey:
+    codes: tuple[str | None, ...]
+    marimo_version: str
+
+
 class SessionCacheManager:
     """Manages the session cache writer.
 
@@ -272,13 +292,38 @@ class SessionCacheManager:
         self.path = new_path
         self.start()
 
-    def read_session_view(self) -> SessionView:
-        """Read the session view from the cache file"""
+    def is_cache_hit(
+        self, notebook_session: NotebookSessionV1, key: SessionCacheKey
+    ) -> bool:
+        if (len(key.codes) != len(notebook_session["cells"])) or any(
+            _hash_code(code) != cell["code_hash"]
+            for code, cell in zip(key.codes, notebook_session["cells"])
+        ):
+            return False
+        if (
+            key.marimo_version
+            != notebook_session["metadata"]["marimo_version"]
+        ):
+            return False
+        return True
+
+    def read_session_view(self, key: SessionCacheKey) -> SessionView:
+        """Read the session view from the cache files.
+
+        Mutates the session view on cache hit.
+        """
         if self.path is None:
             return self.session_view
         cache_file = get_session_cache_file(Path(self.path))
         if not cache_file.exists():
             return self.session_view
+        notebook_session: NotebookSessionV1 = json.loads(
+            cache_file.read_text()
+        )
+        if not self.is_cache_hit(notebook_session, key):
+            LOGGER.debug("Session view cache miss")
+            return self.session_view
+
         self.session_view = deserialize_session(
             json.loads(cache_file.read_text())
         )

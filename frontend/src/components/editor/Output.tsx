@@ -135,6 +135,7 @@ export const OutputRenderer: React.FC<{
         <MarimoTracebackOutput
           onRefactorWithAI={onRefactorWithAI}
           traceback={data}
+          cellId={cellId}
         />
       );
 
@@ -266,6 +267,7 @@ interface OutputAreaProps {
   output: OutputMessage | null;
   cellId: CellId;
   stale: boolean;
+  loading: boolean;
   /**
    * Whether to allow expanding the output
    * This shows the expand button and allows the user to expand the output
@@ -284,6 +286,7 @@ export const OutputArea = React.memo(
     output,
     cellId,
     stale,
+    loading,
     allowExpand,
     forceExpand,
     className,
@@ -309,7 +312,11 @@ export const OutputArea = React.memo(
           cellId={cellId}
           forceExpand={forceExpand}
           id={CellOutputId.create(cellId)}
-          className={cn(stale && "marimo-output-stale", className)}
+          className={cn(
+            stale && "marimo-output-stale",
+            loading && "marimo-output-loading",
+            className,
+          )}
         >
           <OutputRenderer cellId={cellId} message={output} />
         </Container>

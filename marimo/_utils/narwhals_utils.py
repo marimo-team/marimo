@@ -4,7 +4,10 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Any
 
+import narwhals.dtypes as nw_dtypes
 import narwhals.stable.v1 as nw
+
+from marimo._dependencies.dependencies import DependencyManager
 
 if sys.version_info < (3, 11):
     from typing_extensions import TypeGuard
@@ -42,7 +45,9 @@ def assert_narwhals_series(series: nw.Series) -> None:
         raise ValueError(f"Unsupported series type. Got {type(series)}")
 
 
-def can_narwhalify(obj: Any, eager_only: bool = False) -> TypeGuard[IntoFrame]:
+def can_narwhalify(
+    obj: Any, *, eager_only: bool = False
+) -> TypeGuard[IntoFrame]:
     """
     Check if the given object can be narwhalified.
     """
@@ -84,38 +89,34 @@ def dataframe_to_csv(df: IntoFrame) -> str:
 
 def is_narwhals_integer_type(
     dtype: Any,
-) -> TypeGuard[
-    nw.Int64
-    | nw.UInt64
-    | nw.Int32
-    | nw.UInt32
-    | nw.Int16
-    | nw.UInt16
-    | nw.Int8
-    | nw.UInt8
-]:
+) -> TypeGuard[nw_dtypes.IntegerType]:
     """
     Check if the given dtype is integer type.
     """
-    return bool(
-        dtype == nw.Int64
-        or dtype == nw.UInt64
-        or dtype == nw.Int32
-        or dtype == nw.UInt32
-        or dtype == nw.Int16
-        or dtype == nw.UInt16
-        or dtype == nw.Int8
-        or dtype == nw.UInt8
-    )
+    if hasattr(dtype, "is_integer"):
+        return dtype.is_integer()  # type: ignore[no-any-return]
+    return False
 
 
 def is_narwhals_temporal_type(
     dtype: Any,
-) -> TypeGuard[nw.Datetime | nw.Date]:
+) -> TypeGuard[nw_dtypes.TemporalType]:
     """
     Check if the given dtype is temporal type.
     """
-    return bool(dtype == nw.Datetime or dtype == nw.Date)
+    if hasattr(dtype, "is_temporal"):
+        return dtype.is_temporal()  # type: ignore[no-any-return]
+    return False
+
+
+def is_narwhals_time_type(dtype: Any) -> bool:
+    """
+    Check if the given dtype is Time
+    This was added in later version, so we need to safely check
+    """
+    if getattr(nw, "Time", None) is not None:
+        return dtype == nw.Time  # type: ignore[attr-defined,no-any-return]
+    return False
 
 
 def is_narwhals_string_type(
@@ -135,6 +136,8 @@ def unwrap_narwhals_dataframe(df: Any) -> Any:
     """
     if isinstance(df, nw.DataFrame):
         return df.to_native()  # type: ignore[return-value]
+    if isinstance(df, nw.LazyFrame):
+        return df.to_native()  # type: ignore[return-value]
     return df
 
 
@@ -147,3 +150,30 @@ def unwrap_py_scalar(value: Any) -> Any:
         return nw.to_py_scalar(value)
     except ValueError:
         return value
+
+
+def can_narwhalify_lazyframe(df: Any) -> TypeGuard[Any]:
+    """
+    Check if the given object is a narwhals lazyframe.
+    """
+    if nw.dependencies.is_polars_lazyframe(df):
+        return True
+    if hasattr(
+        nw.dependencies, "is_pyspark_dataframe"
+    ) and nw.dependencies.is_pyspark_dataframe(df):
+        return True
+    if hasattr(
+        nw.dependencies, "is_pyspark_connect_dataframe"
+    ) and nw.dependencies.is_pyspark_connect_dataframe(df):
+        return True
+    if nw.dependencies.is_dask_dataframe(df):
+        return True
+    if hasattr(nw.dependencies, "is_duckdb_relation"):
+        if nw.dependencies.is_duckdb_relation(df):
+            return True
+    elif DependencyManager.duckdb.has():
+        # Fallback if is_duckdb_relation is not available
+        import duckdb
+
+        return isinstance(df, duckdb.DuckDBPyRelation)
+    return False

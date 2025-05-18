@@ -8,10 +8,10 @@ from typing import Any, TYPE_CHECKING
 
 import pytest
 
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.app import (
     App,
     AppKernelRunnerRegistry,
-    _AppConfig,
     InternalApp,
 )
 from marimo._ast.errors import (
@@ -75,6 +75,49 @@ class TestApp:
         assert defs["x"] == 0
         assert (defs["y"], defs["z"]) == (1, 2)
         assert defs["a"] == 2
+
+    @staticmethod
+    def test_setup() -> None:
+        app = App()
+
+        with app.setup:
+            x = 0
+
+        # Evaluate whether returning a value on setup run makes sense.
+        # x
+
+        @app.cell
+        def two(z: int) -> tuple[int]:
+            a = x + z
+            a + 1
+            return (a,)
+
+        @app.cell
+        def __() -> tuple[int, int]:
+            y = x + 1
+            z = y + 1
+            return y, z
+
+        cell_manager = app._cell_manager
+        cell_names = tuple(cell_manager.names())
+        assert cell_names[0] == "setup"
+        assert cell_names[1] == "two"
+        assert cell_names[2] == "__"
+
+        codes = tuple(cell_manager.codes())
+        assert codes[0] == "x = 0"
+        assert codes[1] == "a = x + z\na + 1"
+        assert codes[2] == "y = x + 1\nz = y + 1"
+
+        outputs, defs = app.run()
+
+        assert outputs[0] == defs["a"] + 1
+        assert outputs[1] is None
+
+        assert defs["x"] == 0
+        assert (defs["y"], defs["z"]) == (1, 2)
+        assert defs["a"] == 2
+
 
     @staticmethod
     def test_cycle() -> None:
@@ -320,6 +363,7 @@ class TestApp:
             "width": "full",
             "layout_file": None,
             "auto_download": [],
+            "sql_output": "auto",
         }
 
     @staticmethod
@@ -423,6 +467,147 @@ class TestApp:
 
         assert defs["x"] == 0
         assert defs["y"] == 1
+
+    @staticmethod
+    def test_run_mo_stop() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        def _() -> tuple[int]:
+            y = 1
+            return (y,)
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert defs["y"] == 1
+
+    @staticmethod
+    def test_run_mo_stop_descendant() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        def _(x) -> tuple[int]:
+            y = 1
+            x
+            return
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert "y" not in defs
+
+    @staticmethod
+    def test_run_mo_stop_descendant_multiple() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            y = 0
+            return (y,)
+
+
+        @app.cell
+        def _(x) -> tuple[int]:
+            x
+            a = 0
+            return
+
+        @app.cell
+        def _(y) -> tuple[int]:
+            y
+            b = 0
+            return
+
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert "y" not in defs
+        assert "a" not in defs
+        assert "b" not in defs
+
+
+    @staticmethod
+    def test_run_mo_stop_async() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        async def _() -> tuple[int]:
+            y = 1
+            return (y,)
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert defs["y"] == 1
+
+    @staticmethod
+    def test_run_mo_stop_descendant_async() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        async def _(x) -> tuple[int]:
+            y = 1
+            x
+            return
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert "y" not in defs
+
 
     @pytest.mark.skipif(
         condition=not DependencyManager.matplotlib.has(),
@@ -557,6 +742,38 @@ class TestApp:
         )
 
 
+class TestInvalidSetup:
+    @staticmethod
+    def test_initial_setup() -> None:
+        app = App()
+        app._unparsable_cell(";",
+                             name="setup")
+
+        assert app._cell_manager.has_cell("setup")
+        assert app._cell_manager.cell_name("setup") == "setup"
+
+    @staticmethod
+    def test_not_initial_setup() -> None:
+        app = App()
+        app._unparsable_cell(";",
+                             name="other")
+        app._unparsable_cell(";",
+                             name="setup")
+
+        assert not app._cell_manager.has_cell("setup")
+
+    @staticmethod
+    def test_not_initial_setup_cell() -> None:
+        app = App()
+        @app.cell
+        def _():
+            def B() -> float:
+                return 1.0
+        app._unparsable_cell(";",
+                             name="setup")
+        assert not app._cell_manager.has_cell("setup")
+
+
 def test_app_config() -> None:
     config = _AppConfig.from_untrusted_dict({"width": "full"})
     assert config.width == "full"
@@ -568,6 +785,7 @@ def test_app_config() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 
@@ -584,6 +802,7 @@ def test_app_config_extra_args_ignored() -> None:
         "width": "full",
         "layout_file": None,
         "auto_download": [],
+        "sql_output": "auto",
     }
 
 

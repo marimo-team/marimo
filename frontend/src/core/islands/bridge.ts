@@ -145,8 +145,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   readSnippets = throwNotImplemented;
   previewDatasetColumn = throwNotImplemented;
   previewSQLTable = throwNotImplemented;
+  previewSQLTableList = throwNotImplemented;
+  previewDataSourceConnection = throwNotImplemented;
   openFile = throwNotImplemented;
   sendListFiles = throwNotImplemented;
+  sendPdb = throwNotImplemented;
   sendCreateFileOrFolder = throwNotImplemented;
   sendDeleteFileOrFolder = throwNotImplemented;
   sendRenameFileOrFolder = throwNotImplemented;
@@ -165,6 +168,8 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   getWorkspaceFiles = throwNotImplemented;
   getRunningNotebooks = throwNotImplemented;
   shutdownSession = throwNotImplemented;
+  listSecretKeys = throwNotImplemented;
+  writeSecret = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({

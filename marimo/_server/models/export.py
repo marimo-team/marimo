@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 
 @dataclass
 class ExportAsHTMLRequest:
     download: bool
-    files: List[str]
+    files: list[str]
     include_code: bool
     asset_url: Optional[str] = None
 

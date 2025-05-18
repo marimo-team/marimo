@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.responses import JSONResponse
@@ -23,7 +23,7 @@ from marimo._server.models.home import (
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
-from marimo._tutorials import create_temp_tutorial_file
+from marimo._tutorials import create_temp_tutorial_file  # type: ignore
 from marimo._utils.paths import pretty_path
 
 if TYPE_CHECKING:
@@ -93,8 +93,8 @@ async def workspace_files(
     return WorkspaceFilesResponse(files=files, root=root)
 
 
-def _get_active_sessions(app_state: AppState) -> List[MarimoFile]:
-    files: List[MarimoFile] = []
+def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
+    files: list[MarimoFile] = []
     for session_id, session in app_state.session_manager.sessions.items():
         state = session.connection_state()
         if state == ConnectionState.OPEN or state == ConnectionState.ORPHANED:

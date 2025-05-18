@@ -4,7 +4,6 @@ from __future__ import annotations
 import base64
 import io
 import mimetypes
-import os
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -46,12 +45,12 @@ from marimo._server.templates.templates import (
 from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
 
 # Root directory for static assets
-root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+ROOT = (marimo_package_path() / "_static").resolve()
 
 if TYPE_CHECKING:
     from nbformat.notebooknode import NotebookNode  # type: ignore
@@ -85,10 +84,7 @@ class Exporter:
                     e,
                 )
                 continue
-            mime_type, _ = mimetypes.guess_type(basename) or (
-                "text/plain",
-                None,
-            )
+            mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
             files[filename_and_length] = build_data_url(
                 cast(KnownMimeType, mime_type),
                 base64.b64encode(buffer_contents),
@@ -187,6 +183,9 @@ class Exporter:
 
         notebook["cells"] = []
         for cid in cell_ids:
+            if cid not in graph.cells:
+                LOGGER.warning("Cell %s not found in graph", cid)
+                continue
             cell = graph.cells[cid]
             outputs: list[NotebookNode] = []
 
@@ -224,45 +223,71 @@ class Exporter:
         download_filename = get_download_filename(file_manager, "ipynb")
         return stream.read(), download_filename
 
-    def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
-        import yaml
-
-        from marimo._ast.app import _AppConfig
+    def export_as_md(
+        self, file_manager: AppFileManager, previous: Path | None = None
+    ) -> tuple[str, str]:
+        from marimo._ast import codegen
+        from marimo._ast.app_config import _AppConfig
         from marimo._ast.cell import Cell
         from marimo._ast.compiler import compile_cell
         from marimo._cli.convert.markdown import (
+            extract_frontmatter,
             formatted_code_block,
             is_sanitized_markdown,
         )
+        from marimo._utils import yaml
 
-        # TODO: Provide filter or kernel in yaml header such that markdown
-        # documents are executable.
+        filename = get_filename(file_manager)
+        metadata: dict[str, str | list[str]] = {}
+        metadata.update(
+            {
+                "title": get_app_title(file_manager),
+                "marimo-version": __version__,
+            }
+        )
 
-        #  Put data from AppFileManager into the yaml header.
+        # Put data from AppFileManager into the yaml header.
         ignored_keys = {"app_title"}
-        metadata: dict[str, str | list[str]] = {
-            "title": get_app_title(file_manager),
-            "marimo-version": __version__,
-        }
-
-        def _format_value(v: Optional[str | list[str]]) -> str | list[str]:
-            if isinstance(v, list):
-                return v
-            return str(v)
-
         default_config = _AppConfig().asdict()
 
         # Get values defined in _AppConfig without explicitly extracting keys,
         # as long as it isn't the default.
         metadata.update(
             {
-                k: _format_value(v)
+                k: v
                 for k, v in file_manager.app.config.asdict().items()
                 if k not in ignored_keys and v != default_config.get(k)
             }
         )
+        # If previously a markdown file, extract frontmatter.
+        # otherwise if it was a python file, extract header.
+        if previous and previous.suffix == ".py":
+            header = codegen.get_header_comments(previous)
+            if header:
+                metadata["header"] = header.strip()
+        else:
+            header_file = previous if previous else file_manager.filename
+            if header_file:
+                with open(header_file, encoding="utf-8") as f:
+                    _metadata, _ = extract_frontmatter(f.read())
+                metadata.update(_metadata)
 
-        header = yaml.dump(
+        # Add the expected qmd filter to the metadata.
+        if filename.endswith(".qmd"):
+            if "filters" not in metadata:
+                metadata["filters"] = []
+            if "marimo" not in str(metadata["filters"]):
+                if isinstance(metadata["filters"], str):
+                    metadata["filters"] = metadata["filters"].split(",")
+                if isinstance(metadata["filters"], list):
+                    metadata["filters"].append("marimo-team/marimo")
+                else:
+                    LOGGER.warning(
+                        "Unexpected type for filters: %s",
+                        type(metadata["filters"]),
+                    )
+
+        header = yaml.marimo_compat_dump(
             {
                 k: v
                 for k, v in metadata.items()
@@ -382,7 +407,7 @@ class Exporter:
         return html, download_filename
 
     def export_assets(
-        self, directory: str, ignore_index_html: bool = False
+        self, directory: Path, ignore_index_html: bool = False
     ) -> None:
         # Copy assets to the same directory as the notebook
         dirpath = Path(directory)
@@ -393,7 +418,7 @@ class Exporter:
         import shutil
 
         shutil.copytree(
-            root,
+            ROOT,
             dirpath,
             dirs_exist_ok=True,
             ignore=(
@@ -404,7 +429,7 @@ class Exporter:
         )
 
     def export_public_folder(
-        self, directory: str, marimo_file: MarimoPath
+        self, directory: Path, marimo_file: MarimoPath
     ) -> bool:
         FOLDER_NAME = "public"
         public_dir = marimo_file.path.parent / FOLDER_NAME
@@ -438,52 +463,49 @@ class AutoExporter:
 
     def save_html(self, file_manager: AppFileManager, html: str) -> None:
         # get filename
-        directory = os.path.dirname(get_filename(file_manager))
+        directory = Path(get_filename(file_manager)).parent
         filename = get_download_filename(file_manager, "html")
 
         # make directory if it doesn't exist
         self._make_export_dir(directory)
-        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+        filepath = directory / self.EXPORT_DIR / filename
 
         # save html to .marimo directory
-        with open(filepath, "w") as f:
-            f.write(html)
+        filepath.write_text(html, encoding="utf-8")
 
     def save_md(self, file_manager: AppFileManager, markdown: str) -> None:
         # get filename
-        directory = os.path.dirname(get_filename(file_manager))
+        directory = Path(get_filename(file_manager)).parent
         filename = get_download_filename(file_manager, "md")
 
         # make directory if it doesn't exist
         self._make_export_dir(directory)
-        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+        filepath = directory / self.EXPORT_DIR / filename
 
         # save md to .marimo directory
-        with open(filepath, "w") as f:
-            f.write(markdown)
+        filepath.write_text(markdown, encoding="utf-8")
 
     def save_ipynb(self, file_manager: AppFileManager, ipynb: str) -> None:
         # get filename
-        directory = os.path.dirname(get_filename(file_manager))
+        directory = Path(get_filename(file_manager)).parent
         filename = get_download_filename(file_manager, "ipynb")
 
         # make directory if it doesn't exist
         self._make_export_dir(directory)
-        filepath = os.path.join(directory, self.EXPORT_DIR, filename)
+        filepath = directory / self.EXPORT_DIR / filename
 
         # save ipynb to .marimo directory
-        with open(filepath, "w") as f:
-            f.write(ipynb)
+        filepath.write_text(ipynb, encoding="utf-8")
 
-    def _make_export_dir(self, directory: str) -> None:
+    def _make_export_dir(self, directory: Path) -> None:
         # make .marimo dir if it doesn't exist
         # don't make the other directories
-        if not os.path.exists(directory):
+        if not directory.exists():
             raise FileNotFoundError(f"Directory {directory} does not exist")
 
-        export_dir = os.path.join(directory, self.EXPORT_DIR)
-        if not os.path.exists(export_dir):
-            os.mkdir(export_dir)
+        export_dir = directory / self.EXPORT_DIR
+        if not export_dir.exists():
+            export_dir.mkdir(parents=True, exist_ok=True)
 
 
 def hash_code(code: str) -> str:
@@ -527,8 +549,8 @@ def get_html_contents() -> str:
         with urllib.request.urlopen(url) as response:
             return cast(str, response.read().decode("utf-8"))
 
-    with open(os.path.join(root, "index.html"), "r") as f:
-        return f.read()
+    index_html = Path(ROOT) / "index.html"
+    return index_html.read_text(encoding="utf-8")
 
 
 def _convert_marimo_output_to_ipynb(

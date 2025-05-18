@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import os
+import shutil
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,8 +12,14 @@ import pytest
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.utils import uri_encode_component
+from marimo._types.ids import SessionId
+from marimo._utils.platform import is_windows
 from tests._server.conftest import get_session_manager
-from tests._server.mocks import token_header, with_read_session, with_session
+from tests._server.mocks import (
+    token_header,
+    with_read_session,
+    with_session,
+)
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
@@ -18,7 +27,7 @@ if TYPE_CHECKING:
 
 snapshot = snapshotter(__file__)
 
-SESSION_ID = "session-123"
+SESSION_ID = SessionId("session-123")
 HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
@@ -332,3 +341,163 @@ def test_auto_export_ipynb(
     assert os.path.exists(
         os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has() or is_windows(),
+    reason="nbformat not installed or on Windows",
+)
+@with_session(SESSION_ID)
+def test_auto_export_ipynb_with_new_cell(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    """Test that auto-exporting to ipynb works after creating and running a new cell.
+
+    This test addresses the bug in https://github.com/marimo-team/marimo/issues/3992
+    where cell ID inconsistency causes KeyError when auto-exporting as ipynb.
+    """
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    # First, create and run a cell with constant value 1
+    create_cell_response = client.post(
+        "/api/kernel/run",
+        headers=HEADERS,
+        json={
+            "cell_ids": ["new_cell"],
+            "codes": ["3.14"],
+        },
+    )
+    assert create_cell_response.status_code == 200
+
+    time.sleep(0.5)
+
+    # Save the session
+    save_response = client.post(
+        "/api/kernel/save",
+        headers=HEADERS,
+        json={
+            "cell_ids": ["new_cell"],
+            "filename": temp_marimo_file,
+            "codes": ["3.14"],
+            "names": ["_"],
+            "configs": [
+                {
+                    "hideCode": True,
+                    "disabled": False,
+                }
+            ],
+        },
+    )
+    assert save_response.status_code == 200, save_response.text
+
+    # Clean up the marimo directory
+    marimo_dir = Path(temp_marimo_file).parent / "__marimo__"
+    shutil.rmtree(marimo_dir, ignore_errors=True)
+
+    # Verify the cell output is correct
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+
+    # Wait for the cell operation to be created
+    timeout = 2
+    start = time.time()
+    cell_op = None
+    while time.time() - start < timeout:
+        if "new_cell" not in session.session_view.cell_operations:
+            time.sleep(0.1)
+            continue
+        cell_op = session.session_view.cell_operations["new_cell"]
+        if cell_op.output is not None and cell_op.output.data:
+            break
+    assert cell_op
+    assert cell_op.output is not None
+    assert "3.14" in cell_op.output.data
+
+    # Now attempt to auto-export as ipynb
+    export_response = client.post(
+        "/api/export/auto_export/ipynb",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert export_response.status_code == 200
+    assert export_response.json() == {"success": True}
+
+    # Verify the exported file exists
+    assert marimo_dir.exists()
+
+    # Verify the ipynb file exists
+    filename = Path(temp_marimo_file).name.replace(".py", ".ipynb")
+    ipynb_path = marimo_dir / filename
+
+    # Wait for the ipynb file to be created
+    time.sleep(0.2)
+    notebook = ipynb_path.read_text()
+    assert "<pre style='font-size: 12px'>3.14</pre>" in notebook
+
+
+@with_session(SESSION_ID)
+def test_export_html_with_script_config(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.config_manager = session.config_manager.with_overrides(
+        {"display": {"code_editor_font_size": 999}}
+    )
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": False,
+        },
+    )
+    body = response.text
+    assert '"code_editor_font_size": 999' in body
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html_unnamed_file(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    # Ensure the file is unnamed
+    session.app_file_manager.filename = None
+
+    response = client.post(
+        "/api/export/auto_export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+
+    # Should return 400 Bad Request when file is unnamed
+    assert response.status_code == 400
+    assert "File must have a name before exporting" in response.text
+
+
+@with_session(SESSION_ID)
+def test_export_html_unnamed_file(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    # Ensure the file is unnamed
+    session.app_file_manager.filename = None
+
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+
+    # Should return 400 Bad Request when file is unnamed
+    assert response.status_code == 400
+    assert "File must have a name before exporting" in response.text

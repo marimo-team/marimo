@@ -22,7 +22,7 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -33,16 +33,16 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 # Root directory for static assets
-root = Path(import_files("marimo").joinpath("_static")).resolve()
+root = (marimo_package_path() / "_static").resolve()
 
-config = (
+server_config = (
     get_default_config_manager(current_path=None)
     .get_config()
     .get("server", {})
 )
 
 assets_dir = root / "assets"
-follow_symlinks = config.get("follow_symlink", False)
+follow_symlinks = server_config.get("follow_symlink", False)
 
 if not follow_symlinks and assets_dir.is_symlink():
     LOGGER.error(
@@ -95,6 +95,8 @@ async def index(request: Request) -> HTMLResponse:
             server_token=app_state.skew_protection_token,
         )
     else:
+        config_manager = app_state.config_manager_at_file(file_key)
+
         # We have a file key, so we can render the app with the file
         LOGGER.debug(f"File key provided: {file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
@@ -103,8 +105,8 @@ async def index(request: Request) -> HTMLResponse:
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
-            user_config=app_state.config_manager.get_user_config(),
-            config_overrides=app_state.config_manager.get_config_overrides(),
+            user_config=config_manager.get_user_config(),
+            config_overrides=config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=app_manager.filename,

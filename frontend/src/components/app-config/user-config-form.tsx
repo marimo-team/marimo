@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { SettingSubtitle } from "./common";
+import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 
 import React, { useRef } from "react";
 import { type FieldPath, useForm } from "react-hook-form";
@@ -43,14 +43,19 @@ import {
   FlaskConicalIcon,
   FolderCog2,
 } from "lucide-react";
+import { ExternalLink } from "../ui/links";
 import { cn } from "@/utils/cn";
 import { KNOWN_AI_MODELS } from "./constants";
 import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
+import { getMarimoVersion } from "@/core/dom/marimo-tag";
+import { Badge } from "../ui/badge";
+import { capabilitiesAtom } from "@/core/config/capabilities";
+import { Banner } from "@/plugins/impl/common/error-banner";
+import { OptionalFeatures } from "./optional-features";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
-
 const categories = [
   {
     id: "editor",
@@ -83,6 +88,12 @@ const categories = [
     className: "bg-[linear-gradient(45deg,var(--purple-5),var(--cyan-5))]",
   },
   {
+    id: "optionalDeps",
+    label: "Optional Dependencies",
+    Icon: FolderCog2,
+    className: "bg-[var(--orange-4)]",
+  },
+  {
     id: "labs",
     label: "Labs",
     Icon: FlaskConicalIcon,
@@ -103,6 +114,7 @@ export const UserConfigForm: React.FC = () => {
   const [activeCategory, setActiveCategory] = useAtom(
     activeUserConfigCategoryAtom,
   );
+  const capabilities = useAtomValue(capabilitiesAtom);
 
   // Create form
   const form = useForm<UserConfig>({
@@ -123,19 +135,15 @@ export const UserConfigForm: React.FC = () => {
     if (copilot === false) {
       return null;
     }
+
     if (copilot === "codeium") {
       return (
         <>
           <p className="text-sm text-muted-secondary">
             To get a Codeium API key, follow{" "}
-            <a
-              className="text-link hover:underline"
-              href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot">
               these instructions
-            </a>
+            </ExternalLink>
             .
           </p>
           <FormField
@@ -164,8 +172,80 @@ export const UserConfigForm: React.FC = () => {
         </>
       );
     }
+
     if (copilot === "github") {
       return <CopilotConfig />;
+    }
+
+    if (copilot === "custom") {
+      return (
+        <>
+          <p className="text-sm text-muted-secondary">
+            Configure your custom AI completion provider with the following
+            settings.
+          </p>
+          <FormField
+            control={form.control}
+            name="completion.model"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Model</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-model-input"
+                    className="m-0 inline-flex"
+                    placeholder="Qwen2.5-Coder-7B"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.model" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="completion.base_url"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>Base URL</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-base-url-input"
+                    className="m-0 inline-flex"
+                    placeholder="http://localhost:11434/v1"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.base_url" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="completion.api_key"
+            render={({ field }) => (
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="custom-api-key-input"
+                    className="m-0 inline-flex"
+                    placeholder="key"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="completion.api_key" />
+              </FormItem>
+            )}
+          />
+        </>
+      );
     }
   };
 
@@ -345,6 +425,89 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
             </SettingGroup>
+            <SettingGroup title="Language Servers">
+              <FormField
+                control={form.control}
+                name="language_servers.pylsp.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Python Language Server (
+                        <ExternalLink href="https://github.com/python-lsp/python-lsp-server">
+                          pylsp
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="pylsp-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.pylsp.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.pylsp && (
+                      <Banner kind="danger">
+                        The Python Language Server is not available in your
+                        current environment. Please install{" "}
+                        <Kbd className="inline">python-lsp-server</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <FormDescription>
+                See the{" "}
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
+                  docs
+                </ExternalLink>{" "}
+                for more information about language server support.
+              </FormDescription>
+
+              <FormField
+                control={form.control}
+                name="diagnostics.enabled"
+                render={({ field }) => (
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>
+                      <Badge variant="defaultOutline" className="mr-2">
+                        Beta
+                      </Badge>
+                      Diagnostics
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="diagnostics-checkbox"
+                        checked={field.value}
+                        disabled={field.disabled}
+                        onCheckedChange={(checked) => {
+                          field.onChange(Boolean(checked));
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="diagnostics.enabled"
+                    />
+                  </FormItem>
+                )}
+              />
+            </SettingGroup>
+
             <SettingGroup title="Keymap">
               <FormField
                 control={form.control}
@@ -569,6 +732,42 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="display.default_table_page_size"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Default table page size</FormLabel>
+                      <FormControl>
+                        <NumberField
+                          data-testid="default-table-page-size-input"
+                          className="m-0 w-24"
+                          {...field}
+                          value={field.value}
+                          minValue={1}
+                          step={1}
+                          onChange={(value) => {
+                            field.onChange(value);
+                            if (!Number.isNaN(value)) {
+                              onSubmit(form.getValues());
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.default_table_page_size"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      The default number of rows displayed in dataframes and SQL
+                      results.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
           </>
         );
@@ -609,26 +808,16 @@ export const UserConfigForm: React.FC = () => {
                     When marimo comes across a module that is not installed, you
                     will be prompted to install it using your preferred package
                     manager. Learn more in the{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/package_management.html"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html">
                       docs
-                    </a>
+                    </ExternalLink>
                     .
                     <br />
                     <br />
                     Running marimo in a{" "}
-                    <a
-                      className="text-link hover:underline"
-                      href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
                       sandboxed environment
-                    </a>{" "}
+                    </ExternalLink>{" "}
                     is only supported by <Kbd className="inline">uv</Kbd>
                   </FormDescription>
                 </div>
@@ -639,6 +828,42 @@ export const UserConfigForm: React.FC = () => {
       case "runtime":
         return (
           <SettingGroup title="Runtime configuration">
+            <FormField
+              control={form.control}
+              name="runtime.default_sql_output"
+              render={({ field }) => (
+                <div className="flex flex-col space-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>Default SQL output</FormLabel>
+                    <FormControl>
+                      <NativeSelect
+                        data-testid="user-config-sql-output-select"
+                        onChange={(e) => field.onChange(e.target.value)}
+                        value={field.value}
+                        disabled={field.disabled}
+                        className="inline-flex mr-2"
+                      >
+                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.default_sql_output"
+                    />
+                  </FormItem>
+
+                  <FormDescription>
+                    The default SQL output format for new notebooks; overridden
+                    by "sql_output" in the application config.
+                  </FormDescription>
+                </div>
+              )}
+            />
             <FormField
               control={form.control}
               name="runtime.auto_instantiate"
@@ -747,17 +972,43 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="runtime.reactive_tests"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Autorun Unit Tests
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="reactive-test-checkbox"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="runtime.reactive_tests"
+                  />
+                  <FormMessage />
+                  <FormDescription>
+                    Enable reactive pytest tests in notebook. When a cell
+                    contains only test functions (test_*) and classes (Test_*),
+                    marimo will automatically run them with pytest (requires
+                    notebook restart).
+                  </FormDescription>{" "}
+                </div>
+              )}
+            />
 
             <FormDescription>
               Learn more in the{" "}
-              <a
-                className="text-link hover:underline"
-                href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <ExternalLink href="https://docs.marimo.io/guides/reactivity/#configuring-how-marimo-runs-cells">
                 docs
-              </a>
+              </ExternalLink>
               .
             </FormDescription>
           </SettingGroup>
@@ -767,7 +1018,8 @@ export const UserConfigForm: React.FC = () => {
           <>
             <SettingGroup title="AI Code Completion">
               <p className="text-sm text-muted-secondary">
-                You may use GitHub Copilot or Codeium for AI code completion.
+                You may use GitHub Copilot, Codeium, or a custom provider (e.g.
+                Ollama) for AI code completion.
               </p>
 
               <FormField
@@ -797,11 +1049,13 @@ export const UserConfigForm: React.FC = () => {
                           disabled={field.disabled}
                           className="inline-flex mr-2"
                         >
-                          {["none", "github", "codeium"].map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
+                          {["none", "github", "codeium", "custom"].map(
+                            (option) => (
+                              <option value={option} key={option}>
+                                {option}
+                              </option>
+                            ),
+                          )}
                         </NativeSelect>
                       </FormControl>
                       <FormMessage />
@@ -847,14 +1101,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your OpenAI API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://platform.openai.com/account/api-keys"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://platform.openai.com/account/api-keys">
                         platform.openai.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -891,14 +1140,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your Anthropic API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://console.anthropic.com/settings/keys"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://console.anthropic.com/settings/keys">
                         console.anthropic.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -935,14 +1179,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     <FormDescription>
                       Your Google AI API key from{" "}
-                      <a
-                        className="text-link hover:underline"
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <ExternalLink href="https://aistudio.google.com/app/apikey">
                         aistudio.google.com
-                      </a>
+                      </ExternalLink>
                       .
                     </FormDescription>
                   </div>
@@ -954,14 +1193,9 @@ export const UserConfigForm: React.FC = () => {
               <p className="text-sm text-muted-secondary">
                 Add an API key to <Kbd className="inline">marimo.toml</Kbd> to
                 activate marimo's AI assistant; see{" "}
-                <a
-                  className="text-link hover:underline"
-                  href="https://docs.marimo.io/guides/editor_features/ai_completion.html"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html">
                   docs
-                </a>{" "}
+                </ExternalLink>{" "}
                 for more info.
               </p>
               <FormField
@@ -1060,6 +1294,8 @@ export const UserConfigForm: React.FC = () => {
             </SettingGroup>
           </>
         );
+      case "optionalDeps":
+        return <OptionalFeatures />;
       case "labs":
         return (
           <SettingGroup title="Experimental Features">
@@ -1067,28 +1303,7 @@ export const UserConfigForm: React.FC = () => {
               ⚠️ These features are experimental and may require restarting your
               notebook to take effect.
             </p>
-            <FormField
-              control={form.control}
-              name="experimental.chat_sidebar"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Chat sidebar</FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="chat-sidebar-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental chat sidebar to ask questions with an AI
-                    assistant.
-                  </FormDescription>
-                </div>
-              )}
-            />
+
             <FormField
               control={form.control}
               name="experimental.inline_ai_tooltip"
@@ -1113,33 +1328,52 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
-            {!isWasm() && (
-              <FormField
-                control={form.control}
-                name="experimental.rtc"
-                render={({ field }) => (
-                  <div className="flex flex-col gap-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel className="font-normal">
-                        Real-time Collaboration
-                      </FormLabel>
-                      <FormControl>
-                        <Checkbox
-                          data-testid="rtc-checkbox"
-                          checked={field.value === true}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                    <FormDescription>
-                      Enable experimental real-time collaboration to allow
-                      editing cell inputs by multiple users. Requires refreshing
-                      the page to take effect.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="experimental.table_charts"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Table Charts</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="data-table-plugin-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental charting feature on tables. Data is
+                    saved in local storage. May not be performant.
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="experimental.rtc_v2"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Real-Time Collaboration
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="rtc-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental real-time collaboration. This change
+                    requires a page refresh to take effect.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
@@ -1167,7 +1401,7 @@ export const UserConfigForm: React.FC = () => {
             setActiveCategory(value as SettingCategoryId)
           }
           orientation="vertical"
-          className="w-1/3 pr-4 border-r h-full overflow-auto p-6"
+          className="w-1/3 border-r h-full overflow-auto p-3"
         >
           <TabsList className="self-start max-h-none flex flex-col gap-2 shrink-0 bg-background flex-1 min-h-full">
             {categories.map((category) => (
@@ -1176,19 +1410,24 @@ export const UserConfigForm: React.FC = () => {
                 value={category.id}
                 className="w-full text-left p-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground justify-start"
               >
-                <div className="flex gap-4 items-center text-lg">
+                <div className="flex gap-4 items-center text-lg overflow-hidden">
                   <span
                     className={cn(
                       category.className,
-                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground",
+                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground flex-shrink-0",
                     )}
                   >
                     <category.Icon className="w-4 h-4" />
                   </span>
-                  {category.label}
+                  <span className="truncate">{category.label}</span>
                 </div>
               </TabsTrigger>
             ))}
+
+            <div className="p-2 text-xs text-muted-foreground self-start">
+              <span>Version: {getMarimoVersion()}</span>
+            </div>
+
             <div className="flex-1" />
             {!isWasm() && configMessage}
           </TabsList>
@@ -1207,7 +1446,7 @@ const SettingGroup = ({
 }: { title: string; children: React.ReactNode }) => {
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <SettingSubtitle className="text-base">{title}</SettingSubtitle>
+      <SettingSubtitle>{title}</SettingSubtitle>
       {children}
     </div>
   );

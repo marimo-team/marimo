@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { render } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
-import { Cell } from "../Cell";
+import { Cell, type CellComponentActions } from "../Cell";
 import { OutputArea } from "../Output";
 import type { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { Functions } from "@/utils/functions";
 import type { UserConfig } from "@/core/config/config-schema";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppMode } from "@/core/mode";
+import { Functions } from "@/utils/functions";
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {
@@ -39,6 +39,7 @@ describe("Cell data attributes", () => {
           cell_output: "below",
           code_editor_font_size: 14,
           dataframes: "rich",
+          default_table_page_size: 10,
           default_width: "normal",
           theme: "light",
         },
@@ -51,11 +52,15 @@ describe("Cell data attributes", () => {
         package_management: { manager: "pip" },
         runtime: {
           auto_instantiate: false,
+          default_sql_output: "native",
           auto_reload: "off",
           on_cell_change: "lazy",
           watcher_on_save: "lazy",
+          reactive_tests: true,
           output_max_bytes: 1_000_000,
           std_stream_max_bytes: 1_000_000,
+          pythonpath: [],
+          dotenv: [".env"],
         },
         server: {
           browser: "default",
@@ -63,7 +68,7 @@ describe("Cell data attributes", () => {
         },
         save: { autosave: "off", autosave_delay: 1000, format_on_save: false },
         ai: {},
-      };
+      } as UserConfig;
 
       const { container } = render(
         <TooltipProvider>
@@ -87,24 +92,12 @@ describe("Cell data attributes", () => {
             debuggerActive={false}
             appClosed={false}
             canDelete={true}
-            updateCellCode={Functions.NOOP}
-            prepareForRun={Functions.NOOP}
-            createNewCell={Functions.NOOP}
-            deleteCell={Functions.NOOP}
-            focusCell={Functions.NOOP}
-            moveCell={Functions.NOOP}
-            setStdinResponse={Functions.NOOP}
-            moveToNextCell={Functions.NOOP}
-            updateCellConfig={Functions.NOOP}
-            clearSerializedEditorState={Functions.NOOP}
-            sendToBottom={Functions.NOOP}
-            sendToTop={Functions.NOOP}
-            collapseCell={Functions.NOOP}
-            expandCell={Functions.NOOP}
+            actions={{} as CellComponentActions}
             userConfig={userConfig}
             outline={null}
             isCollapsed={false}
             collapseCount={0}
+            deleteCell={Functions.NOOP}
             config={{
               disabled: false,
               hide_code: false,
@@ -141,6 +134,7 @@ describe("Output data attributes", () => {
           output={output}
           cellId={cellId}
           stale={false}
+          loading={false}
           allowExpand={true}
           className="test-output"
         />

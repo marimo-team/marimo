@@ -14,7 +14,7 @@ from marimo._plugins.ui._impl.data_editor import (
     apply_edits,
 )
 
-data_editor = ui.experimental_data_editor
+data_editor = ui.data_editor
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
@@ -30,6 +30,7 @@ def test_data_editor_initialization():
     assert editor._edits == {"edits": []}
     assert editor._component_args["pagination"] is True
     assert editor._component_args["page-size"] == 50
+    assert editor._component_args["column-sizing-mode"] == "auto"
 
 
 @pytest.mark.skipif(

@@ -64,7 +64,7 @@ export const Filter = {
       value,
     } as const;
   },
-  select(options: string[]) {
+  select(options: unknown[]) {
     return {
       type: "select",
       options,

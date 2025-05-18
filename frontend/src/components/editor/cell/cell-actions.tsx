@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Tooltip,
   TooltipContent,
   TooltipRoot,
   TooltipTrigger,
@@ -39,7 +40,7 @@ import { useAtomValue } from "jotai";
 import { cellFocusDetailsAtom } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { CommandList } from "cmdk";
-
+import { cn } from "@/utils/cn";
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
   showTooltip?: boolean;
@@ -64,7 +65,11 @@ const CellActionsDropdownInternal = (
   }));
 
   const content = (
-    <PopoverContent className="w-[300px] p-0 pt-1" {...restoreFocus}>
+    <PopoverContent
+      className="w-[300px] p-0 pt-1 overflow-auto"
+      scrollable={true}
+      {...restoreFocus}
+    >
       <Command>
         <CommandInput placeholder="Search actions..." className="h-6 m-1" />
         <CommandList>
@@ -73,11 +78,37 @@ const CellActionsDropdownInternal = (
             <Fragment key={i}>
               <CommandGroup key={i}>
                 {group.map((action) => {
+                  let body = (
+                    <div className="flex items-center flex-1">
+                      {action.icon && (
+                        <div className="mr-2 w-5 text-muted-foreground">
+                          {action.icon}
+                        </div>
+                      )}
+                      <div className="flex-1">{action.label}</div>
+                      <div className="flex-shrink-0 text-sm">
+                        {action.hotkey && renderMinimalShortcut(action.hotkey)}
+                        {action.rightElement}
+                      </div>
+                    </div>
+                  );
+
+                  if (action.tooltip) {
+                    body = (
+                      <Tooltip content={action.tooltip} delayDuration={100}>
+                        {body}
+                      </Tooltip>
+                    );
+                  }
+
                   return (
                     <CommandItem
                       key={action.label}
+                      // Disable with classname instead of disabled prop
+                      // otherwise the tooltip doesn't work
+                      className={cn(action.disabled && "!opacity-50")}
                       onSelect={() => {
-                        if (action.disableClick) {
+                        if (action.disableClick || action.disabled) {
                           return;
                         }
                         action.handle();
@@ -85,19 +116,7 @@ const CellActionsDropdownInternal = (
                       }}
                       variant={action.variant}
                     >
-                      <div className="flex items-center flex-1">
-                        {action.icon && (
-                          <div className="mr-2 w-5 text-muted-foreground">
-                            {action.icon}
-                          </div>
-                        )}
-                        <div className="flex-1">{action.label}</div>
-                        <div className="flex-shrink-0 text-sm">
-                          {action.hotkey &&
-                            renderMinimalShortcut(action.hotkey)}
-                          {action.rightElement}
-                        </div>
-                      </div>
+                      {body}
                     </CommandItem>
                   );
                 })}

@@ -26,6 +26,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ScissorsIcon,
+  LinkIcon,
 } from "lucide-react";
 import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -56,6 +57,9 @@ import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
 import { switchLanguage } from "@/core/codemirror/language/extension";
 import { useSplitCellCallback } from "../cell/useSplitCell";
+import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
+import { copyToClipboard } from "@/utils/copy";
+import { toast } from "@/components/ui/use-toast";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -74,7 +78,6 @@ export function useCellActionButtons({ cell }: Props) {
   const {
     createNewCell: createCell,
     updateCellConfig,
-    updateCellCode,
     updateCellName,
     moveCell,
     sendToTop,
@@ -218,7 +221,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          formatEditorViews({ [cellId]: editorView }, updateCellCode);
+          formatEditorViews({ [cellId]: editorView });
         },
       },
       {
@@ -367,6 +370,22 @@ export function useCellActionButtons({ cell }: Props) {
         hotkey: "cell.addColumnBreakpoint",
         hidden: appWidth !== "columns",
         handle: () => addColumnBreakpoint({ cellId }),
+      },
+    ],
+
+    // Link to cell
+    [
+      {
+        icon: <LinkIcon size={13} strokeWidth={1.5} />,
+        label: "Copy link to cell",
+        disabled: !canLinkToCell(name),
+        tooltip: canLinkToCell(name)
+          ? undefined
+          : "Only named cells can be linked to",
+        handle: async () => {
+          await copyToClipboard(createCellLink(name));
+          toast({ description: "Link copied to clipboard" });
+        },
       },
     ],
 

@@ -9,6 +9,15 @@ from marimo._types.ids import CellId_t
 
 
 @dataclass
+class SetupRootError:
+    edges_with_vars: tuple[EdgeWithVar, ...]
+    type: Literal["setup-refs"] = "setup-refs"
+
+    def describe(self) -> str:
+        return "The setup cell cannot have references"
+
+
+@dataclass
 class CycleError:
     edges_with_vars: tuple[EdgeWithVar, ...]
     type: Literal["cycle"] = "cycle"
@@ -25,6 +34,15 @@ class MultipleDefinitionError:
 
     def describe(self) -> str:
         return f"The variable '{self.name}' was defined by another cell"
+
+
+@dataclass
+class ImportStarError:
+    msg: str
+    type: Literal["import-star"] = "import-star"
+
+    def describe(self) -> str:
+        return self.msg
 
 
 @dataclass
@@ -152,8 +170,10 @@ def is_sensitive_error(error: Error) -> bool:
 
 
 Error = Union[
+    SetupRootError,
     CycleError,
     MultipleDefinitionError,
+    ImportStarError,
     DeleteNonlocalError,
     MarimoAncestorStoppedError,
     MarimoAncestorPreventedError,

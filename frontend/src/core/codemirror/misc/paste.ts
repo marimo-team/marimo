@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { movementCallbacksState } from "../config/extension";
+import { cellActionsState } from "../cells/state";
 
 export function pasteBundle(): Extension[] {
   return [
@@ -17,8 +17,8 @@ export function pasteBundle(): Extension[] {
           return false;
         }
 
-        const movementCallbacks = view.state.facet(movementCallbacksState);
-        movementCallbacks.createManyBelow(cells);
+        const actions = view.state.facet(cellActionsState);
+        actions.createManyBelow(cells);
         return true;
       },
     }),

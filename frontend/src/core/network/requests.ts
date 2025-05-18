@@ -50,8 +50,11 @@ export const {
   readSnippets,
   previewDatasetColumn,
   previewSQLTable,
+  previewSQLTableList,
+  previewDataSourceConnection,
   openFile,
   getUsageStats,
+  sendPdb,
   sendListFiles,
   sendCreateFileOrFolder,
   sendDeleteFileOrFolder,
@@ -71,4 +74,6 @@ export const {
   addPackage,
   removePackage,
   getPackageList,
+  listSecretKeys,
+  writeSecret,
 } = getRequest();

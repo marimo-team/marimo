@@ -5,11 +5,13 @@ import threading
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 
-from marimo._save.cache import Cache, CacheType
-from marimo._save.loaders.loader import Loader, LoaderError
+from marimo._save.cache import Cache
+from marimo._save.loaders.loader import Loader
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._save.hash import HashKey
 
 
 T = TypeVar("T")
@@ -49,33 +51,34 @@ class MemoryLoader(Loader):
         else:
             return fn()
 
-    def cache_hit(self, hashed_context: str, cache_type: CacheType) -> bool:
-        key = self.build_path(hashed_context, cache_type)
-        return self._maybe_lock(lambda: key in self._cache)
+    def cache_hit(self, key: HashKey) -> bool:
+        path = self.build_path(key)
+        return self._maybe_lock(lambda: path in self._cache)
 
-    def load_cache(self, hashed_context: str, cache_type: CacheType) -> Cache:
-        if not self.cache_hit(hashed_context, cache_type):
-            raise LoaderError("Unexpected cache miss.")
-        key = self.build_path(hashed_context, cache_type)
+    def load_cache(self, key: HashKey) -> Optional[Cache]:
+        if not self.cache_hit(key):
+            return None
+        path = self.build_path(key)
         if self.is_lru:
             assert isinstance(self._cache, OrderedDict)
             assert self._cache_lock is not None
             with self._cache_lock:
-                self._cache.move_to_end(key)
-        return self._cache[key]
+                self._cache.move_to_end(path)
+        return self._cache[path]
 
-    def save_cache(self, cache: Cache) -> None:
-        key = self.build_path(cache.hash, cache.cache_type)
+    def save_cache(self, cache: Cache) -> bool:
+        path = self.build_path(cache.key)
         # LRU
         if self.is_lru:
             assert isinstance(self._cache, OrderedDict)
             assert self._cache_lock is not None
             with self._cache_lock:
-                self._cache[key] = cache
-                self._cache.move_to_end(key)
+                self._cache[path] = cache
+                self._cache.move_to_end(path)
                 if len(self._cache) > self.max_size:
                     self._cache.popitem(last=False)
-        self._cache[key] = cache
+        self._cache[path] = cache
+        return True
 
     def resize(self, max_size: int) -> None:
         if not self.is_lru:

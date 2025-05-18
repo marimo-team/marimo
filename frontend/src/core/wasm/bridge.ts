@@ -234,6 +234,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  sendPdb: EditRequests["sendPdb"] = async () => {
+    throwNotImplemented();
+  };
+
   sendRun: EditRequests["sendRun"] = async (request) => {
     await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
 
@@ -467,6 +471,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  previewSQLTableList: EditRequests["previewSQLTableList"] = async (
+    request,
+  ) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
+  previewDataSourceConnection: EditRequests["previewDataSourceConnection"] =
+    async (request) => {
+      await this.putControlRequest(request);
+      return null;
+    };
+
   syncCellIds = () => Promise.resolve(null);
   getUsageStats = throwNotImplemented;
   openTutorial = throwNotImplemented;
@@ -487,6 +504,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
   getPackageList = async () => {
     const response = await this.rpc.proxy.request.listPackages();
     return response;
+  };
+
+  listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
+  writeSecret: EditRequests["writeSecret"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
   };
 
   private async putControlRequest(operation: object) {

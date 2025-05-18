@@ -4,7 +4,7 @@ import CodeMirrorMerge from "react-codemirror-merge";
 import { useCompletion } from "ai/react";
 import { API } from "@/core/network/api";
 import { EditorView } from "@codemirror/view";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 
@@ -95,6 +95,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
         description: prettyError(error),
       });
     },
+    onFinish: (_prompt, completion) => {
+      // Remove trailing new lines
+      setCompletion(completion.trimEnd());
+    },
   });
 
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
@@ -120,15 +124,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const { theme } = useTheme();
 
   return (
-    <div
-      className={cn(
-        "flex flex-col w-full rounded-[inherit] overflow-hidden",
-        className,
-      )}
-    >
+    <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
       <div
         className={cn(
-          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300 overflow-hidden",
+          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
           enabled && "max-h-[400px] min-h-11 visible",
           !enabled && "max-h-0 min-h-0 invisible",
         )}
@@ -149,7 +148,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               value={input}
               onChange={(newValue) => {
                 setInput(newValue);
-                setCompletionBody(getAICompletionBody(newValue));
+                setCompletionBody(getAICompletionBody({ input: newValue }));
               }}
               onSubmit={() => {
                 if (!isLoading) {

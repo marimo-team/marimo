@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import (
     Html,
     _js,
@@ -7,6 +10,7 @@ from marimo._output.hypertext import (
 )
 from marimo._plugins.ui._impl.batch import batch as batch_plugin
 from marimo._plugins.ui._impl.input import button
+from marimo._plugins.ui._impl.table import table
 
 
 def test_html_initialization():
@@ -20,10 +24,56 @@ def test_html_mime():
     assert mime_type == "text/html"
     assert content == "<p>Test</p>"
 
+    assert html._serialized_mime_bundle == {
+        "mimetype": "text/html",
+        "data": "<p>Test</p>",
+    }
+
 
 def test_html_format():
     html = Html("<p>\n  Hello\n</p>")
-    assert f"{html}" == "<p>Hello</p>"
+    assert f"{html}" == "<p> Hello </p>"
+
+
+def test_html_format_multiline():
+    html = Html("""
+        <div>
+            <p>Hello</p>
+            <p>World</p>
+        </div>
+    """)
+    assert f"{html}" == "<div> <p>Hello</p> <p>World</p> </div>"
+
+
+def test_html_format_nested():
+    html = Html("""
+        <div>
+            <span>
+                Text
+            </span>
+        </div>
+    """)
+    assert f"{html}" == "<div> <span> Text </span> </div>"
+
+
+def test_html_format_attributes():
+    html = Html("""
+        <div class="test"
+             id="main">
+            Content
+        </div>
+    """)
+    assert f"{html}" == '<div class="test" id="main"> Content </div>'
+
+
+def test_html_format_empty():
+    html = Html("")
+    assert f"{html}" == ""
+
+
+def test_html_format_whitespace():
+    html = Html("  <p>  Lots   of    spaces  </p>  ")
+    assert f"{html}" == "<p>  Lots   of    spaces  </p>"
 
 
 def test_html_batch():
@@ -164,3 +214,38 @@ def test_html_patch_for_non_interactive_output():
         "text/html",
         "<web-component>Hello</web-component>",
     )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has() or not DependencyManager.pandas.has(),
+    reason="Pandas and Polars not installed",
+)
+def test_html_rich_elems():
+    tbl = table({"button": button()})
+    html = Html(tbl)
+
+    assert isinstance(html._serialized_mime_bundle, dict)
+    assert html._serialized_mime_bundle == {
+        "mimetype": "text/html",
+        "data": tbl,
+    }
+
+    import pandas as pd
+
+    df = pd.DataFrame({"button": [button()]})
+    html = Html(df)
+    # ensure public copy exists
+    assert hasattr(html, "serialized_mime_bundle") is True
+    assert html.serialized_mime_bundle == {
+        "mimetype": "text/html",
+        "data": df,
+    }
+
+    import polars as pl
+
+    df = pl.DataFrame({"button": button()})
+    html = Html(df)
+    assert html._serialized_mime_bundle == {
+        "mimetype": "text/html",
+        "data": df,
+    }

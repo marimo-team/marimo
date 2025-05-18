@@ -6,7 +6,7 @@ import json
 import re
 import sys
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Union
 
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
@@ -18,10 +18,10 @@ from marimo._runtime.dataflow import DirectedGraph
 from marimo._types.ids import CellId_t
 
 # Define a type for our transform functions
-Transform = Callable[[List[str]], List[str]]
+Transform = Callable[[list[str]], list[str]]
 
 
-def transform_fixup_multiple_definitions(sources: List[str]) -> List[str]:
+def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
     """
     Fixup multiple definitions of the same name in different cells,
     by making the name private (underscore) to each cell.
@@ -45,7 +45,7 @@ def transform_fixup_multiple_definitions(sources: List[str]) -> List[str]:
     if not multiply_defined_names:
         return sources
 
-    name_transformations: Dict[str, str] = {}
+    name_transformations: dict[str, str] = {}
     for name in multiply_defined_names:
         if not graph.get_referring_cells(name, language="python"):
             name_transformations[name] = (
@@ -68,7 +68,7 @@ def transform_fixup_multiple_definitions(sources: List[str]) -> List[str]:
     return [transform(source) for source in sources]
 
 
-def transform_add_marimo_import(sources: List[str]) -> List[str]:
+def transform_add_marimo_import(sources: list[str]) -> list[str]:
     """
     Add an import statement for marimo if any cell uses
     the `mo.md` or `mo.sql` functions.
@@ -83,7 +83,7 @@ def transform_add_marimo_import(sources: List[str]) -> List[str]:
     return sources
 
 
-def transform_magic_commands(sources: List[str]) -> List[str]:
+def transform_magic_commands(sources: list[str]) -> list[str]:
     """
     Transform Jupyter magic commands to their marimo equivalents
     or comment them out.
@@ -251,7 +251,7 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
             return "\n".join(f"# {line}" for line in source.split("\n"))
         return source
 
-    magics: Dict[str, Callable[[str, str], str]] = {
+    magics: dict[str, Callable[[str, str], str]] = {
         "sql": magic_sql,
         "mkdir": magic_mkdir,
         "cd": magic_cd,
@@ -307,7 +307,7 @@ def transform_magic_commands(sources: List[str]) -> List[str]:
     return [transform(cell) for cell in sources]
 
 
-def transform_exclamation_mark(sources: List[str]) -> List[str]:
+def transform_exclamation_mark(sources: list[str]) -> list[str]:
     """
     Handle exclamation mark commands.
     """
@@ -386,7 +386,7 @@ class Renamer:
             self.made_changes = name != new_name
 
 
-def _transform_aug_assign(sources: List[str]) -> List[str]:
+def _transform_aug_assign(sources: list[str]) -> list[str]:
     new_sources = sources.copy()
     for i, source in enumerate(sources):
         try:
@@ -416,7 +416,7 @@ def _transform_aug_assign(sources: List[str]) -> List[str]:
     return new_sources
 
 
-def transform_duplicate_definitions(sources: List[str]) -> List[str]:
+def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     """
     Rename variables with duplicate definitions across multiple cells,
     even when the variables are declared in one cell and used in another.
@@ -463,7 +463,7 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
     """
 
     # Find all definitions in the AST
-    def find_definitions(node: ast.AST) -> List[str]:
+    def find_definitions(node: ast.AST) -> list[str]:
         visitor = ScopedVisitor("", ignore_local=True)
         visitor.visit(node)
         # Remove local variables
@@ -471,8 +471,8 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
         return [def_ for def_ in defs if not is_local(def_)]
 
     # Collect all definitions for each cell
-    def get_definitions(sources: List[str]) -> Dict[str, List[int]]:
-        definitions: Dict[str, List[int]] = defaultdict(list)
+    def get_definitions(sources: list[str]) -> dict[str, list[int]]:
+        definitions: dict[str, list[int]] = defaultdict(list)
         for i, source in enumerate(sources):
             try:
                 tree = ast.parse(source)
@@ -484,8 +484,8 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
 
     # Collect all definitions that are duplicates
     def get_duplicates(
-        definitions: Dict[str, List[int]],
-    ) -> Dict[str, List[int]]:
+        definitions: dict[str, list[int]],
+    ) -> dict[str, list[int]]:
         return {
             name: cells
             for name, cells in definitions.items()
@@ -494,10 +494,10 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
 
     # Create mappings for renaming duplicates
     def create_name_mappings(
-        duplicates: Dict[str, List[int]], definitions: set[str]
-    ) -> Dict[int, Dict[str, str]]:
+        duplicates: dict[str, list[int]], definitions: set[str]
+    ) -> dict[int, dict[str, str]]:
         new_definitions: set[str] = set()
-        name_mappings: Dict[int, Dict[str, str]] = defaultdict(dict)
+        name_mappings: dict[int, dict[str, str]] = defaultdict(dict)
         for name, cells in duplicates.items():
             for i, cell in enumerate(cells[1:], start=1):
                 counter = i
@@ -520,7 +520,7 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
 
     sources = _transform_aug_assign(sources)
 
-    new_sources: List[str] = sources.copy()
+    new_sources: list[str] = sources.copy()
     name_mappings = create_name_mappings(duplicates, set(definitions.keys()))
 
     for cell_idx, source in enumerate(sources):
@@ -579,12 +579,12 @@ def transform_duplicate_definitions(sources: List[str]) -> List[str]:
 
 
 def transform_cell_metadata(
-    sources: List[str], metadata: List[Dict[str, Any]]
-) -> List[str]:
+    sources: list[str], metadata: list[dict[str, Any]]
+) -> list[str]:
     """
     Handle cell metadata, such as tags or cell IDs.
     """
-    transformed_sources: List[str] = []
+    transformed_sources: list[str] = []
     for source, meta in zip(sources, metadata):
         if "tags" in meta:
             tags = meta["tags"]
@@ -596,14 +596,14 @@ def transform_cell_metadata(
     return transformed_sources
 
 
-def transform_remove_duplicate_imports(sources: List[str]) -> List[str]:
+def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
     """
     Remove duplicate imports appearing in any cell.
     """
     imports: set[str] = set()
-    new_sources: List[str] = []
+    new_sources: list[str] = []
     for source in sources:
-        new_lines: List[str] = []
+        new_lines: list[str] = []
         for line in source.split("\n"):
             stripped_line = line.strip()
             if stripped_line.startswith("import ") or stripped_line.startswith(
@@ -621,7 +621,7 @@ def transform_remove_duplicate_imports(sources: List[str]) -> List[str]:
     return new_sources
 
 
-def transform_remove_empty_cells(sources: List[str]) -> List[str]:
+def transform_remove_empty_cells(sources: list[str]) -> list[str]:
     """
     Remove empty cells.
     """
@@ -632,7 +632,7 @@ def transform_remove_empty_cells(sources: List[str]) -> List[str]:
     return sources
 
 
-def transform_strip_whitespace(sources: List[str]) -> List[str]:
+def transform_strip_whitespace(sources: list[str]) -> list[str]:
     """
     Strip whitespace from the beginning and end of each cell.
     """
@@ -657,7 +657,7 @@ def extract_inline_meta(script: str) -> tuple[str | None, str]:
 def _transform_sources(
     sources: list[str], metadata: list[dict[str, Any]]
 ) -> list[str]:
-    transforms: List[Transform] = [
+    transforms: list[Transform] = [
         transform_strip_whitespace,
         transform_magic_commands,
         transform_remove_duplicate_imports,
@@ -677,7 +677,7 @@ def _transform_sources(
 def convert_from_ipynb(raw_notebook: str) -> str:
     notebook = json.loads(raw_notebook)
     sources: list[str] = []
-    metadata: list[Dict[str, Any]] = []
+    metadata: list[dict[str, Any]] = []
     cell_configs: list[CellConfig] = []
     inline_meta: Union[str, None] = None
     md_cells: set[str] = set()

@@ -5,7 +5,6 @@ import { TooltipProvider } from "@radix-ui/react-tooltip";
 import type { DataEditorProps } from "./data-editor/data-editor";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { vegaLoadData } from "./vega/loader";
-import { getVegaFieldTypes } from "./vega/utils";
 import type { Setter } from "../types";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -16,6 +15,7 @@ import agGridCss from "ag-grid-community/styles/ag-grid.css?inline";
 import agThemeCss from "ag-grid-community/styles/ag-theme-quartz.css?inline";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { toFieldTypes } from "@/components/data-table/types";
+import { getVegaFieldTypes } from "./vega/utils";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -57,6 +57,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           ]),
         )
         .nullish(),
+      columnSizingMode: z.enum(["auto", "fit"]).default("auto"),
     }),
   )
   .withFunctions({})
@@ -70,6 +71,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           fieldTypes={props.data.fieldTypes}
           edits={props.value.edits}
           onEdits={props.setValue}
+          columnSizingMode={props.data.columnSizingMode}
         />
       </TooltipProvider>
     );
@@ -91,6 +93,7 @@ const LoadingDataEditor = (props: Props) => {
     }
 
     const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
+
     // Otherwise, load the data from the URL
     return await vegaLoadData(
       props.data,
@@ -138,6 +141,7 @@ const LoadingDataEditor = (props: Props) => {
         );
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
       }}
+      columnSizingMode={props.columnSizingMode}
     />
   );
 };

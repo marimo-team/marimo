@@ -5,25 +5,22 @@ import json
 import os
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 from marimo import __version__ as current_version, _loggers
 from marimo._cli.print import echo, green, orange
+from marimo._config.cli_state import (
+    MarimoCLIState,
+    get_cli_state,
+    write_cli_state,
+)
 from marimo._server.api.status import HTTPException
 from marimo._tracer import server_tracer
-from marimo._utils.config.config import ConfigReader
 
 FETCH_TIMEOUT = 3
 
 LOGGER = _loggers.marimo_logger()
-
-
-@dataclass
-class MarimoCLIState:
-    latest_version: Optional[str] = None
-    last_checked_at: Optional[str] = None
 
 
 def print_latest_version(current_version: str, latest_version: str) -> None:
@@ -46,15 +43,9 @@ def check_for_updates(on_update: Callable[[str, str], None]) -> None:
 def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
     from packaging import version
 
-    config_reader = ConfigReader.for_filename("state.toml")
-    if not config_reader:
-        # Couldn't find home directory, so do nothing
+    state = get_cli_state()
+    if not state:
         return
-
-    # Load the state file or create a default state if it doesn't exist
-    state: MarimoCLIState = config_reader.read_toml(
-        MarimoCLIState, fallback=MarimoCLIState()
-    )
 
     # Maybe update the state with the latest version
     state = _update_with_latest_version(state)
@@ -70,7 +61,7 @@ def _check_for_updates_internal(on_update: Callable[[str, str], None]) -> None:
         on_update(current_version, state.latest_version)
 
     # Save the state, create directories if necessary
-    config_reader.write_toml(state)
+    write_cli_state(state)
 
 
 DATE_FORMAT = "%Y-%m-%d"
@@ -114,7 +105,7 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
         return state
 
 
-def _fetch_data_from_url(url: str) -> Dict[str, Any]:
+def _fetch_data_from_url(url: str) -> dict[str, Any]:
     try:
         with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as response:
             status = response.status

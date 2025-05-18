@@ -6,9 +6,9 @@ import {
   PaintRollerIcon,
   PlusSquareIcon,
   XIcon,
-  LoaderCircle,
   Table2Icon,
   EyeIcon,
+  RefreshCwIcon,
 } from "lucide-react";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
@@ -24,10 +24,13 @@ import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { previewDatasetColumn } from "@/core/network/requests";
+import {
+  previewDataSourceConnection,
+  previewDatasetColumn,
+} from "@/core/network/requests";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
@@ -56,14 +59,27 @@ import type { VariableName } from "@/core/variables/types";
 import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
-  tablePreviewsAtom,
   dataConnectionsMapAtom,
-  DEFAULT_ENGINE,
+  INTERNAL_SQL_ENGINES,
+  type SQLTableContext,
+  useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
-import { PreviewSQLTable } from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { DatasourceLabel, EmptyState, RotatingChevron } from "./components";
+import {
+  DatasourceLabel,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  RotatingChevron,
+} from "./components";
+import { InstallPackageButton } from "./install-package-button";
+import { isSchemaless, sqlCode } from "./utils";
+import { useOnMount } from "@/hooks/useLifecycle";
+import {
+  PreviewSQLTableList,
+  PreviewSQLTable,
+} from "@/core/datasets/request-registry";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -93,16 +109,18 @@ const sortedTablesAtom = atom((get) => {
 
 const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
-  const defaultEngine = dataConnections.get(DEFAULT_ENGINE);
 
-  // Filter out the internal duckdb engine if it has no databases
-  if (defaultEngine && defaultEngine.databases.length === 0) {
-    dataConnections.delete(DEFAULT_ENGINE);
+  // Filter out the internal engines if it has no databases
+  for (const engine of INTERNAL_SQL_ENGINES) {
+    const connection = dataConnections.get(engine);
+    if (connection && connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
   }
 
-  // Sort by name, but put the default engine at the top
+  // Put internal engines last to prioritize user-defined connections
   return sortBy([...dataConnections.values()], (connection) =>
-    connection.name === DEFAULT_ENGINE ? "" : connection.name,
+    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
   );
 });
 
@@ -121,7 +139,7 @@ export const DataSources: React.FC = () => {
         action={
           <AddDatabaseDialog>
             <Button variant="outline" size="sm">
-              Add database
+              Add database or catalog
               <PlusIcon className="h-4 w-4 ml-2" />
             </Button>
           </AddDatabaseDialog>
@@ -186,6 +204,8 @@ export const DataSources: React.FC = () => {
               >
                 <SchemaList
                   schemas={database.schemas}
+                  defaultSchema={connection.default_schema}
+                  defaultDatabase={connection.default_database}
                   engineName={connection.name}
                   databaseName={database.name}
                   hasSearch={hasSearch}
@@ -215,11 +235,22 @@ const Engine: React.FC<{
   children: React.ReactNode;
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
-  const hasEngine = connection.databases.length > 0;
-  // If the connection has no engine, it's the internal duckdb engine
-  const engineName = hasEngine
-    ? connection.databases[0]?.engine || "In-Memory"
-    : connection.name;
+  // The internal DuckDB engine may have no engine name, so we provide one.
+  // The connection is also updated automatically, so we do not need to refresh.
+  const internalEngine =
+    connection.databases.length === 0 || !connection.databases[0]?.engine;
+  const engineName = internalEngine ? "In-Memory" : connection.name;
+
+  const [isSpinning, setIsSpinning] = React.useState(false);
+
+  const handleRefreshConnection = async () => {
+    setIsSpinning(true);
+    await previewDataSourceConnection({
+      engine: connection.name,
+    });
+    // Artificially spin the icon if the request is really fast
+    setTimeout(() => setIsSpinning(false), 500);
+  };
 
   return (
     <>
@@ -232,6 +263,23 @@ const Engine: React.FC<{
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={engineName as VariableName} />)
         </span>
+        {!internalEngine && (
+          <Tooltip content="Refresh connection">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto hover:bg-transparent hover:shadow-none"
+              onClick={handleRefreshConnection}
+            >
+              <RefreshCwIcon
+                className={cn(
+                  "h-4 w-4 text-muted-foreground hover:text-foreground",
+                  isSpinning && "animate-[spin_0.5s]",
+                )}
+              />
+            </Button>
+          </Tooltip>
+        )}
       </DatasourceLabel>
       {hasChildren ? (
         children
@@ -269,10 +317,12 @@ const DatabaseItem: React.FC<{
         <DatabaseIcon
           className={cn(
             "h-4 w-4",
-            isSelected ? "text-foreground" : "text-muted-foreground",
+            isSelected && isExpanded
+              ? "text-foreground"
+              : "text-muted-foreground",
           )}
         />
-        <span className={cn(isSelected && "font-semibold")}>
+        <span className={cn(isSelected && isExpanded && "font-semibold")}>
           {database.name === "" ? <i>Not connected</i> : database.name}
         </span>
       </CommandItem>
@@ -283,11 +333,21 @@ const DatabaseItem: React.FC<{
 
 const SchemaList: React.FC<{
   schemas: DatabaseSchema[];
+  defaultSchema?: string | null;
+  defaultDatabase?: string | null;
   engineName: string;
   databaseName: string;
   hasSearch: boolean;
   searchValue?: string;
-}> = ({ schemas, engineName, databaseName, hasSearch, searchValue }) => {
+}> = ({
+  schemas,
+  defaultSchema,
+  defaultDatabase,
+  engineName,
+  databaseName,
+  hasSearch,
+  searchValue,
+}) => {
   if (schemas.length === 0) {
     return <EmptyState content="No schemas available" className="pl-6" />;
   }
@@ -317,6 +377,8 @@ const SchemaList: React.FC<{
               engine: engineName,
               database: databaseName,
               schema: schema.name,
+              defaultSchema: defaultSchema,
+              defaultDatabase: defaultDatabase,
             }}
           />
         </SchemaItem>
@@ -339,6 +401,10 @@ const SchemaItem: React.FC<{
     setIsExpanded(hasSearch);
   }, [hasSearch]);
 
+  if (isSchemaless(schema.name)) {
+    return children;
+  }
+
   return (
     <>
       <CommandItem
@@ -353,27 +419,63 @@ const SchemaItem: React.FC<{
         <PaintRollerIcon
           className={cn(
             "h-4 w-4 text-muted-foreground",
-            isSelected && "text-foreground",
+            isSelected && isExpanded && "text-foreground",
           )}
         />
-        <span className={cn(isSelected && "font-semibold")}>{schema.name}</span>
+        <span className={cn(isSelected && isExpanded && "font-semibold")}>
+          {schema.name}
+        </span>
       </CommandItem>
       {isExpanded && children}
     </>
   );
 };
 
-interface SQLTableContext {
-  engine: string;
-  database: string;
-  schema: string;
-}
-
 const TableList: React.FC<{
   tables: DataTable[];
   sqlTableContext?: SQLTableContext;
   searchValue?: string;
 }> = ({ tables, sqlTableContext, searchValue }) => {
+  const { addTableList } = useDataSourceActions();
+  const [tablesRequested, setTablesRequested] = React.useState(false);
+
+  // Custom loading state, we need to wait for the data to propagate once requested
+  // useAsyncData's loading state may return false before data has propagated
+  const [tablesLoading, setTablesLoading] = React.useState(false);
+
+  const { loading, error } = useAsyncData(async () => {
+    if (tables.length === 0 && sqlTableContext && !tablesRequested) {
+      setTablesRequested(true);
+      setTablesLoading(true);
+
+      const { engine, database, schema } = sqlTableContext;
+      const previewTableList = await PreviewSQLTableList.request({
+        engine: engine,
+        database: database,
+        schema: schema,
+      });
+
+      if (!previewTableList?.tables) {
+        setTablesLoading(false);
+        throw new Error("No tables available");
+      }
+
+      addTableList({
+        tables: previewTableList.tables,
+        sqlTableContext: sqlTableContext,
+      });
+      setTablesLoading(false);
+    }
+  }, [tables.length, sqlTableContext, tablesRequested]);
+
+  if (loading || tablesLoading) {
+    return <LoadingState message="Loading tables..." />;
+  }
+
+  if (error) {
+    return <ErrorState error={error} />;
+  }
+
   if (tables.length === 0) {
     return <EmptyState content="No tables found" className="pl-9" />;
   }
@@ -404,15 +506,21 @@ const DatasetTableItem: React.FC<{
   sqlTableContext?: SQLTableContext;
   isSearching: boolean;
 }> = ({ table, sqlTableContext, isSearching }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const { addTable } = useDataSourceActions();
 
-  const [tablePreviews, setTablePreviews] = useAtom(tablePreviewsAtom);
-  const tablePreview = tablePreviews.get(table.name);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [tableDetailsRequested, setTableDetailsRequested] =
+    React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
   const { loading, error } = useAsyncData(async () => {
-    // Only fetch table preview when the data is not passed in and doesn't exist in the atom
-    if (isExpanded && !tableDetailsExist && sqlTableContext && !tablePreview) {
+    if (
+      isExpanded &&
+      !tableDetailsExist &&
+      sqlTableContext &&
+      !tableDetailsRequested
+    ) {
+      setTableDetailsRequested(true);
       const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
@@ -425,9 +533,12 @@ const DatasetTableItem: React.FC<{
         throw new Error("No table details available");
       }
 
-      setTablePreviews((prev) => new Map(prev).set(table.name, previewTable));
+      addTable({
+        table: previewTable.table,
+        sqlTableContext: sqlTableContext,
+      });
     }
-  }, [isExpanded, tableDetailsExist, tablePreview]);
+  }, [isExpanded, tableDetailsExist]);
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
@@ -435,29 +546,32 @@ const DatasetTableItem: React.FC<{
 
   const handleAddTable = () => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    let code = "";
-    if (sqlTableContext) {
-      const { engine, schema } = sqlTableContext;
-      code = `_df = mo.sql(f"SELECT * FROM ${schema}.${table.name} LIMIT 100", engine=${engine})`;
-    } else {
+    const getCode = () => {
+      if (table.source_type === "catalog") {
+        const identifier = sqlTableContext?.database
+          ? `${sqlTableContext.database}.${table.name}`
+          : table.name;
+        return `${table.engine}.load_table("${identifier}")`;
+      }
+
+      if (sqlTableContext) {
+        return sqlCode(table, "*", sqlTableContext);
+      }
+
       switch (table.source_type) {
         case "local":
-          code = `mo.ui.table(${table.name})`;
-          break;
+          return `mo.ui.table(${table.name})`;
         case "duckdb":
-          code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100")`;
-          break;
         case "connection":
-          code = `_df = mo.sql(f"SELECT * FROM ${table.name} LIMIT 100", engine=${table.engine})`;
-          break;
+          return sqlCode(table, "*", sqlTableContext);
         default:
           logNever(table.source_type);
-          break;
+          return "";
       }
-    }
+    };
 
     createNewCell({
-      code,
+      code: getCode(),
       before: false,
       cellId: lastFocusedCellId ?? "__end__",
     });
@@ -487,30 +601,18 @@ const DatasetTableItem: React.FC<{
 
   const renderColumns = () => {
     if (loading) {
-      return (
-        <div className="pl-12 text-sm bg-blue-50 dark:bg-[var(--accent)] text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          Loading columns...
-        </div>
-      );
+      return <LoadingState message="Loading columns..." />;
     }
 
     if (error) {
-      return (
-        <div className="pl-12 text-sm bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-50 flex items-center gap-2 p-2 h-8">
-          <XIcon className="h-4 w-4" />
-          {error.message}
-        </div>
-      );
+      return <ErrorState error={error} />;
     }
 
-    const columns = tableDetailsExist
-      ? table.columns
-      : tablePreview?.table?.columns || [];
+    const columns = table.columns;
     return columns.map((column) => (
       <DatasetColumnItem
         key={column.name}
-        table={tablePreview?.table ?? table}
+        table={table}
         column={column}
         sqlTableContext={sqlTableContext}
       />
@@ -540,7 +642,8 @@ const DatasetTableItem: React.FC<{
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          sqlTableContext && "pl-12",
+          sqlTableContext &&
+            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}
@@ -616,6 +719,22 @@ const DatasetColumnItem: React.FC<{
     });
   };
 
+  const renderItemSubtext = ({
+    tooltipContent,
+    content,
+  }: {
+    tooltipContent: string;
+    content: string;
+  }) => {
+    return (
+      <Tooltip content={tooltipContent} delayDuration={100}>
+        <span className="text-xs text-black bg-gray-100 dark:invert rounded px-1">
+          {content}
+        </span>
+      </Tooltip>
+    );
+  };
+
   return (
     <>
       <CommandItem
@@ -632,20 +751,10 @@ const DatasetColumnItem: React.FC<{
         >
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
           <span>{column.name}</span>
-          {isPrimaryKey && (
-            <Tooltip content="Primary Key" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                PK
-              </span>
-            </Tooltip>
-          )}
-          {isIndexed && (
-            <Tooltip content="Indexed" delayDuration={100}>
-              <span className="text-xs text-black bg-gray-200 rounded px-1">
-                IDX
-              </span>
-            </Tooltip>
-          )}
+          {isPrimaryKey &&
+            renderItemSubtext({ tooltipContent: "Primary key", content: "PK" })}
+          {isIndexed &&
+            renderItemSubtext({ tooltipContent: "Indexed", content: "IDX" })}
         </div>
         <Tooltip content="Copy column name" delayDuration={400}>
           <Button
@@ -671,7 +780,11 @@ const DatasetColumnItem: React.FC<{
               table={table}
               column={column}
               onAddColumnChart={handleAddColumn}
-              preview={columnsPreviews.get(`${table.name}:${column.name}`)}
+              preview={columnsPreviews.get(
+                sqlTableContext
+                  ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}:${column.name}`
+                  : `${table.name}:${column.name}`,
+              )}
               sqlTableContext={sqlTableContext}
             />
           </ErrorBoundary>
@@ -694,12 +807,24 @@ const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
 
+  useOnMount(() => {
+    if (preview) {
+      return;
+    }
+
+    previewDatasetColumn({
+      source: table.source,
+      tableName: table.name,
+      columnName: column.name,
+      sourceType: table.source_type,
+      fullyQualifiedTableName: sqlTableContext
+        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
+        : table.name,
+    });
+  });
+
   // Do not fetch previews for custom SQL connections
-  // or if the table is In-Memory duckdb, but not in the main schema
-  if (
-    table.source_type === "connection" ||
-    (table.source_type === "duckdb" && sqlTableContext?.schema !== "main")
-  ) {
+  if (table.source_type === "connection") {
     return (
       <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
         {column.name} ({column.external_type})
@@ -707,7 +832,7 @@ const DatasetColumnPreview: React.FC<{
           variant="outline"
           size="xs"
           onClick={Events.stopPropagation(() => {
-            onAddColumnChart(sqlCode(table, column, sqlTableContext));
+            onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
           })}
         >
           <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
@@ -716,13 +841,12 @@ const DatasetColumnPreview: React.FC<{
     );
   }
 
-  if (!preview) {
-    previewDatasetColumn({
-      source: table.source,
-      tableName: table.name,
-      columnName: column.name,
-      sourceType: table.source_type,
-    });
+  if (table.source_type === "catalog") {
+    return (
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+        {column.name} ({column.external_type})
+      </span>
+    );
   }
 
   if (!preview) {
@@ -730,7 +854,12 @@ const DatasetColumnPreview: React.FC<{
   }
 
   const error = preview.error && (
-    <span className="text-xs text-muted-foreground">{preview.error}</span>
+    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
+      <span>{preview.error}</span>
+      {preview.missing_packages && (
+        <InstallPackageButton packages={preview.missing_packages} />
+      )}
+    </div>
   );
 
   const summary = preview.summary && (
@@ -797,7 +926,7 @@ const DatasetColumnPreview: React.FC<{
         size="icon"
         className="z-10 bg-background absolute right-1 -top-1"
         onClick={Events.stopPropagation(() => {
-          onAddColumnChart(sqlCode(table, column, sqlTableContext));
+          onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
         })}
       >
         <PlusSquareIcon className="h-3 w-3" />
@@ -826,15 +955,3 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 };
-
-function sqlCode(
-  table: DataTable,
-  column: DataTableColumn,
-  sqlTableContext?: SQLTableContext,
-) {
-  if (sqlTableContext) {
-    const { engine, schema } = sqlTableContext;
-    return `_df = mo.sql(f'SELECT ${column.name} FROM ${schema}.${table.name} LIMIT 100', engine=${engine})`;
-  }
-  return `_df = mo.sql(f'SELECT "${column.name}" FROM ${table.name} LIMIT 100')`;
-}

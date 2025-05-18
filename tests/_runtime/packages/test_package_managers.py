@@ -4,6 +4,7 @@ import pytest
 
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
+    PY_EXE,
     MicropipPackageManager,
     PipPackageManager,
     RyePackageManager,
@@ -223,3 +224,18 @@ def test_update_script_metadata_marimo_packages() -> None:
         ]
     ]
     runs_calls.clear()
+
+
+async def test_uv_pip_install() -> None:
+    runs_calls: list[list[str]] = []
+
+    class MockUvPackageManager(UvPackageManager):
+        def run(self, command: list[str]) -> bool:
+            runs_calls.append(command)
+            return True
+
+    pm = MockUvPackageManager()
+    await pm._install("foo")
+    assert runs_calls == [
+        ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
+    ]

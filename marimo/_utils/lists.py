@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Iterable, Optional, TypeVar, Union
+from collections.abc import Iterable
+from typing import Optional, TypeVar, Union
 
 T = TypeVar("T")
 

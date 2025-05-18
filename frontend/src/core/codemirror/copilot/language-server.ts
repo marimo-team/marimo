@@ -10,7 +10,7 @@ import type {
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 
-import { LanguageServerClient } from "codemirror-languageserver";
+import { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
 import type {
   CopilotStatus,
   CopilotSignInInitiateParams,
@@ -49,6 +49,7 @@ export interface LSPRequestMap {
  */
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
+  private hasOpenedDocument = false;
 
   private async _request<Method extends keyof LSPRequestMap>(
     method: Method,
@@ -73,16 +74,15 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     if (this.isDisabled()) {
       return params;
     }
+    this.hasOpenedDocument = true;
     return super.textDocumentDidOpen(params);
   }
 
   override async textDocumentCompletion(
     params: CompletionParams,
   ): Promise<CompletionList | CompletionItem[]> {
-    if (this.isDisabled()) {
-      return [];
-    }
-    return super.textDocumentCompletion(params);
+    // Not used in Copilot
+    return [];
   }
 
   override async textDocumentDidChange(
@@ -91,9 +91,37 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     if (this.isDisabled()) {
       return params;
     }
+
+    if (!this.hasOpenedDocument) {
+      await this.textDocumentDidOpen({
+        textDocument: {
+          uri: params.textDocument.uri,
+          languageId: "python",
+          version: params.textDocument.version,
+          text: params.contentChanges[0].text,
+        },
+      });
+    }
+
+    const changes = params.contentChanges;
+    if (changes.length !== 1) {
+      Logger.warn(
+        "CopilotLanguageServerClient#textDocumentDidChange: Multiple changes detected. This is not supported.",
+        changes,
+      );
+    }
+    const change = changes[0];
+    if ("range" in change) {
+      Logger.warn(
+        "CopilotLanguageServerClient#textDocumentDidChange: Copilot doesn't support range changes.",
+        change,
+      );
+    }
+
+    const text = getCodes(change.text);
     return super.textDocumentDidChange({
       ...params,
-      contentChanges: [{ text: getCodes(params.contentChanges[0].text) }],
+      contentChanges: [{ text: text }],
       textDocument: VersionedTextDocumentIdentifier.create(
         params.textDocument.uri,
         ++this.documentVersion,
@@ -102,10 +130,8 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   override textDocumentHover(params: HoverParams): Promise<Hover> {
-    if (this.isDisabled()) {
-      return Promise.resolve({ contents: [] });
-    }
-    return super.textDocumentHover(params);
+    // Not used in Copilot
+    return Promise.resolve({ contents: [] });
   }
 
   // AUTH

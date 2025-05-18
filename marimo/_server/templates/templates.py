@@ -5,10 +5,10 @@ import base64
 import json
 import os
 from textwrap import dedent
-from typing import Any, List, Literal, Optional, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from marimo import __version__
-from marimo._ast.app import _AppConfig
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._messaging.cell_output import CellOutput
@@ -39,6 +39,9 @@ def home_page_template(
     html = html.replace("{{ filename }}", "")
     html = html.replace("{{ mode }}", "home")
 
+    # Add custom CSS from display config
+    html = _inject_custom_css_for_config(html, user_config)
+    html = _inject_custom_css_for_config(html, config_overrides)
     return html
 
 
@@ -82,6 +85,10 @@ def notebook_page_template(
             # Append to head
             html = html.replace("</head>", f"{css_contents}</head>")
 
+    # Add custom CSS from display config
+    html = _inject_custom_css_for_config(html, user_config, filename)
+    html = _inject_custom_css_for_config(html, config_overrides, filename)
+
     # Add HTML head file contents if specified
     if app_config.html_head_file:
         head_contents = read_html_head_file(
@@ -108,7 +115,7 @@ def static_notebook_template(
     cell_codes: list[str],
     cell_configs: list[CellConfig],
     cell_outputs: dict[CellId_t, CellOutput],
-    cell_console_outputs: dict[CellId_t, List[CellOutput]],
+    cell_console_outputs: dict[CellId_t, list[CellOutput]],
     files: dict[str, str],
     asset_url: Optional[str] = None,
 ) -> str:
@@ -198,6 +205,14 @@ def static_notebook_template(
         if css_contents:
             static_block += _custom_css_block(css_contents)
 
+    # Add custom CSS from display config
+    static_block = _inject_custom_css_for_config(
+        static_block, user_config, filepath
+    )
+    static_block = _inject_custom_css_for_config(
+        static_block, config_overrides, filepath
+    )
+
     code_block = dedent(
         f"""
     <marimo-code hidden="">
@@ -226,6 +241,8 @@ def static_notebook_template(
     # Append to body
     html = html.replace("</body>", f"{code_block}</body>")
 
+    html = _inject_custom_css_for_config(html, user_config, filepath)
+    html = _inject_custom_css_for_config(html, config_overrides, filepath)
     return html
 
 
@@ -301,6 +318,10 @@ def wasm_notebook_template(
             # Append to head
             body = body.replace("</head>", f"{css_contents}</head>")
 
+    # Add custom CSS from display config
+    body = _inject_custom_css_for_config(body, user_config, filename)
+    body = _inject_custom_css_for_config(body, config_overrides, filename)
+
     # Add HTML head file contents if specified
     if app_config.html_head_file:
         head_contents = read_html_head_file(
@@ -358,3 +379,26 @@ def _custom_css_block(css_contents: str) -> str:
     # marimo-custom is used by the frontend to identify this stylesheet
     # comes from marimo
     return f"<style title='marimo-custom'>{css_contents}</style>"
+
+
+def _inject_custom_css_for_config(
+    html: str,
+    config: Union[MarimoConfig, PartialMarimoConfig],
+    filename: Optional[str] = None,
+) -> str:
+    """Inject custom CSS from display config into HTML."""
+    custom_css = config.get("display", {}).get("custom_css", [])
+    if not custom_css:
+        return html
+
+    css_contents: list[str] = []
+    for css_path in custom_css:
+        css_content = read_css_file(css_path, filename=filename)
+        if css_content:
+            css_contents.append(_custom_css_block(css_content))
+
+    if not css_contents:
+        return html
+
+    css_block = "\n".join(css_contents)
+    return html.replace("</head>", f"{css_block}</head>")

@@ -2,24 +2,36 @@
 from __future__ import annotations
 
 import abc
-from typing import (
-    Any,
-    Generic,
-    Optional,
-    Tuple,
-    TypeVar,
-)
+from dataclasses import dataclass
+from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
-import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType, ExternalDataType
-from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 T = TypeVar("T")
 
 ColumnName = str
+RowId = str
 FieldType = DataType
-FieldTypes = list[Tuple[ColumnName, Tuple[FieldType, ExternalDataType]]]
+FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
+
+
+class TableCoordinate(NamedTuple):
+    row_id: Union[int, str]
+    column_name: str
+
+
+@dataclass
+class TableCell:
+    row: Union[int, str]
+    column: str
+    value: Any | None
+
+    def __getitem__(self, key: str) -> Any:
+        """Allow dictionary-style access to cell values."""
+        if key not in ["row", "column", "value"]:
+            raise KeyError(f"Invalid key: {key}")
+        return getattr(self, key)
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -30,6 +42,9 @@ class TableManager(abc.ABC, Generic[T]):
     # Upper limit for frontend table component to show column summary charts
     # to ensure browser performance
     DEFAULT_SUMMARY_CHARTS_ROW_LIMIT = 20_000
+    # Lower limit for frontend to show column summary charts, since for
+    # very small tables column summaries just take up space.
+    DEFAULT_SUMMARY_CHARTS_MINIMUM_ROWS = 11
     # Upper limit for column summaries to avoid hanging up the kernel
     # Note: Keep this value in sync with DataTablePlugin's banner text
     DEFAULT_SUMMARY_STATS_ROW_LIMIT = 1_000_000
@@ -38,18 +53,6 @@ class TableManager(abc.ABC, Generic[T]):
 
     def __init__(self, data: T) -> None:
         self.data = data
-
-    def to_data(
-        self,
-        format_mapping: Optional[FormatMapping] = None,
-    ) -> JSONType:
-        """
-        The best way to represent the data in a table as JSON.
-
-        By default, this method calls `to_csv` and returns the result as
-        a string.
-        """
-        return mo_data.csv(self.to_csv(format_mapping)).url
 
     def supports_download(self) -> bool:
         return True
@@ -77,15 +80,33 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
+    def to_csv_str(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+    ) -> str:
+        pass
+
     def to_csv(
         self,
         format_mapping: Optional[FormatMapping] = None,
     ) -> bytes:
-        pass
+        return self.to_csv_str(format_mapping).encode("utf-8")
+
+    def to_arrow_ipc(self) -> bytes:
+        raise NotImplementedError("Arrow format not supported")
 
     @abc.abstractmethod
-    def to_json(self) -> bytes:
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
         pass
+
+    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+        return self.to_json_str(format_mapping).encode("utf-8")
+
+    @abc.abstractmethod
+    def to_parquet(self) -> bytes:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def select_rows(self, indices: list[int]) -> TableManager[Any]:
@@ -93,6 +114,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
+        pass
+
+    @abc.abstractmethod
+    def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
         pass
 
     @abc.abstractmethod
@@ -106,7 +131,7 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def get_field_type(
         self, column_name: str
-    ) -> Tuple[FieldType, ExternalDataType]:
+    ) -> tuple[FieldType, ExternalDataType]:
         pass
 
     def get_field_types(self) -> FieldTypes:
@@ -152,6 +177,12 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_sample_values(self, column: str) -> list[Any]:
+        pass
+
+    @abc.abstractmethod
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
         pass
 
     def __repr__(self) -> str:

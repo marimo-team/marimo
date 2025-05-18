@@ -5,7 +5,7 @@ from marimo._cli.parse_args import parse_args
 
 def test_parse_args_no_args():
     assert parse_args(()) == {}  # type: ignore
-    assert parse_args(("")) == {}
+    assert parse_args("") == {}
 
 
 def test_parse_args_non_dashed():

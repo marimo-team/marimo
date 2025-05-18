@@ -38,6 +38,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           >
             Select columns 
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
               fill="none"
               height="24"
@@ -88,6 +89,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           >
             Select aggregations 
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
               fill="none"
               height="24"
@@ -392,6 +394,7 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
           >
             Select columns 
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
               fill="none"
               height="24"
@@ -515,6 +518,7 @@ exports[`renderZodSchema > should render a form filter_rows 1`] = `
               data-testid="marimo-plugin-data-frames-add-array-item"
             >
               <svg
+                aria-hidden="true"
                 class="lucide lucide-plus w-3.5 h-3.5 mr-1"
                 fill="none"
                 height="24"
@@ -581,6 +585,7 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
           >
             Select columns 
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
               fill="none"
               height="24"
@@ -806,6 +811,7 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
               id=":r2a:-form-item"
               inputmode="numeric"
               spellcheck="false"
+              tabindex="0"
               title=""
               type="text"
               value=""
@@ -886,10 +892,11 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
       class="flex flex-row align-start"
     >
       <button
-        class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
+        class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-xs active:shadow-none h-7 px-2 rounded-md text-xs"
         data-testid="marimo-plugin-data-frames-random-number-button"
       >
         <svg
+          aria-hidden="true"
           class="lucide lucide-refresh-ccw w-3.5 h-3.5 mr-1"
           fill="none"
           height="24"
@@ -989,6 +996,7 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
           >
             Select columns 
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
               fill="none"
               height="24"
@@ -1029,10 +1037,11 @@ exports[`renderZodSchema > should render a form shuffle_rows 1`] = `
       class="flex flex-row align-start"
     >
       <button
-        class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
+        class="disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-xs active:shadow-none h-7 px-2 rounded-md text-xs"
         data-testid="marimo-plugin-data-frames-random-number-button"
       >
         <svg
+          aria-hidden="true"
           class="lucide lucide-refresh-ccw w-3.5 h-3.5 mr-1"
           fill="none"
           height="24"
@@ -1300,6 +1309,7 @@ exports[`renders custom forms column_id_array 1`] = `
       >
         Select columns 
         <svg
+          aria-hidden="true"
           class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
           fill="none"
           height="24"
@@ -1345,6 +1355,7 @@ exports[`renders custom forms column_id_dot_array 1`] = `
       >
         -- 
         <svg
+          aria-hidden="true"
           class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
           fill="none"
           height="24"

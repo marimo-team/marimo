@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
@@ -19,7 +19,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._utils.narwhals_utils import can_narwhalify
 
-MANAGERS: List[TableManagerFactory] = [
+MANAGERS: list[TableManagerFactory] = [
     PandasTableManagerFactory(),
     PolarsTableManagerFactory(),
     IbisTableManagerFactory(),
@@ -45,7 +45,7 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
                 return manager(data)
 
     # Fallback to generic NarwhalsTableManager
-    if can_narwhalify(data):
+    if can_narwhalify(data, eager_only=False):
         return NarwhalsTableManager.from_dataframe(data)
 
     return None

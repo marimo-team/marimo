@@ -6,6 +6,7 @@ import sys
 from typing import Optional
 
 from marimo._cli.print import bold, green, muted
+from marimo._config.config import MarimoConfig
 from marimo._server.utils import print_, print_tabbed
 
 UTF8_SUPPORTED = False
@@ -52,7 +53,9 @@ def print_startup(
 
 def print_shutdown() -> None:
     print_()
-    print_tabbed("\033[32mThanks for using marimo!\033[0m %s" % _utf8("🌊🍃"))
+    print_tabbed(
+        "\033[32mThanks for using marimo!\033[0m {}".format(_utf8("🌊🍃"))
+    )
     print_()
 
 
@@ -61,10 +64,30 @@ def _get_network_url(url: str) -> str:
 
     hostname = socket.gethostname()
     try:
-        local_ip = socket.gethostbyname(hostname)
+        # Find a non-loopback IPv4 address
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Doesn't need to be reachable
+        s.connect(("255.255.255.254", 1))
+        local_ip = s.getsockname()[0]
+        s.close()
     except Exception:
-        # Fallback to hostname if we can't get network address
-        local_ip = hostname
+        try:
+            # Get all IPs for the hostname
+            all_ips = socket.getaddrinfo(hostname, None)
+            # Filter for IPv4 addresses that aren't loopback
+            for ip_info in all_ips:
+                family, _, _, _, addr = ip_info
+                if family == socket.AF_INET and not str(addr[0]).startswith(
+                    "127."
+                ):
+                    local_ip = addr[0]
+                    break
+            else:
+                # If no suitable IP found, fall back to hostname
+                local_ip = hostname
+        except Exception:
+            # Final fallback to hostname
+            local_ip = hostname
 
     # Replace the host part of the URL with the local IP
     from urllib.parse import urlparse, urlunparse
@@ -87,8 +110,12 @@ def _colorized_url(url_string: str) -> str:
 
     url_string = f"{url.scheme}://{url.hostname}"
     # raw https and http urls do not have a port to parse
-    if url.port:
-        url_string += f":{url.port}"
+    try:
+        if url.port:
+            url_string += f":{url.port}"
+    except Exception:
+        # If the port is not a number, don't include it
+        pass
 
     return bold(
         f"{url_string}{url.path}{query}",
@@ -97,3 +124,34 @@ def _colorized_url(url_string: str) -> str:
 
 def _utf8(msg: str) -> str:
     return msg if UTF8_SUPPORTED else ""
+
+
+def print_experimental_features(config: MarimoConfig) -> None:
+    if "experimental" not in config:
+        return
+
+    keys = set(config["experimental"].keys())
+
+    # These experiments have been released
+    finished_experiments = {
+        "rtc",
+        "lsp",
+        "chat_sidebar",
+        "multi_column",
+        "scratchpad",
+        "tracing",
+        "markdown",
+        "sql_engines",
+        "secrets",
+        "reactive_tests",
+        "toplevel_defs",
+        "setup_cell",
+    }
+    keys = keys - finished_experiments
+
+    if len(keys) == 0:
+        return
+
+    print_tabbed(
+        f"{_utf8('🧪')} {green('Experimental features (use with caution)')}: {', '.join(keys)}"
+    )

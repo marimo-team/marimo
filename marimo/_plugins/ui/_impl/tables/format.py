@@ -1,14 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Union
+from typing import Callable, Union
 
 from marimo import _loggers
 from marimo._plugins.core.web_component import JSONType
 
 LOGGER = _loggers.marimo_logger()
 
-FormatMapping = Dict[str, Union[str, Callable[..., JSONType]]]
+FormatMapping = dict[str, Union[str, Callable[..., JSONType]]]
 
 
 def format_value(
@@ -50,8 +50,8 @@ def format_value(
 
 
 def format_row(
-    row: Dict[str, JSONType], format_mapping: FormatMapping
-) -> Dict[str, JSONType]:
+    row: dict[str, JSONType], format_mapping: FormatMapping
+) -> dict[str, JSONType]:
     # Return None if the format mapping is None
     if format_mapping is None:
         return row
@@ -63,8 +63,8 @@ def format_row(
 
 
 def format_column(
-    col: str, values: List[JSONType], format_mapping: FormatMapping
-) -> List[JSONType]:
+    col: str, values: list[JSONType], format_mapping: FormatMapping
+) -> list[JSONType]:
     # Return None if the format mapping is None
     if format_mapping is None:
         return values

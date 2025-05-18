@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from typing import Dict
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -12,17 +11,23 @@ from marimo._types.ids import CellId_t
 LOGGER = _loggers.marimo_logger()
 
 
-CellCodes = Dict[CellId_t, str]
+CellCodes = dict[CellId_t, str]
 
 
 def ruff(codes: CellCodes, *cmd: str) -> CellCodes:
+    # Try with sys.executable first
     ruff_cmd = [sys.executable, "-m", "ruff"]
     process = subprocess.run([*ruff_cmd, "--help"], capture_output=True)
+
+    # If that fails, try global ruff
     if process.returncode != 0:
-        LOGGER.warning(
-            "To enable code formatting, install ruff (pip install ruff)"
-        )
-        return {}
+        ruff_cmd = ["ruff"]
+        process = subprocess.run([*ruff_cmd, "--help"], capture_output=True)
+        if process.returncode != 0:
+            raise ModuleNotFoundError(
+                "To enable code formatting, install ruff (pip install ruff)",
+                name="ruff",
+            )
 
     formatted_codes: CellCodes = {}
     for key, code in codes.items():
@@ -64,16 +69,19 @@ class DefaultFormatter(Formatter):
     """
 
     def format(self, codes: CellCodes) -> CellCodes:
-        if DependencyManager.ruff.has():
+        # Ruff may be installed in venv or globally
+        if DependencyManager.ruff.has() or DependencyManager.which("ruff"):
             return RuffFormatter(self.line_length).format(codes)
+        # Black must be installed in venv
         elif DependencyManager.black.has():
             return BlackFormatter(self.line_length).format(codes)
         else:
-            LOGGER.warning(
+            raise ModuleNotFoundError(
                 "To enable code formatting, install ruff (pip install ruff) "
-                "or black (pip install black)"
+                "or black (pip install black).",
+                # This asks the frontend to install ruff
+                name="ruff",
             )
-            return {}
 
 
 class RuffFormatter(Formatter):
@@ -83,14 +91,9 @@ class RuffFormatter(Formatter):
 
 class BlackFormatter(Formatter):
     def format(self, codes: CellCodes) -> CellCodes:
-        try:
-            import black
-        except ModuleNotFoundError:
-            LOGGER.warning(
-                "To enable code formatting, install ruff (pip install ruff) "
-                "or black (pip install black)"
-            )
-            return {}
+        DependencyManager.black.require("to enable code formatting")
+
+        import black
 
         formatted_codes: CellCodes = {}
         for key, code in codes.items():

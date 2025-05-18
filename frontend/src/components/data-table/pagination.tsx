@@ -12,10 +12,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { PluralWord } from "@/utils/pluralize";
 import { range } from "lodash-es";
+import type { DataTableSelection } from "./types";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
-  selection?: "single" | "multi" | null;
+  selection?: DataTableSelection;
   totalColumns: number;
   onSelectAllRowsChange?: (value: boolean) => void;
 }
@@ -27,10 +28,19 @@ export const DataTablePagination = <TData,>({
   totalColumns,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
-    const selected = Object.keys(table.getState().rowSelection).length;
-    const isAllPageSelected = table.getIsAllPageRowsSelected();
+    const { rowSelection, cellSelection } = table.getState();
+    let selected = Object.keys(rowSelection).length;
+    let isAllPageSelected = table.getIsAllPageRowsSelected();
     const numRows = table.getRowCount();
-    const isAllSelected = selected === numRows;
+    let isAllSelected = selected === numRows;
+
+    const isCellSelection =
+      selection === "single-cell" || selection === "multi-cell";
+    if (isCellSelection) {
+      selected = cellSelection.length;
+      isAllPageSelected = false;
+      isAllSelected = false;
+    }
 
     if (isAllPageSelected && !isAllSelected) {
       return (
@@ -65,10 +75,14 @@ export const DataTablePagination = <TData,>({
             variant="link"
             className="h-4"
             onClick={() => {
-              if (onSelectAllRowsChange) {
-                onSelectAllRowsChange(false);
-              } else {
-                table.toggleAllRowsSelected(false);
+              if (!isCellSelection) {
+                if (onSelectAllRowsChange) {
+                  onSelectAllRowsChange(false);
+                } else {
+                  table.toggleAllRowsSelected(false);
+                }
+              } else if (table.resetCellSelection) {
+                table.resetCellSelection();
               }
             }}
           >
@@ -78,7 +92,7 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    const rowsLabel = `${prettyNumber(numRows)} ${new PluralWord("row").pluralize(numRows)}`;
+    const rowsLabel = prettifyRowCount(numRows);
     const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
 
     return <span>{[rowsLabel, columnsLabel].join(", ")}</span>;
@@ -231,3 +245,7 @@ export const PageSelector = ({
     </select>
   );
 };
+
+export function prettifyRowCount(rowCount: number): string {
+  return `${prettyNumber(rowCount)} ${new PluralWord("row").pluralize(rowCount)}`;
+}

@@ -29,6 +29,9 @@ class WebComponentEncoder(JSONEncoder):
             return o
 
         # Handle bytes objects
+        if isinstance(o, memoryview):
+            o = o.tobytes()
+
         if isinstance(o, bytes):
             try:
                 return o.decode("utf-8")
@@ -64,8 +67,8 @@ class WebComponentEncoder(JSONEncoder):
         if isinstance(o, (dict, list)):
             return o
 
-        # Handle range
-        if isinstance(o, range):
+        # Handle range and tuple
+        if isinstance(o, range) or isinstance(o, tuple):
             return list(o)
 
         # Handle MIME objects
@@ -147,11 +150,22 @@ class WebComponentEncoder(JSONEncoder):
 
         # Handle objects with __slots__
         if hasattr(o, "__slots__"):
-            return {
-                slot: self._convert_to_json(getattr(o, slot))
-                for slot in o.__slots__  # type: ignore
-                if hasattr(o, slot)
-            }
+            slots = getattr(o, "__slots__", None)
+            if slots is not None:
+                # Reported error that sometimes poorly formed objects do get passed
+                # in.
+                try:
+                    slots = iter(slots)
+                except TypeError as e:
+                    raise TypeError(
+                        "__slots__ expected to be tuple or list (or at least "
+                        f"iterable), but got {type(slots)} for {type(o)}"
+                    ) from e
+                return {
+                    slot: self._convert_to_json(getattr(o, slot))
+                    for slot in slots
+                    if hasattr(o, slot)
+                }
 
         # Handle custom objects with __dict__
         if hasattr(o, "__dict__"):

@@ -1,0 +1,200 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit-x"
+  },
+  "axes": [
+    {
+      "aria": false,
+      "domain": false,
+      "grid": true,
+      "gridScale": "y",
+      "labels": false,
+      "maxExtent": 0,
+      "minExtent": 0,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/40)"
+      },
+      "ticks": false,
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "labelFlush": true,
+      "labelOverlap": true,
+      "orient": "bottom",
+      "scale": "x",
+      "tickCount": {
+        "signal": "ceil(width/40)"
+      },
+      "title": "count",
+      "zindex": 0
+    },
+    {
+      "grid": false,
+      "orient": "left",
+      "scale": "y",
+      "title": "category",
+      "zindex": 0
+    }
+  ],
+  "background": "white",
+  "data": [
+    {
+      "name": "data-6f2678becc24b5ff9fbec3e85cf09cd0"
+    },
+    {
+      "name": "data_0"
+    },
+    {
+      "name": "data_1",
+      "values": [
+        {
+          "category": "A",
+          "count_end": 25.0,
+          "count_start": 0.0
+        },
+        {
+          "category": "B",
+          "count_end": 25.0,
+          "count_start": 0.0
+        },
+        {
+          "category": "C",
+          "count_end": 25.0,
+          "count_start": 0.0
+        },
+        {
+          "category": "D",
+          "count_end": 25.0,
+          "count_start": 0.0
+        }
+      ]
+    },
+    {
+      "name": "data_0_y_domain_category",
+      "values": [
+        {
+          "category": "A",
+          "sort_field": 25
+        },
+        {
+          "category": "B",
+          "sort_field": 25
+        },
+        {
+          "category": "C",
+          "sort_field": 25
+        },
+        {
+          "category": "D",
+          "sort_field": 25
+        }
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "encode": {
+        "update": {
+          "fill": {
+            "value": "#4c78a8"
+          },
+          "height": {
+            "signal": "max(0.25, bandwidth('y'))"
+          },
+          "x": {
+            "field": "count_end",
+            "scale": "x"
+          },
+          "x2": {
+            "field": "count_start",
+            "scale": "x"
+          },
+          "y": {
+            "field": "category",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "data_1"
+      },
+      "name": "marks",
+      "style": [
+        "bar"
+      ],
+      "type": "rect"
+    }
+  ],
+  "padding": 5,
+  "scales": [
+    {
+      "domain": {
+        "data": "data_1",
+        "fields": [
+          "count_start",
+          "count_end"
+        ]
+      },
+      "name": "x",
+      "nice": true,
+      "range": [
+        0,
+        {
+          "signal": "width"
+        }
+      ],
+      "type": "linear",
+      "zero": true
+    },
+    {
+      "domain": {
+        "data": "data_0_y_domain_category",
+        "field": "category",
+        "sort": {
+          "field": "sort_field",
+          "op": "max",
+          "order": "descending"
+        }
+      },
+      "name": "y",
+      "paddingInner": 0.1,
+      "paddingOuter": 0.05,
+      "range": {
+        "step": {
+          "signal": "y_step"
+        }
+      },
+      "type": "band"
+    }
+  ],
+  "signals": [
+    {
+      "init": "isFinite(containerSize()[0]) ? containerSize()[0] : 300",
+      "name": "width",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "isFinite(containerSize()[0]) ? containerSize()[0] : 300"
+        }
+      ]
+    },
+    {
+      "name": "y_step",
+      "value": 20
+    },
+    {
+      "name": "height",
+      "update": "bandspace(domain('y').length, 0.1, 0.05) * y_step"
+    }
+  ],
+  "style": "cell",
+  "title": {
+    "frame": "group",
+    "text": "Top 10 category"
+  }
+}

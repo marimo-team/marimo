@@ -46,14 +46,14 @@ jobs:
         with:
           fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
 
@@ -72,6 +72,13 @@ jobs:
 
       - name: 🧪 Test
         run: pnpm test
+
+      - name: 🔍 Check pinned deps
+        run: |
+          if ! grep -q '"react-hook-form": "7.54.2"' package.json; then
+            echo "Error: react-hook-form version in package.json must be exactly 7.54.2. As it breaks mo.ui.dataframe"
+            exit 1
+          fi
 
       - name: 📦 Build
         run: pnpm turbo build

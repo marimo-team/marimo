@@ -5,11 +5,13 @@ import ast
 import itertools
 import sys
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Callable, Literal, Optional, Set, Union
+from typing import Callable, Literal, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._ast.errors import ImportStarError
 from marimo._ast.sql_visitor import (
     SQLDefs,
     find_sql_defs,
@@ -44,6 +46,14 @@ class ImportData:
 
 
 @dataclass
+class AnnotationData:
+    # How the annotation is set
+    repr: str
+    # Which references are related to the annotation.
+    refs: set[Name] = field(default_factory=set)
+
+
+@dataclass
 class VariableData:
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
     kind: Literal[
@@ -68,6 +78,12 @@ class VariableData:
     # x has the required refs foo and bar, and ref_stack holds that context
     # while traversing the tree.
     required_refs: set[Name] = field(default_factory=set)
+
+    # A reference needed for function/ class definition
+    unbounded_refs: set[Name] = field(default_factory=set)
+
+    # References used for annotation (typing)
+    annotation_data: Optional[AnnotationData] = None
 
     # For kind == import
     import_data: Optional[ImportData] = None
@@ -119,6 +135,8 @@ class RefData:
 
     # Whether the ref was deleted
     deleted: bool
+    # Block in which this ref was referenced
+    block: Block
     # Ancestors of the block in which this ref was used
     parent_blocks: list[Block]
 
@@ -152,7 +170,10 @@ class ScopedVisitor(ast.NodeVisitor):
         self.ref_stack: list[set[Name]] = [set()]
         self.obscured_scope_stack: list[ObscuredScope] = []
         # Mapping from referenced names to their metadata
-        self._refs: dict[Name, RefData] = {}
+        # Each referenced name may be defined multiple blocks;
+        # ie, self._refs maps each name to RefData for each block it was
+        # defined in
+        self._refs: dict[Name, list[RefData]] = {}
         # Function (node, name, block stack) -> None
         self._on_def = on_def if on_def is not None else lambda *_: None
         # Function (node) -> None
@@ -184,7 +205,28 @@ class ScopedVisitor(ast.NodeVisitor):
     @property
     def deleted_refs(self) -> set[Name]:
         """Referenced names that were deleted with `del`."""
-        return set(name for name in self._refs if self._refs[name].deleted)
+
+        # This incorrectly treats `del` on unbound locals as deleted refs,
+        # but correctly treats `del` on a `global` ref as a deleted ref.
+        #
+        # For example,
+        #
+        #   def f():
+        #     del x
+        #
+        # In this code, `x` is technically an (unbound) local. But marimo treats
+        # any variable that has been seen but not defined in a parent block as
+        # a reference, causing it to think that this code deletes a reference.
+        #
+        # In practice, `del` on an unbound local is illegal (at runtime) anyway,
+        # so marking it as a deleted ref is in practice a big deal. For 100%
+        # correctness we would prune unbound locals from refs, not here but
+        # when variables added as defs and refs.
+        return set(
+            name
+            for name in self._refs
+            if any(ref.deleted for ref in self._refs[name])
+        )
 
     def _if_local_then_mangle(
         self, name: str, ignore_scope: bool = False
@@ -220,8 +262,9 @@ class ScopedVisitor(ast.NodeVisitor):
                     if hasattr(node, "lineno")
                     else "line ..."
                 )
-                raise SyntaxError(
-                    f"{line} SyntaxError: `import *` is not allowed in marimo."
+                raise ImportStarError(
+                    f"{line} SyntaxError: Importing symbols with `import *` "
+                    "is not allowed in marimo."
                 )
             return basename
         else:
@@ -236,25 +279,55 @@ class ScopedVisitor(ast.NodeVisitor):
         self, node: NamedNode | None, name: Name, deleted: bool
     ) -> None:
         """Register a referenced name."""
-        self._refs[name] = RefData(
-            deleted=deleted,
-            parent_blocks=self.block_stack[:-1],
-        )
+        if name not in self._refs:
+            self._refs[name] = []
+
+        # Register the ref if it doesn't already exist
+        current_block = self.block_stack[-1]
+        parents = self.block_stack[:-1]
+        found_ref: RefData | None = None
+
+        for ref in self._refs[name]:
+            if ref.block == current_block:
+                found_ref = ref
+
+        if found_ref is not None and deleted:
+            # The ref may have already existed, but perhaps it
+            # wasn't deleted
+            found_ref.deleted = True
+        elif found_ref is None:
+            # The reference does not yet exist in the current block, so
+            # we add it.
+            self._refs[name].append(
+                RefData(
+                    deleted=deleted,
+                    parent_blocks=parents,
+                    block=current_block,
+                )
+            )
+
         self.ref_stack[-1].add(name)
         if node is not None:
             self._on_ref(node)
 
-    def _remove_ref(self, name: Name) -> None:
-        """Remove a referenced name."""
-        del self._refs[name]
+    def _remove_ref(self, name: Name, block: Block) -> None:
+        """Remove references of name with block among its parents."""
+        refs = []
+        for ref in self._refs[name]:
+            if block not in ref.parent_blocks:
+                refs.append(ref)
+        self._refs[name] = refs
+        if not self._refs[name]:
+            del self._refs[name]
 
     def _define_in_block(
         self, name: Name, variable_data: VariableData, block_idx: int
     ) -> None:
         """Define a name in a given block."""
 
-        self.block_stack[block_idx].defs.add(name)
-        self.block_stack[block_idx].variable_data[name].append(variable_data)
+        block = self.block_stack[block_idx]
+        block.defs.add(name)
+        block.variable_data[name].append(variable_data)
         # If `name` is added to the top-level block, it is also evicted from
         # any captured refs (if present) --- this handles cases where a name is
         # encountered and captured before it is declared, such as in
@@ -264,12 +337,11 @@ class ScopedVisitor(ast.NodeVisitor):
         #   print(x)
         # x = 0
         # ```
-        if (
-            name in self._refs
-            and self.block_stack[block_idx] in self._refs[name].parent_blocks
+        if name in self._refs and any(
+            block in ref.parent_blocks for ref in self._refs[name]
         ):
             # `name` was used as a capture, not a reference
-            self._remove_ref(name)
+            self._remove_ref(name, block)
 
     def _define(
         self, node: NamedNode | None, name: Name, variable_data: VariableData
@@ -326,6 +398,7 @@ class ScopedVisitor(ast.NodeVisitor):
                 # `U` should not be a ref
                 for child in node.type_params:
                     self.visit(child)
+
             # This will revisit the type_params, but that's okay because
             # visiting is idempotent
             super().generic_visit(node)
@@ -377,11 +450,44 @@ class ScopedVisitor(ast.NodeVisitor):
             super().generic_visit(node)
         return node
 
-    def _visit_and_get_refs(self, node: ast.AST) -> set[Name]:
+    def _visit_and_get_refs(
+        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef]
+    ) -> tuple[set[Name], set[Name]]:
         """Create a ref scope for the variable to be declared (e.g. function,
         class), visit the children the node, propagate the refs to the higher
-        scope and then return the refs."""
+        scope and then return the body refs and unbounded refs."""
+
         self.ref_stack.append(set())
+
+        mock = deepcopy(node)
+        unbounded_refs = set()
+        if isinstance(mock, (ast.ClassDef)):
+            # The Class ast is surprising loose, and anything can be defined
+            # inside. Python runs the ClassDef body on definition and anything
+            # defined in the scope gets added to the class.
+            mock_module = ast.Module(body=mock.body, type_ignores=[])
+            mock_visitor = ScopedVisitor(self.id)
+            mock_visitor.visit(mock_module)
+            # The unbounded defs are carried from the recursive visitor
+            # excluding all references found in exclusively in scope.
+            ignore_refs = set()
+            for var in mock_visitor.variable_data:
+                for data in mock_visitor.variable_data[var]:
+                    if data.kind in ("function", "class"):
+                        unbounded_refs |= data.unbounded_refs
+                        ignore_refs |= data.required_refs
+                    else:
+                        unbounded_refs |= data.required_refs
+                unbounded_refs |= mock_visitor.refs - ignore_refs
+
+        # Handle function/class refs that are evaluated in the outer scope
+        # Remove the body, which keeps signature and non-scoped parts.
+        mock.body.clear()
+        self.generic_visit(mock)
+        # Collect the unbounded refs
+        unbounded_refs |= set(self.ref_stack[-1])
+
+        # Process the function body
         self.generic_visit(node)
         refs = self.ref_stack.pop()
         # The scope a level up from the one just investigated also is dependent
@@ -393,16 +499,19 @@ class ScopedVisitor(ast.NodeVisitor):
         # the variable `foo` needs to be aware that it may require the ref `x`
         # during execution.
         self.ref_stack[-1].update(refs)
-        return refs
+        # Return both sets of refs
+        return refs, unbounded_refs
 
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs = self._visit_and_get_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
-            VariableData(kind="class", required_refs=refs),
+            VariableData(
+                kind="class", required_refs=refs, unbounded_refs=unbounded_refs
+            ),
         )
         return node
 
@@ -410,21 +519,29 @@ class ScopedVisitor(ast.NodeVisitor):
         self, node: ast.AsyncFunctionDef
     ) -> ast.AsyncFunctionDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs = self._visit_and_get_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
-            VariableData(kind="function", required_refs=refs),
+            VariableData(
+                kind="function",
+                required_refs=refs,
+                unbounded_refs=unbounded_refs,
+            ),
         )
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         node.name = self._if_local_then_mangle(node.name)
-        refs = self._visit_and_get_refs(node)
+        refs, unbounded_refs = self._visit_and_get_refs(node)
         self._define(
             node,
             node.name,
-            VariableData(kind="function", required_refs=refs),
+            VariableData(
+                kind="function",
+                required_refs=refs,
+                unbounded_refs=unbounded_refs,
+            ),
         )
         return node
 
@@ -490,7 +607,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
-                    tables: Set[str] = set()
+                    tables: set[str] = set()
                     from_targets: list[str] = []
                     # Parse the refs and defs of each statement
                     try:
@@ -607,11 +724,46 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         # Annotated assign
         # e.g., x: int = 0
+        #       ^   ^    ^
+        #      tar ann  val?
         self.ref_stack.append(set())
         if node.value is not None:
             self.visit(node.value)
+
+        # Hold on to the annotation references in particular
+        self.ref_stack.append(set())
         self.visit(node.annotation)
+        annotation_refs = self.ref_stack.pop()
+        self.ref_stack[-1].update(annotation_refs)
+        # But only if we are in global scope is it relevant.
+        # annotation data
+        record_annotation = False
+        name = ""
+        # Also possible for "var[subscript]:type"
+        # but we do not care about those.
+        if isinstance(node.target, ast.Name):
+            name = node.target.id
+            record_annotation = (
+                len(self.block_stack) == 1 and name not in self.variable_data
+            )
         self.visit(node.target)
+
+        # Visit must have inserted the variable, attach the annotation data to
+        # it.
+        if record_annotation and name in self.variable_data:
+            annotation = ast.unparse(node.annotation)
+            # It's also possible for multiline types/ strings
+            annotation = annotation.replace("\n", "").strip()
+            # ast seems to give single quote strings regardless
+            # but ruff asks for double quotes (unless double quotes are
+            # contained).
+            if annotation.startswith("'") and '"' not in annotation[1:-1]:
+                annotation = f'"{annotation[1:-1]}"'
+
+            self.variable_data[name][0].annotation_data = AnnotationData(
+                annotation, annotation_refs
+            )
+
         refs = self.ref_stack.pop()
         self.ref_stack[-1].update(refs)
         return node
@@ -740,7 +892,10 @@ class ScopedVisitor(ast.NodeVisitor):
         ]
         for name in node.names:
             self.block_stack[-1].global_names.add(name)
-            self._add_ref(node, name, deleted=False)
+            # We only add a reference if the name is not
+            # already defined at the global scope
+            if not self.block_stack[0].is_defined(name):
+                self._add_ref(node, name, deleted=False)
         return node
 
     def visit_Import(self, node: ast.Import) -> ast.Import:

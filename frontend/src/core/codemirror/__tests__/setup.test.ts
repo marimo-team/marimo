@@ -6,12 +6,25 @@ import { keymap } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { PythonLanguageAdapter } from "../language/python";
+import { PythonLanguageAdapter } from "../language/languages/python";
+import type { CodemirrorCellActions } from "../cells/state";
 
-vi.mock("@/core/config/config", () => ({
-  parseAppConfig: () => ({}),
-  parseUserConfig: () => ({}),
-}));
+vi.mock("@/core/config/config", async (importOriginal) => {
+  const original = await importOriginal<{}>();
+  return {
+    ...original,
+    parseAppConfig: () => ({}),
+    parseUserConfig: () => ({}),
+  };
+});
+vi.mock("@/core/config/config", async (importOriginal) => {
+  const original = await importOriginal<{}>();
+  return {
+    ...original,
+    parseAppConfig: () => ({}),
+    parseUserConfig: () => ({}),
+  };
+});
 
 function namedFunction(name: string) {
   const fn = () => false;
@@ -24,27 +37,14 @@ function getOpts() {
     cellId: "0" as CellId,
     showPlaceholder: false,
     enableAI: false,
-    cellMovementCallbacks: {
-      onRun: namedFunction("onRun"),
-      aiCellCompletion: namedFunction("aiCellCompletion"),
-      deleteCell: namedFunction("deleteCell"),
-      createAbove: namedFunction("createAbove"),
-      createBelow: namedFunction("createBelow"),
-      createManyBelow: namedFunction("createManyBelow"),
-      moveUp: namedFunction("moveUp"),
-      moveDown: namedFunction("moveDown"),
-      focusUp: namedFunction("focusUp"),
-      focusDown: namedFunction("focusDown"),
-      sendToTop: namedFunction("sendToTop"),
-      sendToBottom: namedFunction("sendToBottom"),
-      splitCell: namedFunction("splitCell"),
-      moveToNextCell: namedFunction("moveToNextCell"),
+    cellActions: {
       toggleHideCode: namedFunction("toggleHideCode"),
-    },
-    cellCodeCallbacks: {
-      updateCellCode: namedFunction("updateCellCode"),
+      aiCellCompletion: namedFunction("aiCellCompletion"),
+      createManyBelow: namedFunction("createManyBelow"),
+      onRun: namedFunction("onRun"),
+      deleteCell: namedFunction("deleteCell"),
       afterToggleMarkdown: namedFunction("afterToggleMarkdown"),
-    },
+    } as unknown as CodemirrorCellActions,
     completionConfig: {
       activate_on_typing: false,
       copilot: false,
@@ -54,6 +54,15 @@ function getOpts() {
       preset: "default",
       overrides: {},
     },
+    lspConfig: {
+      pylsp: {
+        enabled: false,
+      },
+      diagnostics: {
+        enabled: false,
+      },
+    },
+    diagnosticsConfig: {},
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
   } as const;
@@ -124,18 +133,20 @@ test("placeholder adds another extension", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "marimo-import",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   const withoutAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "none",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   expect(withAI.length - 1).toBe(withoutAI.length);
@@ -145,18 +156,20 @@ test("ai adds more extensions", () => {
   const opts = getOpts();
   const withAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "ai",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   const withoutAI = new PythonLanguageAdapter()
     .getExtension(
+      opts.cellId,
       opts.completionConfig,
       opts.hotkeys,
       "none",
-      opts.cellMovementCallbacks,
+      opts.lspConfig,
     )
     .flat();
   expect(withAI.length - 2).toBe(withoutAI.length);

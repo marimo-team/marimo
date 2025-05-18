@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { RowSelectionState } from "@tanstack/react-table";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface TestData {
   id: number;
@@ -36,13 +37,21 @@ describe("DataTable", () => {
       onRowSelectionChange: mockOnRowSelectionChange,
     };
 
-    const { rerender } = render(<DataTable {...commonProps} />);
+    const { rerender } = render(
+      <TooltipProvider>
+        <DataTable {...commonProps} />
+      </TooltipProvider>,
+    );
 
     // Verify initial selection is not cleared
     expect(mockOnRowSelectionChange).not.toHaveBeenCalledWith({});
 
     // Simulate remount (as would happen in accordion toggle)
-    rerender(<DataTable {...commonProps} />);
+    rerender(
+      <TooltipProvider>
+        <DataTable {...commonProps} />
+      </TooltipProvider>,
+    );
 
     // Verify selection is still not cleared after remount
     expect(mockOnRowSelectionChange).not.toHaveBeenCalledWith({});

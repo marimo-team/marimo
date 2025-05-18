@@ -1,42 +1,54 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { KeymapConfig } from "@/core/config/config-schema";
 import { logNever } from "@/utils/assertNever";
-import { defaultKeymap, insertNewlineAndIndent } from "@codemirror/commands";
+import {
+  defaultKeymap as originalDefaultKeymap,
+  insertNewlineAndIndent,
+  toggleBlockComment,
+  toggleComment,
+} from "@codemirror/commands";
 import { type Extension, Prec } from "@codemirror/state";
-import { type EditorView, keymap } from "@codemirror/view";
+import {
+  type Command,
+  type EditorView,
+  type KeyBinding,
+  keymap,
+} from "@codemirror/view";
 import { getCM, vim } from "@replit/codemirror-vim";
 import { vimKeymapExtension } from "./vim";
 import { once } from "@/utils/once";
+import { cellActionsState } from "../cells/state";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
 export function keymapBundle(
   config: KeymapConfig,
-  callbacks: {
-    focusUp: () => void;
-    focusDown: () => void;
-    deleteCell: () => void;
-  },
+  hotkeys: HotkeyProvider,
 ): Extension[] {
   switch (config.preset) {
     case "default":
       return [
-        keymap.of(defaultKeymap),
-        keymap.of([
-          {
-            key: "Escape",
-            preventDefault: true,
-            run: (cm) => {
-              cm.contentDOM.blur();
-              return true;
+        keymap.of(defaultKeymap()),
+        keymap.of(overrideKeymap(hotkeys)),
+        // Should be the last thing to close when Escape is pressed
+        Prec.low(
+          keymap.of([
+            {
+              key: "Escape",
+              preventDefault: true,
+              run: (cm) => {
+                cm.contentDOM.blur();
+                return true;
+              },
             },
-          },
-        ]),
+          ]),
+        ),
       ];
     case "vim":
       return [
-        // Filter out Enter from defaultKeymap
         keymap.of(defaultVimKeymap()),
+        keymap.of(overrideKeymap(hotkeys)),
         // Add Enter back for insert mode only
         keymap.of([
           {
@@ -57,7 +69,8 @@ export function keymapBundle(
             (view) => view.state.doc.toString() === "",
             (view) => {
               if (view.state.doc.toString() === "") {
-                callbacks.deleteCell();
+                const actions = view.state.facet(cellActionsState);
+                actions.deleteCell();
                 return true;
               }
               return false;
@@ -67,13 +80,40 @@ export function keymapBundle(
         // Base vim mode
         vim({ status: false }),
         // Custom vim keymaps for cell navigation
-        Prec.high(vimKeymapExtension(callbacks)),
+        Prec.high(vimKeymapExtension()),
       ];
     default:
       logNever(config.preset);
       return [];
   }
 }
+
+// Override commands from the default keymap
+// https://github.com/codemirror/commands/blob/6.8.1/src/commands.ts#L1043
+// We can add more from the default keymap if needed over time,
+// but there are currently 50+ commands in the default keymap
+const OVERRIDDEN_COMMANDS = new Set<Command | undefined>([
+  toggleComment,
+  toggleBlockComment,
+]);
+
+const defaultKeymap = once(() => {
+  // Filter out commands that are in the overridden set
+  return originalDefaultKeymap.filter((k) => !OVERRIDDEN_COMMANDS.has(k.run));
+});
+
+const overrideKeymap = (keymap: HotkeyProvider): readonly KeyBinding[] => {
+  return [
+    {
+      key: keymap.getHotkey("cell.toggleComment").key,
+      run: toggleComment,
+    },
+    {
+      key: keymap.getHotkey("cell.toggleBlockComment").key,
+      run: toggleBlockComment,
+    },
+  ];
+};
 
 const defaultVimKeymap = once(() => {
   const toRemove = new Set(["Enter", "Ctrl-v"]);
@@ -82,7 +122,7 @@ const defaultVimKeymap = once(() => {
   //   - it should just go to the next line
   // Ctrl-v goes to the bottom of the cell
   //   - should enter blockwise visual mode
-  return defaultKeymap.filter(
+  return defaultKeymap().filter(
     (k) => !toRemove.has(k.key || k.mac || k.linux || k.win || ""),
   );
 });
@@ -129,3 +169,10 @@ function doubleCharacterListener(
     },
   ]);
 }
+
+export const visibleForTesting = {
+  defaultKeymap,
+  defaultVimKeymap,
+  overrideKeymap,
+  OVERRIDDEN_COMMANDS,
+};

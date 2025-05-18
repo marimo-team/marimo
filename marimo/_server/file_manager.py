@@ -4,13 +4,15 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 from marimo import _loggers
-from marimo._ast import codegen
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast import codegen, load
+from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._config.config import WidthType
+from marimo._config.config import SqlOutputType, WidthType
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
@@ -29,10 +31,15 @@ LOGGER = _loggers.marimo_logger()
 
 class AppFileManager:
     def __init__(
-        self, filename: Optional[str], default_width: WidthType | None = None
+        self,
+        filename: Optional[Union[str, Path]],
+        *,
+        default_width: WidthType | None = None,
+        default_sql_output: SqlOutputType | None = None,
     ) -> None:
-        self.filename = filename
+        self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
+        self._default_sql_output: SqlOutputType | None = default_sql_output
         self.app = self._load_app(self.path)
 
     @staticmethod
@@ -72,7 +79,7 @@ class AppFileManager:
         if os.path.exists(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail="File {0} already exists".format(filename),
+                detail=f"File {filename} already exists",
             )
 
     def _assert_path_is_the_same(self, filename: str) -> None:
@@ -95,12 +102,11 @@ class AppFileManager:
     ) -> None:
         self._create_parent_directories(filename)
         try:
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write(contents)
+            Path(filename).write_text(contents, encoding="utf-8")
         except Exception as err:
             raise HTTPException(
                 status_code=HTTPStatus.SERVER_ERROR,
-                detail="Failed to save file {0}".format(filename),
+                detail=f"Failed to save file {filename}",
             ) from err
 
     def _rename_file(self, new_filename: str) -> None:
@@ -126,19 +132,40 @@ class AppFileManager:
         app_config: _AppConfig,
         # Whether or not to persist the app to the file system
         persist: bool,
+        # Whether save was triggered by a rename
+        previous_filename: Optional[str] = None,
     ) -> str:
         LOGGER.debug("Saving app to %s", filename)
-        if filename.endswith(".md"):
-            # TODO: Remember just proof of concept, potentially needs
-            # restructuring.
+
+        type_changed = (
+            previous_filename and filename[-2:] != previous_filename[-2:]
+        )
+        if filename.endswith(".md") or filename.endswith(".qmd"):
+            # TODO: Potentially restructure, such that code compilation doesn't
+            # have to occur multiple times.
             from marimo._server.export.exporter import Exporter
 
-            contents, _ = Exporter().export_as_md(self)
+            previous = None
+            if previous_filename:
+                previous = Path(previous_filename)
+            contents, _ = Exporter().export_as_md(self, previous)
         else:
             # Header might be better kept on the AppConfig side, opposed to
             # reparsing it. Also would allow for md equivalent in a field like
             # `description`.
-            header_comments = codegen.get_header_comments(filename)
+            if type_changed:
+                from marimo._utils.inline_script_metadata import (
+                    get_headers_from_markdown,
+                )
+
+                with open(filename, encoding="utf-8") as f:
+                    markdown = f.read()
+                headers = get_headers_from_markdown(markdown)
+                header_comments = headers.get("header", None) or headers.get(
+                    "pyproject", None
+                )
+            else:
+                header_comments = codegen.get_header_comments(filename)
             # try to save the app under the name `filename`
             contents = codegen.generate_filecontents(
                 codes,
@@ -158,14 +185,15 @@ class AppFileManager:
 
     def _load_app(self, path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
-        app = codegen.get_app(path)
+        app = load.load_app(path)
         if app is None:
-            kwargs = (
-                {"width": self._default_width}
-                if self._default_width is not None
-                # App decides its own default width
-                else {}
-            )
+            kwargs: dict[str, Any] = {}
+            # Add defaults if it is a new file
+            if self._default_width is not None:
+                kwargs["width"] = self._default_width
+            if self._default_sql_output is not None:
+                kwargs["sql_output"] = self._default_sql_output
+
             empty_app = InternalApp(App(**kwargs))
             empty_app.cell_manager.register_cell(
                 cell_id=None,
@@ -187,19 +215,20 @@ class AppFileManager:
 
         self._assert_path_does_not_exist(new_filename)
 
-        need_save = False
+        needs_save = False
         # Check if filename is not None to satisfy mypy's type checking.
         # This ensures that filename is treated as a non-optional str,
         # preventing potential type errors in subsequent code.
-        if self._is_named() and self.filename is not None:
+        if self.is_notebook_named and self.filename is not None:
             # Force a save after rename in case filetype changed.
-            need_save = self.filename[-3:] != new_filename[-3:]
+            needs_save = self.filename[-3:] != new_filename[-3:]
             self._rename_file(new_filename)
         else:
             self._create_file(new_filename)
 
+        previous_filename = self.filename
         self.filename = new_filename
-        if need_save:
+        if needs_save:
             self._save_file(
                 self.filename,
                 list(self.app.cell_manager.codes()),
@@ -207,6 +236,7 @@ class AppFileManager:
                 list(self.app.cell_manager.configs()),
                 self.app.config,
                 persist=True,
+                previous_filename=previous_filename,
             )
 
     def read_layout_config(self) -> Optional[LayoutConfig]:
@@ -240,7 +270,7 @@ class AppFileManager:
         except AttributeError:
             return None
 
-    def save_app_config(self, config: Dict[str, Any]) -> str:
+    def save_app_config(self, config: dict[str, Any]) -> str:
         """Save the app configuration."""
         # Update the file with the latest app config
         # TODO(akshayka): Only change the `app = marimo.App` line (at top level
@@ -275,7 +305,7 @@ class AppFileManager:
             configs=configs,
         )
 
-        if self._is_named() and not self._is_same_path(filename):
+        if self.is_notebook_named and not self._is_same_path(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Save handler cannot rename files.",
@@ -321,7 +351,9 @@ class AppFileManager:
     def _is_unnamed(self) -> bool:
         return self.filename is None
 
-    def _is_named(self) -> bool:
+    @property
+    def is_notebook_named(self) -> bool:
+        """Whether the notebook has a name."""
         return self.filename is not None
 
     def read_file(self) -> str:
@@ -331,23 +363,35 @@ class AppFileManager:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Cannot read code from an unnamed notebook",
             )
-        with open(self.filename, "r", encoding="utf-8") as f:
-            contents = f.read().strip()
-        return contents
+        return Path(self.filename).read_text(encoding="utf-8")
 
 
 def read_css_file(css_file: str, filename: Optional[str]) -> Optional[str]:
-    if not css_file or not filename:
+    """Read the contents of a CSS file.
+
+    Args:
+        css_file: The path to the CSS file.
+        filename: The filename of the notebook.
+
+    Returns:
+        The contents of the CSS file.
+    """
+    if not css_file:
         return None
 
-    app_dir = os.path.dirname(filename)
-    filepath = os.path.join(app_dir, css_file)
-    if not os.path.exists(filepath):
-        LOGGER.error("CSS file %s does not exist", css_file)
+    filepath = Path(css_file)
+
+    # If not an absolute path, make it absolute using the filename
+    if not filepath.is_absolute():
+        if not filename:
+            return None
+        filepath = Path(filename).parent / filepath
+
+    if not filepath.exists():
+        LOGGER.error("CSS file %s does not exist", filepath)
         return None
     try:
-        with open(filepath) as f:
-            return f.read()
+        return filepath.read_text(encoding="utf-8")
     except OSError as e:
         LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
@@ -363,14 +407,13 @@ def read_html_head_file(
     if not html_head_file or not filename:
         return None
 
-    app_dir = os.path.dirname(filename)
-    filepath = os.path.join(app_dir, html_head_file)
-    if not os.path.exists(filepath):
+    app_dir = Path(filename).parent
+    filepath = app_dir / html_head_file
+    if not filepath.exists():
         LOGGER.error("HTML head file %s does not exist", html_head_file)
         return None
     try:
-        with open(filepath) as f:
-            return f.read()
+        return filepath.read_text(encoding="utf-8")
     except OSError as e:
         LOGGER.warning(
             "Failed to open HTML head file %s for reading: %s",

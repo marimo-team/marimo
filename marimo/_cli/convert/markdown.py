@@ -24,7 +24,8 @@ from pymdownx.superfences import (  # type: ignore
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
@@ -37,16 +38,6 @@ MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
 
 ConvertKeys = Union[Literal["marimo"], Literal["marimo-app"]]
-
-# Regex captures loose yaml for frontmatter
-# Should match the following:
-# ---
-# title: "Title"
-# whatever
-# ---
-YAML_FRONT_MATTER_REGEX = re.compile(
-    r"^---\s*\n(.*?\n?)(?:---)\s*\n", re.UNICODE | re.DOTALL
-)
 
 
 def backwards_compatible_sanitization(line: str) -> str:
@@ -131,7 +122,7 @@ def app_config_from_root(root: Element) -> _AppConfig:
     # Remove values particular to markdown saves.
     config.pop("marimo-version", None)
 
-    return _AppConfig.from_untrusted_dict(config)
+    return _AppConfig.from_untrusted_dict(config, silent=True)
 
 
 def get_source_from_tag(tag: Element) -> str:
@@ -231,11 +222,16 @@ def _tree_to_app(root: Element) -> str:
         )
         sources.append(get_source_from_tag(child))
 
+    header = root.get("header", None)
+    pyproject = root.get("pyproject", None)
+    if pyproject and not header:
+        header = "\n# ".join(["# ///script", *pyproject.splitlines(), "///"])
     return codegen.generate_filecontents(
         sources,
         names,
         cell_config,
         config=app_config,
+        header_comments=header,
     )
 
 
@@ -288,6 +284,7 @@ class MarimoParser(IdentityParser):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self.meta = {}
         # Build here opposed to the parent class since there is intermediate
         # logic after the parser is built, and it is more clear here what is
         # registered.
@@ -348,34 +345,18 @@ class FrontMatterPreprocessor(Preprocessor):
 
     def __init__(self, md: MarimoParser):
         super().__init__(md)
-        self.md = md
-        self.md.meta = {}
+        self.md: MarimoParser = md
 
     def run(self, lines: list[str]) -> list[str]:
-        import yaml
-
-        # CSafeLoader is faster than SafeLoader.
-        try:
-            from yaml import CSafeLoader as SafeLoader
-        except ImportError:
-            from yaml import SafeLoader  # type: ignore[assignment]
-
         if not lines:
             return lines
 
         doc = "\n".join(lines)
-        result = YAML_FRONT_MATTER_REGEX.match(doc)
 
-        if result:
-            yaml_content = result.group(1)
-            try:
-                meta = yaml.load(yaml_content, SafeLoader)
-                if isinstance(meta, dict):
-                    self.md.meta = meta  # type: ignore[attr-defined]
-                doc = doc[result.end() :].lstrip("\n")
-            # If there's an error in parsing YAML, ignore the meta and proceed.
-            except yaml.YAMLError as e:
-                raise e
+        meta, doc = extract_frontmatter(doc)
+        if isinstance(meta, dict):
+            self.md.meta.update(meta)
+
         return doc.split("\n")
 
 
@@ -438,7 +419,8 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
-        for key, value in self.parser.md.meta.items():  # type: ignore[attr-defined]
+        assert isinstance(self.parser.md, MarimoParser)
+        for key, value in self.parser.md.meta.items():
             if isinstance(value, str):
                 parent.set(key, value)
 
@@ -507,11 +489,30 @@ def convert_from_md_to_app(text: str) -> App:
 
 
 def convert_from_md(text: str) -> str:
-    return MarimoParser(output_format="marimo").convert(text)  # type: ignore[arg-type]
+    return MarimoParser(output_format="marimo").convert(text)
+
+
+def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    from marimo._utils import yaml
+
+    result = yaml.YAML_FRONT_MATTER_REGEX.match(text)
+
+    if result:
+        yaml_content = result.group(1)
+        body = text[result.end() :].lstrip("\n")
+        try:
+            return yaml.load(yaml_content), body
+        # If there's an error in parsing YAML, ignore the meta and proceed.
+        except yaml.YAMLError:
+            LOGGER.warning(
+                "Error parsing frontmatter YAML. Ignoring frontmatter."
+            )
+            return {}, body
+    return {}, text
 
 
 def sanitize_markdown(text: str) -> str:
-    return SanitizeParser(output_format="identity").convert(text)  # type: ignore[arg-type]
+    return SanitizeParser(output_format="identity").convert(text)
 
 
 def is_sanitized_markdown(text: str) -> bool:

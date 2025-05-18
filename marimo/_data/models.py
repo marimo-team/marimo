@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from marimo._types.ids import VariableName
 
@@ -38,10 +38,14 @@ class DataTableColumn:
     name: str
     type: DataType
     external_type: ExternalDataType
-    sample_values: List[Any]
+    sample_values: list[Any]
 
 
-DataTableSource = Literal["local", "duckdb", "connection"]
+# Local -> Python dataframes
+# DuckDB -> DuckDB tables using the global in-memory DuckDB instance
+# Connection -> SQL tables using a named data source connection (e.g. SQLAlchemy, or a custom DuckDB connection)
+# Catalog -> Data catalog (e.g. iceberg)
+DataTableSource = Literal["local", "duckdb", "connection", "catalog"]
 DataTableType = Literal["table", "view"]
 
 
@@ -70,17 +74,17 @@ class DataTable:
     num_rows: Optional[int]
     num_columns: Optional[int]
     variable_name: Optional[VariableName]
-    columns: List[DataTableColumn]
+    columns: list[DataTableColumn]
     engine: Optional[VariableName] = None
     type: DataTableType = "table"
-    primary_keys: Optional[List[str]] = None
-    indexes: Optional[List[str]] = None
+    primary_keys: Optional[list[str]] = None
+    indexes: Optional[list[str]] = None
 
 
 @dataclass
 class Schema:
     name: str
-    tables: List[DataTable] = field(default_factory=list)
+    tables: list[DataTable] = field(default_factory=list)
 
 
 @dataclass
@@ -97,7 +101,7 @@ class Database:
 
     name: str
     dialect: str
-    schemas: List[Schema] = field(default_factory=list)
+    schemas: list[Schema] = field(default_factory=list)
     engine: Optional[VariableName] = None
 
 
@@ -141,10 +145,14 @@ class DataSourceConnection:
         name (str): The name of the data source connection. E.g 'engine'.
         display_name (str): The display name of the data source connection. E.g 'PostgresQL (engine)'.
         databases (List[Database]): The databases in the data source connection.
+        default_database (Optional[str]): The default database in the data source connection.
+        default_schema (Optional[str]): The default schema in the data source connection.
     """
 
     source: str
     dialect: str
     name: str
     display_name: str
-    databases: List[Database] = field(default_factory=list)
+    databases: list[Database] = field(default_factory=list)
+    default_database: Optional[str] = None
+    default_schema: Optional[str] = None
