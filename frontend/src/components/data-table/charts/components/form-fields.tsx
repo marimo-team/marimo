@@ -61,7 +61,7 @@ import { IconWithText } from "./layouts";
 import { useChartFormContext } from "../context";
 import type { NumberFieldProps } from "@/components/ui/number-field";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
-import type { BinSchema, ChartSchemaType } from "../schemas";
+import type { BinSchema, ChartSchema, ChartSchemaType } from "../schemas";
 import type { z } from "zod";
 
 const CLEAR_VALUE = "__clear__";
