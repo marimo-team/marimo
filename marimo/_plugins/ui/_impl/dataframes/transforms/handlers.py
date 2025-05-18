@@ -226,8 +226,8 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
 
     @staticmethod
     def handle_unique(
-        df: "pd.DataFrame", transform: UniqueTransform
-    ) -> "pd.DataFrame":
+        df: pd.DataFrame, transform: UniqueTransform
+    ) -> pd.DataFrame:
         keep = False if transform.keep == "none" else transform.keep
         if keep not in ["first", "last", False]:
             assert_never(keep)
@@ -479,8 +479,8 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
 
     @staticmethod
     def handle_unique(
-        df: "pl.DataFrame", transform: UniqueTransform
-    ) -> "pl.DataFrame":
+        df: pl.DataFrame, transform: UniqueTransform
+    ) -> pl.DataFrame:
         if transform.keep not in ["first", "last", "none", "any"]:
             assert_never(transform.keep)
         return df.unique(transform.column_ids, keep=transform.keep)
@@ -681,8 +681,8 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
 
     @staticmethod
     def handle_unique(
-        df: "ibis.Table", transform: UniqueTransform
-    ) -> "ibis.Table":
+        df: ibis.Table, transform: UniqueTransform
+    ) -> ibis.Table:
         keep = None if transform.keep == "none" else transform.keep
         if keep not in ["first", "last", None]:
             assert_never(keep)
