@@ -517,6 +517,47 @@ class TestApp:
         assert "x" not in defs
         assert "y" not in defs
 
+    @staticmethod
+    def test_run_mo_stop_descendant_multiple() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            y = 0
+            return (y,)
+
+
+        @app.cell
+        def _(x) -> tuple[int]:
+            x
+            a = 0
+            return
+
+        @app.cell
+        def _(y) -> tuple[int]:
+            y
+            b = 0
+            return
+
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert "y" not in defs
+        assert "a" not in defs
+        assert "b" not in defs
+
 
     @staticmethod
     def test_run_mo_stop_async() -> None:
