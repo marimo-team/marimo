@@ -65,7 +65,8 @@ import type { BinSchema, ChartSchemaType } from "../schemas";
 import type { z } from "zod";
 
 const CLEAR_VALUE = "__clear__";
-type FieldName = Path<ChartSchemaType>;
+
+export type FieldName = Path<z.infer<typeof ChartSchema>>;
 
 export interface Field {
   name: string;

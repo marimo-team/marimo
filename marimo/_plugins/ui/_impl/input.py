@@ -416,6 +416,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         label (str): Markdown label for the element.
         on_change (Optional[Callable[[Sequence[Numeric]], None]]): Optional callback to run when this element's value changes.
         full_width (bool): Whether the input should take up the full width of its container.
+        disabled (bool, optional): Whether the slider is disabled. Defaults to False.
 
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
@@ -439,6 +440,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
@@ -504,6 +506,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                     "orientation": orientation,
                     "show-value": show_value,
                     "full-width": full_width,
+                    "disabled": disabled,
                 },
                 on_change=on_change,
             )
@@ -544,6 +547,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                     "orientation": orientation,
                     "show-value": show_value,
                     "full-width": full_width,
+                    "disabled": disabled,
                 },
                 on_change=on_change,
             )
@@ -596,6 +600,7 @@ class checkbox(UIElement[bool, bool]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[bool], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        disabled (bool, optional): Whether the checkbox is disabled. Defaults to False.
     """
 
     _name: Final[str] = "marimo-checkbox"
@@ -605,13 +610,16 @@ class checkbox(UIElement[bool, bool]):
         value: bool = False,
         *,
         label: str = "",
+        disabled: bool = False,
         on_change: Optional[Callable[[bool], None]] = None,
     ) -> None:
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
             label=label,
-            args={},
+            args={
+                "disabled": disabled,
+            },
             on_change=on_change,
         )
 

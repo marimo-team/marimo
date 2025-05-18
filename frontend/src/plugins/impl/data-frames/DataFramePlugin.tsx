@@ -267,6 +267,7 @@ export const DataFrameComponent = memo(
           hasStableRowId={false}
           totalRows={total_rows ?? 0}
           totalColumns={Object.keys(columns).length}
+          maxColumns="all"
           pageSize={pageSize}
           pagination={true}
           fieldTypes={field_types}
