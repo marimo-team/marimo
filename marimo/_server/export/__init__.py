@@ -7,6 +7,7 @@ import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Union, cast
 
+from marimo import _loggers
 from marimo._cli.print import echo
 from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
@@ -28,6 +29,8 @@ from marimo._server.session.session_view import SessionView
 from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.parse_dataclass import parse_raw
+
+LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -233,12 +236,13 @@ async def run_app_until_completion(
                 # Print errors to stderr
                 if message[0] == "cell-op":
                     op_data = message[1]
+                    output = op_data.get("output")
+                    console_output = op_data.get("console")
                     if (
-                        op_data.get("output")
-                        and op_data["output"]["channel"]
-                        == CellChannel.MARIMO_ERROR
+                        output
+                        and output["channel"] == CellChannel.MARIMO_ERROR
                     ):
-                        errors = cast(list[Any], op_data["output"]["data"])
+                        errors = cast(list[Any], output["data"])
 
                         @dataclass
                         class Container:
@@ -253,6 +257,26 @@ async def run_app_until_completion(
                                     file=sys.stderr,
                                 )
                                 self.did_error = True
+
+                    if console_output:
+                        console_as_list: list[dict[str, Any]] = (
+                            console_output
+                            if isinstance(console_output, list)
+                            else [console_output]
+                        )
+                        try:
+                            for line in console_as_list:
+                                # We print to stderr to not interfere with the
+                                # piped output
+                                mimetype = line.get("mimetype")
+                                if mimetype == "text/plain":
+                                    echo(
+                                        line["data"], file=sys.stderr, nl=False
+                                    )
+                        except Exception:
+                            LOGGER.warning("Error printing console output")
+                            pass
+
                 if message[0] == "completed-run":
                     instantiated_event.set()
 
