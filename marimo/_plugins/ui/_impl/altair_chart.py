@@ -294,7 +294,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     def __init__(
         self,
-        chart: altair.Chart,
+        chart: Union[altair.Chart, altair.LayerChart],
         chart_selection: Literal["point"] | Literal["interval"] | bool = True,
         legend_selection: list[str] | bool = True,
         *,
@@ -420,7 +420,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @staticmethod
     def _get_dataframe_from_chart(
-        chart: altair.Chart,
+        chart: Union[altair.Chart, altair.LayerChart],
     ) -> Optional[ChartDataType]:
         if not isinstance(chart.data, str):
             return cast(ChartDataType, chart.data)
@@ -578,7 +578,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         raise RuntimeError("Setting the value of a UIElement is not allowed.")
 
 
-def maybe_make_full_width(chart: altair.Chart) -> altair.Chart:
+def maybe_make_full_width(
+    chart: Union[altair.Chart, altair.LayerChart],
+) -> Union[altair.Chart, altair.LayerChart]:
     import altair
 
     try:
@@ -596,11 +598,16 @@ def maybe_make_full_width(chart: altair.Chart) -> altair.Chart:
         return chart
 
 
-def _has_selection_param(chart: altair.Chart) -> bool:
+def _has_selection_param(
+    chart: Union[altair.Chart, altair.LayerChart],
+) -> bool:
     import altair as alt
 
+    if not hasattr(chart, "params"):
+        return False
+
     try:
-        for param in chart.params:
+        for param in chart.params:  # type: ignore
             try:
                 if isinstance(
                     param,
@@ -615,11 +622,16 @@ def _has_selection_param(chart: altair.Chart) -> bool:
     return False
 
 
-def _has_legend_param(chart: altair.Chart) -> bool:
+def _has_legend_param(
+    chart: Union[altair.Chart, altair.LayerChart],
+) -> bool:
     import altair as alt
 
+    if not hasattr(chart, "params"):
+        return False
+
     try:
-        for param in chart.params:
+        for param in chart.params:  # type: ignore
             try:
                 if isinstance(
                     param,
