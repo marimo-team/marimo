@@ -50,6 +50,8 @@ import {
   useDataSourceActions,
 } from "../datasets/data-source-connections";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
+import { Model } from "@/plugins/impl/anywidget/model";
+import { sendModelValue } from "../network/requests";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -102,13 +104,42 @@ export function useMarimoWebSocket(opts: {
       case "interrupted":
         return;
 
-      case "send-ui-element-message":
-        UI_ELEMENT_REGISTRY.broadcastMessage(
-          msg.data.ui_element as UIElementId,
-          msg.data.message,
-          msg.data.buffers,
-        );
+      case "send-ui-element-message": {
+        const modelId = msg.data.model_id;
+        const uiElement = msg.data.ui_element;
+        if (modelId) {
+          Logger.warn("[debug] model_id", modelId);
+          new Model(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (msg.data.message as any).state,
+            modelId,
+            (state: Record<string, unknown>) => {
+              // Logger.warn("[debug] args", state, buffers);
+              sendModelValue({
+                modelId: modelId,
+                message: {
+                  state,
+                  buffers: msg.data.buffers || [],
+                },
+              });
+            },
+            async (...args) => {
+              throw new Error("Not implemented");
+            },
+            new Set(),
+          );
+        }
+
+        if (uiElement) {
+          UI_ELEMENT_REGISTRY.broadcastMessage(
+            uiElement as UIElementId,
+            msg.data.message,
+            msg.data.buffers,
+          );
+        }
+
         return;
+      }
 
       case "remove-ui-elements":
         handleRemoveUIElements(msg.data);

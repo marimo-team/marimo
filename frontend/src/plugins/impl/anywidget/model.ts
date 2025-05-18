@@ -14,11 +14,17 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
 
   constructor(
     private data: T,
+    public readonly modelId: string,
     private onChange: (value: Partial<T>) => void,
     private sendToWidget: (req: { content?: any }) => Promise<null | undefined>,
     initialDirtyFields: Set<keyof T>,
   ) {
     this.dirtyFields = new Set(initialDirtyFields);
+    if (modelId) {
+      MODEL_MANAGER.set(modelId, this);
+    } else {
+      Logger.warn("Model created without modelId", data);
+    }
   }
 
   private listeners: Record<string, Set<EventHandler>> = {};
@@ -49,10 +55,10 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
   }
 
   widget_manager = {
-    get_model<TT extends Record<string, any>>(
-      _model_id: string,
+    async get_model<TT extends Record<string, any>>(
+      model_id: string,
     ): Promise<AnyModel<TT>> {
-      throw new Error("widget_manager not supported in marimo");
+      return MODEL_MANAGER.get(model_id);
     },
   };
 
@@ -111,6 +117,9 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
             cb(data.content, buffers),
           );
           break;
+        case "open":
+          this.updateAndEmitDiffs(data.state as T);
+          break;
       }
     } else {
       Logger.error("Failed to parse message", response.error);
@@ -123,6 +132,10 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
       this.listeners[eventName] = new Set();
     }
     this.listeners[eventName].add(callback);
+  }
+
+  destroy(): void {
+    MODEL_MANAGER.delete(this.modelId);
   }
 
   private emit<K extends keyof T>(event: `change:${K & string}`, value: T[K]) {
@@ -140,6 +153,13 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
 
 const WidgetMessageSchema = z.union([
   z.object({
+    method: z.literal("open"),
+    state: z.record(z.any()),
+    buffer_paths: z
+      .array(z.array(z.union([z.string(), z.number()])))
+      .optional(),
+  }),
+  z.object({
     method: z.literal("update"),
     state: z.record(z.any()),
   }),
@@ -153,3 +173,25 @@ const WidgetMessageSchema = z.union([
     state: z.record(z.any()),
   }),
 ]);
+
+class ModelManager {
+  private models = new Map<string, Model<any>>();
+
+  get(key: string): Model<any> {
+    const model = this.models.get(key);
+    if (!model) {
+      throw new Error(`Model not found for key: ${key}`);
+    }
+    return model;
+  }
+
+  set(key: string, model: Model<any>): void {
+    this.models.set(key, model);
+  }
+
+  delete(key: string): void {
+    this.models.delete(key);
+  }
+}
+
+export const MODEL_MANAGER = new ModelManager();

@@ -394,9 +394,10 @@ class SendUIElementMessage(Op):
     """Send a message to a UI element."""
 
     name: ClassVar[str] = "send-ui-element-message"
-    ui_element: str
+    ui_element: Optional[str]
+    model_id: Optional[str]
     message: dict[str, Any]
-    buffers: Optional[list[str]]
+    buffers: Optional[list[str]] = None
 
 
 @dataclass

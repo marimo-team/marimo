@@ -73,6 +73,7 @@ export interface SetCellConfigRequest {
   configs: Record<CellId, Partial<CellConfig>>;
 }
 export type SetUIElementValueRequest = schemas["SetUIElementValueRequest"];
+export type SetModelMessageRequest = schemas["SetModelMessageRequest"];
 export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
 export type SetUserConfigRequest = schemas["SetUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
@@ -96,6 +97,7 @@ export type TutorialId = OpenTutorialRequest["tutorialId"];
  */
 export interface RunRequests {
   sendComponentValues: (request: UpdateComponentValuesRequest) => Promise<null>;
+  sendModelValue: (request: SetModelMessageRequest) => Promise<null>;
   sendInstantiate: (request: InstantiateRequest) => Promise<null>;
   sendFunctionRequest: (request: FunctionCallRequest) => Promise<null>;
 }

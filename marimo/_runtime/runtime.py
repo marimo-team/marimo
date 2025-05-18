@@ -90,6 +90,7 @@ from marimo._messaging.types import (
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
+from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
 from marimo._runtime.app_meta import AppMeta
 from marimo._runtime.context import (
@@ -133,6 +134,7 @@ from marimo._runtime.requests import (
     RefreshSecretsRequest,
     RenameRequest,
     SetCellConfigRequest,
+    SetModelMessageRequest,
     SetUIElementValueRequest,
     SetUserConfigRequest,
     StopRequest,
@@ -2053,6 +2055,14 @@ class Kernel:
         async def handle_rename(request: RenameRequest) -> None:
             await self.rename_file(request.filename)
 
+        async def handle_receive_model_message(
+            request: SetModelMessageRequest,
+        ) -> None:
+            # print("[debug] receive_model_message", request)
+            WIDGET_COMM_MANAGER.receive_comm_message(
+                request.model_id, request.message, request.buffers
+            )
+
         async def handle_function_call(request: FunctionCallRequest) -> None:
             status, ret, _ = await self.function_call_request(request)
             LOGGER.debug("Function returned with status %s", status)
@@ -2090,6 +2100,7 @@ class Kernel:
         handler.register(RenameRequest, handle_rename)
         handler.register(SetCellConfigRequest, self.set_cell_config)
         handler.register(SetUIElementValueRequest, handle_set_ui_element_value)
+        handler.register(SetModelMessageRequest, handle_receive_model_message)
         handler.register(SetUserConfigRequest, handle_set_user_config)
         handler.register(StopRequest, handle_stop)
         # Datasets

@@ -33,7 +33,7 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     # Initialize the comm...this will also send the initial state of the widget
     w.comm = MarimoComm(
         comm_id=w._model_id,  # pyright: ignore
-        comm_manager=COMM_MANAGER,
+        comm_manager=WIDGET_COMM_MANAGER,
         target_name="jupyter.widgets",
         data={"state": state, "buffer_paths": buffer_paths},
         buffers=cast(BufferType, buffers),
@@ -43,4 +43,4 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     )
 
 
-COMM_MANAGER = MarimoCommManager()
+WIDGET_COMM_MANAGER = MarimoCommManager()

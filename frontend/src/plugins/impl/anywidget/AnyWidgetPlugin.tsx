@@ -17,8 +17,9 @@ import {
 } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
-import { Model } from "./model";
+import { Model, MODEL_MANAGER } from "./model";
 import { isEqual } from "lodash-es";
+import { useOnUnmount } from "@/hooks/useLifecycle";
 
 interface Data {
   jsUrl: string;
@@ -190,6 +191,12 @@ export function getDirtyFields(value: T, initialValue: T): Set<keyof T> {
   );
 }
 
+function hasModelId(message: unknown): message is { model_id: string } {
+  return (
+    typeof message === "object" && message !== null && "model_id" in message
+  );
+}
+
 const LoadedSlot = ({
   value,
   setValue,
@@ -199,11 +206,14 @@ const LoadedSlot = ({
   host,
 }: Props & { widget: AnyWidget }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
+  const initialValue = { ...data.initialValue, ...value };
+
   const model = useRef<Model<T>>(
     new Model(
       // Merge the initial value with the current value
       // since we only send partial updates to the backend
-      { ...data.initialValue, ...value },
+      initialValue,
+      initialValue.modelId,
       setValue,
       functions.send_to_widget,
       getDirtyFields(value, data.initialValue),
@@ -215,9 +225,21 @@ const LoadedSlot = ({
     host as HTMLElementNotDerivedFromRef,
     MarimoIncomingMessageEvent.TYPE,
     (e) => {
-      model.current.receiveCustomMessage(e.detail.message, e.detail.buffers);
+      const message = e.detail.message;
+      if (hasModelId(message)) {
+        MODEL_MANAGER.get(message.model_id).receiveCustomMessage(
+          message,
+          e.detail.buffers,
+        );
+      } else {
+        Logger.warn("Received message from unknown model", message);
+      }
     },
   );
+
+  useOnUnmount(() => {
+    MODEL_MANAGER.delete(model.current.modelId);
+  });
 
   useEffect(() => {
     if (!htmlRef.current) {

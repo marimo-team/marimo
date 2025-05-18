@@ -12,6 +12,7 @@ from marimo._messaging.ops import (
     Datasets,
     DataSourceConnection,
     DataSourceConnections,
+    SendUIElementMessage,
     UpdateCellCodes,
     UpdateCellIdsRequest,
     VariableDeclaration,
@@ -174,6 +175,40 @@ def test_ui_values() -> None:
         )
     )
     assert "test_ui3" in session_view.ui_values
+
+
+def test_model_message_values() -> None:
+    session_view = SessionView()
+    session_view.add_operation(
+        SendUIElementMessage(
+            model_id="test_model",
+            message={"key": "value"},
+            ui_element=None,
+        )
+    )
+    assert session_view.model_messages[0].model_id == "test_model"
+    assert session_view.model_messages[0].message == {"key": "value"}
+
+    # Can overwrite values
+    session_view.add_operation(
+        SendUIElementMessage(
+            model_id="test_model",
+            message={"key": "new_value"},
+            ui_element=None,
+        )
+    )
+    assert session_view.model_messages[1].message == {"key": "new_value"}
+
+    # Can add multiple models
+    session_view.add_operation(
+        SendUIElementMessage(
+            model_id="test_model2",
+            message={"key2": "value2"},
+            ui_element=None,
+        )
+    )
+    assert session_view.model_messages[2].model_id == "test_model2"
+    assert session_view.model_messages[2].message == {"key2": "value2"}
 
 
 def test_last_run_code() -> None:

@@ -438,6 +438,7 @@ class UIElement(Html, Generic[S, T]):
 
         SendUIElementMessage(
             ui_element=self._id,
+            model_id=None,
             message=message,
             buffers=[
                 base64.b64encode(buffer).decode() for buffer in (buffers or [])

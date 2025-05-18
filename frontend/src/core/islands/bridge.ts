@@ -124,6 +124,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
   getUsageStats = throwNotImplemented;
   sendRename = throwNotImplemented;
   sendSave = throwNotImplemented;

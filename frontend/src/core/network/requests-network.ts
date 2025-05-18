@@ -14,6 +14,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendModelValue: (request) => {
+      return marimoClient
+        .POST("/api/kernel/set_model_value", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     sendRestart: () => {
       return marimoClient
         .POST("/api/kernel/restart_session")

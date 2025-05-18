@@ -8,6 +8,8 @@ import type { UIElementId } from "@/core/cells/ids";
 
 const { LoadedSlot } = visibleForTesting;
 
+const modelId = "test-model-id";
+
 describe("Model", () => {
   let model: Model<{ foo: string; bar: number }>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,6 +22,7 @@ describe("Model", () => {
     sendToWidget = vi.fn().mockResolvedValue(null);
     model = new Model(
       { foo: "test", bar: 123 },
+      modelId,
       onChange,
       sendToWidget,
       new Set(),
@@ -170,8 +173,10 @@ describe("Model", () => {
     });
 
     it("should update and emit for deep changes", () => {
+      const modelId = "test-model-id";
       const modelWithObject = new Model<{ foo: { nested: string } }>(
         { foo: { nested: "test" } },
+        modelId,
         onChange,
         sendToWidget,
         new Set(),

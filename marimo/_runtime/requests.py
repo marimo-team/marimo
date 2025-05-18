@@ -354,6 +354,13 @@ class ListSecretKeysRequest:
 
 
 @dataclass
+class SetModelMessageRequest:
+    model_id: str
+    message: dict[str, Any]
+    buffers: Optional[list[bytes]] = None
+
+
+@dataclass
 class RefreshSecretsRequest:
     pass
 
@@ -376,6 +383,7 @@ ControlRequest = Union[
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
+    SetModelMessageRequest,
     SetUserConfigRequest,
     StopRequest,
 ]

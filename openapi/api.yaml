@@ -2251,14 +2251,17 @@ components:
         message:
           additionalProperties: {}
           type: object
+        model_id:
+          nullable: true
+          type: string
         name:
           enum:
           - send-ui-element-message
           type: string
         ui_element:
+          nullable: true
           type: string
       required:
-      - ui_element
       - message
       - name
       type: object
@@ -2271,6 +2274,25 @@ components:
           type: object
       required:
       - configs
+      type: object
+    SetModelMessageRequest:
+      properties:
+        buffers:
+          items:
+            format: byte
+            type: string
+          nullable: true
+          type: array
+        message:
+          additionalProperties:
+            additionalProperties: true
+            type: object
+          type: object
+        modelId:
+          type: string
+      required:
+      - modelId
+      - message
       type: object
     SetUIElementValueRequest:
       properties:
@@ -2528,7 +2550,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.7
+  version: 0.13.10
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3151,6 +3173,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Set the configuration of a cell
+  /api/kernel/set_model_value:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetModelMessageRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Set model value
   /api/kernel/set_ui_element_value:
     post:
       requestBody:
