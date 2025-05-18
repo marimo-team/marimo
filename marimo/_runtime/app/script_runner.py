@@ -44,7 +44,7 @@ class AppScriptRunner:
     ) -> None:
         self.app = app
         self.filename = filename
-        self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        self.cells_cancelled: set[CellId_t] = set()
         self._glbls = glbls if glbls else {}
         self.cells_to_run = [
             cid
@@ -55,15 +55,16 @@ class AppScriptRunner:
         self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
-        self.cells_cancelled[cell_id] = set(
+        cancelled = set(
             cid
             for cid in dataflow.transitive_closure(
                 self.app.graph, set([cell_id])
             )
             if cid in self.cells_to_run
         )
-        for cid in self.cells_cancelled[cell_id]:
+        for cid in cancelled:
             self.app.graph.cells[cid].set_run_result_status("cancelled")
+        self.cells_cancelled |= cancelled
 
     def _run_synchronous(
         self,
@@ -79,6 +80,8 @@ class AppScriptRunner:
             outputs: dict[CellId_t, Any] = {}
             while self.cells_to_run:
                 cid = self.cells_to_run.pop(0)
+                if cid in self.cells_cancelled:
+                    continue
                 # Set up has already run in this case.
                 if cid == CellId_t(SETUP_CELL_NAME):
                     for hook in post_execute_hooks:
@@ -119,6 +122,9 @@ class AppScriptRunner:
 
             while self.cells_to_run:
                 cid = self.cells_to_run.pop(0)
+                if cid in self.cells_cancelled:
+                    continue
+
                 if cid == CellId_t(SETUP_CELL_NAME):
                     for hook in post_execute_hooks:
                         hook()
