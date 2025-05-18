@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -428,3 +429,38 @@ def _delete_lines_with_files(output: str) -> str:
         return line[0:start] + line[end:]
 
     return "\n".join(remove_file_name(line) for line in output.splitlines())
+
+
+@patch("marimo._server.export.echo")
+async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
+    app = App()
+
+    @app.cell()
+    def _():
+        sys.stdout.write("hello stdout")
+        None
+        return
+
+    @app.cell()
+    def _():
+        import sys
+
+        sys.stderr.write("hello stderr")
+        None
+        return (sys,)
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+
+    session_view, did_error = await run_app_until_completion(
+        file_manager,
+        cli_args={},
+        argv=None,
+    )
+    assert did_error is False
+    mock_echo.assert_any_call("hello stdout", file=sys.stderr, nl=False)
+    mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
+    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+    snapshot(
+        "run_until_completion_with_console_output.txt",
+        _print_messages(cell_ops),
+    )
