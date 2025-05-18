@@ -127,7 +127,7 @@ The `request` object provides access to:
 
 When mounted apps accept [query parameters](../../api/query_params.md), it can be helpful to declare, validate, and document them with the help of a [Pydantic model](https://fastapi.tiangolo.com/tutorial/query-param-models/).
 
-If a Marimo app called `notebooks/items.py` is mounted to `/items`, declaring an endpoint with the same route will take the query parameters through Pydantic model validation first, then redirect to the marimo endpoint.
+If a marimo app called `notebooks/items.py` is mounted to `/items`, declaring an endpoint with the same route will take the query parameters through Pydantic model validation first, then redirect to the marimo endpoint.
 
 
 ```python
