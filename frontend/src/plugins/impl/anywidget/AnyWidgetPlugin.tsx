@@ -224,10 +224,9 @@ const LoadedSlot = ({
     (e) => {
       const message = e.detail.message;
       if (hasModelId(message)) {
-        MODEL_MANAGER.get(message.model_id).receiveCustomMessage(
-          message,
-          e.detail.buffers,
-        );
+        MODEL_MANAGER.get(message.model_id).then((model) => {
+          model.receiveCustomMessage(message, e.detail.buffers);
+        });
       } else {
         model.current.receiveCustomMessage(message, e.detail.buffers);
       }

@@ -70,7 +70,7 @@ class MessageBufferData:
     data: dict[str, Any]
     metadata: dict[str, Any]
     buffers: list[bytes]
-    model_id: str
+    model_id: WidgetModelId
 
 
 # Compare to `ipykernel.comm.Comm`
@@ -195,6 +195,15 @@ class MarimoComm:
             return
 
         if msg_type == COMM_MESSAGE_NAME:
+            self._publish_message_buffer.append(
+                MessageBufferData(
+                    data, metadata, buffers, model_id=self.comm_id
+                )
+            )
+            self.flush()
+            return
+
+        if msg_type == COMM_CLOSE_NAME:
             self._publish_message_buffer.append(
                 MessageBufferData(
                     data, metadata, buffers, model_id=self.comm_id

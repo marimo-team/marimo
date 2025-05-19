@@ -51,13 +51,10 @@ import {
 } from "../datasets/data-source-connections";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import {
+  handleWidgetMessage,
   isMessageWidgetState,
-  Model,
   MODEL_MANAGER,
 } from "@/plugins/impl/anywidget/model";
-import { sendModelValue } from "../network/requests";
-import { updateBufferPaths } from "@/utils/data-views";
-import { throwNotImplemented } from "@/utils/functions";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -117,36 +114,7 @@ export function useMarimoWebSocket(opts: {
         const buffers = (msg.data.buffers ?? []) as Base64String[];
 
         if (modelId && isMessageWidgetState(message)) {
-          const stateWithBuffers = updateBufferPaths(
-            message.state,
-            message.buffer_paths,
-            buffers,
-          );
-          const model = new Model(
-            stateWithBuffers,
-            (changeData) => {
-              if (msg.data.message.buffer_paths) {
-                Logger.warn(
-                  "Changed data with buffer paths may not be supported",
-                  changeData,
-                );
-                // TODO: we may want to extract/undo DataView, to get back buffers and buffer_paths
-              }
-              sendModelValue({
-                modelId: modelId,
-                message: {
-                  state: changeData,
-                  bufferPaths: [],
-                },
-                buffers: [],
-              });
-            },
-            throwNotImplemented,
-            new Set(),
-          );
-          // TODO: leaky: we set the model, but never remove it
-          // This is only for sub-models which are not tied to UI elements (and not the common)
-          MODEL_MANAGER.set(modelId, model);
+          handleWidgetMessage(modelId, message, buffers, MODEL_MANAGER);
         }
 
         if (uiElement) {

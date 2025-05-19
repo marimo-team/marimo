@@ -35,7 +35,7 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
         comm_id=w._model_id,  # pyright: ignore
         comm_manager=WIDGET_COMM_MANAGER,
         target_name="jupyter.widgets",
-        data={"state": state, "buffer_paths": buffer_paths},
+        data={"state": state, "buffer_paths": buffer_paths, "method": "open"},
         buffers=cast(BufferType, buffers),
         # TODO: should this be hard-coded?
         metadata={"version": __protocol_version__},
