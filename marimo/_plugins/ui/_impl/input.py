@@ -664,6 +664,7 @@ class radio(UIElement[Optional[str], Any]):
         label (str, optional): Optional markdown label for the element. Defaults to "".
         on_change (Callable[[Any], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        disabled (bool, optional): Whether the radio group is disabled. Defaults to False.
     """
 
     _name: Final[str] = "marimo-radio"
@@ -676,6 +677,7 @@ class radio(UIElement[Optional[str], Any]):
         *,
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
+        disabled: bool = False,
     ) -> None:
         if not isinstance(options, dict):
             if len(set(options)) != len(options):
@@ -689,6 +691,7 @@ class radio(UIElement[Optional[str], Any]):
             args={
                 "options": list(options.keys()),
                 "inline": inline,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
