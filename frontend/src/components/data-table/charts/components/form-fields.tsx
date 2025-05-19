@@ -10,10 +10,8 @@ import {
   ArrowDownWideNarrowIcon,
 } from "lucide-react";
 import { type Path, useFormContext, useWatch } from "react-hook-form";
-import type { z } from "zod";
 
 import type { DataType } from "@/core/kernel/messages";
-import type { ChartSchema } from "../schemas";
 
 import {
   FormField,
@@ -63,8 +61,11 @@ import { IconWithText } from "./layouts";
 import { useChartFormContext } from "../context";
 import type { NumberFieldProps } from "@/components/ui/number-field";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
+import type { BinSchema, ChartSchema, ChartSchemaType } from "../schemas";
+import type { z } from "zod";
 
 const CLEAR_VALUE = "__clear__";
+
 export type FieldName = Path<z.infer<typeof ChartSchema>>;
 
 export interface Field {
@@ -75,6 +76,7 @@ export interface Field {
 export interface Tooltip {
   field: string;
   type: DataType;
+  bin?: z.infer<typeof BinSchema>;
 }
 
 export const ColumnSelector = ({
@@ -308,10 +310,12 @@ export const BooleanField = ({
   fieldName,
   label,
   className,
+  defaultValue,
 }: {
   fieldName: FieldName;
   label: string;
   className?: string;
+  defaultValue?: boolean;
 }) => {
   const form = useFormContext();
   return (
@@ -323,7 +327,7 @@ export const BooleanField = ({
           <FormLabel>{label}</FormLabel>
           <FormControl>
             <Checkbox
-              checked={field.value ?? false}
+              checked={field.value ?? defaultValue ?? false}
               onCheckedChange={field.onChange}
               className="w-4 h-4"
             />
@@ -805,7 +809,7 @@ export const SortField = ({
 export const BinFields: React.FC<{
   fieldName: "xAxis" | "yAxis" | "color";
 }> = ({ fieldName }) => {
-  const form = useFormContext<z.infer<typeof ChartSchema>>();
+  const form = useFormContext<ChartSchemaType>();
   const formValues = useWatch({ control: form.control });
   const isBinned = formValues[fieldName]?.bin?.binned;
 

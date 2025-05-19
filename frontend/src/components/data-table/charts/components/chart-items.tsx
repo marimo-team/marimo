@@ -109,14 +109,14 @@ const ColumnSelectorWithAggregation: React.FC<{
 };
 
 export const ChartLoadingState: React.FC = () => (
-  <div className="flex items-center gap-2 justify-center h-full w-full">
+  <div className="flex items-center gap-2 justify-center">
     <Loader2 className="w-10 h-10 animate-spin" strokeWidth={1} />
     <span>Loading chart...</span>
   </div>
 );
 
 export const ChartErrorState: React.FC<{ error: Error }> = ({ error }) => (
-  <div className="flex items-center justify-center h-full w-full">
+  <div className="flex items-center justify-center">
     <ErrorBanner error={error} />
   </div>
 );
@@ -325,6 +325,7 @@ export const Facet: React.FC = () => {
             <BooleanField
               fieldName={linkFieldName}
               label={`Link ${facet === "row" ? "Y" : "X"} Axes`}
+              defaultValue={true}
             />
           </>
         )}
