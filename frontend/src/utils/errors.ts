@@ -11,7 +11,6 @@ const ErrorSchema = z.object({
 });
 
 export function prettyError(error: unknown): string {
-  console.log("prettyError", error);
   if (!error) {
     return "Unknown error";
   }
