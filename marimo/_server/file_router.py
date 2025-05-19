@@ -284,7 +284,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
             "eggs",
         }
         allowed_extensions = (
-            (".py", ".md") if self.include_markdown else (".py",)
+            (".py", ".md", ".qmd") if self.include_markdown else (".py",)
         )
 
         return recurse(self.directory) or []
