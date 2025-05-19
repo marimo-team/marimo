@@ -46,7 +46,22 @@
       > span.paragraph:not(:has(> :only-child)):not(:empty),
     /* Target span.paragraph that only contains basic elements */
       > span.paragraph:not(
-        :has(> :not(code, a, strong, i, b, del, em, u, mark, sub, sup, marimo-tex))
+        :has(
+            > :not(
+                code,
+                a,
+                strong,
+                i,
+                b,
+                del,
+                em,
+                u,
+                mark,
+                sub,
+                sup,
+                marimo-tex
+              )
+          )
       ) {
       max-width: var(--markdown-max-width);
     }
