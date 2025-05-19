@@ -37,6 +37,10 @@ export function moveToEndOfEditor(ev: EditorView | undefined) {
   });
 }
 
+export function isInVimMode(ev: EditorView): boolean {
+  return getCM(ev)?.state.vim != null;
+}
+
 export function isInVimNormalMode(ev: EditorView): boolean {
   const vimState = getCM(ev)?.state.vim;
   if (!vimState) {
