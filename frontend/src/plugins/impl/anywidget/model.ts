@@ -14,17 +14,14 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
 
   constructor(
     private data: T,
-    public readonly modelId: string,
     private onChange: (value: Partial<T>) => void,
-    private sendToWidget: (req: { content?: any }) => Promise<null | undefined>,
+    private sendToWidget: (req: {
+      content?: any;
+      buffers?: ArrayBuffer[] | ArrayBufferView[];
+    }) => Promise<null | undefined>,
     initialDirtyFields: Set<keyof T>,
   ) {
     this.dirtyFields = new Set(initialDirtyFields);
-    if (modelId) {
-      MODEL_MANAGER.set(modelId, this);
-    } else {
-      Logger.warn("Model created without modelId", data);
-    }
   }
 
   private listeners: Record<string, Set<EventHandler>> = {};
@@ -51,14 +48,20 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     if (buffers) {
       Logger.warn("buffers not supported in marimo anywidget.send");
     }
-    this.sendToWidget({ content }).then(callbacks);
+    this.sendToWidget({ content, buffers }).then(callbacks);
   }
 
   widget_manager = {
     async get_model<TT extends Record<string, any>>(
       model_id: string,
     ): Promise<AnyModel<TT>> {
-      return MODEL_MANAGER.get(model_id);
+      const model = MODEL_MANAGER.get(model_id);
+      if (!model) {
+        throw new Error(
+          `Model not found with id: ${model_id}. This is likely because the model was not registered.`,
+        );
+      }
+      return model;
     },
   };
 
@@ -134,10 +137,6 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     this.listeners[eventName].add(callback);
   }
 
-  destroy(): void {
-    MODEL_MANAGER.delete(this.modelId);
-  }
-
   private emit<K extends keyof T>(event: `change:${K & string}`, value: T[K]) {
     if (!this.listeners[event]) {
       return;
@@ -192,6 +191,21 @@ class ModelManager {
   delete(key: string): void {
     this.models.delete(key);
   }
+}
+
+export function isMessageWidgetState(message: unknown): message is {
+  state: Record<string, unknown>;
+  buffer_paths: Array<Array<string | number>>;
+} {
+  if (message == null) {
+    return false;
+  }
+
+  return (
+    typeof message === "object" &&
+    "state" in message &&
+    "buffer_paths" in message
+  );
 }
 
 export const MODEL_MANAGER = new ModelManager();

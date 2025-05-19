@@ -21,10 +21,10 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     import ipywidgets  # type: ignore
 
     __protocol_version__ = ipywidgets._version.__protocol_version__
-    _remove_buffers = ipywidgets.widgets.widget._remove_buffers  # type: ignore
+    from marimo._plugins.ui._impl.anywidget.utils import extract_buffer_paths
 
     # Get the initial state of the widget
-    state, buffer_paths, buffers = _remove_buffers(w.get_state())  # type: ignore
+    state, buffer_paths, buffers = extract_buffer_paths(w.get_state())
 
     # Generate a random model_id so we can assign the same id to the comm
     if getattr(w, "_model_id", None) is None:

@@ -3414,7 +3414,8 @@ export interface components {
     SetModelMessageRequest: {
       buffers?: string[] | null;
       message: {
-        [key: string]: {
+        bufferPaths: (string | number)[][];
+        state: {
           [key: string]: unknown;
         };
       };

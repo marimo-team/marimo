@@ -1,14 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { getDirtyFields, visibleForTesting } from "../AnyWidgetPlugin";
-import { Model } from "../model";
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { Model, MODEL_MANAGER } from "../model";
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterAll,
+} from "vitest";
 import { render, act, waitFor } from "@testing-library/react";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import type { UIElementId } from "@/core/cells/ids";
 
 const { LoadedSlot } = visibleForTesting;
-
-const modelId = "test-model-id";
 
 describe("Model", () => {
   let model: Model<{ foo: string; bar: number }>;
@@ -22,7 +28,6 @@ describe("Model", () => {
     sendToWidget = vi.fn().mockResolvedValue(null);
     model = new Model(
       { foo: "test", bar: 123 },
-      modelId,
       onChange,
       sendToWidget,
       new Set(),
@@ -155,9 +160,26 @@ describe("Model", () => {
   });
 
   describe("widget_manager", () => {
-    it("should throw error when accessing widget_manager", () => {
-      expect(() => model.widget_manager.get_model("foo")).toThrow(
-        "widget_manager not supported in marimo",
+    const childModelId = "test-id";
+    const childModel = new Model({ foo: "test" }, vi.fn(), vi.fn(), new Set());
+
+    beforeAll(() => {
+      MODEL_MANAGER.set(childModelId, childModel);
+    });
+
+    afterAll(() => {
+      MODEL_MANAGER.delete(childModelId);
+    });
+
+    it("should throw error when accessing a model that is not registered", async () => {
+      await expect(model.widget_manager.get_model("random-id")).rejects.toThrow(
+        "Model not found for key: random-id",
+      );
+    });
+
+    it("should return the registered model", async () => {
+      expect(await model.widget_manager.get_model(childModelId)).toBe(
+        childModel,
       );
     });
   });
@@ -173,10 +195,8 @@ describe("Model", () => {
     });
 
     it("should update and emit for deep changes", () => {
-      const modelId = "test-model-id";
       const modelWithObject = new Model<{ foo: { nested: string } }>(
         { foo: { nested: "test" } },
-        modelId,
         onChange,
         sendToWidget,
         new Set(),

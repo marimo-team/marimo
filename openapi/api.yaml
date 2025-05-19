@@ -2284,9 +2284,21 @@ components:
           nullable: true
           type: array
         message:
-          additionalProperties:
-            additionalProperties: true
-            type: object
+          properties:
+            bufferPaths:
+              items:
+                items:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                type: array
+              type: array
+            state:
+              additionalProperties: {}
+              type: object
+          required:
+          - state
+          - bufferPaths
           type: object
         modelId:
           type: string

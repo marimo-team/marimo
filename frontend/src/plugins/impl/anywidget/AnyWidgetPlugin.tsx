@@ -19,7 +19,6 @@ import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
 import { Model, MODEL_MANAGER } from "./model";
 import { isEqual } from "lodash-es";
-import { useOnUnmount } from "@/hooks/useLifecycle";
 
 interface Data {
   jsUrl: string;
@@ -206,14 +205,12 @@ const LoadedSlot = ({
   host,
 }: Props & { widget: AnyWidget }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
-  const initialValue = { ...data.initialValue, ...value };
 
   const model = useRef<Model<T>>(
     new Model(
       // Merge the initial value with the current value
       // since we only send partial updates to the backend
-      initialValue,
-      initialValue.modelId,
+      { ...data.initialValue, ...value },
       setValue,
       functions.send_to_widget,
       getDirtyFields(value, data.initialValue),
@@ -232,14 +229,10 @@ const LoadedSlot = ({
           e.detail.buffers,
         );
       } else {
-        Logger.warn("Received message from unknown model", message);
+        model.current.receiveCustomMessage(message, e.detail.buffers);
       }
     },
   );
-
-  useOnUnmount(() => {
-    MODEL_MANAGER.delete(model.current.modelId);
-  });
 
   useEffect(() => {
     if (!htmlRef.current) {

@@ -36,6 +36,7 @@ import {
   userTriedToInteractWithIslandsAtom,
 } from "./state";
 import { dismissIslandsLoadingToast, toastIslandsLoading } from "./toast";
+import type { Base64String } from "@/utils/json/base64";
 
 /**
  * Main entry point for the js bundle for embedded marimo apps.
@@ -130,7 +131,7 @@ export async function initialize() {
         UI_ELEMENT_REGISTRY.broadcastMessage(
           msg.data.ui_element as UIElementId,
           msg.data.message,
-          msg.data.buffers,
+          msg.data.buffers as Base64String[],
         );
         return;
 

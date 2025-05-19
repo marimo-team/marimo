@@ -34,7 +34,7 @@ import {
   handleRemoveUIElements,
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
-import type { JsonString } from "@/utils/json/base64";
+import type { Base64String, JsonString } from "@/utils/json/base64";
 import { useDatasetsActions } from "../datasets/state";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import type { VariableName } from "../variables/types";
@@ -50,8 +50,14 @@ import {
   useDataSourceActions,
 } from "../datasets/data-source-connections";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
-import { Model } from "@/plugins/impl/anywidget/model";
+import {
+  isMessageWidgetState,
+  Model,
+  MODEL_MANAGER,
+} from "@/plugins/impl/anywidget/model";
 import { sendModelValue } from "../network/requests";
+import { updateBufferPaths } from "@/utils/data-views";
+import { throwNotImplemented } from "@/utils/functions";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -107,34 +113,45 @@ export function useMarimoWebSocket(opts: {
       case "send-ui-element-message": {
         const modelId = msg.data.model_id;
         const uiElement = msg.data.ui_element;
-        if (modelId) {
-          Logger.warn("[debug] model_id", modelId);
-          new Model(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (msg.data.message as any).state,
-            modelId,
-            (state: Record<string, unknown>) => {
-              // Logger.warn("[debug] args", state, buffers);
+        const message = msg.data.message;
+        const buffers = (msg.data.buffers ?? []) as Base64String[];
+
+        if (modelId && isMessageWidgetState(message)) {
+          const stateWithBuffers = updateBufferPaths(
+            message.state,
+            message.buffer_paths,
+            buffers,
+          );
+          const model = new Model(
+            stateWithBuffers,
+            (changeData) => {
+              if (msg.data.message.buffer_paths) {
+                Logger.warn(
+                  "Changed data with buffer paths may not be supported",
+                  changeData,
+                );
+                // TODO: we should extract/undo DataView, to get back buffers and buffer_paths
+              }
               sendModelValue({
                 modelId: modelId,
                 message: {
-                  state,
-                  buffers: msg.data.buffers || [],
+                  state: changeData,
+                  bufferPaths: [],
                 },
+                buffers: [],
               });
             },
-            async (...args) => {
-              throw new Error("Not implemented");
-            },
+            throwNotImplemented,
             new Set(),
           );
+          MODEL_MANAGER.set(modelId, model);
         }
 
         if (uiElement) {
           UI_ELEMENT_REGISTRY.broadcastMessage(
             uiElement as UIElementId,
             msg.data.message,
-            msg.data.buffers,
+            buffers,
           );
         }
 
