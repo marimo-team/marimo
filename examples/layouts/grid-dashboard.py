@@ -39,6 +39,7 @@ def _(mo):
     `marimo run {__file__}`
 
     or hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+    ///
     """
     )
     return
