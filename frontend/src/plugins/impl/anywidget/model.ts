@@ -14,9 +14,52 @@ import { z } from "zod";
 
 export type EventHandler = (...args: any[]) => void;
 
+class ModelManager {
+  private models = new Map<string, Deferred<Model<any>>>();
+
+  constructor(private timeout = 10_000) {}
+
+  get(key: string): Promise<Model<any>> {
+    let deferred = this.models.get(key);
+    if (deferred) {
+      return deferred.promise;
+    }
+
+    // If the model is not yet created, create the new deferred promise without resolving it
+    deferred = new Deferred<Model<any>>();
+    this.models.set(key, deferred);
+
+    // Add timeout to prevent hanging
+    const timeout = new Promise<Model<any>>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Model not found for key: ${key}`));
+        this.models.delete(key);
+      }, this.timeout);
+    });
+
+    return Promise.race([deferred.promise, timeout]);
+  }
+
+  set(key: string, model: Model<any>): void {
+    let deferred = this.models.get(key);
+    if (!deferred) {
+      deferred = new Deferred<Model<any>>();
+      this.models.set(key, deferred);
+    }
+    deferred.resolve(model);
+  }
+
+  delete(key: string): void {
+    this.models.delete(key);
+  }
+}
+
+export const MODEL_MANAGER = new ModelManager();
+
 export class Model<T extends Record<string, any>> implements AnyModel<T> {
   private ANY_CHANGE_EVENT = "change";
   private dirtyFields;
+  public static _modelManager: ModelManager = MODEL_MANAGER;
 
   constructor(
     private data: T,
@@ -61,7 +104,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     async get_model<TT extends Record<string, any>>(
       model_id: string,
     ): Promise<AnyModel<TT>> {
-      const model = await MODEL_MANAGER.get(model_id);
+      const model = await Model._modelManager.get(model_id);
       if (!model) {
         throw new Error(
           `Model not found with id: ${model_id}. This is likely because the model was not registered.`,
@@ -186,46 +229,6 @@ const AnyWidgetMessageSchema = z.discriminatedUnion("method", [
 
 export type AnyWidgetMessage = z.infer<typeof AnyWidgetMessageSchema>;
 
-class ModelManager {
-  private models = new Map<string, Deferred<Model<any>>>();
-
-  constructor(private timeout = 10_000) {}
-
-  get(key: string): Promise<Model<any>> {
-    let deferred = this.models.get(key);
-    if (deferred) {
-      return deferred.promise;
-    }
-
-    // If the model is not yet created, create the new deferred promise without resolving it
-    deferred = new Deferred<Model<any>>();
-    this.models.set(key, deferred);
-
-    // Add timeout to prevent hanging
-    const timeout = new Promise<Model<any>>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Model not found for key: ${key}`));
-        this.models.delete(key);
-      }, this.timeout);
-    });
-
-    return Promise.race([deferred.promise, timeout]);
-  }
-
-  set(key: string, model: Model<any>): void {
-    let deferred = this.models.get(key);
-    if (!deferred) {
-      deferred = new Deferred<Model<any>>();
-      this.models.set(key, deferred);
-    }
-    deferred.resolve(model);
-  }
-
-  delete(key: string): void {
-    this.models.delete(key);
-  }
-}
-
 export function isMessageWidgetState(msg: unknown): msg is AnyWidgetMessage {
   if (msg == null) {
     return false;
@@ -296,8 +299,6 @@ export async function handleWidgetMessage(
 
   assertNever(method);
 }
-
-export const MODEL_MANAGER = new ModelManager();
 
 export const visibleForTesting = {
   ModelManager,
