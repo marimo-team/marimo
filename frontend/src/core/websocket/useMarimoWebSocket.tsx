@@ -130,7 +130,7 @@ export function useMarimoWebSocket(opts: {
                   "Changed data with buffer paths may not be supported",
                   changeData,
                 );
-                // TODO: we should extract/undo DataView, to get back buffers and buffer_paths
+                // TODO: we may want to extract/undo DataView, to get back buffers and buffer_paths
               }
               sendModelValue({
                 modelId: modelId,
@@ -144,6 +144,8 @@ export function useMarimoWebSocket(opts: {
             throwNotImplemented,
             new Set(),
           );
+          // TODO: leaky: we set the model, but never remove it
+          // This is only for sub-models which are not tied to UI elements (and not the common)
           MODEL_MANAGER.set(modelId, model);
         }
 

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect } from "vitest";
-import { updateBufferPaths, base64ToDataView } from "../data-views";
+import { updateBufferPaths, byteStringToDataView } from "../data-views";
 import type { ByteString, Base64String } from "../json/base64";
 
 describe("updateBufferPaths", () => {
@@ -88,10 +88,10 @@ describe("updateBufferPaths", () => {
   });
 });
 
-describe("base64ToDataView", () => {
+describe("byteStringToDataView", () => {
   it("should convert a base64 string to a DataView", () => {
     const input = "Hello" as ByteString;
-    const result = base64ToDataView(input);
+    const result = byteStringToDataView(input);
 
     expect(result).toBeInstanceOf(DataView);
     expect(result.byteLength).toBe(5);
@@ -104,7 +104,7 @@ describe("base64ToDataView", () => {
 
   it("should handle empty string", () => {
     const input = "" as ByteString;
-    const result = base64ToDataView(input);
+    const result = byteStringToDataView(input);
 
     expect(result).toBeInstanceOf(DataView);
     expect(result.byteLength).toBe(0);

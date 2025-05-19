@@ -37,14 +37,14 @@ export function updateBufferPaths<T extends Record<string, unknown>>(
       Logger.warn("Could not find buffer at path", bufferPath);
       continue;
     }
-    const buffer = base64ToDataView(bytes);
+    const buffer = byteStringToDataView(bytes);
     object = set(object, bufferPath, buffer);
   }
 
   return object;
 }
 
-export const base64ToDataView = (bytes: ByteString) => {
+export const byteStringToDataView = (bytes: ByteString) => {
   const buffer = new ArrayBuffer(bytes.length);
   const view = new DataView(buffer);
   for (let i = 0; i < bytes.length; i++) {

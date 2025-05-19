@@ -8,7 +8,7 @@ import {
   MarimoValueUpdateEvent,
 } from "./events";
 import { parseInitialValue } from "./htmlUtils";
-import { base64ToDataView } from "@/utils/data-views";
+import { byteStringToDataView } from "@/utils/data-views";
 import type { Base64String } from "@/utils/json/base64";
 import { typedAtob } from "@/utils/json/base64";
 
@@ -142,7 +142,7 @@ export class UIElementRegistry {
       Logger.warn("UIElementRegistry missing entry", objectId);
     } else {
       const toDataView = (base64: Base64String) => {
-        return base64ToDataView(typedAtob(base64));
+        return byteStringToDataView(typedAtob(base64));
       };
       entry.elements.forEach((element) => {
         element.dispatchEvent(
