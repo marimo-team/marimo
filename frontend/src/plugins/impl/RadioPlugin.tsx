@@ -18,6 +18,7 @@ interface Data {
   label: string | null;
   inline: boolean;
   options: string[];
+  disabled?: boolean;
 }
 
 // The value is null when `initialValue` is null
@@ -31,6 +32,7 @@ export class RadioPlugin implements IPlugin<S, Data> {
     inline: z.boolean().default(false),
     label: z.string().nullable(),
     options: z.array(z.string()),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<S, Data>): JSX.Element {
@@ -56,6 +58,7 @@ export const Radio = (props: RadioProps): JSX.Element => {
         onValueChange={props.setValue}
         className={cn(props.inline && "grid-flow-col gap-4")}
         aria-label="Radio Group"
+        disabled={props.disabled}
       >
         {props.options.map((option, i) => (
           <div className="flex items-center space-x-2" key={i}>
