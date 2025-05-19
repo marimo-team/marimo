@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Literal, NewType, TypedDict
+from typing import Any, Literal, NewType, TypedDict, Union
 
 # AnyWidget model id
 WidgetModelId = NewType("WidgetModelId", str)
 
 # Buffer paths
-BufferPaths = list[list[str | int]]
+BufferPaths = list[list[Union[str, int]]]
 
 # Widget model state
 WidgetModelState = dict[str, Any]
