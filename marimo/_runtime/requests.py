@@ -363,7 +363,7 @@ class ModelMessage:
 class SetModelMessageRequest:
     model_id: WidgetModelId
     message: ModelMessage
-    buffers: Optional[list[bytes]] = None
+    buffers: Optional[list[str]] = None
 
 
 @dataclass

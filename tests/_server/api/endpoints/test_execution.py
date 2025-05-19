@@ -95,8 +95,12 @@ class TestExecutionRoutes_EditMode:
             "/api/kernel/set_model_value",
             headers=HEADERS,
             json={
-                "object_id": "model-1",
-                "value": "test value",
+                "model_id": "model-1",
+                "message": {
+                    "state": {"key": "value"},
+                    "buffer_paths": [["a"], ["b"]],
+                },
+                "buffers": ["buffer1", "buffer2"],
             },
         )
         assert response.status_code == 200, response.text
@@ -298,8 +302,12 @@ class TestExecutionRoutes_RunMode:
             "/api/kernel/set_model_value",
             headers=HEADERS,
             json={
-                "object_id": "model-1",
-                "value": "test value",
+                "model_id": "model-1",
+                "message": {
+                    "state": {"key": "value"},
+                    "buffer_paths": [["a"], ["b"]],
+                },
+                "buffers": ["buffer1", "buffer2"],
             },
         )
         assert response.status_code == 200, response.text

@@ -2279,7 +2279,6 @@ components:
       properties:
         buffers:
           items:
-            format: byte
             type: string
           nullable: true
           type: array

@@ -2058,9 +2058,10 @@ class Kernel:
         async def handle_receive_model_message(
             request: SetModelMessageRequest,
         ) -> None:
-            # print("[debug] receive_model_message", request)
+            buffers = request.buffers or []
+            buffers_as_bytes = [buffer.encode("utf-8") for buffer in buffers]
             WIDGET_COMM_MANAGER.receive_comm_message(
-                request.model_id, request.message, request.buffers
+                request.model_id, request.message, buffers_as_bytes
             )
 
         async def handle_function_call(request: FunctionCallRequest) -> None:
