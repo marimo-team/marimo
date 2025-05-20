@@ -916,8 +916,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             with pytest.raises(TypeError):
                 manager.take(count=10, offset=10)
 
-        # TODO: Fix this, it should be 1
-        assert len(recorded_warnings) == 1
+        assert len(recorded_warnings) == 0
 
     def test_to_json_bigint(self) -> None:
         import polars as pl

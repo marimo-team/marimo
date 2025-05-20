@@ -229,7 +229,7 @@ def test_register_transformers(mock_data_transformers: MagicMock):
     )
 
 
-SUPPORTS_ARROW_IPC = ["pandas", "polars"]
+SUPPORTS_ARROW_IPC = ["pandas", "polars", "lazy-polars"]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
