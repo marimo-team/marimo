@@ -244,8 +244,6 @@ class TopLevelExtraction:
         defs: set[Name] = set()
         refs: set[Name] = set()
         self.allowed_refs: set[Name] = set(toplevel_defs)
-        if not self.allowed_refs:
-            self.allowed_refs.update(BUILTINS)
         self._variables: Optional[dict[Name, VariableData]] = None
         # Run through and get defs + refs, and a naive attempt at resolving cell
         # status.
