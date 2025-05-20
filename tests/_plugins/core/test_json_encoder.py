@@ -460,3 +460,11 @@ def test_empty_slots() -> None:
 
     encoded = json.dumps(obj, cls=WebComponentEncoder)
     assert encoded == "{}"
+
+
+def test_decimal_encoding() -> None:
+    from decimal import Decimal
+
+    decimal_obj = Decimal("123.45")
+    encoded = json.dumps(decimal_obj, cls=WebComponentEncoder)
+    assert encoded == "123.45"
