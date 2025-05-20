@@ -32,6 +32,9 @@ export const SELECT_COLUMN_ID = "__select__";
 
 export const INDEX_COLUMN_NAME = "_marimo_row_id";
 
+export const TOO_MANY_ROWS = "too_many";
+export type TooManyRows = typeof TOO_MANY_ROWS;
+
 export type DataTableSelection =
   | "single"
   | "multi"

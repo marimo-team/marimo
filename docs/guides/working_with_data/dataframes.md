@@ -247,6 +247,19 @@ table.value
 
 ///
 
+## Row viewer panel
+
+To inspect individual rows, you can toggle the Row viewer panel located at the bottom left of a table. While open, click on any row to view. 
+
+For convenience, you can pin the panel to the side of your editor or toggle the focused cell feature, which ensures the value of the currently focused cell is displayed in the panel.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-row-viewer-panel.gif" width="100%" height="100%" alt="Row viewer panel demonstration (click the bottom left of the table to toggle)">
+<figcaption>Open the row viewer panel to display data vertically</figcaption>
+</figure>
+</div>
+
 ## Example notebook
 
 For a comprehensive example of using Polars with marimo, check out our [Polars example notebook](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars/polars_example.py).

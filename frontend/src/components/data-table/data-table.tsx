@@ -29,7 +29,7 @@ import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
-import type { DataTableSelection } from "./types";
+import type { DataTableSelection, TooManyRows } from "./types";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
@@ -49,7 +49,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   sorting?: SortingState; // controlled sorting
   setSorting?: OnChangeFn<SortingState>; // controlled sorting
   // Pagination
-  totalRows: number | "too_many";
+  totalRows: number | TooManyRows;
   totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
