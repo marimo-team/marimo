@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import json
+from decimal import Decimal
 from enum import Enum
 from json import JSONEncoder
 from typing import Any
@@ -75,6 +76,10 @@ class WebComponentEncoder(JSONEncoder):
         if hasattr(o, "_mime_"):
             mimetype, data = o._mime_()
             return {"mimetype": mimetype, "data": data}
+
+        # Handle decimal objects
+        if isinstance(o, Decimal):
+            return float(o)
 
         # Handle dataclasses
         # Must come after MIME objects

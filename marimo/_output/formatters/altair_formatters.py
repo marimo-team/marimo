@@ -140,8 +140,16 @@ def chart_to_json(
     """
     try:
         return chart.to_json(
-            format=spec_format, validate=validate, allow_nan=False
+            format=spec_format,
+            validate=validate,
+            allow_nan=False,
+            default=str,
         )
     except ValueError:
         chart.data = sanitize_nan_infs(chart.data)
-        return chart.to_json(format=spec_format, validate=validate)
+        return chart.to_json(
+            format=spec_format,
+            validate=validate,
+            allow_nan=False,
+            default=str,
+        )
