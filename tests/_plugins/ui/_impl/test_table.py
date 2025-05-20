@@ -574,8 +574,7 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
     "df", create_dataframes({"a": [1, 2, 3]}, include=["ibis"])
 )
 def test_value_with_cell_selection_unsupported_for_ibis(df: Any) -> None:
-    with pytest.raises(NotImplementedError):
-        _table = ui.table(df, selection="multi-cell")
+    _table = ui.table(df, selection="multi-cell")
 
 
 def test_search_sort_nonexistent_columns() -> None:

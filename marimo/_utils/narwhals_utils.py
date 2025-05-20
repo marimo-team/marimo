@@ -54,7 +54,7 @@ def can_narwhalify(
     if obj is None:
         return False
     try:
-        nw.from_native(obj, strict=True, eager_only=eager_only)  # type: ignore[call-overload]
+        nw.from_native(obj, pass_through=False, eager_only=eager_only)  # type: ignore[call-overload]
         return True
     except TypeError:
         return False
@@ -66,25 +66,6 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     """
     nw.from_native(obj)
     return True
-
-
-def dataframe_to_csv(df: IntoFrame) -> str:
-    """
-    Convert a dataframe to a CSV string.
-    """
-    assert_can_narwhalify(df)
-    df = nw.from_native(df, strict=True)
-    if isinstance(df, nw.LazyFrame):
-        return str(df.collect().write_csv())
-    if nw.get_level(df) == "interchange":
-        # `write_csv` isn't supported by interchange-level-only
-        # DataFrames, so we convert to PyArrow in this case
-        csv_str = nw.from_native(df.to_arrow(), eager_only=True).write_csv()
-    else:
-        csv_str = df.write_csv()
-    if isinstance(csv_str, bytes):
-        return csv_str.decode("utf-8")
-    return str(csv_str)
 
 
 def is_narwhals_integer_type(

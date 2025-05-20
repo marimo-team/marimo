@@ -7,7 +7,7 @@ import sys
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
-import narwhals.stable.v1 as nw
+import narwhals as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -151,7 +151,7 @@ class TestAltairChart:
     ) -> None:
         assert (
             nw.Datetime
-            == nw.from_native(df, strict=True).schema["datetime_column"]
+            == nw.from_native(df, pass_through=False).schema["datetime_column"]
         )
 
         # Define an interval selection

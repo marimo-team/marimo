@@ -129,7 +129,7 @@ def io_to_data_url(
 
     # Handle Pandas DataFrames (convert to CSV)
     if can_narwhalify(src, eager_only=True):
-        df = nw.from_native(src, strict=True, eager_only=True)
+        df = nw.from_native(src, pass_through=False, eager_only=True)
         file = io.BytesIO()
         df.write_csv(file)
         file.seek(0)
