@@ -250,7 +250,7 @@ export function renderFilterByValues<TData, TValue>(
     return null;
   }
 
-  // there is not yet good support for filtering on lists, dicts, etc.
+  // there is limited support for filtering on lists
   const filterType = column.columnDef.meta?.filterType;
   if (!filterType) {
     return null;
