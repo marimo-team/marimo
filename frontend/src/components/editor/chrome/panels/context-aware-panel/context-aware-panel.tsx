@@ -40,7 +40,7 @@ export const ContextAwarePanel: React.FC = () => {
 
   const renderModeToggle = () => {
     return (
-      <div className="flex flex-row items-center gap-2">
+      <div className="flex flex-row items-center gap-3">
         <Tooltip content={isPinned ? "Unpin panel" : "Pin panel"}>
           <Toggle
             size="xs"
@@ -55,7 +55,16 @@ export const ContextAwarePanel: React.FC = () => {
             )}
           </Toggle>
         </Tooltip>
-        <Tooltip content={isCellAware ? "Follow focused cell" : "Fixed"}>
+        <Tooltip
+          content={
+            <div className="flex flex-col gap-1">
+              <span>Follow focused table</span>
+              <span className="text-xs text-muted-foreground">
+                The panel updates as other tables are focused
+              </span>
+            </div>
+          }
+        >
           <Toggle
             size="xs"
             onPressedChange={() => setIsCellAware(!isCellAware)}
