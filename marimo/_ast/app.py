@@ -137,7 +137,6 @@ class _SetupContext:
             # But don't record the variables.
             return False
 
-        # Use exec to update the locals properly
         if self._frame is not None:
             # Collect new definitions
             for var in self._cell.defs:
