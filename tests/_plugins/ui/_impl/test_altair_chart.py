@@ -151,7 +151,7 @@ class TestAltairChart:
     ) -> None:
         assert (
             nw.Datetime
-            == nw.from_native(df, strict=True).schema["datetime_column"]
+            == nw.from_native(df, pass_through=False).schema["datetime_column"]
         )
 
         # Define an interval selection
