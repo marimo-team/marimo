@@ -249,7 +249,7 @@ table.value
 
 ## Row viewer panel
 
-To display a vertical view of data, you can toggle the Row viewer panel located at the bottom left of a table. While open, click on any row to view. 
+To inspect individual rows, you can toggle the Row viewer panel located at the bottom left of a table. While open, click on any row to view. 
 
 For convenience, you can pin the panel to the side of your editor or toggle the focused cell feature, which ensures the value of the currently focused cell is displayed in the panel.
 
