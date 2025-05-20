@@ -30,8 +30,13 @@ class ModelManager {
     this.models.set(key, deferred);
 
     // Add timeout to prevent hanging
-    const timeout = new Promise<Model<any>>((_, reject) => {
+    // If the deferred promise is resolved, resolve the timeout promise
+    const timeout = new Promise<Model<any>>((resolve, reject) => {
       setTimeout(() => {
+        if (deferred.status !== "pending") {
+          resolve(deferred.promise);
+        }
+
         reject(new Error(`Model not found for key: ${key}`));
         this.models.delete(key);
       }, this.timeout);
