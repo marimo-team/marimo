@@ -8,14 +8,15 @@
 # ]
 # ///
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.7.2"
+__generated_with = "0.13.10"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __(__file__):
+def _():
     import pandas as pd
     import marimo as mo
     import os
@@ -37,12 +38,18 @@ def __(__file__):
         spec.pop("data")
 
     w = mo.ui.anywidget(MosaicWidget(spec, data={"weather": weather}))
-    return MosaicWidget, dir_path, f, mo, os, pd, spec, w, weather, yaml
+    return (w,)
 
 
 @app.cell
-def __(w):
+def _(w):
     w
+    return
+
+
+@app.cell
+def _(w):
+    w.value
     return
 
 

@@ -6,6 +6,10 @@ const DetailsSchema = z.object({
   detail: z.string(),
 });
 
+const ErrorSchema = z.object({
+  error: z.string(),
+});
+
 export function prettyError(error: unknown): string {
   if (!error) {
     return "Unknown error";
@@ -21,6 +25,10 @@ export function prettyError(error: unknown): string {
     const details = DetailsSchema.safeParse(error);
     if (details.success) {
       return details.data.detail;
+    }
+    const parsed = ErrorSchema.safeParse(error);
+    if (parsed.success) {
+      return parsed.data.error;
     }
   }
   try {
@@ -38,6 +46,10 @@ function maybeExtractDetails(message: string): string {
   const details = DetailsSchema.safeParse(parsed);
   if (details.success) {
     return details.data.detail;
+  }
+  const error = ErrorSchema.safeParse(parsed);
+  if (error.success) {
+    return error.data.error;
   }
   return message;
 }

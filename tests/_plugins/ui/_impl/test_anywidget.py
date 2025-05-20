@@ -11,7 +11,9 @@ from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.anywidget.has()
+HAS_DEPS = (
+    DependencyManager.anywidget.has() and DependencyManager.traitlets.has()
+)
 
 if HAS_DEPS:
     import anywidget as _anywidget

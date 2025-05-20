@@ -10,6 +10,7 @@ export function createErrorToastingRequests(
 ): EditRequests & RunRequests {
   const MESSAGES: Record<RequestKey, string> = {
     sendComponentValues: "Failed update value",
+    sendModelValue: "Failed to update model value",
     sendInstantiate: "Failed to instantiate",
     sendFunctionRequest: "Failed to send function request",
     sendRestart: "Failed to restart",

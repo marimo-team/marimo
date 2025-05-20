@@ -10,6 +10,10 @@ import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
+from marimo._plugins.ui._impl.anywidget.utils import (
+    extract_buffer_paths,
+    insert_buffer_paths,
+)
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
 
@@ -84,13 +88,9 @@ class anywidget(UIElement[T, T]):
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        import ipywidgets  # type: ignore
-
-        _remove_buffers = ipywidgets.widgets.widget._remove_buffers  # type: ignore
-
         # Get state with custom serializers properly applied
-        state = widget.get_state()
-        _state_no_buffers, buffer_paths, buffers = _remove_buffers(state)  # type: ignore
+        state: dict[str, Any] = widget.get_state()
+        _state_no_buffers, buffer_paths, buffers = extract_buffer_paths(state)
 
         # Remove widget-specific system traits not needed for the frontend
         ignored_traits = [
@@ -127,8 +127,7 @@ class anywidget(UIElement[T, T]):
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
         def on_change(change: T) -> None:
-            _put_buffers = ipywidgets.widgets.widget._put_buffers  # type: ignore
-            _put_buffers(change, buffer_paths, buffers)
+            insert_buffer_paths(change, buffer_paths, buffers)
             current_state: dict[str, Any] = widget.get_state()
             changed_state: dict[str, Any] = {}
             for k, v in change.items():

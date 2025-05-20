@@ -112,8 +112,8 @@ importers:
         specifier: file:../openapi
         version: file:../openapi
       '@marimo-team/react-slotz':
-        specifier: ^0.1.8
-        version: 0.1.8(react@18.3.1)
+        specifier: ^0.1.10
+        version: 0.1.10(react@18.3.1)
       '@mui/material':
         specifier: ^6.4.11
         version: 6.4.11(@emotion/react@11.14.0(@types/react@18.3.20)(react@18.3.1))(@emotion/styled@11.13.0(@emotion/react@11.14.0(@types/react@18.3.20)(react@18.3.1))(@types/react@18.3.20)(react@18.3.1))(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1584,8 +1584,8 @@ packages:
   '@marimo-team/marimo-api@file:../openapi':
     resolution: {directory: ../openapi, type: directory}
 
-  '@marimo-team/react-slotz@0.1.8':
-    resolution: {integrity: sha512-Lp3EobxEXKoYBv7jpyv6FwnplYxOQTPAFnAjiAOw4PgwL5DvULLCVpxa5C57AQ06e05Ykz57dUVbBE6iYo5+QA==}
+  '@marimo-team/react-slotz@0.1.10':
+    resolution: {integrity: sha512-pK1SjmecMaX2EnINQehw+SdbjOTLAZfgoxKiGqPsmf2vcouoGpJKV0GarBKo+Cko5uQG7Q0ioosVVCK7EBbJWg==}
     peerDependencies:
       react: ^18
 
@@ -10307,7 +10307,7 @@ snapshots:
     dependencies:
       openapi-fetch: 0.9.7
 
-  '@marimo-team/react-slotz@0.1.8(react@18.3.1)':
+  '@marimo-team/react-slotz@0.1.10(react@18.3.1)':
     dependencies:
       mitt: 3.0.1
       react: 18.3.1
