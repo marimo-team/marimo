@@ -20,6 +20,8 @@ import {
   toFieldTypes,
   type ColumnHeaderSummary,
   type FieldTypesWithExternalType,
+  type TooManyRows,
+  TOO_MANY_ROWS,
 } from "@/components/data-table/types";
 import type {
   ColumnFiltersState,
@@ -101,7 +103,7 @@ export interface GetRowResult {
 interface Data<T> {
   label: string | null;
   data: TableData<T>;
-  totalRows: number | "too_many";
+  totalRows: number | TooManyRows;
   pagination: boolean;
   pageSize: number;
   selection: DataTableSelection;
@@ -136,7 +138,7 @@ type DataTableFunctions = {
     max_columns?: number | null;
   }) => Promise<{
     data: TableData<T>;
-    total_rows: number | "too_many";
+    total_rows: number | TooManyRows;
     cell_styles?: CellStyleState | null;
   }>;
   get_data_url?: GetDataUrl;
@@ -155,7 +157,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       ]),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
-      totalRows: z.union([z.number(), z.literal("too_many")]),
+      totalRows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
       selection: z
@@ -232,7 +234,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       .output(
         z.object({
           data: z.union([z.string(), z.array(z.object({}).passthrough())]),
-          total_rows: z.union([z.number(), z.literal("too_many")]),
+          total_rows: z.union([z.number(), z.literal(TOO_MANY_ROWS)]),
           cell_styles: z
             .record(z.record(z.object({}).passthrough()))
             .nullable(),
@@ -388,7 +390,7 @@ export const LoadingDataTableComponent = memo(
     // Data loading
     const { data, loading, error } = useAsyncData<{
       rows: T[];
-      totalRows: number | "too_many";
+      totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
     }>(async () => {
       // If there is no data, return an empty array
@@ -531,7 +533,7 @@ export const LoadingDataTableComponent = memo(
         <DelayMount milliseconds={200}>
           <LoadingTable
             pageSize={
-              props.totalRows !== "too_many" && props.totalRows > 0
+              props.totalRows !== TOO_MANY_ROWS && props.totalRows > 0
                 ? props.totalRows
                 : props.pageSize
             }
@@ -758,11 +760,12 @@ const DataTableComponent = ({
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
        * number of rows, we are likely displaying all the data (could be more, but we don't know the total). */}
-      {totalRows === "too_many" && paginationState.pageSize === data.length && (
-        <Banner className="mb-1 rounded">
-          Previewing the first {paginationState.pageSize} rows.
-        </Banner>
-      )}
+      {totalRows === TOO_MANY_ROWS &&
+        paginationState.pageSize === data.length && (
+          <Banner className="mb-1 rounded">
+            Previewing the first {paginationState.pageSize} rows.
+          </Banner>
+        )}
       {shownColumns < totalColumns && shownColumns > 0 && (
         <Banner className="mb-1 rounded">
           Result clipped. Showing {shownColumns} of {totalColumns} columns.
@@ -782,9 +785,10 @@ const DataTableComponent = ({
           <RowViewerPanel
             getRow={getRow}
             fieldTypes={memoizedUnclampedFieldTypes}
-            totalRows={totalRows === "too_many" ? 100 : totalRows}
+            totalRows={totalRows}
             rowIdx={focusedRowIdx}
             setRowIdx={setFocusedRowIdx}
+            tableData={data}
           />
         </ContextAwarePanelItem>
       )}

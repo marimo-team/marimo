@@ -26,10 +26,12 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   INDEX_COLUMN_NAME,
   SELECT_COLUMN_ID,
+  TOO_MANY_ROWS,
+  type TooManyRows,
   type FieldTypesWithExternalType,
 } from "../types";
 import { prettifyRowCount } from "../pagination";
-import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
+import type { GetRowResult, TableData } from "@/plugins/impl/DataTablePlugin";
 import { NAMELESS_COLUMN_PREFIX } from "../columns";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { Column } from "@tanstack/react-table";
@@ -39,9 +41,10 @@ import { useKeydownOnElement } from "@/hooks/useHotkey";
 export interface RowViewerPanelProps {
   rowIdx: number;
   setRowIdx: (rowIdx: number) => void;
-  totalRows: number;
+  totalRows: number | TooManyRows;
   fieldTypes: FieldTypesWithExternalType | undefined | null;
   getRow: (rowIdx: number) => Promise<GetRowResult>;
+  tableData: TableData<unknown>;
 }
 
 export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
@@ -50,22 +53,30 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   totalRows,
   fieldTypes,
   getRow,
+  tableData,
 }: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const tooManyRows = totalRows === TOO_MANY_ROWS;
+
   const { data: rows, error } = useAsyncData(async () => {
     const data = await getRow(rowIdx);
     return data.rows;
-  }, [getRow, rowIdx, totalRows]);
+  }, [getRow, rowIdx, totalRows, tableData]);
 
   const handleSelectRow = (rowIdx: number) => {
-    if (rowIdx < 0 || rowIdx >= totalRows) {
+    if (rowIdx < 0 || (typeof totalRows === "number" && rowIdx >= totalRows)) {
       return;
     }
     setRowIdx(rowIdx);
   };
+
+  // Total rows may change after the row viewer panel is opened
+  if (!tooManyRows && rowIdx > totalRows) {
+    handleSelectRow(totalRows - 1);
+  }
 
   useKeydownOnElement(panelRef, {
     ArrowLeft: (e) => {
@@ -234,14 +245,16 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           <ChevronLeft />
         </Button>
         <span className="text-xs">
-          Row {rowIdx + 1} of {prettifyRowCount(totalRows)}
+          {tooManyRows
+            ? `Row ${rowIdx + 1}`
+            : `Row ${rowIdx + 1} of ${prettifyRowCount(totalRows)}`}
         </span>
         <Button
           variant="outline"
           size="xs"
           className={buttonStyles}
           onClick={() => handleSelectRow(rowIdx + 1)}
-          disabled={rowIdx === totalRows - 1}
+          disabled={!tooManyRows && rowIdx === totalRows - 1}
           aria-label="Next row"
         >
           <ChevronRight />
@@ -250,7 +263,12 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           variant="outline"
           size="xs"
           className={buttonStyles}
-          onClick={() => handleSelectRow(totalRows - 1)}
+          onClick={() => {
+            if (!tooManyRows) {
+              handleSelectRow(totalRows - 1);
+            }
+          }}
+          disabled={tooManyRows || rowIdx === totalRows - 1}
           aria-label="Go to last row"
         >
           <ChevronsRight />
