@@ -856,17 +856,6 @@ class table(
         """Cached version that expects hashable arguments."""
         return self._apply_filters_query_sort(filters, query, sort)
 
-    def _apply_filters_query_sort_uncached(
-        self,
-        filters: Optional[list[Condition]],
-        query: Optional[str],
-        sort: Optional[SortArgs],
-    ) -> TableManager[Any]:
-        """If the arguments are not hashable, it can be expensive to make them hashable.
-        Hence, we can use the unhashed version.
-        """
-        return self._apply_filters_query_sort(filters, query, sort)
-
     def _apply_filters_query_sort(
         self,
         filters: Optional[list[Condition]],
@@ -1008,7 +997,7 @@ class table(
         filter_function = (
             self._apply_filters_query_sort_cached
             if is_hashable(args.filters, args.query, args.sort)
-            else self._apply_filters_query_sort_uncached
+            else self._apply_filters_query_sort
         )
         result = filter_function(
             tuple(args.filters) if args.filters else None,  # type: ignore
