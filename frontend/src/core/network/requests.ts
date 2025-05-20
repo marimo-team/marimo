@@ -27,6 +27,7 @@ function getRequest(): EditRequests & RunRequests {
 
 export const {
   sendComponentValues,
+  sendModelValue,
   sendRename,
   sendRestart,
   syncCellIds,

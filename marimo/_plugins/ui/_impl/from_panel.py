@@ -17,6 +17,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm, MarimoCommManager
 from marimo._runtime.functions import Function
+from marimo._types.ids import WidgetModelId
 
 if TYPE_CHECKING:
     from panel.viewable import Viewable
@@ -50,7 +51,7 @@ def _get_comm_class() -> type[Any]:
         def __init__(self, *args: Any, **kwargs: Any):
             super().__init__(*args, **kwargs)
             self._comm = MarimoComm(
-                comm_id=str(self.id),
+                comm_id=WidgetModelId(str(self.id)),
                 target_name="panel.comms",
                 data={},
                 comm_manager=COMM_MANAGER,

@@ -370,6 +370,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return response as FileListResponse;
   };
+
   sendComponentValues: RunRequests["sendComponentValues"] = async (request) => {
     await this.putControlRequest({
       ...request,
@@ -483,6 +484,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
       await this.putControlRequest(request);
       return null;
     };
+
+  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
+  };
 
   syncCellIds = () => Promise.resolve(null);
   getUsageStats = throwNotImplemented;

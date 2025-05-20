@@ -1,5 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { sendModelValue } from "@/core/network/requests";
+import { assertNever } from "@/utils/assertNever";
+import { updateBufferPaths } from "@/utils/data-views";
+import { Deferred } from "@/utils/Deferred";
+import { throwNotImplemented } from "@/utils/functions";
+import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import type { AnyModel } from "@anywidget/types";
 import { dequal } from "dequal";
@@ -8,14 +14,63 @@ import { z } from "zod";
 
 export type EventHandler = (...args: any[]) => void;
 
+class ModelManager {
+  private models = new Map<string, Deferred<Model<any>>>();
+
+  constructor(private timeout = 10_000) {}
+
+  get(key: string): Promise<Model<any>> {
+    let deferred = this.models.get(key);
+    if (deferred) {
+      return deferred.promise;
+    }
+
+    // If the model is not yet created, create the new deferred promise without resolving it
+    deferred = new Deferred<Model<any>>();
+    this.models.set(key, deferred);
+
+    // Add timeout to prevent hanging
+    setTimeout(() => {
+      // Already settled
+      if (deferred.status !== "pending") {
+        return;
+      }
+
+      deferred.reject(new Error(`Model not found for key: ${key}`));
+      this.models.delete(key);
+    }, this.timeout);
+
+    return deferred.promise;
+  }
+
+  set(key: string, model: Model<any>): void {
+    let deferred = this.models.get(key);
+    if (!deferred) {
+      deferred = new Deferred<Model<any>>();
+      this.models.set(key, deferred);
+    }
+    deferred.resolve(model);
+  }
+
+  delete(key: string): void {
+    this.models.delete(key);
+  }
+}
+
+export const MODEL_MANAGER = new ModelManager();
+
 export class Model<T extends Record<string, any>> implements AnyModel<T> {
   private ANY_CHANGE_EVENT = "change";
   private dirtyFields;
+  public static _modelManager: ModelManager = MODEL_MANAGER;
 
   constructor(
     private data: T,
     private onChange: (value: Partial<T>) => void,
-    private sendToWidget: (req: { content?: any }) => Promise<null | undefined>,
+    private sendToWidget: (req: {
+      content?: any;
+      buffers?: ArrayBuffer[] | ArrayBufferView[];
+    }) => Promise<null | undefined>,
     initialDirtyFields: Set<keyof T>,
   ) {
     this.dirtyFields = new Set(initialDirtyFields);
@@ -45,14 +100,20 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     if (buffers) {
       Logger.warn("buffers not supported in marimo anywidget.send");
     }
-    this.sendToWidget({ content }).then(callbacks);
+    this.sendToWidget({ content, buffers }).then(callbacks);
   }
 
   widget_manager = {
-    get_model<TT extends Record<string, any>>(
-      _model_id: string,
+    async get_model<TT extends Record<string, any>>(
+      model_id: string,
     ): Promise<AnyModel<TT>> {
-      throw new Error("widget_manager not supported in marimo");
+      const model = await Model._modelManager.get(model_id);
+      if (!model) {
+        throw new Error(
+          `Model not found with id: ${model_id}. This is likely because the model was not registered.`,
+        );
+      }
+      return model;
     },
   };
 
@@ -99,7 +160,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
    * We want to notify all listeners with `msg:custom`
    */
   receiveCustomMessage(message: any, buffers?: DataView[]): void {
-    const response = WidgetMessageSchema.safeParse(message);
+    const response = AnyWidgetMessageSchema.safeParse(message);
     if (response.success) {
       const data = response.data;
       switch (data.method) {
@@ -110,6 +171,9 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
           this.listeners["msg:custom"]?.forEach((cb) =>
             cb(data.content, buffers),
           );
+          break;
+        case "open":
+          this.updateAndEmitDiffs(data.state as T);
           break;
       }
     } else {
@@ -138,10 +202,19 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
   }, 0);
 }
 
-const WidgetMessageSchema = z.union([
+const BufferPathSchema = z.array(z.array(z.union([z.string(), z.number()])));
+const StateSchema = z.record(z.any());
+
+const AnyWidgetMessageSchema = z.discriminatedUnion("method", [
+  z.object({
+    method: z.literal("open"),
+    state: StateSchema,
+    buffer_paths: BufferPathSchema.optional(),
+  }),
   z.object({
     method: z.literal("update"),
-    state: z.record(z.any()),
+    state: StateSchema,
+    buffer_paths: BufferPathSchema.optional(),
   }),
   z.object({
     method: z.literal("custom"),
@@ -149,7 +222,87 @@ const WidgetMessageSchema = z.union([
   }),
   z.object({
     method: z.literal("echo_update"),
-    buffer_paths: z.array(z.array(z.union([z.string(), z.number()]))),
-    state: z.record(z.any()),
+    buffer_paths: BufferPathSchema,
+    state: StateSchema,
+  }),
+  z.object({
+    method: z.literal("close"),
   }),
 ]);
+
+export type AnyWidgetMessage = z.infer<typeof AnyWidgetMessageSchema>;
+
+export function isMessageWidgetState(msg: unknown): msg is AnyWidgetMessage {
+  if (msg == null) {
+    return false;
+  }
+
+  return AnyWidgetMessageSchema.safeParse(msg).success;
+}
+
+export async function handleWidgetMessage(
+  modelId: string,
+  msg: AnyWidgetMessage,
+  buffers: Base64String[],
+  modelManager: ModelManager,
+): Promise<void> {
+  if (msg.method === "echo_update") {
+    // We don't need to do anything with this message
+    return;
+  }
+
+  if (msg.method === "custom") {
+    const model = await modelManager.get(modelId);
+    model.receiveCustomMessage(msg.content);
+    return;
+  }
+
+  if (msg.method === "close") {
+    modelManager.delete(modelId);
+    return;
+  }
+
+  const { method, state, buffer_paths = [] } = msg;
+  const stateWithBuffers = updateBufferPaths(state, buffer_paths, buffers);
+
+  if (method === "open") {
+    const handleDataChange = (changeData: Record<string, any>) => {
+      if (buffer_paths) {
+        Logger.warn(
+          "Changed data with buffer paths may not be supported",
+          changeData,
+        );
+        // TODO: we may want to extract/undo DataView, to get back buffers and buffer_paths
+      }
+      sendModelValue({
+        modelId: modelId,
+        message: {
+          state: changeData,
+          bufferPaths: [],
+        },
+        buffers: [],
+      });
+    };
+
+    const model = new Model(
+      stateWithBuffers,
+      handleDataChange,
+      throwNotImplemented,
+      new Set(),
+    );
+    modelManager.set(modelId, model);
+    return;
+  }
+
+  if (method === "update") {
+    const model = await modelManager.get(modelId);
+    model.updateAndEmitDiffs(stateWithBuffers);
+    return;
+  }
+
+  assertNever(method);
+}
+
+export const visibleForTesting = {
+  ModelManager,
+};

@@ -180,6 +180,7 @@ class DependencyManager:
     openai = Dependency("openai")
     matplotlib = Dependency("matplotlib")
     anywidget = Dependency("anywidget")
+    traitlets = Dependency("traitlets")
     watchdog = Dependency("watchdog")
     ipython = Dependency("IPython")
     ipywidgets = Dependency("ipywidgets")

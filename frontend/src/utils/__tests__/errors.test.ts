@@ -14,6 +14,11 @@ describe("prettyError", () => {
     expect(prettyError(error)).toBe("Detailed error message");
   });
 
+  it("extracts details from Error objects with error", () => {
+    const error = { error: "Detailed error message" };
+    expect(prettyError(error)).toBe("Detailed error message");
+  });
+
   it("extracts details from Error message if JSON", () => {
     const error = new Error('{"detail": "JSON error message"}');
     expect(prettyError(error)).toBe("JSON error message");

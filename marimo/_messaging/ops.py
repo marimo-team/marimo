@@ -54,7 +54,7 @@ from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
-from marimo._types.ids import CellId_t, RequestId
+from marimo._types.ids import CellId_t, RequestId, WidgetModelId
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
@@ -394,9 +394,10 @@ class SendUIElementMessage(Op):
     """Send a message to a UI element."""
 
     name: ClassVar[str] = "send-ui-element-message"
-    ui_element: str
+    ui_element: Optional[str]
+    model_id: Optional[WidgetModelId]
     message: dict[str, Any]
-    buffers: Optional[list[str]]
+    buffers: Optional[list[str]] = None
 
 
 @dataclass

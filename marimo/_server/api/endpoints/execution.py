@@ -15,6 +15,7 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     HTTPRequest,
     PdbRequest,
+    SetModelMessageRequest,
     SetUIElementValueRequest,
 )
 from marimo._server.api.deps import AppState
@@ -69,6 +70,35 @@ async def set_ui_element_values(
             token=str(uuid4()),
             request=HTTPRequest.from_request(request),
         ),
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+
+    return SuccessResponse()
+
+
+@router.post("/set_model_value")
+async def set_model_values(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SetModelMessageRequest"
+    responses:
+        200:
+            description: Set model value
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=SetModelMessageRequest)
+    app_state.require_current_session().put_control_request(
+        body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 

@@ -1785,6 +1785,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/set_model_value": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SetModelMessageRequest"];
+        };
+      };
+      responses: {
+        /** @description Set model value */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/set_ui_element_value": {
     parameters: {
       query?: never;
@@ -3360,9 +3399,10 @@ export interface components {
       message: {
         [key: string]: unknown;
       };
+      model_id?: string | null;
       /** @enum {string} */
       name: "send-ui-element-message";
-      ui_element: string;
+      ui_element?: string | null;
     };
     SetCellConfigRequest: {
       configs: {
@@ -3370,6 +3410,16 @@ export interface components {
           [key: string]: unknown;
         };
       };
+    };
+    SetModelMessageRequest: {
+      buffers?: string[] | null;
+      message: {
+        bufferPaths: (string | number)[][];
+        state: {
+          [key: string]: unknown;
+        };
+      };
+      modelId: string;
     };
     SetUIElementValueRequest: {
       objectIds: string[];

@@ -17,7 +17,7 @@ from uuid import uuid4
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
-from marimo._types.ids import CellId_t, RequestId, UIElementId
+from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
 if TYPE_CHECKING:
     from starlette.datastructures import URL
@@ -354,6 +354,19 @@ class ListSecretKeysRequest:
 
 
 @dataclass
+class ModelMessage:
+    state: dict[str, Any]
+    buffer_paths: list[list[Union[str, int]]]
+
+
+@dataclass
+class SetModelMessageRequest:
+    model_id: WidgetModelId
+    message: ModelMessage
+    buffers: Optional[list[str]] = None
+
+
+@dataclass
 class RefreshSecretsRequest:
     pass
 
@@ -376,6 +389,7 @@ ControlRequest = Union[
     RenameRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
+    SetModelMessageRequest,
     SetUserConfigRequest,
     StopRequest,
 ]
