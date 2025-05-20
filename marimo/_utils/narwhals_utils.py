@@ -180,7 +180,7 @@ def upgrade_narwhals_df(df: nw.DataFrame[Any]) -> nw.DataFrame[Any]: ...
 
 
 @overload
-def upgrade_narwhals_df(df: nw.LazyFrame[Any]) -> nw.DataFrame[Any]: ...
+def upgrade_narwhals_df(df: nw.LazyFrame[Any]) -> nw.LazyFrame[Any]: ...
 
 
 def upgrade_narwhals_df(
@@ -204,5 +204,7 @@ def is_narwhals_lazyframe(df: Any) -> TypeIs[nw.LazyFrame[Any]]:
 def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
     """
     Check if the given object is a narwhals dataframe.
+
+    Checks both v1 and main.
     """
     return isinstance(df, nw.DataFrame) or isinstance(df, nw_main.DataFrame)
