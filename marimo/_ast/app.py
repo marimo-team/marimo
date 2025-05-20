@@ -125,6 +125,13 @@ class _SetupContext:
             )
         self._frame = with_frame
 
+        previous = {**with_frame.f_locals}
+        # A reference to the key app must be maintained in the frame.
+        # This may be a python quirk, so just remove refs to explicit defs
+        for var in self._cell.defs:
+            if var in previous:
+                del self._frame.f_locals[var]
+
     def __exit__(
         self,
         exception: Optional[type[BaseException]],
