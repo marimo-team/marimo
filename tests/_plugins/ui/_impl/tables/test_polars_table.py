@@ -891,27 +891,32 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert "data:image/png" in as_json
 
     def test_lazy_frame(self):
+        import warnings
+
         import polars as pl
 
-        df = pl.LazyFrame(
-            {
-                "A": range(100000),
-                "B": range(100000),
-            }
-        )
-        manager = self.factory.create()(df)
-        assert manager.get_num_columns() == 2
-        assert manager.get_num_rows(force=False) is None
-        assert manager.get_num_rows(force=True) == 100000
-        assert manager.get_field_types() == [
-            ("A", ("integer", "i64")),
-            ("B", ("integer", "i64")),
-        ]
-        assert manager.take(count=10, offset=0).get_num_rows() == 10
+        with warnings.catch_warnings(record=True) as recorded_warnings:
+            df = pl.LazyFrame(
+                {
+                    "A": range(100000),
+                    "B": range(100000),
+                }
+            )
+            manager = self.factory.create()(df)
+            assert manager.get_num_columns() == 2
+            assert manager.get_num_rows(force=False) is None
+            assert manager.get_num_rows(force=True) == 100000
+            assert manager.get_field_types() == [
+                ("A", ("integer", "i64")),
+                ("B", ("integer", "i64")),
+            ]
+            assert manager.take(count=10, offset=0).get_num_rows() == 10
 
-        # This is ok and expected, since we don't support pagination for lazy frames
-        with pytest.raises(TypeError):
-            manager.take(count=10, offset=10)
+            # This is ok and expected, since we don't support pagination for lazy frames
+            with pytest.raises(TypeError):
+                manager.take(count=10, offset=10)
+
+        assert len(recorded_warnings) == 0
 
     def test_to_json_bigint(self) -> None:
         import polars as pl
