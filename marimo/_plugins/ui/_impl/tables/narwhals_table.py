@@ -4,9 +4,9 @@ from __future__ import annotations
 import functools
 import io
 from functools import cached_property
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Union
 
-import narwhals.stable.v1 as nw
+import narwhals as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
@@ -28,7 +28,6 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
-    dataframe_to_csv,
     is_narwhals_integer_type,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
@@ -46,12 +45,17 @@ class NarwhalsTableManager(
 
     @staticmethod
     def from_dataframe(data: IntoFrameT) -> NarwhalsTableManager[IntoFrameT]:
-        return NarwhalsTableManager(nw.from_native(data, strict=True))
+        return NarwhalsTableManager(nw.from_native(data, pass_through=False))
 
     def as_frame(self) -> nw.DataFrame[Any]:
         if isinstance(self.data, nw.LazyFrame):
             return self.data.collect()
         return self.data
+
+    def as_lazy_frame(self) -> nw.LazyFrame[Any]:
+        if isinstance(self.data, nw.LazyFrame):
+            return self.data
+        return self.data.lazy()
 
     def with_new_data(
         self, data: nw.DataFrame[Any] | nw.LazyFrame[Any]
@@ -67,23 +71,13 @@ class NarwhalsTableManager(
         format_mapping: Optional[FormatMapping] = None,
     ) -> str:
         _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data)
+        return _data.write_csv()
 
     def to_json_str(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> str:
-        try:
-            csv_str = self.to_csv_str(format_mapping=format_mapping)
-        except Exception as e:
-            LOGGER.debug(
-                f"Failed to use format mapping: {str(e)}, falling back to default"
-            )
-            csv_str = self.to_csv_str()
-
-        import csv
-
-        csv_reader = csv.DictReader(csv_str.splitlines())
-        return sanitize_json_bigint([row for row in csv_reader])
+        frame = self.apply_formatting(format_mapping).as_frame()
+        return sanitize_json_bigint(frame.rows(named=True))
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()
@@ -96,16 +90,15 @@ class NarwhalsTableManager(
         if not format_mapping:
             return self
 
-        _data = self.as_frame().to_dict(as_series=False).copy()
+        frame = self.as_frame()
+        _data = frame.to_dict(as_series=False).copy()
         for col in _data.keys():
             if col in format_mapping:
                 _data[col] = [
                     format_value(col, x, format_mapping) for x in _data[col]
                 ]
         return NarwhalsTableManager(
-            nw.from_dict(
-                _data, native_namespace=nw.get_native_namespace(self.data)
-            )
+            nw.from_dict(_data, backend=nw.get_native_namespace(frame))
         )
 
     def supports_filters(self) -> bool:
@@ -115,13 +108,14 @@ class NarwhalsTableManager(
         if not indices:
             return self.with_new_data(self.data.head(0))
 
-        df = self.as_frame()
         # Prefer the index column for selections
-        if INDEX_COLUMN_NAME in df.columns:
+        if INDEX_COLUMN_NAME in self.nw_schema.names():
             # Drop the index column before returning
             return self.with_new_data(
-                df.filter(nw.col(INDEX_COLUMN_NAME).is_in(indices))
+                self.data.filter(nw.col(INDEX_COLUMN_NAME).is_in(indices))
             )
+
+        df = self.as_frame()
         return self.with_new_data(df[indices])
 
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
@@ -164,43 +158,25 @@ class NarwhalsTableManager(
     def calculate_top_k_rows(
         self, column: ColumnName, k: int
     ) -> list[tuple[Any, int]]:
-        if isinstance(self.data, nw.LazyFrame):
-            raise ValueError(
-                "Cannot calculate top k rows for lazy frames, please collect the data first"
-            )
-
-        columns = self.get_column_names()
-
-        if column not in columns:
+        frame = self.as_lazy_frame()
+        if column not in self.get_column_names():
             raise ValueError(f"Column {column} not found in table.")
 
-        # Find a column name for the count that doesn't conflict with existing columns
-        chosen_column_name: str | None = None
-        for col in ["count", f"count of {column}", "num_rows"]:
-            if col not in columns:
-                chosen_column_name = col
-                break
-        if chosen_column_name is None:
-            raise ValueError(
-                "Cannot specify a count column name, please rename your column"
-            )
-
-        # column is also sorted to ensure nulls are last
+        _unique_name = "__len_count__"
         result = (
-            self.data.group_by(column)
-            .agg(nw.len().alias(chosen_column_name))
-            .sort(
-                [chosen_column_name, column], descending=True, nulls_last=True
-            )
+            frame.group_by(column)
+            .agg(nw.len().alias(_unique_name))
+            .sort([_unique_name, column], descending=[True, False])
             .head(k)
+            .collect()
         )
 
         return [
             (
-                unwrap_py_scalar(row[column]),
-                int(unwrap_py_scalar(row[chosen_column_name])),
+                unwrap_py_scalar(row[0]),
+                int(unwrap_py_scalar(row[1])),
             )
-            for row in result.iter_rows(named=True)
+            for row in result.rows()
         ]
 
     @staticmethod
@@ -209,7 +185,7 @@ class NarwhalsTableManager(
 
     @cached_property
     def nw_schema(self) -> nw.Schema:
-        return cast(nw.Schema, self.data.collect_schema())
+        return self.data.collect_schema()
 
     def get_field_type(
         self, column_name: str
@@ -302,112 +278,121 @@ class NarwhalsTableManager(
         # If column is not in the dataframe, return an empty summary
         if column not in self.nw_schema:
             return ColumnSummary()
-        data = self.data.select(column)
-        if isinstance(data, nw.LazyFrame):
-            data = data.collect()
 
-        col = data[column]
-        total = col.shape[0]
-        if is_narwhals_string_type(col.dtype):
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-                unique=col.n_unique(),
+        frame = self.data.lazy()
+        col = nw.col(column)
+        dtype = self.nw_schema[column]
+        units: dict[str, str] = {}
+
+        # Base expressions for all types
+        exprs = {
+            "total": nw.len().alias("total"),
+            "nulls": col.null_count(),
+        }
+
+        if is_narwhals_string_type(dtype):
+            exprs["unique"] = col.n_unique()
+        elif dtype == nw.Boolean:
+            exprs.update(
+                {
+                    "true": col.sum(),
+                    "false": nw.len() - col.sum(),
+                }
             )
-        if col.dtype == nw.Boolean:
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-                true=cast(int, col.sum()),
-                false=cast(int, total - col.sum()),
+        elif (dtype == nw.Date) or is_narwhals_time_type(dtype):
+            exprs.update(
+                {
+                    "min": col.min(),
+                    "max": col.max(),
+                }
             )
-        if (col.dtype == nw.Date) or is_narwhals_time_type(col.dtype):
             # Arrow does not support mean or quantile
-            if self.data.implementation.is_pyarrow():
-                return ColumnSummary(
-                    total=total,
-                    nulls=col.null_count(),
-                    min=col.min(),
-                    max=col.max(),
-                )
-
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-                min=col.min(),
-                max=col.max(),
-                mean=col.mean(),
+            if not frame.implementation.is_pyarrow():
+                exprs["mean"] = col.mean()
                 # Quantile not supported on date and time types
-                # median=col.quantile(0.5, interpolation="nearest"),
-            )
-        if col.dtype == nw.Duration and isinstance(col.dtype, nw.Duration):
+                # exprs["median"] = col.quantile(0.5, interpolation="nearest")
+
+        elif dtype == nw.Duration and isinstance(dtype, nw.Duration):
             unit_map = {
                 "ms": (col.dt.total_milliseconds, "ms"),
                 "ns": (col.dt.total_nanoseconds, "ns"),
                 "us": (col.dt.total_microseconds, "μs"),
                 "s": (col.dt.total_seconds, "s"),
             }
-            method, unit = unit_map[col.dtype.time_unit]
+            method, unit = unit_map[dtype.time_unit]
             res = method()
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-                min=str(res.min()) + unit,
-                max=str(res.max()) + unit,
-                mean=str(res.mean()) + unit,
+            exprs.update(
+                {
+                    "min": res.min(),
+                    "max": res.max(),
+                    "mean": res.mean(),
+                }
             )
-        if is_narwhals_temporal_type(col.dtype):
+            units.update(
+                {
+                    "min": unit,
+                    "max": unit,
+                    "mean": unit,
+                }
+            )
+        elif is_narwhals_temporal_type(dtype):
+            exprs.update(
+                {
+                    "min": col.min(),
+                    "max": col.max(),
+                }
+            )
             # Arrow does not support mean or quantile
-            if self.data.implementation.is_pyarrow():
-                return ColumnSummary(
-                    total=total,
-                    nulls=col.null_count(),
-                    min=col.min(),
-                    max=col.max(),
+            if not frame.implementation.is_pyarrow():
+                exprs.update(
+                    {
+                        "mean": col.mean(),
+                        "median": col.quantile(0.5, interpolation="nearest"),
+                        "p5": col.quantile(0.05, interpolation="nearest"),
+                        "p25": col.quantile(0.25, interpolation="nearest"),
+                        "p75": col.quantile(0.75, interpolation="nearest"),
+                        "p95": col.quantile(0.95, interpolation="nearest"),
+                    }
                 )
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-                min=col.min(),
-                max=col.max(),
-                mean=col.mean(),
-                median=col.quantile(0.5, interpolation="nearest"),
-                p5=col.quantile(0.05, interpolation="nearest"),
-                p25=col.quantile(0.25, interpolation="nearest"),
-                p75=col.quantile(0.75, interpolation="nearest"),
-                p95=col.quantile(0.95, interpolation="nearest"),
+        elif is_narwhals_integer_type(dtype):
+            exprs.update(
+                {
+                    "unique": col.n_unique(),
+                    "min": col.min(),
+                    "max": col.max(),
+                    "mean": col.mean(),
+                    "median": col.quantile(0.5, interpolation="nearest"),
+                    "std": col.std(),
+                    "p5": col.quantile(0.05, interpolation="nearest"),
+                    "p25": col.quantile(0.25, interpolation="nearest"),
+                    "p75": col.quantile(0.75, interpolation="nearest"),
+                    "p95": col.quantile(0.95, interpolation="nearest"),
+                }
             )
-        if (
-            col.dtype == nw.List
-            or col.dtype == nw.Struct
-            or col.dtype == nw.Object
-            or col.dtype == nw.Array
-        ):
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
+        elif dtype.is_numeric():
+            exprs.update(
+                {
+                    "min": col.min(),
+                    "max": col.max(),
+                    "mean": col.mean(),
+                    "median": col.quantile(0.5, interpolation="nearest"),
+                    "std": col.std(),
+                    "p5": col.quantile(0.05, interpolation="nearest"),
+                    "p25": col.quantile(0.25, interpolation="nearest"),
+                    "p75": col.quantile(0.75, interpolation="nearest"),
+                    "p95": col.quantile(0.95, interpolation="nearest"),
+                }
             )
-        if col.dtype == nw.Unknown:
-            return ColumnSummary(
-                total=total,
-                nulls=col.null_count(),
-            )
-        return ColumnSummary(
-            total=total,
-            nulls=col.null_count(),
-            unique=(
-                col.n_unique() if is_narwhals_integer_type(col.dtype) else None
-            ),
-            min=col.min(),
-            max=col.max(),
-            mean=col.mean(),
-            median=col.quantile(0.5, interpolation="nearest"),
-            std=col.std(),
-            p5=col.quantile(0.05, interpolation="nearest"),
-            p25=col.quantile(0.25, interpolation="nearest"),
-            p75=col.quantile(0.75, interpolation="nearest"),
-            p95=col.quantile(0.95, interpolation="nearest"),
-        )
+
+        summary = frame.select(**exprs)
+        summary_dict = summary.collect().rows(named=True)[0]
+
+        # Maybe add units to the summary
+        for key, value in summary_dict.items():
+            if key in units:
+                summary_dict[key] = f"{value} {units[key]}"
+
+        return ColumnSummary(**summary_dict)
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows
@@ -435,13 +420,16 @@ class NarwhalsTableManager(
         return column_names
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        frame = self.data.select(nw.col(column))
+        if isinstance(frame, nw.LazyFrame):
+            frame = frame.collect()
         try:
-            return self.data[column].unique().to_list()
+            return frame[column].unique().to_list()
         except BaseException:
             # Catch-all: some libraries like Polars have bugs and raise
             # BaseExceptions, which shouldn't crash the kernel
             # If an exception occurs, try converting to strings first
-            return self.data[column].cast(nw.String).unique().to_list()
+            return frame[column].cast(nw.String).unique().to_list()
 
     def get_sample_values(self, column: str) -> list[str | int | float]:
         # Skip lazy frames

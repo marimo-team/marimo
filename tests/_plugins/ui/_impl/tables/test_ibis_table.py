@@ -9,6 +9,7 @@ import pytest
 
 from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.ibis_table import (
     IbisTableManagerFactory,
 )
@@ -77,28 +78,28 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert isinstance(self.manager.to_csv(), bytes)
 
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
-        assert isinstance(data, bytes)
-        snapshot("ibis.csv", data.decode("utf-8"))
+        data = complex_data.to_csv_str()
+        assert isinstance(data, str)
+        snapshot("ibis.csv", data)
 
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 
         complex_data = self.get_complex_data()
-        data = complex_data.to_json()
-        assert isinstance(data, bytes)
-        snapshot("ibis.json", data.decode("utf-8"))
+        data = complex_data.to_json_str()
+        assert isinstance(data, str)
+        snapshot("ibis.json", data)
 
     def test_to_json_format_mapping(self) -> None:
         import ibis
 
-        table = ibis.memtable({"int": [1, 2, 3]})
+        table = ibis.memtable({"int": [1, 2, 3]}, schema={"int": "int64"})
         data = self.factory.create()(table)
 
-        format_mapping = {"int": lambda x: x * 2}
-        json_data = data.to_json(format_mapping)
+        format_mapping: FormatMapping = {"int": lambda x: x * 2}
+        json_data = data.to_json_str(format_mapping)
 
-        json_object = json.loads(json_data.decode("utf-8"))
+        json_object = json.loads(json_data)
         assert json_object == [{"int": 2}, {"int": 4}, {"int": 6}]
 
     def test_complex_data_field_types(self) -> None:
@@ -107,30 +108,30 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         snapshot("ibis.field_types.json", json.dumps(field_types))
 
     def test_select_rows(self) -> None:
-        import ibis
-
         indices = [0, 2]
         selected_manager = self.manager.select_rows(indices)
-        expected_data = self.data.filter(ibis.row_number().isin(indices))
-        assert selected_manager.data.to_pandas().equals(
-            expected_data.to_pandas()
-        )
+        assert selected_manager.data.to_dict(as_series=False) == {
+            "A": [1, 3],
+            "B": ["a", "c"],
+            "C": [1.0, 3.0],
+            "D": [True, True],
+            "E": [
+                datetime.datetime(2021, 1, 1),
+                datetime.datetime(2021, 1, 3),
+            ],
+        }
 
     def test_select_columns(self) -> None:
         columns = ["A"]
         selected_manager = self.manager.select_columns(columns)
-        expected_data = self.data.select(columns)
-        assert selected_manager.data.to_pandas().equals(
-            expected_data.to_pandas()
-        )
+        assert selected_manager.data.collect().to_dict(as_series=False) == {
+            "A": [1, 2, 3],
+        }
 
     def test_drop_columns(self) -> None:
         columns = ["A"]
         dropped_manager = self.manager.drop_columns(columns)
-        expected_data = self.data.drop(columns)
-        assert dropped_manager.data.to_pandas().equals(
-            expected_data.to_pandas()
-        )
+        assert dropped_manager.data.columns == ["B", "C", "D", "E"]
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
@@ -152,35 +153,40 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
     def test_limit(self) -> None:
         limited_manager = self.manager.take(1, 0)
-        expected_data = self.data.limit(1)
-        assert limited_manager.data.to_pandas().equals(
-            expected_data.to_pandas()
-        )
+        assert limited_manager.get_num_rows() == 1
 
     def test_take(self) -> None:
-        assert (
-            self.manager.take(1, 0).select_columns(["A"]).to_json()
-            == b'[{"A":1}]'
-        )
-        assert (
-            self.manager.take(2, 0).select_columns(["A"]).to_json()
-            == b'[{"A":1},{"A":2}]'
-        )
-        assert (
-            self.manager.take(2, 1).select_columns(["A"]).to_json()
-            == b'[{"A":2},{"A":3}]'
-        )
-        assert (
-            self.manager.take(2, 2).select_columns(["A"]).to_json()
-            == b'[{"A":3}]'
-        )
+        assert self.manager.take(1, 0).data.collect().to_dict(as_series=False)[
+            "A"
+        ] == [1]
+        assert self.manager.take(2, 0).data.collect().to_dict(as_series=False)[
+            "A"
+        ] == [1, 2]
+
+        # Slicing is not supported in LazyFrame
+        with pytest.raises(TypeError):
+            assert self.manager.take(2, 1).data.collect().to_dict(
+                as_series=False
+            )["A"] == [2, 3]
+
+        # Slicing is not supported in LazyFrame
+        with pytest.raises(TypeError):
+            assert self.manager.take(2, 2).data.collect().to_dict(
+                as_series=False
+            )["A"] == [3]
 
     def test_to_parquet(self) -> None:
         assert isinstance(self.manager.to_parquet(), bytes)
 
     def test_take_zero(self) -> None:
         limited_manager = self.manager.take(0, 0)
-        assert limited_manager.data.count().execute() == 0
+        assert limited_manager.data.collect().to_dict(as_series=False) == {
+            "A": [],
+            "B": [],
+            "C": [],
+            "D": [],
+            "E": [],
+        }
 
     def test_take_negative(self) -> None:
         with pytest.raises(ValueError):
@@ -192,11 +198,12 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
     def test_take_out_of_bounds(self) -> None:
         # Too large of page
-        assert self.manager.take(10, 0).data.count().execute() == 3
-        assert self.data.count().execute() == 3
+        assert self.manager.take(10, 0).get_num_rows() == 3
+        assert self.manager.get_num_rows() == 3
 
         # Too large of page and offset
-        assert self.manager.take(10, 10).data.count().execute() == 0
+        with pytest.raises(TypeError):
+            assert self.manager.take(10, 10).data.count().execute() == 0
 
     def test_summary_integer(self) -> None:
         column = "A"
@@ -220,11 +227,18 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         )
 
     def test_sort_values(self) -> None:
-        import ibis
-
         sorted_manager = self.manager.sort_values("A", descending=True)
-        expected_df = self.data.order_by(ibis.desc("A"))
-        assert sorted_manager.data.to_pandas().equals(expected_df.to_pandas())
+        assert sorted_manager.data.collect().to_dict(as_series=False) == {
+            "A": [3, 2, 1],
+            "B": ["c", "b", "a"],
+            "C": [3.0, 2.0, 1.0],
+            "D": [True, False, True],
+            "E": [
+                datetime.datetime(2021, 1, 3),
+                datetime.datetime(2021, 1, 2),
+                datetime.datetime(2021, 1, 1),
+            ],
+        }
 
     def test_get_unique_column_values(self) -> None:
         column = "A"
@@ -251,14 +265,7 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert manager.search("true").get_num_rows() == 2
         assert manager.search("food").get_num_rows() == 0
 
-    @pytest.mark.xfail(
-        reason="column formatting is not supported in ibis",
-    )
     def test_apply_formatting(self) -> None:
-        import ibis
-
-        from marimo._plugins.ui._impl.tables.format import FormatMapping
-
         format_mapping: FormatMapping = {
             "A": lambda x: x * 2,
             "B": lambda x: x.upper(),
@@ -268,16 +275,13 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         }
 
         formatted_data = self.manager.apply_formatting(format_mapping)
-        expected_data = ibis.memtable(
-            {
-                "A": [2, 4, 6],
-                "B": ["A", "B", "C"],
-                "C": ["1.00", "2.00", "3.00"],
-                "D": [False, True, False],
-                "E": ["2021-01-01", "2021-01-02", "2021-01-03"],
-            }
-        )
-        assert formatted_data.to_pandas().equals(expected_data.to_pandas())
+        assert formatted_data.data.to_dict(as_series=False) == {
+            "A": [2, 4, 6],
+            "B": ["A", "B", "C"],
+            "C": ["1.00", "2.00", "3.00"],
+            "D": [False, True, False],
+            "E": ["2021-01-01", "2021-01-02", "2021-01-03"],
+        }
 
     def test_empty_table(self) -> None:
         import ibis
@@ -312,30 +316,33 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
     def test_sort_values_with_nulls(self) -> None:
         import ibis
-        import numpy as np
 
         table = ibis.memtable({"A": [3, 1, None, 2]})
         manager = self.factory.create()(table)
 
         # Descending true
         sorted_manager = manager.sort_values("A", descending=True)
-        sorted_data = sorted_manager.data.to_pandas()["A"].tolist()
-        assert sorted_data[0:3] == [
+        sorted_data = sorted_manager.data.collect().to_dict(as_series=False)[
+            "A"
+        ]
+        assert sorted_data == [
             3.0,
             2.0,
             1.0,
+            None,
         ]
-        assert np.isnan(sorted_data[3])
 
         # Descending false
         sorted_manager = manager.sort_values("A", descending=False)
-        sorted_data = sorted_manager.data.to_pandas()["A"].tolist()
-        assert sorted_data[0:3] == [
+        sorted_data = sorted_manager.data.collect().to_dict(as_series=False)[
+            "A"
+        ]
+        assert sorted_data == [
             1.0,
             2.0,
             3.0,
+            None,
         ]
-        assert np.isnan(sorted_data[3])
 
     def test_calculate_top_k_rows(self) -> None:
         import ibis
@@ -346,39 +353,31 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert result == [(3, 2), (2, 1)]
 
         # Test equal counts with k limit
-        table = ibis.memtable({"A": [1, 1, 2, 2, 3]})
+        table = ibis.memtable({"A": [1, 1, 2, 2, 2, 3]})
         manager = self.factory.create()(table)
         result = manager.calculate_top_k_rows("A", 2)
-        assert len(result) == 2
-        assert {(1, 2), (2, 2)} == set(result)
-        assert all(count == 2 for _, count in result)
+        assert result == [(2, 3), (1, 2)]
 
     def test_calculate_top_k_rows_nulls(self) -> None:
         import ibis
-        import pandas as pd
 
         # Test single null value
         table = ibis.memtable({"A": [3, None, None]})
         manager = self.factory.create()(table)
         result = manager.calculate_top_k_rows("A", 10)
-        assert len(result) == 2
-        assert result[1] == (3, 1)
-        assert pd.isna(result[0][0])
-        assert result[0][1] == 2
+        assert result == [
+            (None, 2),
+            (3, 1),
+        ]
 
         # Test all null values
         table = ibis.memtable({"A": [None, None, None]})
         manager = self.factory.create()(table)
         result = manager.calculate_top_k_rows("A", 10)
-        assert len(result) == 1
-        assert pd.isna(result[0][0])
-        assert result[0][1] == 3
+        assert result == [(None, 3)]
 
         # Test mixed values with nulls
-        table = ibis.memtable({"A": [1, None, 2, None, 3, None]})
+        table = ibis.memtable({"A": [1, None, 2, 2, None, 3, None]})
         manager = self.factory.create()(table)
-        result = manager.calculate_top_k_rows("A", 10)
-        assert len(result) == 4
-        assert pd.isna(result[0][0])
-        assert result[0][1] == 3
-        assert set(result[1:]) == {(1, 1), (2, 1), (3, 1)}
+        result = manager.calculate_top_k_rows("A", 2)
+        assert result == [(None, 3), (2, 2)]

@@ -267,9 +267,8 @@ def _apply_edits_dataframe(
     column_oriented = df.to_dict(as_series=False)
     schema = schema or cast(nw.Schema, df.schema)
     new_data = _apply_edits_column_oriented(column_oriented, edits, schema)
-    native_namespace = nw.get_native_namespace(df)
     new_native_df = nw.from_dict(
-        new_data, native_namespace=native_namespace
+        new_data, backend=nw.get_native_namespace(df)
     ).to_native()
     return new_native_df  # type: ignore[no-any-return]
 

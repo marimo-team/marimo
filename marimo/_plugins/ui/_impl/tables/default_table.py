@@ -292,16 +292,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
         top_k = sorted_grouped[:k]
 
-        chosen_column_name = None
-        for column_name in ["count", "number of rows", "count of rows"]:
-            if column_name not in column_names:
-                chosen_column_name = column_name
-                break
-        if chosen_column_name is None:
-            raise ValueError(
-                "Cannot specify a count column name, please rename your column"
-            )
-
         return [(value, count) for value, count in top_k]
 
     def get_field_type(

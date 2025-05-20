@@ -216,4 +216,9 @@ def sanitize_json_bigint(
     else:
         as_json = data
 
-    return dumps(convert_bigint(as_json), indent=None, separators=(",", ":"))
+    return dumps(
+        convert_bigint(as_json),
+        indent=None,
+        separators=(",", ":"),
+        default=str,
+    )

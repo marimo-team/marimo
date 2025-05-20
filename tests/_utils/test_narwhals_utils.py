@@ -11,7 +11,6 @@ from marimo._utils.narwhals_utils import (
     assert_narwhals_series,
     can_narwhalify,
     can_narwhalify_lazyframe,
-    dataframe_to_csv,
     empty_df,
     is_narwhals_integer_type,
     is_narwhals_string_type,
@@ -72,18 +71,6 @@ def test_can_narwhalify():
     assert can_narwhalify([1, 2, 3]) is False
     assert can_narwhalify({"a": 1, "b": 2}) is False
     assert can_narwhalify(pl.DataFrame({"a": [1, 2, 3]})) is True
-
-
-@pytest.mark.parametrize(
-    "df", create_dataframes({"a": [1, 2], "b": ["x", "y"]})
-)
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_dataframe_to_csv(df: IntoDataFrame) -> None:
-    df_wrapped = nw.from_native(df)
-    csv = dataframe_to_csv(df_wrapped)
-    assert '"a","b"' in csv or "a,b" in csv
-    assert '1,"x"' in csv or "1,x" in csv
-    assert '2,"y"' in csv or "2,y" in csv
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

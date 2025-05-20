@@ -25,6 +25,7 @@ from marimo._utils.narwhals_utils import unwrap_py_scalar
 from tests._data.mocks import (
     EAGER_LIBS,
     NON_EAGER_LIBS,
+    DFType,
     create_dataframes,
 )
 from tests.mocks import snapshotter
@@ -32,6 +33,14 @@ from tests.mocks import snapshotter
 HAS_DEPS = DependencyManager.polars.has()
 
 snapshot = snapshotter(__file__)
+
+SUPPORTED_LIBS: list[DFType] = [
+    "pandas",
+    "polars",
+    "ibis",
+    "lazy-polars",
+    "pyarrow",
+]
 
 
 def assert_frame_equal(a: Any, b: Any) -> None:
@@ -146,21 +155,18 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
     )
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
-        assert isinstance(data, bytes)
-        snapshot("narwhals.csv", data.decode("utf-8"))
+        data = complex_data.to_csv_str()
+        assert isinstance(data, str)
+        snapshot("narwhals.csv", data)
 
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 
-    @pytest.mark.xfail(
-        reason="Narwhals (polars) doesn't support writing nested lists to csv"
-    )
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_json()
-        assert isinstance(data, bytes)
-        snapshot("narwhals.json", data.decode("utf-8"))
+        data = complex_data.to_json_str()
+        assert isinstance(data, str)
+        snapshot("narwhals.json", data)
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
@@ -724,31 +730,34 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         )
         assert_frame_equal(formatted_data, expected_data)
 
-    def test_to_json_bigint(self) -> None:
-        import polars as pl
 
-        data = pl.DataFrame(
-            {
-                "A": [
-                    20,
-                    9007199254740992,
-                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
-                "B": [
-                    -20,
-                    -9007199254740992,
-                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
-            }
-        )
-        manager = NarwhalsTableManager.from_dataframe(data)
-        json_data = json.loads(manager.to_json())
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [
+                20,
+                9007199254740992,
+            ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+            "B": [
+                -20,
+                -9007199254740992,
+            ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+        },
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_to_json_bigint(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    json_data = json.loads(manager.to_json())
 
-        # These get converted to strings because narwhals uses csv parsing
-        assert json_data[0]["A"] == "20"
-        assert json_data[0]["B"] == "-20"
+    assert json_data[0]["A"] == 20
+    assert json_data[0]["B"] == -20
 
-        # Large integers should be converted to strings
-        assert json_data[1]["A"] == "9007199254740992"
-        assert json_data[1]["B"] == "-9007199254740992"
+    # Large integers should be converted to strings
+    assert json_data[1]["A"] == "9007199254740992"
+    assert json_data[1]["B"] == "-9007199254740992"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -800,17 +809,10 @@ def test_to_json(df: Any) -> None:
     assert isinstance(manager.to_json(), bytes)
 
 
-@pytest.mark.xfail(
-    reason="Format mapping is not supported when converting to JSON"
-)
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes(
-        {
-            "A": [1, 2, 3],
-        }
-    ),
+    create_dataframes({"A": [1, 2, 3]}),
 )
 def test_to_json_format_mapping(df: Any) -> None:
     format_mapping = {"A": lambda x: x * 2}
@@ -1049,22 +1051,22 @@ def test_get_sample_values(df: Any) -> None:
     "df",
     create_dataframes(
         {
-            "A": [1, 2, 3, 3, None, None],
-            "B": [4, 5, 6, 6, None, None],
+            "A": [1, 2, 3, 3, 3, None, None],
+            "B": [4, 5, 6, 6, 6, None, None],
         },
-        include=["pandas", "polars"],
+        include=SUPPORTED_LIBS,
     ),
 )
 def test_calculate_top_k_rows(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 2), (None, 2), (2, 1), (1, 1)]
+    assert normalized_result == [(3, 3), (None, 2), (1, 1), (2, 1)]
 
     # Test with limit
     result = manager.calculate_top_k_rows("A", 2)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 2), (None, 2)]
+    assert normalized_result == [(3, 3), (None, 2)]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1072,7 +1074,7 @@ def test_calculate_top_k_rows(df: Any) -> None:
     "df",
     create_dataframes(
         {"count": [1, 2, 3, 3, None, None]},
-        include=["pandas", "polars"],
+        include=SUPPORTED_LIBS,
     ),
 )
 def test_calculate_top_k_rows_conflicting_colname(df: Any) -> None:
@@ -1081,32 +1083,7 @@ def test_calculate_top_k_rows_conflicting_colname(df: Any) -> None:
     # Test original column A
     result_a = manager.calculate_top_k_rows("count", 10)
     normalized_result_a = _normalize_result(result_a)
-    assert normalized_result_a == [(3, 2), (None, 2), (2, 1), (1, 1)]
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_calculate_top_k_rows_lazy_frame() -> None:
-    import polars as pl
-
-    df = pl.DataFrame({"A": [1, 2, 3, 3, None, None]}).lazy()
-    manager = NarwhalsTableManager.from_dataframe(df)
-    with pytest.raises(
-        ValueError, match="Cannot calculate top k rows for lazy frames"
-    ):
-        manager.calculate_top_k_rows("A", 10)
-
-
-@pytest.mark.xfail(
-    reason="Narwhals doesn't support group_by for metadata-only frames"
-)
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_calculate_top_k_rows_metadata_only_frame() -> None:
-    import ibis
-
-    df = ibis.memtable({"A": [1, 2, 3, 3, None, None]})
-    manager = NarwhalsTableManager.from_dataframe(df)
-    result = manager.calculate_top_k_rows("A", 10)
-    assert result == [(3, 2), (None, 2), (2, 1), (1, 1)]
+    assert normalized_result_a == [(None, 2), (3, 2), (1, 1), (2, 1)]
 
 
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
@@ -1234,52 +1211,55 @@ def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-class TestCalculateTopKRowsCaching(unittest.TestCase):
-    def setUp(self) -> None:
-        import polars as pl
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"name": ["Alice", "Eve", None], "age": [25, 35, None]}),
+)
+def test_calculate_top_k_rows_caching(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    """Test that calculate_top_k_rows caching works correctly."""
+    # First call should compute the result
+    result1 = manager.calculate_top_k_rows("name", 10)
 
-        self.data = pl.DataFrame(
-            {"name": ["Alice", "Eve", None], "age": [25, 35, None]}
-        )
-        self.manager = NarwhalsTableManager.from_dataframe(self.data)
+    # Second call with same args should use cache and return same object
+    result2 = manager.calculate_top_k_rows("name", 10)
+    assert result1 is result2
 
-    def test_calculate_top_k_rows_caching(self) -> None:
-        """Test that calculate_top_k_rows caching works correctly."""
-        # First call should compute the result
-        result1 = self.manager.calculate_top_k_rows("name", 10)
+    # Different k value should compute new result
+    result3 = manager.calculate_top_k_rows("name", 5)
+    assert result3 is not result1
 
-        # Second call with same args should use cache and return same object
-        result2 = self.manager.calculate_top_k_rows("name", 10)
-        assert result1 is result2
+    # Different column name should compute new result
+    result4 = manager.calculate_top_k_rows("age", 10)
+    assert result4 is not result1
 
-        # Different k value should compute new result
-        result3 = self.manager.calculate_top_k_rows("name", 5)
-        assert result3 is not result1
 
-        # Different column name should compute new result
-        result4 = self.manager.calculate_top_k_rows("age", 10)
-        assert result4 is not result1
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"name": ["Alice", "Eve", None], "age": [25, 35, None]}),
+)
+def test_calculate_top_k_rows_cache_invalidation(df: Any) -> None:
+    """Test that cache is properly invalidated when data changes."""
+    manager = NarwhalsTableManager.from_dataframe(df)
 
-    def test_calculate_top_k_rows_cache_invalidation(self) -> None:
-        """Test that cache is properly invalidated when data changes."""
-        # Initial calculation
-        result1 = self.manager.calculate_top_k_rows("name", 2)
+    # Initial calculation
+    result1 = manager.calculate_top_k_rows("name", 2)
 
-        # Modify the data
-        import polars as pl
+    # Modify the data
+    new_data = nw.from_dict(
+        {
+            "name": ["Alice", "Alice", "Eve", "Bob", None],
+        },
+        backend=nw.get_native_namespace(manager.as_frame()),
+    )
 
-        new_data = pl.DataFrame(
-            {
-                "name": ["Alice", "Eve", "Bob", None],
-            }
-        )
+    # Create a new manager with the new data
+    manager = NarwhalsTableManager.from_dataframe(new_data)
 
-        # Create a new manager with the new data
-        self.manager = NarwhalsTableManager.from_dataframe(new_data)
+    # New calculation should be performed and return different result
+    result2 = manager.calculate_top_k_rows("name", 2)
+    assert result2 is not result1  # Different result due to data change
 
-        # New calculation should be performed and return different result
-        result2 = self.manager.calculate_top_k_rows("name", 2)
-        assert result2 is not result1  # Different result due to data change
-
-        # Verify the actual results are different
-        assert result1 != result2
+    # Verify the actual results are different
+    assert result1 != result2
