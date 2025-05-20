@@ -70,6 +70,7 @@ class date(UIElement[str, dt.date]):
         label (str, optional): Markdown label for the element.
         on_change (Callable[[datetime.date], None], optional): Optional callback to run when this element's value changes.
         full_width (bool, optional): Whether the input should take up the full width of its container.
+        disabled (bool, optional): Whether the input should be disabled.
     """
 
     _name: Final[str] = "marimo-date"
@@ -85,6 +86,7 @@ class date(UIElement[str, dt.date]):
         label: str = "",
         on_change: Optional[Callable[[dt.date], None]] = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         if isinstance(start, str):
             start = self._convert_value(start)
@@ -125,6 +127,7 @@ class date(UIElement[str, dt.date]):
                 "start": self._start.isoformat(),
                 "stop": self._stop.isoformat(),
                 "full-width": full_width,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
