@@ -471,11 +471,25 @@ class ScopedVisitor(ast.NodeVisitor):
             # The unbounded defs are carried from the recursive visitor
             # excluding all references found in exclusively in scope.
             ignore_refs = set()
+            class_def: set[Name] = set()
             for var in mock_visitor.variable_data:
                 for data in mock_visitor.variable_data[var]:
                     if data.kind in ("function", "class"):
-                        unbounded_refs |= data.unbounded_refs
+                        unbounded_refs |= data.unbounded_refs - class_def
                         ignore_refs |= data.required_refs
+                        # class def is captured because the following is valid:
+                        # >>> class C:
+                        # >>>     A = 1
+                        # >>>     B = A + 1
+                        # >>>     @property
+                        # >>>     def prop(self): ...
+                        # >>>     @prop.setter
+                        # >>>     def prop(self, value): ...
+                        #
+                        # - even though these variables only live in scope of
+                        # the class definition.
+                        # Thus, if it has been declared, it's not "unbounded"
+                        class_def.add(var)
                     else:
                         unbounded_refs |= data.required_refs
                 unbounded_refs |= mock_visitor.refs - ignore_refs

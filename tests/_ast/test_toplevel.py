@@ -480,7 +480,7 @@ class TestTopLevelClasses:
             @property
             def prop(self) -> int:
                 return 1
-            
+
             @prop.setter
             def prop(self, value: int) -> None:
                 pass
