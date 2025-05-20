@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union, overload
 
+import narwhals as nw_main
 import narwhals.dtypes as nw_dtypes
 import narwhals.stable.v1 as nw
 
@@ -17,15 +18,16 @@ else:
 
 if TYPE_CHECKING:
     from narwhals.typing import IntoFrame
+    from typing_extensions import TypeIs
 
 
 def empty_df(native_df: IntoFrame) -> IntoFrame:
     """
     Get an empty dataframe with the same schema as the given dataframe.
     """
-    if can_narwhalify(native_df, eager_only=True):
-        df = nw.from_native(native_df, eager_only=True)
-        return df[[]].to_native()
+    if can_narwhalify(native_df):
+        df = nw.from_native(native_df)
+        return df.head(0).to_native()
     return native_df
 
 
@@ -33,7 +35,7 @@ def assert_narwhals_dataframe(df: nw.DataFrame[Any]) -> None:
     """
     Assert that the given dataframe is a valid narwhals dataframe.
     """
-    if not isinstance(df, nw.DataFrame):
+    if not is_narwhals_dataframe(df):
         raise ValueError(f"Unsupported dataframe type. Got {type(df)}")
 
 
@@ -74,17 +76,11 @@ def dataframe_to_csv(df: IntoFrame) -> str:
     """
     assert_can_narwhalify(df)
     df = nw.from_native(df, strict=True)
-    if isinstance(df, nw.LazyFrame):
-        return str(df.collect().write_csv())
-    if nw.get_level(df) == "interchange":
-        # `write_csv` isn't supported by interchange-level-only
-        # DataFrames, so we convert to PyArrow in this case
-        csv_str = nw.from_native(df.to_arrow(), eager_only=True).write_csv()
+    df = upgrade_narwhals_df(df)
+    if is_narwhals_lazyframe(df):
+        return df.collect().write_csv()
     else:
-        csv_str = df.write_csv()
-    if isinstance(csv_str, bytes):
-        return csv_str.decode("utf-8")
-    return str(csv_str)
+        return df.write_csv()
 
 
 def is_narwhals_integer_type(
@@ -134,9 +130,9 @@ def unwrap_narwhals_dataframe(df: Any) -> Any:
     """
     Unwrap a narwhals dataframe.
     """
-    if isinstance(df, nw.DataFrame):
+    if is_narwhals_dataframe(df):
         return df.to_native()  # type: ignore[return-value]
-    if isinstance(df, nw.LazyFrame):
+    if is_narwhals_lazyframe(df):
         return df.to_native()  # type: ignore[return-value]
     return df
 
@@ -177,3 +173,38 @@ def can_narwhalify_lazyframe(df: Any) -> TypeGuard[Any]:
 
         return isinstance(df, duckdb.DuckDBPyRelation)
     return False
+
+
+@overload
+def upgrade_narwhals_df(df: nw.DataFrame[Any]) -> nw.DataFrame[Any]: ...
+
+
+@overload
+def upgrade_narwhals_df(df: nw.LazyFrame[Any]) -> nw.LazyFrame[Any]: ...
+
+
+def upgrade_narwhals_df(
+    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
+) -> Union[nw.DataFrame[Any], nw.LazyFrame[Any]]:
+    """
+    Upgrade a narwhals dataframe to the latest version.
+    """
+    return nw_main.from_native(df.to_native())  # type: ignore[no-any-return]
+
+
+def is_narwhals_lazyframe(df: Any) -> TypeIs[nw.LazyFrame[Any]]:
+    """
+    Check if the given object is a narwhals lazyframe.
+
+    Checks both v1 and main.
+    """
+    return isinstance(df, nw.LazyFrame) or isinstance(df, nw_main.LazyFrame)
+
+
+def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
+    """
+    Check if the given object is a narwhals dataframe.
+
+    Checks both v1 and main.
+    """
+    return isinstance(df, nw.DataFrame) or isinstance(df, nw_main.DataFrame)
