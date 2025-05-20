@@ -31,7 +31,7 @@ import {
   type FieldTypesWithExternalType,
 } from "../types";
 import { prettifyRowCount } from "../pagination";
-import type { GetRowResult, TableData } from "@/plugins/impl/DataTablePlugin";
+import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
 import { NAMELESS_COLUMN_PREFIX } from "../columns";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { Column } from "@tanstack/react-table";
@@ -44,7 +44,6 @@ export interface RowViewerPanelProps {
   totalRows: number | TooManyRows;
   fieldTypes: FieldTypesWithExternalType | undefined | null;
   getRow: (rowIdx: number) => Promise<GetRowResult>;
-  tableData: TableData<unknown>;
 }
 
 export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
@@ -53,7 +52,6 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   totalRows,
   fieldTypes,
   getRow,
-  tableData,
 }: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -64,7 +62,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   const { data: rows, error } = useAsyncData(async () => {
     const data = await getRow(rowIdx);
     return data.rows;
-  }, [getRow, rowIdx, totalRows, tableData]);
+  }, [getRow, rowIdx, totalRows]);
 
   const handleSelectRow = (rowIdx: number) => {
     if (rowIdx < 0 || (typeof totalRows === "number" && rowIdx >= totalRows)) {

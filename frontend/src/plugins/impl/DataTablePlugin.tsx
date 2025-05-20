@@ -788,7 +788,6 @@ const DataTableComponent = ({
             totalRows={totalRows}
             rowIdx={focusedRowIdx}
             setRowIdx={setFocusedRowIdx}
-            tableData={data}
           />
         </ContextAwarePanelItem>
       )}
