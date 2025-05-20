@@ -130,7 +130,7 @@ def file(path: Path | str) -> FileState:
     Warning:
         It is possible to misuse this API in similar ways to `state()`. Consider
         reading the warning and caveats in the
-        [`state()` documentation](../state), and using this function only when
+        [`state()` documentation](state.md), and using this function only when
         reading file paths, and not when writing them.
 
     Args:
