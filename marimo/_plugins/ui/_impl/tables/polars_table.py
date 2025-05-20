@@ -56,6 +56,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @cached_property
             def schema(self) -> dict[str, pl.DataType]:
+                if isinstance(self._original_data, pl.LazyFrame):
+                    # Less expensive operation
+                    return self._original_data.collect_schema()
                 return self._original_data.schema
 
             def to_arrow_ipc(self) -> bytes:
