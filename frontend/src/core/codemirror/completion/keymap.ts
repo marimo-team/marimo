@@ -6,6 +6,7 @@ import {
 } from "@codemirror/autocomplete";
 import { keymap } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
+import { isInVimMode } from "../utils";
 
 export function completionKeymap(): Extension {
   const withoutEscape = defaultCompletionKeymap.filter(
@@ -13,9 +14,12 @@ export function completionKeymap(): Extension {
   );
 
   const closeCompletionAndPropagate = (view: EditorView) => {
-    closeCompletion(view);
-    // Return false to propagate the Escape key
-    return false;
+    const status = closeCompletion(view);
+    // When in vim mode, we need to propagate Escape to exit insert mode.
+    if (isInVimMode(view)) {
+      return false;
+    }
+    return status;
   };
 
   return Prec.highest(

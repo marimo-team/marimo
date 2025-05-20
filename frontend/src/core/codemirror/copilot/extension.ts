@@ -1,17 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   Compartment,
+  Prec,
   type EditorState,
   type Extension,
   type Text,
 } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import {
   COPILOT_FILENAME,
   LANGUAGE_ID,
   copilotServer,
   getCopilotClient,
 } from "./client";
-import { inlineCompletion } from "@marimo-team/codemirror-ai";
+import {
+  inlineCompletion,
+  rejectInlineCompletion,
+} from "@marimo-team/codemirror-ai";
 import {
   copilotPlugin as codeiumCopilotPlugin,
   Language,
@@ -29,6 +34,7 @@ import { languageAdapterState } from "../language/extension";
 import { API } from "@/core/network/api";
 import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
 import type { EditorView } from "@codemirror/view";
+import { isInVimMode } from "../utils";
 
 const copilotCompartment = new Compartment();
 
@@ -148,6 +154,21 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   return [
     ...extensions,
+    Prec.highest(
+      keymap.of([
+        {
+          key: "Escape",
+          run: (view: EditorView) => {
+            const status = rejectInlineCompletion(view);
+            // When in vim mode, we need to propagate escape to exit insert mode.
+            if (isInVimMode(view)) {
+              return false;
+            }
+            return status;
+          },
+        },
+      ]),
+    ),
     // place in own compartment so it doesn't interfere with other LSP
     copilotCompartment.of(copilotServer()),
   ];
