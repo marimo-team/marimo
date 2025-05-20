@@ -57,12 +57,23 @@ export const ContextAwarePanel: React.FC = () => {
         </Tooltip>
         <Tooltip
           content={
-            <div className="flex flex-col gap-1">
-              <span>Follow focused table</span>
-              <span className="text-xs text-muted-foreground">
-                The panel updates as other tables are focused
-              </span>
-            </div>
+            isCellAware ? (
+              <div className="flex flex-col gap-1">
+                <span>Follow focused table</span>
+                <span className="text-xs text-muted-foreground w-64">
+                  The panel updates as cells that output tables are focused.
+                  Click to fix to the current cell.
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <span>Focus on current table</span>
+                <span className="text-xs text-muted-foreground w-64">
+                  The panel is focused on the current table. Click to update
+                  based on which cell is focused.
+                </span>
+              </div>
+            )
           }
         >
           <Toggle
