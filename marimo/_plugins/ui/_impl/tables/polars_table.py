@@ -188,7 +188,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def is_type(value: Any) -> bool:
-                return isinstance(value, pl.DataFrame)
+                return isinstance(value, (pl.DataFrame, pl.LazyFrame))
 
             def search(self, query: str) -> PolarsTableManager:
                 query = query.lower()
