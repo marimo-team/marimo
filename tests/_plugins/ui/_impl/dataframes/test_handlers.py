@@ -562,12 +562,9 @@ class TestTransformHandler:
     @pytest.mark.parametrize(
         ("df", "expected"),
         [
-            pytest.param(
+            (
                 pl.DataFrame({"A": [[1, 2], [3, 4]]}),
                 pl.DataFrame({"A": [[1, 2]]}),
-                marks=pytest.mark.xfail(
-                    reason="Polars doesn't yet support list values in filter"
-                ),
             ),
             (
                 pd.DataFrame({"A": [[1, 2], [3, 4]]}),
@@ -620,6 +617,34 @@ class TestTransformHandler:
             where=[
                 Condition(
                     column_id="A", operator="in", value=[{"a": 1, "b": 2}]
+                )
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.xfail(
+        reason="Filtering dicts with None values is not yet supported"
+    )
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            (
+                pl.DataFrame({"A": [{"a": 1, "b": None}, {"a": 3, "b": 4}]}),
+                pl.DataFrame({"A": [{"a": 1, "b": None}]}),
+            ),
+        ],
+    )
+    def test_filter_rows_in_operator_dicts_with_nulls(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="A", operator="in", value=[{"a": 1, "b": None}]
                 )
             ],
         )

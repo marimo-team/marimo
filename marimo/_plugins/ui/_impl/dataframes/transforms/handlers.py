@@ -334,7 +334,6 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
                 condition_expr = column.str.ends_with(value_str)
             elif condition.operator == "in":
                 # is_in doesn't support None values, so we need to handle them separately
-                # Lists aren't yet supported, https://github.com/pola-rs/polars/issues/14830
                 if value is not None and None in value:
                     condition_expr = column.is_in(value) | column.is_null()
                 else:
