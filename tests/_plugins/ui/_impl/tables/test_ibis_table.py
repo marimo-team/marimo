@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.ibis_table import (
     IbisTableManagerFactory,
@@ -198,10 +198,10 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         # Too large of page and offset
         assert self.manager.take(10, 10).data.count().execute() == 0
 
-    def test_summary_integer(self) -> None:
+    def test_stats_integer(self) -> None:
         column = "A"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             min=1,
@@ -211,10 +211,10 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             std=1.0,
         )
 
-    def test_summary_string(self) -> None:
+    def test_stats_string(self) -> None:
         column = "B"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
         )
@@ -291,9 +291,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
         table = ibis.memtable({"A": [1, 2, 3], "B": [None, None, None]})
         manager = self.factory.create()(table)
-        summary = manager.get_summary("B")
-        assert summary.nulls == 3
-        assert summary.total == 3
+        stats = manager.get_stats("B")
+        assert stats.nulls == 3
+        assert stats.total == 3
 
     def test_table_with_mixed_types(self) -> None:
         import ibis

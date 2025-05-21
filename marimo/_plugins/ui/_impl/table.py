@@ -18,7 +18,7 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.models import NonNestedLiteral
+from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
@@ -75,23 +75,9 @@ class DownloadAsArgs:
 
 
 @dataclass
-class ColumnSummary:
-    column: str
-    nulls: Optional[int]
-    # int, float, datetime
-    min: Optional[NonNestedLiteral]
-    max: Optional[NonNestedLiteral]
-    # str
-    unique: Optional[int]
-    # bool
-    true: Optional[NonNestedLiteral] = None
-    false: Optional[NonNestedLiteral] = None
-
-
-@dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
-    summaries: list[ColumnSummary]
+    stats: dict[ColumnName, ColumnStats]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
@@ -773,7 +759,7 @@ class table(
         if not self._show_column_summaries:
             return ColumnSummaries(
                 data=None,
-                summaries=[],
+                stats={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -786,33 +772,21 @@ class table(
         if total_rows > self._column_summary_row_limit:
             return ColumnSummaries(
                 data=None,
-                summaries=[],
+                stats={},
                 is_disabled=True,
             )
 
-        # Get column summaries if not chart-only mode
-        summaries: list[ColumnSummary] = []
+        # Get column stats if not chart-only mode
+        stats: dict[ColumnName, ColumnStats] = {}
         if self._show_column_summaries != "chart":
             for column in self._manager.get_column_names():
                 try:
-                    summary = self._searched_manager.get_summary(column)
-                    summaries.append(
-                        ColumnSummary(
-                            column=column,
-                            nulls=summary.nulls,
-                            min=summary.min,
-                            max=summary.max,
-                            unique=summary.unique,
-                            true=summary.true,
-                            false=summary.false,
-                        )
-                    )
+                    statistic = self._searched_manager.get_stats(column)
+                    stats[column] = statistic
                 except BaseException:
                     # Catch-all: some libraries like Polars have bugs and raise
                     # BaseExceptions, which shouldn't crash the kernel
-                    LOGGER.warning(
-                        "Failed to get summary for column %s", column
-                    )
+                    LOGGER.warning("Failed to get stats for column %s", column)
 
         # If we are above the limit to show charts,
         # or if we are in stats-only mode,
@@ -826,7 +800,7 @@ class table(
 
         return ColumnSummaries(
             data=chart_data,
-            summaries=summaries,
+            stats=stats,
             is_disabled=False,
         )
 

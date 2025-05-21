@@ -267,7 +267,7 @@ components:
       - document
       - cellId
       type: object
-    ColumnSummary:
+    ColumnStats:
       properties:
         'false':
           nullable: true
@@ -425,8 +425,8 @@ components:
           enum:
           - data-column-preview
           type: string
-        summary:
-          $ref: '#/components/schemas/ColumnSummary'
+        stats:
+          $ref: '#/components/schemas/ColumnStats'
           nullable: true
         table_name:
           type: string
@@ -2572,7 +2572,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.10
+  version: 0.13.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

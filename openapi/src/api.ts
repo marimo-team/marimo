@@ -2570,7 +2570,7 @@ export interface components {
       document: string;
       id: string;
     };
-    ColumnSummary: {
+    ColumnStats: {
       false?: number | null;
       max?: components["schemas"]["NonNestedLiteral"];
       mean?: components["schemas"]["NonNestedLiteral"];
@@ -2626,7 +2626,7 @@ export interface components {
       missing_packages?: string[] | null;
       /** @enum {string} */
       name: "data-column-preview";
-      summary?: components["schemas"]["ColumnSummary"];
+      stats?: components["schemas"]["ColumnStats"];
       table_name: string;
     };
     DataSourceConnection: {

@@ -5,7 +5,7 @@ import functools
 from typing import Any, Optional
 
 from marimo._data.models import (
-    ColumnSummary,
+    ColumnStats,
     ExternalDataType,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -142,21 +142,21 @@ class IbisTableManagerFactory(TableManagerFactory):
 
                 return IbisTableManager(filtered)
 
-            def get_summary(self, column: str) -> ColumnSummary:
+            def get_stats(self, column: str) -> ColumnStats:
                 col = self.data[column]
                 total = self.data.count().execute()
                 nulls = col.isnull().sum().execute()
 
-                summary = ColumnSummary(total=total, nulls=nulls)
+                stats = ColumnStats(total=total, nulls=nulls)
 
                 if col.type().is_numeric():
-                    summary.min = col.min().execute()
-                    summary.max = col.max().execute()
-                    summary.mean = col.mean().execute()
-                    summary.median = col.median().execute()
-                    summary.std = col.std().execute()
+                    stats.min = col.min().execute()
+                    stats.max = col.max().execute()
+                    stats.mean = col.mean().execute()
+                    stats.median = col.median().execute()
+                    stats.std = col.std().execute()
 
-                return summary
+                return stats
 
             @memoize_last_value
             def get_num_rows(self, force: bool = True) -> Optional[int]:

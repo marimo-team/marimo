@@ -9,7 +9,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -311,8 +311,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_integer(self) -> None:
         column = "A"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -329,8 +329,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_string(self) -> None:
         column = "B"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -338,8 +338,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_number(self) -> None:
         column = "C"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             min=1.0,
@@ -355,8 +355,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_boolean(self) -> None:
         column = "D"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             true=2,
@@ -365,8 +365,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_datetime(self) -> None:
         column = "E"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             min=datetime.datetime(2021, 1, 1, 0, 0),
@@ -384,8 +384,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             }
         )
         manager = NarwhalsTableManager.from_dataframe(data)
-        summary = manager.get_summary("A")
-        assert summary == ColumnSummary(
+        summary = manager.get_stats("A")
+        assert summary == ColumnStats(
             total=2,
             nulls=0,
             min=datetime.date(2021, 1, 1),
@@ -397,7 +397,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
     def test_summary_does_fail_on_each_column(self) -> None:
         complex_data = self.get_complex_data()
         for column in complex_data.get_column_names():
-            assert complex_data.get_summary(column) is not None
+            assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
@@ -847,7 +847,7 @@ def test_empty_dataframe(df: Any) -> None:
 )
 def test_dataframe_with_all_null_column(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    summary = manager.get_summary("B")
+    summary = manager.get_stats("B")
     assert summary.nulls == 3
     assert summary.total == 3
 
@@ -901,8 +901,8 @@ def test_get_summary_all_types() -> None:
 
         for column in manager.get_column_names():
             try:
-                summary = manager._get_summary_internal(column)
-                assert isinstance(summary, ColumnSummary)
+                summary = manager._get_stats_internal(column)
+                assert isinstance(summary, ColumnStats)
                 assert summary.total == 3
             except Exception as e:
                 error_count += 1

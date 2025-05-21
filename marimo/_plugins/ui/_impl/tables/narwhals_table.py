@@ -10,7 +10,7 @@ import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
-from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._data.models import ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
@@ -264,8 +264,8 @@ class NarwhalsTableManager(
         filtered = self.data.filter(or_expr)
         return NarwhalsTableManager(filtered)
 
-    def get_summary(self, column: str) -> ColumnSummary:
-        summary = self._get_summary_internal(column)
+    def get_stats(self, column: str) -> ColumnStats:
+        stats = self._get_stats_internal(column)
         import warnings
 
         with warnings.catch_warnings():
@@ -275,15 +275,15 @@ class NarwhalsTableManager(
                 category=UserWarning,
             )
 
-            for key, value in summary.__dict__.items():
+            for key, value in stats.__dict__.items():
                 if value is not None:
-                    summary.__dict__[key] = unwrap_py_scalar(value)
-        return summary
+                    stats.__dict__[key] = unwrap_py_scalar(value)
+        return stats
 
-    def _get_summary_internal(self, column: str) -> ColumnSummary:
-        # If column is not in the dataframe, return an empty summary
+    def _get_stats_internal(self, column: str) -> ColumnStats:
+        # If column is not in the dataframe, return empty stats
         if column not in self.nw_schema:
-            return ColumnSummary()
+            return ColumnStats()
 
         frame = self.data.lazy()
         col = nw.col(column)
@@ -390,15 +390,15 @@ class NarwhalsTableManager(
                 }
             )
 
-        summary = frame.select(**exprs)
-        summary_dict = summary.collect().rows(named=True)[0]
+        stats = frame.select(**exprs)
+        stats_dict = stats.collect().rows(named=True)[0]
 
-        # Maybe add units to the summary
-        for key, value in summary_dict.items():
+        # Maybe add units to the stats
+        for key, value in stats_dict.items():
             if key in units:
-                summary_dict[key] = f"{value} {units[key]}"
+                stats_dict[key] = f"{value} {units[key]}"
 
-        return ColumnSummary(**summary_dict)
+        return ColumnStats(**stats_dict)
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows
