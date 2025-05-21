@@ -77,6 +77,21 @@ def transform_add_marimo_import(sources: list[str]) -> list[str]:
     def contains_mo(cell: str) -> bool:
         return cell.startswith("mo.md(") or "mo.sql(" in cell
 
+    def has_marimo_import(cell: str) -> bool:
+        # Quick check
+        if "import marimo as mo" not in cell:
+            return False
+
+        # Slow check
+        lines = cell.strip().split("\n")
+        return any(line.startswith("import marimo as mo") for line in lines)
+
+    already_has_marimo_import = any(
+        has_marimo_import(cell) for cell in sources
+    )
+    if already_has_marimo_import:
+        return sources
+
     if any(contains_mo(cell) for cell in sources):
         return sources + ["import marimo as mo"]
 
