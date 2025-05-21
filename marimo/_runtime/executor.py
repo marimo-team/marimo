@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellImpl, _is_coroutine
 from marimo._ast.variables import is_mangled_local, unmangle_local
+from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._runtime.copy import (
     CloneError,
     ShallowCopy,
@@ -30,6 +31,26 @@ from marimo._runtime.primitives import (
 
 if TYPE_CHECKING:
     from marimo._runtime.dataflow import DirectedGraph
+
+_EXECUTOR_REGISTRY = EntryPointRegistry[type["Executor"]](
+    "marimo.cell.executor",
+)
+
+
+def get_executor(
+    config: ExecutionConfig,
+    registry: EntryPointRegistry[type[Executor]] = _EXECUTOR_REGISTRY,
+) -> Executor:
+    """Get a code executor based on the execution configuration."""
+    executors = registry.get_all()
+
+    base: Executor = DefaultExecutor()
+    if config.is_strict:
+        base = StrictExecutor(base)
+
+    for executor in executors:
+        base = executor(base)
+    return base
 
 
 @dataclass
@@ -53,15 +74,10 @@ def _raise_name_error(
     raise MarimoRuntimeException from name_error
 
 
-def get_executor(config: ExecutionConfig) -> Executor:
-    """Get a code executor based on the execution configuration."""
-    base = DefaultExecutor()
-    if config.is_strict:
-        return StrictExecutor(base)
-    return base
-
-
 class Executor(ABC):
+    def __init__(self, base: Optional[Executor] = None) -> None:
+        self.base = base
+
     @abstractmethod
     def execute_cell(
         self,
@@ -128,15 +144,14 @@ class DefaultExecutor(Executor):
 
 
 class StrictExecutor(Executor):
-    def __init__(self, base: Executor):
-        self.base = base
-
     async def execute_cell_async(
         self,
         cell: CellImpl,
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
+        assert self.base is not None, "Invalid executor composition."
+
         # Manage globals and references, but refers to the default beyond that.
         refs = graph.get_transitive_references(
             cell.refs,
@@ -158,6 +173,8 @@ class StrictExecutor(Executor):
         glbls: dict[str, Any],
         graph: DirectedGraph,
     ) -> Any:
+        assert self.base is not None, "Invalid executor composition."
+
         refs = graph.get_transitive_references(
             cell.refs,
             predicate=build_ref_predicate_for_primitives(
