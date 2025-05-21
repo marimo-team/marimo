@@ -179,6 +179,7 @@ def test_transform_add_marimo_import_already_but_in_comment_or_definition():
     result = transform_add_marimo_import(sources)
     assert result == sources + ["import marimo as mo"]
 
+
 def test_transform_magic_commands():
     sources = [
         "%%sql\nSELECT * FROM table",
