@@ -3,7 +3,7 @@
 import type { DataType } from "@/core/kernel/messages";
 import { Objects } from "@/utils/objects";
 
-export interface ColumnHeaderSummary {
+export interface ColumnHeaderStats {
   column: string | number;
   min?: number | string | undefined | null;
   max?: number | string | undefined | null;

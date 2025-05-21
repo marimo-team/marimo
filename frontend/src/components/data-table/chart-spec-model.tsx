@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { mint, orange, slate } from "@radix-ui/colors";
-import type { ColumnHeaderSummary, FieldTypes } from "./types";
+import type { ColumnHeaderStats, FieldTypes } from "./types";
 import { asURL } from "@/utils/url";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
@@ -11,7 +11,7 @@ import type { TopLevelSpec } from "vega-lite";
 const MAX_BAR_HEIGHT = 20; // px
 
 export class ColumnChartSpecModel<T> {
-  private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
+  private columnStats = new Map<string | number, ColumnHeaderStats>();
 
   public static readonly EMPTY = new ColumnChartSpecModel([], {}, [], {
     includeCharts: false,
@@ -23,7 +23,7 @@ export class ColumnChartSpecModel<T> {
   constructor(
     private readonly data: T[] | string,
     private readonly fieldTypes: FieldTypes,
-    readonly summaries: ColumnHeaderSummary[],
+    readonly stats: ColumnHeaderStats[],
     private readonly opts: {
       includeCharts: boolean;
     },
@@ -62,16 +62,16 @@ export class ColumnChartSpecModel<T> {
       this.sourceName = "source_0";
     }
 
-    this.columnSummaries = new Map(summaries.map((s) => [s.column, s]));
+    this.columnStats = new Map(stats.map((s) => [s.column, s]));
   }
 
-  public getColumnSummary(column: string) {
-    return this.columnSummaries.get(column);
+  public getColumnStats(column: string) {
+    return this.columnStats.get(column);
   }
 
   public getHeaderSummary(column: string) {
     return {
-      summary: this.columnSummaries.get(column),
+      stats: this.columnStats.get(column),
       type: this.fieldTypes[column],
       spec: this.opts.includeCharts ? this.getVegaSpec(column) : undefined,
     };

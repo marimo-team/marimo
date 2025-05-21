@@ -18,7 +18,7 @@ import { Logger } from "@/utils/Logger";
 import {
   type DataTableSelection,
   toFieldTypes,
-  type ColumnHeaderSummary,
+  type ColumnHeaderStats,
   type FieldTypesWithExternalType,
   type TooManyRows,
   TOO_MANY_ROWS,
@@ -68,7 +68,7 @@ type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
-  summaries: ColumnHeaderSummary[];
+  stats: ColumnHeaderStats[];
   is_disabled?: boolean;
 }
 
@@ -204,7 +204,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         data: z
           .union([z.string(), z.array(z.object({}).passthrough())])
           .nullable(),
-        summaries: z.array(
+        stats: z.array(
           z.object({
             column: z.union([z.number(), z.string()]),
             min: z.union([z.number(), z.nan(), z.string()]).nullish(),
@@ -510,7 +510,7 @@ export const LoadingDataTableComponent = memo(
       ColumnSummaries<T>
     >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, summaries: [] };
+        return { data: null, stats: [] };
       }
       return props.get_column_summaries({});
     }, [
@@ -660,14 +660,14 @@ const DataTableComponent = ({
     if (!columnSummaries) {
       return ColumnChartSpecModel.EMPTY;
     }
-    if (!fieldTypes || !columnSummaries.summaries) {
+    if (!fieldTypes || !columnSummaries.stats) {
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
     return new ColumnChartSpecModel(
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
-      columnSummaries.summaries,
+      columnSummaries.stats,
       {
         includeCharts: Boolean(columnSummaries.data),
       },

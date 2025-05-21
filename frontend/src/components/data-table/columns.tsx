@@ -156,19 +156,17 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
-        const summary = chartSpecModel?.getColumnSummary(key);
+        const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;
         const dtypeHeader =
           showDataTypes && dtype ? (
             <div className="flex flex-row gap-1">
               <span className="text-xs text-muted-foreground">{dtype}</span>
-              {summary &&
-                typeof summary.nulls === "number" &&
-                summary.nulls > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    (nulls: {summary.nulls})
-                  </span>
-                )}
+              {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  (nulls: {stats.nulls})
+                </span>
+              )}
             </div>
           ) : null;
 
