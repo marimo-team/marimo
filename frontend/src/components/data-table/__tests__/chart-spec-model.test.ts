@@ -32,7 +32,7 @@ describe("ColumnChartSpecModel", () => {
 
   it("should return EMPTY for static EMPTY property", () => {
     expect(ColumnChartSpecModel.EMPTY).toBeInstanceOf(ColumnChartSpecModel);
-    expect(ColumnChartSpecModel.EMPTY.stats).toEqual([]);
+    expect(ColumnChartSpecModel.EMPTY.stats).toEqual({});
   });
 
   it("should return header summary with spec when includeCharts is true", () => {
@@ -43,7 +43,7 @@ describe("ColumnChartSpecModel", () => {
       { includeCharts: true },
     );
     const dateSummary = model.getHeaderSummary("date");
-    expect(dateSummary.stats).toEqual(mockStats[0]);
+    expect(dateSummary.stats).toEqual(mockStats.date);
     expect(dateSummary.type).toBe("date");
     expect(dateSummary.spec).toBeDefined();
   });
@@ -56,7 +56,7 @@ describe("ColumnChartSpecModel", () => {
       { includeCharts: false },
     );
     const numberSummary = model.getHeaderSummary("number");
-    expect(numberSummary.stats).toEqual(mockStats[1]);
+    expect(numberSummary.stats).toEqual(mockStats.number);
     expect(numberSummary.type).toBe("number");
     expect(numberSummary.spec).toBeUndefined();
   });
