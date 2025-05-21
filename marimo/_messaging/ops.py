@@ -27,7 +27,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
 from marimo._data.models import (
-    ColumnSummary,
+    ColumnStats,
     DataSourceConnection,
     DataTable,
     DataTableSource,
@@ -630,7 +630,7 @@ class DataColumnPreview(Op):
     chart_code: Optional[str] = None
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None
-    summary: Optional[ColumnSummary] = None
+    stats: Optional[ColumnStats] = None
 
 
 @dataclass

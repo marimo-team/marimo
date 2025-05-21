@@ -7,7 +7,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Optional, Union, cast
 
-from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._data.models import ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
@@ -324,9 +324,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         raise ValueError("No supported table libraries found.")
 
-    def get_summary(self, column: str) -> ColumnSummary:
+    def get_stats(self, column: str) -> ColumnStats:
         del column
-        return ColumnSummary()
+        return ColumnStats()
 
     def get_num_rows(self, force: bool = True) -> int:
         del force

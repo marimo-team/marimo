@@ -78,7 +78,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         # Data
         data.DataTableColumn,
         data.DataTable,
-        data.ColumnSummary,
+        data.ColumnStats,
         data.DataSourceConnection,
         data.Schema,
         data.Database,

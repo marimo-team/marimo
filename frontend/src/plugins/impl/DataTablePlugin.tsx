@@ -18,10 +18,11 @@ import { Logger } from "@/utils/Logger";
 import {
   type DataTableSelection,
   toFieldTypes,
-  type ColumnHeaderSummary,
+  type ColumnHeaderStats,
   type FieldTypesWithExternalType,
   type TooManyRows,
   TOO_MANY_ROWS,
+  type ColumnName,
 } from "@/components/data-table/types";
 import type {
   ColumnFiltersState,
@@ -68,7 +69,7 @@ type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
-  summaries: ColumnHeaderSummary[];
+  stats: Record<ColumnName, ColumnHeaderStats>;
   is_disabled?: boolean;
 }
 
@@ -204,15 +205,23 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         data: z
           .union([z.string(), z.array(z.object({}).passthrough())])
           .nullable(),
-        summaries: z.array(
+        stats: z.record(
+          z.string(),
           z.object({
-            column: z.union([z.number(), z.string()]),
-            min: z.union([z.number(), z.nan(), z.string()]).nullish(),
-            max: z.union([z.number(), z.nan(), z.string()]).nullish(),
-            unique: z.union([z.number(), z.array(z.any())]).nullish(),
-            nulls: z.number().nullish(),
-            true: z.number().nullish(),
-            false: z.number().nullish(),
+            total: z.number().nullable(),
+            nulls: z.number().nullable(),
+            unique: z.number().nullable(),
+            true: z.number().nullable(),
+            false: z.number().nullable(),
+            min: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            max: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            std: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            mean: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            median: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            p5: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            p25: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            p75: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            p95: z.union([z.number(), z.nan(), z.string()]).nullable(),
           }),
         ),
         is_disabled: z.boolean().optional(),
@@ -510,7 +519,7 @@ export const LoadingDataTableComponent = memo(
       ColumnSummaries<T>
     >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, summaries: [] };
+        return { data: null, stats: {} };
       }
       return props.get_column_summaries({});
     }, [
@@ -660,14 +669,14 @@ const DataTableComponent = ({
     if (!columnSummaries) {
       return ColumnChartSpecModel.EMPTY;
     }
-    if (!fieldTypes || !columnSummaries.summaries) {
+    if (!fieldTypes || !columnSummaries.stats) {
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
     return new ColumnChartSpecModel(
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
-      columnSummaries.summaries,
+      columnSummaries.stats,
       {
         includeCharts: Boolean(columnSummaries.data),
       },

@@ -862,9 +862,9 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 
-  const summary = preview.summary && (
+  const stats = preview.stats && (
     <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
-      {Object.entries(preview.summary).map(([key, value]) => {
+      {Object.entries(preview.stats).map(([key, value]) => {
         if (value == null) {
           return null;
         }
@@ -940,7 +940,7 @@ const DatasetColumnPreview: React.FC<{
     </span>
   );
 
-  if (!error && !summary && !chart && !chartMaxRowsWarning) {
+  if (!error && !stats && !chart && !chartMaxRowsWarning) {
     return <span className="text-xs text-muted-foreground">No data</span>;
   }
 
@@ -951,7 +951,7 @@ const DatasetColumnPreview: React.FC<{
       {addSQLChart}
       {chartMaxRowsWarning}
       {chart}
-      {summary}
+      {stats}
     </div>
   );
 };

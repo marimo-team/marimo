@@ -2,15 +2,15 @@
 from __future__ import annotations
 
 from marimo._data.get_datasets import _db_type_to_data_type
-from marimo._data.models import ColumnSummary, DataType
+from marimo._data.models import ColumnStats, DataType
 from marimo._sql.utils import wrapped_sql
 
 
-def get_sql_summary(
+def get_sql_stats(
     table_name: str, column_name: str, column_type: DataType
-) -> ColumnSummary:
+) -> ColumnStats:
     """
-    Get a summary of a column in a SQL table.
+    Get stats of a column in a SQL table.
     """
 
     # Prepare the stats query based on the column type
@@ -87,7 +87,7 @@ def get_sql_summary(
             p75,
             p95,
         ) = stats_result
-        return ColumnSummary(
+        return ColumnStats(
             total=count,
             unique=unique,
             nulls=null_count,
@@ -107,7 +107,7 @@ def get_sql_summary(
         or column_type == "time"
     ):
         count, unique, null_count, min_val, max_val = stats_result
-        return ColumnSummary(
+        return ColumnStats(
             total=count,
             unique=unique,
             nulls=null_count,
@@ -116,7 +116,7 @@ def get_sql_summary(
         )
     elif column_type == "boolean":
         count, unique, null_count, true_count, false_count = stats_result
-        return ColumnSummary(
+        return ColumnStats(
             total=count,
             unique=unique,
             nulls=null_count,
@@ -125,7 +125,7 @@ def get_sql_summary(
         )
     else:
         count, unique, null_count = stats_result
-        return ColumnSummary(total=count, unique=unique, nulls=null_count)
+        return ColumnStats(total=count, unique=unique, nulls=null_count)
 
 
 def get_column_type(

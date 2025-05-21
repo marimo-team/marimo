@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect } from "vitest";
 import { ColumnChartSpecModel } from "../chart-spec-model";
-import type { ColumnHeaderSummary, FieldTypes } from "../types";
+import type { ColumnHeaderStats, ColumnName, FieldTypes } from "../types";
 
 describe("ColumnChartSpecModel", () => {
   const mockData = "http://example.com/data.json";
@@ -12,19 +12,19 @@ describe("ColumnChartSpecModel", () => {
     boolean: "boolean",
     string: "string",
   };
-  const mockSummaries: ColumnHeaderSummary[] = [
-    { column: "date", min: "2023-01-01", max: "2023-12-31" },
-    { column: "number", min: 0, max: 100 },
-    { column: "integer", min: 1, max: 10 },
-    { column: "boolean", true: 5, false: 5 },
-    { column: "string", unique: 20 },
-  ];
+  const mockStats: Record<ColumnName, ColumnHeaderStats> = {
+    date: { min: "2023-01-01", max: "2023-12-31" },
+    number: { min: 0, max: 100 },
+    integer: { min: 1, max: 10 },
+    boolean: { true: 5, false: 5 },
+    string: { unique: 20 },
+  };
 
   it("should create an instance", () => {
     const model = new ColumnChartSpecModel(
       mockData,
       mockFieldTypes,
-      mockSummaries,
+      mockStats,
       { includeCharts: true },
     );
     expect(model).toBeInstanceOf(ColumnChartSpecModel);
@@ -32,18 +32,18 @@ describe("ColumnChartSpecModel", () => {
 
   it("should return EMPTY for static EMPTY property", () => {
     expect(ColumnChartSpecModel.EMPTY).toBeInstanceOf(ColumnChartSpecModel);
-    expect(ColumnChartSpecModel.EMPTY.summaries).toEqual([]);
+    expect(ColumnChartSpecModel.EMPTY.stats).toEqual({});
   });
 
   it("should return header summary with spec when includeCharts is true", () => {
     const model = new ColumnChartSpecModel(
       mockData,
       mockFieldTypes,
-      mockSummaries,
+      mockStats,
       { includeCharts: true },
     );
     const dateSummary = model.getHeaderSummary("date");
-    expect(dateSummary.summary).toEqual(mockSummaries[0]);
+    expect(dateSummary.stats).toEqual(mockStats.date);
     expect(dateSummary.type).toBe("date");
     expect(dateSummary.spec).toBeDefined();
   });
@@ -52,11 +52,11 @@ describe("ColumnChartSpecModel", () => {
     const model = new ColumnChartSpecModel(
       mockData,
       mockFieldTypes,
-      mockSummaries,
+      mockStats,
       { includeCharts: false },
     );
     const numberSummary = model.getHeaderSummary("number");
-    expect(numberSummary.summary).toEqual(mockSummaries[1]);
+    expect(numberSummary.stats).toEqual(mockStats.number);
     expect(numberSummary.type).toBe("number");
     expect(numberSummary.spec).toBeUndefined();
   });
@@ -65,7 +65,7 @@ describe("ColumnChartSpecModel", () => {
     const model = new ColumnChartSpecModel(
       mockData,
       mockFieldTypes,
-      mockSummaries,
+      mockStats,
       { includeCharts: true },
     );
     const stringSummary = model.getHeaderSummary("string");
@@ -76,13 +76,13 @@ describe("ColumnChartSpecModel", () => {
     const specialFieldTypes: FieldTypes = {
       "column.with[special:chars]": "number",
     };
-    const specialSummaries: ColumnHeaderSummary[] = [
-      { column: "column.with[special:chars]", min: 0, max: 100 },
-    ];
+    const specialStats: Record<ColumnName, ColumnHeaderStats> = {
+      "column.with[special:chars]": { min: 0, max: 100 },
+    };
     const model = new ColumnChartSpecModel(
       mockData,
       specialFieldTypes,
-      specialSummaries,
+      specialStats,
       { includeCharts: true },
     );
     const summary = model.getHeaderSummary("column.with[special:chars]");
@@ -100,12 +100,9 @@ describe("ColumnChartSpecModel", () => {
     };
 
     it("url data", () => {
-      const model = new ColumnChartSpecModel(
-        mockData,
-        fieldTypes,
-        mockSummaries,
-        { includeCharts: true },
-      );
+      const model = new ColumnChartSpecModel(mockData, fieldTypes, mockStats, {
+        includeCharts: true,
+      });
       expect(model.getHeaderSummary("date").spec).toMatchSnapshot();
     });
 
@@ -113,7 +110,7 @@ describe("ColumnChartSpecModel", () => {
       const model = new ColumnChartSpecModel(
         `data:text/csv;base64,${btoa("a,b,c\n1,2,3\n4,5,6")}`,
         fieldTypes,
-        mockSummaries,
+        mockStats,
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
@@ -123,7 +120,7 @@ describe("ColumnChartSpecModel", () => {
       const model = new ColumnChartSpecModel(
         "a,b,c\n1,2,3\n4,5,6",
         fieldTypes,
-        mockSummaries,
+        mockStats,
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
@@ -133,7 +130,7 @@ describe("ColumnChartSpecModel", () => {
       const model = new ColumnChartSpecModel(
         ["a", "b", "c"],
         fieldTypes,
-        mockSummaries,
+        mockStats,
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();

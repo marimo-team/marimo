@@ -9,7 +9,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.polars_table import (
@@ -349,10 +349,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         # Too large of page and offset
         assert self.manager.take(10, 10).data.is_empty()
 
-    def test_summary_integer(self) -> None:
+    def test_stats_integer(self) -> None:
         column = "A"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -367,19 +367,19 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             p95=3.0,
         )
 
-    def test_summary_string(self) -> None:
+    def test_stats_string(self) -> None:
         column = "B"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
         )
 
-    def test_summary_number(self) -> None:
+    def test_stats_number(self) -> None:
         column = "C"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             min=1.0,
@@ -393,20 +393,20 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             p95=3.0,
         )
 
-    def test_summary_boolean(self) -> None:
+    def test_stats_boolean(self) -> None:
         column = "D"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             true=2,
             false=1,
         )
 
-    def test_summary_datetime(self) -> None:
+    def test_stats_datetime(self) -> None:
         column = "E"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             min=datetime.datetime(2021, 1, 1, 0, 0),
@@ -417,7 +417,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             # median=datetime.datetime(2021, 1, 2, 0, 0),
         )
 
-    def test_summary_date(self) -> None:
+    def test_stats_date(self) -> None:
         import polars as pl
 
         data = pl.DataFrame(
@@ -426,8 +426,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             }
         )
         manager = self.factory.create()(data)
-        summary = manager.get_summary("A")
-        assert summary == ColumnSummary(
+        stats = manager.get_stats("A")
+        assert stats == ColumnStats(
             total=2,
             nulls=0,
             min=datetime.date(2021, 1, 1),
@@ -438,10 +438,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             # median=datetime.datetime(2021, 1, 1, 12, 0),
         )
 
-    def test_summary_does_fail_on_each_column(self) -> None:
+    def test_stats_does_fail_on_each_column(self) -> None:
         complex_data = self.get_complex_data()
         for column in complex_data.get_column_names():
-            assert complex_data.get_summary(column) is not None
+            assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
@@ -793,9 +793,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
         df = pl.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
         manager = self.factory.create()(df)
-        summary = manager.get_summary("B")
-        assert summary.nulls == 3
-        assert summary.total == 3
+        stats = manager.get_stats("B")
+        assert stats.nulls == 3
+        assert stats.total == 3
 
     def test_dataframe_with_mixed_types(self) -> None:
         import polars as pl

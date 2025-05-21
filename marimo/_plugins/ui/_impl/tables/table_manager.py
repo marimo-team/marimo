@@ -5,7 +5,7 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
-from marimo._data.models import ColumnSummary, DataType, ExternalDataType
+from marimo._data.models import ColumnStats, DataType, ExternalDataType
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 T = TypeVar("T")
@@ -154,7 +154,7 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def get_summary(self, column: str) -> ColumnSummary:
+    def get_stats(self, column: str) -> ColumnStats:
         pass
 
     @abc.abstractmethod

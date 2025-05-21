@@ -111,9 +111,9 @@ NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
 
 
 @dataclass
-class ColumnSummary:
+class ColumnStats:
     """
-    Represents a summary of a column in a data table.
+    Represents stats for a column in a data table.
 
     """
 

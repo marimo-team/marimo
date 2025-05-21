@@ -897,8 +897,8 @@ def test__get_column_summaries_after_search() -> None:
     # Result is csv or json
     assert summaries_data in ["a\n2\n12\n", '[{"a": 2}, {"a": 12}]']
     # We don't have column summaries for non-dataframe data
-    assert summaries.summaries[0].min is None
-    assert summaries.summaries[0].max is None
+    assert summaries.stats["a"].min is None
+    assert summaries.stats["a"].max is None
 
 
 @pytest.mark.skipif(
@@ -916,8 +916,8 @@ def test__get_column_summaries_after_search_df() -> None:
     ) or summaries.data.startswith(
         "data:application/vnd.apache.arrow.file;base64,"
     )
-    assert summaries.summaries[0].min == 0
-    assert summaries.summaries[0].max == 19
+    assert summaries.stats["a"].min == 0
+    assert summaries.stats["a"].max == 19
 
     # search results are 2 and 12
     table._search(
@@ -937,9 +937,9 @@ def test__get_column_summaries_after_search_df() -> None:
         "data:application/vnd.apache.arrow.file;base64,"
     )
     # We don't have column summaries for non-dataframe data
-    assert summaries.summaries[0].min == 2
-    assert summaries.summaries[0].max == 12
-    assert summaries.summaries[0].nulls == 0
+    assert summaries.stats["a"].min == 2
+    assert summaries.stats["a"].max == 12
+    assert summaries.stats["a"].nulls == 0
 
 
 def test_show_column_summaries_modes():
@@ -950,35 +950,35 @@ def test_show_column_summaries_modes():
     summaries_stats = table_stats._get_column_summaries(EmptyArgs())
     assert summaries_stats.is_disabled is False
     assert summaries_stats.data is None
-    assert len(summaries_stats.summaries) > 0
+    assert len(summaries_stats.stats) > 0
 
     # Test chart-only mode
     table_chart = ui.table(data, show_column_summaries="chart")
     summaries_chart = table_chart._get_column_summaries(EmptyArgs())
     assert summaries_chart.is_disabled is False
     assert summaries_chart.data is not None
-    assert len(summaries_chart.summaries) == 0
+    assert len(summaries_chart.stats) == 0
 
     # Test default mode (both stats and chart)
     table_both = ui.table(data, show_column_summaries=True)
     summaries_both = table_both._get_column_summaries(EmptyArgs())
     assert summaries_both.is_disabled is False
     assert summaries_both.data is not None
-    assert len(summaries_both.summaries) > 0
+    assert len(summaries_both.stats) > 0
 
     # Test disabled mode
     table_disabled = ui.table(data, show_column_summaries=False)
     summaries_disabled = table_disabled._get_column_summaries(EmptyArgs())
     assert summaries_disabled.is_disabled is False
     assert summaries_disabled.data is None
-    assert len(summaries_disabled.summaries) == 0
+    assert len(summaries_disabled.stats) == 0
 
     # Test Default behavior
     table_default = ui.table(data)
     summaries_default = table_default._get_column_summaries(EmptyArgs())
     assert summaries_default.is_disabled is False
     assert summaries_default.data is not None
-    assert len(summaries_default.summaries) > 0
+    assert len(summaries_default.stats) > 0
 
 
 def test_table_with_frozen_columns() -> None:
@@ -1102,7 +1102,7 @@ def test_show_column_summaries_disabled():
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert summaries.data is None
-    assert len(summaries.summaries) == 0
+    assert len(summaries.stats) == 0
 
 
 @pytest.mark.skipif(
