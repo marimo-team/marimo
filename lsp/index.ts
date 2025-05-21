@@ -11,7 +11,7 @@ const LOG_FILE = path.join(
   process.env.XDG_CACHE_HOME || path.join(process.env.HOME || "", ".cache"),
   "marimo",
   "logs",
-  "lsp.log",
+  "github-copilot-lsp.log",
 );
 
 let logFileCreated = false;

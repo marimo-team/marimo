@@ -163,8 +163,13 @@ marimo run --proxy example.com:8080
 
 ### Reading the logs
 
-marimo will output logs to `$XDG_CACHE_HOME/marimo/logs/*`. You can find the LSP logs in `lsp.log`. To view the logs, run:
+marimo will output logs to `$XDG_CACHE_HOME/marimo/logs/*`. To view the logs, run:
 
 ```bash
-cat $XDG_CACHE_HOME/marimo/logs/lsp.log
+cat $XDG_CACHE_HOME/marimo/logs/github-copilot-lsp.log
 ```
+
+Available logs are:
+
+- `github-copilot-lsp.log`
+- `pylsp.log`
