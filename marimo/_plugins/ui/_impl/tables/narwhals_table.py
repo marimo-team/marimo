@@ -176,8 +176,11 @@ class NarwhalsTableManager(
             result = (
                 df.group_by(column)
                 .agg(nw.len().alias(_unique_name))
-                # Nulls are sorted to the top
-                .sort([_unique_name, column], descending=[True, False])
+                .sort(
+                    [_unique_name, column],
+                    descending=[True, False],
+                    nulls_last=False,
+                )
                 .head(k)
             )
             if isinstance(result, nw.LazyFrame):
