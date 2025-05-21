@@ -6,10 +6,10 @@ import { WebSocketTransport } from "@open-rpc/client-js";
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
 import type { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
 import { waitForEnabledCopilot } from "./state";
-import { waitForWs } from "@/utils/waitForWs";
-import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { Logger } from "@/utils/Logger";
 import { toast } from "@/components/ui/use-toast";
+import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
+import { waitForConnectionOpen } from "@/core/network/connection";
 
 // Dummy file for the copilot language server
 export const COPILOT_FILENAME = "/__marimo_copilot__.py";
@@ -69,7 +69,7 @@ class LazyWebsocketTransport extends Transport {
     // Wait for copilot to be enabled
     await waitForEnabledCopilot();
     // Wait for ws to be available with retries
-    await waitForWs(this.WS_URL, 3);
+    await waitForConnectionOpen();
 
     // Try connecting with retries
     return this.tryConnect();

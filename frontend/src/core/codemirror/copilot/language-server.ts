@@ -7,22 +7,16 @@ import type {
   DidOpenTextDocumentParams,
   Hover,
   HoverParams,
+  InlineCompletionItem,
+  InlineCompletionList,
+  InlineCompletionParams,
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
-
 import { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
 import type {
-  CopilotStatus,
-  CopilotSignInInitiateParams,
-  CopilotSignInInitiateResult,
-  CopilotSignInConfirmParams,
-  CopilotSignInConfirmResult,
-  CopilotSignOutParams,
-  CopilotSignOutResult,
-  CopilotGetCompletionsParams,
-  CopilotGetCompletionsResult,
-  CopilotAcceptCompletionParams,
-  CopilotRejectCompletionParams,
+  GitHubCopilotSignInConfirmParams,
+  GitHubCopilotSignInInitiateResult,
+  GitHubCopilotStatusResult,
 } from "./types";
 import {
   isCopilotEnabled,
@@ -33,15 +27,18 @@ import { getCodes } from "./getCodes";
 import { Logger } from "@/utils/Logger";
 import { throttle } from "lodash-es";
 
+const logger = Logger.get("@github/copilot-language-server");
+
 // A map of request methods and their parameters and return types
 export interface LSPRequestMap {
-  checkStatus: [{}, { status: CopilotStatus; user: string }];
-  signInInitiate: [CopilotSignInInitiateParams, CopilotSignInInitiateResult];
-  signInConfirm: [CopilotSignInConfirmParams, CopilotSignInConfirmResult];
-  signOut: [CopilotSignOutParams, CopilotSignOutResult];
-  notifyAccepted: [CopilotAcceptCompletionParams, unknown];
-  notifyRejected: [CopilotRejectCompletionParams, unknown];
-  getCompletions: [CopilotGetCompletionsParams, CopilotGetCompletionsResult];
+  checkStatus: [{}, GitHubCopilotStatusResult];
+  signIn: [{}, GitHubCopilotSignInInitiateResult];
+  signInConfirm: [GitHubCopilotSignInConfirmParams, GitHubCopilotStatusResult];
+  signOut: [{}, GitHubCopilotStatusResult];
+  "textDocument/inlineCompletion": [
+    InlineCompletionParams,
+    InlineCompletionList | InlineCompletionItem[] | null,
+  ];
 }
 
 /**
@@ -59,9 +56,33 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return await (this as any).request(method, params);
     } catch (error) {
-      Logger.error("CopilotLanguageServerClient#request: Error", error);
+      logger.error("#request: Error", error);
       throw error;
     }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override async notify(method: any, params: any): Promise<any> {
+    logger.debug("#notify", method, params);
+    return super.notify(method, params);
+  }
+
+  override getInitializationOptions() {
+    const info = {
+      name: "marimo",
+      version: "0.1.0",
+    };
+    return {
+      ...super.getInitializationOptions(),
+      workspaceFolders: [],
+      capabilities: {
+        workspace: { workspaceFolders: false },
+      },
+      initializationOptions: {
+        editorInfo: info,
+        editorPluginInfo: info,
+      },
+    };
   }
 
   private isDisabled() {
@@ -105,15 +126,15 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
     const changes = params.contentChanges;
     if (changes.length !== 1) {
-      Logger.warn(
-        "CopilotLanguageServerClient#textDocumentDidChange: Multiple changes detected. This is not supported.",
+      logger.warn(
+        "#textDocumentDidChange: Multiple changes detected. This is not supported.",
         changes,
       );
     }
     const change = changes[0];
     if ("range" in change) {
-      Logger.warn(
-        "CopilotLanguageServerClient#textDocumentDidChange: Copilot doesn't support range changes.",
+      logger.warn(
+        "#textDocumentDidChange: Copilot doesn't support range changes.",
         change,
       );
     }
@@ -140,28 +161,25 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   async signInInitiate() {
-    Logger.log("Copilot#signInInitiate: Starting sign-in flow");
+    logger.log("#signInInitiate: Starting sign-in flow");
     try {
-      const result = await this._request("signInInitiate", {});
-      Logger.log("Copilot#signInInitiate: Sign-in flow started successfully");
+      const result = await this._request("signIn", {});
+      logger.log("#signInInitiate: Sign-in flow started successfully");
       return result;
     } catch (error) {
-      Logger.warn(
-        "Copilot#signInInitiate: Failed to start sign-in flow",
-        error,
-      );
+      logger.warn("#signInInitiate: Failed to start sign-in flow", error);
       throw error;
     }
   }
 
-  async signInConfirm(params: CopilotSignInConfirmParams) {
-    Logger.log("Copilot#signInConfirm: Confirming sign-in");
+  async signInConfirm(params: GitHubCopilotSignInConfirmParams) {
+    logger.log("#signInConfirm: Confirming sign-in");
     try {
       const result = await this._request("signInConfirm", params);
-      Logger.log("Copilot#signInConfirm: Sign-in confirmed successfully");
+      logger.log("#signInConfirm: Sign-in confirmed successfully");
       return result;
     } catch (error) {
-      Logger.warn("Copilot#signInConfirm: Failed to confirm sign-in", error);
+      logger.warn("#signInConfirm: Failed to confirm sign-in", error);
       throw error;
     }
   }
@@ -169,34 +187,26 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   async signedIn() {
     try {
       const { status } = await this._request("checkStatus", {});
-      Logger.log("Copilot#signedIn: Status check completed", { status });
+      logger.log("#checkStatus: Status check completed", { status });
       return (
         status === "SignedIn" || status === "AlreadySignedIn" || status === "OK"
       );
     } catch (error) {
-      Logger.warn("Copilot#signedIn: Failed to check sign-in status", error);
+      logger.warn("#signedIn: Failed to check sign-in status", error);
       throw error;
     }
   }
 
-  // COMPLETIONS
-  acceptCompletion(params: CopilotAcceptCompletionParams) {
-    return this._request("notifyAccepted", params);
-  }
-
-  rejectCompletions(params: CopilotRejectCompletionParams) {
-    return this._request("notifyRejected", params);
-  }
-
   private getCompletionInternal = async (
-    params: CopilotGetCompletionsParams,
+    params: InlineCompletionParams,
     version: number,
-  ): Promise<CopilotGetCompletionsResult> => {
-    return await this._request("getCompletions", {
-      doc: {
-        ...params.doc,
+  ): Promise<InlineCompletionList | InlineCompletionItem[] | null> => {
+    return await this._request("textDocument/inlineCompletion", {
+      ...params,
+      textDocument: {
+        ...params.textDocument,
         version: version,
-      },
+      } as VersionedTextDocumentIdentifier,
     });
   };
 
@@ -210,18 +220,19 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   );
 
   async getCompletion(
-    params: CopilotGetCompletionsParams,
-  ): Promise<CopilotGetCompletionsResult> {
+    params: InlineCompletionParams,
+  ): Promise<InlineCompletionList | InlineCompletionItem[] | null> {
     if (this.isDisabled()) {
-      return { completions: [] };
+      return null;
     }
 
     const requestVersion = this.documentVersion;
-    params.doc.version = requestVersion;
+    (params.textDocument as VersionedTextDocumentIdentifier).version =
+      requestVersion;
 
     // If version is 0, it means the document hasn't been opened yet
     if (requestVersion === 0) {
-      return { completions: [] };
+      return null;
     }
 
     // Start a loading indicator
@@ -235,9 +246,9 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
     // If the document version has changed since the request was made, return an empty response
     if (requestVersion !== this.documentVersion) {
-      return { completions: [] };
+      return null;
     }
 
-    return response || { completions: [] };
+    return response ?? null;
   }
 }
