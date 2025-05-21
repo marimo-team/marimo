@@ -292,5 +292,5 @@ export const DataFrameComponent = memo(
 DataFrameComponent.displayName = "DataFrameComponent";
 
 function getColumnSummaries() {
-  return Promise.resolve({ stats: [], data: null });
+  return Promise.resolve({ stats: {}, data: null });
 }
