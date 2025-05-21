@@ -34,6 +34,8 @@ export const CopilotStatusIcon: React.FC = () => {
   return null;
 };
 
+const logger = Logger.get("[copilot-status-bar]");
+
 const GitHubCopilotStatus: React.FC = () => {
   const isGitHubCopilotSignedIn = useAtomValue(isGitHubCopilotSignedInState);
   const isLoading = useAtomValue(githubCopilotLoadingVersion) !== null;
@@ -53,7 +55,7 @@ const GitHubCopilotStatus: React.FC = () => {
       try {
         // If we fail to initialize, show connection error
         await client.initializePromise.catch((error) => {
-          Logger.error("Copilot#checkConnection: Failed to initialize", error);
+          logger.error("Failed to initialize", error);
           client.close();
           throw error;
         });
@@ -73,7 +75,7 @@ const GitHubCopilotStatus: React.FC = () => {
         if (!mounted) {
           return;
         }
-        Logger.warn("Copilot#checkConnection: Connection failed", error);
+        logger.warn("Connection failed", error);
         setCopilotSignedIn(false);
         setStep("connectionError");
         toast({

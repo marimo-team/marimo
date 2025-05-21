@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from marimo._utils.log_formatter import LogFormatter
@@ -72,3 +73,20 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
 
 def marimo_logger() -> logging.Logger:
     return get_logger("marimo")
+
+
+def get_log_directory() -> Path:
+    import os
+
+    xdg_cache_home = os.getenv("XDG_CACHE_HOME", None)
+    if xdg_cache_home is None:
+        return Path.home() / ".cache" / "marimo" / "logs"
+    return Path(xdg_cache_home) / "marimo" / "logs"
+
+
+def make_log_directory() -> None:
+    try:
+        log_dir = get_log_directory()
+        log_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        marimo_logger().debug(f"Failed to create log directory: {e}")

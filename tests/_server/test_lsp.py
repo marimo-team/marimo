@@ -16,6 +16,7 @@ from marimo._config.manager import (
     MarimoConfigReader,
     MarimoConfigReaderWithOverrides,
 )
+from marimo._loggers import get_log_directory
 from marimo._messaging.ops import Alert
 from marimo._server.lsp import (
     BaseLspServer,
@@ -112,6 +113,8 @@ def test_pylsp_server():
         "--port",
         "8000",
         "--check-parent-process",
+        "--log-file",
+        str(get_log_directory() / "pylsp.log"),
     ]
     alert = server.missing_binary_alert()
     assert "Python LSP" in alert.title
