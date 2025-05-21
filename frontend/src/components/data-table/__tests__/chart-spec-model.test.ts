@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, it, expect } from "vitest";
 import { ColumnChartSpecModel } from "../chart-spec-model";
-import type { ColumnHeaderStats, FieldTypes } from "../types";
+import type { ColumnHeaderStats, ColumnName, FieldTypes } from "../types";
 
 describe("ColumnChartSpecModel", () => {
   const mockData = "http://example.com/data.json";
@@ -12,13 +12,13 @@ describe("ColumnChartSpecModel", () => {
     boolean: "boolean",
     string: "string",
   };
-  const mockStats: ColumnHeaderStats[] = [
-    { column: "date", min: "2023-01-01", max: "2023-12-31" },
-    { column: "number", min: 0, max: 100 },
-    { column: "integer", min: 1, max: 10 },
-    { column: "boolean", true: 5, false: 5 },
-    { column: "string", unique: 20 },
-  ];
+  const mockStats: Record<ColumnName, ColumnHeaderStats> = {
+    date: { min: "2023-01-01", max: "2023-12-31" },
+    number: { min: 0, max: 100 },
+    integer: { min: 1, max: 10 },
+    boolean: { true: 5, false: 5 },
+    string: { unique: 20 },
+  };
 
   it("should create an instance", () => {
     const model = new ColumnChartSpecModel(
@@ -76,13 +76,13 @@ describe("ColumnChartSpecModel", () => {
     const specialFieldTypes: FieldTypes = {
       "column.with[special:chars]": "number",
     };
-    const specialSummaries: ColumnHeaderStats[] = [
-      { column: "column.with[special:chars]", min: 0, max: 100 },
-    ];
+    const specialStats: Record<ColumnName, ColumnHeaderStats> = {
+      "column.with[special:chars]": { min: 0, max: 100 },
+    };
     const model = new ColumnChartSpecModel(
       mockData,
       specialFieldTypes,
-      specialSummaries,
+      specialStats,
       { includeCharts: true },
     );
     const summary = model.getHeaderSummary("column.with[special:chars]");
