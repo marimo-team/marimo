@@ -31,8 +31,13 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
         df (IntoDataFrame): The DataFrame to visualize.
         on_change (Callable[[dict[str, Any]], None], optional): Optional callback
             to run when this element's value changes.
-        **kwargs: Additional keyword arguments to specify initial chart properties
-            such as `x`, `y`, `color`, `size`, `row`, `column`, `shape`.
+        x (Optional[str]): Initial column for the x-axis. Defaults to None.
+        y (Optional[str]): Initial column for the y-axis. Defaults to None.
+        row (Optional[str]): Initial column for the row dimension. Defaults to None.
+        column (Optional[str]): Initial column for the column dimension. Defaults to None.
+        color (Optional[str]): Initial column for the color encoding. Defaults to None.
+        size (Optional[str]): Initial column for the size encoding. Defaults to None.
+        shape (Optional[str]): Initial column for the shape encoding. Defaults to None.
     """
 
     _name: Final[str] = "marimo-data-explorer"
@@ -41,7 +46,13 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
         self,
         df: IntoDataFrame,
         on_change: Optional[Callable[[dict[str, Any]], None]] = None,
-        **kwargs: Any,
+        x: Optional[str] = None,
+        y: Optional[str] = None,
+        row: Optional[str] = None,
+        column: Optional[str] = None,
+        color: Optional[str] = None,
+        size: Optional[str] = None,
+        shape: Optional[str] = None,
     ) -> None:
         # Drop the index since empty column names break the data explorer
         df_no_idx = _drop_index(df)
@@ -51,7 +62,15 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
 
         super().__init__(
             component_name=data_explorer._name,
-            initial_value=kwargs,
+            initial_value={
+                "x": x,
+                "y": y,
+                "row": row,
+                "column": column,
+                "color": color,
+                "size": size,
+                "shape": shape,
+            },
             on_change=on_change,
             label="",
             args={
