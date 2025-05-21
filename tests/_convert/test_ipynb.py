@@ -148,6 +148,7 @@ def test_transform_add_marimo_import():
     ]
     assert transform_add_marimo_import(existing) == existing
 
+
 def test_transform_magic_commands():
     sources = [
         "%%sql\nSELECT * FROM table",
