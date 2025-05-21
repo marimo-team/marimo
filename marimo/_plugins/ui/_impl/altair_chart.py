@@ -10,7 +10,6 @@ from typing import (
     Final,
     Literal,
     Optional,
-    TypeAlias,
     Union,
     cast,
 )
@@ -31,6 +30,11 @@ from marimo._utils.narwhals_utils import (
     can_narwhalify,
     empty_df,
 )
+
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
 
 LOGGER = _loggers.marimo_logger()
 
