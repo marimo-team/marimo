@@ -12,6 +12,7 @@ import type { DataTableSelection } from "./types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { toast } from "../ui/use-toast";
 import { cn } from "@/utils/cn";
+import { initialMode } from "@/core/mode";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -118,7 +119,8 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {toggleRowViewerPanel && (
+      {/* Disable in read mode, for now, until the panel is shown */}
+      {toggleRowViewerPanel && initialMode !== "read" && (
         <Tooltip content="Toggle row viewer">
           <Button variant="text" size="xs" onClick={toggleRowViewerPanel}>
             <PanelRightIcon
