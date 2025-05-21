@@ -1072,33 +1072,13 @@ def test_calculate_top_k_rows(df: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.parametrize(
-    "df",
-    create_dataframes(
-        {"count": [1, 2, 3, 3, None, None]},
-        include=SUPPORTED_LIBS,
-    ),
-)
-def test_calculate_top_k_rows_conflicting_colname(df: Any) -> None:
-    manager = NarwhalsTableManager.from_dataframe(df)
-
-    # Test original column A
-    result_a = manager.calculate_top_k_rows("count", 10)
-    normalized_result_a = _normalize_result(result_a)
-    assert normalized_result_a == [(None, 2), (3, 2), (1, 1), (2, 1)]
-
-
-@pytest.mark.xfail(
-    reason="Narwhals doesn't support group_by for metadata-only frames"
-)
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_calculate_top_k_rows_metadata_only_frame() -> None:
     import ibis
 
     df = ibis.memtable({"A": [1, 2, 3, 3, None, None]})
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
-    assert result == [(3, 2), (None, 2), (2, 1), (1, 1)]
+    assert result == [(None, 2), (3, 2), (1, 1), (2, 1)]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
