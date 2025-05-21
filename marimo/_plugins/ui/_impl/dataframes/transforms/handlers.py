@@ -18,9 +18,6 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
-    IbisUniqueKeep,
-    PandasUniqueKeep,
-    PolarsUniqueKeep,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -231,16 +228,19 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
     def handle_unique(
         df: pd.DataFrame, transform: UniqueTransform
     ) -> pd.DataFrame:
-        keep = cast(PandasUniqueKeep, transform.keep)
-        if keep == "first":
+        if transform.keep == "first":
             return df.drop_duplicates(
                 subset=transform.column_ids, keep="first"
             )
-        if keep == "last":
+        if transform.keep == "last":
             return df.drop_duplicates(subset=transform.column_ids, keep="last")
-        if isinstance(keep, bool):
-            return df.drop_duplicates(subset=transform.column_ids, keep=keep)
-        assert_never(keep)
+        if transform.keep == "none":
+            return df.drop_duplicates(subset=transform.column_ids, keep=False)
+        if transform.keep == "any":
+            return df.drop_duplicates(
+                subset=transform.column_ids, keep="first"
+            )
+        assert_never(transform.keep)
 
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
@@ -490,7 +490,7 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
     def handle_unique(
         df: pl.DataFrame, transform: UniqueTransform
     ) -> pl.DataFrame:
-        keep = cast(PolarsUniqueKeep, transform.keep)
+        keep = transform.keep
         if (
             keep == "first"
             or keep == "last"
@@ -700,16 +700,15 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     def handle_unique(
         df: ibis.Table, transform: UniqueTransform
     ) -> ibis.Table:
-        keep = cast(IbisUniqueKeep, transform.keep)
-
-        if keep == "first":
+        if transform.keep == "first":
             return df.distinct(on=transform.column_ids, keep="first")
-        elif keep == "last":
+        if transform.keep == "last":
             return df.distinct(on=transform.column_ids, keep="last")
-        elif keep is None:
+        if transform.keep == "none":
             return df.distinct(on=transform.column_ids)
-
-        assert_never(keep)
+        if transform.keep == "any":
+            return df.distinct(on=transform.column_ids, keep="first")
+        assert_never(transform.keep)
 
     @staticmethod
     def as_python_code(

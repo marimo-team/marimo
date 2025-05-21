@@ -47,11 +47,7 @@ Aggregation = Literal[
     "min",
     "max",
 ]
-
-PandasUniqueKeep = Literal["first", "last"] | bool
-PolarsUniqueKeep = Literal["first", "last", "none", "any"]
-IbisUniqueKeep = Literal["first", "last", None]
-UniqueKeep = Union[PandasUniqueKeep, PolarsUniqueKeep, IbisUniqueKeep]
+UniqueKeep = Literal["first", "last", "none", "any"]
 
 
 class TransformType(Enum):
@@ -188,6 +184,7 @@ Transform = Union[
     SampleRowsTransform,
     ExplodeColumnsTransform,
     ExpandDictTransform,
+    UniqueTransform,
 ]
 
 
