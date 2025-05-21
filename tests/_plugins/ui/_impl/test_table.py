@@ -897,8 +897,8 @@ def test__get_column_summaries_after_search() -> None:
     # Result is csv or json
     assert summaries_data in ["a\n2\n12\n", '[{"a": 2}, {"a": 12}]']
     # We don't have column summaries for non-dataframe data
-    assert summaries.stats[0].min is None
-    assert summaries.stats[0].max is None
+    assert summaries.stats["a"].min is None
+    assert summaries.stats["a"].max is None
 
 
 @pytest.mark.skipif(
@@ -916,8 +916,8 @@ def test__get_column_summaries_after_search_df() -> None:
     ) or summaries.data.startswith(
         "data:application/vnd.apache.arrow.file;base64,"
     )
-    assert summaries.stats[0].min == 0
-    assert summaries.stats[0].max == 19
+    assert summaries.stats["a"].min == 0
+    assert summaries.stats["a"].max == 19
 
     # search results are 2 and 12
     table._search(
@@ -937,9 +937,9 @@ def test__get_column_summaries_after_search_df() -> None:
         "data:application/vnd.apache.arrow.file;base64,"
     )
     # We don't have column summaries for non-dataframe data
-    assert summaries.stats[0].min == 2
-    assert summaries.stats[0].max == 12
-    assert summaries.stats[0].nulls == 0
+    assert summaries.stats["a"].min == 2
+    assert summaries.stats["a"].max == 12
+    assert summaries.stats["a"].nulls == 0
 
 
 def test_show_column_summaries_modes():
