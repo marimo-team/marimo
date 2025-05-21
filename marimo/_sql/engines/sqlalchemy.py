@@ -15,7 +15,7 @@ from marimo._data.models import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
     InferenceConfig,
-    SQLEngine,
+    SQLConnection,
     register_engine,
 )
 from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
@@ -30,21 +30,20 @@ if TYPE_CHECKING:
 
 
 @register_engine
-class SQLAlchemyEngine(SQLEngine):
+class SQLAlchemyEngine(SQLConnection["Engine"]):
     """SQLAlchemy engine."""
 
     def __init__(
         self, connection: Engine, engine_name: Optional[VariableName] = None
     ) -> None:
-        self._engine = connection
-        self._engine_name = engine_name
+        super().__init__(connection, engine_name)
         self.inspector: Optional[Inspector] = None
 
         try:
             # May not exist in older versions of SQLAlchemy
             from sqlalchemy import inspect
 
-            self.inspector = inspect(self._engine)
+            self.inspector = inspect(self._connection)
         except Exception:
             LOGGER.warning("Failed to create inspector", exc_info=True)
             self.inspector = None
@@ -58,14 +57,14 @@ class SQLAlchemyEngine(SQLEngine):
 
     @property
     def dialect(self) -> str:
-        return str(self._engine.dialect.name)
+        return str(self._connection.dialect.name)
 
     def execute(self, query: str) -> Any:
         sql_output_format = self.sql_output_format()
 
         from sqlalchemy import text
 
-        with self._engine.connect() as connection:
+        with self._connection.connect() as connection:
             result = connection.execute(text(query))
             if sql_output_format == "native":
                 return result
@@ -149,8 +148,8 @@ class SQLAlchemyEngine(SQLEngine):
         from sqlalchemy import text
 
         try:
-            if self._engine.url.database is not None:
-                return self._engine.url.database
+            if self._connection.url.database is not None:
+                return self._connection.url.database
         except Exception:
             LOGGER.warning("Connection URL is invalid", exc_info=True)
             return None
@@ -165,7 +164,7 @@ class SQLAlchemyEngine(SQLEngine):
         # Try to get the database name by querying the database directly
         if query := dialect_queries.get(self.dialect):
             try:
-                with self._engine.connect() as connection:
+                with self._connection.connect() as connection:
                     rows = connection.execute(text(query)).fetchone()
                     if rows is not None and rows[0] is not None:
                         database_name = str(rows[0])

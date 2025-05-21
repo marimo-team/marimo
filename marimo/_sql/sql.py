@@ -10,8 +10,12 @@ from marimo._runtime.output import replace
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.engines.types import ENGINE_REGISTRY
+from marimo._sql.engines.types import (
+    ENGINE_REGISTRY,
+    QueryEngine,
+)
 from marimo._sql.utils import raise_df_import_error
+from marimo._types.ids import VariableName
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
 
 
@@ -62,6 +66,7 @@ def sql(
     if query is None or query.strip() == "":
         return None
 
+    sql_engine: QueryEngine[Any]
     if engine is None:
         DependencyManager.require_many(
             "to execute sql",
@@ -73,7 +78,7 @@ def sql(
         for engine_cls in ENGINE_REGISTRY:
             if engine_cls.is_compatible(engine):
                 sql_engine = engine_cls(
-                    connection=engine, engine_name="custom"
+                    connection=engine, engine_name=VariableName("custom")
                 )  # type: ignore
                 break
         else:

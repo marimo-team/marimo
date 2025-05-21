@@ -14,7 +14,7 @@ from marimo._data.models import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
     InferenceConfig,
-    SQLEngine,
+    SQLConnection,
     register_engine,
 )
 from marimo._sql.utils import raise_df_import_error
@@ -32,7 +32,7 @@ class IbisToMarimoConversionError(Exception):
 
 
 @register_engine
-class IbisEngine(SQLEngine):
+class IbisEngine(SQLConnection["SQLBackend"]):
     """Ibis engine."""
 
     def __init__(
@@ -40,8 +40,7 @@ class IbisEngine(SQLEngine):
         connection: SQLBackend,
         engine_name: Optional[VariableName] = None,
     ) -> None:
-        self._backend = connection
-        self._engine_name = engine_name
+        super().__init__(connection, engine_name)
 
         self.default_database = self.get_default_database()
         self.default_schema = self.get_default_schema()
@@ -52,17 +51,17 @@ class IbisEngine(SQLEngine):
 
     @property
     def dialect(self) -> str:
-        dialect_registry = self._backend.dialect.classes
+        dialect_registry = self._connection.dialect.classes
         # reverse lookup
         for dialect_name, dialect_class in dialect_registry.items():
-            if self._backend.dialect == dialect_class:
+            if self._connection.dialect == dialect_class:
                 assert isinstance(dialect_name, str)
                 return dialect_name
 
-        return str(self._backend.dialect)
+        return str(self._connection.dialect)
 
     def execute(self, query: str) -> Any:
-        query_expr = self._backend.sql(query)
+        query_expr = self._connection.sql(query)
 
         sql_output_format = self.sql_output_format()
 
@@ -137,13 +136,13 @@ class IbisEngine(SQLEngine):
         """
         database_name = None
         try:
-            database_name = self._backend.current_catalog
+            database_name = self._connection.current_catalog
         except AttributeError:
             pass
 
         if database_name is None:
             try:
-                database_name = self._backend.name
+                database_name = self._connection.name
             except AttributeError:
                 pass
 
@@ -152,7 +151,7 @@ class IbisEngine(SQLEngine):
     def get_default_schema(self) -> Optional[str]:
         """Get the default schema name"""
         try:
-            schema_name: str | None = self._backend.current_database
+            schema_name: str | None = self._connection.current_database
         except AttributeError:
             schema_name = None
 
@@ -214,7 +213,7 @@ class IbisEngine(SQLEngine):
 
         schemas: list[Schema] = []
         # TODO handle backends without .list_databases()
-        for schema_name in self._backend.list_databases():
+        for schema_name in self._connection.list_databases():
             if schema_name.lower() in meta_schemas:
                 LOGGER.debug(
                     f"Meta schema found `{schema_name}`. Not displaying schema."
@@ -248,11 +247,11 @@ class IbisEngine(SQLEngine):
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         """Return all tables in a schema."""
-        if self._backend is None:
+        if self._connection is None:
             return []
 
         try:
-            table_names = self._backend.list_tables(
+            table_names = self._connection.list_tables(
                 database=(database, schema)
             )
         except Exception:
@@ -294,11 +293,11 @@ class IbisEngine(SQLEngine):
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
-        if self._backend is None:
+        if self._connection is None:
             return None
 
         try:
-            table = self._backend.table(
+            table = self._connection.table(
                 table_name, database=(database_name, schema_name)
             )
             table_schema = table.schema()

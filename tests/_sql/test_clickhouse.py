@@ -9,6 +9,7 @@ from marimo._config.config import SqlOutputType
 from marimo._data.models import DataSourceConnection
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded, ClickhouseServer
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.get_engines import engine_to_data_source_connection
 from marimo._sql.sql import sql
 
@@ -56,6 +57,10 @@ def test_clickhouse_embedded_creation() -> None:
     assert connection.dialect == "clickhouse"
     assert connection.name == "clickhouse"
     assert connection.source == "clickhouse"
+
+    assert isinstance(engine, ClickhouseEmbedded)
+    assert isinstance(engine, EngineCatalog)
+    assert isinstance(engine, QueryEngine)
 
     chdb_conn.close()
 

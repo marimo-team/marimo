@@ -10,7 +10,11 @@ import pytest
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
-from marimo._sql.engines.types import NO_SCHEMA_NAME
+from marimo._sql.engines.types import (
+    NO_SCHEMA_NAME,
+    EngineCatalog,
+    QueryEngine,
+)
 from marimo._types.ids import VariableName
 
 HAS_PYICEBERG = DependencyManager.pyiceberg.has()
@@ -119,13 +123,20 @@ def get_expected_table(
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
 def test_engine_compatibility() -> None:
     """Test engine compatibility checks."""
-    from pyiceberg.catalog import Catalog
+    from pyiceberg.catalog.memory import InMemoryCatalog
 
     obj = object()
-    mock_catalog = mock.MagicMock(spec=Catalog)
+    mock_catalog = InMemoryCatalog("test_catalog")
 
     assert PyIcebergEngine.is_compatible(mock_catalog)
     assert not PyIcebergEngine.is_compatible(obj)
+
+    engine = PyIcebergEngine(
+        mock_catalog, engine_name=VariableName("my_iceberg")
+    )
+    assert isinstance(engine, PyIcebergEngine)
+    assert isinstance(engine, EngineCatalog)
+    assert not isinstance(engine, QueryEngine)
 
 
 @pytest.mark.skipif(not HAS_PYICEBERG, reason="PyIceberg not installed")
@@ -165,7 +176,9 @@ def test_pyiceberg_execute(memory_catalog: Catalog) -> None:
     engine = PyIcebergEngine(
         memory_catalog, engine_name=VariableName("my_iceberg")
     )
-    with pytest.raises(NotImplementedError):
+    assert isinstance(engine, EngineCatalog)
+    assert not isinstance(engine, QueryEngine)
+    with pytest.raises(AttributeError):
         engine.execute("SELECT * FROM table")
 
 

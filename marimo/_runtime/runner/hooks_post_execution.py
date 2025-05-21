@@ -163,14 +163,16 @@ def _broadcast_data_source_connection(
         ]
     )
 
-    if engines:
-        LOGGER.debug("Broadcasting data source connections")
-        DataSourceConnections(
-            connections=[
-                engine_to_data_source_connection(variable, engine)
-                for variable, engine in engines
-            ]
-        ).broadcast()
+    if not engines:
+        return
+
+    LOGGER.debug("Broadcasting data source connections")
+    DataSourceConnections(
+        connections=[
+            engine_to_data_source_connection(variable, engine)
+            for variable, engine in engines
+        ]
+    ).broadcast()
 
 
 @kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")

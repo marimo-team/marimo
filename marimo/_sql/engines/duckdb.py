@@ -9,7 +9,7 @@ from marimo._data.models import Database, DataTable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
     InferenceConfig,
-    SQLEngine,
+    SQLConnection,
     register_engine,
 )
 from marimo._sql.utils import raise_df_import_error, wrapped_sql
@@ -25,7 +25,7 @@ INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
 
 
 @register_engine
-class DuckDBEngine(SQLEngine):
+class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     """DuckDB SQL engine."""
 
     def __init__(
@@ -33,8 +33,7 @@ class DuckDBEngine(SQLEngine):
         connection: Optional[duckdb.DuckDBPyConnection] = None,
         engine_name: Optional[VariableName] = None,
     ) -> None:
-        self._connection = connection
-        self._engine_name = engine_name
+        super().__init__(connection, engine_name)
 
     @property
     def source(self) -> str:
@@ -146,7 +145,7 @@ class DuckDBEngine(SQLEngine):
         return []
 
     def get_table_details(
-        self, table_name: str, schema_name: str, database_name: str
+        self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
         """Get a single table from the engine. This is currently implemented in get_databases_from_duckdb."""
         _, _, _ = table_name, schema_name, database_name

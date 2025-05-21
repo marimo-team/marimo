@@ -10,6 +10,7 @@ import pytest
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.ibis import IbisEngine, IbisToMarimoConversionError
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -123,6 +124,10 @@ def test_engine_name_initialization() -> None:
     ibis_engine = IbisEngine(ibis_backend)
     assert ibis_engine._engine_name is None
 
+    assert isinstance(ibis_engine, IbisEngine)
+    assert isinstance(ibis_engine, EngineCatalog)
+    assert isinstance(ibis_engine, QueryEngine)
+
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 def test_ibis_engine_source_and_dialect() -> None:
@@ -152,7 +157,7 @@ def test_ibis_invalid_engine() -> None:
     """Test IbisEngine with an invalid backend and inspector does not raise errors."""
 
     engine = IbisEngine(connection=None, engine_name=None)  # type: ignore
-    assert engine._backend is None
+    assert engine._connection is None
     assert engine.default_database is None
     assert engine.default_schema is None
 
