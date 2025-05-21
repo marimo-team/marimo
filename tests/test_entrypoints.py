@@ -5,6 +5,7 @@ import pytest
 
 from marimo._entrypoints.ids import KnownEntryPoint
 from marimo._entrypoints.registry import EntryPointRegistry, get_entry_points
+from marimo._runtime.executor import ExecutionConfig, Executor, get_executor
 
 
 class TestEntryPointRegistry:
@@ -87,3 +88,37 @@ class TestEntryPointRegistry:
 
         # Should include both registered and entry point plugins
         assert set(result) == {"value1", "ep_value1", "ep_value2"}
+
+
+class CustomExecutor(Executor):
+    def execute_cell(
+        self,
+        cell: str,
+        glbls: dict[str, str],
+        graph: str,
+    ) -> str:
+        return f"Executed {cell} with {glbls} in {graph}"
+
+    async def execute_cell_async(
+        self,
+        cell: str,
+        glbls: dict[str, str],
+        graph: str,
+    ) -> str:
+        return f"Executed {cell} with {glbls} in {graph}"
+
+
+class TestExecutorEntryPoint:
+    @pytest.fixture
+    def registry(self) -> EntryPointRegistry[Executor]:
+        reg = EntryPointRegistry[Executor]("marimo.cell.executor")
+        reg.register("custom", CustomExecutor)
+        return reg
+
+    def test_get_entry_points_modern(
+        self, registry: EntryPointRegistry[Executor]
+    ) -> None:
+        executor = get_executor(
+            ExecutionConfig(is_strict=False), registry=registry
+        )
+        assert isinstance(executor, CustomExecutor)
