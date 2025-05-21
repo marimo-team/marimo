@@ -1071,7 +1071,10 @@ def test_calculate_top_k_rows(df: Any) -> None:
     assert normalized_result == [(3, 3), (None, 2)]
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skipif(
+    not DependencyManager.ibis.has(),
+    reason="Ibis not installed",
+)
 def test_calculate_top_k_rows_metadata_only_frame() -> None:
     import ibis
 
