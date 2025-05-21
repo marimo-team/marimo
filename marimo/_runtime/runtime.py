@@ -2224,7 +2224,7 @@ class DatasetCallbacks:
         self, variable_name: str
     ) -> tuple[Optional[EngineCatalog[Any]], Optional[str]]:
         """Fetch the catalog-capable engine associated with the given variable name.
-        
+
         Returns the engine if it supports catalog operations, or an error message if not."""
         variable_name = cast(VariableName, variable_name)
 
