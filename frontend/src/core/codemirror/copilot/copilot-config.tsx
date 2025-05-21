@@ -10,14 +10,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
-import { useOpenSettingsToTab } from "@/components/app-config/state";
+import type { GitHubCopilotStatus } from "./types";
 
 export const CopilotConfig = memo(() => {
   const [copilotSignedIn, copilotChangeSignIn] = useAtom(
     isGitHubCopilotSignedInState,
   );
   const [step, setStep] = useAtom(copilotSignedInState);
-  const { handleClick: openSettings } = useOpenSettingsToTab();
   const [localData, setLocalData] = useState<{ url: string; code: string }>();
   const [loading, setLoading] = useState(false);
 
@@ -25,11 +24,8 @@ export const CopilotConfig = memo(() => {
     evt.preventDefault();
     setLoading(true);
     try {
-      const client = getCopilotClient();
-      const { verificationUri, status, userCode } =
-        await client.signInInitiate();
-
-      if (status === "OK" || status === "AlreadySignedIn") {
+      const { verificationUri, status, userCode } = await initiateSignIn();
+      if (isSignedIn(status)) {
         copilotChangeSignIn(true);
       } else {
         setStep("signingIn");
@@ -45,44 +41,14 @@ export const CopilotConfig = memo(() => {
     if (!localData) {
       return;
     }
-    const client = getCopilotClient();
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 1000;
 
+    setLoading(true);
     try {
-      setLoading(true);
-      Logger.log("Copilot#tryFinishSignIn: Attempting to confirm sign-in");
-      const { status } = await client.signInConfirm({
-        userCode: localData.code,
-      });
-
-      if (status === "OK" || status === "AlreadySignedIn") {
-        Logger.log("Copilot#tryFinishSignIn: Sign-in confirmed successfully");
+      const result = await handleSignInConfirmation(localData.code);
+      if (result.success) {
         copilotChangeSignIn(true);
         setStep("signedIn");
-      } else {
-        Logger.warn(
-          "Copilot#tryFinishSignIn: Sign-in confirmation returned unexpected status",
-          { status },
-        );
-        setStep("signInFailed");
-      }
-    } catch (error) {
-      Logger.warn(
-        "Copilot#tryFinishSignIn: Initial sign-in confirmation failed, attempting retries",
-      );
-
-      // Check if it's a connection error
-      if (
-        error instanceof Error &&
-        (error.message.includes("ECONNREFUSED") ||
-          error.message.includes("WebSocket") ||
-          error.message.includes("network"))
-      ) {
-        Logger.error(
-          "Copilot#tryFinishSignIn: Connection error during sign-in",
-          error,
-        );
+      } else if (result.error === "connection") {
         setStep("connectionError");
         toast({
           title: "GitHub Copilot Connection Error",
@@ -90,53 +56,9 @@ export const CopilotConfig = memo(() => {
           variant: "danger",
           action: <Button onClick={trySignIn}>Retry</Button>,
         });
-        return;
+      } else {
+        setStep("signInFailed");
       }
-
-      // If not a connection error, try seeing if we're already signed in
-      // We try multiple times with a delay between attempts
-      for (let i = 0; i < MAX_RETRIES; i++) {
-        try {
-          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-          const signedIn = await client.signedIn();
-          if (signedIn) {
-            Logger.log(
-              "Copilot#tryFinishSignIn: Successfully signed in after retry",
-            );
-            copilotChangeSignIn(true);
-            setStep("signedIn");
-            return;
-          }
-        } catch (retryError) {
-          Logger.warn("Copilot#tryFinishSignIn: Retry attempt failed", {
-            attempt: i + 1,
-            maxRetries: MAX_RETRIES,
-          });
-          // Check for connection errors during retry
-          if (
-            retryError instanceof Error &&
-            (retryError.message.includes("ECONNREFUSED") ||
-              retryError.message.includes("WebSocket") ||
-              retryError.message.includes("network"))
-          ) {
-            setStep("connectionError");
-            toast({
-              title: "GitHub Copilot Connection Error",
-              description:
-                "Lost connection during sign-in. Please check settings and try again.",
-              variant: "danger",
-              action: (
-                <Button variant="link" onClick={() => openSettings("ai")}>
-                  Settings
-                </Button>
-              ),
-            });
-            return;
-          }
-        }
-      }
-      Logger.error("Copilot#tryFinishSignIn: All sign-in attempts failed");
-      setStep("signInFailed");
     } finally {
       setLoading(false);
     }
@@ -144,10 +66,9 @@ export const CopilotConfig = memo(() => {
 
   const signOut = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    const client = getCopilotClient();
+    await handleSignOut();
     copilotChangeSignIn(false);
     setStep("signedOut");
-    await client.signOut();
   };
 
   const renderBody = () => {
@@ -274,4 +195,91 @@ export const CopilotConfig = memo(() => {
 
   return renderBody();
 });
+
 CopilotConfig.displayName = "CopilotConfig";
+
+// Utility functions
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 3000;
+
+async function initiateSignIn() {
+  const client = getCopilotClient();
+  return await client.signInInitiate();
+}
+
+async function handleSignInConfirmation(userCode: string) {
+  const client = getCopilotClient();
+
+  try {
+    Logger.log("Copilot#tryFinishSignIn: Attempting to confirm sign-in");
+    const { status } = await client.signInConfirm({ userCode });
+
+    if (isSignedIn(status)) {
+      Logger.log("Copilot#tryFinishSignIn: Sign-in confirmed successfully");
+      return { success: true };
+    }
+
+    Logger.warn(
+      "Copilot#tryFinishSignIn: Sign-in confirmation returned unexpected status",
+      { status },
+    );
+    return { success: false };
+  } catch (error) {
+    if (isConnectionError(error)) {
+      Logger.error(
+        "Copilot#tryFinishSignIn: Connection error during sign-in",
+        error,
+      );
+      return { success: false, error: "connection" };
+    }
+
+    return await handleSignInRetry(client);
+  }
+}
+
+async function handleSignInRetry(client: ReturnType<typeof getCopilotClient>) {
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      const signedIn = await client.signedIn();
+      if (signedIn) {
+        Logger.log(
+          "Copilot#tryFinishSignIn: Successfully signed in after retry",
+        );
+        return { success: true };
+      }
+    } catch (retryError) {
+      Logger.warn("Copilot#tryFinishSignIn: Retry attempt failed", {
+        attempt: i + 1,
+        maxRetries: MAX_RETRIES,
+      });
+
+      if (isConnectionError(retryError)) {
+        return { success: false, error: "connection" };
+      }
+    }
+  }
+
+  Logger.error("Copilot#tryFinishSignIn: All sign-in attempts failed");
+  return { success: false };
+}
+
+async function handleSignOut() {
+  const client = getCopilotClient();
+  await client.signOut();
+}
+
+function isConnectionError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes("ECONNREFUSED") ||
+      error.message.includes("WebSocket") ||
+      error.message.includes("network"))
+  );
+}
+
+function isSignedIn(status: GitHubCopilotStatus): boolean {
+  return (
+    status === "SignedIn" || status === "AlreadySignedIn" || status === "OK"
+  );
+}

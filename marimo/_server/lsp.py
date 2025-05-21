@@ -194,6 +194,9 @@ class PyLspServer(BaseLspServer):
     def get_command(self) -> list[str]:
         import sys
 
+        _loggers.make_log_directory()
+        log_file = _loggers.get_log_directory() / "pylsp.log"
+
         return [
             sys.executable,
             "-m",
@@ -203,6 +206,8 @@ class PyLspServer(BaseLspServer):
             "--port",
             str(self.port),
             "--check-parent-process",
+            "--log-file",
+            str(log_file),
         ]
 
     def missing_binary_alert(self) -> Alert:

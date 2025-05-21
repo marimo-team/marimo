@@ -101,7 +101,6 @@ If you find yourself needing to force execution order often, it might be a sign 
 
 ## General debugging tips
 
-
 ### Understanding dependencies
 
 - Use the Variables Panel to inspect variable values and see where they're defined and used.
@@ -125,7 +124,6 @@ sys.path[0] == 'path/to/'
 ```
 
 You can add entries to `sys.path` in your pyproject.toml [runtime configuration](../guides/configuration/runtime_configuration.md).
-
 
 ### Other patches
 
@@ -162,3 +160,16 @@ marimo edit --proxy example.com:8080
 # or
 marimo run --proxy example.com:8080
 ```
+
+### Reading the logs
+
+marimo will output logs to `$XDG_CACHE_HOME/marimo/logs/*`. To view the logs, run:
+
+```bash
+cat $XDG_CACHE_HOME/marimo/logs/github-copilot-lsp.log
+```
+
+Available logs are:
+
+- `github-copilot-lsp.log`
+- `pylsp.log`
