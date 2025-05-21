@@ -75,7 +75,7 @@ class DownloadAsArgs:
 
 
 @dataclass
-class ColumnSummary:
+class ColumnStats:
     column: str
     nulls: Optional[int]
     # int, float, datetime
@@ -91,7 +91,7 @@ class ColumnSummary:
 @dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
-    summaries: list[ColumnSummary]
+    stats: list[ColumnStats]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
@@ -773,7 +773,7 @@ class table(
         if not self._show_column_summaries:
             return ColumnSummaries(
                 data=None,
-                summaries=[],
+                stats=[],
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -786,33 +786,31 @@ class table(
         if total_rows > self._column_summary_row_limit:
             return ColumnSummaries(
                 data=None,
-                summaries=[],
+                stats=[],
                 is_disabled=True,
             )
 
-        # Get column summaries if not chart-only mode
-        summaries: list[ColumnSummary] = []
+        # Get column stats if not chart-only mode
+        stats: list[ColumnStats] = []
         if self._show_column_summaries != "chart":
             for column in self._manager.get_column_names():
                 try:
-                    summary = self._searched_manager.get_summary(column)
-                    summaries.append(
-                        ColumnSummary(
+                    statistic = self._searched_manager.get_stats(column)
+                    stats.append(
+                        ColumnStats(
                             column=column,
-                            nulls=summary.nulls,
-                            min=summary.min,
-                            max=summary.max,
-                            unique=summary.unique,
-                            true=summary.true,
-                            false=summary.false,
+                            nulls=statistic.nulls,
+                            min=statistic.min,
+                            max=statistic.max,
+                            unique=statistic.unique,
+                            true=statistic.true,
+                            false=statistic.false,
                         )
                     )
                 except BaseException:
                     # Catch-all: some libraries like Polars have bugs and raise
                     # BaseExceptions, which shouldn't crash the kernel
-                    LOGGER.warning(
-                        "Failed to get summary for column %s", column
-                    )
+                    LOGGER.warning("Failed to get stats for column %s", column)
 
         # If we are above the limit to show charts,
         # or if we are in stats-only mode,
@@ -826,7 +824,7 @@ class table(
 
         return ColumnSummaries(
             data=chart_data,
-            summaries=summaries,
+            stats=stats,
             is_disabled=False,
         )
 
