@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -16,6 +17,8 @@ HAS_DEPS = DependencyManager.pandas.has()
 
 if HAS_DEPS:
     import pandas as pd
+else:
+    pd = Mock()
 
 
 @pytest.mark.parametrize(
@@ -81,5 +84,7 @@ def test_data_explorer_initial_spec(
     expected_value: dict[str, str],
 ) -> None:
     """Test data_explorer with various initial spec keyword arguments."""
+    valid_keys = ("x", "y", "row", "column", "color", "size", "shape")
+    expected_value = {**dict.fromkeys(valid_keys, None), **expected_value}
     explorer = data_explorer.data_explorer(df_input, **initial_spec_kwargs)
     assert explorer.value == expected_value
