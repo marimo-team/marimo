@@ -5,6 +5,42 @@ import { WebSocketServer } from "ws";
 import type * as rpc from "@sourcegraph/vscode-ws-jsonrpc";
 import * as rpcServer from "@sourcegraph/vscode-ws-jsonrpc/lib/server";
 import path from "node:path";
+import fs from "node:fs/promises";
+
+const LOG_FILE = path.join(
+  process.env.XDG_CACHE_HOME || path.join(process.env.HOME || "", ".cache"),
+  "marimo",
+  "logs",
+  "lsp.log",
+);
+
+let logFileCreated = false;
+
+const appendToFileLog = async (...args: any[]) => {
+  const log = args.join(" ");
+  if (!logFileCreated) {
+    await fs.mkdir(path.dirname(LOG_FILE), { recursive: true });
+    // Clear file on startup
+    await fs.writeFile(LOG_FILE, "");
+    logFileCreated = true;
+  }
+  await fs.appendFile(LOG_FILE, `${log}\n`);
+};
+
+const Logger = {
+  debug: (...args: any[]) => {
+    console.log(...args);
+    void appendToFileLog("[DEBUG]", ...args);
+  },
+  log: (...args: any[]) => {
+    console.log(...args);
+    void appendToFileLog("[INFO]", ...args);
+  },
+  error: (...args: any[]) => {
+    console.error(...args);
+    void appendToFileLog("[ERROR]", ...args);
+  },
+};
 
 // Adapted from https://github.com/wylieconlon/jsonrpc-ws-proxy
 
@@ -27,37 +63,40 @@ function toSocket(webSocket: ws): rpc.IWebSocket {
       try {
         webSocket.send(content);
       } catch (error) {
-        console.error("[ERROR] Failed to send message:", error);
+        Logger.error("Failed to send message:", error);
       }
     },
-    onMessage: (cb) =>
-      (webSocket.onmessage = (event) => {
+    onMessage: (cb) => {
+      webSocket.onmessage = (event) => {
         try {
-          console.log("[DEBUG] Received message:", event.data);
+          Logger.debug("Received message:", event.data);
           cb(event.data);
         } catch (error) {
-          console.error("[ERROR] Error processing message:", error);
+          Logger.error("Error processing message:", error);
         }
-      }),
-    onError: (cb) =>
-      (webSocket.onerror = (event) => {
-        console.error("[ERROR] WebSocket error:", event);
+      };
+    },
+    onError: (cb) => {
+      webSocket.onerror = (event) => {
+        Logger.error("WebSocket error:", event);
         if ("message" in event) {
           cb(event.message);
         }
-      }),
-    onClose: (cb) =>
-      (webSocket.onclose = (event) => {
-        console.log(
-          `[INFO] WebSocket closed with code ${event.code}, reason: ${event.reason}`,
+      };
+    },
+    onClose: (cb) => {
+      webSocket.onclose = (event) => {
+        Logger.log(
+          `WebSocket closed with code ${event.code}, reason: ${event.reason}`,
         );
         cb(event.code, event.reason);
-      }),
+      };
+    },
     dispose: () => {
       try {
         webSocket.close();
       } catch (error) {
-        console.error("[ERROR] Error closing WebSocket:", error);
+        Logger.error("Error closing WebSocket:", error);
       }
     },
   };
@@ -71,30 +110,28 @@ try {
       perMessageDeflate: false,
     },
     () => {
-      console.log(`[INFO] WebSocket server listening on port ${serverPort}`);
+      Logger.log(`WebSocket server listening on port ${serverPort}`);
     },
   );
 
   wss.on("error", (error) => {
-    console.error("[ERROR] WebSocket server error:", error);
+    Logger.error("WebSocket server error:", error);
   });
 
   wss.on("connection", (client: ws, request: http.IncomingMessage) => {
-    console.log(`[INFO] New connection from ${request.socket.remoteAddress}`);
+    Logger.log(`New connection from ${request.socket.remoteAddress}`);
 
     let langServer: string[] | undefined;
 
     Object.keys(languageServers).forEach((key) => {
       if (request.url === `/${key}`) {
         langServer = languageServers[key];
-        console.log(`[INFO] Matched language server: ${key}`);
+        Logger.log(`Matched language server: ${key}`);
       }
     });
 
     if (!langServer || !langServer.length) {
-      console.error(
-        `[ERROR] Invalid language server requested: ${request.url}`,
-      );
+      Logger.error(`Invalid language server requested: ${request.url}`);
       client.close();
       return;
     }
@@ -105,35 +142,30 @@ try {
         langServer[0],
         langServer.slice(1),
       );
-      console.log(
-        `[INFO] Created language server process: ${langServer.join(" ")}`,
-      );
+      Logger.log(`Created language server process: ${langServer.join(" ")}`);
 
       const socket = toSocket(client);
       const connection = rpcServer.createWebSocketConnection(socket);
 
       rpcServer.forward(connection, localConnection);
-      console.log("[INFO] Forwarding new client connection");
+      Logger.log("Forwarding new client connection");
 
       socket.onClose((code, reason) => {
-        console.log(
-          `[INFO] Client connection closed - Code: ${code}, Reason: ${reason}`,
+        Logger.log(
+          `Client connection closed - Code: ${code}, Reason: ${reason}`,
         );
         try {
           localConnection.dispose();
         } catch (error) {
-          console.error("[ERROR] Error disposing local connection:", error);
+          Logger.error("Error disposing local connection:", error);
         }
       });
     } catch (error) {
-      console.error(
-        "[ERROR] Failed to establish language server connection:",
-        error,
-      );
+      Logger.error("Failed to establish language server connection:", error);
       client.close();
     }
   });
 } catch (error) {
-  console.error("[FATAL] Failed to start WebSocket server:", error);
+  Logger.error("[FATAL] Failed to start WebSocket server:", error);
   process.exit(1);
 }
