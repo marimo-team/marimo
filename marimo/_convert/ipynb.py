@@ -77,7 +77,15 @@ def transform_add_marimo_import(sources: list[str]) -> list[str]:
     def contains_mo(cell: str) -> bool:
         return cell.startswith("mo.md(") or "mo.sql(" in cell
 
-    if any(contains_mo(cell) for cell in sources):
+    def imports_mo(cell: str) -> bool:
+        # TODO this is a quick heuristic and will fail if mo is defined in other ways
+        # however detecting arbitrary definitions would require an AST parse
+        # which isn't being performed during this pass
+        return "import marimo as mo" in cell
+
+    if any(contains_mo(cell) for cell in sources) and not any(
+        imports_mo(cell) for cell in sources
+    ):
         return sources + ["import marimo as mo"]
 
     return sources

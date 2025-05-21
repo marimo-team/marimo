@@ -127,9 +127,26 @@ def test_transform_add_marimo_import():
         "print('World')",
         "mo.sql('SELECT * FROM table')",
     ]
+    expected = [
+        "mo.md('# Hello')",
+        "print('World')",
+        "mo.sql('SELECT * FROM table')",
+        "import marimo as mo",
+    ]
     result = transform_add_marimo_import(sources)
-    assert "import marimo as mo" in result
+    assert result == expected
 
+    # if `import marimo as mo` is already present
+    # it should not be added again
+    assert transform_add_marimo_import(expected) == expected
+
+    existing = [
+        # slight support for different import orders
+        # but must use canonical "import marimo as mo" form
+        "import antigravity; import marimo as mo",
+        "mo.md('# Hello')",
+    ]
+    assert transform_add_marimo_import(existing) == existing
 
 def test_transform_magic_commands():
     sources = [
