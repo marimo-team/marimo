@@ -265,12 +265,9 @@ class TestPandasTableManager(unittest.TestCase):
             }
         )
         data_pivoted = data.pivot(
-            index="category",
-            columns=["num_col", "str_col"],
-            values="val"
+            index="category", columns=["num_col", "str_col"], values="val"
         )
         assert PandasTableManagerFactory.create()(data_pivoted) is not None
-
 
     @pytest.mark.xfail(reason="Implementation not yet supported")
     def test_to_json_multi_index_unnamed(self) -> None:
