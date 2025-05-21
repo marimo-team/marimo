@@ -132,13 +132,13 @@ class _Progress(Html):
             return None
         rate = self.current / diff
         return round(rate, 2)
-    
+
     def _get_rate(self) -> Optional[float]:
         if self.show_rate:
             return self._calculate_rate()
         else:
             return None
-    
+
     def _get_eta(self) -> Optional[float]:
         if self.show_eta and self.total is not None:
             rate = self._calculate_rate()
