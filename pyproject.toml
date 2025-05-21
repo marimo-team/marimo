@@ -103,7 +103,7 @@ recommended = [
 ]
 
 dev = [
-    "click <8.1.4",   # https://github.com/pallets/click/issues/2558
+    "click>=8.0,!=8.2.0,<9",
     "black~=23.12.1",
     # For tracing debugging
     "opentelemetry-api~=1.26.0",
@@ -544,11 +544,11 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
-nodejs = "22.*"
-pnpm = "10.*"
-hatch = ">=1.14.0,<2"
+nodejs = ">=22.13.0,<22.14"
+pnpm = ">=10.11.0,<11"
+hatch = ">=1.14.1,<2"
 make = ">=4.4.1,<5"
 pre_commit = ">=4.2.0,<5"
-uv = ">=0.6.12,<0.7"
+uv = ">=0.7.6,<0.8"
 python = "3.12.*"
-pip = ">=25.0.1,<26"
+pip = ">=25.1.1,<26"
