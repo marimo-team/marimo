@@ -18,7 +18,7 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.models import NonNestedLiteral
+from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
@@ -75,23 +75,9 @@ class DownloadAsArgs:
 
 
 @dataclass
-class ColumnStats:
-    column: str
-    nulls: Optional[int]
-    # int, float, datetime
-    min: Optional[NonNestedLiteral]
-    max: Optional[NonNestedLiteral]
-    # str
-    unique: Optional[int]
-    # bool
-    true: Optional[NonNestedLiteral] = None
-    false: Optional[NonNestedLiteral] = None
-
-
-@dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
-    stats: list[ColumnStats]
+    stats: dict[ColumnName, ColumnStats]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
@@ -773,7 +759,7 @@ class table(
         if not self._show_column_summaries:
             return ColumnSummaries(
                 data=None,
-                stats=[],
+                stats={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -786,26 +772,31 @@ class table(
         if total_rows > self._column_summary_row_limit:
             return ColumnSummaries(
                 data=None,
-                stats=[],
+                stats={},
                 is_disabled=True,
             )
 
         # Get column stats if not chart-only mode
-        stats: list[ColumnStats] = []
+        stats: dict[ColumnName, ColumnStats] = {}
         if self._show_column_summaries != "chart":
             for column in self._manager.get_column_names():
                 try:
                     statistic = self._searched_manager.get_stats(column)
-                    stats.append(
-                        ColumnStats(
-                            column=column,
-                            nulls=statistic.nulls,
-                            min=statistic.min,
-                            max=statistic.max,
-                            unique=statistic.unique,
-                            true=statistic.true,
-                            false=statistic.false,
-                        )
+                    stats[column] = ColumnStats(
+                        total=statistic.total,
+                        nulls=statistic.nulls,
+                        min=statistic.min,
+                        max=statistic.max,
+                        mean=statistic.mean,
+                        median=statistic.median,
+                        std=statistic.std,
+                        unique=statistic.unique,
+                        true=statistic.true,
+                        false=statistic.false,
+                        p5=statistic.p5,
+                        p25=statistic.p25,
+                        p75=statistic.p75,
+                        p95=statistic.p95,
                     )
                 except BaseException:
                     # Catch-all: some libraries like Polars have bugs and raise

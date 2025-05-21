@@ -3,14 +3,23 @@
 import type { DataType } from "@/core/kernel/messages";
 import { Objects } from "@/utils/objects";
 
+export type ColumnName = string;
+
 export interface ColumnHeaderStats {
-  column: string | number;
   min?: number | string | undefined | null;
   max?: number | string | undefined | null;
   unique?: number | unknown[] | undefined | null;
   nulls?: number | null;
   true?: number | null;
   false?: number | null;
+  total?: number | null;
+  mean?: number | null;
+  median?: number | null;
+  std?: number | null;
+  p5?: number | null;
+  p25?: number | null;
+  p75?: number | null;
+  p95?: number | null;
 }
 
 export type FieldTypesWithExternalType = Array<

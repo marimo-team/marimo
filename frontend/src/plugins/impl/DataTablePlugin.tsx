@@ -22,6 +22,7 @@ import {
   type FieldTypesWithExternalType,
   type TooManyRows,
   TOO_MANY_ROWS,
+  type ColumnName,
 } from "@/components/data-table/types";
 import type {
   ColumnFiltersState,
@@ -68,7 +69,7 @@ type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
-  stats: ColumnHeaderStats[];
+  stats: Record<ColumnName, ColumnHeaderStats>;
   is_disabled?: boolean;
 }
 
@@ -204,15 +205,23 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         data: z
           .union([z.string(), z.array(z.object({}).passthrough())])
           .nullable(),
-        stats: z.array(
+        stats: z.record(
+          z.string(),
           z.object({
-            column: z.union([z.number(), z.string()]),
-            min: z.union([z.number(), z.nan(), z.string()]).nullish(),
-            max: z.union([z.number(), z.nan(), z.string()]).nullish(),
-            unique: z.union([z.number(), z.array(z.any())]).nullish(),
-            nulls: z.number().nullish(),
-            true: z.number().nullish(),
-            false: z.number().nullish(),
+            total: z.number().nullable(),
+            nulls: z.number().nullable(),
+            min: z.number().nullable(),
+            max: z.number().nullable(),
+            unique: z.number().nullable(),
+            true: z.number().nullable(),
+            false: z.number().nullable(),
+            std: z.number().nullable(),
+            mean: z.number().nullable(),
+            median: z.number().nullable(),
+            p5: z.number().nullable(),
+            p25: z.number().nullable(),
+            p75: z.number().nullable(),
+            p95: z.number().nullable(),
           }),
         ),
         is_disabled: z.boolean().optional(),
@@ -510,7 +519,7 @@ export const LoadingDataTableComponent = memo(
       ColumnSummaries<T>
     >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: [] };
+        return { data: null, stats: {} };
       }
       return props.get_column_summaries({});
     }, [
