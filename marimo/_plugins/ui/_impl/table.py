@@ -782,22 +782,7 @@ class table(
             for column in self._manager.get_column_names():
                 try:
                     statistic = self._searched_manager.get_stats(column)
-                    stats[column] = ColumnStats(
-                        total=statistic.total,
-                        nulls=statistic.nulls,
-                        min=statistic.min,
-                        max=statistic.max,
-                        mean=statistic.mean,
-                        median=statistic.median,
-                        std=statistic.std,
-                        unique=statistic.unique,
-                        true=statistic.true,
-                        false=statistic.false,
-                        p5=statistic.p5,
-                        p25=statistic.p25,
-                        p75=statistic.p75,
-                        p95=statistic.p95,
-                    )
+                    stats[column] = statistic
                 except BaseException:
                     # Catch-all: some libraries like Polars have bugs and raise
                     # BaseExceptions, which shouldn't crash the kernel
