@@ -175,7 +175,10 @@ class PandasTableManagerFactory(TableManagerFactory):
                     if INDEX_COLUMN_NAME in data_copy.columns:
                         data_copy.columns = pd.Index(
                             [INDEX_COLUMN_NAME]
-                            + [",".join([str(lev) for lev in c]) for c in _cols[1:]]
+                            + [
+                                ",".join([str(lev) for lev in c])
+                                for c in _cols[1:]
+                            ]
                         )
                     else:
                         data_copy.columns = pd.Index(
