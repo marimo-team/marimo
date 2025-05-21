@@ -6,20 +6,20 @@ import { Objects } from "@/utils/objects";
 export type ColumnName = string;
 
 export interface ColumnHeaderStats {
-  min?: number | string | undefined | null;
-  max?: number | string | undefined | null;
-  unique?: number | unknown[] | undefined | null;
+  total?: number | null;
   nulls?: number | null;
+  unique?: number | null;
   true?: number | null;
   false?: number | null;
-  total?: number | null;
-  mean?: number | null;
-  median?: number | null;
-  std?: number | null;
-  p5?: number | null;
-  p25?: number | null;
-  p75?: number | null;
-  p95?: number | null;
+  min?: number | string | null;
+  max?: number | string | null;
+  mean?: number | string | null;
+  median?: number | string | null;
+  std?: number | string | null;
+  p5?: number | string | null;
+  p25?: number | string | null;
+  p75?: number | string | null;
+  p95?: number | string | null;
 }
 
 export type FieldTypesWithExternalType = Array<
