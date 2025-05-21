@@ -2223,7 +2223,9 @@ class DatasetCallbacks:
     def _get_engine_catalog(
         self, variable_name: str
     ) -> tuple[Optional[EngineCatalog[Any]], Optional[str]]:
-        """Find the SQL engine associated with the given variable name. Returns the engine and the error message if any."""
+        """Fetch the catalog-capable engine associated with the given variable name.
+        
+        Returns the engine if it supports catalog operations, or an error message if not."""
         variable_name = cast(VariableName, variable_name)
 
         try:
