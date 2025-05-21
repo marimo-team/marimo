@@ -171,14 +171,18 @@ class PandasTableManagerFactory(TableManagerFactory):
                     LOGGER.info(
                         "Multi-column indexes are not supported, converting to single index"
                     )
+                    _cols = data_copy.columns
                     if INDEX_COLUMN_NAME in data_copy.columns:
                         data_copy.columns = pd.Index(
                             [INDEX_COLUMN_NAME]
-                            + [",".join(col) for col in data_copy.columns[1:]]
+                            + [
+                                ",".join([str(lev) for lev in c])
+                                for c in _cols[1:]
+                            ]
                         )
                     else:
                         data_copy.columns = pd.Index(
-                            [",".join(col) for col in data_copy.columns]
+                            [",".join([str(lev) for lev in c]) for c in _cols]
                         )
                     return data_copy
 

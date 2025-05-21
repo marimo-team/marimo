@@ -254,6 +254,21 @@ class TestPandasTableManager(unittest.TestCase):
             {"X": "z", "Y": 3, "a": 3, "b": 6},
         ]
 
+    def test_to_json_multi_index_numeric(self) -> None:
+        # MultiIndex with numeric levels
+        data = pd.DataFrame(
+            {
+                "category": list("abab"),
+                "num_col": [0, 0, 1, 1],
+                "str_col": list("aabb"),
+                "val": [1, 2, 3, 4],
+            }
+        )
+        data_pivoted = data.pivot(
+            index="category", columns=["num_col", "str_col"], values="val"
+        )
+        assert PandasTableManagerFactory.create()(data_pivoted) is not None
+
     @pytest.mark.xfail(reason="Implementation not yet supported")
     def test_to_json_multi_index_unnamed(self) -> None:
         data = pd.DataFrame(
