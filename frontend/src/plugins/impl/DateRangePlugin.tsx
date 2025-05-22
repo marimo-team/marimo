@@ -14,6 +14,7 @@ interface Data {
   stop: string;
   step?: string;
   fullWidth: boolean;
+  disabled?: boolean;
 }
 
 export class DateRangePickerPlugin implements IPlugin<T, Data> {
@@ -26,6 +27,7 @@ export class DateRangePickerPlugin implements IPlugin<T, Data> {
     stop: z.string(),
     step: z.string().optional(),
     fullWidth: z.boolean().default(false),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -72,6 +74,7 @@ const DateRangePickerComponent = (props: DateRangePickerProps): JSX.Element => {
         aria-label={props.label ?? "date range picker"}
         minValue={parseDate(props.start)}
         maxValue={parseDate(props.stop)}
+        isDisabled={props.disabled}
       />
     </Labeled>
   );
