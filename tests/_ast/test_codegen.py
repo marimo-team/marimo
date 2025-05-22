@@ -97,6 +97,7 @@ def get_idempotent_marimo_source(name: str) -> str:
 
 
 class TestGeneration:
+
     @staticmethod
     def test_generate_filecontents_empty() -> None:
         contents = wrap_generate_filecontents([], [])
@@ -428,6 +429,13 @@ class TestGeneration:
     def test_generate_filecontents_toplevel_pytest() -> None:
         source = get_idempotent_marimo_source(
             "test_generate_filecontents_toplevel_pytest"
+        )
+        assert "import marimo" in source
+
+    @staticmethod
+    def test_generate_filecontents_with_annotation_typing() -> None:
+        source = get_idempotent_marimo_source(
+            "test_app_with_annotation_typing"
         )
         assert "import marimo" in source
 
