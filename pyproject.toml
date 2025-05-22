@@ -293,7 +293,7 @@ extra-dependencies = [
 python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
-features = ["dev", "docs"]
+features = ["docs"]
 dependencies = [
     "marimo_docs @ file://docs",
 ]
