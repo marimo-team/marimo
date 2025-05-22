@@ -150,6 +150,8 @@ def make_log_directory() -> None:
 
 
 def _file_handler() -> logging.FileHandler:
+    make_log_directory()
+
     # We log to the same file daily, and keep the last 7 days of logs
     file_handler = TimedRotatingFileHandler(
         get_log_directory() / "marimo.log",
