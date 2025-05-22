@@ -15,7 +15,6 @@ This guide provides an overview of these features and how to configure them.
     Various instructions in this guide refer to the marimo.toml configuration
     file. Locate this file with `marimo config show | head`.
 
-
 ## Generating cells with AI
 
 marimo has built-in support for generating and refactoring code with LLMs.
@@ -49,7 +48,6 @@ prompt, write `@df`.
 </figure>
 </div>
 
-
 ### Refactor existing cells
 
 Make edits to an existing cell by hitting `Ctrl/Cmd-shift-e`, which opens a prompt box
@@ -61,8 +59,6 @@ that has your cell's code as input.
 <figcaption>Use AI to modify a cell by pressing `Ctrl/Cmd-Shift-e`.</figcaption>
 </figure>
 </div>
-
-
 
 ### Generate new cells
 
@@ -99,10 +95,10 @@ You can customize how the AI assistant behaves by adding rules in the marimo set
 
 For example, you can add rules about:
 
-- Preferred plotting libraries (matplotlib, plotly, altair)
-- Data handling practices
-- Code style conventions
-- Error handling preferences
+* Preferred plotting libraries (matplotlib, plotly, altair)
+* Data handling practices
+* Code style conventions
+* Error handling preferences
 
 Example custom rules:
 
@@ -143,7 +139,7 @@ Below we describe how to connect marimo to your AI provider.
 
 1. Install openai: `pip install openai`
 
-2. Add the following to your `marimo.toml`:
+2. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -163,7 +159,7 @@ base_url = "https://api.openai.com/v1"
 To use Anthropic with marimo:
 
 1. Sign up for an account at [Anthropic](https://console.anthropic.com/) and grab your [Anthropic Key](https://console.anthropic.com/settings/keys).
-2. Add the following to your `marimo.toml`:
+2. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -180,7 +176,7 @@ To use Google AI with marimo:
 
 1. Sign up for an account at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
 2. Install the Google AI Python client: `pip install google-generativeai`
-3. Add the following to your `marimo.toml`:
+3. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -189,6 +185,21 @@ model = "gemini-1.5-flash"
 
 [ai.google]
 api_key = "AI..."
+```
+
+#### GitHub Copilot
+
+You can use your GitHub Copilot for code refactoring or the chat panel. This requires a GitHub Copilot subscription.
+
+1. Download the `gh` CLI from [here](https://cli.github.com/).
+2. Create a token with `gh auth token` and copy the token.
+3. Add the token to your `marimo.toml` (or configure in the UI settings in the editor).
+
+```toml title="marimo.toml"
+[ai.open_ai]
+model = "gpt-4o"
+api_key = "gho_..."
+base_url = "https://api.githubcopilot.com/"
 ```
 
 #### Local models with Ollama { #using-ollama }
@@ -226,7 +237,7 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
    marimo edit notebook.py
    ```
 
-6. Add the following to your `marimo.toml`:
+6. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -266,6 +277,7 @@ For a comprehensive list of compatible providers and their configurations, pleas
 For providers not compatible with OpenAI's API, please submit a [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml) or "thumbs up" an existing one.
 
 ## Copilots
+
 ### GitHub Copilot
 
 The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),
@@ -285,7 +297,7 @@ setting up Windsurf with the following:
 1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
 2. Try the method from: <https://github.com/leona/helix-gpt/discussions/60>
 
-Add your key to your marimo.toml file:
+Add your key to your marimo.toml file (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [completion]
@@ -320,7 +332,7 @@ For official support, please ping the Windsurf team and ask them to support mari
       </figure>
     </div>
 
-    8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
+    8. Copy the value of the `apiKey` to `$XDG_CONFIG_HOME/marimo/marimo.toml`:
 
     ```toml title="marimo.toml"
     [completion]
@@ -336,7 +348,7 @@ marimo also supports integrating with custom LLM providers for code completion s
 To configure a custom copilot:
 
 1. Ensure you have an LLM provider that offers API access for code completion (either external or running locally)
-2. Add the following configuration to your `marimo.toml` (or configure in the UI settings):
+2. Add the following configuration to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [completion]
@@ -348,7 +360,6 @@ base_url = "http://127.0.0.1:11434/v1" # or https://your-llm-api-endpoint.com
 
 The configuration options include:
 
-- `api_key`: Your LLM provider's API key. This may not be required for local models, so you can set it to any random string.
-- `model`: The specific model to use for completion suggestions.
-- `base_url`: The endpoint URL for your LLM provider's API
-
+* `api_key`: Your LLM provider's API key. This may not be required for local models, so you can set it to any random string.
+* `model`: The specific model to use for completion suggestions.
+* `base_url`: The endpoint URL for your LLM provider's API
