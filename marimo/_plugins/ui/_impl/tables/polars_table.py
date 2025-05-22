@@ -120,7 +120,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 except (
                     BaseException
                 ):  # Sometimes, polars throws a generic exception
-                    LOGGER.debug(
+                    LOGGER.info(
                         "Failed to write json. Trying to convert columns to strings."
                     )
                     for column in result.get_columns():
