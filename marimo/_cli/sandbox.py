@@ -188,12 +188,13 @@ def construct_uv_flags(
         "--no-project",
         # trade installation time for faster start time
         "--compile-bytecode",
-        # layer additional deps on top of the requirements
-        "--with",
-        ",".join(additional_deps),
         "--with-requirements",
         temp_file.name,
     ]
+
+    # Layer additional deps on top of the requirements
+    if len(additional_deps) > 0:
+        uv_flags.extend(["--with", ",".join(additional_deps)])
 
     # Add refresh
     if uv_needs_refresh:
