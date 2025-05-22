@@ -14,8 +14,9 @@ import { isSchemaless } from "@/components/datasources/utils";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
-// duckdb engine is treated as the default engine
-// as it doesn't require passing an engine variable to the backend
+// DuckDB engine is treated as the default engine
+// As it doesn't require passing an engine variable to the backend
+// Keep this in sync with the backend name
 export const DUCKDB_ENGINE = "__marimo_duckdb" as ConnectionName;
 export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE]);
 

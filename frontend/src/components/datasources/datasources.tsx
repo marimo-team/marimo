@@ -60,6 +60,7 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
   dataConnectionsMapAtom,
+  DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
   type SQLTableContext,
   useDataSourceActions,
@@ -235,10 +236,8 @@ const Engine: React.FC<{
   children: React.ReactNode;
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
-  // The internal DuckDB engine may have no engine name, so we provide one.
-  // The connection is also updated automatically, so we do not need to refresh.
-  const internalEngine =
-    connection.databases.length === 0 || !connection.databases[0]?.engine;
+  // The internal duckdb connection is updated automatically, so we do not need to refresh.
+  const internalEngine = connection.name === DUCKDB_ENGINE;
   const engineName = internalEngine ? "In-Memory" : connection.name;
 
   const [isSpinning, setIsSpinning] = React.useState(false);
