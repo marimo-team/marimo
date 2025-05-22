@@ -11,8 +11,7 @@ dynamic = ["version"]
 # Dependencies should have lower bounds, which should be as loose as possible.
 dependencies = [
     # For maintainable cli
-    # - 8.2.0 introduced a bug where boolean flags broke
-    "click>=8.0,!=8.2.0,<9",
+    "click>=8.0,<9",
     # code completion
     "jedi>=0.18.0",
     # compile markdown to html
