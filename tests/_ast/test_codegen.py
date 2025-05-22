@@ -97,7 +97,6 @@ def get_idempotent_marimo_source(name: str) -> str:
 
 
 class TestGeneration:
-
     @staticmethod
     def test_generate_filecontents_empty() -> None:
         contents = wrap_generate_filecontents([], [])
