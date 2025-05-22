@@ -30,6 +30,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transform,
     Transformations,
     TransformType,
+    UniqueTransform,
 )
 
 HAS_DEPS = (
@@ -1150,6 +1151,86 @@ class TestTransformHandler:
             expected[sorted(expected.columns)],
             result[sorted(result.columns)],
         )
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        (
+            "df",
+            "expected_first",
+            "expected_last",
+            "expected_none",
+            "expected_any",
+        ),
+        [
+            (
+                pd.DataFrame(
+                    {"A": ["a", "a", "b", "b", "c"], "B": [1, 2, 3, 4, 5]}
+                ),
+                pd.DataFrame({"A": ["a", "b", "c"], "B": [1, 3, 5]}),
+                pd.DataFrame({"A": ["a", "b", "c"], "B": [2, 4, 5]}),
+                pd.DataFrame({"A": ["c"], "B": [5]}),
+                pd.DataFrame(),
+            ),
+            (
+                pl.DataFrame(
+                    {"A": ["a", "a", "b", "b", "c"], "B": [1, 2, 3, 4, 5]}
+                ),
+                pl.DataFrame({"A": ["a", "b", "c"], "B": [1, 3, 5]}),
+                pl.DataFrame({"A": ["a", "b", "c"], "B": [2, 4, 5]}),
+                pl.DataFrame({"A": ["c"], "B": [5]}),
+                pl.DataFrame({"A": ["a", "b", "c"], "B": [1, 3, 5]}),
+            ),
+            (
+                ibis.memtable(
+                    {"A": ["a", "a", "b", "b", "c"], "B": [1, 2, 3, 4, 5]}
+                ),
+                ibis.memtable({"A": ["a", "b", "c"], "B": [1, 3, 5]}),
+                ibis.memtable({"A": ["a", "b", "c"], "B": [2, 4, 5]}),
+                ibis.memtable({"A": ["c"], "B": [5]}),
+                ibis.memtable({}),
+            ),
+        ],
+    )
+    def test_unique(
+        df: DataFrameType,
+        expected_first: DataFrameType,
+        expected_last: DataFrameType,
+        expected_none: DataFrameType,
+        expected_any: DataFrameType,
+    ) -> None:
+        for keep, expected in [
+            ("first", expected_first),
+            ("last", expected_last),
+            ("none", expected_none),
+        ]:
+            transform = UniqueTransform(
+                type=TransformType.UNIQUE, column_ids=["A"], keep=keep
+            )
+            result = apply(df, transform)
+            if isinstance(result, pd.DataFrame):
+                assert_frame_equal(
+                    expected[expected.columns],
+                    result[result.columns],
+                )
+            else:
+                # The result is not deterministic for Polars and Ibis dataframes.
+                if isinstance(result, ibis.Table):
+                    result = result.to_polars()
+                    expected = expected.to_polars()
+                assert result["A"].n_unique() == expected["A"].n_unique()
+                assert result.columns == expected.columns
+                assert result.shape == expected.shape
+                assert result.dtypes == expected.dtypes
+
+        if isinstance(df, pl.DataFrame):
+            transform = UniqueTransform(
+                type=TransformType.UNIQUE, column_ids=["A"], keep="any"
+            )
+            result = apply(df, transform)
+            assert result["A"].n_unique() == expected_any["A"].n_unique()
+            assert result.columns == expected_any.columns
+            assert result.shape == expected_any.shape
+            assert result.dtypes == expected_any.dtypes
 
     @staticmethod
     @pytest.mark.parametrize(

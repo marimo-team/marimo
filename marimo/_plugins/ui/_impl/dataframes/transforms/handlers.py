@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_ibis,
@@ -236,11 +236,7 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             return df.drop_duplicates(subset=transform.column_ids, keep="last")
         if transform.keep == "none":
             return df.drop_duplicates(subset=transform.column_ids, keep=False)
-        if transform.keep == "any":
-            return df.drop_duplicates(
-                subset=transform.column_ids, keep="first"
-            )
-        assert_never(transform.keep)
+        assert_never(cast(NoReturn, transform.keep))
 
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
@@ -705,10 +701,8 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         if transform.keep == "last":
             return df.distinct(on=transform.column_ids, keep="last")
         if transform.keep == "none":
-            return df.distinct(on=transform.column_ids)
-        if transform.keep == "any":
-            return df.distinct(on=transform.column_ids, keep="first")
-        assert_never(transform.keep)
+            return df.distinct(on=transform.column_ids, keep=None)
+        assert_never(cast(NoReturn, transform.keep))
 
     @staticmethod
     def as_python_code(
