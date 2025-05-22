@@ -239,6 +239,7 @@ class TopLevelExtraction:
             TopLevelType.UNRESOLVED: self.unresolved,
             TopLevelType.CELL: self.cells,
         }
+        self.collection: set[TopLevelStatus] = set({})
 
         # Track definitions and references
         defs: set[Name] = set()
@@ -259,6 +260,7 @@ class TopLevelExtraction:
             if not status.is_unparsable:
                 defs.update(status.defs)
                 refs.update(status.refs)
+            self.collection.add(status)
 
         # Refresh names
         potential_refs = set(
@@ -356,7 +358,8 @@ class TopLevelExtraction:
         if self._variables is not None:
             return self._variables
         variables = {}
-        for status in self.cells.values():
+
+        for status in self.collection:
             if status._cell:
                 variables.update(status._cell.init_variable_data)
         for var, status in self.toplevel.items():

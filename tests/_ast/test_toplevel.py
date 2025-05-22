@@ -367,6 +367,67 @@ class TestTopLevelExtraction:
             s.hint for s in extraction
         ]
 
+    @staticmethod
+    def test_variables_extracted(app) -> None:
+        with app.setup:
+            CONSTANT: int = 42
+
+        @app.cell
+        def _():
+            x: int = 2
+            # No typing
+            z = CONSTANT
+            return (x, z)
+
+        @app.cell
+        def _():
+            y: float = 2.0
+            return (y,)
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+
+        from marimo._ast.visitor import VariableData, AnnotationData
+
+        assert extraction.variables == {
+            "x": VariableData(
+                kind="variable",
+                required_refs={
+                    "int",
+                },
+                unbounded_refs=set(),
+                annotation_data=AnnotationData(
+                    repr="int",
+                    refs={
+                        "int",
+                    },
+                ),
+                import_data=None,
+            ),
+            "y": VariableData(
+                kind="variable",
+                required_refs={
+                    "float",
+                },
+                unbounded_refs=set(),
+                annotation_data=AnnotationData(
+                    repr="float",
+                    refs={
+                        "float",
+                    },
+                ),
+                import_data=None,
+            ),
+            "z": VariableData(
+                kind="variable",
+                required_refs={
+                    "CONSTANT",
+                },
+                unbounded_refs=set(),
+                annotation_data=None,
+                import_data=None,
+            ),
+        }
+
 
 class TestTopLevelClasses:
     @staticmethod
