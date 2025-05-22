@@ -386,7 +386,7 @@ class TestTopLevelExtraction:
 
         extraction = TopLevelExtraction.from_app(InternalApp(app))
 
-        from marimo._ast.visitor import VariableData, AnnotationData
+        from marimo._ast.visitor import AnnotationData, VariableData
 
         assert extraction.variables == {
             "x": VariableData(
