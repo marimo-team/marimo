@@ -147,6 +147,15 @@ def _uv_export_script_requirements_txt(
     return result.stdout.split("\n")
 
 
+def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
+    if pyproject.name and pyproject.name.endswith(".py"):
+        try:
+            return _uv_export_script_requirements_txt(pyproject.name)
+        except subprocess.CalledProcessError:
+            pass  # Fall back if uv fails
+    return pyproject.requirements_txt_lines
+
+
 def get_marimo_dir() -> Path:
     return Path(__file__).parent.parent.parent
 
@@ -160,12 +169,7 @@ def construct_uv_flags(
     # NB. Used in quarto plugin
 
     # If name if a filepath, parse the dependencies from the file
-    try:
-        # Try exporting env with uv
-        dependencies = _uv_export_script_requirements_txt(pyproject.name)
-    except subprocess.CalledProcessError:
-        # Otherwise fallback to marimo-parsed requirements
-        dependencies = pyproject.requirements_txt_lines
+    dependencies = _resolve_requirements_txt_lines(pyproject)
 
     # If there are no dependencies, which can happen for marimo new or
     # on marimo edit a_new_file.py, uv may use a cached venv, even though
