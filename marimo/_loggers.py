@@ -83,7 +83,7 @@ def set_level(level: str | int = logging.WARNING) -> None:
 def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
     """
     Get a logger with a given name and level.
-    If the logger is alreadted created, we return the cached logger.
+    If the logger is already created, we return the cached logger.
     Otherwise, we create a new logger and cache it.
     """
 
