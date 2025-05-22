@@ -1329,6 +1329,17 @@ components:
                 api_key:
                   type: string
               type: object
+            bedrock:
+              properties:
+                aws_access_key_id:
+                  type: string
+                aws_secret_access_key:
+                  type: string
+                profile_name:
+                  type: string
+                region_name:
+                  type: string
+              type: object
             google:
               properties:
                 api_key:

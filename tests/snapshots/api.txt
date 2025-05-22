@@ -11,6 +11,7 @@ ai
   ChatModelConfig
   llm
     anthropic
+    bedrock
     google
     groq
     openai

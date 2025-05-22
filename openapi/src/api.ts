@@ -3016,6 +3016,12 @@ export interface components {
         anthropic?: {
           api_key?: string;
         };
+        bedrock?: {
+          aws_access_key_id?: string;
+          aws_secret_access_key?: string;
+          profile_name?: string;
+          region_name?: string;
+        };
         google?: {
           api_key?: string;
         };

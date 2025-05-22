@@ -199,6 +199,8 @@ dependencies = [
     "python-lsp-server>=1.12.1",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
+    "litellm>=1.70.0",
+    "python-dotenv>=1.0.1",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
@@ -280,6 +282,8 @@ extra-dependencies = [
     "openai>=1.55.3",
     "anthropic==0.34.1",
     "google-generativeai==0.8.5",
+    "boto3>=1.38.19",
+    "litellm>=1.70.0",
     # exporting as ipynb
     "nbformat >=5.10.4",
     "sympy>=1.13.3",

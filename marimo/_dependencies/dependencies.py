@@ -205,6 +205,8 @@ class DependencyManager:
     )
     tomlkit = Dependency("tomlkit")
     loro = Dependency("loro")
+    boto3 = Dependency("boto3")
+    litellm = Dependency("litellm")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

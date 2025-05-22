@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass
@@ -39,6 +40,14 @@ if TYPE_CHECKING:
     )
     from google.generativeai.types import (  # type: ignore[import-not-found]
         GenerateContentResponse,
+    )
+
+    # Used for Bedrock, unified interface for all models
+    from litellm import (  # type: ignore[attr-defined]
+        CustomStreamWrapper as LitellmStream,
+    )
+    from litellm.types.utils import (
+        ModelResponseStream as LitellmStreamResponse,
     )
     from openai import (  # type: ignore[import-not-found]
         OpenAI,
@@ -109,6 +118,19 @@ class AnyProviderConfig:
         )
 
     @staticmethod
+    def for_bedrock(config: AiConfig) -> AnyProviderConfig:
+        if "bedrock" not in config:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Bedrock config not found",
+            )
+        key = _get_key(config["bedrock"], "Bedrock")
+        return AnyProviderConfig(
+            base_url=_get_base_url(config["bedrock"], "Bedrock"),
+            api_key=key,
+        )
+
+    @staticmethod
     def for_completion(config: CompletionConfig) -> AnyProviderConfig:
         key = _get_key(config, "AI completion")
         return AnyProviderConfig(
@@ -118,15 +140,27 @@ class AnyProviderConfig:
 
     @staticmethod
     def for_model(model: str, config: AiConfig) -> AnyProviderConfig:
-        if model.startswith("claude"):
+        if _model_is_anthropic(model):
             return AnyProviderConfig.for_anthropic(config)
-        elif model.startswith("google") or model.startswith("gemini"):
+        elif _model_is_google(model):
             return AnyProviderConfig.for_google(config)
+        elif _model_is_bedrock(model):
+            return AnyProviderConfig.for_bedrock(config)
         else:
             return AnyProviderConfig.for_openai(config)
 
 
 def _get_key(config: Any, name: str) -> str:
+    if name == "Bedrock":
+        if "profile_name" in config:
+            profile_name = config.get("profile_name", "")
+            return f"profile:{profile_name}"
+        elif (
+            "aws_access_key_id" in config and "aws_secret_access_key" in config
+        ):
+            return f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}"
+        else:
+            return ""
     if "api_key" in config:
         key = config["api_key"]
         if key:
@@ -137,8 +171,13 @@ def _get_key(config: Any, name: str) -> str:
     )
 
 
-def _get_base_url(config: Any) -> Optional[str]:
-    if "base_url" in config:
+def _get_base_url(config: Any, name: str = "") -> Optional[str]:
+    if name == "Bedrock":
+        if "region_name" in config:
+            return cast(str, config["region_name"])
+        else:
+            return None
+    elif "base_url" in config:
         return cast(str, config["base_url"])
     return None
 
@@ -424,13 +463,88 @@ class GoogleProvider(
         return None
 
 
+class BedrockProvider(
+    CompletionProvider[
+        "LitellmStreamResponse",
+        "LitellmStream",
+    ]
+):
+    def setup_credentials(self, config: AnyProviderConfig) -> None:
+        # Use profile name if provided, otherwise use API key
+        try:
+            if config.api_key.startswith("profile:"):
+                profile_name = config.api_key.replace("profile:", "")
+                os.environ["AWS_PROFILE"] = profile_name
+            elif len(config.api_key) > 0:
+                # If access_key_id and secret_access_key is provided directly, use it
+                aws_access_key_id = config.api_key.split(":")[0]
+                aws_secret_access_key = config.api_key.split(":")[1]
+                os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key_id
+                os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
+        except Exception as e:
+            LOGGER.error(f"{config} Error setting up AWS credentials: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Error setting up AWS credentials",
+            ) from e
+
+    def stream_completion(
+        self,
+        messages: list[ChatMessage],
+        system_prompt: str,
+        max_tokens: int,
+    ) -> LitellmStream:
+        DependencyManager.litellm.require(why="for AI assistance with Bedrock")
+        DependencyManager.boto3.require(why="for AI assistance with Bedrock")
+        from litellm import completion as litellm_completion
+
+        self.setup_credentials(self.config)
+
+        return litellm_completion(
+            model=self.model,
+            messages=cast(
+                Any,
+                convert_to_openai_messages(
+                    [ChatMessage(role="system", content=system_prompt)]
+                    + messages
+                ),
+            ),
+            max_completion_tokens=max_tokens,
+            stream=True,
+            timeout=15,
+        )
+
+    def extract_content(self, response: LitellmStreamResponse) -> str | None:
+        if (
+            hasattr(response, "choices")
+            and response.choices
+            and response.choices[0].delta
+        ):
+            return str(response.choices[0].delta.content)
+        return None
+
+
+def _model_is_google(model: str) -> bool:
+    return model.startswith("google") or model.startswith("gemini")
+
+
+def _model_is_anthropic(model: str) -> bool:
+    return model.startswith("claude")
+
+
+def _model_is_bedrock(model: str) -> bool:
+    return model.startswith("bedrock/")
+
+
 def get_completion_provider(
     config: AnyProviderConfig, model: str
 ) -> CompletionProvider[Any, Any]:
-    if model.startswith("claude"):
+    if _model_is_anthropic(model):
         return AnthropicProvider(model, config)
-    elif model.startswith("google") or model.startswith("gemini"):
+    elif _model_is_google(model):
         return GoogleProvider(model, config)
+    elif _model_is_bedrock(model):
+        return BedrockProvider(model, config)
     else:
         return OpenAIProvider(model, config)
 

@@ -411,3 +411,106 @@ class groq(ChatModel):
         choice = response.choices[0]
         content = choice.message.content
         return content or ""
+
+
+class bedrock(ChatModel):
+    """
+    AWS Bedrock ChatModel
+
+    Args:
+        model: The model ID to use.
+            Format: [<cross-region>.]<provider>.<model> (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+        system_message: The system message to use
+        region_name: The AWS region to use (e.g., "us-east-1")
+        profile_name: The AWS profile to use for credentials (optional)
+        credentials: AWS credentials (optional)
+            Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
+            If not provided, credentials will be retrieved from the environment
+            or the AWS configuration files.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        region_name: str = "us-east-1",
+        profile_name: Optional[str] = None,
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None,
+    ):
+        if not model.startswith("bedrock/"):
+            model = f"bedrock/{model}"
+        self.model = model
+        self.system_message = system_message
+        self.region_name = region_name
+        self.profile_name = profile_name
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+
+    def _setup_credentials(self) -> None:
+        # Use profile name if provided, otherwise use API key
+        if self.profile_name:
+            os.environ["AWS_PROFILE"] = self.profile_name
+        elif self.aws_access_key_id and self.aws_secret_access_key:
+            os.environ["AWS_ACCESS_KEY_ID"] = self.aws_access_key_id
+            os.environ["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
+        else:
+            pass  # Use default credential chain
+
+    def __call__(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> object:
+        DependencyManager.boto3.require(
+            "bedrock chat model requires boto3. `pip install boto3`"
+        )
+        DependencyManager.litellm.require(
+            "bedrock chat model requires litellm. `pip install litellm`"
+        )
+        from litellm import completion as litellm_completion
+
+        self._setup_credentials()
+
+        try:
+            # Make API call
+            response = litellm_completion(
+                model=self.model,
+                messages=convert_to_openai_messages(
+                    [ChatMessage(role="system", content=self.system_message)]
+                    + messages
+                ),
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+                stream=False,
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            # Handle common AWS exceptions with helpful messages
+            error_msg = str(e)
+
+            if "AccessDenied" in error_msg:
+                raise ValueError(
+                    f"Access denied to AWS Bedrock model {self.model}. "
+                    "Make sure your credentials have the necessary permissions."
+                ) from e
+            elif (
+                "ValidationException" in error_msg
+                and "model id" in error_msg.lower()
+            ):
+                raise ValueError(
+                    f"Model {self.model} not found or not enabled for your account. "
+                    "Make sure you've enabled model access in the AWS Bedrock console."
+                ) from e
+            elif "ResourceNotFoundException" in error_msg:
+                raise ValueError(
+                    f"Model {self.model} not found in region {self.region_name}. "
+                    "Check that the model ID is correct and available in this region."
+                ) from e
+            else:
+                # Re-raise original exception if not handled
+                raise

@@ -13,6 +13,7 @@
     "dist"
   ],
   "dependencies": {
+    "@ai-sdk/react": "^1.2.12",
     "@anywidget/types": "^0.2.0",
     "@codemirror/autocomplete": "^6.18.6",
     "@codemirror/commands": "^6.8.1",
