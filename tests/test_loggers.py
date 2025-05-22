@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from marimo._loggers import (
+    _LOG_LEVEL,
     _LOGGERS,
     get_log_directory,
     get_logger,
@@ -19,6 +20,8 @@ from marimo._loggers import (
 
 
 def test_set_level():
+    original_level = _LOG_LEVEL
+
     # Test with integer levels
     set_level(logging.DEBUG)
     logger = get_logger("test1")
@@ -41,6 +44,9 @@ def test_set_level():
 
     with pytest.raises(ValueError):
         set_level(999)
+
+    # Reset the log level
+    set_level(original_level)
 
 
 def test_get_logger():

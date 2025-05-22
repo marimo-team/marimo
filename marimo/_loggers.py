@@ -18,7 +18,7 @@ from marimo._utils.log_formatter import LogFormatter
 # is set to either INFO or DEBUG, depending on the global log level.
 
 # Global log level for loggers
-_LOG_LEVEL = logging.WARNING
+_LOG_LEVEL: int = logging.WARNING
 
 # Custom log formatter
 _LOG_FORMATTER = LogFormatter()
