@@ -152,14 +152,16 @@ def sanitize_nan_infs(data: Any) -> Any:
     """Sanitize NaN and Inf values in Dataframes for JSON serialization."""
     if can_narwhalify(data):
         narwhals_data = nw.from_native(data)
-        res = narwhals_data.with_columns(
-            nw.when(nw.col(col).is_nan() | ~nw.col(col).is_finite())
-            .then(None)
-            .otherwise(nw.col(col))
-            .name.keep()
-            for col in narwhals_data.columns
-        )
-        return res.to_native()
+        for col, dtype in narwhals_data.schema.items():
+            # Only numeric columns can have NaN or Inf values
+            if dtype.is_numeric():
+                narwhals_data = narwhals_data.with_columns(
+                    nw.when(nw.col(col).is_nan() | ~nw.col(col).is_finite())
+                    .then(None)
+                    .otherwise(nw.col(col))
+                    .name.keep()
+                )
+        return narwhals_data.to_native()
     return data
 
 
