@@ -93,8 +93,6 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
 
     # Create logger
     logger = logging.getLogger(name)
-    # Set the most permissive level so it won't get filtered out by the handlers
-    logger.setLevel(logging.DEBUG)
 
     # Stream to stdout
     # We set the level on the StreamHandler, instead of the Logger,
