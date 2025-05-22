@@ -60,6 +60,7 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
   dataConnectionsMapAtom,
+  DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
   type SQLTableContext,
   useDataSourceActions,
@@ -219,7 +220,7 @@ export const DataSources: React.FC = () => {
         {dataConnections.length > 0 && tables.length > 0 && (
           <DatasourceLabel>
             <PythonIcon className="h-4 w-4 text-muted-foreground" />
-            <span>Python</span>
+            <span className="text-xs">Python</span>
           </DatasourceLabel>
         )}
         {tables.length > 0 && (
@@ -235,10 +236,8 @@ const Engine: React.FC<{
   children: React.ReactNode;
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
-  // The internal DuckDB engine may have no engine name, so we provide one.
-  // The connection is also updated automatically, so we do not need to refresh.
-  const internalEngine =
-    connection.databases.length === 0 || !connection.databases[0]?.engine;
+  // The internal duckdb connection is updated automatically, so we do not need to refresh.
+  const internalEngine = connection.name === DUCKDB_ENGINE;
   const engineName = internalEngine ? "In-Memory" : connection.name;
 
   const [isSpinning, setIsSpinning] = React.useState(false);
@@ -259,7 +258,7 @@ const Engine: React.FC<{
           className="h-4 w-4 text-muted-foreground"
           name={connection.dialect}
         />
-        <span>{dbDisplayName(connection.dialect)}</span>
+        <span className="text-xs">{dbDisplayName(connection.dialect)}</span>
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={engineName as VariableName} />)
         </span>

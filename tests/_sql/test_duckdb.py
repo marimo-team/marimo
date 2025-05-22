@@ -10,6 +10,7 @@ import pytest
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.duckdb import DuckDBEngine
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -57,6 +58,15 @@ def test_duckdb_engine_dialect() -> None:
     """Test DuckDBEngine dialect property."""
     engine = DuckDBEngine(None, engine_name=None)
     assert engine.dialect == "duckdb"
+
+
+@pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
+def test_duckdb_engine_is_instance() -> None:
+    """Test DuckDBEngine is an instance of the correct types."""
+    engine = DuckDBEngine(None, engine_name=None)
+    assert isinstance(engine, DuckDBEngine)
+    assert isinstance(engine, EngineCatalog)
+    assert isinstance(engine, QueryEngine)
 
 
 @pytest.mark.skipif(

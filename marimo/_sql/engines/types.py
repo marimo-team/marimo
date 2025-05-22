@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Any, Generic, Literal, Optional, TypeVar, Union
 
 from marimo._config.config import SqlOutputType
 from marimo._data.models import Database, DataTable
@@ -13,14 +13,10 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
+from marimo._types.ids import VariableName
 
-ENGINE_REGISTRY: list[type[SQLEngine]] = []
+ENGINE_REGISTRY: list[type[BaseEngine[Any]]] = []
 NO_SCHEMA_NAME = ""
-
-
-def register_engine(cls: type[SQLEngine]) -> type[SQLEngine]:
-    ENGINE_REGISTRY.append(cls)
-    return cls
 
 
 @dataclass
@@ -42,23 +38,17 @@ def _validate_sql_output_format(sql_output: SqlOutputType) -> SqlOutputType:
     return sql_output
 
 
-class SQLEngine(ABC):
-    """Protocol for SQL engines that can execute queries."""
+CONN = TypeVar("CONN")
 
-    def sql_output_format(self) -> SqlOutputType:
-        if runtime_context_installed():
-            try:
-                ctx = get_context()
-                return _validate_sql_output_format(ctx.app_config.sql_output)
-            except ContextNotInitializedError:
-                return "auto"
-        return "auto"
 
-    @abstractmethod
+class BaseEngine(ABC, Generic[CONN]):
+    """Base fields for all engines and catalogs."""
+
     def __init__(
-        self, connection: Any, engine_name: Optional[str] = None
+        self, connection: CONN, engine_name: Optional[VariableName] = None
     ) -> None:
-        pass
+        self._connection: CONN = connection
+        self._engine_name: Optional[VariableName] = engine_name
 
     @property
     @abstractmethod
@@ -72,21 +62,28 @@ class SQLEngine(ABC):
         """Return the sqlglot dialect for this engine."""
         pass
 
-    @property
-    @abstractmethod
-    def inference_config(self) -> InferenceConfig:
-        """Return the inference config for the engine."""
-        pass
-
-    @abstractmethod
-    def execute(self, query: str) -> Any:
-        """Execute a SQL query and return a dataframe."""
-        pass
-
     @staticmethod
     @abstractmethod
     def is_compatible(var: Any) -> bool:
         """Check if a variable is a compatible engine."""
+        pass
+
+
+T = TypeVar("T", bound=BaseEngine[Any])
+
+
+def register_engine(cls: type[T]) -> type[T]:
+    ENGINE_REGISTRY.append(cls)
+    return cls
+
+
+class EngineCatalog(BaseEngine[CONN], ABC):
+    """Protocol for querying the catalog of an engine."""
+
+    @property
+    @abstractmethod
+    def inference_config(self) -> InferenceConfig:
+        """Return the inference config for the engine."""
         pass
 
     @abstractmethod
@@ -123,3 +120,27 @@ class SQLEngine(ABC):
     ) -> Optional[DataTable]:
         """Get a single table from the engine."""
         pass
+
+
+class QueryEngine(BaseEngine[CONN], ABC):
+    """Protocol for SQL engines that can execute queries."""
+
+    @abstractmethod
+    def execute(self, query: str) -> Any:
+        """Execute a SQL query and return a dataframe."""
+        pass
+
+    def sql_output_format(self) -> SqlOutputType:
+        if runtime_context_installed():
+            try:
+                ctx = get_context()
+                return _validate_sql_output_format(ctx.app_config.sql_output)
+            except ContextNotInitializedError:
+                return "auto"
+        return "auto"
+
+
+class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
+    """Combines the catalog and query interfaces for an SQL engine."""
+
+    pass

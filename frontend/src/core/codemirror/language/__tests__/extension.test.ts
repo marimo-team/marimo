@@ -12,6 +12,7 @@ import { EditorView } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { cellConfigExtension } from "../../config/extension";
 import { languageMetadataField } from "../metadata";
+import { DUCKDB_ENGINE } from "@/core/datasets/data-source-connections";
 
 function createState(content: string, selection?: { anchor: number }) {
   const state = EditorState.create({
@@ -189,7 +190,7 @@ describe("switchLanguage", () => {
       {
         "commentLines": [],
         "dataframeName": "_df",
-        "engine": "__marimo_duckdb",
+        "engine": "${DUCKDB_ENGINE}",
         "quotePrefix": "f",
         "showOutput": true,
       }
@@ -227,7 +228,7 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.field(languageMetadataField)).toEqual({
       commentLines: [],
       dataframeName: "_df",
-      engine: "__marimo_duckdb",
+      engine: DUCKDB_ENGINE,
       quotePrefix: "f",
       showOutput: true,
     });

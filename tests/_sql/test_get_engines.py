@@ -12,6 +12,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded
+from marimo._sql.engines.dbapi import DBAPIEngine
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
@@ -23,6 +24,7 @@ from marimo._sql.get_engines import (
     get_engines_from_variables,
 )
 from marimo._sql.sql import sql
+from marimo._types.ids import VariableName
 
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_IBIS = DependencyManager.ibis.has()
@@ -36,7 +38,9 @@ def test_engine_to_data_source_connection() -> None:
 
     # Test with DuckDB engine
     duckdb_engine = DuckDBEngine(None)
-    connection = engine_to_data_source_connection("my_duckdb", duckdb_engine)
+    connection = engine_to_data_source_connection(
+        VariableName("my_duckdb"), duckdb_engine
+    )
     assert isinstance(connection, DataSourceConnection)
     assert connection.source == "duckdb"
     assert connection.dialect == "duckdb"
@@ -219,6 +223,31 @@ def test_get_engines_from_variables_multiple():
     assert ibis_var_name == "ibis_backend"
 
 
+def test_get_engines_dbapi():
+    import sqlite3
+
+    mock_sqlite_conn = MagicMock(spec=sqlite3.Connection)
+    variables: list[tuple[str, object]] = [("sqlite_conn", mock_sqlite_conn)]
+
+    engines = get_engines_from_variables(variables)
+    assert len(engines) == 1
+    var_name, engine = engines[0]
+    assert var_name == "sqlite_conn"
+    assert isinstance(engine, DBAPIEngine)
+
+
+def test_get_engines_dbapi_databases():
+    import sqlite3
+
+    with sqlite3.connect(":memory:") as conn:
+        engine = DBAPIEngine(conn)
+        connection = engine_to_data_source_connection(
+            VariableName("sqlite_conn"), engine
+        )
+        assert connection.databases == []
+        assert connection.dialect == "sql"
+
+
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_get_engines_duckdb_databases() -> None:
     duckdb_engine = DuckDBEngine(None)
@@ -229,7 +258,9 @@ def test_get_engines_duckdb_databases() -> None:
     )
     assert connection.display_name == "duckdb (In-Memory)"
 
-    connection = engine_to_data_source_connection("my_duckdb", duckdb_engine)
+    connection = engine_to_data_source_connection(
+        VariableName("my_duckdb"), duckdb_engine
+    )
     assert isinstance(connection, DataSourceConnection)
 
     assert connection.source == "duckdb"
@@ -242,7 +273,9 @@ def test_get_engines_duckdb_databases() -> None:
     sql("CREATE TABLE test_table (id INTEGER);")
 
     # Reload the connection to get the new table
-    connection = engine_to_data_source_connection("my_duckdb", duckdb_engine)
+    connection = engine_to_data_source_connection(
+        VariableName("my_duckdb"), duckdb_engine
+    )
 
     assert len(connection.databases) == 1
     database = connection.databases[0]
@@ -271,7 +304,9 @@ def test_get_engines_sqlalchemy_databases() -> None:
     sqlalchemy_engine = sa.create_engine("sqlite:///:memory:")
     engine = SQLAlchemyEngine(sqlalchemy_engine)
 
-    connection = engine_to_data_source_connection("sqlite", engine)
+    connection = engine_to_data_source_connection(
+        VariableName("sqlite"), engine
+    )
     assert isinstance(connection, DataSourceConnection)
 
     assert connection.source == "sqlalchemy"
@@ -297,7 +332,9 @@ def test_get_engines_ibis_databases() -> None:
     ibis_backend = ibis.duckdb.connect()
     engine = IbisEngine(ibis_backend)
 
-    connection = engine_to_data_source_connection("my_ibis", engine)
+    connection = engine_to_data_source_connection(
+        VariableName("my_ibis"), engine
+    )
     assert isinstance(connection, DataSourceConnection)
 
     assert connection.source == "ibis"
@@ -321,8 +358,10 @@ def test_get_engines_clickhouse() -> None:
     import chdb
 
     clickhouse_conn = chdb.connect(":memory:")
-    engine = ClickhouseEmbedded(clickhouse_conn, engine_name="clickhouse")
-    variable_name = "clickhouse_conn"
+    engine = ClickhouseEmbedded(
+        clickhouse_conn, engine_name=VariableName("clickhouse")
+    )
+    variable_name = VariableName("clickhouse_conn")
 
     connection = engine_to_data_source_connection(variable_name, engine)
     assert isinstance(connection, DataSourceConnection)

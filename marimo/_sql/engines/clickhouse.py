@@ -16,7 +16,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
     NO_SCHEMA_NAME,
     InferenceConfig,
-    SQLEngine,
+    SQLConnection,
     register_engine,
 )
 from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
@@ -36,7 +36,7 @@ WHY_PANDAS_REQUIRED = (
 
 
 @register_engine
-class ClickhouseEmbedded(SQLEngine):
+class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
     """Use chdb to connect to an embedded Clickhouse"""
 
     def __init__(
@@ -44,8 +44,7 @@ class ClickhouseEmbedded(SQLEngine):
         connection: Optional[ChdbConnection] = None,
         engine_name: Optional[VariableName] = None,
     ) -> None:
-        self._connection = connection
-        self._engine_name = engine_name
+        super().__init__(connection, engine_name)
         self._cursor = None if connection is None else connection.cursor()
 
     @property
@@ -214,7 +213,7 @@ class ClickhouseEmbedded(SQLEngine):
 
 
 @register_engine
-class ClickhouseServer(SQLEngine):
+class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
     """Use clickhouse.connect to connect to a Clickhouse server"""
 
     def __init__(
@@ -222,8 +221,7 @@ class ClickhouseServer(SQLEngine):
         connection: Optional[ClickhouseClient] = None,
         engine_name: Optional[VariableName] = None,
     ) -> None:
-        self._connection = connection
-        self._engine_name = engine_name
+        super().__init__(connection, engine_name)
         self._meta_dbs = ["system", "information_schema"]
 
     @property

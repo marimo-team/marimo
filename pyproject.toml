@@ -445,18 +445,21 @@ ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = [
-    "numpy",
-    "pandas",
-    "tomlkit",
-    "polars",
-    "sqlglot",
-    "duckdb",
-    "sqlalchemy",
     "altair",
-    "ipython",
     "anywidget",
+    "chdb",
+    "clickhouse_connect",
+    "duckdb",
+    "ipython",
+    "numpy",
     "packaging",
+    "pandas",
+    "polars",
+    "pyarrow",
     "redis",
+    "sqlalchemy",
+    "sqlglot",
+    "tomlkit",
     "typing_extensions",
 ]
 

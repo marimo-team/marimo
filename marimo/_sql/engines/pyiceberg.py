@@ -13,8 +13,8 @@ from marimo._data.models import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import (
     NO_SCHEMA_NAME,
+    EngineCatalog,
     InferenceConfig,
-    SQLEngine,
     register_engine,
 )
 from marimo._sql.utils import sql_type_to_data_type
@@ -27,14 +27,13 @@ if TYPE_CHECKING:
 
 
 @register_engine
-class PyIcebergEngine(SQLEngine):
+class PyIcebergEngine(EngineCatalog["Catalog"]):
     """PyIceberg engine."""
 
     def __init__(
         self, connection: Catalog, engine_name: Optional[VariableName] = None
     ) -> None:
-        self._catalog: Catalog = connection
-        self._engine_name = engine_name
+        super().__init__(connection, engine_name)
         self.default_database = self.get_default_database()
         self.default_schema = self.get_default_schema()
 
@@ -45,11 +44,6 @@ class PyIcebergEngine(SQLEngine):
     @property
     def dialect(self) -> str:
         return "iceberg"
-
-    def execute(self, query: str) -> Any:
-        raise NotImplementedError(
-            "PyIceberg does not support direct SQL execution"
-        )
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
@@ -88,7 +82,7 @@ class PyIcebergEngine(SQLEngine):
         databases: list[Database] = []
         try:
             namespaces = sorted(
-                self._catalog.list_namespaces()
+                self._connection.list_namespaces()
             )  # Sort for consistent ordering
             for namespace in namespaces:
                 tables = []
@@ -128,7 +122,7 @@ class PyIcebergEngine(SQLEngine):
         from pyiceberg.catalog import Catalog
 
         try:
-            tables = self._catalog.list_tables(database)
+            tables = self._connection.list_tables(database)
             if not include_table_details:
                 return [
                     DataTable(
@@ -168,7 +162,7 @@ class PyIcebergEngine(SQLEngine):
         """Get a single table from the engine."""
         del schema_name  # Not used since Iceberg doesn't have schemas
         try:
-            table = self._catalog.load_table((database_name, table_name))
+            table = self._connection.load_table((database_name, table_name))
             schema = table.schema()
 
             cols: list[DataTableColumn] = []

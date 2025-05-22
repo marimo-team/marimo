@@ -26,7 +26,7 @@ describe("SQLLanguageAdapter", () => {
         {
           "commentLines": [],
           "dataframeName": "_df",
-          "engine": "__marimo_duckdb",
+          "engine": "${DUCKDB_ENGINE}",
           "quotePrefix": "f",
           "showOutput": true,
         }

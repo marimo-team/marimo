@@ -12,6 +12,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.sqlalchemy import (
     SQLAlchemyEngine,
 )
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -113,6 +114,17 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
         sqlite_engine, engine_name=VariableName("test_sqlite")
     )
     assert engine.dialect == "sqlite"
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_is_instance(sqlite_engine: sa.Engine) -> None:
+    """Test SQLAlchemyEngine is an instance of the correct types."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("sqlite")
+    )
+    assert isinstance(engine, SQLAlchemyEngine)
+    assert isinstance(engine, EngineCatalog)
+    assert isinstance(engine, QueryEngine)
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
