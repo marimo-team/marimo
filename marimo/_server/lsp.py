@@ -194,7 +194,6 @@ class PyLspServer(BaseLspServer):
     def get_command(self) -> list[str]:
         import sys
 
-        _loggers.make_log_directory()
         log_file = _loggers.get_log_directory() / "pylsp.log"
 
         return [
