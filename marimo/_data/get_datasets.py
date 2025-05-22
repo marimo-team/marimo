@@ -102,9 +102,6 @@ def _get_databases_from_duckdb_internal(
     engine_name: Optional[VariableName] = None,
 ) -> list[Database]:
     """Get database information from DuckDB."""
-
-    database_names = _get_duckdb_database_names(connection)
-
     # Columns
     # 0:"database"
     # 1:"schema"
@@ -134,10 +131,6 @@ def _get_databases_from_duckdb_internal(
         column_types,
         *_rest,
     ) in tables_result:
-        # Skip internal databases
-        if database not in database_names:
-            continue
-
         assert len(column_names) == len(column_types)
         assert isinstance(column_names, list)
         assert isinstance(column_types, list)
@@ -190,7 +183,7 @@ def _get_databases_from_duckdb_internal(
 
     # There may be remaining databases not surfaced with SHOW ALL TABLES
     # These db's likely have no tables
-    for database_name in database_names:
+    for database_name in _get_duckdb_database_names(connection):
         if database_name not in databases_dict:
             databases.append(
                 Database(
