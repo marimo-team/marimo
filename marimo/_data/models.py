@@ -132,6 +132,7 @@ class ColumnStats:
     # p50 is the median
     p75: Optional[NonNestedLiteral] = None
     p95: Optional[NonNestedLiteral] = None
+    # TODO: Could add low bucket & high bucket for date columns
 
 
 @dataclass
