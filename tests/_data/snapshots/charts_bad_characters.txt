@@ -1,59 +1,214 @@
 # col<angles
-_chart = (
+_base_chart = (
     alt.Chart(df)
-    .mark_bar()
-    .encode(
-        y=alt.Y("col<angles", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
+    .transform_aggregate(count="count()", groupby=["col<angles"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("col<angles", order="ascending"),
+        ],
     )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "col<angles:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q"),
+        tooltip=[
+            alt.Tooltip("col<angles:N"),
+            alt.Tooltip("count:Q", format=",.0f"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar()
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
     .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart
 
 # col[0]brackets
-_chart = (
+_base_chart = (
     alt.Chart(df)
-    .mark_bar()
-    .encode(
-        y=alt.Y("col\[0\]brackets", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
+    .transform_aggregate(count="count()", groupby=["col\[0\]brackets"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("col\[0\]brackets", order="ascending"),
+        ],
     )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "col\[0\]brackets:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q"),
+        tooltip=[
+            alt.Tooltip("col\[0\]brackets:N"),
+            alt.Tooltip("count:Q", format=",.0f"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar()
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
     .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart
 
 # col:colon
-_chart = (
+_base_chart = (
     alt.Chart(df)
-    .mark_bar()
-    .encode(
-        y=alt.Y("col\:colon", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
+    .transform_aggregate(count="count()", groupby=["col\:colon"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("col\:colon", order="ascending"),
+        ],
     )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "col\:colon:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q"),
+        tooltip=[
+            alt.Tooltip("col\:colon:N"),
+            alt.Tooltip("count:Q", format=",.0f"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar()
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
     .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart
 
 # col.period
-_chart = (
+_base_chart = (
     alt.Chart(df)
-    .mark_bar()
-    .encode(
-        y=alt.Y("col\.period", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
+    .transform_aggregate(count="count()", groupby=["col\.period"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("col\.period", order="ascending"),
+        ],
     )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "col\.period:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q"),
+        tooltip=[
+            alt.Tooltip("col\.period:N"),
+            alt.Tooltip("count:Q", format=",.0f"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar()
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
     .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart
 
 # col\backslash
-_chart = (
+_base_chart = (
     alt.Chart(df)
-    .mark_bar()
-    .encode(
-        y=alt.Y("col\backslash", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
+    .transform_aggregate(count="count()", groupby=["col\backslash"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("col\backslash", order="ascending"),
+        ],
     )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "col\backslash:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q"),
+        tooltip=[
+            alt.Tooltip("col\backslash:N"),
+            alt.Tooltip("count:Q", format=",.0f"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar()
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
     .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart

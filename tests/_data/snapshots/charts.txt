@@ -7,7 +7,11 @@ _chart = (
         y=alt.Y("count()", type="quantitative"),
         tooltip=[
             alt.Tooltip("some_column", type="nominal"),
-            alt.Tooltip("count()", type="quantitative"),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+            ),
         ],
     )
     .properties(width="container")
@@ -35,7 +39,11 @@ _chart = (
                 format="%Y-%m-%d",
                 title="some_column",
             ),
-            alt.Tooltip("count()", type="quantitative"),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+            ),
         ],
     )
     .properties(width="container")
@@ -63,7 +71,11 @@ _chart = (
                 format="%Y-%m-%d",
                 title="some_column",
             ),
-            alt.Tooltip("count()", type="quantitative"),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+            ),
         ],
     )
     .properties(width="container")
@@ -91,7 +103,11 @@ _chart = (
                 format="%Y-%m-%d",
                 title="some_column",
             ),
-            alt.Tooltip("count()", type="quantitative"),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+            ),
         ],
     )
     .properties(width="container")
@@ -106,8 +122,15 @@ _chart = (
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative"),
         tooltip=[
-            alt.Tooltip("some_column", type="quantitative", bin=True, title="some_column"),
-            alt.Tooltip("count()", type="quantitative"),
+            alt.Tooltip(
+                "some_column",
+                type="quantitative",
+                bin=True,
+                title="some_column",
+            ),
+            alt.Tooltip(
+                "count()", type="quantitative", format=",.0f",
+            ),
         ],
     )
     .properties(width="container")
@@ -122,7 +145,18 @@ _chart = (
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative"),
         tooltip=[
-            alt.Tooltip("some_column", type="quantitative", title="some_column"),
+            alt.Tooltip(
+                "some_column",
+                type="quantitative",
+                bin=True,
+                title="some_column",
+                format=",.2f",
+            ),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+            ),
         ],
     )
     .properties(width="container")
@@ -130,19 +164,7 @@ _chart = (
 _chart
 
 # string
-_chart = (
-    alt.Chart(df)
-    .mark_bar()
-    .encode(
-        y=alt.Y("some_column", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
-    )
-    .properties(width="container")
-)
-_chart
-
-# string (limit to 10 items)
-_chart = (
+_base_chart = (
     alt.Chart(df)
     .transform_aggregate(count="count()", groupby=["some_column"])
     .transform_window(
@@ -153,16 +175,77 @@ _chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .mark_bar()
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
     .encode(
-        y=alt.Y("some_column", type="nominal", sort="-x"),
-        x=alt.X("count", type="quantitative"),
+        y=alt.Y(
+            "some_column:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q"),
         tooltip=[
-            alt.Tooltip("some_column", type="nominal"),
-            alt.Tooltip("count", type="quantitative"),
+            alt.Tooltip("some_column:N"),
+            alt.Tooltip("count:Q", format=",.0f"),
         ],
     )
+)
+
+_bar_chart = _base_chart.mark_bar()
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
+    .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
+)
+_chart
+
+# string (limit to 10 items)
+_base_chart = (
+    alt.Chart(df)
+    .transform_aggregate(count="count()", groupby=["some_column"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("some_column", order="ascending"),
+        ],
+    )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "some_column:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q"),
+        tooltip=[
+            alt.Tooltip("some_column:N"),
+            alt.Tooltip("count:Q", format=",.0f"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar()
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
     .properties(title="Top 10 some_column", width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart
 

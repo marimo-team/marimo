@@ -1,9 +1,13 @@
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
+    "axis": {
+      "grid": false
+    },
     "view": {
       "continuousHeight": 300,
-      "continuousWidth": 300
+      "continuousWidth": 300,
+      "stroke": null
     }
   },
   "data": {
@@ -22,18 +26,164 @@
       }
     ]
   },
-  "encoding": {
-    "x": {
-      "aggregate": "count",
-      "type": "quantitative"
+  "layer": [
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "field": "some\\[0\\]really\\.bad\\:column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "count",
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "title": null
+          },
+          "field": "some\\[0\\]really\\.bad\\:column",
+          "sort": "-x",
+          "type": "nominal"
+        }
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some\\[0\\]really\\.bad\\:column"
+          ]
+        },
+        {
+          "sort": [
+            {
+              "field": "count",
+              "order": "descending"
+            },
+            {
+              "field": "some\\[0\\]really\\.bad\\:column",
+              "order": "ascending"
+            }
+          ],
+          "window": [
+            {
+              "as": "rank",
+              "field": "",
+              "op": "rank"
+            }
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total_count",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total_count"
+        }
+      ]
     },
-    "y": {
-      "field": "some\\[0\\]really\\.bad\\:column",
-      "type": "nominal"
+    {
+      "encoding": {
+        "text": {
+          "field": "percentage",
+          "format": ".2%",
+          "type": "quantitative"
+        },
+        "tooltip": [
+          {
+            "field": "some\\[0\\]really\\.bad\\:column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "count",
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "title": null
+          },
+          "field": "some\\[0\\]really\\.bad\\:column",
+          "sort": "-x",
+          "type": "nominal"
+        }
+      },
+      "mark": {
+        "align": "left",
+        "dx": 3,
+        "type": "text"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some\\[0\\]really\\.bad\\:column"
+          ]
+        },
+        {
+          "sort": [
+            {
+              "field": "count",
+              "order": "descending"
+            },
+            {
+              "field": "some\\[0\\]really\\.bad\\:column",
+              "order": "ascending"
+            }
+          ],
+          "window": [
+            {
+              "as": "rank",
+              "field": "",
+              "op": "rank"
+            }
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total_count",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total_count"
+        }
+      ]
     }
-  },
-  "mark": {
-    "type": "bar"
-  },
+  ],
   "width": "container"
 }

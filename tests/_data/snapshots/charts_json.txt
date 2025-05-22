@@ -31,6 +31,7 @@
       },
       {
         "aggregate": "count",
+        "format": ",.0f",
         "type": "quantitative"
       }
     ],
@@ -87,6 +88,7 @@
       },
       {
         "aggregate": "count",
+        "format": ",.0f",
         "type": "quantitative"
       }
     ],
@@ -150,6 +152,7 @@
       },
       {
         "aggregate": "count",
+        "format": ",.0f",
         "type": "quantitative"
       }
     ],
@@ -213,6 +216,7 @@
       },
       {
         "aggregate": "count",
+        "format": ",.0f",
         "type": "quantitative"
       }
     ],
@@ -273,6 +277,7 @@
       },
       {
         "aggregate": "count",
+        "format": ",.0f",
         "type": "quantitative"
       }
     ],
@@ -323,11 +328,13 @@
       {
         "bin": true,
         "field": "some_column",
+        "format": ",.2f",
         "title": "some_column",
         "type": "quantitative"
       },
       {
         "aggregate": "count",
+        "format": ",.0f",
         "type": "quantitative"
       }
     ],
@@ -352,9 +359,13 @@
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
+    "axis": {
+      "grid": false
+    },
     "view": {
       "continuousHeight": 300,
-      "continuousWidth": 300
+      "continuousWidth": 300,
+      "stroke": null
     }
   },
   "data": {
@@ -373,19 +384,165 @@
       }
     ]
   },
-  "encoding": {
-    "x": {
-      "aggregate": "count",
-      "type": "quantitative"
+  "layer": [
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "field": "some_column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "count",
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "title": null
+          },
+          "field": "some_column",
+          "sort": "-x",
+          "type": "nominal"
+        }
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some_column"
+          ]
+        },
+        {
+          "sort": [
+            {
+              "field": "count",
+              "order": "descending"
+            },
+            {
+              "field": "some_column",
+              "order": "ascending"
+            }
+          ],
+          "window": [
+            {
+              "as": "rank",
+              "field": "",
+              "op": "rank"
+            }
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total_count",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total_count"
+        }
+      ]
     },
-    "y": {
-      "field": "some_column",
-      "type": "nominal"
+    {
+      "encoding": {
+        "text": {
+          "field": "percentage",
+          "format": ".2%",
+          "type": "quantitative"
+        },
+        "tooltip": [
+          {
+            "field": "some_column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "count",
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "title": null
+          },
+          "field": "some_column",
+          "sort": "-x",
+          "type": "nominal"
+        }
+      },
+      "mark": {
+        "align": "left",
+        "dx": 3,
+        "type": "text"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some_column"
+          ]
+        },
+        {
+          "sort": [
+            {
+              "field": "count",
+              "order": "descending"
+            },
+            {
+              "field": "some_column",
+              "order": "ascending"
+            }
+          ],
+          "window": [
+            {
+              "as": "rank",
+              "field": "",
+              "op": "rank"
+            }
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total_count",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total_count"
+        }
+      ]
     }
-  },
-  "mark": {
-    "type": "bar"
-  },
+  ],
   "width": "container"
 }
 
@@ -393,9 +550,13 @@
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
+    "axis": {
+      "grid": false
+    },
     "view": {
       "continuousHeight": 300,
-      "continuousWidth": 300
+      "continuousWidth": 300,
+      "stroke": null
     }
   },
   "data": {
@@ -414,66 +575,172 @@
       }
     ]
   },
-  "encoding": {
-    "tooltip": [
-      {
-        "field": "some_column",
-        "type": "nominal"
-      },
-      {
-        "field": "count",
-        "type": "quantitative"
-      }
-    ],
-    "x": {
-      "field": "count",
-      "type": "quantitative"
-    },
-    "y": {
-      "field": "some_column",
-      "sort": "-x",
-      "type": "nominal"
-    }
-  },
-  "mark": {
-    "type": "bar"
-  },
-  "title": "Top 10 some_column",
-  "transform": [
+  "layer": [
     {
-      "aggregate": [
-        {
-          "as": "count",
-          "op": "count"
-        }
-      ],
-      "groupby": [
-        "some_column"
-      ]
-    },
-    {
-      "sort": [
-        {
+      "encoding": {
+        "tooltip": [
+          {
+            "field": "some_column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
           "field": "count",
-          "order": "descending"
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "title": null
+          },
+          "field": "some_column",
+          "sort": "-x",
+          "type": "nominal"
+        }
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some_column"
+          ]
         },
         {
-          "field": "some_column",
-          "order": "ascending"
-        }
-      ],
-      "window": [
+          "sort": [
+            {
+              "field": "count",
+              "order": "descending"
+            },
+            {
+              "field": "some_column",
+              "order": "ascending"
+            }
+          ],
+          "window": [
+            {
+              "as": "rank",
+              "field": "",
+              "op": "rank"
+            }
+          ]
+        },
         {
-          "as": "rank",
-          "field": "",
-          "op": "rank"
+          "joinaggregate": [
+            {
+              "as": "total_count",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total_count"
+        },
+        {
+          "filter": "(datum.rank <= 10)"
         }
       ]
     },
     {
-      "filter": "(datum.rank <= 10)"
+      "encoding": {
+        "text": {
+          "field": "percentage",
+          "format": ".2%",
+          "type": "quantitative"
+        },
+        "tooltip": [
+          {
+            "field": "some_column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "count",
+          "type": "quantitative"
+        },
+        "y": {
+          "axis": {
+            "title": null
+          },
+          "field": "some_column",
+          "sort": "-x",
+          "type": "nominal"
+        }
+      },
+      "mark": {
+        "align": "left",
+        "dx": 3,
+        "type": "text"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some_column"
+          ]
+        },
+        {
+          "sort": [
+            {
+              "field": "count",
+              "order": "descending"
+            },
+            {
+              "field": "some_column",
+              "order": "ascending"
+            }
+          ],
+          "window": [
+            {
+              "as": "rank",
+              "field": "",
+              "op": "rank"
+            }
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total_count",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total_count"
+        },
+        {
+          "filter": "(datum.rank <= 10)"
+        }
+      ]
     }
   ],
+  "title": "Top 10 some_column",
   "width": "container"
 }
 

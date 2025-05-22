@@ -44,6 +44,9 @@ TOOLTIP_COUNT_FORMAT = ",.0f"
 # Comma grouping and 2 decimals
 TOOLTIP_NUMBER_FORMAT = ",.2f"
 
+# Percentage with 2 decimals
+TOOLTIP_PERCENTAGE_FORMAT = ".2%"
+
 
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
@@ -110,94 +113,113 @@ class StringChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        if self.should_limit_to_10_items:
-            return (
-                alt.Chart(data)
-                .transform_aggregate(count="count()", groupby=[column])
-                .transform_window(
-                    rank="rank()",
-                    sort=[
-                        alt.SortField("count", order="descending"),
-                        alt.SortField(column, order="ascending"),
-                    ],
-                )
-                .transform_filter(alt.datum.rank <= 10)
-                .mark_bar()
-                .encode(
-                    y=alt.Y(column, type="nominal", sort="-x"),
-                    x=alt.X("count", type="quantitative"),
-                    tooltip=[
-                        alt.Tooltip(column, type="nominal"),
-                        alt.Tooltip(
-                            "count",
-                            type="quantitative",
-                            format=TOOLTIP_COUNT_FORMAT,
-                        ),
-                    ],
-                )
-                .properties(title=f"Top 10 {column}", width="container")
-            )
-
-        return (
+        _base_chart = (
             alt.Chart(data)
-            .mark_bar()
+            .transform_aggregate(count="count()", groupby=[column])
+            .transform_window(
+                rank="rank()",
+                sort=[
+                    alt.SortField("count", order="descending"),
+                    alt.SortField(column, order="ascending"),
+                ],
+            )
+            .transform_joinaggregate(total_count="sum(count)")
+            .transform_calculate(percentage="datum.count / datum.total_count")
             .encode(
-                y=alt.Y(column, type="nominal"),
-                x=alt.X("count()", type="quantitative"),
+                y=alt.Y(
+                    f"{column}:N",
+                    sort="-x",
+                    axis=alt.Axis(title=None),
+                ),
+                x=alt.X("count:Q"),
                 tooltip=[
-                    alt.Tooltip(column, type="nominal"),
-                    alt.Tooltip(
-                        "count()",
-                        type="quantitative",
-                        format=TOOLTIP_COUNT_FORMAT,
-                    ),
+                    alt.Tooltip(f"{column}:N"),
+                    alt.Tooltip("count:Q", format=TOOLTIP_COUNT_FORMAT),
                 ],
             )
         )
 
+        def add_encodings(chart: alt.Chart) -> alt.Chart:
+            _bar_chart = chart.mark_bar()
+            _text_chart = chart.mark_text(align="left", dx=3).encode(
+                text=alt.Text("percentage:Q", format=TOOLTIP_PERCENTAGE_FORMAT)
+            )
+            return _bar_chart + _text_chart
+
+        if self.should_limit_to_10_items:
+            _base_chart = _base_chart.transform_filter(alt.datum.rank <= 10)
+            _chart = add_encodings(_base_chart)
+            return (
+                _chart.properties(title=f"Top 10 {column}", width="container")
+                .configure_view(stroke=None)
+                .configure_axis(grid=False)
+            )
+
+        _chart = add_encodings(_base_chart)
+        return (
+            _chart.properties(width="container")
+            .configure_view(stroke=None)
+            .configure_axis(grid=False)
+        )
+
     def altair_code(self, data: str, column: str) -> str:
+        base_chart_code = dedent(f"""
+        _base_chart = (
+            alt.Chart({data})
+            .transform_aggregate(count="count()", groupby=["{column}"])
+            .transform_window(
+                rank="rank()",
+                sort=[
+                    alt.SortField("count", order="descending"),
+                    alt.SortField("{column}", order="ascending"),
+                ],
+            )
+            .transform_filter(alt.datum.rank <= 10)
+            .transform_joinaggregate(total_count="sum(count)")
+            .transform_calculate(
+                percentage="datum.count / datum.total_count"
+            )
+            .encode(
+                y=alt.Y(
+                    "{column}:N",
+                    sort="-x",
+                    axis=alt.Axis(title=None),
+                ),
+                x=alt.X("count:Q"),
+                tooltip=[
+                    alt.Tooltip("{column}:N"),
+                    alt.Tooltip("count:Q", format="{TOOLTIP_COUNT_FORMAT}"),
+                ],
+            )
+        )
+
+        _bar_chart = _base_chart.mark_bar()
+        _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+            text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}")
+        )
+        """)
+
         if self.should_limit_to_10_items:
             return f"""
-            _chart = (
-                alt.Chart({data})
-                .transform_aggregate(count="count()", groupby=["{column}"])
-                .transform_window(
-                    rank="rank()",
-                    sort=[
-                        alt.SortField("count", order="descending"),
-                        alt.SortField("{column}", order="ascending"),
-                    ],
-                )
-                .transform_filter(alt.datum.rank <= 10)
-                .mark_bar()
-                .encode(
-                    y=alt.Y("{column}", type="nominal", sort="-x"),
-                    x=alt.X("count", type="quantitative"),
-                    tooltip=[
-                        alt.Tooltip("{column}", type="nominal"),
-                        alt.Tooltip(
-                            "count",
-                            type="quantitative",
-                            format="{TOOLTIP_COUNT_FORMAT}",
-                        ),
-                    ],
-                )
-                .properties(title="Top 10 {column}", width="container")
-            )
-            _chart
+            {base_chart_code}
+_chart = (
+    (_bar_chart + _text_chart)
+    .properties(title="Top 10 {column}", width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
+)
+_chart
             """
 
         return f"""
-        _chart = (
-            alt.Chart({data})
-            .mark_bar()
-            .encode(
-                y=alt.Y("{column}", type="nominal"),
-                x=alt.X("count()", type="quantitative", format="{TOOLTIP_COUNT_FORMAT}"),
-            )
-            .properties(width="container")
-        )
-        _chart
+        {base_chart_code}
+_chart = (
+    (_bar_chart + _text_chart)
+    .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
+)
+_chart
         """
 
 
