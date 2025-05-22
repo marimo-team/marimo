@@ -335,7 +335,7 @@ class UserConfigManager(MarimoConfigReader):
         import tomlkit
 
         config_path = self.get_config_path()
-        LOGGER.debug("Saving user configuration to %s", config_path)
+        LOGGER.info("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config
