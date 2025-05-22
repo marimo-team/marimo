@@ -43,8 +43,10 @@ if TYPE_CHECKING:
     )
 
     # Used for Bedrock, unified interface for all models
-    from litellm import (  # type: ignore[import-not-found]
+    from litellm import (  # type: ignore[attr-defined]
         CustomStreamWrapper as LitellmStream,
+    )
+    from litellm.types.utils import (
         ModelResponseStream as LitellmStreamResponse,
     )
     from openai import (  # type: ignore[import-not-found]
@@ -152,16 +154,13 @@ def _get_key(config: Any, name: str) -> str:
     if name == "Bedrock":
         if "profile_name" in config:
             profile_name = config.get("profile_name", "")
-            return cast(str, f"profile:{profile_name}")
+            return f"profile:{profile_name}"
         elif (
             "aws_access_key_id" in config and "aws_secret_access_key" in config
         ):
-            return cast(
-                str,
-                f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}",
-            )
+            return f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}"
         else:
-            return cast(str, "")
+            return ""
     if "api_key" in config:
         key = config["api_key"]
         if key:
@@ -521,7 +520,7 @@ class BedrockProvider(
             and response.choices
             and response.choices[0].delta
         ):
-            return response.choices[0].delta.content
+            return str(response.choices[0].delta.content)
         return None
 
 
