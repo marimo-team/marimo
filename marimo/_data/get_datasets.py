@@ -218,31 +218,34 @@ def _get_duckdb_database_names(
     # 7: "readonly"
     database_query = "SELECT * FROM duckdb_databases()"
 
-    if connection is None:
-        import duckdb
+    try:
+        if connection is None:
+            import duckdb
 
-        databases_result = duckdb.execute(database_query).fetchall()
-    else:
-        databases_result = connection.execute(database_query).fetchall()
-    if not len(databases_result):
+            databases_result = duckdb.execute(database_query).fetchall()
+        else:
+            databases_result = connection.execute(database_query).fetchall()
+        if not len(databases_result):
+            return []
+
+        database_names: list[str] = []
+        for (
+            database_name,
+            _database_old,
+            _path,
+            _comment,
+            _tags,
+            internal,
+            *_rest,
+        ) in databases_result:
+            internal = bool(internal)
+            # Only include non-internal databases
+            if not internal:
+                database_names.append(database_name)
+        return database_names
+    except Exception:
+        LOGGER.debug("Failed to get database names from DuckDB")
         return []
-
-    database_names: list[str] = []
-    for (
-        database_name,
-        _database_old,
-        _path,
-        _comment,
-        _tags,
-        internal,
-        *_rest,
-    ) in databases_result:
-        internal = bool(internal)
-        # Only include non-internal databases
-        if not internal:
-            database_names.append(database_name)
-
-    return database_names
 
 
 def _db_type_to_data_type(db_type: str) -> DataType:
