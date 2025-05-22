@@ -2,19 +2,19 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Literal, Union
+from typing import Literal
 
 from marimo._config.config import Theme
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
-from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
+from marimo._plugins.ui._impl.altair_chart import (
+    AltairChartType,
+    maybe_make_full_width,
+)
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     sanitize_nan_infs,
 )
-
-if TYPE_CHECKING:
-    import altair
 
 
 class AltairFormatter(FormatterFactory):
@@ -34,9 +34,7 @@ class AltairFormatter(FormatterFactory):
         register_transformers()
 
         @formatting.formatter(altair.TopLevelMixin)
-        def _show_chart(
-            chart: Union[altair.Chart, altair.LayerChart],
-        ) -> tuple[KnownMimeType, str]:
+        def _show_chart(chart: AltairChartType) -> tuple[KnownMimeType, str]:
             import altair as alt
 
             # Try to get the _repr_mimebundle_ method from the chart
@@ -106,9 +104,7 @@ class AltairFormatter(FormatterFactory):
 # This is only needed since it seems that altair does not
 # handle this internally.
 # https://github.com/marimo-team/marimo/issues/2302
-def _apply_embed_options(
-    chart: Union[altair.Chart, altair.LayerChart],
-) -> Union[altair.Chart, altair.LayerChart]:
+def _apply_embed_options(chart: AltairChartType) -> AltairChartType:
     import altair as alt
 
     # Respect user-set embed options
@@ -128,7 +124,7 @@ def _apply_embed_options(
 
 
 def chart_to_json(
-    chart: Union[altair.Chart, altair.LayerChart],
+    chart: AltairChartType,
     spec_format: Literal["vega", "vega-lite"] = "vega-lite",
     validate: bool = True,
 ) -> str:

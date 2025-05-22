@@ -20,6 +20,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     _has_legend_param,
     _has_selection_param,
     _parse_spec,
+    _update_vconcat_width,
     altair_chart,
 )
 from marimo._runtime.runtime import Kernel
@@ -980,3 +981,47 @@ def test_has_legend_param() -> None:
     # Invalid chart
     chart = None
     assert _has_legend_param(chart) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_update_vconcat_width() -> None:
+    import altair as alt
+
+    # Create a simple chart
+    chart1 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_point()
+    chart2 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_line()
+
+    # Create a vconcat chart
+    vconcat_chart = alt.vconcat(chart1, chart2)
+
+    # Update the width
+    updated_chart = _update_vconcat_width(vconcat_chart)
+
+    # Check that the width is set to container for both subcharts
+    assert updated_chart.vconcat[0].width == "container"
+    assert updated_chart.vconcat[1].width == "container"
+
+    # Test with nested vconcat
+    nested_vconcat = alt.vconcat(
+        alt.vconcat(chart1, chart2), alt.vconcat(chart1, chart2)
+    )
+
+    updated_nested = _update_vconcat_width(nested_vconcat)
+
+    # Check that all nested charts have container width
+    assert updated_nested.vconcat[0].vconcat[0].width == "container"
+    assert updated_nested.vconcat[0].vconcat[1].width == "container"
+    assert updated_nested.vconcat[1].vconcat[0].width == "container"
+    assert updated_nested.vconcat[1].vconcat[1].width == "container"
+
+    # Test with layer chart
+    layer_chart = alt.layer(chart1, chart2)
+    updated_layer = _update_vconcat_width(layer_chart)
+    assert updated_layer.layer[0].width == "container"
+    assert updated_layer.layer[1].width == "container"
+
+    # Test with hconcat chart
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    updated_hconcat = _update_vconcat_width(hconcat_chart)
+    assert updated_hconcat.hconcat[0].width == "container"
+    assert updated_hconcat.hconcat[1].width == "container"
