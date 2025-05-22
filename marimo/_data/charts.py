@@ -38,6 +38,13 @@ class ChartParams:
     column: str
 
 
+# Comma grouping and no decimals
+TOOLTIP_COUNT_FORMAT = ",.0f"
+
+# Comma grouping and 2 decimals
+TOOLTIP_NUMBER_FORMAT = ",.2f"
+
+
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
@@ -46,8 +53,22 @@ class NumberChartBuilder(ChartBuilder):
             alt.Chart(data)
             .mark_bar()
             .encode(
-                x=alt.X(column, type="quantitative", bin=True),
+                x=alt.X(column, type="quantitative", bin=True, title=column),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(
+                        column,
+                        type="quantitative",
+                        bin=True,
+                        title=column,
+                        format=TOOLTIP_NUMBER_FORMAT,
+                    ),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format=TOOLTIP_COUNT_FORMAT,
+                    ),
+                ],
             )
             .properties(width="container")
         )
@@ -58,8 +79,22 @@ class NumberChartBuilder(ChartBuilder):
             alt.Chart({data})
             .mark_bar()
             .encode(
-                x=alt.X("{column}", type="quantitative", bin=True),
+                x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(
+                        "{column}",
+                        type="quantitative",
+                        bin=True,
+                        title="{column}",
+                        format="{TOOLTIP_NUMBER_FORMAT}",
+                    ),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format="{TOOLTIP_COUNT_FORMAT}",
+                    ),
+                ],
             )
             .properties(width="container")
         )
@@ -91,6 +126,14 @@ class StringChartBuilder(ChartBuilder):
                 .encode(
                     y=alt.Y(column, type="nominal", sort="-x"),
                     x=alt.X("count", type="quantitative"),
+                    tooltip=[
+                        alt.Tooltip(column, type="nominal"),
+                        alt.Tooltip(
+                            "count",
+                            type="quantitative",
+                            format=TOOLTIP_COUNT_FORMAT,
+                        ),
+                    ],
                 )
                 .properties(title=f"Top 10 {column}", width="container")
             )
@@ -101,8 +144,15 @@ class StringChartBuilder(ChartBuilder):
             .encode(
                 y=alt.Y(column, type="nominal"),
                 x=alt.X("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(column, type="nominal"),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format=TOOLTIP_COUNT_FORMAT,
+                    ),
+                ],
             )
-            .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -123,6 +173,14 @@ class StringChartBuilder(ChartBuilder):
                 .encode(
                     y=alt.Y("{column}", type="nominal", sort="-x"),
                     x=alt.X("count", type="quantitative"),
+                    tooltip=[
+                        alt.Tooltip("{column}", type="nominal"),
+                        alt.Tooltip(
+                            "count",
+                            type="quantitative",
+                            format="{TOOLTIP_COUNT_FORMAT}",
+                        ),
+                    ],
                 )
                 .properties(title="Top 10 {column}", width="container")
             )
@@ -135,7 +193,7 @@ class StringChartBuilder(ChartBuilder):
             .mark_bar()
             .encode(
                 y=alt.Y("{column}", type="nominal"),
-                x=alt.X("count()", type="quantitative"),
+                x=alt.X("count()", type="quantitative", format="{TOOLTIP_COUNT_FORMAT}"),
             )
             .properties(width="container")
         )
@@ -179,6 +237,8 @@ class DateChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
+        date_format = self._guess_date_format(data, column)
+
         return (
             alt.Chart(data)
             .mark_bar()
@@ -187,16 +247,30 @@ class DateChartBuilder(ChartBuilder):
                     column,
                     type="temporal",
                     bin=alt.Bin(maxbins=20),
-                    axis=alt.Axis(
-                        format=self._guess_date_format(data, column)
-                    ),
+                    axis=alt.Axis(format=date_format),
+                    title=column,
                 ),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(
+                        column,
+                        type="temporal",
+                        bin=alt.Bin(maxbins=20),
+                        format=date_format,
+                        title=column,
+                    ),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format=TOOLTIP_COUNT_FORMAT,
+                    ),
+                ],
             )
             .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
+        date_format = self._guess_date_format(data, column)
         return f"""
         _chart = (
             alt.Chart({data})
@@ -206,9 +280,24 @@ class DateChartBuilder(ChartBuilder):
                     "{column}",
                     type="temporal",
                     bin=alt.Bin(maxbins=20),
-                    axis=alt.Axis(format="%Y-%m-%d")
+                    axis=alt.Axis(format="{date_format}"),
+                    title="{column}",
                 ),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(
+                        "{column}",
+                        type="temporal",
+                        bin=alt.Bin(maxbins=20),
+                        format="{date_format}",
+                        title="{column}",
+                    ),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format="{TOOLTIP_COUNT_FORMAT}",
+                    ),
+                ],
             )
             .properties(width="container")
         )
@@ -226,6 +315,14 @@ class BooleanChartBuilder(ChartBuilder):
             .encode(
                 x=alt.X(column, type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(column, type="nominal"),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format=TOOLTIP_COUNT_FORMAT,
+                    ),
+                ],
             )
             .properties(width="container")
         )
@@ -238,6 +335,14 @@ class BooleanChartBuilder(ChartBuilder):
             .encode(
                 x=alt.X("{column}", type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip("{column}", type="nominal"),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format="{TOOLTIP_COUNT_FORMAT}",
+                    ),
+                ],
             )
             .properties(width="container")
         )
@@ -253,8 +358,18 @@ class IntegerChartBuilder(ChartBuilder):
             alt.Chart(data)
             .mark_bar()
             .encode(
-                x=alt.X(column, type="quantitative", bin=True),
+                x=alt.X(column, type="quantitative", bin=True, title=column),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(
+                        column, type="quantitative", bin=True, title=column
+                    ),
+                    alt.Tooltip(
+                        "count()",
+                        type="quantitative",
+                        format=TOOLTIP_COUNT_FORMAT,
+                    ),
+                ],
             )
             .properties(width="container")
         )
@@ -265,8 +380,19 @@ class IntegerChartBuilder(ChartBuilder):
             alt.Chart({data})
             .mark_bar()
             .encode(
-                x=alt.X("{column}", type="quantitative", bin=True),
+                x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(
+                        "{column}",
+                        type="quantitative",
+                        bin=True,
+                        title="{column}",
+                    ),
+                    alt.Tooltip(
+                        "count()", type="quantitative", format="{TOOLTIP_COUNT_FORMAT}",
+                    ),
+                ],
             )
             .properties(width="container")
         )
@@ -284,6 +410,10 @@ class UnknownChartBuilder(ChartBuilder):
             .encode(
                 x=alt.X(column, type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip(column, type="nominal"),
+                    alt.Tooltip("count()", type="quantitative"),
+                ],
             )
             .properties(width="container")
         )
@@ -296,6 +426,10 @@ class UnknownChartBuilder(ChartBuilder):
             .encode(
                 x=alt.X("{column}", type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
+                tooltip=[
+                    alt.Tooltip("{column}", type="nominal"),
+                    alt.Tooltip("count()", type="quantitative"),
+                ],
             )
             .properties(width="container")
         )

@@ -5,6 +5,10 @@ _chart = (
     .encode(
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip("some_column", type="nominal"),
+            alt.Tooltip("count()", type="quantitative"),
+        ],
     )
     .properties(width="container")
 )
@@ -19,9 +23,20 @@ _chart = (
             "some_column",
             type="temporal",
             bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
+            axis=alt.Axis(format="%Y-%m-%d"),
+            title="some_column",
         ),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip(
+                "some_column",
+                type="temporal",
+                bin=alt.Bin(maxbins=20),
+                format="%Y-%m-%d",
+                title="some_column",
+            ),
+            alt.Tooltip("count()", type="quantitative"),
+        ],
     )
     .properties(width="container")
 )
@@ -36,9 +51,20 @@ _chart = (
             "some_column",
             type="temporal",
             bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
+            axis=alt.Axis(format="%Y-%m-%d"),
+            title="some_column",
         ),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip(
+                "some_column",
+                type="temporal",
+                bin=alt.Bin(maxbins=20),
+                format="%Y-%m-%d",
+                title="some_column",
+            ),
+            alt.Tooltip("count()", type="quantitative"),
+        ],
     )
     .properties(width="container")
 )
@@ -53,9 +79,20 @@ _chart = (
             "some_column",
             type="temporal",
             bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
+            axis=alt.Axis(format="%Y-%m-%d"),
+            title="some_column",
         ),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip(
+                "some_column",
+                type="temporal",
+                bin=alt.Bin(maxbins=20),
+                format="%Y-%m-%d",
+                title="some_column",
+            ),
+            alt.Tooltip("count()", type="quantitative"),
+        ],
     )
     .properties(width="container")
 )
@@ -66,8 +103,12 @@ _chart = (
     alt.Chart(df)
     .mark_bar()
     .encode(
-        x=alt.X("some_column", type="quantitative", bin=True),
+        x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip("some_column", type="quantitative", bin=True, title="some_column"),
+            alt.Tooltip("count()", type="quantitative"),
+        ],
     )
     .properties(width="container")
 )
@@ -78,8 +119,11 @@ _chart = (
     alt.Chart(df)
     .mark_bar()
     .encode(
-        x=alt.X("some_column", type="quantitative", bin=True),
+        x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip("some_column", type="quantitative", title="some_column"),
+        ],
     )
     .properties(width="container")
 )
@@ -113,6 +157,10 @@ _chart = (
     .encode(
         y=alt.Y("some_column", type="nominal", sort="-x"),
         x=alt.X("count", type="quantitative"),
+        tooltip=[
+            alt.Tooltip("some_column", type="nominal"),
+            alt.Tooltip("count", type="quantitative"),
+        ],
     )
     .properties(title="Top 10 some_column", width="container")
 )
@@ -125,6 +173,10 @@ _chart = (
     .encode(
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip("some_column", type="nominal"),
+            alt.Tooltip("count()", type="quantitative"),
+        ],
     )
     .properties(width="container")
 )

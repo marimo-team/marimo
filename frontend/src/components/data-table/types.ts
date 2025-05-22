@@ -5,6 +5,23 @@ import { Objects } from "@/utils/objects";
 
 export type ColumnName = string;
 
+export const ColumnHeaderStatsKeys = [
+  "total",
+  "nulls",
+  "unique",
+  "true",
+  "false",
+  "min",
+  "max",
+  "mean",
+  "median",
+  "std",
+  "p5",
+  "p25",
+  "p75",
+  "p95",
+];
+
 export interface ColumnHeaderStats {
   total?: number | null;
   nulls?: number | null;
