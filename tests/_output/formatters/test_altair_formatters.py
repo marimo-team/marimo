@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -142,7 +143,18 @@ def test_altair_formatter_svg():
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"A": [1, 2, 3], "B": [-float("inf"), float("nan"), float("inf")]},
+        {
+            "A": [1, 2, 3],
+            "B": [-float("inf"), float("nan"), float("inf")],
+            "C": ["a", "b", "c"],
+            "D": [1.0, 2.0, float("nan")],
+            "E": [
+                datetime(2020, 1, 1),
+                datetime(2020, 1, 2),
+                datetime(2020, 1, 3),
+            ],
+            "F": [None, None, None],
+        },
         include=["polars", "pandas"],
     ),
 )
