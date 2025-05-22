@@ -129,7 +129,7 @@ _chart = (
 _chart
 
 # string
-_chart = (
+_base_chart = (
     alt.Chart(df)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["some_column"])
@@ -160,7 +160,7 @@ _chart = (
 _chart
 
 # string (limit to 10 items)
-_chart = (
+_base_chart = (
     alt.Chart(df)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["some_column"])
