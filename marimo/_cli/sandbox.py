@@ -124,6 +124,29 @@ def _normalize_sandbox_dependencies(
     return filtered + [include_features(chosen, additional_features)]
 
 
+def _uv_export_script_requirements_txt(
+    name: str | None,
+) -> list[str]:
+    if not name:
+        return []
+
+    result = subprocess.run(
+        [
+            "uv",
+            "export",
+            "--no-hashes",
+            "--no-annotate",
+            "--no-header",
+            "--script",
+            name,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.split("\n")
+
+
 def get_marimo_dir() -> Path:
     return Path(__file__).parent.parent.parent
 
@@ -137,7 +160,12 @@ def construct_uv_flags(
     # NB. Used in quarto plugin
 
     # If name if a filepath, parse the dependencies from the file
-    dependencies = pyproject.requirements_txt_lines
+    try:
+        # Try exporting env with uv
+        dependencies = _uv_export_script_requirements_txt(pyproject.name)
+    except subprocess.CalledProcessError:
+        # Otherwise fallback to marimo-parsed requirements
+        dependencies = pyproject.requirements_txt_lines
 
     # If there are no dependencies, which can happen for marimo new or
     # on marimo edit a_new_file.py, uv may use a cached venv, even though
@@ -150,9 +178,6 @@ def construct_uv_flags(
         dependencies, __version__, additional_features
     )
 
-    # Add additional dependencies
-    dependencies.extend(additional_deps)
-
     temp_file.write("\n".join(dependencies))
 
     # Construct base UV command
@@ -163,6 +188,9 @@ def construct_uv_flags(
         "--no-project",
         # trade installation time for faster start time
         "--compile-bytecode",
+        # layer additional deps on top of the requirements
+        "--with",
+        ",".join(additional_deps),
         "--with-requirements",
         temp_file.name,
     ]
