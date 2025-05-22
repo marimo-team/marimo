@@ -6,8 +6,11 @@ import os
 import subprocess
 import sys
 import tempfile
+from functools import cached_property
+from pathlib import Path
 from typing import Optional
 
+from marimo import _loggers
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
 )
@@ -19,6 +22,8 @@ from marimo._runtime.packages.utils import split_packages
 from marimo._utils.platform import is_pyodide
 
 PY_EXE = sys.executable
+
+LOGGER = _loggers.marimo_logger()
 
 
 class PypiPackageManager(CanonicalizingPackageManager):
@@ -48,11 +53,13 @@ class PipPackageManager(PypiPackageManager):
     docs_url = "https://pip.pypa.io/"
 
     async def _install(self, package: str) -> bool:
+        LOGGER.info(f"Installing {package} with pip")
         return self.run(
             ["pip", "--python", PY_EXE, "install", *split_packages(package)]
         )
 
     async def uninstall(self, package: str) -> bool:
+        LOGGER.info(f"Uninstalling {package} with pip")
         return self.run(
             [
                 "pip",
@@ -119,17 +126,17 @@ class UvPackageManager(PypiPackageManager):
     docs_url = "https://docs.astral.sh/uv/"
 
     async def _install(self, package: str) -> bool:
+        install_cmd: list[str]
+        if self.is_in_uv_project:
+            LOGGER.info(f"Installing in {package} with 'uv add'")
+            install_cmd = ["uv", "add"]
+        else:
+            LOGGER.info(f"Installing in {package} with 'uv pip install'")
+            install_cmd = ["uv", "pip", "install"]
+
         return self.run(
-            [
-                "uv",
-                "pip",
-                "install",
-                # trade installation time for faster start time
-                "--compile",
-                *split_packages(package),
-                "-p",
-                PY_EXE,
-            ]
+            # trade installation time for faster start time
+            install_cmd + ["--compile", *split_packages(package), "-p", PY_EXE]
         )
 
     def update_notebook_script_metadata(
@@ -150,6 +157,7 @@ class UvPackageManager(PypiPackageManager):
             import_namespaces_to_add: List of import namespaces to add
             import_namespaces_to_remove: List of import namespaces to remove
         """
+        LOGGER.info(f"Updating script metadata for {filepath}")
         packages_to_add = packages_to_add or []
         packages_to_remove = packages_to_remove or []
         import_namespaces_to_add = import_namespaces_to_add or []
@@ -193,7 +201,7 @@ class UvPackageManager(PypiPackageManager):
             return self._process_md_changes(
                 filepath, packages_to_add, packages_to_remove
             )
-        return self._process_changes(
+        return self._process_changes_for_script_metadata(
             filepath, packages_to_add, packages_to_remove
         )
 
@@ -228,7 +236,7 @@ class UvPackageManager(PypiPackageManager):
             temp_file.write(header)
             temp_file.flush()
         # Have UV modify it
-        self._process_changes(
+        self._process_changes_for_script_metadata(
             temp_file.name,
             packages_to_add,
             packages_to_remove,
@@ -257,7 +265,7 @@ class UvPackageManager(PypiPackageManager):
         with open(filepath, "w", encoding="utf-8") as f:
             f.write("\n".join(document))
 
-    def _process_changes(
+    def _process_changes_for_script_metadata(
         self,
         filepath: str,
         packages_to_add: list[str],
@@ -278,12 +286,54 @@ class UvPackageManager(PypiPackageManager):
         packages = self.list_packages()
         return {pkg.name: pkg.version for pkg in packages}
 
+    # Only needs to run once per session
+    @cached_property
+    def is_in_uv_project(self) -> bool:
+        """Determine if we are currently running marimo from a uv project
+
+        A [uv project](https://docs.astral.sh/uv/concepts/projects/layout/) contains a
+        pyproject.toml and a uv.lock file.
+
+        We can determine if we are in a uv project AND using this project's virtual environment
+        by checking:
+        - The "UV" environment variable is set
+        - The "VIRTUAL_ENV" environment variable is set
+        - The "uv.lock" file exists where the "VIRTUAL_ENV" is
+        - The "pyproject.toml" file exists where the "VIRTUAL_ENV" is
+
+        If at least one of these conditions are not met,
+        we are in a temporary virtual environment (e.g. `uvx marimo edit` or `uv --with=marimo run marimo edit`)
+        or in the currently activated virtual environment (e.g. `uv venv`).
+        """
+        # Check we have a virtual environment
+        venv_path = os.environ.get("VIRTUAL_ENV", None)
+        if not venv_path:
+            return False
+        # Check that the `UV` environment variable is set
+        # This tells us that marimo was run by uv
+        uv_env_exists = os.environ.get("UV", None)
+        if not uv_env_exists:
+            return False
+        # Check that the uv.lock and pyproject.toml files exist
+        uv_lock_path = Path(venv_path).parent / "uv.lock"
+        pyproject_path = Path(venv_path).parent / "pyproject.toml"
+        return uv_lock_path.exists() and pyproject_path.exists()
+
     async def uninstall(self, package: str) -> bool:
+        uninstall_cmd: list[str]
+        if self.is_in_uv_project:
+            LOGGER.info(f"Uninstalling {package} with 'uv remove'")
+            uninstall_cmd = ["uv", "remove"]
+        else:
+            LOGGER.info(f"Uninstalling {package} with 'uv pip uninstall'")
+            uninstall_cmd = ["uv", "pip", "uninstall"]
+
         return self.run(
-            ["uv", "pip", "uninstall", *split_packages(package), "-p", PY_EXE]
+            uninstall_cmd + [*split_packages(package), "-p", PY_EXE]
         )
 
     def list_packages(self) -> list[PackageDescription]:
+        LOGGER.info("Listing packages with 'uv pip list'")
         cmd = ["uv", "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
 
