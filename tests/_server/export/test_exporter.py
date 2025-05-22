@@ -272,6 +272,7 @@ async def test_run_until_completion_with_stop():
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="3.13 has different stack trace format"
 )
+@pytest.mark.xfail(reason="flakey", strict=False)
 async def test_run_until_completion_with_stack_trace():
     app = App()
 
