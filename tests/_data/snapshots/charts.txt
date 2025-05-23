@@ -271,7 +271,7 @@ _chart = (
                 title="Number of records",
             ),
         ],
-    )
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart
 

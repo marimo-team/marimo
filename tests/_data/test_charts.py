@@ -193,3 +193,36 @@ def test_date_chart_builder_guess_date_format_with_non_narwhalifiable_data():
     )
     assert date_format == DateChartBuilder.DEFAULT_DATE_FORMAT
     assert time_unit == DateChartBuilder.DEFAULT_TIME_UNIT
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_date_chart_builder_get_date_format():
+    from datetime import datetime
+
+    import pandas as pd
+
+    builder = DateChartBuilder()
+
+    # Test with non-cached format (should guess)
+    data = pd.DataFrame(
+        {"dates": [datetime(2020, 1, 1), datetime(2020, 2, 1)]}
+    )
+
+    # First call should guess the format
+    date_format, time_unit = builder._get_date_format(data, "dates")
+    assert date_format == "%Y-%m-%d %H"
+    assert time_unit == "yearmonthdatehours"
+
+    # Second call should use cached format
+    date_format2, time_unit2 = builder._get_date_format(data, "dates")
+    assert date_format2 == date_format
+    assert time_unit2 == time_unit
+
+    # Test with manually set format
+    builder2 = DateChartBuilder()
+    builder2.date_format = "%Y"
+    builder2.time_unit = "year"
+
+    date_format3, time_unit3 = builder2._get_date_format(data, "dates")
+    assert date_format3 == "%Y"
+    assert time_unit3 == "year"
