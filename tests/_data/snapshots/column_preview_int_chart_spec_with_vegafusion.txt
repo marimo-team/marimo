@@ -95,6 +95,9 @@
           "tooltip": {
             "signal": "{\"A\": !isValid(datum[\"bin_maxbins_10_A\"]) || !isFinite(+datum[\"bin_maxbins_10_A\"]) ? \"null\" : format(datum[\"bin_maxbins_10_A\"], \"\") + \" \u2013 \" + format(datum[\"bin_maxbins_10_A_end\"], \"\"), \"Number of records\": format(datum[\"__count\"], \",.0f\")}"
           },
+          "tooltip": {
+            "signal": "{\"A\": !isValid(datum[\"bin_maxbins_10_A\"]) || !isFinite(+datum[\"bin_maxbins_10_A\"]) ? \"null\" : format(datum[\"bin_maxbins_10_A\"], \"\") + \" \u2013 \" + format(datum[\"bin_maxbins_10_A_end\"], \"\"), \"Count of Records\": format(datum[\"__count\"], \",.0f\")}"
+          },
           "x": {
             "field": "bin_maxbins_10_A_end",
             "offset": {
