@@ -310,6 +310,7 @@ class DateChartBuilder(ChartBuilder):
     def __init__(self) -> None:
         self.date_format: Optional[str] = None
         self.time_unit: Optional[TimeUnitOptions] = None
+        self.base_color = "darkgreen"
 
     def _get_date_format(
         self, data: Any, column: str
@@ -382,7 +383,7 @@ class DateChartBuilder(ChartBuilder):
 
         # Area chart
         area = transformed.mark_area(
-            line={"color": COLOR},
+            line={"color": self.base_color},
             color=alt.Gradient(
                 gradient="linear",  # type: ignore
                 stops=[
@@ -424,7 +425,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         points = transformed.mark_point(
             size=80,
-            color=COLOR,
+            color=self.base_color,
             filled=True,
         ).encode(
             x=f"{new_field}:T",
@@ -489,7 +490,7 @@ class DateChartBuilder(ChartBuilder):
 
         # Area chart
         _area = _transformed.mark_area(
-            line={{"color": "{COLOR}"}},
+            line={{"color": "{self.base_color}"}},
             color=alt.Gradient(
                 gradient="linear",
                 stops=[
@@ -531,7 +532,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         _points = _transformed.mark_point(
             size=80,
-            color="{COLOR}",
+            color="{self.base_color}",
             filled=True,
         ).encode(
             x="{new_field}:T",
