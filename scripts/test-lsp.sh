@@ -2,6 +2,9 @@
 node marimo/_lsp/index.cjs --help > /dev/null
 if [ $? -ne 0 ]; then
     echo "LSP binary failed to start"
+    # List out contents of the directory
+    ls marimo/_lsp
+    tree marimo/_lsp
     exit 1
 fi
 echo "LSP binary started successfully"
