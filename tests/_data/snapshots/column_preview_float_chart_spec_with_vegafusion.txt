@@ -83,10 +83,10 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#4c78a8"
+            "value": "#1C7361"
           },
           "tooltip": {
-            "signal": "{\"float_col\": !isValid(datum[\"bin_maxbins_10_float_col\"]) || !isFinite(+datum[\"bin_maxbins_10_float_col\"]) ? \"null\" : format(datum[\"bin_maxbins_10_float_col\"], \",.2f\") + \" \u2013 \" + format(datum[\"bin_maxbins_10_float_col_end\"], \",.2f\"), \"Count of Records\": format(datum[\"__count\"], \",.0f\")}"
+            "signal": "{\"float_col\": !isValid(datum[\"bin_maxbins_10_float_col\"]) || !isFinite(+datum[\"bin_maxbins_10_float_col\"]) ? \"null\" : format(datum[\"bin_maxbins_10_float_col\"], \",.2f\") + \" \u2013 \" + format(datum[\"bin_maxbins_10_float_col_end\"], \",.2f\"), \"Number of records\": format(datum[\"__count\"], \",.0f\")}"
           },
           "x": {
             "field": "bin_maxbins_10_float_col_end",

@@ -18,7 +18,7 @@ _base = (
         ),
         color=alt.Color(
             "bool_col:N",
-            scale={"scheme": "category10"},
+            scale={'scheme': 'category10'},
             legend=alt.Legend(title="bool_col")
         ),
         tooltip=[

@@ -1,6 +1,6 @@
 _chart = (
     alt.Chart(table)
-    .mark_bar()
+    .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("float_col", type="quantitative", bin=True, title="float_col"),
         y=alt.Y("count()", type="quantitative"),
@@ -16,6 +16,7 @@ _chart = (
                 "count()",
                 type="quantitative",
                 format=",.0f",
+                title="Number of records",
             ),
         ],
     )

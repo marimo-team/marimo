@@ -23,12 +23,12 @@ _base_chart = (
         x=alt.X("count:Q"),
         tooltip=[
             alt.Tooltip("col<angles:N"),
-            alt.Tooltip("count:Q", format=",.0f"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
 )
 
-_bar_chart = _base_chart.mark_bar()
+_bar_chart = _base_chart.mark_bar(color="#1C7361")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -66,12 +66,12 @@ _base_chart = (
         x=alt.X("count:Q"),
         tooltip=[
             alt.Tooltip("col\[0\]brackets:N"),
-            alt.Tooltip("count:Q", format=",.0f"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
 )
 
-_bar_chart = _base_chart.mark_bar()
+_bar_chart = _base_chart.mark_bar(color="#1C7361")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -109,12 +109,12 @@ _base_chart = (
         x=alt.X("count:Q"),
         tooltip=[
             alt.Tooltip("col\:colon:N"),
-            alt.Tooltip("count:Q", format=",.0f"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
 )
 
-_bar_chart = _base_chart.mark_bar()
+_bar_chart = _base_chart.mark_bar(color="#1C7361")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -152,12 +152,12 @@ _base_chart = (
         x=alt.X("count:Q"),
         tooltip=[
             alt.Tooltip("col\.period:N"),
-            alt.Tooltip("count:Q", format=",.0f"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
 )
 
-_bar_chart = _base_chart.mark_bar()
+_bar_chart = _base_chart.mark_bar(color="#1C7361")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -195,12 +195,12 @@ _base_chart = (
         x=alt.X("count:Q"),
         tooltip=[
             alt.Tooltip("col\backslash:N"),
-            alt.Tooltip("count:Q", format=",.0f"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
 )
 
-_bar_chart = _base_chart.mark_bar()
+_bar_chart = _base_chart.mark_bar(color="#1C7361")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )

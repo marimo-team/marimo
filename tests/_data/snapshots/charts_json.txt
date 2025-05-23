@@ -200,7 +200,7 @@
               "offset": 0
             },
             {
-              "color": "darkgreen",
+              "color": "#1C7361",
               "offset": 1
             }
           ],
@@ -210,7 +210,7 @@
           "y2": 0
         },
         "line": {
-          "color": "darkgreen"
+          "color": "#1C7361"
         },
         "type": "area"
       },
@@ -256,7 +256,7 @@
         }
       },
       "mark": {
-        "color": "darkgreen",
+        "color": "#1C7361",
         "filled": true,
         "size": 80,
         "type": "point"
@@ -408,7 +408,7 @@
               "offset": 0
             },
             {
-              "color": "darkgreen",
+              "color": "#1C7361",
               "offset": 1
             }
           ],
@@ -418,7 +418,7 @@
           "y2": 0
         },
         "line": {
-          "color": "darkgreen"
+          "color": "#1C7361"
         },
         "type": "area"
       },
@@ -464,7 +464,7 @@
         }
       },
       "mark": {
-        "color": "darkgreen",
+        "color": "#1C7361",
         "filled": true,
         "size": 80,
         "type": "point"
@@ -616,7 +616,7 @@
               "offset": 0
             },
             {
-              "color": "darkgreen",
+              "color": "#1C7361",
               "offset": 1
             }
           ],
@@ -626,7 +626,7 @@
           "y2": 0
         },
         "line": {
-          "color": "darkgreen"
+          "color": "#1C7361"
         },
         "type": "area"
       },
@@ -672,7 +672,7 @@
         }
       },
       "mark": {
-        "color": "darkgreen",
+        "color": "#1C7361",
         "filled": true,
         "size": 80,
         "type": "point"
@@ -812,6 +812,7 @@
       {
         "aggregate": "count",
         "format": ",.0f",
+        "title": "Number of records",
         "type": "quantitative"
       }
     ],
@@ -827,6 +828,7 @@
     }
   },
   "mark": {
+    "color": "#1C7361",
     "type": "bar"
   },
   "width": "container"
@@ -869,6 +871,7 @@
       {
         "aggregate": "count",
         "format": ",.0f",
+        "title": "Number of records",
         "type": "quantitative"
       }
     ],
@@ -884,6 +887,7 @@
     }
   },
   "mark": {
+    "color": "#1C7361",
     "type": "bar"
   },
   "width": "container"
@@ -929,6 +933,7 @@
           {
             "field": "count",
             "format": ",.0f",
+            "title": "Number of records",
             "type": "quantitative"
           }
         ],
@@ -946,6 +951,7 @@
         }
       },
       "mark": {
+        "color": "#1C7361",
         "type": "bar"
       },
       "transform": [
@@ -1009,6 +1015,7 @@
           {
             "field": "count",
             "format": ",.0f",
+            "title": "Number of records",
             "type": "quantitative"
           }
         ],
@@ -1120,6 +1127,7 @@
           {
             "field": "count",
             "format": ",.0f",
+            "title": "Number of records",
             "type": "quantitative"
           }
         ],
@@ -1137,6 +1145,7 @@
         }
       },
       "mark": {
+        "color": "#1C7361",
         "type": "bar"
       },
       "transform": [
@@ -1203,6 +1212,7 @@
           {
             "field": "count",
             "format": ",.0f",
+            "title": "Number of records",
             "type": "quantitative"
           }
         ],
@@ -1311,6 +1321,7 @@
       },
       {
         "aggregate": "count",
+        "title": "Number of records",
         "type": "quantitative"
       }
     ],
@@ -1324,6 +1335,7 @@
     }
   },
   "mark": {
+    "color": "#1C7361",
     "type": "bar"
   },
   "width": "container"

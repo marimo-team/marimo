@@ -15,12 +15,12 @@ _nearest = alt.selection_point(
 
 # Area chart
 _area = _transformed.mark_area(
-    line={"color": "darkgreen"},
+    line={"color": "#1C7361"},
     color=alt.Gradient(
         gradient="linear",
         stops=[
             alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="darkgreen", offset=1),
+            alt.GradientStop(color="#1C7361", offset=1),
         ],
         x1=1,
         x2=1,
@@ -57,7 +57,7 @@ _rule = (
 # Points on the chart
 _points = _transformed.mark_point(
     size=80,
-    color="darkgreen",
+    color="#1C7361",
     filled=True,
 ).encode(
     x="_date_col:T",

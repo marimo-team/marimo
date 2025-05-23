@@ -49,6 +49,9 @@ TOOLTIP_PERCENTAGE_FORMAT = ".2%"
 
 NUM_RECORDS = "Number of records"
 
+# Similar to mint.mint11 (same as table charts)
+COLOR = "#1C7361"
+
 
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
@@ -56,7 +59,7 @@ class NumberChartBuilder(ChartBuilder):
 
         return (
             alt.Chart(data)
-            .mark_bar()
+            .mark_bar(color=COLOR)
             .encode(
                 x=alt.X(column, type="quantitative", bin=True, title=column),
                 y=alt.Y("count()", type="quantitative"),
@@ -72,6 +75,7 @@ class NumberChartBuilder(ChartBuilder):
                         "count()",
                         type="quantitative",
                         format=TOOLTIP_COUNT_FORMAT,
+                        title=NUM_RECORDS,
                     ),
                 ],
             )
@@ -82,7 +86,7 @@ class NumberChartBuilder(ChartBuilder):
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_bar()
+            .mark_bar(color="{COLOR}")
             .encode(
                 x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
                 y=alt.Y("count()", type="quantitative"),
@@ -98,6 +102,7 @@ class NumberChartBuilder(ChartBuilder):
                         "count()",
                         type="quantitative",
                         format="{TOOLTIP_COUNT_FORMAT}",
+                        title="{NUM_RECORDS}",
                     ),
                 ],
             )
@@ -136,17 +141,21 @@ class StringChartBuilder(ChartBuilder):
                 x=alt.X("count:Q"),
                 tooltip=[
                     alt.Tooltip(f"{column}:N"),
-                    alt.Tooltip("count:Q", format=TOOLTIP_COUNT_FORMAT),
+                    alt.Tooltip(
+                        "count:Q",
+                        format=TOOLTIP_COUNT_FORMAT,
+                        title=NUM_RECORDS,
+                    ),
                 ],
             )
         )
 
         def add_encodings(chart: alt.Chart) -> alt.Chart:
-            _bar_chart = chart.mark_bar()
+            _bar_chart = chart.mark_bar(color=COLOR)
             _text_chart = chart.mark_text(align="left", dx=3).encode(
                 text=alt.Text("percentage:Q", format=TOOLTIP_PERCENTAGE_FORMAT)
             )
-            return _bar_chart + _text_chart
+            return _bar_chart + _text_chart  # type: ignore
 
         if self.should_limit_to_10_items:
             _base_chart = _base_chart.transform_filter(alt.datum.rank <= 10)
@@ -190,12 +199,12 @@ class StringChartBuilder(ChartBuilder):
                 x=alt.X("count:Q"),
                 tooltip=[
                     alt.Tooltip("{column}:N"),
-                    alt.Tooltip("count:Q", format="{TOOLTIP_COUNT_FORMAT}"),
+                    alt.Tooltip("count:Q", format="{TOOLTIP_COUNT_FORMAT}", title="{NUM_RECORDS}"),
                 ],
             )
         )
 
-        _bar_chart = _base_chart.mark_bar()
+        _bar_chart = _base_chart.mark_bar(color="{COLOR}")
         _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
             text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}")
         )
@@ -244,7 +253,6 @@ class DateChartBuilder(ChartBuilder):
     def __init__(self) -> None:
         self.date_format: Optional[str] = None
         self.time_unit: Optional[TimeUnitOptions] = None
-        self.base_color = "darkgreen"
 
     def _get_date_format(
         self, data: Any, column: str
@@ -317,12 +325,12 @@ class DateChartBuilder(ChartBuilder):
 
         # Area chart
         area = transformed.mark_area(
-            line={"color": self.base_color},
+            line={"color": COLOR},
             color=alt.Gradient(
                 gradient="linear",  # type: ignore
                 stops=[
                     alt.GradientStop(color="white", offset=0),
-                    alt.GradientStop(color=self.base_color, offset=1),
+                    alt.GradientStop(color=COLOR, offset=1),
                 ],
                 x1=1,
                 x2=1,
@@ -359,7 +367,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         points = transformed.mark_point(
             size=80,
-            color=self.base_color,
+            color=COLOR,
             filled=True,
         ).encode(
             x=f"{new_field}:T",
@@ -396,12 +404,12 @@ class DateChartBuilder(ChartBuilder):
 
         # Area chart
         _area = _transformed.mark_area(
-            line={{"color": "{self.base_color}"}},
+            line={{"color": "{COLOR}"}},
             color=alt.Gradient(
                 gradient="linear",
                 stops=[
                     alt.GradientStop(color="white", offset=0),
-                    alt.GradientStop(color="{self.base_color}", offset=1),
+                    alt.GradientStop(color="{COLOR}", offset=1),
                 ],
                 x1=1,
                 x2=1,
@@ -438,7 +446,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         _points = _transformed.mark_point(
             size=80,
-            color="{self.base_color}",
+            color="{COLOR}",
             filled=True,
         ).encode(
             x={formatted_field_with_type},
@@ -452,6 +460,8 @@ class DateChartBuilder(ChartBuilder):
 
 
 class BooleanChartBuilder(ChartBuilder):
+    BASE_COLOR = {"scheme": "category10"}
+
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
@@ -468,7 +478,7 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     f"{column}:N",
-                    scale={"scheme": "category10"},
+                    scale=self.BASE_COLOR,
                 ),
                 tooltip=[
                     alt.Tooltip(f"{column}:N", title=column),
@@ -510,7 +520,7 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     "{column}:N",
-                    scale={{"scheme": "category10"}},
+                    scale={self.BASE_COLOR},
                     legend=alt.Legend(title="{column}")
                 ),
                 tooltip=[
@@ -536,7 +546,7 @@ class IntegerChartBuilder(ChartBuilder):
 
         return (
             alt.Chart(data)
-            .mark_bar()
+            .mark_bar(color=COLOR)
             .encode(
                 x=alt.X(column, type="quantitative", bin=True, title=column),
                 y=alt.Y("count()", type="quantitative"),
@@ -548,6 +558,7 @@ class IntegerChartBuilder(ChartBuilder):
                         "count()",
                         type="quantitative",
                         format=TOOLTIP_COUNT_FORMAT,
+                        title=NUM_RECORDS,
                     ),
                 ],
             )
@@ -558,7 +569,7 @@ class IntegerChartBuilder(ChartBuilder):
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_bar()
+            .mark_bar(color="{COLOR}")
             .encode(
                 x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
                 y=alt.Y("count()", type="quantitative"),
@@ -570,7 +581,10 @@ class IntegerChartBuilder(ChartBuilder):
                         title="{column}",
                     ),
                     alt.Tooltip(
-                        "count()", type="quantitative", format="{TOOLTIP_COUNT_FORMAT}",
+                        "count()",
+                        type="quantitative",
+                        format="{TOOLTIP_COUNT_FORMAT}",
+                        title="{NUM_RECORDS}",
                     ),
                 ],
             )
@@ -586,13 +600,15 @@ class UnknownChartBuilder(ChartBuilder):
 
         return (
             alt.Chart(data)
-            .mark_bar()
+            .mark_bar(color=COLOR)
             .encode(
                 x=alt.X(column, type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
                 tooltip=[
                     alt.Tooltip(column, type="nominal"),
-                    alt.Tooltip("count()", type="quantitative"),
+                    alt.Tooltip(
+                        "count()", type="quantitative", title=NUM_RECORDS
+                    ),
                 ],
             )
             .properties(width="container")
@@ -602,13 +618,13 @@ class UnknownChartBuilder(ChartBuilder):
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_bar()
+            .mark_bar(color="{COLOR}")
             .encode(
                 x=alt.X("{column}", type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
                 tooltip=[
                     alt.Tooltip("{column}", type="nominal"),
-                    alt.Tooltip("count()", type="quantitative"),
+                    alt.Tooltip("count()", type="quantitative", title="{NUM_RECORDS}"),
                 ],
             )
             .properties(width="container")

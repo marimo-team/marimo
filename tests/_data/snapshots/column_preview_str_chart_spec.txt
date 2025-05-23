@@ -27,6 +27,7 @@
           {
             "field": "count",
             "format": ",.0f",
+            "title": "Number of records",
             "type": "quantitative"
           }
         ],
@@ -44,6 +45,7 @@
         }
       },
       "mark": {
+        "color": "#1C7361",
         "type": "bar"
       },
       "transform": [
@@ -107,6 +109,7 @@
           {
             "field": "count",
             "format": ",.0f",
+            "title": "Number of records",
             "type": "quantitative"
           }
         ],

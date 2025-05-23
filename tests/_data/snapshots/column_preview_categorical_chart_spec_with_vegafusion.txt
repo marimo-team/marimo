@@ -90,13 +90,13 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#4c78a8"
+            "value": "#1C7361"
           },
           "height": {
             "signal": "max(0.25, bandwidth('y'))"
           },
           "tooltip": {
-            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"count\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "field": "count_end",
@@ -140,7 +140,7 @@
             "signal": "format(datum[\"percentage\"], \".2%\")"
           },
           "tooltip": {
-            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"count\": format(datum[\"count\"], \",.0f\")}"
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "field": "count",

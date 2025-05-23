@@ -19,7 +19,7 @@ _base = (
         ),
         color=alt.Color(
             "some_column:N",
-            scale={"scheme": "category10"},
+            scale={'scheme': 'category10'},
             legend=alt.Legend(title="some_column")
         ),
         tooltip=[
@@ -55,12 +55,12 @@ _nearest = alt.selection_point(
 
 # Area chart
 _area = _transformed.mark_area(
-    line={"color": "darkgreen"},
+    line={"color": "#1C7361"},
     color=alt.Gradient(
         gradient="linear",
         stops=[
             alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="darkgreen", offset=1),
+            alt.GradientStop(color="#1C7361", offset=1),
         ],
         x1=1,
         x2=1,
@@ -97,7 +97,7 @@ _rule = (
 # Points on the chart
 _points = _transformed.mark_point(
     size=80,
-    color="darkgreen",
+    color="#1C7361",
     filled=True,
 ).encode(
     x="_some_column:T",
@@ -126,12 +126,12 @@ _nearest = alt.selection_point(
 
 # Area chart
 _area = _transformed.mark_area(
-    line={"color": "darkgreen"},
+    line={"color": "#1C7361"},
     color=alt.Gradient(
         gradient="linear",
         stops=[
             alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="darkgreen", offset=1),
+            alt.GradientStop(color="#1C7361", offset=1),
         ],
         x1=1,
         x2=1,
@@ -168,7 +168,7 @@ _rule = (
 # Points on the chart
 _points = _transformed.mark_point(
     size=80,
-    color="darkgreen",
+    color="#1C7361",
     filled=True,
 ).encode(
     x="_some_column:T",
@@ -197,12 +197,12 @@ _nearest = alt.selection_point(
 
 # Area chart
 _area = _transformed.mark_area(
-    line={"color": "darkgreen"},
+    line={"color": "#1C7361"},
     color=alt.Gradient(
         gradient="linear",
         stops=[
             alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="darkgreen", offset=1),
+            alt.GradientStop(color="#1C7361", offset=1),
         ],
         x1=1,
         x2=1,
@@ -239,7 +239,7 @@ _rule = (
 # Points on the chart
 _points = _transformed.mark_point(
     size=80,
-    color="darkgreen",
+    color="#1C7361",
     filled=True,
 ).encode(
     x="_some_column:T",
@@ -253,7 +253,7 @@ _chart
 # integer
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative"),
@@ -265,7 +265,10 @@ _chart = (
                 title="some_column",
             ),
             alt.Tooltip(
-                "count()", type="quantitative", format=",.0f",
+                "count()",
+                type="quantitative",
+                format=",.0f",
+                title="Number of records",
             ),
         ],
     )
@@ -276,7 +279,7 @@ _chart
 # number
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative"),
@@ -292,6 +295,7 @@ _chart = (
                 "count()",
                 type="quantitative",
                 format=",.0f",
+                title="Number of records",
             ),
         ],
     )
@@ -324,12 +328,12 @@ _base_chart = (
         x=alt.X("count:Q"),
         tooltip=[
             alt.Tooltip("some_column:N"),
-            alt.Tooltip("count:Q", format=",.0f"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
 )
 
-_bar_chart = _base_chart.mark_bar()
+_bar_chart = _base_chart.mark_bar(color="#1C7361")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -367,12 +371,12 @@ _base_chart = (
         x=alt.X("count:Q"),
         tooltip=[
             alt.Tooltip("some_column:N"),
-            alt.Tooltip("count:Q", format=",.0f"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
 )
 
-_bar_chart = _base_chart.mark_bar()
+_bar_chart = _base_chart.mark_bar(color="#1C7361")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -388,13 +392,13 @@ _chart
 # unknown
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative"),
         tooltip=[
             alt.Tooltip("some_column", type="nominal"),
-            alt.Tooltip("count()", type="quantitative"),
+            alt.Tooltip("count()", type="quantitative", title="Number of records"),
         ],
     )
     .properties(width="container")
