@@ -178,6 +178,10 @@ def python_print_pandas(
         args = f"{df_name}.pop({column_id}).values.tolist()"
         return f"{df_name}.join(pd.DataFrame({args}))"
 
+    elif transform.type == TransformType.UNIQUE:
+        column_ids = transform.column_ids
+        return f"{df_name}.drop_duplicates({_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"
+
     assert_never(transform.type)
 
 
@@ -325,6 +329,11 @@ def python_print_polars(
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)
         return f"{df_name}.hstack(pl.DataFrame({df_name}.select({column_id}).to_series().to_list())).drop({column_id})"  # noqa: E501
+
+    elif transform.type == TransformType.UNIQUE:
+        column_ids = transform.column_ids
+        return f"{df_name}.unique(subset={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
+
     assert_never(transform.type)
 
 
@@ -452,6 +461,10 @@ def python_print_ibis(
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = transform.column_id
         return f"{df_name}.unpack({_as_literal(column_id)})"
+
+    elif transform.type == TransformType.UNIQUE:
+        column_ids = transform.column_ids
+        return f"{df_name}.distinct(on={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
 
     assert_never(transform.type)
 

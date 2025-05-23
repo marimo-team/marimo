@@ -170,6 +170,17 @@ const ExpandDictTransformSchema = z.object({
   column_id: column_id,
 });
 
+const UniqueTransformSchema = z
+  .object({
+    type: z.literal("unique"),
+    column_ids: column_id_array,
+    keep: z
+      .enum(["first", "last", "none", "any"])
+      .default("first")
+      .describe(FieldOptions.of({ label: "Keep" })),
+  })
+  .describe(FieldOptions.of({ direction: "row" }));
+
 export const TransformTypeSchema = z.union([
   FilterRowsTransformSchema,
   SelectColumnsTransformSchema,
@@ -182,6 +193,7 @@ export const TransformTypeSchema = z.union([
   ShuffleRowsTransformSchema,
   ExplodeColumnsTransformSchema,
   ExpandDictTransformSchema,
+  UniqueTransformSchema,
 ]);
 
 export type TransformType = z.infer<typeof TransformTypeSchema>;

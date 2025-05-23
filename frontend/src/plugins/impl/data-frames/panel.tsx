@@ -39,6 +39,7 @@ import {
   Trash2Icon,
   BracketsIcon,
   FileJsonIcon,
+  CopySlashIcon,
 } from "lucide-react";
 import { cn } from "../../../utils/cn";
 import {
@@ -301,4 +302,5 @@ const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
   sample_rows: CombineIcon,
   explode_columns: BracketsIcon,
   expand_dict: FileJsonIcon,
+  unique: CopySlashIcon,
 };

@@ -47,6 +47,7 @@ Aggregation = Literal[
     "min",
     "max",
 ]
+UniqueKeep = Literal["first", "last", "none", "any"]
 
 
 class TransformType(Enum):
@@ -61,6 +62,7 @@ class TransformType(Enum):
     SAMPLE_ROWS = "sample_rows"
     EXPLODE_COLUMNS = "explode_columns"
     EXPAND_DICT = "expand_dict"
+    UNIQUE = "unique"
 
 
 @dataclass(frozen=True)
@@ -163,6 +165,13 @@ class ExpandDictTransform:
     column_id: ColumnId
 
 
+@dataclass
+class UniqueTransform:
+    type: Literal[TransformType.UNIQUE]
+    column_ids: ColumnIds
+    keep: UniqueKeep
+
+
 Transform = Union[
     AggregateTransform,
     ColumnConversionTransform,
@@ -175,6 +184,7 @@ Transform = Union[
     SampleRowsTransform,
     ExplodeColumnsTransform,
     ExpandDictTransform,
+    UniqueTransform,
 ]
 
 
@@ -242,6 +252,11 @@ class TransformHandler(abc.ABC, Generic[T]):
     @staticmethod
     @abc.abstractmethod
     def handle_expand_dict(df: T, transform: ExpandDictTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_unique(df: T, transform: UniqueTransform) -> T:
         raise NotImplementedError
 
     @staticmethod

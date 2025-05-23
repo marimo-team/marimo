@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_ibis,
@@ -25,6 +25,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     SortColumnTransform,
     Transform,
     TransformHandler,
+    UniqueTransform,
 )
 from marimo._utils.assert_never import assert_never
 
@@ -222,6 +223,20 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
         return python_print_transforms(
             df_name, columns, transforms, python_print_pandas
         )
+
+    @staticmethod
+    def handle_unique(
+        df: pd.DataFrame, transform: UniqueTransform
+    ) -> pd.DataFrame:
+        if transform.keep == "first":
+            return df.drop_duplicates(
+                subset=transform.column_ids, keep="first"
+            )
+        if transform.keep == "last":
+            return df.drop_duplicates(subset=transform.column_ids, keep="last")
+        if transform.keep == "none":
+            return df.drop_duplicates(subset=transform.column_ids, keep=False)
+        assert_never(cast(NoReturn, transform.keep))
 
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
@@ -467,6 +482,22 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             df_name, columns, transforms, python_print_polars
         )
 
+    @staticmethod
+    def handle_unique(
+        df: pl.DataFrame, transform: UniqueTransform
+    ) -> pl.DataFrame:
+        keep = transform.keep
+        if (
+            keep == "first"
+            or keep == "last"
+            or keep == "any"
+            or keep == "none"
+        ):
+            return df.unique(
+                subset=cast(Sequence[str], transform.column_ids), keep=keep
+            )
+        assert_never(keep)
+
 
 class IbisTransformHandler(TransformHandler["ibis.Table"]):
     @staticmethod
@@ -660,6 +691,18 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         df: ibis.Table, transform: ExpandDictTransform
     ) -> ibis.Table:
         return df.unpack(transform.column_id)
+
+    @staticmethod
+    def handle_unique(
+        df: ibis.Table, transform: UniqueTransform
+    ) -> ibis.Table:
+        if transform.keep == "first":
+            return df.distinct(on=transform.column_ids, keep="first")
+        if transform.keep == "last":
+            return df.distinct(on=transform.column_ids, keep="last")
+        if transform.keep == "none":
+            return df.distinct(on=transform.column_ids, keep=None)
+        assert_never(cast(NoReturn, transform.keep))
 
     @staticmethod
     def as_python_code(
