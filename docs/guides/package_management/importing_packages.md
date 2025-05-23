@@ -1,6 +1,7 @@
 # Importing packages
 
-By default, marimo searches for packages in the environment it was started in.
+By default, marimo searches for packages in the [virtual
+environment](https://docs.python.org/3/tutorial/venv.html) it was started in.
 For example, if you run
 
 ```console

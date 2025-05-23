@@ -1,6 +1,7 @@
 # Package management
 
-XXX
+The following guides cover how to import, install, and otherwise manage
+the Python dependencies of your notebooks.
 
 | Guide                                                 | Description                                                  |
 | ----------------------------------------------------- | ------------------------------------------------------------ |

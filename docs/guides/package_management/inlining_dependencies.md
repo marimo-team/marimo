@@ -37,6 +37,12 @@ marimo's sandbox provides two key benefits. (1) Notebooks that carry their own
 dependencies are easy to share — just send the `.py` file. (2) Isolating a
 notebook from other installed packages prevents obscure bugs.
 
+You can also run sandboxed notebooks as scripts:
+
+```console
+uv run notebook.py
+```
+
 !!! note "Requires uv"
 
     Sandboxed notebooks require the uv package manager
@@ -175,7 +181,7 @@ Running marimo in a sandbox environment uses `uv` to create an isolated virtual
 environment. You can use any of `uv`'s [supported environment
 variables](https://docs.astral.sh/uv/configuration/environment/).
 
-#### Choosing the Python version
+### Choosing the Python version
 
 For example, you can specify the Python version using the `UV_PYTHON` environment variable:
 
@@ -183,13 +189,33 @@ For example, you can specify the Python version using the `UV_PYTHON` environmen
 UV_PYTHON=3.13 marimo edit --sandbox notebook.py
 ```
 
-#### Other common configuration
+### Other common configuration
 
 Another common configuration is `uv`'s link mode:
 
 ```bash
 UV_LINK_MODE="copy" marimo edit --sandbox notebook.py
 ```
+
+## Sharing on the web
+
+You can also upload sandboxed notebooks to the web, such as on GitHub, and have
+others run them locally with a single command:
+
+```
+uvx marimo edit --sandbox https://gist.githubusercontent.com/kolibril13/a59135dd0973b97d488ba21c650667fe/raw/5f98021b5d3c024d5827fa9464787517495178b4/marimo_minimal_numpy_example.py
+```
+
+**Note:**
+
+1. This command will run code from a URL. Make sure you trust the source before proceeding.
+2. Upon execution, you’ll be prompted:
+   ```
+   Would you like to run it in a secure docker container? [Y/n]:
+   ```
+   To proceed securely, ensure you have [Docker](https://www.docker.com/) installed and running, then press `Y`.
+
+
 
 ## Specifying dependencies in Markdown files
 
