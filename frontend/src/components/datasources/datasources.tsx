@@ -49,7 +49,6 @@ import type {
   DataSourceConnection,
   DataTable,
   DataTableColumn,
-  DataType,
 } from "@/core/kernel/messages";
 import { variablesAtom } from "@/core/variables/state";
 import { sortBy } from "lodash-es";
@@ -82,7 +81,6 @@ import {
   PreviewSQLTableList,
   PreviewSQLTable,
 } from "@/core/datasets/request-registry";
-import type { ColumnHeaderStatsKeys } from "../data-table/types";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -958,18 +956,3 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 };
-
-function convertKey(
-  key: (typeof ColumnHeaderStatsKeys)[number],
-  type: DataType,
-) {
-  if (type === "date" || type === "datetime" || type === "time") {
-    if (key === "min") {
-      return "Earliest";
-    }
-    if (key === "max") {
-      return "Latest";
-    }
-  }
-  return key;
-}
