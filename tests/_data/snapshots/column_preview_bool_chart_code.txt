@@ -4,6 +4,14 @@ _chart = (
     .encode(
         x=alt.X("bool_col", type="nominal"),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip("bool_col", type="nominal"),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+            ),
+        ],
     )
     .properties(width="container")
 )

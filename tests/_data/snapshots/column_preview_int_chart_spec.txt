@@ -13,9 +13,23 @@
     "url": "data:text/csv;base64,QQoxCjIKMwo="
   },
   "encoding": {
+    "tooltip": [
+      {
+        "bin": true,
+        "field": "A",
+        "title": "A",
+        "type": "quantitative"
+      },
+      {
+        "aggregate": "count",
+        "format": ",.0f",
+        "type": "quantitative"
+      }
+    ],
     "x": {
       "bin": true,
       "field": "A",
+      "title": "A",
       "type": "quantitative"
     },
     "y": {

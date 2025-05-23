@@ -1,15 +1,68 @@
-_chart = (
-    alt.Chart(table)
-    .mark_bar()
-    .encode(
-        x=alt.X(
-            "date_col",
-            type="temporal",
-            bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
-        ),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+_base = alt.Chart(table).transform_filter(f"datum.date_col != null")
+
+# Explicit time binning, create a new field
+_transformed = _base.transform_timeunit(
+    as_="_date_col", field="date_col", timeUnit="yearmonthdate"
+).transform_aggregate(count="count()", groupby=["_date_col"])
+
+# Create a selection that picks the nearest points
+_nearest = alt.selection_point(
+    fields=["_date_col"],
+    nearest=True,
+    on="mouseover",
 )
+
+# Area chart
+_area = _transformed.mark_area(
+    line={"color": "darkgreen"},
+    color=alt.Gradient(
+        gradient="linear",
+        stops=[
+            alt.GradientStop(color="white", offset=0),
+            alt.GradientStop(color="darkgreen", offset=1),
+        ],
+        x1=1,
+        x2=1,
+        y1=1,
+        y2=0,
+    ),
+).encode(
+    x=alt.X("_date_col:T", title="date_col"),
+    y=alt.Y("count:Q", title="Number of records"),
+)
+
+# Vertical line
+_rule = (
+    _transformed.mark_rule(color="seagreen", strokeWidth=1)
+    .encode(
+        x="_date_col:T",
+        opacity=alt.condition(_nearest, alt.value(0.6), alt.value(0)),
+        tooltip=[
+            alt.Tooltip(
+                "_date_col:T",
+                title="date_col",
+                timeUnit="yearmonthdate",
+            ),
+            alt.Tooltip(
+                "count:Q",
+                title="Number of records",
+                format=",.0f",
+            ),
+        ],
+    )
+    .add_params(_nearest)
+)
+
+# Points on the chart
+_points = _transformed.mark_point(
+    size=80,
+    color="darkgreen",
+    filled=True,
+).encode(
+    x="_date_col:T",
+    y="count:Q",
+    opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
+)
+
+_chart = alt.layer(_area, _points, _rule).properties(width="container")
 _chart

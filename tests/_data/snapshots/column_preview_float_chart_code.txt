@@ -2,8 +2,22 @@ _chart = (
     alt.Chart(table)
     .mark_bar()
     .encode(
-        x=alt.X("float_col", type="quantitative", bin=True),
+        x=alt.X("float_col", type="quantitative", bin=True, title="float_col"),
         y=alt.Y("count()", type="quantitative"),
+        tooltip=[
+            alt.Tooltip(
+                "float_col",
+                type="quantitative",
+                bin=True,
+                title="float_col",
+                format=",.2f",
+            ),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+            ),
+        ],
     )
     .properties(width="container")
 )

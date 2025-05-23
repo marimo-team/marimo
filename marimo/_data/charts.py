@@ -4,13 +4,16 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import narwhals.stable.v1 as nw
 
 from marimo._data.models import DataType
 from marimo._utils import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify
+
+if TYPE_CHECKING:
+    from altair import MultiTimeUnit, SingleTimeUnit
 
 
 @abc.abstractmethod
@@ -46,6 +49,8 @@ TOOLTIP_NUMBER_FORMAT = ",.2f"
 
 # Percentage with 2 decimals
 TOOLTIP_PERCENTAGE_FORMAT = ".2%"
+
+COLOR = "darkgreen"
 
 
 class NumberChartBuilder(ChartBuilder):
@@ -225,11 +230,33 @@ _chart
 
 class DateChartBuilder(ChartBuilder):
     DEFAULT_DATE_FORMAT = "%Y-%m-%d"
+    DEFAULT_TIME_UNIT: SingleTimeUnit | MultiTimeUnit = "yearmonthdate"
 
-    def _guess_date_format(self, data: Any, column: str) -> str:
-        """Guess the appropriate date format based on the range of dates in the column."""
+    def __init__(self) -> None:
+        self.date_format = None
+        self.time_unit = None
+
+    def _get_date_format(
+        self, data: Any, column: str
+    ) -> tuple[str, SingleTimeUnit | MultiTimeUnit]:
+        if self.date_format is not None and self.time_unit is not None:
+            return self.date_format, self.time_unit
+        else:
+            date_format, time_unit = self._guess_date_format(data, column)
+            # Set the date format and time unit to avoid recalculating
+            self.date_format = date_format
+            self.time_unit = time_unit
+            return date_format, time_unit
+
+    def _guess_date_format(
+        self, data: Any, column: str
+    ) -> tuple[str, SingleTimeUnit | MultiTimeUnit]:
+        """
+        Guess the appropriate date format based on the range of dates in the column.
+        Returns date_format, time_unit
+        """
         if not can_narwhalify(data, eager_only=True):
-            return "%Y-%m-%d"
+            return self.DEFAULT_DATE_FORMAT, self.DEFAULT_TIME_UNIT
 
         df = nw.from_native(data, eager_only=True)
 
@@ -240,89 +267,177 @@ class DateChartBuilder(ChartBuilder):
         # Calculate the difference in days
         time_diff = max_date - min_date
         if not hasattr(time_diff, "days"):
-            return self.DEFAULT_DATE_FORMAT
+            return self.DEFAULT_DATE_FORMAT, self.DEFAULT_TIME_UNIT
 
         days_diff = time_diff.days
 
         # Choose format based on the range
         if days_diff > 365 * 10:  # More than 10 years
-            return "%Y"  # Year only
+            return "%Y", "year"  # Year only
         elif days_diff > 365:  # More than a year
-            return "%Y-%m"  # Year and month
+            return "%Y-%m", "yearmonth"  # Year and month
         elif days_diff > 31:  # More than a month
-            return "%Y-%m-%d"  # Full date
+            return "%Y-%m-%d", "yearmonthdate"  # Full date
         elif days_diff > 1:  # More than a day
-            return "%Y-%m-%d %H"  # Date and time (hours)
+            return "%Y-%m-%d %H", "yearmonthdatehours"  # Date and time (hours)
         else:
-            return "%Y-%m-%d %H:%M"  # Date and time (hours, minutes)
+            # Date and time (hours, minutes)
+            return (
+                "%Y-%m-%d %H:%M",
+                "yearmonthdatehoursminutes",
+            )
 
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        date_format = self._guess_date_format(data, column)
+        date_format, time_unit = self._get_date_format(data, column)
+        new_field = f"date_{column}"
 
-        return (
-            alt.Chart(data)
-            .mark_bar()
+        base = alt.Chart(data).transform_filter(f"datum.{column} != null")
+
+        # Explicit time binning, create a new field
+        transformed = base.transform_timeunit(
+            as_=new_field, field=column, timeUnit=time_unit
+        ).transform_aggregate(count="count()", groupby=[new_field])
+
+        # Create a selection that picks the nearest points
+        nearest = alt.selection_point(
+            fields=[new_field],
+            nearest=True,
+            on="mouseover",
+        )
+
+        # Area chart
+        area = transformed.mark_area(
+            line={"color": COLOR},
+            color=alt.Gradient(
+                gradient="linear",
+                stops=[
+                    alt.GradientStop(color="white", offset=0),
+                    alt.GradientStop(color="darkgreen", offset=1),
+                ],
+                x1=1,
+                x2=1,
+                y1=1,
+                y2=0,
+            ),
+        ).encode(
+            x=alt.X(f"{new_field}:T", title=column),
+            y=alt.Y("count:Q", title="Number of records"),
+        )
+
+        # Vertical line
+        rule = (
+            transformed.mark_rule(color="seagreen", strokeWidth=1)
             .encode(
-                x=alt.X(
-                    column,
-                    type="temporal",
-                    bin=alt.Bin(maxbins=20),
-                    axis=alt.Axis(format=date_format),
-                    title=column,
-                ),
-                y=alt.Y("count()", type="quantitative"),
+                x=f"{new_field}:T",
+                opacity=alt.condition(nearest, alt.value(0.6), alt.value(0)),
                 tooltip=[
                     alt.Tooltip(
-                        column,
-                        type="temporal",
-                        bin=alt.Bin(maxbins=20),
-                        format=date_format,
+                        f"{new_field}:T",
                         title=column,
+                        timeUnit=time_unit,
                     ),
                     alt.Tooltip(
-                        "count()",
-                        type="quantitative",
+                        "count:Q",
+                        title="Number of records",
                         format=TOOLTIP_COUNT_FORMAT,
                     ),
                 ],
             )
-            .properties(width="container")
+            .add_params(nearest)
         )
 
+        # Points on the chart
+        points = transformed.mark_point(
+            size=80,
+            color=COLOR,
+            filled=True,
+        ).encode(
+            x=f"{new_field}:T",
+            y="count:Q",
+            opacity=alt.condition(nearest, alt.value(1), alt.value(0)),
+        )
+
+        chart = alt.layer(area, points, rule).properties(width="container")
+        return chart
+
     def altair_code(self, data: str, column: str) -> str:
-        date_format = self._guess_date_format(data, column)
+        _date_format, time_unit = self._get_date_format(data, column)
+
+        new_field = f"_{column}"
+        formatted_field = f'"{new_field}"'
+        formatted_field_with_type = f'"{new_field}:T"'
+        time_unit_str = f'"{time_unit}"'
+
         return f"""
-        _chart = (
-            alt.Chart({data})
-            .mark_bar()
+        _base = alt.Chart({data}).transform_filter(f"datum.{column} != null")
+
+        # Explicit time binning, create a new field
+        _transformed = _base.transform_timeunit(
+            as_={formatted_field}, field="{column}", timeUnit={time_unit_str}
+        ).transform_aggregate(count="count()", groupby=[{formatted_field}])
+
+        # Create a selection that picks the nearest points
+        _nearest = alt.selection_point(
+            fields=[{formatted_field}],
+            nearest=True,
+            on="mouseover",
+        )
+
+        # Area chart
+        _area = _transformed.mark_area(
+            line={{"color": "{COLOR}"}},
+            color=alt.Gradient(
+                gradient="linear",
+                stops=[
+                    alt.GradientStop(color="white", offset=0),
+                    alt.GradientStop(color="darkgreen", offset=1),
+                ],
+                x1=1,
+                x2=1,
+                y1=1,
+                y2=0,
+            ),
+        ).encode(
+            x=alt.X({formatted_field_with_type}, title="{column}"),
+            y=alt.Y("count:Q", title="Number of records"),
+        )
+
+        # Vertical line
+        _rule = (
+            _transformed.mark_rule(color="seagreen", strokeWidth=1)
             .encode(
-                x=alt.X(
-                    "{column}",
-                    type="temporal",
-                    bin=alt.Bin(maxbins=20),
-                    axis=alt.Axis(format="{date_format}"),
-                    title="{column}",
-                ),
-                y=alt.Y("count()", type="quantitative"),
+                x={formatted_field_with_type},
+                opacity=alt.condition(_nearest, alt.value(0.6), alt.value(0)),
                 tooltip=[
                     alt.Tooltip(
-                        "{column}",
-                        type="temporal",
-                        bin=alt.Bin(maxbins=20),
-                        format="{date_format}",
+                        {formatted_field_with_type},
                         title="{column}",
+                        timeUnit={time_unit_str},
                     ),
                     alt.Tooltip(
-                        "count()",
-                        type="quantitative",
+                        "count:Q",
+                        title="Number of records",
                         format="{TOOLTIP_COUNT_FORMAT}",
                     ),
                 ],
             )
-            .properties(width="container")
+            .add_params(_nearest)
         )
+
+        # Points on the chart
+        _points = _transformed.mark_point(
+            size=80,
+            color="{COLOR}",
+            filled=True,
+        ).encode(
+            x={formatted_field_with_type},
+            y="count:Q",
+            opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
+        )
+
+        _chart = alt.layer(_area, _points, _rule).properties(width="container")
         _chart
         """
 

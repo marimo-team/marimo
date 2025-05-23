@@ -90,6 +90,9 @@
           "fill": {
             "value": "#4c78a8"
           },
+          "tooltip": {
+            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Count of Records\": format(datum[\"__count\"], \",.0f\")}"
+          },
           "width": {
             "signal": "max(0.25, bandwidth('x'))"
           },

@@ -75,42 +75,184 @@
       }
     ]
   },
-  "encoding": {
-    "tooltip": [
-      {
-        "bin": {
-          "maxbins": 20
+  "layer": [
+    {
+      "encoding": {
+        "x": {
+          "field": "date_some_column",
+          "title": "some_column",
+          "type": "temporal"
         },
-        "field": "some_column",
-        "format": "%Y-%m-%d",
-        "title": "some_column",
-        "type": "temporal"
+        "y": {
+          "field": "count",
+          "title": "Number of records",
+          "type": "quantitative"
+        }
       },
-      {
-        "aggregate": "count",
-        "format": ",.0f",
-        "type": "quantitative"
-      }
-    ],
-    "x": {
-      "axis": {
-        "format": "%Y-%m-%d"
+      "mark": {
+        "color": {
+          "gradient": "linear",
+          "stops": [
+            {
+              "color": "white",
+              "offset": 0
+            },
+            {
+              "color": "darkgreen",
+              "offset": 1
+            }
+          ],
+          "x1": 1,
+          "x2": 1,
+          "y1": 1,
+          "y2": 0
+        },
+        "line": {
+          "color": "darkgreen"
+        },
+        "type": "area"
       },
-      "bin": {
-        "maxbins": 20
-      },
-      "field": "some_column",
-      "title": "some_column",
-      "type": "temporal"
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
     },
-    "y": {
-      "aggregate": "count",
-      "type": "quantitative"
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "param": "param_1",
+            "value": 1
+          },
+          "value": 0
+        },
+        "x": {
+          "field": "date_some_column",
+          "type": "temporal"
+        },
+        "y": {
+          "field": "count",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "color": "darkgreen",
+        "filled": true,
+        "size": 80,
+        "type": "point"
+      },
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "param": "param_1",
+            "value": 0.6
+          },
+          "value": 0
+        },
+        "tooltip": [
+          {
+            "field": "date_some_column",
+            "timeUnit": "yearmonthdate",
+            "title": "some_column",
+            "type": "temporal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "title": "Number of records",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "date_some_column",
+          "type": "temporal"
+        }
+      },
+      "mark": {
+        "color": "seagreen",
+        "strokeWidth": 1,
+        "type": "rule"
+      },
+      "name": "view_1",
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
     }
-  },
-  "mark": {
-    "type": "bar"
-  },
+  ],
+  "params": [
+    {
+      "name": "param_1",
+      "select": {
+        "fields": [
+          "date_some_column"
+        ],
+        "nearest": true,
+        "on": "mouseover",
+        "type": "point"
+      },
+      "views": [
+        "view_1"
+      ]
+    }
+  ],
   "width": "container"
 }
 
@@ -139,42 +281,184 @@
       }
     ]
   },
-  "encoding": {
-    "tooltip": [
-      {
-        "bin": {
-          "maxbins": 20
+  "layer": [
+    {
+      "encoding": {
+        "x": {
+          "field": "date_some_column",
+          "title": "some_column",
+          "type": "temporal"
         },
-        "field": "some_column",
-        "format": "%Y-%m-%d",
-        "title": "some_column",
-        "type": "temporal"
+        "y": {
+          "field": "count",
+          "title": "Number of records",
+          "type": "quantitative"
+        }
       },
-      {
-        "aggregate": "count",
-        "format": ",.0f",
-        "type": "quantitative"
-      }
-    ],
-    "x": {
-      "axis": {
-        "format": "%Y-%m-%d"
+      "mark": {
+        "color": {
+          "gradient": "linear",
+          "stops": [
+            {
+              "color": "white",
+              "offset": 0
+            },
+            {
+              "color": "darkgreen",
+              "offset": 1
+            }
+          ],
+          "x1": 1,
+          "x2": 1,
+          "y1": 1,
+          "y2": 0
+        },
+        "line": {
+          "color": "darkgreen"
+        },
+        "type": "area"
       },
-      "bin": {
-        "maxbins": 20
-      },
-      "field": "some_column",
-      "title": "some_column",
-      "type": "temporal"
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
     },
-    "y": {
-      "aggregate": "count",
-      "type": "quantitative"
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "param": "param_2",
+            "value": 1
+          },
+          "value": 0
+        },
+        "x": {
+          "field": "date_some_column",
+          "type": "temporal"
+        },
+        "y": {
+          "field": "count",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "color": "darkgreen",
+        "filled": true,
+        "size": 80,
+        "type": "point"
+      },
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "param": "param_2",
+            "value": 0.6
+          },
+          "value": 0
+        },
+        "tooltip": [
+          {
+            "field": "date_some_column",
+            "timeUnit": "yearmonthdate",
+            "title": "some_column",
+            "type": "temporal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "title": "Number of records",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "date_some_column",
+          "type": "temporal"
+        }
+      },
+      "mark": {
+        "color": "seagreen",
+        "strokeWidth": 1,
+        "type": "rule"
+      },
+      "name": "view_2",
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
     }
-  },
-  "mark": {
-    "type": "bar"
-  },
+  ],
+  "params": [
+    {
+      "name": "param_2",
+      "select": {
+        "fields": [
+          "date_some_column"
+        ],
+        "nearest": true,
+        "on": "mouseover",
+        "type": "point"
+      },
+      "views": [
+        "view_2"
+      ]
+    }
+  ],
   "width": "container"
 }
 
@@ -203,42 +487,184 @@
       }
     ]
   },
-  "encoding": {
-    "tooltip": [
-      {
-        "bin": {
-          "maxbins": 20
+  "layer": [
+    {
+      "encoding": {
+        "x": {
+          "field": "date_some_column",
+          "title": "some_column",
+          "type": "temporal"
         },
-        "field": "some_column",
-        "format": "%Y-%m-%d",
-        "title": "some_column",
-        "type": "temporal"
+        "y": {
+          "field": "count",
+          "title": "Number of records",
+          "type": "quantitative"
+        }
       },
-      {
-        "aggregate": "count",
-        "format": ",.0f",
-        "type": "quantitative"
-      }
-    ],
-    "x": {
-      "axis": {
-        "format": "%Y-%m-%d"
+      "mark": {
+        "color": {
+          "gradient": "linear",
+          "stops": [
+            {
+              "color": "white",
+              "offset": 0
+            },
+            {
+              "color": "darkgreen",
+              "offset": 1
+            }
+          ],
+          "x1": 1,
+          "x2": 1,
+          "y1": 1,
+          "y2": 0
+        },
+        "line": {
+          "color": "darkgreen"
+        },
+        "type": "area"
       },
-      "bin": {
-        "maxbins": 20
-      },
-      "field": "some_column",
-      "title": "some_column",
-      "type": "temporal"
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
     },
-    "y": {
-      "aggregate": "count",
-      "type": "quantitative"
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "param": "param_3",
+            "value": 1
+          },
+          "value": 0
+        },
+        "x": {
+          "field": "date_some_column",
+          "type": "temporal"
+        },
+        "y": {
+          "field": "count",
+          "type": "quantitative"
+        }
+      },
+      "mark": {
+        "color": "darkgreen",
+        "filled": true,
+        "size": 80,
+        "type": "point"
+      },
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "param": "param_3",
+            "value": 0.6
+          },
+          "value": 0
+        },
+        "tooltip": [
+          {
+            "field": "date_some_column",
+            "timeUnit": "yearmonthdate",
+            "title": "some_column",
+            "type": "temporal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "title": "Number of records",
+            "type": "quantitative"
+          }
+        ],
+        "x": {
+          "field": "date_some_column",
+          "type": "temporal"
+        }
+      },
+      "mark": {
+        "color": "seagreen",
+        "strokeWidth": 1,
+        "type": "rule"
+      },
+      "name": "view_3",
+      "transform": [
+        {
+          "filter": "datum.some_column != null"
+        },
+        {
+          "as": "date_some_column",
+          "field": "some_column",
+          "timeUnit": "yearmonthdate"
+        },
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "date_some_column"
+          ]
+        }
+      ]
     }
-  },
-  "mark": {
-    "type": "bar"
-  },
+  ],
+  "params": [
+    {
+      "name": "param_3",
+      "select": {
+        "fields": [
+          "date_some_column"
+        ],
+        "nearest": true,
+        "on": "mouseover",
+        "type": "point"
+      },
+      "views": [
+        "view_3"
+      ]
+    }
+  ],
   "width": "container"
 }
 

@@ -116,17 +116,17 @@ def test_charts_altair_json_bad_data():
         # More than 10 years
         (
             ({"dates": [datetime(2000, 1, 1), datetime(2020, 1, 1)]}),
-            "%Y",
+            ("%Y", "year"),
         ),
         # More than a year
         (
             ({"dates": [datetime(2020, 1, 1), datetime(2021, 6, 1)]}),
-            "%Y-%m",
+            ("%Y-%m", "yearmonth"),
         ),
         # More than a month
         (
             ({"dates": [datetime(2020, 1, 1), datetime(2020, 2, 15)]}),
-            "%Y-%m-%d",
+            ("%Y-%m-%d", "yearmonthdate"),
         ),
         # More than a day
         (
@@ -138,7 +138,7 @@ def test_charts_altair_json_bad_data():
                     ]
                 }
             ),
-            "%Y-%m-%d %H:%M",
+            ("%Y-%m-%d %H:%M", "yearmonthdatehoursminutes"),
         ),
         # Less than a day
         (
@@ -150,7 +150,7 @@ def test_charts_altair_json_bad_data():
                     ]
                 }
             ),
-            "%Y-%m-%d %H:%M",
+            ("%Y-%m-%d %H:%M", "yearmonthdatehoursminutes"),
         ),
     ],
 )
@@ -162,15 +162,21 @@ def test_date_chart_builder_guess_date_format_with_dataframes(
 
     builder = DateChartBuilder()
     for df in eager_dfs:
-        assert builder._guess_date_format(df, "dates") == expected_format, (
-            f"Expected {expected_format} for {type(df)}"
-        )
+        date_format, time_unit = builder._guess_date_format(df, "dates")
+        assert (
+            date_format,
+            time_unit,
+        ) == expected_format, f"Expected {expected_format} for {type(df)}"
 
     non_eager_dfs = create_dataframes(data, include=NON_EAGER_LIBS)
     for df in non_eager_dfs:
+        date_format, time_unit = builder._guess_date_format(df, "dates")
         assert (
-            builder._guess_date_format(df, "dates")
-            == DateChartBuilder.DEFAULT_DATE_FORMAT
+            date_format,
+            time_unit,
+        ) == (
+            DateChartBuilder.DEFAULT_DATE_FORMAT,
+            DateChartBuilder.DEFAULT_TIME_UNIT,
         ), f"Expected {DateChartBuilder.DEFAULT_DATE_FORMAT} for {type(df)}"
 
 
@@ -182,7 +188,8 @@ def test_date_chart_builder_guess_date_format_with_non_narwhalifiable_data():
     class NonNarwhalifiableData:
         pass
 
-    assert (
-        builder._guess_date_format(NonNarwhalifiableData(), "dates")
-        == "%Y-%m-%d"
+    date_format, time_unit = builder._guess_date_format(
+        NonNarwhalifiableData(), "dates"
     )
+    assert date_format == DateChartBuilder.DEFAULT_DATE_FORMAT
+    assert time_unit == DateChartBuilder.DEFAULT_TIME_UNIT

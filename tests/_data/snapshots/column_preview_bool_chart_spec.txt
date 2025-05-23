@@ -13,6 +13,17 @@
     "url": "data:text/csv;base64,Ym9vbF9jb2wKVHJ1ZQpGYWxzZQpUcnVlCg=="
   },
   "encoding": {
+    "tooltip": [
+      {
+        "field": "bool_col",
+        "type": "nominal"
+      },
+      {
+        "aggregate": "count",
+        "format": ",.0f",
+        "type": "quantitative"
+      }
+    ],
     "x": {
       "field": "bool_col",
       "type": "nominal"
