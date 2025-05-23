@@ -80,7 +80,7 @@ _chart
 # integer
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),
@@ -105,7 +105,7 @@ _chart
 # number
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),
@@ -193,7 +193,7 @@ _chart
 # unknown
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),
