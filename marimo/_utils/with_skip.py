@@ -1,6 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import sys
 from abc import ABC, abstractmethod
 from typing import (
@@ -30,7 +31,11 @@ class SkipContext(ABC):
 
     def __enter__(self) -> Self:
         self._sys_trace = sys.gettrace()
-        frame = sys._getframe(1)
+        if maybe_frame := inspect.currentframe():
+            frame = maybe_frame.f_back
+        else:
+            raise RuntimeError("Unable to establish current frame.")
+        assert frame is not None
         # Hold on to the previous trace.
         self._old_trace = frame.f_trace
         # Setting the frametrace, will cause the function to be run on _every_

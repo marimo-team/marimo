@@ -18,6 +18,7 @@ from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
     MultipleDefinitionError,
+    SetupRootError,
     UnparsableError,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -980,6 +981,40 @@ class TestAppComposition:
 
         assert x.value == 2
         assert y.value == 3
+
+    @staticmethod
+    def test_app_not_changed() -> None:
+        app = App()
+
+        with pytest.raises(SetupRootError):
+            with app.setup:
+                app = 1
+
+
+
+    @staticmethod
+    def test_setup_not_exposed() -> None:
+        app = App()
+
+        with pytest.raises(SetupRootError):
+            with app.setup:
+                try:
+                    x = app is not None
+                except NameError:
+                    x = False
+
+
+    @staticmethod
+    def test_setup_in_memory() -> None:
+        app = App()
+
+        with app.setup:
+            x = 0
+
+        assert x == 0
+        _, defs = app.run()
+        assert defs["x"] == 0
+        assert "app" not in defs
 
 
 class TestAppKernelRunnerRegistry:

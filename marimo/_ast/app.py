@@ -111,20 +111,27 @@ class _SetupContext:
         self._previous: dict[str, Any] = {}
 
     def __enter__(self) -> None:
-        with_frame = sys._getframe(1)
-
+        if maybe_frame := inspect.currentframe():
+            with_frame = maybe_frame.f_back
+        else:
+            raise SetupRootError("Unable to establish current frame.")
+        if "app" in self._cell.defs:
+            # Otherwise fail in say a script context.
+            raise SetupRootError("The setup cell cannot redefine 'app'")
         if refs := self._cell.refs - BUILTINS:
             # Otherwise fail in say a script context.
             raise SetupRootError(
                 f"The setup cell cannot reference any additional variables: {refs}"
             )
-        self._frame = with_frame
-        self._previous = {**with_frame.f_locals}
-        # A reference to the key app must be maintained in the frame.
-        # This may be a python quirk, so just remove refs to explicit defs
-        for var in self._cell.defs:
-            if var in self._previous:
-                del self._frame.f_locals[var]
+
+        if with_frame is not None:
+            self._frame = with_frame
+            previous = {**with_frame.f_locals}
+            # A reference to the key app must be maintained in the frame.
+            # This may be a python quirk, so just remove refs to explicit defs
+            for var in self._cell.defs:
+                if var in previous:
+                    del self._frame.f_locals[var]
 
     def __exit__(
         self,
@@ -135,24 +142,14 @@ class _SetupContext:
         if exception is not None:
             # Always should fail, since static loading still allows bad apps to
             # load.
+            # But don't record the variables.
             return False
 
-        # Manually hold on to defs for injection into script mode.
         if self._frame is not None:
+            # Collect new definitions
             for var in self._cell.defs:
-                self._glbls[var] = self._frame.f_locals.get(var, None)
-
-            self._frame.f_locals.update(self._previous)
-            # What was just run should take precident.
-            self._frame.f_locals.update(self._glbls)
-            # Previous after to ensure that app and other builtins are not
-            # changed during import or execution.
-            app = None
-            if self._cell._app is not None:
-                app = self._cell._app._app
-            self._frame.f_locals["app"] = self._previous.get("app", app)
-            self._previous = {}
-
+                if var in self._frame.f_locals:
+                    self._glbls[var] = self._frame.f_locals.get(var)
         return False
 
 
