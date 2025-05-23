@@ -157,7 +157,6 @@ class UvPackageManager(PypiPackageManager):
             import_namespaces_to_add: List of import namespaces to add
             import_namespaces_to_remove: List of import namespaces to remove
         """
-        LOGGER.info(f"Updating script metadata for {filepath}")
         packages_to_add = packages_to_add or []
         packages_to_remove = packages_to_remove or []
         import_namespaces_to_add = import_namespaces_to_add or []
@@ -172,6 +171,8 @@ class UvPackageManager(PypiPackageManager):
 
         if not packages_to_add and not packages_to_remove:
             return
+
+        LOGGER.info(f"Updating script metadata for {filepath}")
 
         version_map = self._get_version_map()
 
