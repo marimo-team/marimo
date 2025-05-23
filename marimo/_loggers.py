@@ -104,8 +104,10 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
     stream_handler.setFormatter(_LOG_FORMATTER)
     if level is None:
         stream_handler.setLevel(_LOG_LEVEL)
+        logger.setLevel(_LOG_LEVEL)
     else:
         stream_handler.setLevel(level)
+        logger.setLevel(level)
 
     logger.addHandler(stream_handler)
 
