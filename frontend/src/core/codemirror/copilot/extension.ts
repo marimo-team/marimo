@@ -200,7 +200,7 @@ function getSuggestion(
   state: EditorState,
 ): string {
   if (!response) {
-    logger.error("No response from copilot");
+    logger.debug("No response from copilot");
     return "";
   }
 
