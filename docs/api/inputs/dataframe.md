@@ -10,11 +10,20 @@ The dataframe UI element outputs a visual editor to apply "transforms" to a data
 Supported transforms are:
 
 - Filter Rows
+- Select Columns
 - Rename Column
 - Column Conversion
 - Sort Column
 - Group By
 - Aggregate
+- Sample Rows
+- Shuffle Rows
+- Explode Columns
+- Expand Dict
+
+!!! info "Request a Transform"
+
+    Don't see a transform you need? You can [request a new dataframe transform](https://github.com/marimo-team/marimo/issues/new?title=New%20dataframe%20transform:&labels=enhancement&template=feature_request.yaml) on our GitHub repository.
 
 /// marimo-embed
     size: large
