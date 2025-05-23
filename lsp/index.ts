@@ -6,6 +6,7 @@ import type * as rpc from "@sourcegraph/vscode-ws-jsonrpc";
 import * as rpcServer from "@sourcegraph/vscode-ws-jsonrpc/lib/server";
 import path from "node:path";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 
 const LOG_FILE = path.join(
   process.env.XDG_CACHE_HOME || path.join(process.env.HOME || "", ".cache"),
@@ -47,14 +48,16 @@ const Logger = {
 const argv = parseArgs(process.argv.slice(2));
 
 if (argv.help) {
-  console.log("Usage: index.js --port 3000");
+  Logger.log("Usage: index.js --port 3000");
   process.exit(1);
 }
 
 const serverPort: number = Number.parseInt(argv.port) || 3000;
 
+const COPILOT_LSP_PATH = path.join(__dirname, "dist", "language-server.js");
+
 const languageServers: Record<string, string[]> = {
-  copilot: ["node", path.join(__dirname, "language-server.js"), "--stdio"],
+  copilot: ["node", COPILOT_LSP_PATH, "--stdio"],
 };
 
 function toSocket(webSocket: ws): rpc.IWebSocket {
@@ -102,6 +105,15 @@ function toSocket(webSocket: ws): rpc.IWebSocket {
   };
 }
 
+async function verifyCopilotLSP() {
+  if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
+    Logger.error(
+      `Copilot LSP not found at ${COPILOT_LSP_PATH}. Likely a build error or missing dependencies.`,
+    );
+    process.exit(1);
+  }
+}
+
 // Add error handling for WebSocket server creation
 try {
   const wss = new WebSocketServer(
@@ -120,6 +132,8 @@ try {
 
   wss.on("connection", (client: ws, request: http.IncomingMessage) => {
     Logger.log(`New connection from ${request.socket.remoteAddress}`);
+
+    void verifyCopilotLSP();
 
     let langServer: string[] | undefined;
 
