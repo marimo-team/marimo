@@ -85,7 +85,7 @@ marimoはノートブックのコード、出力、プログラムの状態の�
 
 **決定論的な実行順序** ノートブックは、セルのページ上の位置ではなく、変数の参照に基づいて決定論的な順序で実行されます。伝えたいストーリーに最適な方法でノートブックを整理できます。
 
-**組み込みパッケージ管理** marimoには主要なパッケージマネージャーのサポートが組み込まれており、[インポート時にパッケージをインストール](https://docs.marimo.io/guides/editor_features/package_management.html)できます。marimoは[パッケージの要件をシリアル化](https://docs.marimo.io/guides/package_management/inlining_dependencies.html)してノートブックファイルに保存し、隔離されたvenv環境に自動的にインストールすることもできます。
+**組み込みパッケージ管理** marimoには主要なパッケージマネージャーのサポートが組み込まれており、[インポート時にパッケージをインストール](https://docs.marimo.io/guides/editor_features/package_management.html)できます。marimoは[パッケージの要件をシリアル化](https://docs.marimo.io/guides/package_management/inlining_dependencies/)してノートブックファイルに保存し、隔離されたvenv環境に自動的にインストールすることもできます。
 
 **必要な機能がすべて揃っている** marimoにはGitHub Copilot、AIアシスタント、Ruffコードフォーマット、HTML出力、高速コード補完、[VS Code拡張機能](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、インタラクティブなデータフレームビューワー、[その他多くの](https://docs.marimo.io/guides/editor_features/index.html)便利な機能が含まれています。
 
