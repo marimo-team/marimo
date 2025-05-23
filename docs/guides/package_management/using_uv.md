@@ -15,7 +15,7 @@ dependencies](inlining_dependencies.md) in notebook files, requires uv.
 You can manage your notebooks' dependencies in three different ways:
 
 1. inline dependencies: [inlining dependencies](inlining_dependencies.md) in notebook files, using `marimo edit --sandbox notebook.py`
-2. projects: using a `uv` project , which define dependencies declaritively in a `pyproject.toml`
+2. projects: using a `uv` project , which define dependencies declaratively in a `pyproject.toml`
    file;
 3. non-project environment: dependencies are imperatively installed
 

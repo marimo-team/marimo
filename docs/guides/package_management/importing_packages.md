@@ -33,7 +33,7 @@ marimo edit --sandbox my_notebook.py
 — marimo will start your notebook in an isolated environment and keep track of
 the dependencies you install from the editor. These dependencies are inlined in
 the notebook file, so that the next time you run the notebook,
-marimo will run it in an isolated environment with just those depenencies.
+marimo will run it in an isolated environment with just those dependencies.
 
 See our guide on [inlining dependencies](inlining_dependencies.md)
 to learn more.
