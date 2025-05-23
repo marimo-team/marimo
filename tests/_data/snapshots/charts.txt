@@ -50,6 +50,7 @@ _nearest = alt.selection_point(
     fields=["_some_column"],
     nearest=True,
     on="mouseover",
+    empty=False,
 )
 
 # Area chart
@@ -120,6 +121,7 @@ _nearest = alt.selection_point(
     fields=["_some_column"],
     nearest=True,
     on="mouseover",
+    empty=False,
 )
 
 # Area chart
@@ -190,6 +192,7 @@ _nearest = alt.selection_point(
     fields=["_some_column"],
     nearest=True,
     on="mouseover",
+    empty=False,
 )
 
 # Area chart

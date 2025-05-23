@@ -49,8 +49,6 @@ TOOLTIP_PERCENTAGE_FORMAT = ".2%"
 
 NUM_RECORDS = "Number of records"
 
-COLOR = "darkgreen"
-
 
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
@@ -246,6 +244,7 @@ class DateChartBuilder(ChartBuilder):
     def __init__(self) -> None:
         self.date_format: Optional[str] = None
         self.time_unit: Optional[TimeUnitOptions] = None
+        self.base_color = "darkgreen"
 
     def _get_date_format(
         self, data: Any, column: str
@@ -313,19 +312,17 @@ class DateChartBuilder(ChartBuilder):
 
         # Create a selection that picks the nearest points
         nearest = alt.selection_point(
-            fields=[new_field],
-            nearest=True,
-            on="mouseover",
+            fields=[new_field], nearest=True, on="mouseover", empty=False
         )
 
         # Area chart
         area = transformed.mark_area(
-            line={"color": COLOR},
+            line={"color": self.base_color},
             color=alt.Gradient(
                 gradient="linear",  # type: ignore
                 stops=[
                     alt.GradientStop(color="white", offset=0),
-                    alt.GradientStop(color="darkgreen", offset=1),
+                    alt.GradientStop(color=self.base_color, offset=1),
                 ],
                 x1=1,
                 x2=1,
@@ -362,7 +359,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         points = transformed.mark_point(
             size=80,
-            color=COLOR,
+            color=self.base_color,
             filled=True,
         ).encode(
             x=f"{new_field}:T",
@@ -394,16 +391,17 @@ class DateChartBuilder(ChartBuilder):
             fields=[{formatted_field}],
             nearest=True,
             on="mouseover",
+            empty=False,
         )
 
         # Area chart
         _area = _transformed.mark_area(
-            line={{"color": "{COLOR}"}},
+            line={{"color": "{self.base_color}"}},
             color=alt.Gradient(
                 gradient="linear",
                 stops=[
                     alt.GradientStop(color="white", offset=0),
-                    alt.GradientStop(color="darkgreen", offset=1),
+                    alt.GradientStop(color="{self.base_color}", offset=1),
                 ],
                 x1=1,
                 x2=1,
@@ -440,7 +438,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         _points = _transformed.mark_point(
             size=80,
-            color="{COLOR}",
+            color="{self.base_color}",
             filled=True,
         ).encode(
             x={formatted_field_with_type},

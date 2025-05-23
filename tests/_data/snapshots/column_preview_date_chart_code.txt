@@ -10,6 +10,7 @@ _nearest = alt.selection_point(
     fields=["_date_col"],
     nearest=True,
     on="mouseover",
+    empty=False,
 )
 
 # Area chart
