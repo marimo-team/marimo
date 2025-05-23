@@ -37,11 +37,13 @@
 - 🚀 **功能齐全**：替代 `jupyter`、`streamlit`、`jupytext`、`ipywidgets`、`papermill` 等更多工具
 - ⚡️ **响应式**：运行一个单元格，marimo会响应式地[运行所有依赖单元格](https://docs.marimo.io/guides/reactivity.html)或<a href="#expensive-notebooks">将它们标记为过时</a>
 - 🖐️ **交互性**：[绑定滑块、表格、图表等UI元素](https://docs.marimo.io/guides/interactivity.html)到Python代码——无需回调函数
+- 🐍 **支持Git版本控制**：笔记本以`.py`文件格式存储
+- 🛢️ **为数据设计**：使用[SQL](https://docs.marimo.io/guides/working_with_data/sql.html)查询数据框和数据库，过滤和搜索[数据框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
 - 🔬 **可复现**：[无隐藏状态](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)，确定性执行，[内置包管理](https://docs.marimo.io/guides/editor_features/package_management.html)
 - 🏃 **可执行**：[作为Python脚本执行](https://docs.marimo.io/guides/scripts.html)，通过命令行参数进行配置
 - 🛜 **可分享**：[部署为交互式Web应用](https://docs.marimo.io/guides/apps.html)或[幻灯片](https://docs.marimo.io/guides/apps.html#slides-layout)，[通过WASM在浏览器中运行](https://docs.marimo.io/guides/wasm.html)
-- 🛢️ **为数据设计**：使用[SQL](https://docs.marimo.io/guides/working_with_data/sql.html)查询数据框和数据库，过滤和搜索[数据框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
-- 🐍 **支持Git版本控制**：笔记本以`.py`文件格式存储
+- 🧩 **可复用：** 可从一个笔记本[导入函数和类](https://docs.marimo.io/guides/reusing_functions/)到另一个笔记本
+- 🧪 **便于测试：** 可在笔记本上运行 [pytest](https://docs.marimo.io/guides/testing/)
 - ⌨️ **现代编辑器**：[GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot)、[AI助手](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama)、vim快捷键、变量浏览器和[更多功能](https://docs.marimo.io/guides/editor_features/index.html)
 
 ```python
