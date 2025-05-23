@@ -294,15 +294,12 @@ def test_construct_uv_cmd_with_additional_deps() -> None:
         additional_deps=additional_deps,
     )
 
-    # Get the requirements file path from the command
-    req_file_index = uv_cmd.index("--with-requirements") + 1
-    req_file_path = uv_cmd[req_file_index]
+    # Get the additional (layered) dependencies
+    with_dependencies_index = uv_cmd.index("--with") + 1
+    with_dependencies = uv_cmd[with_dependencies_index]
 
-    # Read the requirements file to verify additional deps were added
-    with open(req_file_path) as f:
-        requirements = f.read()
-        assert "numpy>=1.20.0" in requirements
-        assert "pandas" in requirements
+    assert "pandas" in with_dependencies
+    assert "numpy>=1.20.0" in with_dependencies
 
 
 def test_markdown_sandbox(tmp_path: Path) -> None:
