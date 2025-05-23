@@ -24,29 +24,4 @@ def __():
 
 ///
 
-To set an initial configuration, you can pass keyword arguments to `mo.ui.data_explorer`. For example, to start with `sepal_length` on the x-axis, `sepal_width` on the y-axis, and `species` as the color encoding:
-
-/// marimo-embed
-    size: large
-    app_width: full
-
-```python
-@app.cell
-def __():
-    import marimo as mo
-    import pandas as pd
-    import pyodide
-    csv = pyodide.http.open_url("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
-    df = pd.read_csv(csv)
-    mo.ui.data_explorer(
-        df,
-        x="sepal_length",
-        y="sepal_width",
-        color="species",
-    )
-    return
-```
-
-///
-
 ::: marimo.ui.data_explorer
