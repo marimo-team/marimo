@@ -44,17 +44,21 @@ const Logger = {
 };
 
 // Adapted from https://github.com/wylieconlon/jsonrpc-ws-proxy
+const COPILOT_LSP_PATH = path.join(__dirname, "language-server.js");
+if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
+  Logger.error("Compilation artificate does not exist. Exiting.");
+  process.exit(1);
+}
 
 const argv = parseArgs(process.argv.slice(2));
 
 if (argv.help) {
   Logger.log("Usage: index.js --port 3000");
-  process.exit(1);
+  process.exit(0);
 }
 
 const serverPort: number = Number.parseInt(argv.port) || 3000;
 
-const COPILOT_LSP_PATH = path.join(__dirname, "language-server.js");
 
 const languageServers: Record<string, string[]> = {
   copilot: ["node", COPILOT_LSP_PATH, "--stdio"],
