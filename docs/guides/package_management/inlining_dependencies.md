@@ -220,7 +220,7 @@ uvx marimo edit --sandbox https://gist.githubusercontent.com/kolibril13/a59135dd
 ## Specifying dependencies in Markdown files
 
 Sandboxing support is also provided in [marimo's markdown file
-format](./editor_features/watching.md#markdown-file-format) under the
+format](../editor_features/watching.md#as-markdown) under the
 `pyproject` entry of your frontmatter.
 
 ```markdown
