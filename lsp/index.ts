@@ -54,7 +54,7 @@ if (argv.help) {
 
 const serverPort: number = Number.parseInt(argv.port) || 3000;
 
-const COPILOT_LSP_PATH = path.join(__dirname, "dist", "language-server.js");
+const COPILOT_LSP_PATH = path.join(__dirname, "language-server.js");
 
 const languageServers: Record<string, string[]> = {
   copilot: ["node", COPILOT_LSP_PATH, "--stdio"],
