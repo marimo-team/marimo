@@ -99,6 +99,7 @@ nav:
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
       - Package management:
+        - Package management: guides/package_management/index.md
         - Importing packages: guides/package_management/importing_packages.md
         - Installing packages: guides/package_management/installing_packages.md
         - Inlining dependencies: guides/package_management/inlining_dependencies.md
