@@ -4,16 +4,13 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, Literal, Optional, cast
 
 import narwhals.stable.v1 as nw
 
 from marimo._data.models import DataType
 from marimo._utils import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify
-
-if TYPE_CHECKING:
-    from altair import MultiTimeUnit, SingleTimeUnit
 
 
 @abc.abstractmethod
@@ -49,6 +46,8 @@ TOOLTIP_NUMBER_FORMAT = ",.2f"
 
 # Percentage with 2 decimals
 TOOLTIP_PERCENTAGE_FORMAT = ".2%"
+
+COUNT_FIELD_NAME = "Number of records"
 
 COLOR = "darkgreen"
 
@@ -228,29 +227,41 @@ _chart
         """
 
 
+TimeUnitOptions = Literal[
+    "year",
+    "month",
+    "date",
+    "yearmonth",
+    "yearmonthdate",
+    "monthdate",
+    "yearmonthdatehours",
+    "yearmonthdatehoursminutes",
+]
+
+
 class DateChartBuilder(ChartBuilder):
     DEFAULT_DATE_FORMAT = "%Y-%m-%d"
-    DEFAULT_TIME_UNIT: SingleTimeUnit | MultiTimeUnit = "yearmonthdate"
+    DEFAULT_TIME_UNIT: TimeUnitOptions = "yearmonthdate"
 
     def __init__(self) -> None:
-        self.date_format = None
-        self.time_unit = None
+        self.date_format: Optional[str] = None
+        self.time_unit: Optional[TimeUnitOptions] = None
 
     def _get_date_format(
         self, data: Any, column: str
-    ) -> tuple[str, SingleTimeUnit | MultiTimeUnit]:
+    ) -> tuple[str, TimeUnitOptions]:
         if self.date_format is not None and self.time_unit is not None:
             return self.date_format, self.time_unit
         else:
             date_format, time_unit = self._guess_date_format(data, column)
             # Set the date format and time unit to avoid recalculating
-            self.date_format = date_format
+            self.date_format = str(date_format)
             self.time_unit = time_unit
             return date_format, time_unit
 
     def _guess_date_format(
         self, data: Any, column: str
-    ) -> tuple[str, SingleTimeUnit | MultiTimeUnit]:
+    ) -> tuple[str, TimeUnitOptions]:
         """
         Guess the appropriate date format based on the range of dates in the column.
         Returns date_format, time_unit
@@ -311,7 +322,7 @@ class DateChartBuilder(ChartBuilder):
         area = transformed.mark_area(
             line={"color": COLOR},
             color=alt.Gradient(
-                gradient="linear",
+                gradient="linear",  # type: ignore
                 stops=[
                     alt.GradientStop(color="white", offset=0),
                     alt.GradientStop(color="darkgreen", offset=1),
@@ -323,7 +334,7 @@ class DateChartBuilder(ChartBuilder):
             ),
         ).encode(
             x=alt.X(f"{new_field}:T", title=column),
-            y=alt.Y("count:Q", title="Number of records"),
+            y=alt.Y("count:Q", title=COUNT_FIELD_NAME),
         )
 
         # Vertical line
@@ -340,7 +351,7 @@ class DateChartBuilder(ChartBuilder):
                     ),
                     alt.Tooltip(
                         "count:Q",
-                        title="Number of records",
+                        title=COUNT_FIELD_NAME,
                         format=TOOLTIP_COUNT_FORMAT,
                     ),
                 ],
@@ -401,7 +412,7 @@ class DateChartBuilder(ChartBuilder):
             ),
         ).encode(
             x=alt.X({formatted_field_with_type}, title="{column}"),
-            y=alt.Y("count:Q", title="Number of records"),
+            y=alt.Y("count:Q", title="{COUNT_FIELD_NAME}"),
         )
 
         # Vertical line
@@ -418,7 +429,7 @@ class DateChartBuilder(ChartBuilder):
                     ),
                     alt.Tooltip(
                         "count:Q",
-                        title="Number of records",
+                        title="{COUNT_FIELD_NAME}",
                         format="{TOOLTIP_COUNT_FORMAT}",
                     ),
                 ],
@@ -446,23 +457,29 @@ class BooleanChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        return (
-            alt.Chart(data)
-            .mark_bar()
-            .encode(
-                x=alt.X(column, type="nominal"),
-                y=alt.Y("count()", type="quantitative"),
-                tooltip=[
-                    alt.Tooltip(column, type="nominal"),
-                    alt.Tooltip(
-                        "count()",
-                        type="quantitative",
-                        format=TOOLTIP_COUNT_FORMAT,
-                    ),
-                ],
-            )
-            .properties(width="container")
+        base = alt.Chart(data).encode(
+            theta=alt.Theta(
+                field=column,
+                aggregate="count",
+                type="quantitative",
+                stack=True,
+            ),
+            color=alt.Color(f"{column}:N", scale={"scheme": "category10"}),
+            tooltip=[
+                alt.Tooltip(f"{column}:N", title=column),
+                alt.Tooltip(
+                    "count()",
+                    title=COUNT_FIELD_NAME,
+                    format=TOOLTIP_COUNT_FORMAT,
+                ),
+            ],
         )
+
+        pie = base.mark_arc(outerRadius=85)
+        text = base.mark_text(radius=100, size=13).encode(
+            text=alt.Text("count():Q", format=TOOLTIP_COUNT_FORMAT)
+        )
+        return (pie + text).properties(width="container")
 
     def altair_code(self, data: str, column: str) -> str:
         return f"""
