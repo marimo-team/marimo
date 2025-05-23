@@ -5,6 +5,7 @@ if [ $? -ne 0 ]; then
     # List out contents of the directory
     ls marimo/_lsp
     tree marimo/_lsp
+    tree lsp/dist
     exit 1
 fi
 echo "LSP binary started successfully"
