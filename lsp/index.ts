@@ -44,9 +44,9 @@ const Logger = {
 };
 
 // Adapted from https://github.com/wylieconlon/jsonrpc-ws-proxy
-const COPILOT_LSP_PATH = path.join(__dirname, "language-server.js");
+const COPILOT_LSP_PATH = path.join(__dirname, "copilot", "dist", "language-server.js");
 if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
-  Logger.error("Compilation artificate does not exist. Exiting.");
+  Logger.error("Compilation artifact does not exist. Exiting.");
   process.exit(1);
 }
 
