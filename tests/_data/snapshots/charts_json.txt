@@ -23,30 +23,132 @@
       }
     ]
   },
-  "encoding": {
-    "tooltip": [
-      {
-        "field": "some_column",
-        "type": "nominal"
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "field": "some_column",
+          "scale": {
+            "scheme": "category10"
+          },
+          "type": "nominal"
+        },
+        "theta": {
+          "field": "count",
+          "stack": true,
+          "type": "quantitative"
+        },
+        "tooltip": [
+          {
+            "field": "some_column",
+            "title": "some_column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "title": "Number of records",
+            "type": "quantitative"
+          }
+        ]
       },
-      {
-        "aggregate": "count",
-        "format": ",.0f",
-        "type": "quantitative"
-      }
-    ],
-    "x": {
-      "field": "some_column",
-      "type": "nominal"
+      "mark": {
+        "outerRadius": 85,
+        "type": "arc"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some_column"
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total"
+        }
+      ]
     },
-    "y": {
-      "aggregate": "count",
-      "type": "quantitative"
+    {
+      "encoding": {
+        "color": {
+          "field": "some_column",
+          "scale": {
+            "scheme": "category10"
+          },
+          "type": "nominal"
+        },
+        "text": {
+          "field": "percentage",
+          "format": ".2%",
+          "type": "quantitative"
+        },
+        "theta": {
+          "field": "count",
+          "stack": true,
+          "type": "quantitative"
+        },
+        "tooltip": [
+          {
+            "field": "some_column",
+            "title": "some_column",
+            "type": "nominal"
+          },
+          {
+            "field": "count",
+            "format": ",.0f",
+            "title": "Number of records",
+            "type": "quantitative"
+          }
+        ]
+      },
+      "mark": {
+        "radius": 100,
+        "size": 13,
+        "type": "text"
+      },
+      "transform": [
+        {
+          "aggregate": [
+            {
+              "as": "count",
+              "op": "count"
+            }
+          ],
+          "groupby": [
+            "some_column"
+          ]
+        },
+        {
+          "joinaggregate": [
+            {
+              "as": "total",
+              "field": "count",
+              "op": "sum"
+            }
+          ]
+        },
+        {
+          "as": "percentage",
+          "calculate": "datum.count / datum.total"
+        }
+      ]
     }
-  },
-  "mark": {
-    "type": "bar"
-  },
+  ],
   "width": "container"
 }
 

@@ -47,7 +47,7 @@ TOOLTIP_NUMBER_FORMAT = ",.2f"
 # Percentage with 2 decimals
 TOOLTIP_PERCENTAGE_FORMAT = ".2%"
 
-COUNT_FIELD_NAME = "Number of records"
+NUM_RECORDS = "Number of records"
 
 COLOR = "darkgreen"
 
@@ -334,7 +334,7 @@ class DateChartBuilder(ChartBuilder):
             ),
         ).encode(
             x=alt.X(f"{new_field}:T", title=column),
-            y=alt.Y("count:Q", title=COUNT_FIELD_NAME),
+            y=alt.Y("count:Q", title=NUM_RECORDS),
         )
 
         # Vertical line
@@ -351,7 +351,7 @@ class DateChartBuilder(ChartBuilder):
                     ),
                     alt.Tooltip(
                         "count:Q",
-                        title=COUNT_FIELD_NAME,
+                        title=NUM_RECORDS,
                         format=TOOLTIP_COUNT_FORMAT,
                     ),
                 ],
@@ -412,7 +412,7 @@ class DateChartBuilder(ChartBuilder):
             ),
         ).encode(
             x=alt.X({formatted_field_with_type}, title="{column}"),
-            y=alt.Y("count:Q", title="{COUNT_FIELD_NAME}"),
+            y=alt.Y("count:Q", title="{NUM_RECORDS}"),
         )
 
         # Vertical line
@@ -429,7 +429,7 @@ class DateChartBuilder(ChartBuilder):
                     ),
                     alt.Tooltip(
                         "count:Q",
-                        title="{COUNT_FIELD_NAME}",
+                        title="{NUM_RECORDS}",
                         format="{TOOLTIP_COUNT_FORMAT}",
                     ),
                 ],
@@ -457,49 +457,77 @@ class BooleanChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        base = alt.Chart(data).encode(
-            theta=alt.Theta(
-                field=column,
-                aggregate="count",
-                type="quantitative",
-                stack=True,
-            ),
-            color=alt.Color(f"{column}:N", scale={"scheme": "category10"}),
-            tooltip=[
-                alt.Tooltip(f"{column}:N", title=column),
-                alt.Tooltip(
-                    "count()",
-                    title=COUNT_FIELD_NAME,
-                    format=TOOLTIP_COUNT_FORMAT,
+        base = (
+            alt.Chart(data)
+            .transform_aggregate(count="count()", groupby=[column])
+            .transform_joinaggregate(total="sum(count)")
+            .transform_calculate(percentage="datum.count / datum.total")
+            .encode(
+                theta=alt.Theta(
+                    field="count",
+                    type="quantitative",
+                    stack=True,
                 ),
-            ],
+                color=alt.Color(
+                    f"{column}:N",
+                    scale={"scheme": "category10"},
+                ),
+                tooltip=[
+                    alt.Tooltip(f"{column}:N", title=column),
+                    alt.Tooltip(
+                        "count:Q",
+                        title=NUM_RECORDS,
+                        format=TOOLTIP_COUNT_FORMAT,
+                    ),
+                ],
+            )
         )
 
         pie = base.mark_arc(outerRadius=85)
         text = base.mark_text(radius=100, size=13).encode(
-            text=alt.Text("count():Q", format=TOOLTIP_COUNT_FORMAT)
+            text=alt.Text("percentage:Q", format=TOOLTIP_PERCENTAGE_FORMAT)
         )
+
         return (pie + text).properties(width="container")
 
     def altair_code(self, data: str, column: str) -> str:
         return f"""
-        _chart = (
+        _base = (
             alt.Chart({data})
-            .mark_bar()
+            .transform_aggregate(
+                count="count()",
+                groupby=["{column}"]
+            )
+            .transform_joinaggregate(
+                total="sum(count)"
+            )
+            .transform_calculate(
+                percentage="datum.count / datum.total"
+            )
             .encode(
-                x=alt.X("{column}", type="nominal"),
-                y=alt.Y("count()", type="quantitative"),
+                theta=alt.Theta(
+                    field="count",
+                    type="quantitative",
+                    stack=True,
+                ),
+                color=alt.Color(
+                    "{column}:N",
+                    scale={{"scheme": "category10"}},
+                    legend=alt.Legend(title="{column}")
+                ),
                 tooltip=[
-                    alt.Tooltip("{column}", type="nominal"),
-                    alt.Tooltip(
-                        "count()",
-                        type="quantitative",
-                        format="{TOOLTIP_COUNT_FORMAT}",
-                    ),
+                    alt.Tooltip("{column}:N", title="{column}"),
+                    alt.Tooltip("count:Q", title="{NUM_RECORDS}", format="{TOOLTIP_COUNT_FORMAT}"),
                 ],
             )
-            .properties(width="container")
         )
+
+        _pie = _base.mark_arc(outerRadius=85)
+        _text = _base.mark_text(radius=100, size=13).encode(
+            text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}"),
+        )
+
+        _chart = (_pie + _text).properties(width="container")
         _chart
         """
 
