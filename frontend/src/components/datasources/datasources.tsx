@@ -49,7 +49,6 @@ import type {
   DataSourceConnection,
   DataTable,
   DataTableColumn,
-  DataType,
 } from "@/core/kernel/messages";
 import { variablesAtom } from "@/core/variables/state";
 import { sortBy } from "lodash-es";
@@ -75,13 +74,12 @@ import {
   RotatingChevron,
 } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { isSchemaless, sqlCode } from "./utils";
+import { convertStatsName, isSchemaless, sqlCode } from "./utils";
 import { useOnMount } from "@/hooks/useLifecycle";
 import {
   PreviewSQLTableList,
   PreviewSQLTable,
 } from "@/core/datasets/request-registry";
-import type { ColumnHeaderStatsKeys } from "../data-table/types";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -878,7 +876,7 @@ const DatasetColumnPreview: React.FC<{
               value={String(value)}
             />
             <span className="text-xs min-w-[60px] capitalize">
-              {convertKey(key, column.type)}
+              {convertStatsName(key, column.type)}
             </span>
             <span className="text-xs font-bold text-muted-foreground tracking-wide">
               {prettyNumber(value)}
@@ -959,18 +957,3 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 };
-
-function convertKey(
-  key: (typeof ColumnHeaderStatsKeys)[number],
-  type: DataType,
-) {
-  if (type === "date" || type === "datetime" || type === "time") {
-    if (key === "min") {
-      return "Earliest";
-    }
-    if (key === "max") {
-      return "Latest";
-    }
-  }
-  return key;
-}
