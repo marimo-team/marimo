@@ -20,7 +20,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("col<angles:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
@@ -63,7 +63,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("col\[0\]brackets:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
@@ -106,7 +106,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("col\:colon:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
@@ -149,7 +149,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("col\.period:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
@@ -192,7 +192,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("col\backslash:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),

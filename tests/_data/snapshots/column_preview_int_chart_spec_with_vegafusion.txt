@@ -46,6 +46,13 @@
     }
   ],
   "background": "white",
+  "config": {
+    "style": {
+      "cell": {
+        "stroke": null
+      }
+    }
+  },
   "data": [
     {
       "name": "source_0",

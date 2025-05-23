@@ -33,6 +33,7 @@
         ],
         "x": {
           "field": "count",
+          "title": "Number of records",
           "type": "quantitative"
         },
         "y": {
@@ -115,6 +116,7 @@
         ],
         "x": {
           "field": "count",
+          "title": "Number of records",
           "type": "quantitative"
         },
         "y": {

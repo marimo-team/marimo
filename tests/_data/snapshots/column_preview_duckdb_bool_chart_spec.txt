@@ -217,9 +217,10 @@
         "sort": true
       },
       "name": "color",
-      "range": {
-        "scheme": "category10"
-      },
+      "range": [
+        "#99c99c",
+        "#1C7361"
+      ],
       "type": "ordinal"
     }
   ],

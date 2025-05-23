@@ -19,7 +19,7 @@ _base = (
         ),
         color=alt.Color(
             "some_column:N",
-            scale={'scheme': 'category10'},
+            scale=alt.Scale(range=['#99c99c', '#1C7361']),
             legend=alt.Legend(title="some_column")
         ),
         tooltip=[
@@ -105,7 +105,7 @@ _points = _transformed.mark_point(
     opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
 )
 
-_chart = alt.layer(_area, _points, _rule).properties(width="container")
+_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
 _chart
 
 # datetime
@@ -176,7 +176,7 @@ _points = _transformed.mark_point(
     opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
 )
 
-_chart = alt.layer(_area, _points, _rule).properties(width="container")
+_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
 _chart
 
 # time
@@ -247,7 +247,7 @@ _points = _transformed.mark_point(
     opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
 )
 
-_chart = alt.layer(_area, _points, _rule).properties(width="container")
+_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
 _chart
 
 # integer
@@ -272,7 +272,6 @@ _chart = (
             ),
         ],
     )
-    .properties(width="container")
 )
 _chart
 
@@ -282,7 +281,7 @@ _chart = (
     .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
-        y=alt.Y("count()", type="quantitative"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
         tooltip=[
             alt.Tooltip(
                 "some_column",
@@ -298,8 +297,7 @@ _chart = (
                 title="Number of records",
             ),
         ],
-    )
-    .properties(width="container")
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart
 
@@ -325,7 +323,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("some_column:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
@@ -368,7 +366,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("some_column:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
@@ -395,12 +393,11 @@ _chart = (
     .mark_bar(color="#1C7361")
     .encode(
         x=alt.X("some_column", type="nominal"),
-        y=alt.Y("count()", type="quantitative"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
         tooltip=[
             alt.Tooltip("some_column", type="nominal"),
             alt.Tooltip("count()", type="quantitative", title="Number of records"),
         ],
-    )
-    .properties(width="container")
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart

@@ -65,5 +65,5 @@ _points = _transformed.mark_point(
     opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
 )
 
-_chart = alt.layer(_area, _points, _rule).properties(width="container")
+_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
 _chart

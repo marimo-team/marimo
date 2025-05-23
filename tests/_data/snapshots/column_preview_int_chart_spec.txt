@@ -3,7 +3,8 @@
   "config": {
     "view": {
       "continuousHeight": 300,
-      "continuousWidth": 300
+      "continuousWidth": 300,
+      "stroke": null
     }
   },
   "data": {

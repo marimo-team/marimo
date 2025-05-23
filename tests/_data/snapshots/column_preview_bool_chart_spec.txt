@@ -18,7 +18,10 @@
         "color": {
           "field": "bool_col",
           "scale": {
-            "scheme": "category10"
+            "range": [
+              "#99c99c",
+              "#1C7361"
+            ]
           },
           "type": "nominal"
         },
@@ -77,7 +80,10 @@
         "color": {
           "field": "bool_col",
           "scale": {
-            "scheme": "category10"
+            "range": [
+              "#99c99c",
+              "#1C7361"
+            ]
           },
           "type": "nominal"
         },

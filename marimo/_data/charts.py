@@ -4,13 +4,16 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 import narwhals.stable.v1 as nw
 
 from marimo._data.models import DataType
 from marimo._utils import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify
+
+if TYPE_CHECKING:
+    import altair as alt
 
 
 @abc.abstractmethod
@@ -52,17 +55,25 @@ NUM_RECORDS = "Number of records"
 # Similar to mint.mint11 (same as table charts)
 COLOR = "#1C7361"
 
+# Set width to container and remove border lines of chart
+COMMON_CONFIG = 'properties(width="container").configure_view(stroke=None)'
+
+
+def add_common_config(chart: alt.Chart | alt.LayerChart) -> alt.Chart:
+    """Set width to container and remove border lines of chart"""
+    return chart.properties(width="container").configure_view(stroke=None)  # type: ignore
+
 
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        return (
+        chart = (
             alt.Chart(data)
             .mark_bar(color=COLOR)
             .encode(
                 x=alt.X(column, type="quantitative", bin=True, title=column),
-                y=alt.Y("count()", type="quantitative"),
+                y=alt.Y("count()", type="quantitative", title=NUM_RECORDS),
                 tooltip=[
                     alt.Tooltip(
                         column,
@@ -79,8 +90,8 @@ class NumberChartBuilder(ChartBuilder):
                     ),
                 ],
             )
-            .properties(width="container")
         )
+        return add_common_config(chart)
 
     def altair_code(self, data: str, column: str) -> str:
         return f"""
@@ -89,7 +100,7 @@ class NumberChartBuilder(ChartBuilder):
             .mark_bar(color="{COLOR}")
             .encode(
                 x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
-                y=alt.Y("count()", type="quantitative"),
+                y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),
                 tooltip=[
                     alt.Tooltip(
                         "{column}",
@@ -105,8 +116,7 @@ class NumberChartBuilder(ChartBuilder):
                         title="{NUM_RECORDS}",
                     ),
                 ],
-            )
-            .properties(width="container")
+            ).{COMMON_CONFIG}
         )
         _chart
         """
@@ -138,7 +148,7 @@ class StringChartBuilder(ChartBuilder):
                     sort="-x",
                     axis=alt.Axis(title=None),
                 ),
-                x=alt.X("count:Q"),
+                x=alt.X("count:Q", title=NUM_RECORDS),
                 tooltip=[
                     alt.Tooltip(f"{column}:N"),
                     alt.Tooltip(
@@ -166,12 +176,9 @@ class StringChartBuilder(ChartBuilder):
                 .configure_axis(grid=False)
             )
 
-        _chart = add_encodings(_base_chart)
-        return (
-            _chart.properties(width="container")
-            .configure_view(stroke=None)
-            .configure_axis(grid=False)
-        )
+        _chart_with_encodings = add_encodings(_base_chart)
+        _chart = add_common_config(_chart_with_encodings)
+        return _chart.configure_axis(grid=False)
 
     def altair_code(self, data: str, column: str) -> str:
         base_chart_code = dedent(f"""
@@ -196,7 +203,7 @@ class StringChartBuilder(ChartBuilder):
                     sort="-x",
                     axis=alt.Axis(title=None),
                 ),
-                x=alt.X("count:Q"),
+                x=alt.X("count:Q", title="{NUM_RECORDS}"),
                 tooltip=[
                     alt.Tooltip("{column}:N"),
                     alt.Tooltip("count:Q", format="{TOOLTIP_COUNT_FORMAT}", title="{NUM_RECORDS}"),
@@ -375,7 +382,7 @@ class DateChartBuilder(ChartBuilder):
             opacity=alt.condition(nearest, alt.value(1), alt.value(0)),
         )
 
-        chart = alt.layer(area, points, rule).properties(width="container")
+        chart = add_common_config(alt.layer(area, points, rule))
         return chart
 
     def altair_code(self, data: str, column: str) -> str:
@@ -454,13 +461,13 @@ class DateChartBuilder(ChartBuilder):
             opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
         )
 
-        _chart = alt.layer(_area, _points, _rule).properties(width="container")
+        _chart = alt.layer(_area, _points, _rule).{COMMON_CONFIG}
         _chart
         """
 
 
 class BooleanChartBuilder(ChartBuilder):
-    BASE_COLOR = {"scheme": "category10"}
+    BASE_COLOR = ["#99c99c", "#1C7361"]
 
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
@@ -478,7 +485,7 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     f"{column}:N",
-                    scale=self.BASE_COLOR,
+                    scale=alt.Scale(range=self.BASE_COLOR),
                 ),
                 tooltip=[
                     alt.Tooltip(f"{column}:N", title=column),
@@ -520,7 +527,7 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     "{column}:N",
-                    scale={self.BASE_COLOR},
+                    scale=alt.Scale(range={self.BASE_COLOR}),
                     legend=alt.Legend(title="{column}")
                 ),
                 tooltip=[
@@ -544,7 +551,7 @@ class IntegerChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        return (
+        chart = (
             alt.Chart(data)
             .mark_bar(color=COLOR)
             .encode(
@@ -562,8 +569,8 @@ class IntegerChartBuilder(ChartBuilder):
                     ),
                 ],
             )
-            .properties(width="container")
         )
+        return add_common_config(chart)
 
     def altair_code(self, data: str, column: str) -> str:
         return f"""
@@ -587,8 +594,7 @@ class IntegerChartBuilder(ChartBuilder):
                         title="{NUM_RECORDS}",
                     ),
                 ],
-            )
-            .properties(width="container")
+            ).{COMMON_CONFIG}
         )
         _chart
         """
@@ -598,12 +604,12 @@ class UnknownChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        return (
+        chart = (
             alt.Chart(data)
             .mark_bar(color=COLOR)
             .encode(
                 x=alt.X(column, type="nominal"),
-                y=alt.Y("count()", type="quantitative"),
+                y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),
                 tooltip=[
                     alt.Tooltip(column, type="nominal"),
                     alt.Tooltip(
@@ -611,8 +617,8 @@ class UnknownChartBuilder(ChartBuilder):
                     ),
                 ],
             )
-            .properties(width="container")
         )
+        return add_common_config(chart)
 
     def altair_code(self, data: str, column: str) -> str:
         return f"""
@@ -621,13 +627,12 @@ class UnknownChartBuilder(ChartBuilder):
             .mark_bar(color="{COLOR}")
             .encode(
                 x=alt.X("{column}", type="nominal"),
-                y=alt.Y("count()", type="quantitative"),
+                y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),
                 tooltip=[
                     alt.Tooltip("{column}", type="nominal"),
                     alt.Tooltip("count()", type="quantitative", title="{NUM_RECORDS}"),
                 ],
-            )
-            .properties(width="container")
+            ).{COMMON_CONFIG}
         )
         _chart
         """

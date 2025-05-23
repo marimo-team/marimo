@@ -19,6 +19,5 @@ _chart = (
             ),
         ],
     )
-    .properties(width="container")
 )
 _chart

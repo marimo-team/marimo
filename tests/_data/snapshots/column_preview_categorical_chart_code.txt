@@ -19,7 +19,7 @@ _base_chart = (
             sort="-x",
             axis=alt.Axis(title=None),
         ),
-        x=alt.X("count:Q"),
+        x=alt.X("count:Q", title="Number of records"),
         tooltip=[
             alt.Tooltip("category_col:N"),
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
