@@ -431,6 +431,13 @@ class TestGeneration:
         )
         assert "import marimo" in source
 
+    @staticmethod
+    def test_generate_filecontents_with_annotation_typing() -> None:
+        source = get_idempotent_marimo_source(
+            "test_app_with_annotation_typing"
+        )
+        assert "import marimo" in source
+
 
 @pytest.fixture
 def marimo_app() -> App:

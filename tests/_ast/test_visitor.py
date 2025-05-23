@@ -10,6 +10,7 @@ import pytest
 from marimo._ast import visitor
 from marimo._ast.errors import ImportStarError
 from marimo._ast.visitor import (
+    AnnotationData,
     ImportData,
     VariableData,
     normalize_sql_f_string,
@@ -416,6 +417,28 @@ def test_function_with_args() -> None:
     assert v.refs == set("z")
     assert v.variable_data == {
         "foo": [VariableData(kind="function", required_refs={"z"})],
+    }
+
+
+def test_annotations_captured() -> None:
+    code = cleandoc(
+        """
+        x: int = CONSTANT + 2
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.defs == set(["x"])
+    assert v.refs == set(["int", "CONSTANT"])
+    assert v.variable_data == {
+        "x": [
+            VariableData(
+                kind="variable",
+                required_refs={"CONSTANT", "int"},
+                annotation_data=AnnotationData(repr="int", refs={"int"}),
+            )
+        ],
     }
 
 
