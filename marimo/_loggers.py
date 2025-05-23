@@ -74,7 +74,9 @@ def set_level(level: str | int = logging.WARNING) -> None:
     for logger in _LOGGERS.values():
         # We have to set update the logger's level in order
         # for its handlers level's to be respected.
-        logger.setLevel(_LOG_LEVEL)
+        # but it needs to be set to the minimum LOG_LEVEL and INFO
+        # so the file handler can still pick it up
+        logger.setLevel(min(_LOG_LEVEL, logging.INFO))
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 # Don't increase the log level of a file handler

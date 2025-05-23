@@ -35,7 +35,7 @@ def test_set_level():
     # Test with string levels
     for level in ["WARNING", "WARN", "DEBUG", "INFO", "ERROR", "CRITICAL"]:
         set_level(level)
-        assert logger.level == logging._nameToLevel[level]
+        assert logger.level == min(logging._nameToLevel[level], logging.INFO)
         assert logger.handlers[0].level == logging._nameToLevel[level]
 
     # Test invalid levels
