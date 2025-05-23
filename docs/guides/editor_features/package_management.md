@@ -1,6 +1,8 @@
 # Package management
 
-marimo supports package management for `pip, rye, uv, poetry, pixi`. When marimo comes across a module that is not installed, you will be prompted to install it using your preferred package manager.
+marimo supports package management for `pip`, `uv`, `poetry`, `pixi`, and
+`rye`. When marimo comes across a module that is not installed, you will be
+prompted to install it using your preferred package manager.
 
 Once the module is installed, all cells that depend on the module will be rerun.
 
