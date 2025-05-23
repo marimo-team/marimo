@@ -109,7 +109,7 @@
 /* Custom overrides when in a tooltip */
 .cm-tooltip .documentation,
 .cm-tooltip .docs-documentation {
-  @apply text-sm;
+  @apply text-sm py-1 px-2;
 
   h1 {
     @apply text-base;
