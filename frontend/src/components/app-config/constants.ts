@@ -6,6 +6,7 @@ export const KNOWN_AI_MODELS = [
   "claude-3-5-haiku-latest)",
   "claude-3-opus-latest",
   "claude-sonnet-4-20250514",
+  "claude-opus-4-20250514	",
 
   // DeepSeek
   "deepseek-v3",
