@@ -56,6 +56,7 @@ from marimo._runtime.context.types import (
     get_context,
 )
 from marimo._runtime.functions import EmptyArgs, Function
+from marimo._utils.hashable import is_hashable
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
@@ -846,6 +847,15 @@ class table(
         )
 
     @functools.lru_cache(maxsize=1)  # noqa: B019
+    def _apply_filters_query_sort_cached(
+        self,
+        filters: Optional[list[Condition]],
+        query: Optional[str],
+        sort: Optional[SortArgs],
+    ) -> TableManager[Any]:
+        """Cached version that expects hashable arguments."""
+        return self._apply_filters_query_sort(filters, query, sort)
+
     def _apply_filters_query_sort(
         self,
         filters: Optional[list[Condition]],
@@ -983,9 +993,14 @@ class table(
                 ),
             )
 
-        # Apply filters, query, and functools.sort using the cached method
-        result = self._apply_filters_query_sort(
-            tuple(args.filters) if args.filters else None,
+        # If the arguments are hashable, use the cached method
+        filter_function = (
+            self._apply_filters_query_sort_cached
+            if is_hashable(args.filters, args.query, args.sort)
+            else self._apply_filters_query_sort
+        )
+        result = filter_function(
+            tuple(args.filters) if args.filters else None,  # type: ignore
             args.query,
             args.sort,
         )

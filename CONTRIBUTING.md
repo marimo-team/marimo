@@ -384,4 +384,4 @@ marimo edit
 
 ## Your first PR
 
-Marimo has a variety of CI jobs that run on pull requests.  All new PRs will fail until you have signed the [CLA](https://marimo.io/cla).  Don't fret.  You can sign the CLA by leaving a comment in the PR with text of `I have read the CLA Document and I hereby sign the CLA`
+Marimo has a variety of CI jobs that run on pull requests. All new PRs will fail until you have signed the [CLA](https://marimo.io/cla). Don't fret. You can sign the CLA by leaving a comment in the PR with text of `I have read the CLA Document and I hereby sign the CLA`

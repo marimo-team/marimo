@@ -128,7 +128,13 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
                 df_filter = column.str.endswith(str(value), na=False)
             # Handle list operations with proper Unicode handling
             elif condition.operator == "in":
-                df_filter = df[condition.column_id].isin(value)
+                # Nested lists can be filtered directly without converting the value
+                if condition.value and isinstance(
+                    condition.value[0], (list, tuple)
+                ):
+                    df_filter = df[condition.column_id].isin(condition.value)
+                else:
+                    df_filter = df[condition.column_id].isin(value)
             else:
                 assert_never(condition.operator)
 

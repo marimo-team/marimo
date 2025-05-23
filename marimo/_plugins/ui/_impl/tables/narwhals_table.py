@@ -164,24 +164,56 @@ class NarwhalsTableManager(
     def calculate_top_k_rows(
         self, column: ColumnName, k: int
     ) -> list[tuple[Any, int]]:
-        frame = self.as_lazy_frame()
         if column not in self.get_column_names():
             raise ValueError(f"Column {column} not found in table.")
 
+        frame = self.as_lazy_frame()
         _unique_name = "__len_count__"
-        result = (
-            frame.group_by(column)
-            .agg(nw.len().alias(_unique_name))
-            .sort([_unique_name, column], descending=[True, False])
-            .head(k)
-            .collect()
-        )
 
-        return [
-            (
-                unwrap_py_scalar(row[0]),
-                int(unwrap_py_scalar(row[1])),
+        def _calculate_top_k_rows(
+            df: nw.DataFrame[Any] | nw.LazyFrame[Any],
+        ) -> nw.DataFrame[Any]:
+            result = (
+                df.group_by(column)
+                .agg(nw.len().alias(_unique_name))
+                .sort(
+                    [_unique_name, column],
+                    descending=[True, False],
+                    nulls_last=False,
+                )
+                .head(k)
             )
+            if isinstance(result, nw.LazyFrame):
+                return result.collect()
+            return result
+
+        # For pandas, dicts and lists are unhashable, and thus cannot be grouped_by
+        # so we convert them to strings
+        if self.data.implementation.is_pandas():
+            import pandas as pd
+
+            df = self.data.to_native()
+            if (
+                isinstance(df, pd.DataFrame)
+                and not df.empty
+                and isinstance(df[column].iloc[0], (list, dict))
+            ):
+                str_data = self.data.select(self.data[column].cast(nw.String))
+                result = _calculate_top_k_rows(str_data)
+                str_to_val = {str(val): val for val in df[column]}
+
+                # Map back to the original values
+                return [
+                    (
+                        str_to_val.get(unwrap_py_scalar(row[0])),
+                        int(unwrap_py_scalar(row[1])),
+                    )
+                    for row in result.rows()
+                ]
+
+        result = _calculate_top_k_rows(frame)
+        return [
+            (unwrap_py_scalar(row[0]), int(unwrap_py_scalar(row[1])))
             for row in result.rows()
         ]
 
