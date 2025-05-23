@@ -9,13 +9,22 @@ from typing import Optional
 from marimo._utils.log_formatter import LogFormatter
 
 # This file manages and creates loggers used throughout marimo.
+#
 # It contains a global log level, which can be updated and all handlers
 # will be updated to use the new level.
+#
 # Our loggers contain two handlers:
 # - A StreamHandler to stdout
 # - A FileHandler to a rotating log file
+#
 # The stream handler is set to the global log level, but the file handler
 # is set to either INFO or DEBUG, depending on the global log level.
+#
+# NB: As is best practice for Python libraries, we do not configure the
+# root logger, and in particular we don't call basicConfig() (which would
+# preclude client of our library from configuring the root logger to their
+# own end).
+# See https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
 
 # Global log level for loggers
 _LOG_LEVEL: int = logging.WARNING
@@ -25,15 +34,6 @@ _LOG_FORMATTER = LogFormatter()
 
 # Cache of initialized loggers
 _LOGGERS: dict[str, logging.Logger] = {}
-
-# Set basic config to INFO
-# This is so notebooks pick this up automatically
-# when they write:
-# ```
-# import logging
-# logging.info("Hello, world!")
-# ```
-logging.basicConfig(level=logging.INFO)
 
 
 def log_level_string_to_int(level: str) -> int:
@@ -72,6 +72,9 @@ def set_level(level: str | int = logging.WARNING) -> None:
         _LOG_LEVEL = level
 
     for logger in _LOGGERS.values():
+        # We have to set update the logger's level in order
+        # for its handlers level's to be respected.
+        logger.setLevel(_LOG_LEVEL)
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 # Don't increase the log level of a file handler
@@ -101,8 +104,10 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
     stream_handler.setFormatter(_LOG_FORMATTER)
     if level is None:
         stream_handler.setLevel(_LOG_LEVEL)
+        logger.setLevel(_LOG_LEVEL)
     else:
         stream_handler.setLevel(level)
+        logger.setLevel(level)
 
     logger.addHandler(stream_handler)
 
