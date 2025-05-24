@@ -260,7 +260,13 @@ class NarwhalsTableManager(
         if offset == 0:
             return self.with_new_data(self.data.head(count))
         else:
-            return self.with_new_data(self.data[offset : offset + count])
+            if is_narwhals_lazyframe(self.data):
+                # Lazyframes do not support slicing, https://github.com/narwhals-dev/narwhals/issues/2389
+                # So we collect the first n rows
+                data = self.data.head(offset + count).collect()
+                return self.with_new_data(data[offset : offset + count])
+            else:
+                return self.with_new_data(self.data[offset : offset + count])
 
     def search(self, query: str) -> TableManager[Any]:
         query = query.lower()
