@@ -86,6 +86,8 @@ jobs:
             fi
           done
 
+      - name: Run LSP binary
+        run: ./scripts/test-lsp.sh
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:

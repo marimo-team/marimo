@@ -25,17 +25,17 @@ def test_set_level():
     # Test with integer levels
     set_level(logging.DEBUG)
     logger = get_logger("test1")
-    assert logger.level == logging.NOTSET
+    assert logger.level == logging.DEBUG
     assert logger.handlers[0].level == logging.DEBUG
 
     set_level(logging.INFO)
-    assert logger.level == logging.NOTSET
+    assert logger.level == logging.INFO
     assert logger.handlers[0].level == logging.INFO
 
     # Test with string levels
     for level in ["WARNING", "WARN", "DEBUG", "INFO", "ERROR", "CRITICAL"]:
         set_level(level)
-        assert logger.level == logging.NOTSET
+        assert logger.level == min(logging._nameToLevel[level], logging.INFO)
         assert logger.handlers[0].level == logging._nameToLevel[level]
 
     # Test invalid levels
@@ -62,7 +62,7 @@ def test_get_logger():
 
     # Test custom level
     logger3 = get_logger("test3", level=logging.DEBUG)
-    assert logger3.level == logging.NOTSET
+    assert logger3.level == logging.DEBUG
 
     # Test handlers
     handler = logger3.handlers[0]
