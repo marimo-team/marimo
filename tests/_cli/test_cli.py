@@ -1014,3 +1014,78 @@ def test_cli_run_docker_remote_url():
     assert p.returncode != 0
     assert p.stdout is not None
     assert "Docker is not installed" in p.stdout.read().decode()
+
+
+def test_cli_run_directory() -> None:
+    """Test running marimo in a directory."""
+    d = tempfile.TemporaryDirectory()
+    # Create a few marimo files in the directory
+    file1 = Path(d.name) / "file1.py"
+    file2 = Path(d.name) / "file2.py"
+    file1.write_text(
+        codegen.generate_filecontents(
+            ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
+        )
+    )
+    file2.write_text(
+        codegen.generate_filecontents(
+            ["import marimo as mo"], ["two"], cell_configs=[CellConfig()]
+        )
+    )
+
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", d.name, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='gallery'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{get_version()}'".encode(), contents
+    )
+
+
+def test_cli_run_directory_with_non_marimo_files() -> None:
+    """Test running marimo in a directory with non-marimo files."""
+    d = tempfile.TemporaryDirectory()
+    # Create a marimo file and a non-marimo file
+    marimo_file = Path(d.name) / "notebook.py"
+    non_marimo_file = Path(d.name) / "text.txt"
+    marimo_file.write_text(
+        codegen.generate_filecontents(
+            ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
+        )
+    )
+    non_marimo_file.write_text("This is not a marimo file")
+
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", d.name, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='gallery'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{get_version()}'".encode(), contents
+    )
+
+
+def test_cli_edit_directory_gallery_mode() -> None:
+    """Test that edit mode shows home page for directories."""
+    d = tempfile.TemporaryDirectory()
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            d.name,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='home'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{get_version()}'".encode(), contents
+    )
