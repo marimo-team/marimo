@@ -31,7 +31,8 @@ class ChartBuilder:
             return cast(str, self.altair(data, column).to_json())
 
     @abc.abstractmethod
-    def altair_code(self, data: str, column: str) -> str:
+    def altair_code(self, data: str, column: str, simple: bool) -> str:
+        """If simple, return simple altair code."""
         raise NotImplementedError
 
 
@@ -92,11 +93,15 @@ class NumberChartBuilder(ChartBuilder):
         )
         return add_common_config(chart)
 
-    def altair_code(self, data: str, column: str) -> str:
+    def altair_code(self, data: str, column: str, simple: bool) -> str:
+        mark_bar = (
+            """.mark_bar()""" if simple else """.mark_bar(color="{COLOR}")"""
+        )
+
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_bar(color="{COLOR}")
+            {mark_bar}
             .encode(
                 x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
                 y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),
@@ -179,7 +184,53 @@ class StringChartBuilder(ChartBuilder):
         _chart = add_common_config(_chart_with_encodings)
         return _chart.configure_axis(grid=False)
 
-    def altair_code(self, data: str, column: str) -> str:
+    def altair_code(self, data: str, column: str, simple: bool) -> str:
+        return (
+            self.simple_altair_code(data, column)
+            if simple
+            else self.complex_altair_code(data, column)
+        )
+
+    def simple_altair_code(self, data: str, column: str) -> str:
+        properties_config = (
+            """.properties(title="Top 10 {column}", width="container")"""
+            if self.should_limit_to_10_items
+            else """.properties(width="container")"""
+        )
+
+        return f"""
+        _chart = (
+            alt.Chart({data})
+            .mark_bar()
+            .transform_aggregate(count="count()", groupby=["{column}"])
+            .transform_window(
+                rank="rank()",
+                sort=[
+                    alt.SortField("count", order="descending"),
+                    alt.SortField("{column}", order="ascending"),
+                ],
+            )
+            .transform_filter(alt.datum.rank <= 10)
+            .encode(
+                y=alt.Y(
+                    "{column}:N",
+                    sort="-x",
+                    axis=alt.Axis(title=None),
+                ),
+                x=alt.X("count:Q", title="{NUM_RECORDS}"),
+                tooltip=[
+                    alt.Tooltip("{column}:N"),
+                    alt.Tooltip("count:Q", format="{TOOLTIP_COUNT_FORMAT}", title="{NUM_RECORDS}"),
+                ],
+            )
+            {properties_config}
+            .configure_view(stroke=None)
+            .configure_axis(grid=False)
+        )
+        _chart
+        """
+
+    def complex_altair_code(self, data: str, column: str) -> str:
         base_chart_code = dedent(f"""
         _base_chart = (
             alt.Chart({data})
@@ -384,10 +435,14 @@ class DateChartBuilder(ChartBuilder):
         chart = add_common_config(alt.layer(area, points, rule))
         return chart
 
-    def altair_code(self, data: str, column: str) -> str:
-        return self.simple_altair(data, column)
+    def altair_code(self, data: str, column: str, simple: bool = True) -> str:
+        return (
+            self.simple_altair_code(data, column)
+            if simple
+            else self.complex_altair_code(data, column)
+        )
 
-    def simple_altair(self, data: str, column: str) -> str:
+    def simple_altair_code(self, data: str, column: str) -> str:
         """Offer simple charts for users to copy"""
         _, time_unit = self._get_date_format(data, column)
         new_field = f"_{column}"
@@ -410,7 +465,7 @@ class DateChartBuilder(ChartBuilder):
         _chart
         """
 
-    def complex_altair(self, data: str, column: str) -> str:
+    def complex_altair_code(self, data: str, column: str) -> str:
         """Complex altair code for data charts. Offer more control over the chart"""
         _, time_unit = self._get_date_format(data, column)
 
@@ -528,7 +583,14 @@ class BooleanChartBuilder(ChartBuilder):
 
         return (pie + text).properties(width="container")
 
-    def altair_code(self, data: str, column: str) -> str:
+    def altair_code(self, data: str, column: str, simple: bool) -> str:
+        return (
+            self.simple_altair_code(data, column)
+            if simple
+            else self.complex_altair_code(data, column)
+        )
+
+    def complex_altair_code(self, data: str, column: str) -> str:
         return f"""
         _base = (
             alt.Chart({data})
@@ -569,6 +631,38 @@ class BooleanChartBuilder(ChartBuilder):
         _chart
         """
 
+    def simple_altair_code(self, data: str, column: str) -> str:
+        """Removed colours"""
+
+        return f"""
+        _base = (
+            alt.Chart({data})
+            .transform_aggregate(count="count()", groupby=["{column}"])
+            .transform_joinaggregate(total="sum(count)")
+            .transform_calculate(percentage="datum.count / datum.total")
+            .encode(
+                theta=alt.Theta(
+                    field="count",
+                    type="quantitative",
+                    stack=True,
+                ),
+                color=alt.Color("{column}:N"),
+                tooltip=[
+                    alt.Tooltip("{column}:N", title="{column}"),
+                    alt.Tooltip("count:Q", title="{NUM_RECORDS}", format="{TOOLTIP_COUNT_FORMAT}"),
+                ],
+            )
+        )
+
+        _pie = _base.mark_arc(outerRadius=85)
+        _text = _base.mark_text(radius=100, size=13).encode(
+            text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}"),
+        )
+
+        _chart = (_pie + _text).{COMMON_CONFIG}
+        _chart
+        """
+
 
 class IntegerChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
@@ -595,11 +689,15 @@ class IntegerChartBuilder(ChartBuilder):
         )
         return add_common_config(chart)
 
-    def altair_code(self, data: str, column: str) -> str:
+    def altair_code(self, data: str, column: str, simple: bool = True) -> str:
+        mark_bar = (
+            """.mark_bar()""" if simple else """.mark_bar(color="{COLOR}")"""
+        )
+
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_bar(color="{COLOR}")
+            {mark_bar}
             .encode(
                 x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
                 y=alt.Y("count()", type="quantitative"),
@@ -643,11 +741,15 @@ class UnknownChartBuilder(ChartBuilder):
         )
         return add_common_config(chart)
 
-    def altair_code(self, data: str, column: str) -> str:
+    def altair_code(self, data: str, column: str, simple: bool = True) -> str:
+        mark_bar = (
+            """.mark_bar()""" if simple else """.mark_bar(color="{COLOR}")"""
+        )
+
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_bar(color="{COLOR}")
+            {mark_bar}
             .encode(
                 x=alt.X("{column}", type="nominal"),
                 y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),
@@ -670,10 +772,10 @@ class WrapperChartBuilder(ChartBuilder):
             data, _escape_special_path_characters(str(column))
         )
 
-    def altair_code(self, data: str, column: str) -> str:
+    def altair_code(self, data: str, column: str, simple: bool = True) -> str:
         return dedent(
             self.delegate.altair_code(
-                data, _escape_special_path_characters(str(column))
+                data, _escape_special_path_characters(str(column)), simple
             )
         ).strip()
 

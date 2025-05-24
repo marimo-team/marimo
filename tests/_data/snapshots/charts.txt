@@ -1,27 +1,16 @@
 # boolean
 _base = (
     alt.Chart(df)
-    .transform_aggregate(
-        count="count()",
-        groupby=["some_column"]
-    )
-    .transform_joinaggregate(
-        total="sum(count)"
-    )
-    .transform_calculate(
-        percentage="datum.count / datum.total"
-    )
+    .transform_aggregate(count="count()", groupby=["some_column"])
+    .transform_joinaggregate(total="sum(count)")
+    .transform_calculate(percentage="datum.count / datum.total")
     .encode(
         theta=alt.Theta(
             field="count",
             type="quantitative",
             stack=True,
         ),
-        color=alt.Color(
-            "some_column:N",
-            scale=alt.Scale(range=['#99c99c', '#1C7361']),
-            legend=alt.Legend(title="some_column")
-        ),
+        color=alt.Color("some_column:N"),
         tooltip=[
             alt.Tooltip("some_column:N", title="some_column"),
             alt.Tooltip("count:Q", title="Number of records", format=",.0f"),
@@ -34,7 +23,7 @@ _text = _base.mark_text(radius=100, size=13).encode(
     text=alt.Text("percentage:Q", format=".2%"),
 )
 
-_chart = (_pie + _text).properties(width="container")
+_chart = (_pie + _text).properties(width="container").configure_view(stroke=None)
 _chart
 
 # date
@@ -91,7 +80,7 @@ _chart
 # integer
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="#1C7361")
+    .mark_bar()
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative"),
@@ -116,7 +105,7 @@ _chart
 # number
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="#1C7361")
+    .mark_bar()
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),
@@ -140,8 +129,9 @@ _chart = (
 _chart
 
 # string
-_base_chart = (
+_chart = (
     alt.Chart(df)
+    .mark_bar()
     .transform_aggregate(count="count()", groupby=["some_column"])
     .transform_window(
         rank="rank()",
@@ -151,10 +141,6 @@ _base_chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .transform_joinaggregate(total_count="sum(count)")
-    .transform_calculate(
-        percentage="datum.count / datum.total_count"
-    )
     .encode(
         y=alt.Y(
             "some_column:N",
@@ -167,15 +153,6 @@ _base_chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-)
-
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
-    text=alt.Text("percentage:Q", format=".2%")
-)
-
-_chart = (
-    (_bar_chart + _text_chart)
     .properties(width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
@@ -183,8 +160,9 @@ _chart = (
 _chart
 
 # string (limit to 10 items)
-_base_chart = (
+_chart = (
     alt.Chart(df)
+    .mark_bar()
     .transform_aggregate(count="count()", groupby=["some_column"])
     .transform_window(
         rank="rank()",
@@ -194,10 +172,6 @@ _base_chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .transform_joinaggregate(total_count="sum(count)")
-    .transform_calculate(
-        percentage="datum.count / datum.total_count"
-    )
     .encode(
         y=alt.Y(
             "some_column:N",
@@ -210,16 +184,7 @@ _base_chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-)
-
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
-    text=alt.Text("percentage:Q", format=".2%")
-)
-
-_chart = (
-    (_bar_chart + _text_chart)
-    .properties(title="Top 10 some_column", width="container")
+    .properties(title="Top 10 {column}", width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
 )
@@ -228,7 +193,7 @@ _chart
 # unknown
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="#1C7361")
+    .mark_bar()
     .encode(
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),

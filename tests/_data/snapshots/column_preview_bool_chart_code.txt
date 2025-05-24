@@ -1,26 +1,15 @@
 _base = (
     alt.Chart(table)
-    .transform_aggregate(
-        count="count()",
-        groupby=["bool_col"]
-    )
-    .transform_joinaggregate(
-        total="sum(count)"
-    )
-    .transform_calculate(
-        percentage="datum.count / datum.total"
-    )
+    .transform_aggregate(count="count()", groupby=["bool_col"])
+    .transform_joinaggregate(total="sum(count)")
+    .transform_calculate(percentage="datum.count / datum.total")
     .encode(
         theta=alt.Theta(
             field="count",
             type="quantitative",
             stack=True,
         ),
-        color=alt.Color(
-            "bool_col:N",
-            scale=alt.Scale(range=['#99c99c', '#1C7361']),
-            legend=alt.Legend(title="bool_col")
-        ),
+        color=alt.Color("bool_col:N"),
         tooltip=[
             alt.Tooltip("bool_col:N", title="bool_col"),
             alt.Tooltip("count:Q", title="Number of records", format=",.0f"),
@@ -33,5 +22,5 @@ _text = _base.mark_text(radius=100, size=13).encode(
     text=alt.Text("percentage:Q", format=".2%"),
 )
 
-_chart = (_pie + _text).properties(width="container")
+_chart = (_pie + _text).properties(width="container").configure_view(stroke=None)
 _chart

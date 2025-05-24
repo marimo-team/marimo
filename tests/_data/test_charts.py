@@ -40,12 +40,13 @@ def test_get_chart_builder():
         )
 
 
-def test_charts_altair_code():
+def validate_and_return_codes(simple: bool) -> list[str]:
     outputs: list[str] = []
 
     for t, should_limit_to_10_items in TYPES:
         builder = get_chart_builder(t, should_limit_to_10_items)
-        code = builder.altair_code("df", "some_column")
+        code = builder.altair_code("df", "some_column", simple=simple)
+
         # Validate it is valid Python code
         try:
             ast.parse(code)
@@ -54,7 +55,15 @@ def test_charts_altair_code():
         title = f"{t} (limit to 10 items)" if should_limit_to_10_items else t
         outputs.append(f"# {title}\n{code}")
 
+    return outputs
+
+
+def test_charts_altair_code():
+    outputs = validate_and_return_codes(simple=True)
     snapshot("charts.txt", "\n\n".join(outputs))
+
+    complex_outputs = validate_and_return_codes(simple=False)
+    snapshot("charts-complex.txt", "\n\n".join(complex_outputs))
 
 
 def test_charts_bad_characters():

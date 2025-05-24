@@ -1,6 +1,7 @@
 # col<angles
-_base_chart = (
+_chart = (
     alt.Chart(df)
+    .mark_bar()
     .transform_aggregate(count="count()", groupby=["col<angles"])
     .transform_window(
         rank="rank()",
@@ -10,10 +11,6 @@ _base_chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .transform_joinaggregate(total_count="sum(count)")
-    .transform_calculate(
-        percentage="datum.count / datum.total_count"
-    )
     .encode(
         y=alt.Y(
             "col<angles:N",
@@ -26,15 +23,6 @@ _base_chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-)
-
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
-    text=alt.Text("percentage:Q", format=".2%")
-)
-
-_chart = (
-    (_bar_chart + _text_chart)
     .properties(width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
@@ -42,8 +30,9 @@ _chart = (
 _chart
 
 # col[0]brackets
-_base_chart = (
+_chart = (
     alt.Chart(df)
+    .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\[0\]brackets"])
     .transform_window(
         rank="rank()",
@@ -53,10 +42,6 @@ _base_chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .transform_joinaggregate(total_count="sum(count)")
-    .transform_calculate(
-        percentage="datum.count / datum.total_count"
-    )
     .encode(
         y=alt.Y(
             "col\[0\]brackets:N",
@@ -69,15 +54,6 @@ _base_chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-)
-
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
-    text=alt.Text("percentage:Q", format=".2%")
-)
-
-_chart = (
-    (_bar_chart + _text_chart)
     .properties(width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
@@ -85,8 +61,9 @@ _chart = (
 _chart
 
 # col:colon
-_base_chart = (
+_chart = (
     alt.Chart(df)
+    .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\:colon"])
     .transform_window(
         rank="rank()",
@@ -96,10 +73,6 @@ _base_chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .transform_joinaggregate(total_count="sum(count)")
-    .transform_calculate(
-        percentage="datum.count / datum.total_count"
-    )
     .encode(
         y=alt.Y(
             "col\:colon:N",
@@ -112,15 +85,6 @@ _base_chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-)
-
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
-    text=alt.Text("percentage:Q", format=".2%")
-)
-
-_chart = (
-    (_bar_chart + _text_chart)
     .properties(width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
@@ -128,8 +92,9 @@ _chart = (
 _chart
 
 # col.period
-_base_chart = (
+_chart = (
     alt.Chart(df)
+    .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\.period"])
     .transform_window(
         rank="rank()",
@@ -139,10 +104,6 @@ _base_chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .transform_joinaggregate(total_count="sum(count)")
-    .transform_calculate(
-        percentage="datum.count / datum.total_count"
-    )
     .encode(
         y=alt.Y(
             "col\.period:N",
@@ -155,15 +116,6 @@ _base_chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-)
-
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
-    text=alt.Text("percentage:Q", format=".2%")
-)
-
-_chart = (
-    (_bar_chart + _text_chart)
     .properties(width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
@@ -171,8 +123,9 @@ _chart = (
 _chart
 
 # col\backslash
-_base_chart = (
+_chart = (
     alt.Chart(df)
+    .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\backslash"])
     .transform_window(
         rank="rank()",
@@ -182,10 +135,6 @@ _base_chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .transform_joinaggregate(total_count="sum(count)")
-    .transform_calculate(
-        percentage="datum.count / datum.total_count"
-    )
     .encode(
         y=alt.Y(
             "col\backslash:N",
@@ -198,15 +147,6 @@ _base_chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-)
-
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
-    text=alt.Text("percentage:Q", format=".2%")
-)
-
-_chart = (
-    (_bar_chart + _text_chart)
     .properties(width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
