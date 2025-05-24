@@ -11,7 +11,7 @@ if pnpm build; then
   if [ -d dist/copilot ]; then
     cp -R dist/copilot ../marimo/_lsp/copilot
   else
-    mkdir ../marimo/_lsp/copilot
+    mkdir ../marimo/_lsp
     cp -R dist ../marimo/_lsp/copilot
   fi
   echo "Compilation succeeded.\n"
