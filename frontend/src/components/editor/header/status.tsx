@@ -24,7 +24,7 @@ export const StatusOverlay: React.FC<{
 };
 
 const topLeftStatus =
-  "absolute top-4 left-4 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50 hover:cursor-pointer";
+  "fixed top-8 left-8 ml-4 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50 hover:cursor-pointer";
 
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
