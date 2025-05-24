@@ -1,6 +1,6 @@
 _chart = (
     alt.Chart(table)
-    .mark_bar(color="#1C7361")
+    .mark_bar()
     .encode(
         x=alt.X("A", type="quantitative", bin=True, title="A"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),

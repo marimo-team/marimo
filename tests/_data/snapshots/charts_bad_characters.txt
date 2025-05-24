@@ -1,5 +1,5 @@
 # col<angles
-_base_chart = (
+_chart = (
     alt.Chart(df)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["col<angles"])
@@ -30,7 +30,7 @@ _base_chart = (
 _chart
 
 # col[0]brackets
-_base_chart = (
+_chart = (
     alt.Chart(df)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\[0\]brackets"])
@@ -61,7 +61,7 @@ _base_chart = (
 _chart
 
 # col:colon
-_base_chart = (
+_chart = (
     alt.Chart(df)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\:colon"])
@@ -92,7 +92,7 @@ _base_chart = (
 _chart
 
 # col.period
-_base_chart = (
+_chart = (
     alt.Chart(df)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\.period"])
@@ -123,7 +123,7 @@ _base_chart = (
 _chart
 
 # col\backslash
-_base_chart = (
+_chart = (
     alt.Chart(df)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["col\backslash"])

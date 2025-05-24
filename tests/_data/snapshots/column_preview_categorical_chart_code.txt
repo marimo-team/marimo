@@ -1,4 +1,4 @@
-_base_chart = (
+_chart = (
     alt.Chart(table)
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["category_col"])
