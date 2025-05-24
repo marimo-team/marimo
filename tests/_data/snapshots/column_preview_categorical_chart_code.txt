@@ -1,10 +1,29 @@
 _chart = (
     alt.Chart(table)
     .mark_bar()
+    .transform_aggregate(count="count()", groupby=["category_col"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("category_col", order="ascending"),
+        ],
+    )
+    .transform_filter(alt.datum.rank <= 10)
     .encode(
-        y=alt.Y("category_col", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
+        y=alt.Y(
+            "category_col:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("category_col:N"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
+        ],
     )
     .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart

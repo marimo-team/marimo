@@ -95,6 +95,8 @@ export interface GetRowResult {
   rows: unknown[];
 }
 
+const maybeNumber = z.union([z.number(), z.nan(), z.string()]).nullable();
+
 /**
  * Arguments for a data table
  *
@@ -213,15 +215,15 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             unique: z.number().nullable(),
             true: z.number().nullable(),
             false: z.number().nullable(),
-            min: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            max: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            std: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            mean: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            median: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            p5: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            p25: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            p75: z.union([z.number(), z.nan(), z.string()]).nullable(),
-            p95: z.union([z.number(), z.nan(), z.string()]).nullable(),
+            min: maybeNumber,
+            max: maybeNumber,
+            std: maybeNumber,
+            mean: maybeNumber,
+            median: maybeNumber,
+            p5: maybeNumber,
+            p25: maybeNumber,
+            p75: maybeNumber,
+            p95: maybeNumber,
           }),
         ),
         is_disabled: z.boolean().optional(),

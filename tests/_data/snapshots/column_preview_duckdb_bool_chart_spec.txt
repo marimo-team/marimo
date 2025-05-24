@@ -4,157 +4,224 @@
     "contains": "padding",
     "type": "fit-x"
   },
-  "axes": [
-    {
-      "aria": false,
-      "domain": false,
-      "grid": true,
-      "gridScale": "x",
-      "labels": false,
-      "maxExtent": 0,
-      "minExtent": 0,
-      "orient": "left",
-      "scale": "y",
-      "tickCount": {
-        "signal": "ceil(height/40)"
-      },
-      "ticks": false,
-      "zindex": 0
-    },
-    {
-      "grid": false,
-      "labelAlign": "right",
-      "labelAngle": 270,
-      "labelBaseline": "middle",
-      "orient": "bottom",
-      "scale": "x",
-      "title": "bool_col",
-      "zindex": 0
-    },
-    {
-      "grid": false,
-      "labelOverlap": true,
-      "orient": "left",
-      "scale": "y",
-      "tickCount": {
-        "signal": "ceil(height/40)"
-      },
-      "title": "Count of Records",
-      "zindex": 0
-    }
-  ],
   "background": "white",
   "data": [
     {
       "name": "data-834341051d0a090d8e3ab71fa64b81b9"
     },
     {
-      "name": "data_0",
+      "name": "data_0"
+    },
+    {
+      "name": "data_1",
       "values": [
         {
-          "__count": 50,
+          "bool_col": true,
+          "count": 50,
+          "count_end": 100.0,
+          "count_start": 50.0,
+          "percentage": 0.5
+        },
+        {
+          "bool_col": false,
+          "count": 50,
+          "count_end": 50.0,
+          "count_start": 0.0,
+          "percentage": 0.5
+        }
+      ]
+    },
+    {
+      "name": "data_2",
+      "values": [
+        {
+          "bool_col": true,
+          "count": 50,
+          "count_end": 100.0,
+          "count_start": 50.0
+        },
+        {
+          "bool_col": false,
+          "count": 50,
+          "count_end": 50.0,
+          "count_start": 0.0
+        }
+      ]
+    },
+    {
+      "name": "data_2_color_domain_bool_col_0",
+      "values": [
+        {
           "bool_col": true
         },
         {
-          "__count": 50,
           "bool_col": false
         }
       ]
     },
     {
-      "name": "data_0_x_domain_bool_col",
+      "name": "data_1_color_domain_bool_col_1",
       "values": [
         {
           "bool_col": true
         },
         {
           "bool_col": false
-        }
-      ]
-    },
-    {
-      "name": "data_0_y_domain___count",
-      "values": [
-        {
-          "max": 50,
-          "min": 50
         }
       ]
     }
   ],
   "height": 300,
+  "legends": [
+    {
+      "fill": "color",
+      "symbolType": "circle",
+      "title": "bool_col"
+    }
+  ],
   "marks": [
     {
       "encode": {
         "update": {
-          "fill": {
-            "value": "#4c78a8"
+          "endAngle": {
+            "field": "count_start",
+            "scale": "theta"
           },
-          "width": {
-            "signal": "max(0.25, bandwidth('x'))"
+          "fill": {
+            "field": "bool_col",
+            "scale": "color"
+          },
+          "innerRadius": {
+            "value": 0
+          },
+          "outerRadius": {
+            "value": 85
+          },
+          "startAngle": {
+            "field": "count_end",
+            "scale": "theta"
+          },
+          "tooltip": {
+            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
-            "field": "bool_col",
-            "scale": "x"
+            "mult": 0.5,
+            "signal": "width"
           },
           "y": {
-            "field": "__count",
-            "scale": "y"
-          },
-          "y2": {
-            "scale": "y",
-            "value": 0
+            "mult": 0.5,
+            "signal": "height"
           }
         }
       },
       "from": {
-        "data": "data_0"
+        "data": "data_2"
       },
-      "name": "marks",
+      "name": "layer_0_marks",
       "style": [
-        "bar"
+        "arc"
       ],
-      "type": "rect"
+      "type": "arc"
+    },
+    {
+      "encode": {
+        "update": {
+          "align": {
+            "value": "center"
+          },
+          "baseline": {
+            "value": "middle"
+          },
+          "fill": {
+            "field": "bool_col",
+            "scale": "color"
+          },
+          "fontSize": {
+            "value": 13
+          },
+          "radius": {
+            "value": 100
+          },
+          "text": {
+            "signal": "format(datum[\"percentage\"], \".2%\")"
+          },
+          "theta": {
+            "signal": "scale(\"theta\", 0.5 * datum[\"count_start\"] + 0.5 * datum[\"count_end\"])"
+          },
+          "tooltip": {
+            "signal": "{\"bool_col\": isValid(datum[\"bool_col\"]) ? datum[\"bool_col\"] : \"\"+datum[\"bool_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
+          "x": {
+            "mult": 0.5,
+            "signal": "width"
+          },
+          "y": {
+            "mult": 0.5,
+            "signal": "height"
+          }
+        }
+      },
+      "from": {
+        "data": "data_1"
+      },
+      "name": "layer_1_marks",
+      "style": [
+        "text"
+      ],
+      "type": "text"
     }
   ],
   "padding": 5,
   "scales": [
     {
       "domain": {
-        "data": "data_0_x_domain_bool_col",
-        "field": "bool_col",
-        "sort": true
+        "fields": [
+          {
+            "data": "data_2",
+            "field": "count_start"
+          },
+          {
+            "data": "data_2",
+            "field": "count_end"
+          },
+          {
+            "data": "data_1",
+            "field": "count_start"
+          },
+          {
+            "data": "data_1",
+            "field": "count_end"
+          }
+        ]
       },
-      "name": "x",
-      "paddingInner": 0.1,
-      "paddingOuter": 0.05,
+      "name": "theta",
       "range": [
         0,
-        {
-          "signal": "width"
-        }
-      ],
-      "type": "band"
-    },
-    {
-      "domain": [
-        {
-          "signal": "(data(\"data_0_y_domain___count\")[0] || {}).min"
-        },
-        {
-          "signal": "(data(\"data_0_y_domain___count\")[0] || {}).max"
-        }
-      ],
-      "name": "y",
-      "nice": true,
-      "range": [
-        {
-          "signal": "height"
-        },
-        0
+        6.283185307179586
       ],
       "type": "linear",
       "zero": true
+    },
+    {
+      "domain": {
+        "fields": [
+          {
+            "data": "data_2_color_domain_bool_col_0",
+            "field": "bool_col"
+          },
+          {
+            "data": "data_1_color_domain_bool_col_1",
+            "field": "bool_col"
+          }
+        ],
+        "sort": true
+      },
+      "name": "color",
+      "range": [
+        "#99c99c",
+        "#1C7361"
+      ],
+      "type": "ordinal"
     }
   ],
   "signals": [
@@ -169,5 +236,5 @@
       ]
     }
   ],
-  "style": "cell"
+  "style": "view"
 }

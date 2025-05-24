@@ -6,22 +6,6 @@
   },
   "axes": [
     {
-      "aria": false,
-      "domain": false,
-      "grid": true,
-      "gridScale": "y",
-      "labels": false,
-      "maxExtent": 0,
-      "minExtent": 0,
-      "orient": "bottom",
-      "scale": "x",
-      "tickCount": {
-        "signal": "ceil(width/40)"
-      },
-      "ticks": false,
-      "zindex": 0
-    },
-    {
       "grid": false,
       "labelFlush": true,
       "labelOverlap": true,
@@ -30,34 +14,49 @@
       "tickCount": {
         "signal": "ceil(width/40)"
       },
-      "title": "Count of Records",
+      "title": "Number of records",
       "zindex": 0
     },
     {
       "grid": false,
       "orient": "left",
       "scale": "y",
-      "title": "B",
       "zindex": 0
     }
   ],
   "background": "white",
+  "config": {
+    "axis": {
+      "grid": false
+    },
+    "style": {
+      "cell": {
+        "stroke": null
+      }
+    }
+  },
   "data": [
     {
-      "name": "source_0",
+      "name": "source_0"
+    },
+    {
+      "name": "data_1",
       "values": [
         {
           "B": "a",
-          "__count": 3
+          "count": 3,
+          "percentage": 1.0
         }
       ]
     },
     {
-      "name": "source_0_x_domain___count",
+      "name": "data_2",
       "values": [
         {
-          "max": 3,
-          "min": 3
+          "B": "a",
+          "count": 3,
+          "count_end": 3.0,
+          "count_start": 0.0
         }
       ]
     },
@@ -65,7 +64,8 @@
       "name": "source_0_y_domain_B",
       "values": [
         {
-          "B": "a"
+          "B": "a",
+          "sort_field": 3
         }
       ]
     }
@@ -75,18 +75,21 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#4c78a8"
+            "value": "#1C7361"
           },
           "height": {
             "signal": "max(0.25, bandwidth('y'))"
           },
+          "tooltip": {
+            "signal": "{\"B\": isValid(datum[\"B\"]) ? datum[\"B\"] : \"\"+datum[\"B\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
           "x": {
-            "field": "__count",
+            "field": "count_end",
             "scale": "x"
           },
           "x2": {
-            "scale": "x",
-            "value": 0
+            "field": "count_start",
+            "scale": "x"
           },
           "y": {
             "field": "B",
@@ -95,26 +98,75 @@
         }
       },
       "from": {
-        "data": "source_0"
+        "data": "data_2"
       },
-      "name": "marks",
+      "name": "layer_0_marks",
       "style": [
         "bar"
       ],
       "type": "rect"
+    },
+    {
+      "encode": {
+        "update": {
+          "align": {
+            "value": "left"
+          },
+          "baseline": {
+            "value": "middle"
+          },
+          "dx": {
+            "value": 3
+          },
+          "fill": {
+            "value": "black"
+          },
+          "text": {
+            "signal": "format(datum[\"percentage\"], \".2%\")"
+          },
+          "tooltip": {
+            "signal": "{\"B\": isValid(datum[\"B\"]) ? datum[\"B\"] : \"\"+datum[\"B\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
+          "x": {
+            "field": "count",
+            "scale": "x"
+          },
+          "y": {
+            "band": 0.5,
+            "field": "B",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "data_1"
+      },
+      "name": "layer_1_marks",
+      "style": [
+        "text"
+      ],
+      "type": "text"
     }
   ],
   "padding": 5,
   "scales": [
     {
-      "domain": [
-        {
-          "signal": "(data(\"source_0_x_domain___count\")[0] || {}).min"
-        },
-        {
-          "signal": "(data(\"source_0_x_domain___count\")[0] || {}).max"
-        }
-      ],
+      "domain": {
+        "fields": [
+          {
+            "data": "data_2",
+            "field": "count_start"
+          },
+          {
+            "data": "data_2",
+            "field": "count_end"
+          },
+          {
+            "data": "data_1",
+            "field": "count"
+          }
+        ]
+      },
       "name": "x",
       "nice": true,
       "range": [
@@ -130,7 +182,11 @@
       "domain": {
         "data": "source_0_y_domain_B",
         "field": "B",
-        "sort": true
+        "sort": {
+          "field": "sort_field",
+          "op": "max",
+          "order": "descending"
+        }
       },
       "name": "y",
       "paddingInner": 0.1,

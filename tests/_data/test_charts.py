@@ -40,12 +40,13 @@ def test_get_chart_builder():
         )
 
 
-def test_charts_altair_code():
+def validate_and_return_codes(simple: bool) -> list[str]:
     outputs: list[str] = []
 
     for t, should_limit_to_10_items in TYPES:
         builder = get_chart_builder(t, should_limit_to_10_items)
-        code = builder.altair_code("df", "some_column")
+        code = builder.altair_code("df", "some_column", simple=simple)
+
         # Validate it is valid Python code
         try:
             ast.parse(code)
@@ -54,7 +55,15 @@ def test_charts_altair_code():
         title = f"{t} (limit to 10 items)" if should_limit_to_10_items else t
         outputs.append(f"# {title}\n{code}")
 
+    return outputs
+
+
+def test_charts_altair_code():
+    outputs = validate_and_return_codes(simple=True)
     snapshot("charts.txt", "\n\n".join(outputs))
+
+    complex_outputs = validate_and_return_codes(simple=False)
+    snapshot("charts-complex.txt", "\n\n".join(complex_outputs))
 
 
 def test_charts_bad_characters():
@@ -116,17 +125,17 @@ def test_charts_altair_json_bad_data():
         # More than 10 years
         (
             ({"dates": [datetime(2000, 1, 1), datetime(2020, 1, 1)]}),
-            "%Y",
+            ("%Y", "year"),
         ),
         # More than a year
         (
             ({"dates": [datetime(2020, 1, 1), datetime(2021, 6, 1)]}),
-            "%Y-%m",
+            ("%Y-%m", "yearmonth"),
         ),
         # More than a month
         (
             ({"dates": [datetime(2020, 1, 1), datetime(2020, 2, 15)]}),
-            "%Y-%m-%d",
+            ("%Y-%m-%d", "yearmonthdate"),
         ),
         # More than a day
         (
@@ -138,7 +147,7 @@ def test_charts_altair_json_bad_data():
                     ]
                 }
             ),
-            "%Y-%m-%d %H:%M",
+            ("%Y-%m-%d %H:%M", "yearmonthdatehoursminutes"),
         ),
         # Less than a day
         (
@@ -150,7 +159,7 @@ def test_charts_altair_json_bad_data():
                     ]
                 }
             ),
-            "%Y-%m-%d %H:%M",
+            ("%Y-%m-%d %H:%M", "yearmonthdatehoursminutes"),
         ),
     ],
 )
@@ -162,15 +171,21 @@ def test_date_chart_builder_guess_date_format_with_dataframes(
 
     builder = DateChartBuilder()
     for df in eager_dfs:
-        assert builder._guess_date_format(df, "dates") == expected_format, (
-            f"Expected {expected_format} for {type(df)}"
-        )
+        date_format, time_unit = builder._guess_date_format(df, "dates")
+        assert (
+            date_format,
+            time_unit,
+        ) == expected_format, f"Expected {expected_format} for {type(df)}"
 
     non_eager_dfs = create_dataframes(data, include=NON_EAGER_LIBS)
     for df in non_eager_dfs:
+        date_format, time_unit = builder._guess_date_format(df, "dates")
         assert (
-            builder._guess_date_format(df, "dates")
-            == DateChartBuilder.DEFAULT_DATE_FORMAT
+            date_format,
+            time_unit,
+        ) == (
+            DateChartBuilder.DEFAULT_DATE_FORMAT,
+            DateChartBuilder.DEFAULT_TIME_UNIT,
         ), f"Expected {DateChartBuilder.DEFAULT_DATE_FORMAT} for {type(df)}"
 
 
@@ -182,7 +197,41 @@ def test_date_chart_builder_guess_date_format_with_non_narwhalifiable_data():
     class NonNarwhalifiableData:
         pass
 
-    assert (
-        builder._guess_date_format(NonNarwhalifiableData(), "dates")
-        == "%Y-%m-%d"
+    date_format, time_unit = builder._guess_date_format(
+        NonNarwhalifiableData(), "dates"
     )
+    assert date_format == DateChartBuilder.DEFAULT_DATE_FORMAT
+    assert time_unit == DateChartBuilder.DEFAULT_TIME_UNIT
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_date_chart_builder_get_date_format():
+    from datetime import datetime
+
+    import pandas as pd
+
+    builder = DateChartBuilder()
+
+    # Test with non-cached format (should guess)
+    data = pd.DataFrame(
+        {"dates": [datetime(2020, 1, 1), datetime(2020, 2, 1)]}
+    )
+
+    # First call should guess the format
+    date_format, time_unit = builder._get_date_format(data, "dates")
+    assert date_format == "%Y-%m-%d %H"
+    assert time_unit == "yearmonthdatehours"
+
+    # Second call should use cached format
+    date_format2, time_unit2 = builder._get_date_format(data, "dates")
+    assert date_format2 == date_format
+    assert time_unit2 == time_unit
+
+    # Test with manually set format
+    builder2 = DateChartBuilder()
+    builder2.date_format = "%Y"
+    builder2.time_unit = "year"
+
+    date_format3, time_unit3 = builder2._get_date_format(data, "dates")
+    assert date_format3 == "%Y"
+    assert time_unit3 == "year"
