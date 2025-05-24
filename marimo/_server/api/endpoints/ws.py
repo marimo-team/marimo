@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -45,9 +44,6 @@ if TYPE_CHECKING:
     from loro import DiffEvent
 
 LOGGER = _loggers.marimo_logger()
-
-
-LORO_ALLOWED = sys.version_info >= (3, 11)
 
 
 router = APIRouter()
@@ -123,11 +119,8 @@ async def ws_sync(
     """
     Websocket endpoint for LoroDoc synchronization
     """
-    if not (LORO_ALLOWED and DependencyManager.loro.has()):
-        if not LORO_ALLOWED:
-            LOGGER.warning("RTC: Python version is not supported")
-        else:
-            LOGGER.warning("RTC: Loro is not installed, closing websocket")
+    if not DependencyManager.loro.has():
+        LOGGER.warning("RTC: Loro is not installed, closing websocket")
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_LORO_NOT_INSTALLED"
         )
@@ -302,7 +295,7 @@ class WebsocketHandler(SessionConsumer):
 
             # If RTC is enabled, initialize the LoroDoc with cell code
             if self.rtc_enabled and self.mode == SessionMode.EDIT:
-                if not (LORO_ALLOWED and DependencyManager.loro.has()):
+                if not DependencyManager.loro.has():
                     LOGGER.warning(
                         "RTC: Loro is not installed, disabling real-time collaboration"
                     )
