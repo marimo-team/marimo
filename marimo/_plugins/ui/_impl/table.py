@@ -993,7 +993,6 @@ class table(
                 ),
             )
 
-        # If the arguments are hashable, use the cached method
         filter_function = (
             self._apply_filters_query_sort_cached
             if is_hashable(args.filters, args.query, args.sort)

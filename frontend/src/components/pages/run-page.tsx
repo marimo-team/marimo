@@ -5,6 +5,9 @@ import { StaticBanner } from "../static-html/static-banner";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
 import { Constants } from "@/core/constants";
+import { ContextAwarePanel } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { PanelGroup, Panel } from "react-resizable-panels";
+import { createStorage } from "../editor/chrome/wrapper/storage";
 
 interface Props {
   appConfig: AppConfig;
@@ -14,11 +17,18 @@ const showWatermark = isWasm() || isStaticNotebook();
 
 const RunPage = (props: Props) => {
   return (
-    <>
+    <PanelGroup
+      direction="horizontal"
+      autoSaveId="marimo:chrome:v1:run1"
+      storage={createStorage("left")}
+    >
       <StaticBanner />
-      <RunApp appConfig={props.appConfig} />
-      {showWatermark && <Watermark />}
-    </>
+      <Panel>
+        <RunApp appConfig={props.appConfig} />
+        {showWatermark && <Watermark />}
+      </Panel>
+      <ContextAwarePanel />
+    </PanelGroup>
   );
 };
 
