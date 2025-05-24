@@ -185,7 +185,7 @@
     "@babel/plugin-proposal-decorators": "^7.25.9",
     "@babel/preset-typescript": "^7.25.9",
     "@biomejs/biome": "1.9.4",
-    "@codecov/vite-plugin": "^1.9.0",
+    "@codecov/vite-plugin": "^1.9.1",
     "@csstools/postcss-light-dark-function": "^2.0.8",
     "@playwright/test": "^1.49.1",
     "@storybook/addon-docs": "^8.6.12",
@@ -241,7 +241,7 @@
     "vite-plugin-top-level-await": "^1.5.0",
     "vite-plugin-wasm": "^3.4.1",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.1.1"
+    "vitest": "^3.1.4"
   },
   "packageManager": "pnpm@10.10.0",
   "pnpm": {
