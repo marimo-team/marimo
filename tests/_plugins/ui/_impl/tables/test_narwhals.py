@@ -1302,25 +1302,3 @@ def test_calculate_top_k_rows_cache_invalidation(df: Any) -> None:
 
     # Verify the actual results are different
     assert result1 != result2
-
-
-# class TestLazyFrames:
-#     def test_take(self):
-#         import polars as pl
-
-#         data = pl.LazyFrame(
-#             {
-#                 "a": [1, 2, 3],
-#                 "b": [4, 5, 6],
-#             }
-#         )
-
-#         manager = NarwhalsTableManager.from_dataframe(data)
-#         result = manager.take(10, 2).data.collect()
-#         assert isinstance(result, nw.DataFrame)
-
-#         assert result["a"].to_list() == [1, 2, 3]
-
-# Select second row
-# result = manager.take(10, 2).data.collect()
-# assert result["a"].to_list() == [4]
