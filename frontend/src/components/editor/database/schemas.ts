@@ -381,6 +381,9 @@ export const IcebergConnectionSchema = z.object({
           ),
       }),
     ])
+    .default({
+      type: "REST",
+    })
     .describe(FieldOptions.of({ special: "tabs" })),
 });
 
