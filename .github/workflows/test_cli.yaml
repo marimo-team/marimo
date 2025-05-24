@@ -87,20 +87,7 @@ jobs:
           done
 
       - name: Run LSP binary
-        run: |
-          node marimo/_lsp/index.cjs --port 3000 &
-          LSP_PID=$!
-          sleep 3
-          if ! kill $LSP_PID; then
-            echo "Failed to kill LSP binary"
-            exit 1
-          fi
-          if ! wait $LSP_PID 2>/dev/null; then
-            echo "LSP binary exited with error"
-            exit 1
-          fi
-          echo "LSP binary started and killed successfully"
-
+        run: ./scripts/test-lsp.sh
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
