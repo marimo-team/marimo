@@ -385,24 +385,48 @@ class DateChartBuilder(ChartBuilder):
         return chart
 
     def altair_code(self, data: str, column: str) -> str:
-        _date_format, time_unit = self._get_date_format(data, column)
+        return self.simple_altair(data, column)
+
+    def simple_altair(self, data: str, column: str) -> str:
+        """Offer simple charts for users to copy"""
+        _, time_unit = self._get_date_format(data, column)
+        new_field = f"_{column}"
+
+        return f"""
+        _chart = (
+            alt.Chart({data})
+            .transform_filter(f"datum.{column} != null")
+            .transform_timeunit(as_="{new_field}", field="{column}", timeUnit="{time_unit}")
+            .mark_area()
+            .encode(
+                x=alt.X("{new_field}:T", title="{column}"),
+                y=alt.Y("count():Q", title="{NUM_RECORDS}"),
+                tooltip=[
+                    alt.Tooltip("{new_field}:T", title="{column}", timeUnit="{time_unit}"),
+                    alt.Tooltip("count():Q", title="{NUM_RECORDS}", format="{TOOLTIP_COUNT_FORMAT}")
+                ]
+            ).{COMMON_CONFIG}
+        )
+        _chart
+        """
+
+    def complex_altair(self, data: str, column: str) -> str:
+        """Complex altair code for data charts. Offer more control over the chart"""
+        _, time_unit = self._get_date_format(data, column)
 
         new_field = f"_{column}"
-        formatted_field = f'"{new_field}"'
-        formatted_field_with_type = f'"{new_field}:T"'
-        time_unit_str = f'"{time_unit}"'
 
         return f"""
         _base = alt.Chart({data}).transform_filter(f"datum.{column} != null")
 
         # Explicit time binning, create a new field
         _transformed = _base.transform_timeunit(
-            as_={formatted_field}, field="{column}", timeUnit={time_unit_str}
-        ).transform_aggregate(count="count()", groupby=[{formatted_field}])
+            as_="{new_field}", field="{column}", timeUnit="{time_unit}"
+        ).transform_aggregate(count="count()", groupby=["{new_field}"])
 
         # Create a selection that picks the nearest points
         _nearest = alt.selection_point(
-            fields=[{formatted_field}],
+            fields=["{new_field}"],
             nearest=True,
             on="mouseover",
             empty=False,
@@ -423,7 +447,7 @@ class DateChartBuilder(ChartBuilder):
                 y2=0,
             ),
         ).encode(
-            x=alt.X({formatted_field_with_type}, title="{column}"),
+            x=alt.X("{new_field}:T", title="{column}"),
             y=alt.Y("count:Q", title="{NUM_RECORDS}"),
         )
 
@@ -431,13 +455,13 @@ class DateChartBuilder(ChartBuilder):
         _rule = (
             _transformed.mark_rule(color="seagreen", strokeWidth=1)
             .encode(
-                x={formatted_field_with_type},
+                x="{new_field}:T",
                 opacity=alt.condition(_nearest, alt.value(0.6), alt.value(0)),
                 tooltip=[
                     alt.Tooltip(
-                        {formatted_field_with_type},
+                        "{new_field}:T",
                         title="{column}",
-                        timeUnit={time_unit_str},
+                        timeUnit="{time_unit}",
                     ),
                     alt.Tooltip(
                         "count:Q",
@@ -455,7 +479,7 @@ class DateChartBuilder(ChartBuilder):
             color="{COLOR}",
             filled=True,
         ).encode(
-            x={formatted_field_with_type},
+            x="{new_field}:T",
             y="count:Q",
             opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
         )

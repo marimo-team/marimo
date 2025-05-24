@@ -1,69 +1,15 @@
-_base = alt.Chart(table).transform_filter(f"datum.date_col != null")
-
-# Explicit time binning, create a new field
-_transformed = _base.transform_timeunit(
-    as_="_date_col", field="date_col", timeUnit="yearmonthdate"
-).transform_aggregate(count="count()", groupby=["_date_col"])
-
-# Create a selection that picks the nearest points
-_nearest = alt.selection_point(
-    fields=["_date_col"],
-    nearest=True,
-    on="mouseover",
-    empty=False,
-)
-
-# Area chart
-_area = _transformed.mark_area(
-    line={"color": "#1C7361"},
-    color=alt.Gradient(
-        gradient="linear",
-        stops=[
-            alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="#1C7361", offset=1),
-        ],
-        x1=1,
-        x2=1,
-        y1=1,
-        y2=0,
-    ),
-).encode(
-    x=alt.X("_date_col:T", title="date_col"),
-    y=alt.Y("count:Q", title="Number of records"),
-)
-
-# Vertical line
-_rule = (
-    _transformed.mark_rule(color="seagreen", strokeWidth=1)
+_chart = (
+    alt.Chart(table)
+    .transform_filter(f"datum.date_col != null")
+    .transform_timeunit(as_="_date_col", field="date_col", timeUnit="yearmonthdate")
+    .mark_area()
     .encode(
-        x="_date_col:T",
-        opacity=alt.condition(_nearest, alt.value(0.6), alt.value(0)),
+        x=alt.X("_date_col:T", title="date_col"),
+        y=alt.Y("count():Q", title="Number of records"),
         tooltip=[
-            alt.Tooltip(
-                "_date_col:T",
-                title="date_col",
-                timeUnit="yearmonthdate",
-            ),
-            alt.Tooltip(
-                "count:Q",
-                title="Number of records",
-                format=",.0f",
-            ),
-        ],
-    )
-    .add_params(_nearest)
+            alt.Tooltip("_date_col:T", title="date_col", timeUnit="yearmonthdate"),
+            alt.Tooltip("count():Q", title="Number of records", format=",.0f")
+        ]
+    ).properties(width="container").configure_view(stroke=None)
 )
-
-# Points on the chart
-_points = _transformed.mark_point(
-    size=80,
-    color="#1C7361",
-    filled=True,
-).encode(
-    x="_date_col:T",
-    y="count:Q",
-    opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
-)
-
-_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
 _chart
