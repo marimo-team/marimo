@@ -17,6 +17,9 @@ if pnpm build; then
   if [ -d dist/copilot ]; then
     echo "Copying dist/copilot to _lsp/copilot"
     cp -R dist/copilot ../marimo/_lsp/copilot
+  elif [ -d dist/dist ]; then
+    echo "Copying contents of dist/dist/. to _lsp/copilot"
+    cp -R dist/dist/. ../marimo/_lsp/copilot/
   else
     echo "Copying the contents of dist/. to _lsp/copilot"
     # Do NOT place dist as a subdirectory in copilot/, just copy its contents;
