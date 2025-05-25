@@ -47,7 +47,6 @@ const Logger = {
 const COPILOT_LSP_PATH = path.join(
   __dirname,
   "copilot",
-  "dist",
   "language-server.js",
 );
 if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
