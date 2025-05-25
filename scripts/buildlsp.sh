@@ -15,10 +15,10 @@ if pnpm build; then
   cp dist/index.cjs ../marimo/_lsp/
   # There seems to be a discrepancy between CI and mac for pnpm builds
   if [ -d dist/copilot ]; then
-    echo "branch 1"
+    echo "Copying dist/copilot to _lsp/copilot"
     cp -R dist/copilot ../marimo/_lsp/copilot
   else
-    echo "branch 2"
+    echo "Copying dist/ to _lsp/copilot"
     cp -R dist ../marimo/_lsp/copilot
   fi
   echo "Compilation succeeded.\n"
