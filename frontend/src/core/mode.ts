@@ -12,8 +12,9 @@ import { Logger } from "@/utils/Logger";
  * - `edit`: A user is editing the notebook. Can switch to present mode.
  * - `present`: A user is presenting the notebook, it looks like read mode but with some editing features. Cannot switch to present mode.
  * - `home`: A user is in the home page.
+ * - `gallery`: A user is in the gallery page.
  */
-export type AppMode = "read" | "edit" | "present" | "home";
+export type AppMode = "read" | "edit" | "present" | "home" | "gallery";
 
 export function getInitialAppMode(): AppMode {
   const tag = document.querySelector("marimo-mode");
@@ -30,6 +31,8 @@ export function getInitialAppMode(): AppMode {
       return "edit";
     case "home":
       return "home";
+    case "gallery":
+      return "gallery";
     case "present":
       throw new Error("internal-error: present mode is not supported");
     case undefined:

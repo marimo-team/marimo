@@ -326,3 +326,18 @@ def timeout(seconds: int, message: str) -> Generator[None, None, None]:
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, original_handler)
+
+
+def flatten_files(files: list[FileInfo]) -> list[FileInfo]:
+    """
+    Flatten a list of files and directories into a list of files.
+    """
+    stack: list[FileInfo] = files.copy()
+    result: list[FileInfo] = []
+    while stack:
+        file = stack.pop()
+        if file.is_directory:
+            stack.extend(file.children)
+        else:
+            result.append(file)
+    return result

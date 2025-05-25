@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 import uvicorn
 
@@ -11,7 +12,7 @@ import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.requests import SerializedCLIArgs
-from marimo._server.file_router import AppFileRouter
+from marimo._server.file_router import AppFileRouter, flatten_files
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
@@ -26,10 +27,14 @@ from marimo._server.utils import (
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._tracer import LOGGER
 from marimo._utils.lifespans import Lifespans
+from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
+
+if TYPE_CHECKING:
+    from starlette.applications import Starlette
 
 
 def _resolve_proxy(
@@ -141,53 +146,78 @@ def start(
             }
         )
 
-    session_manager = SessionManager(
-        file_router=file_router,
-        mode=mode,
-        development_mode=development_mode,
-        quiet=quiet,
-        include_code=include_code,
-        ttl_seconds=ttl_seconds,
-        lsp_server=lsp_composite_server or NoopLspServer(),
-        config_manager=config_reader,
-        cli_args=cli_args,
-        argv=argv,
-        auth_token=auth_token,
-        redirect_console_to_browser=redirect_console_to_browser,
-        watch=watch,
-    )
-
-    log_level = "info" if development_mode else "error"
-
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
-    app = create_starlette_app(
-        base_url=base_url,
-        host=external_host,
-        lifespan=Lifespans(
-            [
-                lifespans.lsp,
-                lifespans.etc,
-                lifespans.signal_handler,
-                lifespans.logging,
-                lifespans.open_browser,
-                *LIFESPAN_REGISTRY.get_all(),
-            ]
-        ),
-        allow_origins=allow_origins,
-        enable_auth=not AuthToken.is_empty(session_manager.auth_token),
-        lsp_servers=list(lsp_composite_server.servers.values())
-        if lsp_composite_server is not None
-        else None,
+    lifespan = Lifespans(
+        [
+            lifespans.lsp,
+            lifespans.etc,
+            lifespans.signal_handler,
+            lifespans.logging,
+            lifespans.open_browser,
+            *LIFESPAN_REGISTRY.get_all(),
+        ]
     )
 
-    app.state.port = external_port
-    app.state.host = external_host
+    def create_app(file_router: AppFileRouter, subpath: str = "") -> Starlette:
+        session_manager = SessionManager(
+            file_router=file_router,
+            mode=mode,
+            development_mode=development_mode,
+            quiet=quiet,
+            include_code=include_code,
+            ttl_seconds=ttl_seconds,
+            lsp_server=lsp_composite_server or NoopLspServer(),
+            config_manager=config_reader,
+            cli_args=cli_args,
+            argv=argv,
+            auth_token=auth_token,
+            redirect_console_to_browser=redirect_console_to_browser,
+            watch=watch,
+        )
 
-    app.state.headless = headless
-    app.state.watch = watch
-    app.state.session_manager = session_manager
-    app.state.base_url = base_url
-    app.state.config_manager = config_reader
+        app = create_starlette_app(
+            base_url=base_url + subpath,
+            host=external_host,
+            lifespan=lifespan,
+            allow_origins=allow_origins,
+            enable_auth=not AuthToken.is_empty(session_manager.auth_token),
+            lsp_servers=list(lsp_composite_server.servers.values())
+            if lsp_composite_server is not None
+            else None,
+        )
+
+        app.state.port = external_port
+        app.state.host = external_host
+
+        app.state.headless = headless
+        app.state.watch = watch
+        app.state.session_manager = session_manager
+        app.state.base_url = base_url
+        app.state.config_manager = config_reader
+        return app
+
+    # If we were requested a dictionary and in run mode, we create a new app
+    # for each file.
+    if file_router.directory and mode == SessionMode.RUN:
+        app = create_app(file_router)
+        marimo_files = [
+            file
+            for file in flatten_files(file_router.files)
+            if file.is_marimo_file
+        ]
+        for file in marimo_files:
+            pathname = (
+                Path(file.path)
+                .relative_to(file_router.directory)
+                .with_suffix("")
+                .as_posix()
+            )
+            app.mount(
+                f"/{pathname}/",
+                create_app(AppFileRouter.from_filename(MarimoPath(file.path))),
+            )
+    else:
+        app = create_app(file_router)
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource
@@ -195,9 +225,10 @@ def start(
     initialize_fd_limit(limit=4096)
     initialize_signals()
 
+    log_level = "info" if development_mode else "error"
     server = uvicorn.Server(
         uvicorn.Config(
-            app,
+            app=app,
             port=port,
             host=host,
             # TODO: cannot use reload unless the app is an import string

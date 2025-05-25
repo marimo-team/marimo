@@ -269,6 +269,7 @@ class TestHomePageTemplate(unittest.TestCase):
             self.user_config,
             self.config_overrides,
             self.server_token,
+            SessionMode.EDIT,
         )
 
         assert self.base_url not in result
@@ -278,6 +279,98 @@ class TestHomePageTemplate(unittest.TestCase):
         assert json.dumps({}) in result
         assert "" in result
         assert "home" in result
+
+    def test_home_page_template_edit_mode(self) -> None:
+        """Test home page template in edit mode."""
+        result = templates.home_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            SessionMode.EDIT,
+        )
+
+        assert self.base_url not in result
+        assert str(self.server_token) in result
+        assert json.dumps(self.user_config) in result
+        assert "marimo" in result
+        assert json.dumps({}) in result
+        assert "" in result
+        assert "home" in result
+
+    def test_home_page_template_run_mode(self) -> None:
+        """Test home page template in run mode."""
+        result = templates.home_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            SessionMode.RUN,
+        )
+
+        assert self.base_url not in result
+        assert str(self.server_token) in result
+        assert json.dumps(self.user_config) in result
+        assert "marimo" in result
+        assert json.dumps({}) in result
+        assert "" in result
+        assert "gallery" in result
+
+    # def test_home_page_template_with_custom_css(self) -> None:
+    #     """Test home page template with custom CSS in edit mode."""
+    #     # Create CSS file
+    #     css = "/* custom css */"
+    #     css_file = self.tmp_path / "custom.css"
+    #     css_file.write_text(css)
+
+    #     # Update config with custom CSS path
+    #     config = merge_default_config(self.user_config)
+    #     config["display"] = {
+    #         **config["display"],
+    #         "custom_css": ["custom.css"],
+    #     }
+
+    #     result = templates.home_page_template(
+    #         self.html,
+    #         self.base_url,
+    #         config,
+    #         self.config_overrides,
+    #         self.server_token,
+    #         SessionMode.EDIT,
+    #     )
+
+    #     assert css in result
+    #     assert "<style title='marimo-custom'>" in result
+    #     assert "home" in result
+
+    # def test_home_page_template_with_custom_css_run_mode(self) -> None:
+    #     """Test home page template with custom CSS in run mode."""
+    #     # Create CSS file
+    #     css = "/* custom css */"
+    #     css_file = self.tmp_path / "custom.css"
+    #     css_file.write_text(css)
+
+    #     # Update config with custom CSS path
+    #     config = merge_default_config(self.user_config)
+    #     config["display"] = {
+    #         **config["display"],
+    #         "custom_css": ["custom.css"],
+    #     }
+
+    #     result = templates.home_page_template(
+    #         self.html,
+    #         self.base_url,
+    #         config,
+    #         self.config_overrides,
+    #         self.server_token,
+    #         SessionMode.RUN,
+    #     )
+
+    #     assert css in result
+    #     assert "<style title='marimo-custom'>" in result
+    #     assert "gallery" in result
 
 
 class TestStaticNotebookTemplate(unittest.TestCase):

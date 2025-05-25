@@ -408,6 +408,7 @@ def edit(
         check_for_updates(print_latest_version)
 
     if name is not None:
+        name_path = Path(name)
         # Validate name, or download from URL
         # The second return value is an optional temporary directory. It is
         # unused, but must be kept around because its lifetime on disk is bound
@@ -415,8 +416,8 @@ def edit(
         name, _ = validate_name(
             name, allow_new_file=True, allow_directory=True
         )
-        is_dir = os.path.isdir(name)
-        if os.path.exists(name) and not is_dir:
+        is_dir = name_path.is_dir()
+        if name_path.exists() and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
             check_app_correctness(name)
@@ -796,13 +797,17 @@ def run(
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
     # of the Python object
-    name, _ = validate_name(name, allow_new_file=False, allow_directory=False)
+    name, _ = validate_name(name, allow_new_file=False, allow_directory=True)
 
-    # correctness check - don't start the server if we can't import the module
-    check_app_correctness(name)
+    if Path(name).is_file():
+        # correctness check - don't start the server if we can't import the module
+        check_app_correctness(name)
+        file_router = AppFileRouter.from_filename(MarimoPath(name))
+    else:
+        file_router = AppFileRouter.from_directory(name)
 
     start(
-        file_router=AppFileRouter.from_filename(MarimoPath(name)),
+        file_router=file_router,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
