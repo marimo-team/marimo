@@ -18,8 +18,10 @@ if pnpm build; then
     echo "Copying dist/copilot to _lsp/copilot"
     cp -R dist/copilot ../marimo/_lsp/copilot
   else
-    echo "Copying dist/ to _lsp/copilot"
-    cp -R dist ../marimo/_lsp/copilot
+    echo "Copying the contents of dist/. to _lsp/copilot"
+    # Do NOT place dist as a subdirectory in copilot/, just copy its contents;
+    # the period after dist/ is important here.
+    cp -R dist/. ../marimo/_lsp/copilot/
   fi
   echo "Compilation succeeded.\n"
 else
