@@ -85,7 +85,7 @@ Marimo 确保了您的代码、输出和程序的状态始的一致性，解决�
 
 **确定性执行顺序**。笔记本按照基于变量引用而非单元格页面位置的确定性顺序执行。您可以根据想要讲述的故事组织笔记本。
 
-**内置包管理**。marimo内置支持所有主要的包管理器，允许您[在导入时安装包](https://docs.marimo.io/guides/editor_features/package_management.html)。marimo甚至可以[序列化包依赖](https://docs.marimo.io/guides/package_reproducibility.html)到笔记本文件中，并在隔离的venv沙箱中自动安装它们。
+**内置包管理**。marimo内置支持所有主要的包管理器，允许您[在导入时安装包](https://docs.marimo.io/guides/editor_features/package_management.html)。marimo甚至可以[序列化包依赖](https://docs.marimo.io/guides/package_management/inlining_dependencies/)到笔记本文件中，并在隔离的venv沙箱中自动安装它们。
 
 **功能齐全**。marimo集成了GitHub Copilot、AI助手、Ruff代码格式化、HTML导出、快速代码补全、[VS Code扩展](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、交互式数据框查看器和[更多](https://docs.marimo.io/guides/editor_features/index.html)便捷功能。
 

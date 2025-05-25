@@ -1,12 +1,12 @@
-# Package Reproducibility
+# Inlining dependencies
 
 marimo is the only Python notebook that is reproducible down to the packages,
-serializing requirements in notebook files and running notebooks in
-sandboxed venvs. This lets you share standalone notebooks without shipping
-`requirements.txt` files alongside them, and guarantees your notebooks will
-work weeks, months, even years into the future.
+letting you inline Python dependencies in notebook files and running notebooks
+in isolated or "sandboxed" venvs. This lets you share standalone notebooks
+without shipping `requirements.txt` files alongside them, and guarantees your
+notebooks will work weeks, months, even years into the future.
 
-To opt-in to package reproducibility, use the `sandbox` flag:
+To opt-in to dependency inlining, use the `sandbox` flag:
 
 === "edit"
 
@@ -36,6 +36,12 @@ When running with `--sandbox`, marimo:
 marimo's sandbox provides two key benefits. (1) Notebooks that carry their own
 dependencies are easy to share — just send the `.py` file. (2) Isolating a
 notebook from other installed packages prevents obscure bugs.
+
+You can also run sandboxed notebooks as scripts:
+
+```console
+uv run notebook.py
+```
 
 !!! note "Requires uv"
 
@@ -81,17 +87,28 @@ notebook's dependencies and Python version, and looks something like this:
 
 ### Adding and removing packages
 
-When you import a module, if marimo detects that it is a third-party
-package, it will automatically be added to the script metadata. Removing
-an import does _not_ remove it from the script metadata (since library
-code may still use the package).
+**Using the marimo editor.** When you import a module in the marimo editor, if
+marimo detects that it is a third-party package, it will automatically be added
+to the script metadata. Removing an import does _not_ remove it from the script
+metadata (since library code may still use the package).
 
 Adding packages via the package manager panel will also add packages to script
 metadata, and removing packages from the panel will in turn remove them from
 the script metadata.
 
-You can also edit the script metadata manually in an editor like VS Code or
-neovim.
+**Adding packages manually.** You can manually manage your notebook's
+requirements:
+
+* edit the script metadata manually in an editor like VS Code or neovim.
+* use `uv` from the command-line:
+
+```console
+uv add --script notebook.py numpy
+```
+
+```console
+uv remove --script notebook.py numpy
+```
 
 ### Package locations
 
@@ -103,7 +120,8 @@ for more information.
 
 ### Local development with editable installs
 
-When developing a local package, you can install it in editable mode using the `[tool.uv.sources]` section in the script metadata. For example:
+When developing a local package, you can install it in editable mode using the
+`[tool.uv.sources]` section in the script metadata. For example:
 
 ```python
 # /// script
@@ -117,11 +135,17 @@ When developing a local package, you can install it in editable mode using the `
 # ///
 ```
 
-This is particularly useful when you want to test changes to your package without reinstalling it. The package will be installed in "editable" mode, meaning changes to the source code will be reflected immediately in your notebook.
+This is particularly useful when you want to test changes to your package
+without reinstalling it. The package will be installed in "editable" mode,
+meaning changes to the source code will be reflected immediately in your
+notebook.
 
 ### Specifying alternative package indexes
 
-When you need to use packages from a custom PyPI server or alternative index, you can specify these in your script metadata using the `[[tool.uv.index]]` section. This is useful for private packages or when you want to use packages from a specific source.
+When you need to use packages from a custom PyPI server or alternative index,
+you can specify these in your script metadata using the `[[tool.uv.index]]`
+section. This is useful for private packages or when you want to use packages
+from a specific source.
 
 ```python
 # /// script
@@ -151,9 +175,52 @@ In this example:
 
 This approach ensures that specific packages are always fetched from your designated custom index, while other packages continue to be fetched from the default PyPI repository.
 
-## Markdown file support
+## Configuration
 
-Sandboxing support is also provided in [marimo's markdown file format](./editor_features/watching.md#as-markdown) under the
+Running marimo in a sandbox environment uses `uv` to create an isolated virtual
+environment. You can use any of `uv`'s [supported environment
+variables](https://docs.astral.sh/uv/configuration/environment/).
+
+### Choosing the Python version
+
+For example, you can specify the Python version using the `UV_PYTHON` environment variable:
+
+```bash
+UV_PYTHON=3.13 marimo edit --sandbox notebook.py
+```
+
+### Other common configuration
+
+Another common configuration is `uv`'s link mode:
+
+```bash
+UV_LINK_MODE="copy" marimo edit --sandbox notebook.py
+```
+
+## Sharing on the web
+
+You can also upload sandboxed notebooks to the web, such as on GitHub, and have
+others run them locally with a single command:
+
+```
+uvx marimo edit --sandbox https://gist.githubusercontent.com/kolibril13/a59135dd0973b97d488ba21c650667fe/raw/5f98021b5d3c024d5827fa9464787517495178b4/marimo_minimal_numpy_example.py
+```
+
+**Note:**
+
+1. This command will run code from a URL. Make sure you trust the source before proceeding.
+2. Upon execution, you’ll be prompted:
+   ```
+   Would you like to run it in a secure docker container? [Y/n]:
+   ```
+   To proceed securely, ensure you have [Docker](https://www.docker.com/) installed and running, then press `Y`.
+
+
+
+## Specifying dependencies in Markdown files
+
+Sandboxing support is also provided in [marimo's markdown file
+format](../editor_features/watching.md#as-markdown) under the
 `pyproject` entry of your frontmatter.
 
 ```markdown
@@ -168,27 +235,4 @@ pyproject: |
 ---
 ```
 
-Note, that sandboxing will still work in the `header` entry of markdown
-frontmatter.
 
-## Configuration
-
-Running marimo in a sandbox environment uses `uv` to create an isolated virtual
-environment. You can use any of `uv`'s [supported environment
-variables](https://docs.astral.sh/uv/configuration/environment/).
-
-#### Choosing the Python version
-
-For example, you can specify the Python version using the `UV_PYTHON` environment variable:
-
-```bash
-UV_PYTHON=3.13 marimo edit --sandbox notebook.py
-```
-
-#### Other common configuration
-
-Another common configuration is `uv`'s link mode:
-
-```bash
-UV_LINK_MODE="copy" marimo edit --sandbox notebook.py
-```

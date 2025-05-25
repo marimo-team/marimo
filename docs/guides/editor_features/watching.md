@@ -145,7 +145,7 @@ at the command-line, or rename your file to have an `.md` extension in the noteb
 marimo conforms to standard markdown document format, and will render most
 places like Github. Metadata in this file format is saved in the frontmatter,
 which marimo may use for information like
-[sandboxing](../package_reproducibility.md), and the marimo version. All other
+[sandboxing](../package_management/inlining_dependencies.md), and the marimo version. All other
 fields are kept, but ignored.
 
 For execution, marimo extracts code fences that contain `marimo` in braces. For

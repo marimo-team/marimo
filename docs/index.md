@@ -131,7 +131,7 @@ Organize your notebooks to best fit the stories you'd like to tell.
 **Built-in package management.** marimo has built-in support for all major
 package managers, letting you [install packages on import](guides/editor_features/package_management.md). marimo can even
 [serialize package
-requirements](guides/package_reproducibility.md)
+requirements](guides/package_management/inlining_dependencies.md)
 in notebook files, and auto install them in
 isolated venv sandboxes.
 
