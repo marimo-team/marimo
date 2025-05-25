@@ -79,8 +79,6 @@ marimo tutorial intro
 
 ///
 
-```
-
 A tutorial notebook should open in your browser.
 
 /// admonition | Installation issues?
