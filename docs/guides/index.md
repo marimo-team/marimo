@@ -16,7 +16,7 @@ These guides cover marimo's core concepts.
 | [Expensive notebooks](expensive_notebooks.md)         | Tips for working with expensive notebooks                  |
 | [Understanding errors](understanding_errors/index.md) | Understanding marimo's constraints on notebook code        |
 | [Working with data](working_with_data/index.md)       | Using SQL cells, no-code dataframe, and reactive plots     |
-| [Package reproducibility](package_reproducibility.md) | Making notebooks reproducible down to the packages         |
+| [Package management](package_management/index.md)     | Inlining dependencies in notebook files and other package management guides |
 | [Generate with AI](generate_with_ai/index.md)         | Generate notebooks with AI                                 |
 | [Editor features](editor_features/index.md)           | View variables, dataframe schemas, docstrings, and more    |
 | [Using your own editor](editor_features/watching.md)  | Edit notebooks in your own editor and stream changes back to the browser |
