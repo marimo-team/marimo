@@ -673,7 +673,7 @@ class IntegerChartBuilder(ChartBuilder):
             .mark_bar(color=COLOR)
             .encode(
                 x=alt.X(column, type="quantitative", bin=True, title=column),
-                y=alt.Y("count()", type="quantitative"),
+                y=alt.Y("count()", type="quantitative", title=NUM_RECORDS),
                 tooltip=[
                     alt.Tooltip(
                         column, type="quantitative", bin=True, title=column
@@ -700,7 +700,7 @@ class IntegerChartBuilder(ChartBuilder):
             {mark_bar}
             .encode(
                 x=alt.X("{column}", type="quantitative", bin=True, title="{column}"),
-                y=alt.Y("count()", type="quantitative"),
+                y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),
                 tooltip=[
                     alt.Tooltip(
                         "{column}",

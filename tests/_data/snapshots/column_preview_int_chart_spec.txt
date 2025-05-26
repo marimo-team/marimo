@@ -36,6 +36,7 @@
     },
     "y": {
       "aggregate": "count",
+      "title": "Number of records",
       "type": "quantitative"
     }
   },

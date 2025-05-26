@@ -256,7 +256,7 @@ _chart = (
     .mark_bar(color="{COLOR}")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
-        y=alt.Y("count()", type="quantitative"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
         tooltip=[
             alt.Tooltip(
                 "some_column",

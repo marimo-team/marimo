@@ -41,7 +41,7 @@
       "tickCount": {
         "signal": "ceil(height/40)"
       },
-      "title": "Count of Records",
+      "title": "Number of records",
       "zindex": 0
     }
   ],
