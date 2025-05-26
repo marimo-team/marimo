@@ -25,7 +25,7 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
       '@vitest/expect':
-        specifier: ^1.4.0
+        specifier: ^1.6.1
         version: 1.6.1
       jsonrpc-ws-proxy:
         specifier: ^0.0.5
@@ -40,7 +40,7 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
       vitest:
-        specifier: ^1.4.0
+        specifier: ^1.6.1
         version: 1.6.1(@types/node@20.17.32)
       ws:
         specifier: ^8.18.1
@@ -359,9 +359,6 @@ packages:
   '@jridgewell/set-array@1.1.2':
     resolution: {integrity: sha512-xnkseuNADM0gt2bs+BvhO0p78Mk762YnZdsuzFV018NoG1Sj1SCQvpSqa7XUaTam5vAGasABV9qXASMKnFMwMw==}
     engines: {node: '>=6.0.0'}
-
-  '@jridgewell/sourcemap-codec@1.4.15':
-    resolution: {integrity: sha512-eF2rxCRulEKXHTRiDrDy6erMYWqNw4LPdQ8UQA4huuxaQsVeRPFl2oM8oDGxMFhJUWZf9McpLtJasDDZb/Bpeg==}
 
   '@jridgewell/sourcemap-codec@1.5.0':
     resolution: {integrity: sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ==}
@@ -1280,21 +1277,19 @@ snapshots:
   '@jridgewell/gen-mapping@0.3.3':
     dependencies:
       '@jridgewell/set-array': 1.1.2
-      '@jridgewell/sourcemap-codec': 1.4.15
+      '@jridgewell/sourcemap-codec': 1.5.0
       '@jridgewell/trace-mapping': 0.3.19
 
   '@jridgewell/resolve-uri@3.1.1': {}
 
   '@jridgewell/set-array@1.1.2': {}
 
-  '@jridgewell/sourcemap-codec@1.4.15': {}
-
   '@jridgewell/sourcemap-codec@1.5.0': {}
 
   '@jridgewell/trace-mapping@0.3.19':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.1
-      '@jridgewell/sourcemap-codec': 1.4.15
+      '@jridgewell/sourcemap-codec': 1.5.0
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
