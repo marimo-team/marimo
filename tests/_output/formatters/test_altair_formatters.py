@@ -4,11 +4,16 @@ import json
 from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
+from urllib.request import urlopen
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._output.formatters.altair_formatters import AltairFormatter
+from marimo._output.formatters.altair_formatters import (
+    FORMAT_LOCALE_URL,
+    TIME_FORMAT_LOCALE_URL,
+    AltairFormatter,
+)
 from marimo._output.formatters.formatters import register_formatters
 from marimo._output.formatting import get_formatter
 from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
@@ -173,3 +178,52 @@ def test_altair_formatter_sanitize_nan_infs(df: IntoDataFrame):
     for non_valid_value in ["NaN", "Infinity", "-Infinity"]:
         assert non_valid_value not in content
     assert content.count('"B": null') == 3
+
+
+def test_altair_formatter_embed_options():
+    AltairFormatter().register()
+    import altair as alt
+
+    def get_chart():
+        return (
+            alt.Chart(get_data())
+            .mark_point()
+            .encode(x="Horsepower", y="Miles_per_Gallon")
+        )
+
+    def get_formatted_content(chart):
+        formatter = get_formatter(chart)
+        assert formatter is not None
+        _, content = formatter(chart)
+        return json.loads(content)
+
+    # Test format locale
+    alt.renderers.set_embed_options(formatLocale="en-US")
+    content = get_formatted_content(get_chart())
+    assert "formatLocale" in content["usermeta"]["embedOptions"]
+    assert "timeFormatLocale" not in content["usermeta"]["embedOptions"]
+    with urlopen(
+        FORMAT_LOCALE_URL.format(locale="en-US"), timeout=3
+    ) as response:
+        assert content["usermeta"]["embedOptions"][
+            "formatLocale"
+        ] == json.loads(response.read())
+
+    # Test adding a time format locale
+    alt.renderers.set_embed_options(timeFormatLocale="en-US")
+    content = get_formatted_content(get_chart())
+    assert "timeFormatLocale" in content["usermeta"]["embedOptions"]
+    with urlopen(
+        TIME_FORMAT_LOCALE_URL.format(locale="en-US"), timeout=3
+    ) as response:
+        assert content["usermeta"]["embedOptions"][
+            "timeFormatLocale"
+        ] == json.loads(response.read())
+
+    # Old embed option still in
+    assert "formatLocale" in content["usermeta"]["embedOptions"]
+
+    # Test reset embed options
+    alt.renderers.set_embed_options()
+    content = get_formatted_content(get_chart())
+    assert content["usermeta"]["embedOptions"] == {}

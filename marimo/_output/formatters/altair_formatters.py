@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import json
-from typing import Literal
+from typing import Any, Literal
+from urllib.request import urlopen
 
 from marimo._config.config import Theme
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._loggers import marimo_logger
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
@@ -15,6 +18,8 @@ from marimo._plugins.ui._impl.altair_chart import (
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     sanitize_nan_infs,
 )
+
+LOGGER = marimo_logger()
 
 
 class AltairFormatter(FormatterFactory):
@@ -113,6 +118,17 @@ def _apply_embed_options(chart: AltairChartType) -> AltairChartType:
     # The javascript key is `embedOptions`
     embed_options = alt.renderers.options.get("embed_options", {})
     prev_usermeta = {} if alt.Undefined is chart.usermeta else chart.usermeta
+
+    # If embed_options is None or empty, return chart with empty embedOptions
+    # if not embed_options:
+    #     chart["usermeta"] = {
+    #         **prev_usermeta,
+    #         "embedOptions": {},
+    #     }
+    #     return chart
+
+    embed_options = _apply_format_locales(embed_options)
+
     chart["usermeta"] = {
         **prev_usermeta,
         "embedOptions": {
@@ -121,6 +137,63 @@ def _apply_embed_options(chart: AltairChartType) -> AltairChartType:
         },
     }
     return chart
+
+
+FETCH_TIMEOUT = 3
+TIME_FORMAT_LOCALE_URL = (
+    "https://unpkg.com/d3-time-format@latest/locale/{locale}.json"
+)
+FORMAT_LOCALE_URL = "https://unpkg.com/d3-format@latest/locale/{locale}.json"
+
+
+def _apply_format_locales(embed_options: dict[str, Any]) -> dict[str, Any]:
+    """Apply format localizations to embed options using either vl_convert or d3 format files."""
+
+    def get_time_format_locale(locale: str) -> dict[str, Any]:
+        try:
+            if DependencyManager.vl_convert_python.has():
+                import vl_convert as vlc  # type: ignore
+
+                return dict(vlc.get_time_format_locale(locale))
+            else:
+                with urlopen(
+                    TIME_FORMAT_LOCALE_URL.format(locale=locale),
+                    timeout=FETCH_TIMEOUT,
+                ) as response:
+                    return dict(json.loads(response.read()))
+        except Exception as e:
+            LOGGER.warning(f"Error getting time format locale: {e}")
+            return {}
+
+    def get_format_locale(locale: str) -> dict[str, Any]:
+        try:
+            if DependencyManager.vl_convert_python.has():
+                import vl_convert as vlc  # type: ignore
+
+                return dict(vlc.get_format_locale(locale))
+            else:
+                with urlopen(
+                    FORMAT_LOCALE_URL.format(locale=locale),
+                    timeout=FETCH_TIMEOUT,
+                ) as response:
+                    return dict(json.loads(response.read()))
+        except Exception as e:
+            LOGGER.warning(f"Error getting format locale: {e}")
+            return {}
+
+    if "timeFormatLocale" in embed_options:
+        time_format_locale = embed_options["timeFormatLocale"]
+        if isinstance(time_format_locale, str):
+            embed_options["timeFormatLocale"] = get_time_format_locale(
+                time_format_locale
+            )
+
+    if "formatLocale" in embed_options:
+        format_locale = embed_options["formatLocale"]
+        if isinstance(format_locale, str):
+            embed_options["formatLocale"] = get_format_locale(format_locale)
+
+    return embed_options
 
 
 def chart_to_json(
