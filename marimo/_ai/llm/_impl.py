@@ -482,7 +482,12 @@ def _require_api_key(env_var: str, config_key: str, name: str) -> str:
     with contextlib.suppress(Exception):
         from marimo._runtime.context.types import get_context
 
-        api_key = get_context().marimo_config["ai"][config_key]["api_key"]
+        api_key = (
+            get_context()
+            .marimo_config.get("ai", {})
+            .get(config_key, {})
+            .get("api_key")
+        )
         if api_key:
             return api_key
 

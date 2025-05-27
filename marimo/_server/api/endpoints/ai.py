@@ -153,10 +153,10 @@ async def ai_chat(
     max_tokens = get_max_tokens(config)
 
     model = body.model or get_model(ai_config)
-    provider = get_completion_provider(
-        AnyProviderConfig.for_model(model, ai_config),
-        model=model,
-    )
+    provider_config = AnyProviderConfig.from_provider_type(ai_config)
+    if provider_config is None:
+        provider_config = AnyProviderConfig.for_model(model, ai_config)
+    provider = get_completion_provider(provider_config, model=model)
     response = provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,

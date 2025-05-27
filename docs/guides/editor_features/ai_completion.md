@@ -235,6 +235,21 @@ api_key = "gho_..."
 base_url = "https://api.githubcopilot.com/"
 ```
 
+#### Azure OpenAI
+
+1. Install openai: `pip install openai`
+
+2. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
+
+```toml title="marimo.toml"
+[ai.azure]
+api_key = "..."
+# Specify the model
+model = "gpt-4-turbo"
+# Change the base_url as provided by your IT
+base_url = "https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2024-06-01"
+```
+
 #### Local models with Ollama { #using-ollama }
 
 Ollama allows you to run open-source LLMs on your local machine. To integrate Ollama with marimo:
