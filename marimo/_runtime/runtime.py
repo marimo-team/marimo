@@ -2151,6 +2151,9 @@ class DatasetCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
+    async def preview_dataset_column_v2(self, request) -> None:
+        pass
+
     @kernel_tracer.start_as_current_span("preview_dataset_column")
     async def preview_dataset_column(
         self, request: PreviewDatasetColumnRequest

@@ -545,7 +545,7 @@ class DateChartBuilder(ChartBuilder):
 
 
 class BooleanChartBuilder(ChartBuilder):
-    BASE_COLOR = ["#99c99c", "#1C7361"]
+    BASE_COLOR = ["#99c99c", COLOR]
 
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt

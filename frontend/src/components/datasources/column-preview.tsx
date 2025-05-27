@@ -1,0 +1,234 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
+import type { SQLTableContext } from "@/core/datasets/data-source-connections";
+import { useOnMount } from "@/hooks/useLifecycle";
+import type {
+  DataColumnPreview,
+  DataTable,
+  DataTableColumn,
+  DataType,
+} from "@/core/kernel/messages";
+import { useTheme } from "@/theme/useTheme";
+import { Events } from "@/utils/events";
+import React from "react";
+import { previewDatasetColumn } from "@/core/network/requests";
+import { Button } from "../ui/button";
+import { convertStatsName, sqlCode } from "./utils";
+import { PlusSquareIcon } from "lucide-react";
+import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import { Tooltip } from "../ui/tooltip";
+import { ColumnPreviewContainer } from "./components";
+import { InstallPackageButton } from "./install-package-button";
+import type { ColumnHeaderStats } from "../data-table/types";
+import { CopyClipboardIcon } from "../icons/copy-icon";
+import { maybeAddAltairImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import { autoInstantiateAtom } from "@/core/config/config";
+import { prettyNumber } from "@/utils/numbers";
+import { useAtomValue } from "jotai";
+
+const LazyVegaLite = React.lazy(() =>
+  import("react-vega").then((m) => ({ default: m.VegaLite })),
+);
+
+export const DatasetColumnPreview: React.FC<{
+  table: DataTable;
+  column: DataTableColumn;
+  onAddColumnChart: (code: string) => void;
+  preview: DataColumnPreview | undefined;
+  sqlTableContext?: SQLTableContext;
+}> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
+  const { theme } = useTheme();
+
+  useOnMount(() => {
+    if (preview) {
+      return;
+    }
+
+    // Do not fetch previews for custom SQL connections or catalogs
+    if (table.source_type === "connection" || table.source_type === "catalog") {
+      return;
+    }
+
+    previewDatasetColumn({
+      source: table.source,
+      tableName: table.name,
+      columnName: column.name,
+      sourceType: table.source_type,
+      fullyQualifiedTableName: sqlTableContext
+        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
+        : table.name,
+    });
+  });
+
+  if (table.source_type === "connection") {
+    return (
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+        {column.name} ({column.external_type})
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={Events.stopPropagation(() => {
+            onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
+          })}
+        >
+          <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
+        </Button>
+      </span>
+    );
+  }
+
+  if (table.source_type === "catalog") {
+    return (
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+        {column.name} ({column.external_type})
+      </span>
+    );
+  }
+
+  if (!preview) {
+    return <span className="text-xs text-muted-foreground">Loading...</span>;
+  }
+
+  const error =
+    preview.error &&
+    renderPreviewError(preview.error, preview.missing_packages);
+
+  const stats = preview.stats && renderStats(preview.stats, column.type);
+
+  const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
+    return {
+      ...spec,
+      config: { ...spec.config, background: "transparent" },
+    };
+  };
+  const chart = preview.chart_spec && (
+    <LazyVegaLite
+      spec={updateSpec(
+        JSON.parse(preview.chart_spec) as TopLevelFacetedUnitSpec,
+      )}
+      width={"container" as unknown as number}
+      height={100}
+      actions={false}
+      theme={theme === "dark" ? "dark" : "vox"}
+    />
+  );
+
+  const addDataframeChart = preview.chart_code &&
+    table.source_type === "local" && (
+      <AddDataframeChart chartCode={preview.chart_code} />
+    );
+
+  const addSQLChart = table.source_type === "duckdb" && (
+    <Tooltip content="Add SQL cell" delayDuration={400}>
+      <Button
+        variant="outline"
+        size="icon"
+        className="z-10 bg-background absolute right-1 -top-1"
+        onClick={Events.stopPropagation(() => {
+          onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
+        })}
+      >
+        <PlusSquareIcon className="h-3 w-3" />
+      </Button>
+    </Tooltip>
+  );
+
+  const chartMaxRowsWarning =
+    preview.chart_max_rows_errors && renderChartMaxRowsWarning();
+
+  if (!error && !stats && !chart && !chartMaxRowsWarning) {
+    return <span className="text-xs text-muted-foreground">No data</span>;
+  }
+
+  return (
+    <ColumnPreviewContainer>
+      {error}
+      {addDataframeChart}
+      {addSQLChart}
+      {chartMaxRowsWarning}
+      {chart}
+      {stats}
+    </ColumnPreviewContainer>
+  );
+};
+
+export function renderPreviewError(
+  error: string,
+  missing_packages?: string[] | null,
+) {
+  return (
+    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
+      <span>{error}</span>
+      {missing_packages && <InstallPackageButton packages={missing_packages} />}
+    </div>
+  );
+}
+
+export function renderStats(stats: ColumnHeaderStats, dataType: DataType) {
+  return (
+    <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
+      {Object.entries(stats).map(([key, value]) => {
+        if (value == null) {
+          return null;
+        }
+
+        return (
+          <div key={key} className="flex items-center gap-1 group">
+            <CopyClipboardIcon
+              className="h-3 w-3 invisible group-hover:visible"
+              value={String(value)}
+            />
+            <span className="text-xs min-w-[60px] capitalize">
+              {convertStatsName(key, dataType)}
+            </span>
+            <span className="text-xs font-bold text-muted-foreground tracking-wide">
+              {prettyNumber(value)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function renderChartMaxRowsWarning() {
+  return (
+    <span className="text-xs text-muted-foreground">
+      Too many rows to render the chart.
+    </span>
+  );
+}
+
+export const AddDataframeChart: React.FC<{
+  chartCode: string;
+}> = ({ chartCode }) => {
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
+  const lastFocusedCellId = useLastFocusedCellId();
+  const { createNewCell } = useCellActions();
+
+  const handleAddColumn = (chartCode: string) => {
+    if (chartCode.includes("alt")) {
+      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    }
+    createNewCell({
+      code: chartCode,
+      before: false,
+      cellId: lastFocusedCellId ?? "__end__",
+    });
+  };
+
+  return (
+    <Tooltip content="Add chart to notebook" delayDuration={400}>
+      <Button
+        variant="outline"
+        size="icon"
+        className="z-10 bg-background absolute right-1 -top-1"
+        onClick={Events.stopPropagation(() => handleAddColumn(chartCode))}
+      >
+        <PlusSquareIcon className="h-3 w-3" />
+      </Button>
+    </Tooltip>
+  );
+};

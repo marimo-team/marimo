@@ -48,3 +48,9 @@ export const LoadingState: React.FC<{ message: string }> = ({ message }) => {
     </div>
   );
 };
+
+export const ColumnPreviewContainer: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
+  return <div className="flex flex-col gap-2 relative">{children}</div>;
+};

@@ -28,3 +28,15 @@ export const DATA_TYPE_ICON: Record<DataType | SelectableDataType, LucideIcon> =
     integer: HashIcon,
     unknown: CurlyBracesIcon,
   };
+
+export const DATA_TYPE_COLOR: Record<DataType | SelectableDataType, string> = {
+  boolean: "bg-sky-200",
+  date: "bg-amber-200",
+  time: "bg-lime-200",
+  datetime: "bg-purple-200",
+  temporal: "bg-pink-200",
+  number: "bg-cyan-200",
+  string: "bg-blue-200",
+  integer: "bg-green-200",
+  unknown: "bg-slate-200",
+};

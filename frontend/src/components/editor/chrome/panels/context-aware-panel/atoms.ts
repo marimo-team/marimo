@@ -1,11 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
+import type { PanelType } from "./context-aware-panel";
 
 /**
  * Unique ID of the owner rendering the context-aware panel.
  */
 export const contextAwarePanelOwner = atom<string | null>(null);
+
+export const contextAwarePanelType = atom<PanelType | null>(null);
 
 /**
  * If true, the panel is open.

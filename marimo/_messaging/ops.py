@@ -619,18 +619,23 @@ class SQLTableListPreview(Op):
 
 
 @dataclass
-class DataColumnPreview(Op):
-    """Preview of a column in a dataset."""
-
-    name: ClassVar[str] = "data-column-preview"
-    table_name: str
-    column_name: str
+class ColumnPreview:
     chart_spec: Optional[str] = None
     chart_max_rows_errors: bool = False
     chart_code: Optional[str] = None
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None
     stats: Optional[ColumnStats] = None
+
+
+# TODO: kw_only is >=Python 3.10
+@dataclass(kw_only=True)
+class DataColumnPreview(Op, ColumnPreview):
+    """Preview of a column in a dataset."""
+
+    name: ClassVar[str] = "data-column-preview"
+    table_name: str
+    column_name: str
 
 
 @dataclass

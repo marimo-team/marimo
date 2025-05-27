@@ -59,11 +59,12 @@ import { type CellId, findCellId } from "@/core/cells/ids";
 import { slotsController } from "@/core/slots/slots";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
-import { usePanelOwnership } from "@/components/data-table/row-viewer-panel/use-panel-ownership";
+import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
 import { Provider } from "jotai";
 import { store } from "@/core/state/jotai";
 import { loadTableData } from "@/components/data-table/utils";
 import { hasChart } from "@/components/data-table/charts/storage";
+import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
@@ -91,11 +92,36 @@ export type CalculateTopKRows = <T>(req: {
   data: Array<[unknown, number]>;
 }>;
 
+export type PreviewColumn = (opts: { column: string }) => Promise<{
+  chart_spec: string | null;
+  chart_max_rows_errors: boolean;
+  chart_code: string | null;
+  error: string | null;
+  missing_packages: string[] | null;
+  stats: ColumnHeaderStats | null;
+}>;
+
 export interface GetRowResult {
   rows: unknown[];
 }
 
 const maybeNumber = z.union([z.number(), z.nan(), z.string()]).nullable();
+const columnStats = z.object({
+  total: z.number().nullable(),
+  nulls: z.number().nullable(),
+  unique: z.number().nullable(),
+  true: z.number().nullable(),
+  false: z.number().nullable(),
+  min: maybeNumber,
+  max: maybeNumber,
+  std: maybeNumber,
+  mean: maybeNumber,
+  median: maybeNumber,
+  p5: maybeNumber,
+  p25: maybeNumber,
+  p75: maybeNumber,
+  p95: maybeNumber,
+});
 
 /**
  * Arguments for a data table
@@ -147,6 +173,7 @@ type DataTableFunctions = {
   get_data_url?: GetDataUrl;
   get_row_ids?: GetRowIds;
   calculate_top_k_rows?: CalculateTopKRows;
+  preview_column?: PreviewColumn;
 };
 
 type S = Array<number | string | { rowId: string; columnName?: string }>;
@@ -207,25 +234,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         data: z
           .union([z.string(), z.array(z.object({}).passthrough())])
           .nullable(),
-        stats: z.record(
-          z.string(),
-          z.object({
-            total: z.number().nullable(),
-            nulls: z.number().nullable(),
-            unique: z.number().nullable(),
-            true: z.number().nullable(),
-            false: z.number().nullable(),
-            min: maybeNumber,
-            max: maybeNumber,
-            std: maybeNumber,
-            mean: maybeNumber,
-            median: maybeNumber,
-            p5: maybeNumber,
-            p25: maybeNumber,
-            p75: maybeNumber,
-            p95: maybeNumber,
-          }),
-        ),
+        stats: z.record(z.string(), columnStats),
         is_disabled: z.boolean().optional(),
       }),
     ),
@@ -271,6 +280,16 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           data: z.array(z.tuple([z.any(), z.number()])),
         }),
       ),
+    preview_column: rpc.input(z.object({ column: z.string() })).output(
+      z.object({
+        chart_spec: z.string().nullable(),
+        chart_max_rows_errors: z.boolean(),
+        chart_code: z.string().nullable(),
+        error: z.string().nullable(),
+        missing_packages: z.array(z.string()).nullable(),
+        stats: columnStats.nullable(),
+      }),
+    ),
   })
   .renderer((props) => {
     return (
@@ -653,6 +672,7 @@ const DataTableComponent = ({
   toggleDisplayHeader,
   chartsFeatureEnabled,
   calculate_top_k_rows,
+  preview_column,
   getRow,
   cellId,
 }: DataTableProps<unknown> &
@@ -663,10 +683,7 @@ const DataTableComponent = ({
   }): JSX.Element => {
   const id = useId();
   const [focusedRowIdx, setFocusedRowIdx] = useState(0);
-  const {
-    isPanelOpen: isRowViewerPanelOpen,
-    togglePanel: toggleRowViewerPanel,
-  } = usePanelOwnership(id, cellId);
+  const { isPanelOpen, togglePanel } = usePanelOwnership(id, cellId);
 
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
@@ -792,7 +809,8 @@ const DataTableComponent = ({
           1,000,000 rows.
         </Banner>
       )}
-      {isRowViewerPanelOpen && (
+
+      {isPanelOpen("row-viewer") && (
         <ContextAwarePanelItem>
           <RowViewerPanel
             getRow={getRow}
@@ -803,6 +821,17 @@ const DataTableComponent = ({
           />
         </ContextAwarePanelItem>
       )}
+      {isPanelOpen("column-explorer") && preview_column && (
+        <ContextAwarePanelItem>
+          <ColumnExplorerPanel
+            previewColumn={preview_column}
+            fieldTypes={memoizedUnclampedFieldTypes}
+            totalRows={totalRows}
+            totalColumns={totalColumns}
+          />
+        </ContextAwarePanelItem>
+      )}
+
       <ColumnChartContext.Provider value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
@@ -837,8 +866,8 @@ const DataTableComponent = ({
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
             chartsFeatureEnabled={chartsFeatureEnabled}
-            toggleRowViewerPanel={toggleRowViewerPanel}
-            isRowViewerPanelOpen={isRowViewerPanelOpen}
+            togglePanel={togglePanel}
+            isPanelOpen={isPanelOpen}
             onFocusRowChange={(rowIdx) => setFocusedRowIdx(rowIdx)}
           />
         </Labeled>

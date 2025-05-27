@@ -27,16 +27,10 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import {
-  previewDataSourceConnection,
-  previewDatasetColumn,
-} from "@/core/network/requests";
-import { prettyNumber } from "@/utils/numbers";
+import { previewDataSourceConnection } from "@/core/network/requests";
 import { Events } from "@/utils/events";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
-import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
-import { useTheme } from "@/theme/useTheme";
 import {
   maybeAddAltairImport,
   maybeAddMarimoImport,
@@ -45,7 +39,6 @@ import { autoInstantiateAtom } from "@/core/config/config";
 import type {
   Database,
   DatabaseSchema,
-  DataColumnPreview,
   DataSourceConnection,
   DataTable,
   DataTableColumn,
@@ -74,13 +67,12 @@ import {
   LoadingState,
   RotatingChevron,
 } from "./components";
-import { InstallPackageButton } from "./install-package-button";
-import { convertStatsName, isSchemaless, sqlCode } from "./utils";
-import { useOnMount } from "@/hooks/useLifecycle";
+import { isSchemaless, sqlCode } from "./utils";
 import {
   PreviewSQLTableList,
   PreviewSQLTable,
 } from "@/core/datasets/request-registry";
+import { DatasetColumnPreview } from "./column-preview";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -749,7 +741,9 @@ const DatasetColumnItem: React.FC<{
           )}
         >
           <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
-          <span>{column.name}</span>
+          <span className={isExpanded ? "font-semibold" : ""}>
+            {column.name}
+          </span>
           {isPrimaryKey &&
             renderItemSubtext({ tooltipContent: "Primary key", content: "PK" })}
           {isIndexed &&
@@ -790,169 +784,5 @@ const DatasetColumnItem: React.FC<{
         </div>
       )}
     </>
-  );
-};
-
-const LazyVegaLite = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
-);
-
-const DatasetColumnPreview: React.FC<{
-  table: DataTable;
-  column: DataTableColumn;
-  onAddColumnChart: (code: string) => void;
-  preview: DataColumnPreview | undefined;
-  sqlTableContext?: SQLTableContext;
-}> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
-  const { theme } = useTheme();
-
-  useOnMount(() => {
-    if (preview) {
-      return;
-    }
-
-    previewDatasetColumn({
-      source: table.source,
-      tableName: table.name,
-      columnName: column.name,
-      sourceType: table.source_type,
-      fullyQualifiedTableName: sqlTableContext
-        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
-        : table.name,
-    });
-  });
-
-  // Do not fetch previews for custom SQL connections
-  if (table.source_type === "connection") {
-    return (
-      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
-        {column.name} ({column.external_type})
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={Events.stopPropagation(() => {
-            onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
-          })}
-        >
-          <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
-        </Button>
-      </span>
-    );
-  }
-
-  if (table.source_type === "catalog") {
-    return (
-      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
-        {column.name} ({column.external_type})
-      </span>
-    );
-  }
-
-  if (!preview) {
-    return <span className="text-xs text-muted-foreground">Loading...</span>;
-  }
-
-  const error = preview.error && (
-    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
-      <span>{preview.error}</span>
-      {preview.missing_packages && (
-        <InstallPackageButton packages={preview.missing_packages} />
-      )}
-    </div>
-  );
-
-  const stats = preview.stats && (
-    <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
-      {Object.entries(preview.stats).map(([key, value]) => {
-        if (value == null) {
-          return null;
-        }
-
-        return (
-          <div key={key} className="flex items-center gap-1 group">
-            <CopyClipboardIcon
-              className="h-3 w-3 invisible group-hover:visible"
-              value={String(value)}
-            />
-            <span className="text-xs min-w-[60px] capitalize">
-              {convertStatsName(key, column.type)}
-            </span>
-            <span className="text-xs font-bold text-muted-foreground tracking-wide">
-              {prettyNumber(value)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
-    return {
-      ...spec,
-      config: { ...spec.config, background: "transparent" },
-    };
-  };
-  const chart = preview.chart_spec && (
-    <LazyVegaLite
-      spec={updateSpec(
-        JSON.parse(preview.chart_spec) as TopLevelFacetedUnitSpec,
-      )}
-      width={"container" as unknown as number}
-      height={100}
-      actions={false}
-      theme={theme === "dark" ? "dark" : "vox"}
-    />
-  );
-
-  const addDataframeChart = preview.chart_code &&
-    table.source_type === "local" && (
-      <Tooltip content="Add chart to notebook" delayDuration={400}>
-        <Button
-          variant="outline"
-          size="icon"
-          className="z-10 bg-background absolute right-1 -top-1"
-          onClick={Events.stopPropagation(() =>
-            onAddColumnChart(preview.chart_code || ""),
-          )}
-        >
-          <PlusSquareIcon className="h-3 w-3" />
-        </Button>
-      </Tooltip>
-    );
-
-  const addSQLChart = table.source_type === "duckdb" && (
-    <Tooltip content="Add SQL cell" delayDuration={400}>
-      <Button
-        variant="outline"
-        size="icon"
-        className="z-10 bg-background absolute right-1 -top-1"
-        onClick={Events.stopPropagation(() => {
-          onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
-        })}
-      >
-        <PlusSquareIcon className="h-3 w-3" />
-      </Button>
-    </Tooltip>
-  );
-
-  const chartMaxRowsWarning = preview.chart_max_rows_errors && (
-    <span className="text-xs text-muted-foreground">
-      Too many rows to render the chart.
-    </span>
-  );
-
-  if (!error && !stats && !chart && !chartMaxRowsWarning) {
-    return <span className="text-xs text-muted-foreground">No data</span>;
-  }
-
-  return (
-    <div className="flex flex-col gap-2 relative">
-      {error}
-      {addDataframeChart}
-      {addSQLChart}
-      {chartMaxRowsWarning}
-      {chart}
-      {stats}
-    </div>
   );
 };

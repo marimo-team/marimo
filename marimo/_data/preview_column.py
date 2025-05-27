@@ -13,7 +13,7 @@ from marimo._data.sql_summaries import (
     get_sql_stats,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import DataColumnPreview
+from marimo._messaging.ops import ColumnPreview, DataColumnPreview
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     TableManager,
@@ -27,28 +27,36 @@ LOGGER = _loggers.marimo_logger()
 CHART_MAX_ROWS = 20_000
 
 
-def get_column_preview_for_dataframe(
-    item: object,
-    request: PreviewDatasetColumnRequest,
-) -> DataColumnPreview | None:
+def get_table_manager(item: object) -> TableManager[Any] | None:
+    try:
+        table = get_table_manager_or_none(item)
+        if table is not None:
+            return table
+    except Exception as e:
+        LOGGER.warning(
+            "Failed to get table manager for item %s",
+            item,
+            exc_info=e,
+        )
+        return None
+
+
+def get_column_preview(
+    table: TableManager[Any],
+    table_name: str,
+    column_name: str,
+) -> ColumnPreview:
     """
     Get a preview of the column in the dataset.
 
     This may return a chart and aggregation stats of the column.
     """
-    column_name = request.column_name
-    table_name = request.table_name
+
     try:
-        table = get_table_manager_or_none(item)
-        if table is None:
-            return None
         if table.get_num_rows(force=True) == 0:
-            return DataColumnPreview(
-                table_name=table_name,
-                column_name=column_name,
+            return ColumnPreview(
                 error="Table is empty",
             )
-
         try:
             stats = table.get_stats(column_name)
         except BaseException as e:
@@ -84,10 +92,15 @@ def get_column_preview_for_dataframe(
         chart_spec = None
         chart_code = None
 
+        # Get the chart for the column
+        chart_max_rows_errors = False
+        chart_spec = None
+        chart_code = None
+
         if error is None:
             try:
                 chart_spec, chart_code, chart_max_rows_errors = (
-                    _get_altair_chart(request, table, stats)
+                    _get_altair_chart(table_name, column_name, table, stats)
                 )
             except Exception as e:
                 error = str(e)
@@ -97,30 +110,53 @@ def get_column_preview_for_dataframe(
                     table_name,
                     exc_info=e,
                 )
+                chart_spec, chart_code = None, None
+                chart_max_rows_errors = False
 
-        return DataColumnPreview(
-            table_name=table_name,
-            column_name=column_name,
+        return ColumnPreview(
             chart_max_rows_errors=chart_max_rows_errors,
             chart_spec=chart_spec,
             chart_code=chart_code,
-            stats=stats,
             error=error,
             missing_packages=missing_packages,
+            stats=stats,
         )
+
     except Exception as e:
         LOGGER.warning(
-            "Failed to get preview for column %s in table %s",
+            "Failed to get column preview for column %s in table %s",
             column_name,
             table_name,
             exc_info=e,
         )
-        return DataColumnPreview(
-            table_name=table_name,
-            column_name=column_name,
-            error=str(e),
-            missing_packages=None,
-        )
+        return ColumnPreview(error=str(e), missing_packages=None)
+
+
+def get_column_preview_for_dataframe(
+    item: object,
+    request: PreviewDatasetColumnRequest,
+) -> DataColumnPreview | None:
+    """
+    Finds the table manager for the item and gets the column preview.
+    """
+    column_name = request.column_name
+    table_name = request.table_name
+
+    table = get_table_manager(item)
+    if table is None:
+        return None
+
+    column_preview = get_column_preview(table, table_name, column_name)
+    return DataColumnPreview(
+        table_name=table_name,
+        column_name=column_name,
+        chart_max_rows_errors=column_preview.chart_max_rows_errors,
+        chart_spec=column_preview.chart_spec,
+        chart_code=column_preview.chart_code,
+        stats=column_preview.stats,
+        error=column_preview.error,
+        missing_packages=column_preview.missing_packages,
+    )
 
 
 def get_column_preview_for_duckdb(
@@ -182,7 +218,8 @@ def get_column_preview_for_duckdb(
 
 
 def _get_altair_chart(
-    request: PreviewDatasetColumnRequest,
+    table_name: str,
+    column_name: str,
     table: TableManager[Any],
     stats: ColumnStats,
 ) -> tuple[Optional[str], Optional[str], bool]:
@@ -192,7 +229,7 @@ def _get_altair_chart(
 
     from altair import MaxRowsError
 
-    (column_type, _external_type) = table.get_field_type(request.column_name)
+    (column_type, _external_type) = table.get_field_type(column_name)
 
     if stats.total == 0:
         return None, None, False
@@ -208,22 +245,20 @@ def _get_altair_chart(
         should_limit_to_10_items = True
 
     chart_builder = get_chart_builder(column_type, should_limit_to_10_items)
-    code = chart_builder.altair_code(
-        request.table_name, request.column_name, simple=True
-    )
+    code = chart_builder.altair_code(table_name, column_name, simple=True)
 
     chart_max_rows_errors = False
 
     try:
         # Filter the data to the column we want
-        column_data = table.select_columns([request.column_name]).data
+        column_data = table.select_columns([column_name]).data
         if isinstance(column_data, nw.LazyFrame):
             column_data = column_data.collect()
 
         chart_spec = _get_chart_spec(
             column_data=column_data,
             column_type=column_type,
-            column_name=request.column_name,
+            column_name=column_name,
             should_limit_to_10_items=should_limit_to_10_items,
         )
     except MaxRowsError:

@@ -192,11 +192,8 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 
             return (
               <TableRow key={columnName} className="group">
-                <TableCell className="flex flex-row items-center gap-1.5">
-                  {Icon && (
-                    <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />
-                  )}
-                  {columnName}
+                <TableCell>
+                  <ColumnName columnName={columnName} Icon={Icon} />
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-row items-center justify-between gap-1">
@@ -322,5 +319,20 @@ const SimpleBanner: React.FC<{
       <Icon className="w-5 h-5" />
       <span>{message}</span>
     </Banner>
+  );
+};
+
+export const ColumnName = ({
+  columnName,
+  Icon,
+}: {
+  columnName: string;
+  Icon: React.FC<React.SVGProps<SVGSVGElement>> | null;
+}) => {
+  return (
+    <div className="flex flex-row items-center gap-1.5">
+      {Icon && <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />}
+      {columnName}
+    </div>
   );
 };

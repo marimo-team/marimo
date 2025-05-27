@@ -23,7 +23,7 @@ import { Table } from "@/components/ui/table";
 import type { DownloadActionProps } from "./download-actions";
 import { cn } from "@/utils/cn";
 import { FilterPills } from "./filter-pills";
-import { useColumnPinning } from "./hooks/useColumnPinning";
+import { useColumnPinning } from "./hooks/use-column-pinning";
 import { renderTableHeader, renderTableBody } from "./renderers";
 import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
@@ -38,6 +38,7 @@ import type { CellStyleState } from "./cell-styling/types";
 import { CopyColumnFeature } from "./copy-column/feature";
 import { FocusRowFeature } from "./focus-row/feature";
 import { getStableRowId } from "./utils";
+import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -79,8 +80,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   onFocusRowChange?: OnChangeFn<number>;
   // Others
   chartsFeatureEnabled?: boolean;
-  toggleRowViewerPanel?: () => void;
-  isRowViewerPanelOpen?: boolean;
+  togglePanel?: (panelType: PanelType) => void;
+  isPanelOpen?: (panelType: PanelType) => boolean;
 }
 
 const DataTableInternal = <TData,>({
@@ -116,8 +117,8 @@ const DataTableInternal = <TData,>({
   freezeColumnsRight,
   toggleDisplayHeader,
   chartsFeatureEnabled,
-  toggleRowViewerPanel,
-  isRowViewerPanelOpen,
+  togglePanel,
+  isPanelOpen,
   onFocusRowChange,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
@@ -229,7 +230,7 @@ const DataTableInternal = <TData,>({
           {renderTableBody(
             table,
             columns,
-            isRowViewerPanelOpen,
+            isPanelOpen ? isPanelOpen("row-viewer") : false,
             getPaginatedRowIndex,
           )}
         </Table>
@@ -248,8 +249,8 @@ const DataTableInternal = <TData,>({
         getRowIds={getRowIds}
         toggleDisplayHeader={toggleDisplayHeader}
         chartsFeatureEnabled={chartsFeatureEnabled}
-        toggleRowViewerPanel={toggleRowViewerPanel}
-        isRowViewerPanelOpen={isRowViewerPanelOpen}
+        togglePanel={togglePanel}
+        isPanelOpen={isPanelOpen}
       />
     </div>
   );

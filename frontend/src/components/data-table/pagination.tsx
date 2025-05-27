@@ -249,3 +249,14 @@ export const PageSelector = ({
 export function prettifyRowCount(rowCount: number): string {
   return `${prettyNumber(rowCount)} ${new PluralWord("row").pluralize(rowCount)}`;
 }
+
+export const prettifyRowColumnCount = (
+  numRows: number | "too_many",
+  totalColumns: number,
+): string => {
+  const rowsLabel =
+    numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows);
+  const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
+
+  return [rowsLabel, columnsLabel].join(", ");
+};

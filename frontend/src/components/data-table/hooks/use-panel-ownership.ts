@@ -5,13 +5,15 @@ import type { CellId } from "@/core/cells/ids";
 import {
   contextAwarePanelOpen,
   contextAwarePanelOwner,
+  contextAwarePanelType,
   isCellAwareAtom,
 } from "@/components/editor/chrome/panels/context-aware-panel/atoms";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import type { PanelType } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
 
 interface PanelOwnershipResult {
-  isPanelOpen: boolean;
-  togglePanel: () => void;
+  isPanelOpen: (panelType: PanelType) => boolean;
+  togglePanel: (panelType: PanelType) => void;
 }
 
 export function usePanelOwnership(
@@ -22,6 +24,7 @@ export function usePanelOwnership(
   const [lastFocusedCellId, setLastFocusedCellId] = useAtom(
     lastFocusedCellIdAtom,
   );
+  const [panelType, setPanelType] = useAtom(contextAwarePanelType);
   const [panelOwner, setPanelOwner] = useAtom(contextAwarePanelOwner);
   const [isContextAwarePanelOpen, setContextAwarePanelOpen] = useAtom(
     contextAwarePanelOpen,
@@ -33,7 +36,10 @@ export function usePanelOwnership(
     isPanelCellAware = false;
   }
 
-  const isPanelOpen = panelOwner === panelId && isContextAwarePanelOpen;
+  const isPanelOpen = (currentPanel: PanelType) =>
+    panelOwner === panelId &&
+    isContextAwarePanelOpen &&
+    currentPanel === panelType;
 
   const thisCellIsFocused = lastFocusedCellId === cellId;
   const currentOwnerIsInThisCell =
@@ -50,8 +56,8 @@ export function usePanelOwnership(
     setPanelOwner(panelId);
   }
 
-  function togglePanel() {
-    if (isPanelOpen) {
+  function togglePanel(panelType: PanelType) {
+    if (isPanelOpen(panelType)) {
       setPanelOwner(null);
       setContextAwarePanelOpen(false);
     } else {
@@ -61,12 +67,13 @@ export function usePanelOwnership(
         setLastFocusedCellId(cellId);
       }
       setContextAwarePanelOpen(true);
+      setPanelType(panelType);
     }
   }
 
   return {
-    isPanelOpen: isPanelOpen,
-    togglePanel: togglePanel,
+    isPanelOpen,
+    togglePanel,
   };
 }
 
