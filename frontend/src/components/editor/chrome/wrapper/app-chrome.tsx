@@ -34,6 +34,7 @@ import { TracingPanel } from "../panels/tracing-panel";
 import { SecretsPanel } from "../panels/secrets-panel";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { handleDragging } from "./utils";
+import { PanelsWrapper } from "./panels";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
@@ -223,7 +224,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden absolute inset-0 print:relative">
+    <PanelsWrapper>
       <PanelGroup
         autoSaveId="marimo:chrome:v1:l2"
         direction={"horizontal"}
@@ -246,6 +247,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <Footer />
         </TooltipProvider>
       </ErrorBoundary>
-    </div>
+    </PanelsWrapper>
   );
 };
