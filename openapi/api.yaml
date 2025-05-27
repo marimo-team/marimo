@@ -13,8 +13,15 @@ components:
           items:
             $ref: '#/components/schemas/SchemaTable'
           type: array
+        variables:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
+          type: array
       required:
       - schema
+      - variables
       type: object
     AiCompletionRequest:
       properties:
@@ -32,6 +39,9 @@ components:
           - sql
           type: string
         prompt:
+          type: string
+        selectedText:
+          nullable: true
           type: string
       required:
       - prompt
@@ -75,38 +85,6 @@ components:
       - title
       - description
       - name
-      type: object
-    AppMetadata:
-      properties:
-        cliArgs:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - type: boolean
-            - type: integer
-            - type: number
-            - items:
-                oneOf:
-                - type: string
-                - type: boolean
-                - type: integer
-                - type: number
-              type: array
-          type: object
-        filename:
-          nullable: true
-          type: string
-        queryParams:
-          additionalProperties:
-            oneOf:
-            - type: string
-            - items:
-                type: string
-              type: array
-          type: object
-      required:
-      - queryParams
-      - cliArgs
       type: object
     Banner:
       properties:
@@ -182,6 +160,9 @@ components:
           $ref: '#/components/schemas/CellOutput'
           nullable: true
         run_id:
+          nullable: true
+          type: string
+        serialization:
           nullable: true
           type: string
         stale_inputs:
@@ -263,7 +244,9 @@ components:
           type: string
         variables:
           items:
-            type: string
+            oneOf:
+            - $ref: '#/components/schemas/VariableContext'
+            - type: string
           nullable: true
           type: array
       required:
@@ -284,7 +267,7 @@ components:
       - document
       - cellId
       type: object
-    ColumnSummary:
+    ColumnStats:
       properties:
         'false':
           nullable: true
@@ -379,6 +362,25 @@ components:
       - source
       - destination
       type: object
+    CreateSecretRequest:
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        provider:
+          enum:
+          - env
+          - dotenv
+          type: string
+        value:
+          type: string
+      required:
+      - key
+      - value
+      - provider
+      - name
+      type: object
     CycleError:
       properties:
         edges_with_vars:
@@ -423,8 +425,8 @@ components:
           enum:
           - data-column-preview
           type: string
-        summary:
-          $ref: '#/components/schemas/ColumnSummary'
+        stats:
+          $ref: '#/components/schemas/ColumnStats'
           nullable: true
         table_name:
           type: string
@@ -535,6 +537,7 @@ components:
           - local
           - duckdb
           - connection
+          - catalog
           type: string
         type:
           enum:
@@ -604,6 +607,7 @@ components:
           - local
           - duckdb
           - connection
+          - catalog
           nullable: true
           type: string
         name:
@@ -642,8 +646,16 @@ components:
       - cells
       - type
       type: object
+    DeleteSecretRequest:
+      properties:
+        key:
+          type: string
+      required:
+      - key
+      type: object
     Error:
       oneOf:
+      - $ref: '#/components/schemas/SetupRootError'
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/ImportStarError'
@@ -687,7 +699,10 @@ components:
       - code
       type: object
     ExecuteStaleRequest:
-      properties: {}
+      properties:
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
       type: object
     ExecutionRequest:
       properties:
@@ -1090,8 +1105,6 @@ components:
       properties:
         app_config:
           properties:
-            _toplevel_fn:
-              type: boolean
             app_title:
               nullable: true
               type: string
@@ -1111,6 +1124,14 @@ components:
             layout_file:
               nullable: true
               type: string
+            sql_output:
+              enum:
+              - polars
+              - lazy-polars
+              - pandas
+              - native
+              - auto
+              type: string
             width:
               enum:
               - normal
@@ -1122,14 +1143,17 @@ components:
           required:
           - width
           - auto_download
-          - _toplevel_fn
+          - sql_output
           type: object
         capabilities:
           properties:
+            pylsp:
+              type: boolean
             terminal:
               type: boolean
           required:
           - terminal
+          - pylsp
           type: object
         cell_ids:
           items:
@@ -1244,6 +1268,22 @@ components:
       required:
       - packages
       type: object
+    ListSecretKeysRequest:
+      properties:
+        requestId:
+          type: string
+      required:
+      - requestId
+      type: object
+    ListSecretKeysResponse:
+      properties:
+        keys:
+          items:
+            $ref: '#/components/schemas/SecretKeysWithProvider'
+          type: array
+      required:
+      - keys
+      type: object
     MIME:
       properties: {}
       type: object
@@ -1289,6 +1329,17 @@ components:
                 api_key:
                   type: string
               type: object
+            bedrock:
+              properties:
+                aws_access_key_id:
+                  type: string
+                aws_secret_access_key:
+                  type: string
+                profile_name:
+                  type: string
+                region_name:
+                  type: string
+              type: object
             google:
               properties:
                 api_key:
@@ -1302,8 +1353,14 @@ components:
                   type: string
                 base_url:
                   type: string
+                ca_bundle_path:
+                  type: string
+                client_pem:
+                  type: string
                 model:
                   type: string
+                ssl_verify:
+                  type: boolean
               type: object
             rules:
               type: string
@@ -1371,11 +1428,17 @@ components:
               type: string
             code_editor_font_size:
               type: integer
+            custom_css:
+              items:
+                type: string
+              type: array
             dataframes:
               enum:
               - rich
               - plain
               type: string
+            default_table_page_size:
+              type: integer
             default_width:
               enum:
               - normal
@@ -1396,6 +1459,7 @@ components:
           - cell_output
           - default_width
           - dataframes
+          - default_table_page_size
           type: object
         experimental:
           additionalProperties: {}
@@ -1417,6 +1481,9 @@ components:
               enum:
               - default
               - vim
+              type: string
+            vimrc:
+              nullable: true
               type: string
           required:
           - preset
@@ -1464,6 +1531,18 @@ components:
               - lazy
               - autorun
               type: string
+            default_sql_output:
+              enum:
+              - polars
+              - lazy-polars
+              - pandas
+              - native
+              - auto
+              type: string
+            dotenv:
+              items:
+                type: string
+              type: array
             on_cell_change:
               enum:
               - lazy
@@ -1475,6 +1554,8 @@ components:
               items:
                 type: string
               type: array
+            reactive_tests:
+              type: boolean
             std_stream_max_bytes:
               type: integer
             watcher_on_save:
@@ -1485,11 +1566,12 @@ components:
           required:
           - auto_instantiate
           - auto_reload
+          - reactive_tests
           - on_cell_change
           - watcher_on_save
           - output_max_bytes
           - std_stream_max_bytes
-          - pythonpath
+          - default_sql_output
           type: object
         save:
           properties:
@@ -1657,19 +1739,8 @@ components:
       - $ref: '#/components/schemas/DataColumnPreview'
       - $ref: '#/components/schemas/SQLTablePreview'
       - $ref: '#/components/schemas/SQLTableListPreview'
-      - properties:
-          connections:
-            items:
-              $ref: '#/components/schemas/DataSourceConnection'
-            type: array
-          name:
-            enum:
-            - data-source-connections
-            type: string
-        required:
-        - connections
-        - name
-        type: object
+      - $ref: '#/components/schemas/DataSourceConnections'
+      - $ref: '#/components/schemas/SecretKeysResult'
       - $ref: '#/components/schemas/FocusCell'
       - $ref: '#/components/schemas/UpdateCellCodes'
       - $ref: '#/components/schemas/UpdateCellIdsRequest'
@@ -1787,6 +1858,23 @@ components:
       required:
       - success
       type: object
+    PdbRequest:
+      properties:
+        cellId:
+          type: string
+        request:
+          $ref: '#/components/schemas/HTTPRequest'
+          nullable: true
+      required:
+      - cellId
+      type: object
+    PreviewDataSourceConnectionRequest:
+      properties:
+        engine:
+          type: string
+      required:
+      - engine
+      type: object
     PreviewDatasetColumnRequest:
       properties:
         columnName:
@@ -1801,6 +1889,7 @@ components:
           - local
           - duckdb
           - connection
+          - catalog
           type: string
         tableName:
           type: string
@@ -1987,16 +2076,6 @@ components:
       - cellIds
       - codes
       type: object
-    RunScratchpadRequest:
-      properties:
-        code:
-          type: string
-        request:
-          $ref: '#/components/schemas/HTTPRequest'
-          nullable: true
-      required:
-      - code
-      type: object
     RunningNotebooksResponse:
       properties:
         files:
@@ -2138,6 +2217,41 @@ components:
       - name
       - columns
       type: object
+    SecretKeysResult:
+      properties:
+        name:
+          enum:
+          - secret-keys-result
+          type: string
+        request_id:
+          type: string
+        secrets:
+          items:
+            $ref: '#/components/schemas/SecretKeysWithProvider'
+          type: array
+      required:
+      - request_id
+      - secrets
+      - name
+      type: object
+    SecretKeysWithProvider:
+      properties:
+        keys:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        provider:
+          enum:
+          - env
+          - dotenv
+          type: string
+      required:
+      - provider
+      - name
+      - keys
+      type: object
     SendUIElementMessage:
       properties:
         buffers:
@@ -2148,14 +2262,17 @@ components:
         message:
           additionalProperties: {}
           type: object
+        model_id:
+          nullable: true
+          type: string
         name:
           enum:
           - send-ui-element-message
           type: string
         ui_element:
+          nullable: true
           type: string
       required:
-      - ui_element
       - message
       - name
       type: object
@@ -2168,6 +2285,36 @@ components:
           type: object
       required:
       - configs
+      type: object
+    SetModelMessageRequest:
+      properties:
+        buffers:
+          items:
+            type: string
+          nullable: true
+          type: array
+        message:
+          properties:
+            bufferPaths:
+              items:
+                items:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                type: array
+              type: array
+            state:
+              additionalProperties: {}
+              type: object
+          required:
+          - state
+          - bufferPaths
+          type: object
+        modelId:
+          type: string
+      required:
+      - modelId
+      - message
       type: object
     SetUIElementValueRequest:
       properties:
@@ -2194,6 +2341,26 @@ components:
           $ref: '#/components/schemas/MarimoConfig'
       required:
       - config
+      type: object
+    SetupRootError:
+      properties:
+        edges_with_vars:
+          items:
+            prefixItems:
+            - type: string
+            - items:
+                type: string
+              type: array
+            - type: string
+            type: array
+          type: array
+        type:
+          enum:
+          - setup-refs
+          type: string
+      required:
+      - edges_with_vars
+      - type
       type: object
     ShutdownSessionRequest:
       properties:
@@ -2314,6 +2481,18 @@ components:
       - objectIds
       - values
       type: object
+    VariableContext:
+      properties:
+        name:
+          type: string
+        previewValue: {}
+        valueType:
+          type: string
+      required:
+      - name
+      - valueType
+      - previewValue
+      type: object
     VariableDeclaration:
       properties:
         declared_by:
@@ -2393,7 +2572,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.11.23
+  version: 0.13.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2470,6 +2649,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Preview a column in a dataset
+  /api/datasources/preview_datasource_connection:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewDataSourceConnectionRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Broadcasts a datasource connection
   /api/datasources/preview_sql_table:
     post:
       requestBody:
@@ -2868,6 +3061,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Interrupt the kernel's execution
+  /api/kernel/pdb/pm:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdbRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Run a post mortem on the most recent failed cell.
   /api/kernel/read_code:
     post:
       responses:
@@ -2966,7 +3173,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunScratchpadRequest'
+              $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
         200:
           content:
@@ -2988,6 +3195,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Set the configuration of a cell
+  /api/kernel/set_model_value:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetModelMessageRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Set model value
   /api/kernel/set_ui_element_value:
     post:
       requestBody:
@@ -3088,6 +3309,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/secrets/create:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSecretRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Create a secret
+  /api/secrets/delete:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+          description: Delete a secret
+  /api/secrets/keys:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListSecretKeysRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSecretKeysResponse'
+          description: List all secret keys
   /api/status:
     get:
       responses:
@@ -3145,6 +3405,35 @@ paths:
                     required:
                     - percent
                     type: object
+                  gpu:
+                    items:
+                      properties:
+                        index:
+                          type: integer
+                        memory:
+                          properties:
+                            free:
+                              type: integer
+                            percent:
+                              type: number
+                            total:
+                              type: integer
+                            used:
+                              type: integer
+                          required:
+                          - total
+                          - used
+                          - free
+                          - percent
+                          type: object
+                        name:
+                          type: string
+                      required:
+                      - index
+                      - memory
+                      - name
+                      type: object
+                    type: array
                   kernel:
                     properties:
                       memory:

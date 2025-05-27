@@ -3,13 +3,14 @@ from __future__ import annotations
 import datetime
 import json
 import unittest
+from math import isnan
 from typing import Any
 from unittest.mock import Mock
 
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
@@ -156,6 +157,9 @@ class TestPandasTableManager(unittest.TestCase):
             manager = self.factory.create()(df)
             return json.loads(manager.to_json().decode("utf-8"))
 
+    def test_to_parquet(self) -> None:
+        assert isinstance(self.manager.to_parquet(), bytes)
+
     def test_to_json(self) -> None:
         expected_json = self.data.to_json(
             orient="records", date_format="iso"
@@ -250,6 +254,21 @@ class TestPandasTableManager(unittest.TestCase):
             {"X": "z", "Y": 3, "a": 3, "b": 6},
         ]
 
+    def test_to_json_multi_index_numeric(self) -> None:
+        # MultiIndex with numeric levels
+        data = pd.DataFrame(
+            {
+                "category": list("abab"),
+                "num_col": [0, 0, 1, 1],
+                "str_col": list("aabb"),
+                "val": [1, 2, 3, 4],
+            }
+        )
+        data_pivoted = data.pivot(
+            index="category", columns=["num_col", "str_col"], values="val"
+        )
+        assert PandasTableManagerFactory.create()(data_pivoted) is not None
+
     @pytest.mark.xfail(reason="Implementation not yet supported")
     def test_to_json_multi_index_unnamed(self) -> None:
         data = pd.DataFrame(
@@ -275,8 +294,8 @@ class TestPandasTableManager(unittest.TestCase):
 
         json_data = self.factory_create_json_from_df(data)
         assert json_data == [
-            {"": "All", "basic_amt x NSW": 1, "basic_amt x QLD": 1},
-            {"": "Full", "basic_amt x NSW": 0, "basic_amt x QLD": 1},
+            {"": "All", "basic_amt,NSW": 1, "basic_amt,QLD": 1},
+            {"": "Full", "basic_amt,NSW": 0, "basic_amt,QLD": 1},
         ]
 
     def test_complex_data_field_types(self) -> None:
@@ -492,8 +511,8 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_summary_integer(self) -> None:
         column = "A"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -512,8 +531,8 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_summary_string(self) -> None:
         column = "B"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -521,8 +540,8 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_summary_number(self) -> None:
         column = "C"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=None,
@@ -541,8 +560,8 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_summary_boolean(self) -> None:
         column = "D"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             true=2,
@@ -551,9 +570,9 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_summary_date(self) -> None:
         column = "E"
-        summary = self.manager.get_summary(column)
+        summary = self.manager.get_stats(column)
 
-        assert summary == ColumnSummary(
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=None,
@@ -572,8 +591,8 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_summary_list(self) -> None:
         column = "F"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
         )
@@ -581,7 +600,7 @@ class TestPandasTableManager(unittest.TestCase):
     def test_summary_does_fail_on_each_column(self) -> None:
         complex_data = self.get_complex_data()
         for column in complex_data.get_column_names():
-            assert complex_data.get_summary(column) is not None
+            assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
@@ -942,7 +961,7 @@ class TestPandasTableManager(unittest.TestCase):
     def test_dataframe_with_all_null_column(self) -> None:
         df = pd.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
         manager = self.factory.create()(df)
-        summary = manager.get_summary("B")
+        summary = manager.get_stats("B")
         assert summary.nulls == 3
         assert summary.total == 3
         assert summary.unique is None
@@ -962,11 +981,23 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame({"A": [3, 1, None, 2]})
         manager = self.factory.create()(df)
         sorted_manager = manager.sort_values("A", descending=True)
-        assert sorted_manager.data["A"].to_list()[1:] == [
+        assert sorted_manager.data["A"].to_list()[:-1] == [
             3.0,
             2.0,
             1.0,
         ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
+
+        # ascending
+        sorted_manager = manager.sort_values("A", descending=False)
+        assert sorted_manager.data["A"].to_list()[:-1] == [
+            1.0,
+            2.0,
+            3.0,
+        ]
+        last = sorted_manager.data["A"][-1]
+        assert last is None or isnan(last)
 
     def test_dataframe_with_multiindex(self) -> None:
         df = pd.DataFrame(
@@ -1015,3 +1046,85 @@ class TestPandasTableManager(unittest.TestCase):
         assert sample_values == [1, 2, 3]
         sample_values = manager.get_sample_values("B")
         assert sample_values == ["a", "b", "c"]
+
+    @pytest.mark.skipif(
+        not DependencyManager.pillow.has(), reason="pillow not installed"
+    )
+    def test_get_field_types_with_pil_images(self):
+        import numpy as np
+        import pandas as pd
+        from PIL import Image
+
+        # Create a simple image
+        img_array = np.zeros((10, 10, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+
+        # Create a dataframe with an image column
+        data = pd.DataFrame(
+            {"image_col": [img, img, img], "text_col": ["a", "b", "c"]}
+        )
+
+        manager = self.factory.create()(data)
+
+        # PIL images should be treated as objects
+        assert manager.get_field_type("image_col") == ("string", "object")
+        assert manager.get_field_type("text_col") == ("string", "object")
+
+        as_json = manager.to_json_str()
+        assert "data:image/png" in as_json
+
+    def test_to_json_bigint(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "A": [
+                    20,
+                    9007199254740992,
+                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+                "B": [
+                    -20,
+                    -9007199254740992,
+                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+            }
+        )
+        manager = self.factory.create()(data)
+        json_data = json.loads(manager.to_json())
+
+        # Regular integers should remain as numbers
+        assert json_data[0]["A"] == 20
+        assert json_data[0]["B"] == -20
+
+        # Large integers should be converted to strings
+        assert json_data[1]["A"] == "9007199254740992"
+        assert json_data[1]["B"] == "-9007199254740992"
+
+    def test_to_json_uuid_encoding(self) -> None:
+        import uuid
+
+        import pandas as pd
+
+        # Create data with UUIDs that might cause UTF-8 encoding issues
+        data = pd.DataFrame(
+            {
+                "id": [
+                    uuid.UUID("00000000-0000-0000-0000-000000000000"),
+                    uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+                    uuid.UUID("123e4567-e89b-12d3-a456-426614174000"),
+                ],
+                "name": ["test1", "test2", "test3"],
+            }
+        )
+        manager = self.factory.create()(data)
+
+        # This should not raise any encoding errors
+        json_data = json.loads(manager.to_json())
+
+        # Verify the data was properly encoded
+        assert len(json_data) == 3
+        assert json_data[0]["id"] == "00000000-0000-0000-0000-000000000000"
+        assert json_data[1]["id"] == "ffffffff-ffff-ffff-ffff-ffffffffffff"
+        assert json_data[2]["id"] == "123e4567-e89b-12d3-a456-426614174000"
+        assert json_data[0]["name"] == "test1"
+        assert json_data[1]["name"] == "test2"
+        assert json_data[2]["name"] == "test3"

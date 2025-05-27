@@ -47,6 +47,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
 import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
+import { ExternalLink } from "../ui/links";
 
 export const PackageAlert: React.FC = () => {
   const { packageAlert } = useAlerts();
@@ -131,14 +132,9 @@ export const PackageAlert: React.FC = () => {
               ) : (
                 <p>
                   If you set up a{" "}
-                  <a
-                    href="https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments"
-                    className="text-accent-foreground hover:underline"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <ExternalLink href="https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments">
                     virtual environment
-                  </a>
+                  </ExternalLink>
                   , marimo can install these packages for you.
                 </p>
               )}

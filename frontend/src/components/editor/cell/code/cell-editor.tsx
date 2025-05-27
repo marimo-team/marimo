@@ -5,7 +5,6 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import React, { memo, useEffect, useRef, useMemo } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import useEvent from "react-use-event-hook";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import type { CellRuntimeState, CellData } from "@/core/cells/types";
@@ -34,9 +33,16 @@ import { useSplitCellCallback } from "../useSplitCell";
 import { invariant } from "@/utils/invariant";
 import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
-import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
+import {
+  connectedDocAtom,
+  realTimeCollaboration,
+} from "@/core/codemirror/rtc/extension";
 import { store } from "@/core/state/jotai";
 import { useDeleteCellCallback } from "../useDeleteCell";
+import { useSaveNotebook } from "@/core/saving/save-component";
+import { DelayMount } from "@/components/utils/delay-mount";
+import { Button } from "@/components/ui/button";
+import { isRtcEnabled } from "@/core/rtc/state";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -66,7 +72,7 @@ export interface CellEditorProps
   // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
-  temporarilyShowCode: () => void;
+  temporarilyShowCode: (opts?: { focus?: boolean }) => void;
 }
 
 const CellEditorInternal = ({
@@ -93,6 +99,7 @@ const CellEditorInternal = ({
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const setLastFocusedCellId = useSetLastFocusedCellId();
   const deleteCell = useDeleteCellCallback();
+  const { saveOrNameNotebook } = useSaveNotebook();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -107,6 +114,14 @@ const CellEditorInternal = ({
     }
 
     deleteCell({ cellId });
+    return true;
+  });
+
+  const handleRunCell = useEvent(() => {
+    if (loading) {
+      return false;
+    }
+    runCell();
     return true;
   });
 
@@ -134,8 +149,9 @@ const CellEditorInternal = ({
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
-        onRun: runCell,
+        onRun: handleRunCell,
         deleteCell: handleDelete,
+        saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
           for (const code of [...cells].reverse()) {
             cellActions.createNewCell({
@@ -186,6 +202,19 @@ const CellEditorInternal = ({
           },
         };
       }),
+      // Listen to selection changes, and show the code if it is hidden
+      EditorView.updateListener.of((update) => {
+        if (update.selectionSet) {
+          const selection = update.state.selection;
+          const hasSelection = selection.ranges.some(
+            (range) => range.from !== range.to,
+          );
+
+          if (hasSelection) {
+            temporarilyShowCode({ focus: false });
+          }
+        }
+      }),
     );
 
     return extensions;
@@ -202,15 +231,18 @@ const CellEditorInternal = ({
     splitCell,
     toggleHideCode,
     handleDelete,
-    runCell,
+    handleRunCell,
     setAiCompletionCell,
     afterToggleMarkdown,
     setLanguageAdapter,
+    temporarilyShowCode,
+    saveOrNameNotebook,
   ]);
 
+  const rtcEnabled = isRtcEnabled();
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -233,13 +265,15 @@ const CellEditorInternal = ({
     });
     setEditorView(ev);
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    }
   });
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(cellId, (code) => {
         // It's not really a formatting change,
         // but this means it won't be marked as stale
@@ -266,7 +300,7 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -277,6 +311,7 @@ const CellEditorInternal = ({
         code,
       );
       extensions.push(rtc.extension);
+      code = rtc.code;
     }
 
     const ev = new EditorView({
@@ -290,7 +325,9 @@ const CellEditorInternal = ({
       ),
     });
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    }
     setEditorView(ev);
     // Clear the serialized state so that we don't re-create the editor next time
     cellActions.clearSerializedEditorState({ cellId });
@@ -328,8 +365,10 @@ const CellEditorInternal = ({
   ]);
 
   // Auto-focus. Should focus newly created editors.
+  // We don't focus if RTC is enabled, since other players will be creating editors
   const shouldFocus =
-    editorViewRef.current === null || serializedEditorState !== null;
+    (editorViewRef.current === null || serializedEditorState !== null) &&
+    !isRtcEnabled();
   useEffect(() => {
     // Perf:
     // We don't pass this in from the props since it causes lots of re-renders for unrelated cells
@@ -458,7 +497,7 @@ const CellCodeMirrorEditor = React.forwardRef(
 
     return (
       <div
-        className={cn("cm", className)}
+        className={cn("cm mathjax_ignore", className)}
         ref={(r) => {
           if (ref) {
             mergeRefs(ref, internalRef)(r);
@@ -481,9 +520,27 @@ function WithWaitUntilConnected<T extends {}>(
 ) {
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
+    const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
-    if (connection.state === WebSocketState.CONNECTING) {
-      return null;
+    if (
+      connection.state === WebSocketState.CONNECTING ||
+      rtcDoc === undefined
+    ) {
+      return (
+        <div className="flex h-full w-full items-baseline p-4">
+          <DelayMount milliseconds={1000} fallback={null}>
+            <span>Waiting for real-time collaboration connection...</span>
+            <Button
+              variant="link"
+              onClick={() => {
+                setRtcDoc("disabled");
+              }}
+            >
+              Turn off real-time collaboration
+            </Button>
+          </DelayMount>
+        </div>
+      );
     }
 
     return <Component {...props} />;
@@ -493,6 +550,6 @@ function WithWaitUntilConnected<T extends {}>(
   return WaitUntilConnectedComponent;
 }
 
-export const CellEditor = getFeatureFlag("rtc_v2")
+export const CellEditor = isRtcEnabled()
   ? WithWaitUntilConnected(memo(CellEditorInternal))
   : memo(CellEditorInternal);

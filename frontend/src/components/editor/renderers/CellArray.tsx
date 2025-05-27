@@ -39,8 +39,8 @@ import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import type { Milliseconds } from "@/utils/time";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import {
@@ -52,6 +52,7 @@ import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Column } from "../columns/cell-column";
 import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
 import type { CellId } from "@/core/cells/ids";
+import { StdinBlockingAlert } from "../stdin-blocking-alert";
 
 interface CellArrayProps {
   mode: AppMode;
@@ -126,6 +127,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       innerClassName="pr-4" // For the floating actions
     >
       <PackageAlert />
+      <StdinBlockingAlert />
       <NotebookBanner width={appConfig.width} />
       <div
         className={cn(
@@ -197,6 +199,7 @@ const CellColumn: React.FC<{
   return (
     <Column
       columnId={column.id}
+      index={index}
       canMoveLeft={index > 0}
       canMoveRight={index < columnsLength - 1}
       width={appConfig.width}
@@ -258,30 +261,17 @@ const CellColumn: React.FC<{
               theme={theme}
               showPlaceholder={hasOnlyOneCell}
               allowFocus={!invisible}
-              id={cellData.id}
-              code={cellData.code}
-              outline={cellRuntime.outline}
-              output={cellRuntime.output}
-              consoleOutputs={cellRuntime.consoleOutputs}
-              status={cellRuntime.status}
-              edited={cellData.edited}
-              interrupted={cellRuntime.interrupted}
-              errored={cellRuntime.errored}
-              stopped={cellRuntime.stopped}
-              staleInputs={cellRuntime.staleInputs}
-              runStartTimestamp={cellRuntime.runStartTimestamp}
-              lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+              {...cellData}
+              {...cellRuntime}
               runElapsedTimeMs={
                 cellRuntime.runElapsedTimeMs ??
                 (cellData.lastExecutionTime as Milliseconds)
               }
-              serializedEditorState={cellData.serializedEditorState}
               canDelete={!hasOnlyOneCell}
               mode={mode}
               appClosed={appClosed}
               ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
-              debuggerActive={cellRuntime.debuggerActive}
               config={cellData.config}
               name={cellData.name}
               isCollapsed={column.isCollapsed(cellId)}
@@ -359,7 +349,7 @@ const AddCellButtons: React.FC<{
             createNewCell({
               cellId: { type: "__end__", columnId },
               before: false,
-              code: new SQLLanguageAdapter().getDefaultCode(),
+              code: new SQLLanguageAdapter().defaultCode,
             });
           }}
         >

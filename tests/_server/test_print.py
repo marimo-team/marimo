@@ -45,21 +45,39 @@ def test_colorized_url() -> None:
 
 def test_get_network_url() -> None:
     """Test the _get_network_url function."""
-    # Test with a simple URL
-    with patch("socket.gethostname") as mock_gethostname:
-        mock_gethostname.return_value = "test-host"
-        with patch("socket.gethostbyname") as mock_gethostbyname:
-            mock_gethostbyname.return_value = "192.168.1.100"
-            result = _get_network_url("http://localhost:8000")
-            assert result == "http://192.168.1.100:8000"
+    # Test with a simple URL using socket connection method
+    with patch("socket.socket") as mock_socket:
+        mock_socket_instance = mock_socket.return_value
+        mock_socket_instance.getsockname.return_value = ("192.168.1.100", 0)
+        result = _get_network_url("http://localhost:8000")
+        assert result == "http://192.168.1.100:8000"
 
-    # Test with socket.gethostbyname raising an exception
-    with patch("socket.gethostname") as mock_gethostname:
-        mock_gethostname.return_value = "test-host"
-        with patch("socket.gethostbyname") as mock_gethostbyname:
-            mock_gethostbyname.side_effect = Exception("Test exception")
-            result = _get_network_url("http://localhost:8000")
-            assert result == "http://test-host:8000"
+    # Test with socket connection failing, falling back to getaddrinfo
+    with patch("socket.socket") as mock_socket:
+        mock_socket.return_value.connect.side_effect = Exception(
+            "Test exception"
+        )
+        with patch("socket.gethostname") as mock_gethostname:
+            mock_gethostname.return_value = "test-host"
+            with patch("socket.getaddrinfo") as mock_getaddrinfo:
+                mock_getaddrinfo.return_value = [
+                    (2, 1, 6, "", ("192.168.1.100", 0)),
+                    (2, 1, 6, "", ("127.0.0.1", 0)),
+                ]
+                result = _get_network_url("http://localhost:8000")
+                assert result == "http://192.168.1.100:8000"
+
+    # Test with both socket and getaddrinfo failing
+    with patch("socket.socket") as mock_socket:
+        mock_socket.return_value.connect.side_effect = Exception(
+            "Test exception"
+        )
+        with patch("socket.gethostname") as mock_gethostname:
+            mock_gethostname.return_value = "test-host"
+            with patch("socket.getaddrinfo") as mock_getaddrinfo:
+                mock_getaddrinfo.side_effect = Exception("Test exception")
+                result = _get_network_url("http://localhost:8000")
+                assert result == "http://test-host:8000"
 
 
 def test_print_startup() -> None:

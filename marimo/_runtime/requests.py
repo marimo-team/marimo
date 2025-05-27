@@ -14,13 +14,15 @@ from typing import (
 )
 from uuid import uuid4
 
+from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
-from marimo._types.ids import CellId_t, RequestId, UIElementId
+from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
 if TYPE_CHECKING:
     from starlette.datastructures import URL
     from starlette.requests import HTTPConnection
+
 
 CompletionRequestId = str
 
@@ -118,6 +120,16 @@ class HTTPRequest(Mapping[str, Any]):
 
 
 @dataclass
+class PdbRequest:
+    cell_id: CellId_t
+    # incoming request, e.g. from Starlette or FastAPI
+    request: Optional[HTTPRequest] = None
+
+    def __repr__(self) -> str:
+        return f"PdbRequest(cell={self.cell_id})"
+
+
+@dataclass
 class ExecutionRequest:
     cell_id: CellId_t
     code: str
@@ -131,7 +143,8 @@ class ExecutionRequest:
 
 
 @dataclass
-class ExecuteStaleRequest: ...
+class ExecuteStaleRequest:
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -170,7 +183,7 @@ class ExecuteMultipleRequest:
 class ExecuteScratchpadRequest:
     code: str
     # incoming request, e.g. from Starlette or FastAPI
-    request: Optional[HTTPRequest]
+    request: Optional[HTTPRequest] = None
 
 
 @dataclass
@@ -233,6 +246,8 @@ class AppMetadata:
 
     query_params: SerializedQueryParams
     cli_args: SerializedCLIArgs
+    app_config: _AppConfig
+    argv: Union[list[str], None] = None
 
     filename: Optional[str] = None
 
@@ -326,20 +341,55 @@ class PreviewSQLTableListRequest:
     schema: str
 
 
+@dataclass
+class PreviewDataSourceConnectionRequest:
+    """Fetch a datasource connection"""
+
+    engine: str
+
+
+@dataclass
+class ListSecretKeysRequest:
+    request_id: RequestId
+
+
+@dataclass
+class ModelMessage:
+    state: dict[str, Any]
+    buffer_paths: list[list[Union[str, int]]]
+
+
+@dataclass
+class SetModelMessageRequest:
+    model_id: WidgetModelId
+    message: ModelMessage
+    buffers: Optional[list[str]] = None
+
+
+@dataclass
+class RefreshSecretsRequest:
+    pass
+
+
 ControlRequest = Union[
+    CreationRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
     ExecuteStaleRequest,
-    CreationRequest,
-    DeleteCellRequest,
     FunctionCallRequest,
+    InstallMissingPackagesRequest,
+    ListSecretKeysRequest,
+    PdbRequest,
+    PreviewDatasetColumnRequest,
+    PreviewSQLTableListRequest,
+    PreviewDataSourceConnectionRequest,
+    PreviewSQLTableRequest,
+    RefreshSecretsRequest,
     RenameRequest,
     SetCellConfigRequest,
-    SetUserConfigRequest,
     SetUIElementValueRequest,
+    SetModelMessageRequest,
+    SetUserConfigRequest,
     StopRequest,
-    InstallMissingPackagesRequest,
-    PreviewDatasetColumnRequest,
-    PreviewSQLTableRequest,
-    PreviewSQLTableListRequest,
 ]

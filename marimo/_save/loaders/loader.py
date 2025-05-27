@@ -1,14 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
-from marimo._runtime.runtime import notebook_dir
 from marimo._runtime.state import State
 from marimo._save.cache import (
     CACHE_PREFIX,
@@ -168,7 +166,7 @@ class Loader(ABC):
         """Load Cache"""
 
     @abstractmethod
-    def save_cache(self, cache: Cache) -> None:
+    def save_cache(self, cache: Cache) -> bool:
         """Save Cache"""
 
 
@@ -179,7 +177,6 @@ class BasePersistenceLoader(Loader):
         self,
         name: str,
         suffix: str,
-        save_path: str | Path | None,
         store: Optional[Store] = None,
     ) -> None:
         super().__init__(name)
@@ -193,37 +190,24 @@ class BasePersistenceLoader(Loader):
                 self.store = DEFAULT_STORE()
 
         self.name = name
-        # Setter takes care of this, not sure why mypy is complaining.
-        self.save_path = save_path  # type: ignore
         self.suffix = suffix
-
-    @property
-    def save_path(self) -> Path:
-        return self._save_path / self.name
-
-    @save_path.setter
-    def save_path(self, save_path: str | Path | None) -> None:
-        if save_path is None and (root := notebook_dir()) is not None:
-            save_path = str(root / "__marimo__" / "cache")
-        elif save_path is None:
-            # This can happen if the notebook file is unnamed.
-            save_path = os.path.join("__marimo__", "cache")
-        self._save_path = Path(save_path)
-        (self._save_path / self.name).mkdir(parents=True, exist_ok=True)
 
     def build_path(self, key: HashKey) -> Path:
         prefix = CACHE_PREFIX.get(key.cache_type, "U_")
-        return self.save_path / f"{prefix}{key.hash}.{self.suffix}"
+        return Path(self.name) / f"{prefix}{key.hash}.{self.suffix}"
 
     def cache_hit(self, key: HashKey) -> bool:
-        return self.store.hit(key, self)
+        return self.store.hit(str(self.build_path(key)))
 
-    def save_cache(self, cache: Cache) -> None:
-        return self.store.put(cache, self)
+    def save_cache(self, cache: Cache) -> bool:
+        blob = self.to_blob(cache)
+        if blob is None:
+            return False
+        return self.store.put(str(self.build_path(cache.key)), blob)
 
     def load_cache(self, key: HashKey) -> Optional[Cache]:
         try:
-            blob: Optional[bytes] = self.store.get(key, self)
+            blob: Optional[bytes] = self.store.get(str(self.build_path(key)))
             if not blob:
                 return None
             return self.restore_cache(key, blob)

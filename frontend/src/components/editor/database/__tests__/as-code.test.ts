@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { type ConnectionLibrary, generateDatabaseCode } from "../as-code";
 import type { DatabaseConnection } from "../schemas";
+import { prefixSecret } from "../secrets";
 
 describe("generateDatabaseCode", () => {
   // Test fixtures
@@ -36,6 +37,12 @@ describe("generateDatabaseCode", () => {
     read_only: true,
   };
 
+  const motherduckConnection: DatabaseConnection = {
+    type: "motherduck",
+    database: "my_db",
+    token: "my_token",
+  };
+
   const snowflakeConnection: DatabaseConnection = {
     type: "snowflake",
     account: "account",
@@ -54,16 +61,209 @@ describe("generateDatabaseCode", () => {
     credentials_json: '{"type": "service_account", "project_id": "test"}',
   };
 
+  const clickhouseConnection: DatabaseConnection = {
+    type: "clickhouse_connect",
+    host: "localhost",
+    port: 8123,
+    username: "user",
+    password: "pass",
+    secure: false,
+  };
+
+  const timeplusConnection: DatabaseConnection = {
+    type: "timeplus",
+    host: "localhost",
+    port: 8123,
+    username: "default",
+    password: "",
+  };
+
+  const chdbConnection: DatabaseConnection = {
+    type: "chdb",
+    database: "file:///path/to/db.chdb",
+    read_only: false,
+  };
+
+  const trinoConnection: DatabaseConnection = {
+    type: "trino",
+    host: "localhost",
+    port: 8080,
+    database: "test",
+    username: "user",
+    password: "pass",
+    async_support: false,
+  };
+
+  const icebergRestConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "REST",
+      uri: "http://localhost:8181",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergSqlConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "SQL",
+      uri: "postgresql://localhost:5432/iceberg",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergHiveConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "Hive",
+      uri: "thrift://localhost:9083",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergGlueConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "Glue",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergDynamoDBConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "DynamoDB",
+      "dynamodb.profile-name": "my_profile",
+      "dynamodb.region": "us-east-1",
+      "dynamodb.access-key-id": "my_access_key_id",
+      "dynamodb.secret-access-key": "my_secret_access_key",
+      "dynamodb.session-token": "my_session_token",
+    },
+  };
+
+  const datafusionConnection: DatabaseConnection = {
+    type: "datafusion",
+    sessionContext: false,
+  };
+
+  const datafusionConnSession: DatabaseConnection = {
+    type: "datafusion",
+    sessionContext: true,
+  };
+
+  const pysparkConnection: DatabaseConnection = {
+    type: "pyspark",
+  };
+
+  const pysparkConnSession: DatabaseConnection = {
+    type: "pyspark",
+    host: "localhost",
+    port: 15_002,
+  };
+
   describe("basic connections", () => {
-    it.each([
+    const testCases: Array<[string, DatabaseConnection, ConnectionLibrary]> = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
       ["postgres with SQLAlchemy", basePostgres, "sqlalchemy"],
       ["mysql with SQLModel", baseMysql, "sqlmodel"],
       ["mysql with SQLAlchemy", baseMysql, "sqlalchemy"],
       ["sqlite", sqliteConnection, "sqlmodel"],
-      ["duckdb", duckdbConnection, "sqlmodel"],
+      ["duckdb", duckdbConnection, "duckdb"],
+      ["motherduck", motherduckConnection, "duckdb"],
       ["snowflake", snowflakeConnection, "sqlmodel"],
       ["bigquery", bigqueryConnection, "sqlmodel"],
+      ["clickhouse", clickhouseConnection, "clickhouse_connect"],
+      ["chdb", chdbConnection, "chdb"],
+      ["timeplus", timeplusConnection, "sqlalchemy"],
+      ["trino", trinoConnection, "sqlmodel"],
+      ["iceberg rest", icebergRestConnection, "pyiceberg"],
+      ["iceberg sql", icebergSqlConnection, "pyiceberg"],
+      ["iceberg hive", icebergHiveConnection, "pyiceberg"],
+      ["iceberg glue", icebergGlueConnection, "pyiceberg"],
+      ["iceberg dynamodb", icebergDynamoDBConnection, "pyiceberg"],
+      ["datafusion", datafusionConnection, "ibis"],
+      ["datafusion with session", datafusionConnSession, "ibis"],
+      ["pyspark", pysparkConnection, "ibis"],
+      ["pyspark with session", pysparkConnSession, "ibis"],
+    ];
+
+    it.each(testCases)("%s", (name, connection, orm) => {
+      expect(generateDatabaseCode(connection, orm)).toMatchSnapshot();
+    });
+  });
+
+  describe("connections with secrets", () => {
+    it.each([
+      [
+        "postgres with password as secret",
+        {
+          ...basePostgres,
+          host: prefixSecret("ENV_HOST"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "mysql with username and password as secrets",
+        {
+          ...baseMysql,
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "sqlalchemy",
+      ],
+      [
+        "snowflake with multiple secrets",
+        {
+          ...snowflakeConnection,
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+          account: prefixSecret("ENV_ACCOUNT"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "bigquery with credentials as secret",
+        {
+          ...bigqueryConnection,
+          project: prefixSecret("ENV_PROJECT"),
+          dataset: prefixSecret("ENV_DATASET"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "clickhouse with all connection details as secrets",
+        {
+          ...clickhouseConnection,
+          host: prefixSecret("ENV_HOST"),
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "clickhouse_connect",
+      ],
+      [
+        "timeplus with all connection details as secrets",
+        {
+          ...timeplusConnection,
+          host: prefixSecret("ENV_HOST"),
+          username: prefixSecret("ENV_USER"),
+          password: prefixSecret("ENV_PASSWORD"),
+        },
+        "sqlalchemy",
+      ],
+      [
+        "motherduck with token as secret",
+        {
+          ...motherduckConnection,
+          token: prefixSecret("ENV_TOKEN"),
+        },
+        "duckdb",
+      ],
     ])("%s", (name, connection, orm) => {
       expect(
         generateDatabaseCode(connection, orm as ConnectionLibrary),
@@ -74,7 +274,7 @@ describe("generateDatabaseCode", () => {
   describe("edge cases", () => {
     const testCases: Array<[string, DatabaseConnection, string]> = [
       [
-        "postgres with special chars SQLModel",
+        "ENV with special chars SQLModel",
         {
           ...basePostgres,
           password: "pass@#$%^&*",
@@ -106,6 +306,24 @@ describe("generateDatabaseCode", () => {
           role: "",
         },
         "sqlmodel",
+      ],
+      [
+        "clickhouse connect with minimal config",
+        {
+          ...clickhouseConnection,
+          port: undefined,
+          password: undefined,
+        },
+        "clickhouse_connect",
+      ],
+      [
+        "timeplus connect with minimal config",
+        {
+          ...timeplusConnection,
+          port: undefined,
+          password: "",
+        },
+        "sqlalchemy",
       ],
       [
         "postgres with unicode",
@@ -204,10 +422,57 @@ describe("generateDatabaseCode", () => {
         {
           ...basePostgres,
           host: "/var/run/postgresql",
-          // @ts-expect-error - Testing invalid input
           port: undefined,
         },
         "sqlmodel",
+      ],
+      [
+        "clickhouse with no port",
+        {
+          ...clickhouseConnection,
+          port: undefined,
+        },
+        "clickhouse_connect",
+      ],
+      [
+        "clickhouse with https",
+        {
+          ...clickhouseConnection,
+          secure: true,
+        },
+        "clickhouse_connect",
+      ],
+      [
+        "timeplus with no port",
+        {
+          ...timeplusConnection,
+          port: undefined,
+        },
+        "sqlalchemy",
+      ],
+      [
+        "chdb with no database",
+        {
+          ...chdbConnection,
+          database: "",
+        },
+        "chdb",
+      ],
+      [
+        "trino with async support",
+        {
+          ...trinoConnection,
+          async_support: true,
+        },
+        "sqlalchemy",
+      ],
+      [
+        "motherduck with special chars in database name",
+        {
+          ...motherduckConnection,
+          database: "test-db.special",
+        },
+        "duckdb",
       ],
     ];
 

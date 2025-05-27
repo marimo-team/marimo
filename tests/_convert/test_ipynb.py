@@ -122,13 +122,62 @@ def test_transform_fixup_multiple_definitions_when_not_encapsulated():
 
 
 def test_transform_add_marimo_import():
+    # mo.md
     sources = [
         "mo.md('# Hello')",
         "print('World')",
-        "mo.sql('SELECT * FROM table')",
     ]
     result = transform_add_marimo_import(sources)
     assert "import marimo as mo" in result
+
+    # mo.sql
+    sources = [
+        "mo.sql('SELECT * FROM table')",
+        "print('World')",
+    ]
+    result = transform_add_marimo_import(sources)
+    assert "import marimo as mo" in result
+
+    # if `import marimo as mo` is already present
+    # it should not be added again
+    existing = sources + ["import marimo as mo"]
+    assert transform_add_marimo_import(existing) == existing
+
+    existing = [
+        # slight support for different import orders
+        # but must use canonical "import marimo as mo" form
+        "import antigravity; import marimo as mo",
+        "mo.md('# Hello')",
+    ]
+    assert transform_add_marimo_import(existing) == existing
+
+
+def test_transform_add_marimo_import_already_imported():
+    sources = [
+        "import marimo as mo",
+        "mo.md('# Hello')",
+        "print('World')",
+    ]
+    result = transform_add_marimo_import(sources)
+    assert result == sources
+
+
+def test_transform_add_marimo_import_already_but_in_comment_or_definition():
+    # Comment
+    sources = [
+        "mo.md('# Hello')",
+        "# import marimo as mo",
+    ]
+    result = transform_add_marimo_import(sources)
+    assert result == sources + ["import marimo as mo"]
+
+    # Definition
+    sources = [
+        "mo.md('# Hello')",
+        "def foo():\n    import marimo as mo",
+    ]
+    result = transform_add_marimo_import(sources)
+    assert result == sources + ["import marimo as mo"]
 
 
 def test_transform_magic_commands():

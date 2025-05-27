@@ -12,6 +12,17 @@ def one(): return
 def two():
     return
 
+# fmt: off
+@app.cell
+def three(
+    ): return
+
+@app.cell
+def four(
+    ):
+    return
+
+# fmt: on
 
 if __name__ == "__main__":
     app.run()

@@ -43,6 +43,7 @@ class ScriptRuntimeContext(RuntimeContext):
 
     def __post_init__(self) -> None:
         self._cli_args: CLIArgs | None = None
+        self._argv = sys.argv
         self._query_params = QueryParams({}, _registry=self.state_registry)
 
     @property
@@ -83,6 +84,11 @@ class ScriptRuntimeContext(RuntimeContext):
         if self._cli_args is None:
             self._cli_args = CLIArgs(args_from_argv())
         return self._cli_args
+
+    @property
+    def argv(self) -> list[str]:
+        """Get the original argv."""
+        return self._argv
 
     @property
     def query_params(self) -> QueryParams:
@@ -143,7 +149,7 @@ def initialize_script_context(
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
-        cache_store=get_store(),
+        cache_store=get_store(filename),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),
@@ -154,5 +160,6 @@ def initialize_script_context(
         children=[],
         parent=None,
         filename=filename,
+        app_config=app.config,
     )
     initialize_context(runtime_context=runtime_context)

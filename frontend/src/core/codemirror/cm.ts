@@ -68,6 +68,7 @@ import { aiExtension } from "@marimo-team/codemirror-ai";
 import { getFeatureFlag } from "../config/feature-flag";
 import type { CodemirrorCellActions } from "./cells/state";
 import { cellConfigExtension } from "./config/extension";
+import { completionKeymap } from "./completion/keymap";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -105,7 +106,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
 
   return [
     // Editor keymaps (vim or defaults) based on user config
-    keymapBundle(keymapConfig),
+    keymapBundle(keymapConfig, hotkeys),
     dndBundle(),
     pasteBundle(),
     jupyterHelpExtension(),
@@ -122,7 +123,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
-    getFeatureFlag("lsp") && diagnosticsConfig?.enabled ? lintGutter() : [],
+    diagnosticsConfig?.enabled ? lintGutter() : [],
     // AI edit inline
     enableAI && getFeatureFlag("inline_ai_tooltip")
       ? aiExtension({
@@ -187,10 +188,11 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     scrollActiveLineIntoView(),
     theme === "dark" ? darkTheme : lightTheme,
 
-    hintTooltip(),
+    hintTooltip(lspConfig),
     copilotBundle(completionConfig),
     foldGutter(),
     closeBrackets(),
+    completionKeymap(),
     // to avoid clash with charDeleteBackward keymap
     Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),

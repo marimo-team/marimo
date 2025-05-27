@@ -58,6 +58,7 @@ function handleTransform(
     case "sort_column":
     case "expand_dict":
     case "explode_columns":
+    case "unique":
       return next;
     default:
       logNever(transform);

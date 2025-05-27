@@ -6,7 +6,7 @@ import modal
 
 app = modal.App(
     image=modal.Image.debian_slim()
-    .pip_install("marimo>=0.9.32", "modal>=0.67.31")
+    .pip_install("marimo>=0.12.8", "modal>=0.73.166")
     .add_local_dir("nbs", remote_path="/root/nbs")
 )
 
@@ -14,7 +14,7 @@ TOKEN = secrets.token_urlsafe(16)
 PORT = 2718
 
 
-@app.function(concurrency_limit=1, timeout=1_500, gpu="t4")
+@app.function(max_containers=1, timeout=1_500, gpu="t4")
 def run_marimo(timeout: int):
     with modal.forward(PORT) as tunnel:
         marimo_process = subprocess.Popen(

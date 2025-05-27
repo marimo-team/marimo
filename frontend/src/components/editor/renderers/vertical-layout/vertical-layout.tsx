@@ -37,7 +37,7 @@ import { useAtomValue } from "jotai";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { KnownQueryParams } from "@/core/constants";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { isErrorMime } from "@/core/mime";
 import { getMarimoShowCode } from "@/core/dom/marimo-tag";
 

@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
+import sys
 from enum import IntEnum
-from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
@@ -14,6 +13,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import (
     Alert,
     Banner,
@@ -37,13 +37,18 @@ from marimo._server.model import (
     SessionMode,
 )
 from marimo._server.router import APIRouter
+from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 
 if TYPE_CHECKING:
-    from pycrdt import Doc, Text, TransactionEvent
+    from loro import DiffEvent
 
 LOGGER = _loggers.marimo_logger()
+
+
+LORO_ALLOWED = sys.version_info >= (3, 11)
+
 
 router = APIRouter()
 
@@ -56,6 +61,9 @@ class WebSocketCodes(IntEnum):
     ALREADY_CONNECTED = 1003
     NORMAL_CLOSE = 1000
     FORBIDDEN = 1008
+
+
+DOC_MANAGER = LoroDocManager()
 
 
 @router.websocket("/ws")
@@ -107,94 +115,25 @@ async def websocket_endpoint(
     ).start()
 
 
-@dataclass
-class YCell:
-    ydoc: Doc[Text]
-    code_text: Text
-    language_text: Text
-    clients: int
-    cleaner: asyncio.Task[None] | None = None
-
-
-# TODO: we should use a more robust key type than the filename
-# since renaming the file will break RTC.
-@dataclass
-class CellIdAndFileKey:
-    cell_id: str
-    file_key: MarimoFileKey
-
-    def __hash__(self) -> int:
-        return hash((self.cell_id, self.file_key))
-
-
-ycells: dict[CellIdAndFileKey, YCell] = {}
-ycell_lock = asyncio.Lock()
-
-
-def put_updates(
-    update_queue: asyncio.Queue[bytes], event: TransactionEvent
-) -> None:
-    update = event.update
-    update_queue.put_nowait(update)
-
-
-async def send_updates(
-    websocket: WebSocket,
-    update_queue: asyncio.Queue[bytes],
-    cell_id: str,
-) -> None:
-    from pycrdt import create_update_message
-
-    try:
-        while True:
-            update = await update_queue.get()
-            message = create_update_message(update)
-            await websocket.send_bytes(message)
-    except Exception as e:
-        LOGGER.warning(
-            f"RTC: Could not send Y update to client for cell with ID {cell_id}: {str(e)}",
-        )
-
-
-async def clean_cell(
-    cell_id_and_file_key: CellIdAndFileKey, timeout: float = 60
-) -> None:
-    try:
-        await asyncio.sleep(timeout)
-        async with ycell_lock:
-            if cell_id_and_file_key in ycells:
-                ycell = ycells[cell_id_and_file_key]
-                # Double-check client count before removing
-                if not ycell.clients:
-                    LOGGER.debug(
-                        f"RTC: Removing cell {cell_id_and_file_key.cell_id} as it has no clients"
-                    )
-                    # Store the YDoc state before removing it
-                    # This could be used to restore state for quick reconnects if needed
-                    del ycells[cell_id_and_file_key]
-            else:
-                LOGGER.warning(
-                    f"RTC: Cell {cell_id_and_file_key.cell_id} not found in ycells dict during cleanup"
-                )
-    except asyncio.CancelledError:
-        # Task was cancelled due to client reconnection
-        LOGGER.debug(
-            f"RTC: clean_cell task cancelled for cell {cell_id_and_file_key.cell_id} - likely due to reconnection"
-        )
-        pass
-
-
-@router.websocket("/ws/{cell_id}")
-async def ycell_provider(
+# WebSocket endpoint for LoroDoc synchronization
+@router.websocket("/ws_sync")
+async def ws_sync(
     websocket: WebSocket,
 ) -> None:
-    from pycrdt import (
-        Doc,
-        Text,
-        YMessageType,
-        create_sync_message,
-        handle_sync_message,
-    )
+    """
+    Websocket endpoint for LoroDoc synchronization
+    """
+    if not (LORO_ALLOWED and DependencyManager.loro.has()):
+        if not LORO_ALLOWED:
+            LOGGER.warning("RTC: Python version is not supported")
+        else:
+            LOGGER.warning("RTC: Loro is not installed, closing websocket")
+        await websocket.close(
+            WebSocketCodes.NORMAL_CLOSE, "MARIMO_LORO_NOT_INSTALLED"
+        )
+        return
+
+    from loro import ExportMode
 
     app_state = AppState(websocket)
     file_key: Optional[MarimoFileKey] = (
@@ -217,70 +156,67 @@ async def ycell_provider(
         )
         await websocket.close(WebSocketCodes.FORBIDDEN, "MARIMO_NOT_ALLOWED")
         return
+
     await websocket.accept()
-    cell_id = CellId_t(websocket.path_params["cell_id"])
-    key = CellIdAndFileKey(cell_id, file_key)
-    async with ycell_lock:
-        if key in ycells:
-            ycell = ycells[key]
-            ydoc = ycell.ydoc
-            ycell.clients += 1
-            if ycell.cleaner is not None:
-                LOGGER.debug(
-                    f"RTC: Cancelling existing cleaner for cell {cell_id}"
-                )
-                ycell.cleaner.cancel()
-                ycell.cleaner = None
-        else:
-            code = ""
-            LOGGER.debug(
-                f"RTC: Creating new ydoc for new cell {cell_id} with empty code"
+
+    # Get or create the LoroDoc and add the client to it
+    LOGGER.debug("RTC: getting document")
+    update_queue = asyncio.Queue[bytes]()
+    doc = await DOC_MANAGER.get_or_create_doc(file_key)
+    DOC_MANAGER.add_client_to_doc(file_key, update_queue)
+
+    # Send initial sync
+    # Use shallow snapshot for fewer bytes
+    LOGGER.debug("RTC: sending initial sync")
+    init_sync_msg = doc.export(
+        ExportMode.ShallowSnapshot(frontiers=doc.state_frontiers)
+    )
+    await websocket.send_bytes(init_sync_msg)
+    LOGGER.debug("RTC: initial sync sent")
+
+    def handle_doc_update(event: DiffEvent) -> None:
+        LOGGER.debug("RTC: doc updated", event)
+
+    # Create an async task to send updates to the client
+    async def send_updates() -> None:
+        try:
+            while True:
+                update = await update_queue.get()
+                await websocket.send_bytes(update)
+        except Exception as e:
+            LOGGER.warning(
+                f"RTC: Could not send loro update to client for file {file_key}: {str(e)}",
             )
-            ydoc = Doc[Text]()
-            ytext = ydoc.get("code", type=Text)
-            ylang = ydoc.get("language", type=Text)
-            ytext += code
-            ycell = YCell(
-                ydoc=ydoc, code_text=ytext, language_text=ylang, clients=1
-            )
-            ycells[key] = ycell
-    update_queue: asyncio.Queue[bytes] = asyncio.Queue()
-    task = asyncio.create_task(send_updates(websocket, update_queue, cell_id))
-    subscription = ydoc.observe(partial(put_updates, update_queue))
-    sync_message = create_sync_message(ydoc)
+
+    # Subscribe to LoroDoc updates
+    subscription = doc.subscribe_root(handle_doc_update)
+    send_task = asyncio.create_task(send_updates())
+
     try:
-        await websocket.send_bytes(sync_message)
+        # Listen for updates from the client
         while True:
             message = await websocket.receive_bytes()
-            message_type = message[0]
-            if message_type == YMessageType.SYNC:
-                reply = handle_sync_message(message[1:], ydoc)
-                if reply is not None:
-                    await websocket.send_bytes(reply)
+            await DOC_MANAGER.broadcast_update(file_key, message, update_queue)
+            # Check if the message is an awareness update
+            if message.startswith(b"awareness:"):
+                LOGGER.debug("RTC: received awareness update")
+            else:
+                # Apply the update to the LoroDoc
+                doc.import_(message)
     except WebSocketDisconnect:
+        LOGGER.debug("RTC: WebSocket disconnected")
         # Normal disconnection
         pass
     except Exception as e:
         LOGGER.warning(
-            f"RTC: Exception in websocket loop for cell {cell_id}: {str(e)}"
+            f"RTC: Exception in websocket loop for file {file_key}: {str(e)}"
         )
-        pass
     finally:
-        # Cleanup cell resources
-        # Start the cleanup task timer
-        task.cancel()
-        ydoc.unobserve(subscription)
-        async with ycell_lock:
-            ycell.clients -= 1
-            if not ycell.clients:
-                if ycell.cleaner is not None:
-                    LOGGER.warning(
-                        f"RTC: Cancelling existing cleaner for cell {cell_id}"
-                    )
-                    ycell.cleaner.cancel()
-                    ycell.cleaner = None
-                # Timeout of 60 seconds to allow for client reconnection
-                ycell.cleaner = asyncio.create_task(clean_cell(key, 60.0))
+        LOGGER.debug("RTC: Cleaning up resources")
+        # Cleanup resources
+        send_task.cancel()
+        subscription.unsubscribe()
+        await DOC_MANAGER.remove_client(file_key, update_queue)
 
 
 KIOSK_ONLY_OPERATIONS = {
@@ -363,6 +299,19 @@ class WebsocketHandler(SessionConsumer):
                     )
                 )
             )
+
+            # If RTC is enabled, initialize the LoroDoc with cell code
+            if self.rtc_enabled and self.mode == SessionMode.EDIT:
+                if not (LORO_ALLOWED and DependencyManager.loro.has()):
+                    LOGGER.warning(
+                        "RTC: Loro is not installed, disabling real-time collaboration"
+                    )
+                    self.rtc_enabled = False
+                else:
+                    asyncio.create_task(
+                        DOC_MANAGER.create_doc(self.file_key, cell_ids, codes)
+                    )
+
         else:
             codes, names, configs, cell_ids = tuple(
                 zip(
@@ -781,11 +730,11 @@ class WebsocketHandler(SessionConsumer):
             # so we can just store this in memory.
             # We still want to check for updates (which are debounced 24 hours)
             # but don't keep toasting.
-            global HAS_TOASTED
-            if HAS_TOASTED:
+            global has_toasted
+            if has_toasted:
                 return
 
-            HAS_TOASTED = True
+            has_toasted = True
 
             title = f"Update available {current_version} → {latest_version}"
             release_url = "https://github.com/marimo-team/marimo/releases"
@@ -814,4 +763,4 @@ class WebsocketHandler(SessionConsumer):
         self._replay_previous_session(session)
 
 
-HAS_TOASTED = False
+has_toasted = False

@@ -1,17 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
+import json
+from collections import defaultdict
 from collections.abc import Sequence
-from typing import (
-    Any,
-    Optional,
-    Union,
-    cast,
-)
+from typing import Any, Optional, Union, cast
 
-from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._data.models import ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
+from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -40,6 +39,10 @@ JsonTableData = Union[
     dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
     dict[str, JSONType],
 ]
+
+# For non-column-oriented data, we use "key" and "value" as the column names
+KEY = "key"
+VALUE = "value"
 
 
 class DefaultTableManager(TableManager[JsonTableData]):
@@ -84,25 +87,30 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def supports_filters(self) -> bool:
         return False
 
-    def to_data(
+    def to_csv_str(
         self, format_mapping: Optional[FormatMapping] = None
-    ) -> JSONType:
-        return self._normalize_data(self.apply_formatting(format_mapping).data)
-
-    def to_csv(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
-        if isinstance(self.data, dict) and not self.is_column_oriented:
-            return DefaultTableManager(self._normalize_data(self.data)).to_csv(
-                format_mapping
-            )
-
-        return self._as_table_manager().to_csv(format_mapping)
-
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
+    ) -> str:
         if isinstance(self.data, dict) and not self.is_column_oriented:
             return DefaultTableManager(
                 self._normalize_data(self.data)
-            ).to_json(format_mapping)
-        return self._as_table_manager().to_json(format_mapping)
+            ).to_csv_str(format_mapping)
+
+        return self._as_table_manager().to_csv_str(format_mapping)
+
+    def to_json_str(
+        self, format_mapping: Optional[FormatMapping] = None
+    ) -> str:
+        return json.dumps(
+            self._normalize_data(self.apply_formatting(format_mapping).data),
+            cls=WebComponentEncoder,
+        )
+
+    def to_parquet(self) -> bytes:
+        if isinstance(self.data, dict) and not self.is_column_oriented:
+            return DefaultTableManager(
+                self._normalize_data(self.data)
+            ).to_parquet()
+        return self._as_table_manager().to_parquet()
 
     def select_rows(self, indices: list[int]) -> DefaultTableManager:
         if isinstance(self.data, dict):
@@ -139,6 +147,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
 
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
+        if not cells:
+            return []
+
         selected_cells: list[TableCell] = []
         if (
             self.is_column_oriented
@@ -181,6 +192,10 @@ class DefaultTableManager(TableManager[JsonTableData]):
                             column=column_name,
                             value=row[column_name],
                         )
+                    )
+                elif not isinstance(row, list) and column_name == "value":
+                    selected_cells.append(
+                        TableCell(row=row_id, column=column_name, value=row)
                     )
 
         return selected_cells
@@ -244,6 +259,41 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def get_row_headers(self) -> list[str]:
         return []
 
+    @functools.lru_cache(maxsize=5)  # noqa: B019
+    def calculate_top_k_rows(
+        self, column: ColumnName, k: int
+    ) -> list[tuple[Any, int]]:
+        column_names = self.get_column_names()
+        if column not in column_names:
+            raise ValueError(f"Column {column} not found in table.")
+
+        grouped: dict[str, int] = defaultdict(int)
+        if isinstance(self.data, dict):
+            if self.is_column_oriented:
+                # Handle column-oriented data
+                for value in cast(list[Any], self.data[column]):
+                    grouped[value] += 1
+            else:
+                # In this case, the data is a dict of key-value pairs
+                # where the key is the row identifier and the value is the data
+                for key, value in self.data.items():
+                    if column == KEY:
+                        grouped[key] += 1
+                    elif column == VALUE:
+                        grouped[value] += 1
+        else:
+            # Handle row-oriented data
+            for row in self.data:
+                if isinstance(row, dict) and column in row:
+                    grouped[row[column]] += 1
+
+        sorted_grouped = sorted(
+            grouped.items(), key=lambda x: x[1], reverse=True
+        )
+        top_k = sorted_grouped[:k]
+
+        return [(value, count) for value, count in top_k]
+
     def get_field_type(
         self, column_name: str
     ) -> tuple[FieldType, ExternalDataType]:
@@ -274,9 +324,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         raise ValueError("No supported table libraries found.")
 
-    def get_summary(self, column: str) -> ColumnSummary:
+    def get_stats(self, column: str) -> ColumnStats:
         del column
-        return ColumnSummary()
+        return ColumnStats()
 
     def get_num_rows(self, force: bool = True) -> int:
         del force
@@ -293,6 +343,8 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def get_column_names(self) -> list[str]:
         if isinstance(self.data, dict):
+            if not self.is_column_oriented:
+                return [KEY, VALUE]
             return list(self.data.keys())
         first = next(iter(self.data), None)
         return list(first.keys()) if isinstance(first, dict) else ["value"]
@@ -319,9 +371,27 @@ class DefaultTableManager(TableManager[JsonTableData]):
                 )
             except TypeError:
                 # Handle when values are not comparable
+                def sort_func_str(i: int) -> tuple[bool, str] | str:
+                    # For ascending, generate a tuple of (is_none, value)
+                    # (True, None) will be for None values
+                    # (False, x) will be for other values.
+                    # As False < True, None values will be sorted to the end.
+
+                    # For descending, (is_not_none, value) tuple
+                    # (False, None) will be for None values.
+                    # (True, x) will be for other values.
+                    # As True > False, other values come before None values
+                    if descending:
+                        return (
+                            sort_column[i] is not None,
+                            str(sort_column[i]),
+                        )
+                    else:
+                        return str(sort_column[i])
+
                 sorted_indices = sorted(
                     range(len(sort_column)),
-                    key=lambda i: str(sort_column[i]),
+                    key=sort_func_str,
                     reverse=descending,
                 )
             # Apply sorted indices to each column while maintaining column orientation
@@ -340,11 +410,20 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # For row-major data, continue with existing logic
         normalized = self._normalize_data(self.data)
         try:
-            data = sorted(normalized, key=lambda x: x[by], reverse=descending)
+
+            def sort_func_col(x: dict[str, Any]) -> tuple[bool, Any]:
+                is_none = x[by] is not None if descending else x[by] is None
+                return (is_none, x[by])
+
+            data = sorted(normalized, key=sort_func_col, reverse=descending)
         except TypeError:
             # Handle when all values are not comparable
+            def sort_func_col_str(x: dict[str, Any]) -> tuple[bool, str]:
+                is_none = x[by] is not None if descending else x[by] is None
+                return (is_none, str(x[by]))
+
             data = sorted(
-                normalized, key=lambda x: str(x[by]), reverse=descending
+                normalized, key=sort_func_col_str, reverse=descending
             )
         return DefaultTableManager(data)
 
@@ -370,9 +449,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         # If its a dictionary, convert to key-value pairs
         if isinstance(data, dict):
-            return [
-                {"key": key, "value": value} for key, value in data.items()
-            ]
+            return [{KEY: key, VALUE: value} for key, value in data.items()]
 
         # Assert that data is a list
         if not isinstance(data, (list, tuple)):

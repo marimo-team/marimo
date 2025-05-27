@@ -109,6 +109,109 @@ def test_graph_closure_predicate() -> None:
     ) == set(["0", "2"])
 
 
+def test_graph_closure_inclusive() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    code = "z = y"
+    third_cell = parse_cell(code)
+    graph.register_cell("2", third_cell)
+
+    # 0 --> 1 --> 2
+    assert graph.cells == {"0": first_cell, "1": second_cell, "2": third_cell}
+    assert graph.parents == {"0": set(), "1": set(["0"]), "2": set(["1"])}
+    assert graph.children == {"0": set(["1"]), "1": set(["2"]), "2": set()}
+
+    # Test inclusive=True (default)
+    assert dataflow.transitive_closure(graph, cell_ids=set(["1"])) == set(
+        ["1", "2"]
+    )
+
+    # Test inclusive=False
+    assert dataflow.transitive_closure(
+        graph, cell_ids=set(["1"]), inclusive=False
+    ) == set(["2"])
+
+    # Test with multiple starting cells
+    assert dataflow.transitive_closure(graph, cell_ids=set(["0", "1"])) == set(
+        ["0", "1", "2"]
+    )
+
+    # Test ancestors (children=False)
+    assert dataflow.transitive_closure(
+        graph, cell_ids=set(["2"]), children=False
+    ) == set(["0", "1", "2"])
+
+    # Test ancestors with inclusive=False
+    assert dataflow.transitive_closure(
+        graph, cell_ids=set(["2"]), children=False, inclusive=False
+    ) == set(["0", "1"])
+
+
+def test_graph_closure_predicate_with_inclusive_false() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    code = "y = x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+
+    code = "z = y"
+    third_cell = parse_cell(code)
+    graph.register_cell("2", third_cell)
+
+    result = dataflow.transitive_closure(
+        graph, cell_ids=set(["0"]), inclusive=False
+    )
+    assert result == set(["1", "2"])
+
+    result = dataflow.transitive_closure(
+        graph, cell_ids=set(["1"]), inclusive=False
+    )
+    assert result == set(["2"])
+
+    result = dataflow.transitive_closure(
+        graph, cell_ids=set(["0", "1"]), inclusive=False
+    )
+    assert result == set(["2"])
+
+    result = dataflow.transitive_closure(
+        graph, cell_ids=set(["0", "1", "2"]), inclusive=False
+    )
+    assert result == set()
+
+
+def test_graph_closure_empty() -> None:
+    graph = dataflow.DirectedGraph()
+
+    # Test with empty graph
+    assert dataflow.transitive_closure(graph, cell_ids=set()) == set()
+
+    # Add a single cell with no connections
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    # Test with single cell, no connections
+    assert dataflow.transitive_closure(graph, cell_ids=set(["0"])) == set(
+        ["0"]
+    )
+    assert (
+        dataflow.transitive_closure(
+            graph, cell_ids=set(["0"]), inclusive=False
+        )
+        == set()
+    )
+
+
 def test_graph_redefine() -> None:
     graph = dataflow.DirectedGraph()
     code = "x = 0"

@@ -22,11 +22,12 @@
       "a11y": {
         "noAutofocus": "off",
         "noSvgWithoutTitle": "info",
+        "noBlankTarget": "off",
         "useButtonType": "info",
         "useIframeTitle": "info",
         "useKeyWithClickEvents": "off",
         "useGenericFontNames": "off",
-        "useSemanticElements": "warn",
+        "useSemanticElements": "off",
         "useMediaCaption": "info"
       },
       "complexity": {

@@ -40,6 +40,22 @@ describe("cell reducer", () => {
     expect(state).toEqual(variables);
   });
 
+  it("should clear variables", () => {
+    const x = {
+      name: Names.x,
+      declaredBy: [CellIds.a],
+      usedBy: [CellIds.b],
+    };
+    const variables: Variables = {
+      [Names.x]: x,
+    };
+    actions.setVariables([x]);
+    expect(state).toEqual(variables);
+
+    actions.setVariables([]);
+    expect(state).toEqual({});
+  });
+
   it("should add variables", () => {
     const x = {
       name: Names.x,

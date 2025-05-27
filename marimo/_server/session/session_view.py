@@ -13,6 +13,7 @@ from marimo._messaging.ops import (
     DataSourceConnections,
     Interrupted,
     MessageOperation,
+    SendUIElementMessage,
     UpdateCellCodes,
     UpdateCellIdsRequest,
     Variables,
@@ -26,8 +27,8 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._sql.engines import INTERNAL_DUCKDB_ENGINE
-from marimo._types.ids import CellId_t
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
+from marimo._types.ids import CellId_t, WidgetModelId
 from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -82,6 +83,10 @@ class SessionView:
         self.last_execution_time: dict[CellId_t, float] = {}
         # Any stale code that was read from a file-watcher
         self.stale_code: Optional[UpdateCellCodes] = None
+        # Model messages
+        self.model_messages: dict[
+            WidgetModelId, list[SendUIElementMessage]
+        ] = {}
 
         # Auto-saving
         self.auto_export_state = AutoExportState()
@@ -185,7 +190,7 @@ class SessionView:
             self.datasets = Datasets(tables=list(next_tables.values()))
 
             # Remove any data source connections that are no longer in scope.
-            # Keep the default duckdb connection if it exists
+            # Keep internal connections if they exist as these are not defined in variables
             next_connections: dict[str, DataSourceConnection] = {}
             for connection in self.data_connectors.connections:
                 if (
@@ -239,6 +244,14 @@ class SessionView:
             isinstance(operation, UpdateCellCodes) and operation.code_is_stale
         ):
             self.stale_code = operation
+
+        elif isinstance(operation, SendUIElementMessage):
+            if operation.model_id is None:
+                return
+            messages = self.model_messages.get(operation.model_id, [])
+            messages.append(operation)
+            # TODO: cleanup/merge previous 'update' messages
+            self.model_messages[operation.model_id] = messages
 
     def get_cell_outputs(
         self, ids: list[CellId_t]
@@ -298,6 +311,9 @@ class SessionView:
         all_ops.extend(self.cell_operations.values())
         if self.stale_code:
             all_ops.append(self.stale_code)
+        if self.model_messages:
+            for messages in self.model_messages.values():
+                all_ops.extend(messages)
         return all_ops
 
     def mark_auto_export_html(self) -> None:

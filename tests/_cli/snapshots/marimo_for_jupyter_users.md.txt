@@ -1,6 +1,8 @@
 ---
 title: marimo for Jupyter users
 marimo-version: 0.0.0
+header: |-
+  # Copyright 2024 Marimo. All rights reserved.
 ---
 
 # marimo for Jupyter users
@@ -69,19 +71,25 @@ reactive execution model: interactions automatically trigger execution of
 cells that refer to them.
 
 In contrast, Jupyter's lack of reactivity makes IPyWidgets difficult to use.
-<!---->
-## Shareable as apps
 
-marimo notebooks can be shared as read-only web apps: just serve it with
+````python {.marimo hide_code="true"}
+mo.md(
+    r"""
+    ## Shareable as apps
 
-```marimo run your_notebook.py```
+    marimo notebooks can be shared as read-only web apps: just serve it with
 
-at the command-line.
+    ```marimo run your_notebook.py```
 
-Not every marimo notebook needs to be shared as an app, but marimo makes it
-seamless to do so if you want to. In this way, marimo works as a replacement
-for both Jupyter and Streamlit.
-<!---->
+    at the command-line.
+
+    Not every marimo notebook needs to be shared as an app, but marimo makes it
+    seamless to do so if you want to. In this way, marimo works as a replacement
+    for both Jupyter and Streamlit.
+    """
+)
+````
+
 ## Cell order
 
 In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)

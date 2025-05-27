@@ -2,19 +2,7 @@
 "use no memo";
 
 import type { Column } from "@tanstack/react-table";
-import {
-  ChevronsUpDown,
-  ArrowDownNarrowWideIcon,
-  ArrowDownWideNarrowIcon,
-  CopyIcon,
-  FilterIcon,
-  FilterX,
-  MinusIcon,
-  SearchIcon,
-  WrapTextIcon,
-  AlignJustifyIcon,
-  PinOffIcon,
-} from "lucide-react";
+import { FilterIcon, MinusIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import {
@@ -29,241 +17,114 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { NumberField } from "../ui/number-field";
 import { Input } from "../ui/input";
 import { type ColumnFilterForType, Filter } from "./filters";
 import { logNever } from "@/utils/assertNever";
-import type { DataType } from "@/core/kernel/messages";
-import { formatOptions } from "./column-formatting/types";
-import { DATA_TYPE_ICON } from "../datasets/icons";
-import { formattingExample } from "./column-formatting/feature";
-import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
-import { NAMELESS_COLUMN_PREFIX } from "./columns";
-import { copyToClipboard } from "@/utils/copy";
+import {
+  renderColumnPinning,
+  renderColumnWrapping,
+  renderCopyColumn,
+  renderDataType,
+  renderFormatOptions,
+  renderSortFilterIcon,
+  renderSorts,
+  FilterButtons,
+  ClearFilterMenuItem,
+  renderFilterByValues,
+} from "./header-items";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { Spinner } from "../icons/spinner";
+import { PopoverClose } from "../ui/popover";
+import { Logger } from "@/utils/Logger";
+import { Checkbox } from "../ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../ui/command";
+import { DraggablePopover } from "../ui/draggable-popover";
+import { renderUnknownValue } from "./renderers";
+
+const TOP_K_ROWS = 30;
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   header: React.ReactNode;
+  calculateTopKRows?: CalculateTopKRows;
 }
 
 export const DataTableColumnHeader = <TData, TValue>({
   column,
   header,
   className,
+  calculateTopKRows,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
+  const [isFilterValueOpen, setIsFilterValueOpen] = useState(false);
+
+  // No header
   if (!header) {
     return null;
   }
 
+  // No sorting or filtering
   if (!column.getCanSort() && !column.getCanFilter()) {
     return <div className={cn(className)}>{header}</div>;
   }
 
-  const AscIcon = ArrowDownNarrowWideIcon;
-  const DescIcon = ArrowDownWideNarrowIcon;
-
-  const renderSorts = () => {
-    if (!column.getCanSort()) {
-      return null;
-    }
-    return (
-      <>
-        <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-          <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Asc
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-          <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Desc
-        </DropdownMenuItem>
-        {column.getIsSorted() && (
-          <DropdownMenuItem onClick={() => column.clearSorting()}>
-            <ChevronsUpDown className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-            Clear sort
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-      </>
-    );
-  };
-
-  const renderColumnWrapping = () => {
-    if (!column.getCanWrap?.() || !column.getColumnWrapping) {
-      return null;
-    }
-
-    const wrap = column.getColumnWrapping();
-    if (wrap === "wrap") {
-      return (
-        <DropdownMenuItem
-          onClick={() => column.toggleColumnWrapping("nowrap")}
-          className="flex items-center"
-        >
-          <AlignJustifyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          No wrap text
-        </DropdownMenuItem>
-      );
-    }
-
-    return (
-      <DropdownMenuItem
-        onClick={() => column.toggleColumnWrapping("wrap")}
-        className="flex items-center"
-      >
-        <WrapTextIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-        Wrap text
-      </DropdownMenuItem>
-    );
-  };
-
-  const renderColumnPinning = () => {
-    if (!column.getCanPin?.() || !column.getIsPinned) {
-      return null;
-    }
-
-    const pinnedPosition = column.getIsPinned();
-
-    if (pinnedPosition !== false) {
-      return (
-        <DropdownMenuItem
-          onClick={() => column.pin(false)}
-          className="flex items-center"
-        >
-          <PinOffIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Unfreeze
-        </DropdownMenuItem>
-      );
-    }
-
-    return (
-      <>
-        <DropdownMenuItem
-          onClick={() => column.pin("left")}
-          className="flex items-center"
-        >
-          <PinLeftIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Freeze left
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => column.pin("right")}
-          className="flex items-center"
-        >
-          <PinRightIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Freeze right
-        </DropdownMenuItem>
-      </>
-    );
-  };
-
-  const dtype: string | undefined = column.columnDef.meta?.dtype;
-  const dataType: DataType | undefined = column.columnDef.meta?.dataType;
-  const columnFormatOptions = dataType ? formatOptions[dataType] : [];
-
-  const renderFormatOptions = () => {
-    if (columnFormatOptions.length === 0 || !column.getCanFormat?.()) {
-      return null;
-    }
-    const FormatIcon = DATA_TYPE_ICON[dataType || "unknown"];
-    const currentFormat = column.getColumnFormatting?.();
-    return (
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <FormatIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-          Format
-        </DropdownMenuSubTrigger>
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent>
-            {Boolean(currentFormat) && (
-              <>
-                <DropdownMenuItem
-                  key={"clear"}
-                  variant={"danger"}
-                  onClick={() => column.setColumnFormatting(undefined)}
-                >
-                  Clear
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            {columnFormatOptions.map((option) => (
-              <DropdownMenuItem
-                key={option}
-                onClick={() => column.setColumnFormatting(option)}
-              >
-                <span
-                  className={cn(currentFormat === option && "font-semibold")}
-                >
-                  {option}
-                </span>
-                <span className="ml-auto pl-5 text-xs text-muted-foreground">
-                  {formattingExample(option)}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    );
-  };
+  const hasFilter = column.getFilterValue() !== undefined;
+  const hideIcon = !column.getIsSorted() && !hasFilter;
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>
-        <div
-          className={cn(
-            "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-1 -mx-1",
-            className,
-          )}
-          data-testid="data-table-sort-button"
-        >
-          <span className="flex-1">{header}</span>
-          <span
+    <>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild={true}>
+          <div
             className={cn(
-              "h-5 py-1 px-1",
-              !column.getIsSorted() &&
-                "invisible group-hover:visible data-[state=open]:visible",
+              "group flex items-center my-1 space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-1 -mx-1",
+              className,
             )}
+            data-testid="data-table-sort-button"
           >
-            {column.getIsSorted() === "desc" ? (
-              <DescIcon className="h-3 w-3" />
-            ) : column.getIsSorted() === "asc" ? (
-              <AscIcon className="h-3 w-3" />
-            ) : (
-              <ChevronsUpDown className="h-3 w-3" />
-            )}
-          </span>
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {dtype && (
-          <>
-            <div className="flex-1 px-2 text-xs text-muted-foreground font-bold">
-              {dtype}
-            </div>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        {renderSorts()}
-        {!column.id.startsWith(NAMELESS_COLUMN_PREFIX) && (
-          <DropdownMenuItem
-            onClick={async () =>
-              await copyToClipboard(
-                typeof header === "string" ? header : column.id,
-              )
-            }
-          >
-            <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-            Copy column name
-          </DropdownMenuItem>
-        )}
-        {renderColumnPinning()}
-        {renderColumnWrapping()}
-        {renderFormatOptions()}
-        <DropdownMenuItemFilter column={column} />
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <span className="flex-1">{header}</span>
+            <span
+              className={cn(
+                "h-5 py-1 px-1",
+                hideIcon &&
+                  "invisible group-hover:visible data-[state=open]:visible",
+              )}
+            >
+              {renderSortFilterIcon(column)}
+            </span>
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {renderDataType(column)}
+          {renderSorts(column)}
+          {renderCopyColumn(column)}
+          {renderColumnPinning(column)}
+          {renderColumnWrapping(column)}
+          {renderFormatOptions(column)}
+          <DropdownMenuSeparator />
+          {renderMenuItemFilter(column)}
+          {renderFilterByValues(column, setIsFilterValueOpen)}
+          {hasFilter && <ClearFilterMenuItem column={column} />}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {isFilterValueOpen && (
+        <PopoverFilterByValues
+          setIsFilterValueOpen={setIsFilterValueOpen}
+          calculateTopKRows={calculateTopKRows}
+          column={column}
+        />
+      )}
+    </>
   );
 };
 
@@ -278,7 +139,7 @@ export const DataTableColumnHeaderWithSummary = <TData, TValue>({
   return (
     <div
       className={cn(
-        "flex flex-col h-full py-0.5 justify-between items-start",
+        "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
         className,
       )}
     >
@@ -292,11 +153,9 @@ export const DataTableColumnHeaderWithSummary = <TData, TValue>({
   );
 };
 
-export const DropdownMenuItemFilter = <TData, TValue>({
-  column,
-}: React.PropsWithChildren<{
-  column: Column<TData, TValue>;
-}>) => {
+export function renderMenuItemFilter<TData, TValue>(
+  column: Column<TData, TValue>,
+) {
   const canFilter = column.getCanFilter();
   if (!canFilter) {
     return null;
@@ -307,79 +166,58 @@ export const DropdownMenuItemFilter = <TData, TValue>({
     return null;
   }
 
-  const hasFilter = column.getFilterValue() !== undefined;
-
   const filterMenuItem = (
     <DropdownMenuSubTrigger>
-      <FilterIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+      <FilterIcon className="mo-dropdown-icon" />
       Filter
     </DropdownMenuSubTrigger>
   );
 
-  const clearFilterMenuItem = (
-    <DropdownMenuItem onClick={() => column.setFilterValue(undefined)}>
-      <FilterX className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-      Clear filter
-    </DropdownMenuItem>
-  );
-
   if (filterType === "boolean") {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          {filterMenuItem}
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem
-                onClick={() => column.setFilterValue(Filter.boolean(true))}
-              >
-                True
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => column.setFilterValue(Filter.boolean(false))}
-              >
-                False
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-        {hasFilter && clearFilterMenuItem}
-      </>
+      <DropdownMenuSub>
+        {filterMenuItem}
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem
+              onClick={() => column.setFilterValue(Filter.boolean(true))}
+            >
+              True
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => column.setFilterValue(Filter.boolean(false))}
+            >
+              False
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
     );
   }
 
   if (filterType === "text") {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          {filterMenuItem}
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <TextFilter column={column} />
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-        {hasFilter && clearFilterMenuItem}
-      </>
+      <DropdownMenuSub>
+        {filterMenuItem}
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <TextFilter column={column} />
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
     );
   }
 
   if (filterType === "number") {
     return (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          {filterMenuItem}
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <NumberRangeFilter column={column} />
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-        {hasFilter && clearFilterMenuItem}
-      </>
+      <DropdownMenuSub>
+        {filterMenuItem}
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <NumberRangeFilter column={column} />
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
     );
   }
 
@@ -405,7 +243,7 @@ export const DropdownMenuItemFilter = <TData, TValue>({
 
   logNever(filterType);
   return null;
-};
+}
 
 const NumberRangeFilter = <TData, TValue>({
   column,
@@ -438,6 +276,7 @@ const NumberRangeFilter = <TData, TValue>({
           ref={minRef}
           value={min}
           onChange={(value) => setMin(value)}
+          aria-label="min"
           placeholder="min"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -454,6 +293,7 @@ const NumberRangeFilter = <TData, TValue>({
           ref={maxRef}
           value={max}
           onChange={(value) => setMax(value)}
+          aria-label="max"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               handleApply({ max: Number.parseFloat(e.currentTarget.value) });
@@ -466,24 +306,15 @@ const NumberRangeFilter = <TData, TValue>({
           className="shadow-none! border-border hover:shadow-none!"
         />
       </div>
-      <div className="flex gap-2 px-2 justify-between">
-        <Button variant="link" size="sm" onClick={() => handleApply()}>
-          Apply
-        </Button>
-        <Button
-          variant="linkDestructive"
-          size="sm"
-          disabled={!hasFilter}
-          className=""
-          onClick={() => {
-            setMin(undefined);
-            setMax(undefined);
-            column.setFilterValue(undefined);
-          }}
-        >
-          Clear
-        </Button>
-      </div>
+      <FilterButtons
+        onApply={handleApply}
+        onClear={() => {
+          setMin(undefined);
+          setMax(undefined);
+          column.setFilterValue(undefined);
+        }}
+        clearButtonDisabled={!hasFilter}
+      />
     </div>
   );
 };
@@ -522,23 +353,184 @@ const TextFilter = <TData, TValue>({
         }}
         className="shadow-none! border-border hover:shadow-none!"
       />
-      <div className="flex gap-2 px-2 justify-between">
-        <Button variant="link" size="sm" onClick={() => handleApply()}>
-          Apply
-        </Button>
-        <Button
-          variant="linkDestructive"
-          size="sm"
-          disabled={!hasFilter}
-          className=""
-          onClick={() => {
-            setValue("");
-            column.setFilterValue(undefined);
-          }}
-        >
-          Clear
-        </Button>
-      </div>
+      <FilterButtons
+        onApply={handleApply}
+        onClear={() => {
+          setValue("");
+          column.setFilterValue(undefined);
+        }}
+        clearButtonDisabled={!hasFilter}
+      />
     </div>
+  );
+};
+
+const PopoverFilterByValues = <TData, TValue>({
+  setIsFilterValueOpen,
+  calculateTopKRows,
+  column,
+}: {
+  setIsFilterValueOpen: (open: boolean) => void;
+  calculateTopKRows?: CalculateTopKRows;
+  column: Column<TData, TValue>;
+}) => {
+  const [chosenValues, setChosenValues] = useState<Set<unknown>>(new Set());
+  const [query, setQuery] = useState<string>("");
+
+  const { data, loading, error } = useAsyncData(async () => {
+    if (!calculateTopKRows) {
+      return null;
+    }
+    const res = await calculateTopKRows({ column: column.id, k: TOP_K_ROWS });
+    return res.data;
+  }, []);
+
+  const filteredData = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    try {
+      return data.filter(([value, count]) => {
+        // Check if value exists and can be converted to string
+        // Keep null values for filtering
+        return value === undefined
+          ? false
+          : String(value).toLowerCase().includes(query.toLowerCase());
+      });
+    } catch (error_) {
+      Logger.error("Error filtering data", error_);
+      return [];
+    }
+  }, [data, query]);
+
+  let dataTable: React.ReactNode;
+
+  if (loading) {
+    dataTable = <Spinner size="medium" className="mx-auto mt-12 mb-10" />;
+  }
+
+  if (error) {
+    dataTable = <ErrorBanner error={error} className="my-10 mx-4" />;
+  }
+
+  const handleToggle = (value: unknown) => {
+    setChosenValues((prev) => {
+      const checked = prev.has(value);
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.delete(value);
+      } else {
+        newSet.add(value);
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggleAll = (checked: boolean) => {
+    if (!data) {
+      return;
+    }
+    if (checked) {
+      setChosenValues(new Set(filteredData.map(([value]) => value)));
+    } else {
+      setChosenValues(new Set());
+    }
+  };
+
+  const handleApply = () => {
+    if (chosenValues.size === 0) {
+      column.setFilterValue(undefined);
+      return;
+    }
+    column.setFilterValue(Filter.select([...chosenValues]));
+  };
+
+  if (data) {
+    const allChecked = chosenValues.size === filteredData.length;
+
+    dataTable = (
+      <>
+        <Command className="text-sm outline-none" shouldFilter={false}>
+          <CommandInput
+            placeholder="Search"
+            autoFocus={true}
+            onValueChange={(value) => setQuery(value.trim())}
+          />
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandList className="border-b">
+            {filteredData.length > 0 && (
+              <CommandItem
+                value="__select-all__"
+                className="border-b rounded-none px-3"
+                onSelect={() => handleToggleAll(!allChecked)}
+              >
+                <Checkbox
+                  checked={chosenValues.size === filteredData.length}
+                  aria-label="Select all"
+                  className="mr-3 h-3.5 w-3.5"
+                />
+                <span className="font-bold flex-1">{column.id}</span>
+                <span className="font-bold">Count</span>
+              </CommandItem>
+            )}
+            {filteredData.map(([value, count], rowIndex) => {
+              const isSelected = chosenValues.has(value);
+              const valueString = renderUnknownValue({ value });
+
+              return (
+                <CommandItem
+                  key={rowIndex}
+                  value={valueString}
+                  className="[&:not(:last-child)]:border-b rounded-none px-3"
+                  onSelect={() => handleToggle(value)}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    aria-label="Select row"
+                    className="mr-3 h-3.5 w-3.5"
+                  />
+                  <span className="flex-1 overflow-hidden max-h-20 line-clamp-3">
+                    {valueString}
+                  </span>
+                  <span className="ml-3">{count}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandList>
+          {filteredData.length === TOP_K_ROWS && (
+            <span className="text-xs text-muted-foreground mt-1.5 text-center">
+              Only showing the top {TOP_K_ROWS} values
+            </span>
+          )}
+        </Command>
+        <FilterButtons
+          onApply={handleApply}
+          onClear={() => {
+            setChosenValues(new Set());
+          }}
+          clearButtonDisabled={chosenValues.size === 0}
+        />
+      </>
+    );
+  }
+
+  return (
+    <DraggablePopover
+      open={true}
+      onOpenChange={(open) => !open && setIsFilterValueOpen(false)}
+      className="w-80 p-0"
+    >
+      <PopoverClose className="absolute top-2 right-2">
+        <Button
+          variant="link"
+          size="sm"
+          onClick={() => setIsFilterValueOpen(false)}
+        >
+          <XIcon className="h-4 w-4" />
+        </Button>
+      </PopoverClose>
+      <div className="flex flex-col gap-1.5 py-2">{dataTable}</div>
+    </DraggablePopover>
   );
 };

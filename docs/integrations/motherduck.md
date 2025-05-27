@@ -17,7 +17,7 @@ pip install "marimo[sql]"
 /// tab | install with uv
 
 ```bash
-uv pip install "marimo[sql]"
+uv add "marimo[sql]"
 ```
 
 ///

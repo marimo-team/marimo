@@ -130,6 +130,36 @@ class TestExportHTML:
         shutil.rmtree(public_dir)
 
     @staticmethod
+    def test_cli_export_html_wasm_cloudflare(temp_marimo_file: str) -> None:
+        out_dir = Path(temp_marimo_file).parent / "cloudflare" / "out"
+        p = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html-wasm",
+                temp_marimo_file,
+                "--output",
+                out_dir,
+                "--include-cloudflare",
+            ],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        # Verify Cloudflare files were created
+        assert (out_dir.parent / "index.js").exists()
+        assert (out_dir.parent / "wrangler.jsonc").exists()
+
+        # Verify index.js content
+        index_js = (out_dir.parent / "index.js").read_text()
+        assert "env.ASSETS.fetch(request)" in index_js
+
+        # Verify wrangler.jsonc content
+        wrangler = (out_dir.parent / "wrangler.jsonc").read_text()
+        assert "name" in wrangler
+        assert "main" in wrangler
+
+    @staticmethod
     def test_cli_export_html_wasm_output_is_file(
         temp_marimo_file: str,
     ) -> None:
@@ -248,7 +278,7 @@ class TestExportHTML:
         assert p.returncode != 0, p.stderr.decode()
         html = normalize_index_html(p.stdout.decode())
         # Errors but still produces HTML
-        assert "ZeroDivisionError" in p.stderr.decode()
+        assert " division by zero" in p.stderr.decode()
         assert "<marimo-code" in html
 
     @staticmethod
@@ -353,7 +383,7 @@ class TestExportHTML:
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
-        output = p.stdout.decode()
+        output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
         assert "uv run --isolated" in output
@@ -436,7 +466,15 @@ class TestExportHtmlSmokeTests:
         file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
-            ["marimo", "export", "html", str(file), "-o", str(out)],
+            [
+                "marimo",
+                "export",
+                "html",
+                str(file),
+                "-o",
+                str(out),
+                "--no-sandbox",
+            ],
             capture_output=True,
         )
         self.assert_has_errors(p)
@@ -858,7 +896,7 @@ class TestExportIpynb:
             capture_output=True,
         )
         assert p.returncode != 0, p.stderr.decode()
-        assert "ZeroDivisionError" in p.stderr.decode()
+        assert " division by zero" in p.stderr.decode()
         output = p.stdout.decode()
         output = _delete_lines_with_files(output)
         snapshot("ipynb_with_errors.txt", output)
@@ -884,7 +922,7 @@ class TestExportIpynb:
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
-        output = p.stdout.decode()
+        output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
         assert "uv run --isolated" in output

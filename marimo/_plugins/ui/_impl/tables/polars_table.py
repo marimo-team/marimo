@@ -11,6 +11,7 @@ from marimo import _loggers
 from marimo._data.models import (
     ExternalDataType,
 )
+from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -55,6 +56,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @cached_property
             def schema(self) -> dict[str, pl.DataType]:
+                if isinstance(self._original_data, pl.LazyFrame):
+                    # Less expensive operation
+                    return self._original_data.collect_schema()
                 return self._original_data.schema
 
             def to_arrow_ipc(self) -> bytes:
@@ -64,13 +68,13 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             # We override narwhals's to_csv to handle polars
             # nested data types.
-            def to_csv(
+            def to_csv_str(
                 self,
                 format_mapping: Optional[FormatMapping] = None,
-            ) -> bytes:
+            ) -> str:
                 _data = self.apply_formatting(format_mapping).collect()
                 try:
-                    return _data.write_csv().encode("utf-8")
+                    return _data.write_csv()
                 except pl.exceptions.ComputeError:
                     # Likely CSV format does not support nested data or objects
                     # Try to convert columns to json or strings
@@ -99,11 +103,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = self._convert_time_to_string(
                                 result, column
                             )
-                    return result.write_csv().encode("utf-8")
+                    return result.write_csv()
 
-            def to_json(
+            def to_json_str(
                 self, format_mapping: Optional[FormatMapping] = None
-            ) -> bytes:
+            ) -> str:
                 result = self.apply_formatting(format_mapping).collect()
                 try:
                     for column in result.get_columns():
@@ -112,11 +116,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = self._convert_time_to_string(
                                 result, column
                             )
-                    return result.write_json().encode("utf-8")
+                    return sanitize_json_bigint(result.write_json())
                 except (
                     BaseException
                 ):  # Sometimes, polars throws a generic exception
-                    LOGGER.debug(
+                    LOGGER.info(
                         "Failed to write json. Trying to convert columns to strings."
                     )
                     for column in result.get_columns():
@@ -140,7 +144,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                                 result, column
                             )
 
-                    return result.write_json().encode("utf-8")
+                    return sanitize_json_bigint(result.write_json())
 
             def _convert_time_to_string(
                 self, result: pl.DataFrame, column: pl.Series
@@ -159,7 +163,10 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return df.with_columns(
                         # As of writing this, cast(pl.String) doesn't work
                         # for pl.Object types, so we use map_elements
-                        column.map_elements(str, return_dtype=pl.String)
+                        column.map_elements(
+                            lambda v: str(self._sanitize_table_value(v)),
+                            return_dtype=pl.String,
+                        )
                     )
 
             def apply_formatting(
@@ -184,7 +191,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def is_type(value: Any) -> bool:
-                return isinstance(value, pl.DataFrame)
+                return isinstance(value, (pl.DataFrame, pl.LazyFrame))
 
             def search(self, query: str) -> PolarsTableManager:
                 query = query.lower()

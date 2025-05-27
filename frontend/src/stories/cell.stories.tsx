@@ -45,6 +45,7 @@ const props: CellProps = {
   deleteCell: Logger.log,
   actions: {
     updateCellCode: Logger.log,
+    clearCellConsoleOutput: Logger.log,
     collapseCell: Logger.log,
     expandCell: Logger.log,
     createNewCell: Logger.log,

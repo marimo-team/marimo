@@ -31,7 +31,7 @@ export const TableColumnSummary = <TData, TValue>({
 }: Props<TData, TValue>) => {
   const chartSpecModel = useContext(ColumnChartContext);
   const { theme } = useTheme();
-  const { spec, type, summary } = chartSpecModel.getHeaderSummary(columnId);
+  const { spec, type, stats } = chartSpecModel.getHeaderSummary(columnId);
   let chart: React.ReactNode = null;
   if (spec) {
     chart = (
@@ -67,7 +67,7 @@ export const TableColumnSummary = <TData, TValue>({
   };
 
   const renderStats = () => {
-    if (!summary) {
+    if (!stats) {
       return null;
     }
 
@@ -78,19 +78,18 @@ export const TableColumnSummary = <TData, TValue>({
         if (!spec) {
           return (
             <div className="flex flex-col whitespace-pre">
-              <span>min: {renderDate(summary.min, type)}</span>
-              <span>max: {renderDate(summary.max, type)}</span>
-              <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
+              <span>min: {renderDate(stats.min, type)}</span>
+              <span>max: {renderDate(stats.max, type)}</span>
+              <span>unique: {prettyNumber(stats.unique)}</span>
             </div>
           );
         }
 
         return (
           <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{renderDate(summary.min, type)}</span>
-            {summary.min === summary.max ? null : (
-              <span>-{renderDate(summary.max, type)}</span>
+            <span>{renderDate(stats.min, type)}</span>
+            {stats.min === stats.max ? null : (
+              <span>-{renderDate(stats.max, type)}</span>
             )}
           </div>
         );
@@ -102,75 +101,47 @@ export const TableColumnSummary = <TData, TValue>({
             <div className="flex flex-col whitespace-pre">
               <span>
                 min:{" "}
-                {typeof summary.min === "number"
-                  ? prettyScientificNumber(summary.min)
-                  : summary.min}
+                {typeof stats.min === "number"
+                  ? prettyScientificNumber(stats.min, { shouldRound: true })
+                  : stats.min}
               </span>
               <span>
                 max:{" "}
-                {typeof summary.max === "number"
-                  ? prettyScientificNumber(summary.max)
-                  : summary.max}
+                {typeof stats.max === "number"
+                  ? prettyScientificNumber(stats.max, { shouldRound: true })
+                  : stats.max}
               </span>
-              <span>unique: {prettyNumber(summary.unique)}</span>
-              <span>nulls: {prettyNumber(summary.nulls)}</span>
+              <span>unique: {prettyNumber(stats.unique)}</span>
             </div>
           );
         }
 
-        if (
-          typeof summary.min === "number" &&
-          typeof summary.max === "number"
-        ) {
-          return (
-            <div className="flex justify-between w-full px-2 whitespace-pre">
-              <span>{prettyScientificNumber(summary.min)}</span>
-              {summary.min === summary.max ? null : (
-                <span>{prettyScientificNumber(summary.max)}</span>
-              )}
-            </div>
-          );
-        }
-
-        return (
-          <div className="flex justify-between w-full px-2 whitespace-pre">
-            <span>{summary.min}</span>
-            <span>{summary.max}</span>
-          </div>
-        );
+        // Numerical bar charts use built-in vega axis and ticks
+        return null;
       case "boolean":
         // Without a chart
         if (!spec) {
           return (
             <div className="flex flex-col whitespace-pre">
-              <span>true: {prettyNumber(summary.true)}</span>
-              <span>false: {prettyNumber(summary.false)}</span>
+              <span>true: {prettyNumber(stats.true)}</span>
+              <span>false: {prettyNumber(stats.false)}</span>
             </div>
           );
         }
 
-        if (summary.nulls == null || summary.nulls === 0) {
-          return null;
-        }
-
-        return (
-          <div className="flex flex-col whitespace-pre">
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
-          </div>
-        );
+        return null;
       case "time":
         return null;
       case "string":
         return (
           <div className="flex flex-col whitespace-pre">
-            <span>unique: {prettyNumber(summary.unique)}</span>
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
+            <span>unique: {prettyNumber(stats.unique)}</span>
           </div>
         );
       case "unknown":
         return (
           <div className="flex flex-col whitespace-pre">
-            <span>nulls: {prettyNumber(summary.nulls)}</span>
+            <span>nulls: {prettyNumber(stats.nulls)}</span>
           </div>
         );
       default:

@@ -10,10 +10,28 @@ import { atom } from "jotai";
 import { store } from "../state/jotai";
 import { datasetTablesAtom } from "./state";
 import { Logger } from "@/utils/Logger";
+import { isSchemaless } from "@/components/datasources/utils";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 
-export const DEFAULT_ENGINE = "__marimo_duckdb" as ConnectionName;
+// DuckDB engine is treated as the default engine
+// As it doesn't require passing an engine variable to the backend
+// Keep this in sync with the backend name
+export const DUCKDB_ENGINE = "__marimo_duckdb" as ConnectionName;
+export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE]);
+
+const initialConnections: ConnectionsMap = new Map([
+  [
+    DUCKDB_ENGINE,
+    {
+      name: DUCKDB_ENGINE,
+      dialect: "duckdb",
+      source: "duckdb",
+      display_name: "DuckDB (In-Memory)",
+      databases: [],
+    },
+  ],
+]);
 
 // Extend the backend type but override the name property with the strongly typed ConnectionName
 export interface DataSourceConnection
@@ -21,9 +39,11 @@ export interface DataSourceConnection
   name: ConnectionName;
 }
 
+type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
+
 export interface DataSourceState {
   latestEngineSelected: ConnectionName;
-  connectionsMap: ReadonlyMap<ConnectionName, DataSourceConnection>;
+  connectionsMap: ConnectionsMap;
 }
 
 export interface SQLTableContext {
@@ -36,14 +56,8 @@ export interface SQLTableContext {
 
 function initialState(): DataSourceState {
   return {
-    latestEngineSelected: DEFAULT_ENGINE,
-    connectionsMap: new Map().set(DEFAULT_ENGINE, {
-      name: DEFAULT_ENGINE,
-      dialect: "duckdb",
-      source: "duckdb",
-      display_name: "DuckDB In-Memory",
-      databases: [],
-    }),
+    latestEngineSelected: DUCKDB_ENGINE,
+    connectionsMap: initialConnections,
   };
 }
 
@@ -77,7 +91,7 @@ const {
     };
   },
 
-  // Keep default engine and any connections that are used by variables
+  // Keep internal engines and any connections that are used by variables
   filterDataSourcesFromVariables: (
     state: DataSourceState,
     variableNames: VariableName[],
@@ -86,7 +100,7 @@ const {
     const names = new Set(variableNames);
     const newMap = new Map(
       [...connectionsMap].filter(([name]) => {
-        if (name === DEFAULT_ENGINE) {
+        if (INTERNAL_SQL_ENGINES.has(name)) {
           return true;
         }
         return names.has(name as unknown as VariableName);
@@ -96,13 +110,13 @@ const {
       // If the latest engine selected is not in the new map, use the default engine
       latestEngineSelected: newMap.has(latestEngineSelected)
         ? latestEngineSelected
-        : DEFAULT_ENGINE,
+        : DUCKDB_ENGINE,
       connectionsMap: newMap,
     };
   },
 
   clearDataSourceConnections: (): DataSourceState => ({
-    latestEngineSelected: DEFAULT_ENGINE,
+    latestEngineSelected: DUCKDB_ENGINE,
     connectionsMap: new Map(),
   }),
 
@@ -117,7 +131,7 @@ const {
     return {
       latestEngineSelected: newMap.has(latestEngineSelected)
         ? latestEngineSelected
-        : DEFAULT_ENGINE,
+        : DUCKDB_ENGINE,
       connectionsMap: newMap,
     };
   },
@@ -248,8 +262,10 @@ export const exportedForTesting = {
   initialState,
 };
 
-// If you need to get table names from all connections & local datasets, use this atom
-// When a table name is used in multiple connections, we need to use a more qualified name
+/**
+ * If you need to get table names from all connections & local datasets, use this atom.
+ * Uses a more qualified name if there are collisions.
+ */
 export const allTablesAtom = atom((get) => {
   const datasets = store.get(datasetTablesAtom);
   const connections = get(dataSourceConnectionsAtom).connectionsMap;
@@ -267,6 +283,7 @@ export const allTablesAtom = atom((get) => {
 
       for (const schema of database.schemas) {
         const isDefaultSchema = schema.name === conn.default_schema;
+        const schemalessDb = isSchemaless(schema.name);
 
         for (const table of schema.tables) {
           let nameToSave: string;
@@ -275,6 +292,20 @@ export const allTablesAtom = atom((get) => {
           // Otherwise, we need to qualify the table name
           // We also need to use the more qualified name if there are collisions
           nameToSave = table.name;
+
+          // Save either dbName.table / tableName
+          if (schemalessDb) {
+            nameToSave = isDefaultDb
+              ? table.name
+              : `${database.name}.${table.name}`;
+
+            if (tableNames.has(nameToSave)) {
+              Logger.warn(`Table name collision for ${nameToSave}. Skipping.`);
+            } else {
+              tableNames.set(nameToSave, table);
+            }
+            continue;
+          }
 
           if (isDefaultDb && isDefaultSchema && !tableNames.has(nameToSave)) {
             tableNames.set(nameToSave, table);
@@ -302,3 +333,5 @@ export const allTablesAtom = atom((get) => {
 
   return tableNames;
 });
+
+export type DatasetTablesMap = ReturnType<(typeof allTablesAtom)["read"]>;

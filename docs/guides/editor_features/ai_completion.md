@@ -1,103 +1,88 @@
-# AI completion
+# AI-assisted coding
 
-marimo comes with GitHub Copilot, a tool that helps you write code faster by
-suggesting in-line code suggestions based on the context of your current code.
+marimo is an AI-native editor, with support for full-cell AI code generation:
 
-marimo also comes with the ability to use AI for refactoring a cell, finishing writing a cell, or writing a full cell from scratch.
-This feature is currently experimental and is not enabled by default.
+* generating new cells from a prompt
+* refactoring existing cells from a prompt
+* generating entire notebooks
 
-## GitHub Copilot
+as well as inline copilots (like GitHub Copilot).
 
-The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),
-an AI pair programmer, similar to VS Code.
+This guide provides an overview of these features and how to configure them.
 
-_Get started with Copilot_:
+!!! tip "Locating your marimo.toml config file"
 
-1. Install [Node.js](https://nodejs.org/en/download).
-2. Enable Copilot via the settings menu in the marimo editor.
+    Various instructions in this guide refer to the marimo.toml configuration
+    file. Locate this file with `marimo config show | head`.
 
-!!! note "Installation Requirement"
-    Copilot is not yet available in our conda distribution; please install
-    marimo using ``pip`` if you need Copilot.
+## Generating cells with AI
 
-## Codeium Copilot
+marimo has built-in support for generating and refactoring code with LLMs.
+marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google,
+as well as local models served via Ollama.
 
-1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
-2. Install the browser extension: <https://codeium.com/chrome_tutorial>
-3. Open the settings for the Chrome extension and click on "Get Token"
-4. Right-click on the extension window and select "Inspect" to open the developer tools for the extension. Then click on "Network"
-5. Copy the token and paste it into the input area, and then press "Enter Token"
-6. This action will log a new API request in the **Network** tab. Click on "Preview" to get the API key.
-7. Paste the API key in the marimo settings in the UI, or add it to your `marimo.toml` file as follows:
-
-```toml title="marimo.toml"
-[completion]
-copilot = "codeium"
-codeium_api_key = ""
-```
-
-### Alternative: Obtain Codeium API key using VS Code
-
-1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
-2. Install the [Codeium Visual Studio Code extension](vscode:extension/codeium.codeium) (see [here](https://codeium.com/vscode_tutorial) for complete guide)
-3. Sign in to your Codeium account in the VS Code extension
-4. Select the Codeium icon on the Activity bar (left side), which opens the Codeium pane
-5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
+**Enabling AI code generation.** To enable AI code generation, first install
+required dependencies through the notebook settings.
 
 <div align="center">
-  <figure>
-    <img src="/_static/docs-ai-completion-codeium-vscode.png"/>
-    <figcaption>Open Codeium settings</figcaption>
+<figure>
+<img src="/_static/docs-ai-install.png" width="740px"/>
+<figcaption>Install required dependencies for AI generation through the notebook settings.</figcaption>
 </figure>
 </div>
 
-6. Click the **Download** link under the **Extension Diagnostics** section
-7. Open the diagnostic file and search for `apiKey`
+Then configure your LLM provider through the AI tab in the settings menu; see
+the section on [connecting your LLM](#connecting-to-an-llm) for detailed instructions.
+
+### Variable context
+
+marimo's AI assistant has your notebook code as context. You can additionally
+pass variables and their values to the assistant by referencing them by name
+with `@`. For example, to include the columns of a dataframe `df` in your
+prompt, write `@df`.
 
 <div align="center">
-  <figure>
-    <img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png"/>
-    <figcaption>Download diagnostics file with API key</figcaption>
-  </figure>
+<figure>
+<img src="/_static/docs-ai-variables.png" width="740px"/>
+<figcaption>Pass variables to your prompt by tagging them with `@`.</figcaption>
+</figure>
 </div>
 
-8. Copy the value of the `apiKey` to `.marimo.toml` in your home directory
+### Refactor existing cells
 
-```toml title="marimo.toml"
-[completion]
-codeium_api_key = "a1e8..."  # <-- paste your API key here
-copilot = "codeium"
-activate_on_typing = true
-```
+Make edits to an existing cell by hitting `Ctrl/Cmd-shift-e`, which opens a prompt box
+that has your cell's code as input.
 
-## Custom Copilot
+<div align="center">
+<figure>
+<video src="/_static/ai-completion.mp4" controls="controls" width="100%" height="100%"></video>
+<figcaption>Use AI to modify a cell by pressing `Ctrl/Cmd-Shift-e`.</figcaption>
+</figure>
+</div>
 
-marimo also supports integrating with custom LLM providers for code completion suggestions. This allows you to use your own LLM service to provide in-line code suggestions based on internal providers or local models (e.g. Ollama). You may also use OpenAI, Anthropic, or Google AI by providing your own API keys.
+### Generate new cells
 
-To configure a custom copilot:
+#### Generate with AI button
 
-1. Ensure you have an LLM provider that offers API access for code completion (either external or running locally)
-2. Add the following configuration to your `marimo.toml` (or configure in the UI settings):
+At the bottom of every notebook is a button titled "Generate with AI". Click this
+button to add entirely new cells to your notebook.
 
-```toml title="marimo.toml"
-[completion]
-copilot = "custom"
-api_key = "your-llm-api-key"
-model = "your-llm-model-name"
-base_url = "http://127.0.0.1:11434/v1" # or https://your-llm-api-endpoint.com
-```
+#### Chat panel
 
-The configuration options include:
+The chat panel on the left sidebar lets you chat with an LLM and ask questions
+aboutyour notebook. The LLM can also generate code cells that you can insert
+into your notebook.
 
-- `api_key`: Your LLM provider's API key. This may not be required for local models, so you can set it to any random string.
-- `model`: The specific model to use for completion suggestions.
-- `base_url`: The endpoint URL for your LLM provider's API
+??? tip "See the chat panel in action"
 
-## Generate code with our AI assistant
+    <iframe width="740" height="420" src="https://www.youtube.com/embed/4DC1E2UBwAM?si=zzrzl0VlvOU6JiZP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-marimo has built-in support for generating and refactoring code with AI, with a variety of providers. marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google, as well as local models served via Ollama.
+### Generating entire notebooks
 
-### Custom AI Rules
+Generate entire notebooks with `marimo new PROMPT` at the command-line; see the
+[text-to-notebook docs](../generate_with_ai/text_to_notebook.md) to learn more.
+
+### Custom rules
 
 You can customize how the AI assistant behaves by adding rules in the marimo settings. These rules help ensure consistent code generation across all AI providers. You can find more information about marimo's supported plotting libraries and data handling in the [plotting guide](../working_with_data/plotting.md#plotting) and [working with data guide](../working_with_data/index.md).
 
@@ -110,10 +95,10 @@ You can customize how the AI assistant behaves by adding rules in the marimo set
 
 For example, you can add rules about:
 
-- Preferred plotting libraries (matplotlib, plotly, altair)
-- Data handling practices
-- Code style conventions
-- Error handling preferences
+* Preferred plotting libraries (matplotlib, plotly, altair)
+* Data handling practices
+* Code style conventions
+* Error handling preferences
 
 Example custom rules:
 
@@ -135,28 +120,26 @@ For plotting:
 - Set appropriate color schemes
 ```
 
+### Connecting to an LLM
+
+You can connect to an LLM through the notebook settings menu, or by manually editing
+your `marimo.toml` configuration file. Prefer going through the notebook settings.
+
 To locate your configuration file, run:
 
 ```bash
 marimo config show
 ```
 
-At the top, the path to your `marimo.toml` file will be shown. You can Ctrl/Cmd+click the path to open it in your editor. For more information about configuration, see the [Configuration Guide](../configuration/index.md).
+At the top, the path to your `marimo.toml` file will be shown.
 
-Below we describe how to connect marimo to your AI provider. Once enabled, you can generate entirely new cells by clicking the "Generate with AI" button at the bottom of your notebook. You can also refactor existing cells by inputting `Ctrl/Cmd-Shift-e` in a cell, opening an input to modify the cell using AI.
+Below we describe how to connect marimo to your AI provider.
 
-<div align="center">
-<figure>
-<video src="/_static/ai-completion.mp4" controls="controls" width="100%" height="100%"></video>
-<figcaption>Use AI to modify a cell by pressing `Ctrl/Cmd-Shift-e`.</figcaption>
-</figure>
-</div>
-
-### Using OpenAI
+#### OpenAI
 
 1. Install openai: `pip install openai`
 
-2. Add the following to your `marimo.toml`:
+2. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -171,12 +154,12 @@ model = "gpt-4-turbo"
 base_url = "https://api.openai.com/v1"
 ```
 
-### Using Anthropic
+#### Anthropic
 
 To use Anthropic with marimo:
 
 1. Sign up for an account at [Anthropic](https://console.anthropic.com/) and grab your [Anthropic Key](https://console.anthropic.com/settings/keys).
-2. Add the following to your `marimo.toml`:
+2. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -187,13 +170,46 @@ model = "claude-3-7-sonnet-20250219"
 api_key = "sk-ant-..."
 ```
 
-### Using Google AI
+#### AWS Bedrock
+
+AWS Bedrock provides access to foundation models from leading AI companies through a unified AWS API.
+
+To use AWS Bedrock with marimo:
+
+1. Set up an [AWS account](https://aws.amazon.com/) with access to the AWS Bedrock service.
+2. [Enable model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) for the specific models you want to use in the AWS Bedrock console.
+3. Install the boto3 Python client: `pip install boto3`
+4. Configure AWS credentials using one of these methods:
+   - AWS CLI: Run `aws configure` to set up credentials
+   - Environment variables: Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+   - AWS credentials file at `~/.aws/credentials`
+5. Add the following to your `marimo.toml`:
+
+```toml title="marimo.toml"
+[ai.open_ai]
+model = "bedrock/anthropic.claude-3-sonnet-20240229"
+# Models are identified by bedrock/provider.model_name
+# Examples:
+# - bedrock/anthropic.claude-3-sonnet-20240229
+# - bedrock/meta.llama3-8b-instruct-v1:0
+# - bedrock/amazon.titan-text-express-v1
+# - bedrock/cohere.command-r-plus-v1
+
+[ai.bedrock]
+region_name = "us-east-1" # AWS region where Bedrock is available
+# Optional AWS profile name (from ~/.aws/credentials)
+profile_name = "my-profile" 
+```
+
+If you're using an AWS named profile different from your default, specify the profile_name. For explicit credentials (not recommended), you can use environment variables instead.
+
+#### Google AI
 
 To use Google AI with marimo:
 
 1. Sign up for an account at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
 2. Install the Google AI Python client: `pip install google-generativeai`
-3. Add the following to your `marimo.toml`:
+3. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -204,7 +220,22 @@ model = "gemini-1.5-flash"
 api_key = "AI..."
 ```
 
-### Using local models with Ollama { #using-ollama }
+#### GitHub Copilot
+
+You can use your GitHub Copilot for code refactoring or the chat panel. This requires a GitHub Copilot subscription.
+
+1. Download the `gh` CLI from [here](https://cli.github.com/).
+2. Create a token with `gh auth token` and copy the token.
+3. Add the token to your `marimo.toml` (or configure in the UI settings in the editor).
+
+```toml title="marimo.toml"
+[ai.open_ai]
+model = "gpt-4o"
+api_key = "gho_..."
+base_url = "https://api.githubcopilot.com/"
+```
+
+#### Local models with Ollama { #using-ollama }
 
 Ollama allows you to run open-source LLMs on your local machine. To integrate Ollama with marimo:
 
@@ -239,7 +270,7 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
    marimo edit notebook.py
    ```
 
-6. Add the following to your `marimo.toml`:
+6. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -248,7 +279,7 @@ model = "codellama" # or another model from `ollama ls`
 base_url = "http://127.0.0.1:11434/v1"
 ```
 
-### Using other AI providers
+#### Other AI providers
 
 marimo supports OpenAI's API by default. Many providers offer OpenAI API-compatible endpoints, which can be used by simply changing the `base_url` in your configuration. For example, providers like [GROQ](https://console.groq.com/docs/openai) and [DeepSeek](https://platform.deepseek.com) follow this pattern.
 
@@ -277,3 +308,91 @@ marimo supports OpenAI's API by default. Many providers offer OpenAI API-compati
 For a comprehensive list of compatible providers and their configurations, please refer to the [liteLLM Providers documentation](https://litellm.vercel.app/docs/providers).
 
 For providers not compatible with OpenAI's API, please submit a [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml) or "thumbs up" an existing one.
+
+## Copilots
+
+### GitHub Copilot
+
+The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),
+an AI pair programmer, similar to VS Code:
+
+1. Install [Node.js](https://nodejs.org/en/download).
+2. Enable Copilot via the settings menu in the marimo editor.
+
+_GitHUb Copilot is not yet available in our conda distribution; please install
+marimo using `pip`/`uv` if you need Copilot._
+
+### Windsurf Copilot
+
+Windsurf (formerly codeium) provides a free coding copilot. You can try
+setting up Windsurf with the following:
+
+1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
+2. Try the method from: <https://github.com/leona/helix-gpt/discussions/60>
+
+Add your key to your marimo.toml file (or configure in the UI settings in the editor):
+
+```toml title="marimo.toml"
+[completion]
+copilot = "codeium"
+codeium_api_key = ""
+```
+
+For official support, please ping the Windsurf team and ask them to support marimo.
+
+??? note "Alternative: Obtain Windsurf API key using VS Code"
+
+    1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
+    2. Install the [Codeium Visual Studio Code extension](vscode:extension/codeium.codeium) (see [here](https://codeium.com/vscode_tutorial) for complete guide)
+    3. Sign in to your Codeium account in the VS Code extension
+    4. Select the Codeium icon on the Activity bar (left side), which opens the Codeium pane
+    5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
+
+    <div align="center">
+      <figure>
+        <img src="/_static/docs-ai-completion-codeium-vscode.png"/>
+        <figcaption>Open Codeium settings</figcaption>
+    </figure>
+    </div>
+
+    6. Click the **Download** link under the **Extension Diagnostics** section
+    7. Open the diagnostic file and search for `apiKey`
+
+    <div align="center">
+      <figure>
+        <img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png"/>
+        <figcaption>Download diagnostics file with API key</figcaption>
+      </figure>
+    </div>
+
+    8. Copy the value of the `apiKey` to `$XDG_CONFIG_HOME/marimo/marimo.toml`:
+
+    ```toml title="marimo.toml"
+    [completion]
+    codeium_api_key = "a1e8..."  # <-- paste your API key here
+    copilot = "codeium"
+    activate_on_typing = true
+    ```
+
+### Custom copilots
+
+marimo also supports integrating with custom LLM providers for code completion suggestions. This allows you to use your own LLM service to provide in-line code suggestions based on internal providers or local models (e.g. Ollama). You may also use OpenAI, Anthropic, or Google AI by providing your own API keys.
+
+To configure a custom copilot:
+
+1. Ensure you have an LLM provider that offers API access for code completion (either external or running locally)
+2. Add the following configuration to your `marimo.toml` (or configure in the UI settings in the editor):
+
+```toml title="marimo.toml"
+[completion]
+copilot = "custom"
+api_key = "your-llm-api-key"
+model = "your-llm-model-name"
+base_url = "http://127.0.0.1:11434/v1" # or https://your-llm-api-endpoint.com
+```
+
+The configuration options include:
+
+* `api_key`: Your LLM provider's API key. This may not be required for local models, so you can set it to any random string.
+* `model`: The specific model to use for completion suggestions.
+* `base_url`: The endpoint URL for your LLM provider's API

@@ -2,18 +2,20 @@
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import type React from "react";
-import type { PropsWithChildren } from "react";
+import { forwardRef } from "react";
 
-export const FooterItem: React.FC<
-  PropsWithChildren<
-    {
-      selected: boolean;
-      tooltip: React.ReactNode;
-    } & React.HTMLAttributes<HTMLDivElement>
-  >
-> = ({ children, tooltip, selected, className, ...rest }) => {
+type FooterItemProps = {
+  selected: boolean;
+  tooltip: React.ReactNode;
+} & React.HTMLAttributes<HTMLDivElement>;
+
+export const FooterItem: React.FC<FooterItemProps> = forwardRef<
+  HTMLDivElement,
+  FooterItemProps
+>(({ children, tooltip, selected, className, ...rest }, ref) => {
   const content = (
     <div
+      ref={ref}
       className={cn(
         "h-full flex items-center p-2 text-sm shadow-inset font-mono cursor-pointer rounded",
         !selected && "hover:bg-[var(--sage-3)]",
@@ -35,4 +37,6 @@ export const FooterItem: React.FC<
   }
 
   return content;
-};
+});
+
+FooterItem.displayName = "FooterItem";

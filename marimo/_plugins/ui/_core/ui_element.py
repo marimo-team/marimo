@@ -85,7 +85,7 @@ class MarimoConvertValueException(Exception):
 
 
 @mddoc
-class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
+class UIElement(Html, Generic[S, T]):
     """An HTML element with a value
 
     A `UIElement` is an HTML element with a value; when the value of the
@@ -406,8 +406,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             clear_button_tooltip: The tooltip of the clear button.
             validate: A function that takes the form's value and returns an error message if invalid,
                 or `None` if valid.
-            on_change: A callback that takes the form's value and returns an error message if invalid,
-                or `None` if valid.
+            on_change: Optional callback to run when this element's value changes. Defaults to None.
         """
         from marimo._plugins.ui._impl.input import form as form_plugin
 
@@ -439,6 +438,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
         SendUIElementMessage(
             ui_element=self._id,
+            model_id=None,
             message=message,
             buffers=[
                 base64.b64encode(buffer).decode() for buffer in (buffers or [])

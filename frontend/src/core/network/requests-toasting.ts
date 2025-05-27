@@ -10,6 +10,7 @@ export function createErrorToastingRequests(
 ): EditRequests & RunRequests {
   const MESSAGES: Record<RequestKey, string> = {
     sendComponentValues: "Failed update value",
+    sendModelValue: "Failed to update model value",
     sendInstantiate: "Failed to instantiate",
     sendFunctionRequest: "Failed to send function request",
     sendRestart: "Failed to restart",
@@ -33,9 +34,11 @@ export function createErrorToastingRequests(
     previewDatasetColumn: "Failed to fetch data sources",
     previewSQLTable: "Failed to fetch SQL table",
     previewSQLTableList: "Failed to fetch SQL table list",
+    previewDataSourceConnection: "Failed to preview data source connection",
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
     sendListFiles: "Failed to list files",
+    sendPdb: "Failed to start debug session",
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
     sendRenameFileOrFolder: "Failed to rename file or folder",
@@ -55,6 +58,8 @@ export function createErrorToastingRequests(
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
+    listSecretKeys: "Failed to fetch secrets",
+    writeSecret: "Failed to write secret",
   };
 
   const handlers = {} as EditRequests & RunRequests;

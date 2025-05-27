@@ -23,12 +23,14 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._messaging.errors as errors
     import marimo._messaging.ops as ops
     import marimo._runtime.requests as requests
+    import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
     import marimo._server.models.files as files
     import marimo._server.models.home as home
     import marimo._server.models.models as models
     import marimo._server.models.packages as packages
+    import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
     from marimo import __version__
     from marimo._ast.cell import CellConfig, RuntimeStateType
@@ -56,6 +58,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         CellConfig,
         MarimoConfig,
         # Errors
+        errors.SetupRootError,
+        errors.MultipleDefinitionError,
         errors.CycleError,
         errors.MultipleDefinitionError,
         errors.ImportStarError,
@@ -74,10 +78,13 @@ def _generate_server_api_schema() -> dict[str, Any]:
         # Data
         data.DataTableColumn,
         data.DataTable,
-        data.ColumnSummary,
+        data.ColumnStats,
         data.DataSourceConnection,
         data.Schema,
         data.Database,
+        # Secrets
+        secrets_models.SecretKeysWithProvider,
+        secrets.CreateSecretRequest,
         # Operations
         ops.CellOp,
         ops.HumanReadableStatus,
@@ -102,6 +109,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.DataColumnPreview,
         ops.SQLTablePreview,
         ops.SQLTableListPreview,
+        ops.DataSourceConnections,
+        ops.SecretKeysResult,
         ops.QueryParamsSet,
         ops.QueryParamsAppend,
         ops.QueryParamsDelete,
@@ -110,13 +119,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
         ops.UpdateCellIdsRequest,
         ops.FocusCell,
         ops.MessageOperation,
-        ops.DataSourceConnections,
     ]
 
     # dataclass components used in requests/responses
     REQUEST_RESPONSES = [
         # Sub components
-        requests.AppMetadata,
         home.MarimoFile,
         files.FileInfo,
         requests.ExecutionRequest,
@@ -125,6 +132,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         snippets.Snippets,
         requests.SetUIElementValueRequest,
         # Requests/responses
+        completion.VariableContext,
         completion.SchemaColumn,
         completion.SchemaTable,
         completion.AiCompletionContext,
@@ -148,6 +156,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileOpenRequest,
         files.FileUpdateRequest,
         files.FileUpdateResponse,
+        secrets.ListSecretKeysResponse,
+        secrets.DeleteSecretRequest,
         packages.AddPackageRequest,
         PackageDescription,
         packages.ListPackagesResponse,
@@ -166,7 +176,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.ReadCodeResponse,
         models.RenameFileRequest,
         models.RunRequest,
-        models.RunScratchpadRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
         models.CopyNotebookRequest,
@@ -183,11 +192,15 @@ def _generate_server_api_schema() -> dict[str, Any]:
         requests.ExecutionRequest,
         requests.FunctionCallRequest,
         requests.InstallMissingPackagesRequest,
+        requests.ListSecretKeysRequest,
+        requests.PdbRequest,
         requests.PreviewDatasetColumnRequest,
-        requests.PreviewSQLTableRequest,
         requests.PreviewSQLTableListRequest,
+        requests.PreviewDataSourceConnectionRequest,
+        requests.PreviewSQLTableRequest,
         requests.RenameRequest,
         requests.SetCellConfigRequest,
+        requests.SetModelMessageRequest,
         requests.SetUserConfigRequest,
         requests.StopRequest,
     ]

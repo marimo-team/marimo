@@ -17,7 +17,7 @@ import {
 } from "@/hooks/useEventListener";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
-import { Model } from "./model";
+import { Model, MODEL_MANAGER } from "./model";
 import { isEqual } from "lodash-es";
 
 interface Data {
@@ -155,7 +155,7 @@ async function runAnyWidgetModule(
   widgetDef: AnyWidget,
   model: Model<T>,
   el: HTMLElement,
-) {
+): Promise<() => void> {
   const experimental: Experimental = {
     invoke: async (name, msg, options) => {
       const message =
@@ -169,7 +169,10 @@ async function runAnyWidgetModule(
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model, experimental });
-  await widget.render?.({ model, el, experimental });
+  const unsub = await widget.render?.({ model, el, experimental });
+  return () => {
+    unsub?.();
+  };
 }
 
 function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
@@ -187,6 +190,12 @@ export function getDirtyFields(value: T, initialValue: T): Set<keyof T> {
   );
 }
 
+function hasModelId(message: unknown): message is { model_id: string } {
+  return (
+    typeof message === "object" && message !== null && "model_id" in message
+  );
+}
+
 const LoadedSlot = ({
   value,
   setValue,
@@ -196,6 +205,7 @@ const LoadedSlot = ({
   host,
 }: Props & { widget: AnyWidget }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
+
   const model = useRef<Model<T>>(
     new Model(
       // Merge the initial value with the current value
@@ -212,7 +222,14 @@ const LoadedSlot = ({
     host as HTMLElementNotDerivedFromRef,
     MarimoIncomingMessageEvent.TYPE,
     (e) => {
-      model.current.receiveCustomMessage(e.detail.message, e.detail.buffers);
+      const message = e.detail.message;
+      if (hasModelId(message)) {
+        MODEL_MANAGER.get(message.model_id).then((model) => {
+          model.receiveCustomMessage(message, e.detail.buffers);
+        });
+      } else {
+        model.current.receiveCustomMessage(message, e.detail.buffers);
+      }
     },
   );
 
@@ -220,7 +237,14 @@ const LoadedSlot = ({
     if (!htmlRef.current) {
       return;
     }
-    runAnyWidgetModule(widget, model.current, htmlRef.current);
+    const unsubPromise = runAnyWidgetModule(
+      widget,
+      model.current,
+      htmlRef.current,
+    );
+    return () => {
+      unsubPromise.then((unsub) => unsub());
+    };
     // We re-run the widget when the jsUrl changes, which means the cell
     // that created the Widget has been re-run.
     // We need to re-run the widget because it may contain initialization code

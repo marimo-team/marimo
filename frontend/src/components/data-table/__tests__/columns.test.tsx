@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, test } from "vitest";
 import { uniformSample } from "../uniformSample";
-import { UrlDetector } from "../url-detector";
+import { parseContent, UrlDetector } from "../url-detector";
 import { render } from "@testing-library/react";
 import { generateColumns, inferFieldTypes } from "../columns";
 import type { FieldTypesWithExternalType } from "../types";
+import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 
 test("uniformSample", () => {
   const items = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
@@ -28,7 +29,7 @@ test("uniformSample", () => {
 
 test("UrlDetector renders URLs as hyperlinks", () => {
   const text = "Check this link: https://example.com";
-  const { container } = render(<UrlDetector text={text} />);
+  const { container } = render(<UrlDetector parts={parseContent(text)} />);
   const link = container.querySelector("a");
   expect(link).toBeTruthy();
   expect(link?.href).toBe("https://example.com/");
@@ -240,5 +241,98 @@ describe("generateColumns", () => {
     expect(columns).toHaveLength(2);
     expect(columns[0].id).toBe("name");
     expect(columns[1].id).toBe("age");
+  });
+});
+
+describe("MimeCell", () => {
+  it("renders with correct mime data", () => {
+    const value = { mimetype: "text/plain", data: "Hello World" };
+    const { container } = render(<MimeCell value={value} />);
+    expect(container.textContent).toContain("Hello World");
+  });
+});
+
+describe("isMimeValue", () => {
+  it("should return true for valid MimeValue objects", () => {
+    const value = { mimetype: "text/plain", data: "test data" };
+    expect(isMimeValue(value)).toBe(true);
+  });
+
+  it("should return false for null", () => {
+    expect(isMimeValue(null)).toBe(false);
+  });
+
+  it("should return false for primitive values", () => {
+    expect(isMimeValue("string")).toBe(false);
+    expect(isMimeValue(123)).toBe(false);
+    expect(isMimeValue(true)).toBe(false);
+  });
+
+  it("should return false for objects missing required properties", () => {
+    expect(isMimeValue({})).toBe(false);
+    expect(isMimeValue({ mimetype: "text/plain" })).toBe(false);
+    expect(isMimeValue({ data: "test data" })).toBe(false);
+  });
+});
+
+describe("getMimeValues", () => {
+  it("should return array with single MimeValue when input is a MimeValue", () => {
+    const value = { mimetype: "text/plain", data: "test data" };
+    expect(getMimeValues(value)).toEqual([value]);
+  });
+
+  it("should return array with MimeValue when input has serialized_mime_bundle", () => {
+    const mimeValue = { mimetype: "text/plain", data: "test data" };
+    const value = { serialized_mime_bundle: mimeValue };
+    expect(getMimeValues(value)).toEqual([mimeValue]);
+  });
+
+  it("should return array with MimeValue when input has _serialized_mime_bundle", () => {
+    const mimeValue = { mimetype: "text/plain", data: "test data" };
+    const value = { _serialized_mime_bundle: mimeValue };
+    expect(getMimeValues(value)).toEqual([mimeValue]);
+  });
+
+  it("should return array of MimeValues when input is an array of MimeValues", () => {
+    const values = [
+      { mimetype: "text/plain", data: "test data 1" },
+      { mimetype: "text/html", data: "<p>test data 2</p>" },
+    ];
+    expect(getMimeValues(values)).toEqual(values);
+  });
+
+  it("should return undefined for null input", () => {
+    expect(getMimeValues(null)).toBeUndefined();
+  });
+
+  it("should return undefined for primitive values", () => {
+    expect(getMimeValues("string")).toBeUndefined();
+    expect(getMimeValues(123)).toBeUndefined();
+    expect(getMimeValues(true)).toBeUndefined();
+  });
+
+  it("should return undefined for objects that don't match any pattern", () => {
+    expect(getMimeValues({})).toBeUndefined();
+    expect(getMimeValues({ random: "property" })).toBeUndefined();
+  });
+
+  it("should return undefined for invalid serialized_mime_bundle", () => {
+    expect(
+      getMimeValues({ serialized_mime_bundle: "not a mime value" }),
+    ).toBeUndefined();
+  });
+
+  it("should return undefined for invalid _serialized_mime_bundle", () => {
+    expect(
+      getMimeValues({ _serialized_mime_bundle: "not a mime value" }),
+    ).toBeUndefined();
+  });
+
+  it("should return undefined for array with non-MimeValue items", () => {
+    const values = [
+      { mimetype: "text/plain", data: "test data" },
+      "not a mime value",
+    ];
+    expect(getMimeValues(values)).toBeUndefined();
   });
 });

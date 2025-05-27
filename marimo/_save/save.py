@@ -30,6 +30,7 @@ from marimo._ast.transformers import (
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context
+from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._save.cache import Cache, CacheException
 from marimo._save.hash import (
@@ -46,6 +47,7 @@ from marimo._save.loaders import (
     LoaderType,
     MemoryLoader,
 )
+from marimo._save.stores.file import FileStore
 from marimo._types.ids import CellId_t
 from marimo._utils.with_skip import SkipContext
 
@@ -92,6 +94,7 @@ class _cache_call:
         self.hash_type = hash_type
         self._frame_offset = frame_offset
         self._loader_partial = loader_partial
+        self._last_hash: Optional[str] = None
         if _fn is None:
             self.fn = None
         else:
@@ -190,9 +193,15 @@ class _cache_call:
 
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
-        kwargs = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
+        kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
         # Capture the call case
-        scope = {**self.scope, **get_context().globals, **arg_dict, **kwargs}
+        ctx = get_context()
+        scope = {
+            **self.scope,
+            **ctx.globals,
+            **arg_dict,
+            **kwargs_copy,
+        }
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         attempt = content_cache_attempt_from_base(
             self.base_block,
@@ -203,14 +212,26 @@ class _cache_call:
             as_fn=True,
         )
 
-        if attempt.hit:
-            attempt.restore(scope)
-            return attempt.meta["return"]
-        response = self.fn(*args, **kwargs)
-        # stateful variables may be global
-        scope = {k: v for k, v in scope.items() if k in attempt.stateful_refs}
-        attempt.update(scope, meta={"return": response})
-        self.loader.save_cache(attempt)
+        failed = False
+        self._last_hash = attempt.hash
+        try:
+            if attempt.hit:
+                attempt.restore(scope)
+                return attempt.meta["return"]
+            response = self.fn(*args, **kwargs)
+            # stateful variables may be global
+            scope = {
+                k: v for k, v in scope.items() if k in attempt.stateful_refs
+            }
+            attempt.update(scope, meta={"return": response})
+            self.loader.save_cache(attempt)
+        except Exception as e:
+            failed = True
+            raise e
+        finally:
+            # NB. Exceptions raise their own side effects.
+            if not failed:
+                ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
         return response
 
 
@@ -296,6 +317,7 @@ class _cache_context(SkipContext):
                 # Raising on the first valid line, prevents a discrepancy where
                 # whitespace in `With`, changes behavior.
                 self._body_start = save_module.body[0].lineno
+
                 if self._cache and self._cache.hit:
                     if lineno >= self._body_start:
                         self.skip()
@@ -323,39 +345,53 @@ class _cache_context(SkipContext):
                 f"Unexpected block format {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
 
-        # Backfill the loaded values into global scope.
-        if self._cache and self._cache.hit:
-            assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
-            self._cache.restore(self._frame.f_locals)
-            # Return true to suppress the SkipWithBlock exception.
-            return True
-
+        # Cache hit is acceptable, because SkipWithBlock is raised.
         # NB: exception is a type.
-        if exception:
+        if exception and (self._cache is None or not self._cache.hit):
             if isinstance(instance, BaseException):
                 raise instance from CacheException("Failure during save.")
             raise exception
 
-        # Fill the cache object and save.
         if self._cache is None or self._frame is None:
             raise CacheException(
                 f"Cache was not correctly set {UNEXPECTED_FAILURE_BOILERPLATE}"
             )
-        self._cache.update(self._frame.f_locals)
 
+        failed = False
         try:
-            self._loader.save_cache(self._cache)
+            # Backfill the loaded values into global scope.
+            if self._cache.hit:
+                assert self._frame is not None, UNEXPECTED_FAILURE_BOILERPLATE
+                self._cache.restore(self._frame.f_locals)
+                # Return true to suppress the SkipWithBlock exception.
+                return True
+
+            # Fill the cache object and save.
+            self._cache.update(self._frame.f_locals)
+
+            try:
+                self._loader.save_cache(self._cache)
+            except Exception as e:
+                sys.stderr.write(
+                    "An exception was raised when attempting to cache this code "
+                    "block with the following message:\n"
+                    f"{str(e)}\n"
+                    "NOTE: The cell has run, but cache has not been saved.\n"
+                )
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
         except Exception as e:
-            sys.stderr.write(
-                "An exception was raised when attempting to cache this code "
-                "block with the following message:\n"
-                f"{str(e)}\n"
-                "NOTE: The cell has run, but cache has not been saved.\n"
-            )
-            tmpio = io.StringIO()
-            traceback.print_exc(file=tmpio)
-            tmpio.seek(0)
-            write_traceback(tmpio.read())
+            failed = True
+            raise e
+        finally:
+            if not failed:
+                # Conditional because pendantically, the side effect is on restore /
+                # save respectively, and exceptions should raise their own.
+                ctx = get_context()
+                ctx.cell_lifecycle_registry.add(SideEffect(self._cache.hash))
+
         return False
 
 
@@ -488,6 +524,7 @@ def cache(
 def cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     *args: Any,
+    pin_modules: bool = False,
     loader: Optional[Union[LoaderPartial, Loader]] = None,
     _frame_offset: int = 1,
     _internal_interface_not_for_external_use: None = None,
@@ -498,8 +535,7 @@ def cache(  # type: ignore[misc]
     Decorating a function with `@mo.cache` will cache its value based on
     the function's arguments, closed-over values, and the notebook code.
 
-    **Usage.**
-
+    Examples:
     ```python
     import marimo as mo
 
@@ -535,10 +571,9 @@ def cache(  # type: ignore[misc]
     Note, `mo.cache` can also be used as a drop in replacement for context block
     caching like `mo.persistent_cache`.
 
-    **Args**:
-
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
+    Args:
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
 
     ## Context manager to cache the return value of a block of code.
 
@@ -548,20 +583,20 @@ def cache(  # type: ignore[misc]
     By default, the cache is stored in memory and is not persisted across kernel
     runs, for that functionality, refer to `mo.persistent_cache`.
 
-    **Usage.**
-
+    Examples:
     ```python
     with mo.cache("my_cache") as cache:
         variable = expensive_function()
     ```
 
-    **Args**:
-
-    - `name`: the name of the cache, used to set saving path- to manually
-      invalidate the cache, change the name.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
-    - `loader`: the loader to use for the cache, defaults to `MemoryLoader`.
+    Args:
+        name: the name of the cache, used to set saving path- to manually
+            invalidate the cache, change the name.
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
+        loader: the loader to use for the cache, defaults to `MemoryLoader`.
+        **kwargs: keyword arguments
+        *args: positional arguments
     """
     arg = name
     del name
@@ -574,6 +609,7 @@ def cache(  # type: ignore[misc]
         loader,
         *args,
         frame_offset=_frame_offset + 1,
+        pin_modules=pin_modules,
         **kwargs,
     )
 
@@ -598,6 +634,7 @@ def lru_cache(  # type: ignore[misc]
     name: Union[str, Optional[Callable[..., Any]]] = None,
     maxsize: int = 128,
     *args: Any,
+    pin_modules: bool = False,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
 ) -> Union[_cache_call, _cache_context]:
@@ -608,8 +645,7 @@ def lru_cache(  # type: ignore[misc]
     retained, with the oldest values being discarded. For more information,
     see the documentation of `mo.cache`.
 
-    **Usage.**
-
+    Examples:
     ```python
     import marimo as mo
 
@@ -619,22 +655,22 @@ def lru_cache(  # type: ignore[misc]
         return n * factorial(n - 1) if n else 1
     ```
 
-    **Args**:
-
-    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
+    Args:
+        maxsize: the maximum number of entries in the cache; defaults to 128.
+            Setting to -1 disables cache limits.
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
 
     ## Context manager for LRU caching the return value of a block of code.
 
-    **Args**:
-
-    - `name`: Namespace key for the cache.
-    - `maxsize`: the maximum number of entries in the cache; defaults to 128.
-      Setting to -1 disables cache limits.
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ.
+    Args:
+        name: Namespace key for the cache.
+        maxsize: the maximum number of entries in the cache; defaults to 128.
+            Setting to -1 disables cache limits.
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ.
+        **kwargs: keyword arguments passed to `cache()`
+        *args: positional arguments passed to `cache()`
     """
     arg = name
     del name
@@ -650,6 +686,7 @@ def lru_cache(  # type: ignore[misc]
         cache(  # type: ignore[call-overload]
             arg,
             *args,
+            pin_modules=pin_modules,
             loader=MemoryLoader.partial(max_size=maxsize),
             _frame_offset=2,
             **kwargs,
@@ -680,7 +717,9 @@ def persistent_cache(  # type: ignore[misc]
     save_path: str | None = None,
     method: LoaderKey = "pickle",
     store: Optional[Store] = None,
+    fn: Optional[Callable[..., Any]] = None,
     *args: Any,
+    pin_modules: bool = False,
     _internal_interface_not_for_external_use: None = None,
     **kwargs: Any,
 ) -> Union[_cache_call, _cache_context]:
@@ -698,8 +737,7 @@ def persistent_cache(  # type: ignore[misc]
     that would otherwise be expensive to compute already materialized in
     memory.
 
-    **Usage.**
-
+    Examples:
     ```python
     with persistent_cache(name="my_cache"):
         variable = expensive_function()  # This will be cached to disk.
@@ -718,16 +756,18 @@ def persistent_cache(  # type: ignore[misc]
     **Warning.** Since context abuses sys frame trace, this may conflict with
     debugging tools or libraries that also use `sys.settrace`.
 
-    **Args**:
-
-    - `name`: the name of the cache, used to set saving path- to manually
-      invalidate the cache, change the name.
-    - `save_path`: the folder in which to save the cache, defaults to
-      `__marimo__/cache` in the directory of the notebook file
-    - `method`: the serialization method to use, current options are "json",
-      and "pickle" (default).
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ between runs, defaults to False.
+    Args:
+        name: the name of the cache, used to set saving path- to manually
+            invalidate the cache, change the name.
+        save_path: the folder in which to save the cache, defaults to
+            `__marimo__/cache` in the directory of the notebook file
+        method: the serialization method to use, current options are "json",
+            and "pickle" (default).
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ between runs, defaults to False.
+        store: optional store.
+        **kwargs: keyword arguments passed to `cache()`
+        *args: positional arguments passed to `cache()`
 
 
     ## Decorator for persistently caching the return value of a function.
@@ -754,15 +794,14 @@ def persistent_cache(  # type: ignore[misc]
         # Do expensive things
     ```
 
-    **Args**:
-
-    - `fn`: the wrapped function if no settings are passed.
-    - `save_path`: the folder in which to save the cache, defaults to
-      `__marimo__/cache` in the directory of the notebook file
-    - `method`: the serialization method to use, current options are "json",
-      and "pickle" (default).
-    - `pin_modules`: if True, the cache will be invalidated if module versions
-      differ between runs, defaults to False.
+    Args:
+        fn: the wrapped function if no settings are passed.
+        save_path: the folder in which to save the cache, defaults to
+            `__marimo__/cache` in the directory of the notebook file
+        method: the serialization method to use, current options are "json",
+            and "pickle" (default).
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ between runs, defaults to False.
     """
 
     arg = name
@@ -778,8 +817,17 @@ def persistent_cache(  # type: ignore[misc]
             f"Invalid method {method}, expected one of "
             f"{PERSISTENT_LOADERS.keys()}"
         )
+    if save_path is not None and store is not None:
+        raise ValueError(
+            "save_path and store cannot both be provided, "
+            "provide one or the other."
+        )
 
-    partial_args: dict[str, Any] = {"save_path": save_path}
+    # Providing a save_path forces the store to be a FileStore
+    if save_path is not None:
+        store = FileStore(save_path)
+
+    partial_args: dict[str, Any] = {}
     if store is not None:
         partial_args["store"] = store
 
@@ -788,6 +836,9 @@ def persistent_cache(  # type: ignore[misc]
     if "_loader" in kwargs:
         loader = kwargs.pop("_loader")
 
+    if fn is not None:
+        raise TypeError("Do not use fn directly, use positional arguments.")
+
     return cast(
         Union[_cache_call, _cache_context],
         cache(  # type: ignore[call-overload]
@@ -795,6 +846,7 @@ def persistent_cache(  # type: ignore[misc]
             *args,
             loader=loader,
             _frame_offset=2,
+            pin_modules=pin_modules,
             **kwargs,
         ),
     )

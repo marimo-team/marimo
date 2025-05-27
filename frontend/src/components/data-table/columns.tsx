@@ -1,13 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  DataTableColumnHeader,
-  DataTableColumnHeaderWithSummary,
-} from "./column-header";
+import type { Column, ColumnDef } from "@tanstack/react-table";
+import { DataTableColumnHeader } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
-import { isMimeValue, MimeCell } from "./mime-cell";
+import { getMimeValues, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import { TableColumnSummary } from "./column-summary";
 import type { FilterType } from "./filters";
@@ -17,7 +14,7 @@ import {
   type FieldTypesWithExternalType,
   extractTimezone,
 } from "./types";
-import { UrlDetector } from "./url-detector";
+import { parseContent, UrlDetector } from "./url-detector";
 import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
 import { DatePopover } from "./date-popover";
@@ -29,6 +26,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { Button } from "../ui/button";
+import type { ColumnChartSpecModel } from "./chart-spec-model";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+
+// Artificial limit to display long strings
+const MAX_STRING_LENGTH = 50;
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -94,16 +96,20 @@ export function generateColumns<T>({
   rowHeaders,
   selection,
   fieldTypes,
+  chartSpecModel,
   textJustifyColumns,
   wrappedColumns,
   showDataTypes,
+  calculateTopKRows,
 }: {
   rowHeaders: string[];
   selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
+  chartSpecModel?: ColumnChartSpecModel<unknown>;
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
   showDataTypes?: boolean;
+  calculateTopKRows?: CalculateTopKRows;
 }): Array<ColumnDef<T>> {
   const rowHeadersSet = new Set(rowHeaders);
 
@@ -150,30 +156,45 @@ export function generateColumns<T>({
       },
 
       header: ({ column }) => {
+        const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;
+        const dtypeHeader =
+          showDataTypes && dtype ? (
+            <div className="flex flex-row gap-1">
+              <span className="text-xs text-muted-foreground">{dtype}</span>
+              {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  (nulls: {stats.nulls})
+                </span>
+              )}
+            </div>
+          ) : null;
+
         const headerWithType = (
           <div className="flex flex-col">
             <span className="font-bold">{key}</span>
-            {showDataTypes && dtype && (
-              <span className="text-xs text-muted-foreground">{dtype}</span>
-            )}
+            {dtypeHeader}
           </div>
+        );
+
+        const dataTableColumnHeader = (
+          <DataTableColumnHeader
+            header={headerWithType}
+            column={column}
+            calculateTopKRows={calculateTopKRows}
+          />
         );
 
         // Row headers have no summaries
         if (rowHeadersSet.has(key)) {
-          return (
-            <DataTableColumnHeader header={headerWithType} column={column} />
-          );
+          return dataTableColumnHeader;
         }
 
         return (
-          <DataTableColumnHeaderWithSummary
-            key={key}
-            header={headerWithType}
-            column={column}
-            summary={<TableColumnSummary columnId={key} />}
-          />
+          <div className="flex flex-col h-full pt-0.5 pb-3 justify-between items-start">
+            {dataTableColumnHeader}
+            <TableColumnSummary columnId={key} />
+          </div>
         );
       },
 
@@ -183,10 +204,6 @@ export function generateColumns<T>({
           return <b>{String(renderValue())}</b>;
         }
 
-        const value = getValue();
-        const justify = textJustifyColumns?.[key];
-        const wrapped = wrappedColumns?.includes(key);
-
         function selectCell() {
           if (selection !== "single-cell" && selection !== "multi-cell") {
             return;
@@ -195,137 +212,26 @@ export function generateColumns<T>({
           cell.toggleSelected?.();
         }
 
+        const justify = textJustifyColumns?.[key];
+        const wrapped = wrappedColumns?.includes(key);
         const isCellSelected = cell?.getIsSelected?.() || false;
         const canSelectCell =
           (selection === "single-cell" || selection === "multi-cell") &&
           !isCellSelected;
 
-        const format = column.getColumnFormatting?.();
-        if (format) {
-          return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
-              {column.applyColumnFormatting(value)}
-            </div>
-          );
-        }
+        const cellStyles = getCellStyleClass(
+          justify,
+          wrapped,
+          canSelectCell,
+          isCellSelected,
+        );
 
-        if (isPrimitiveOrNullish(value)) {
-          const rendered = renderValue();
-          return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
-              {rendered == null ? (
-                ""
-              ) : typeof rendered === "string" ? (
-                <UrlDetector text={rendered} />
-              ) : (
-                String(rendered)
-              )}
-            </div>
-          );
-        }
-
-        if (value instanceof Date) {
-          // e.g. 2010-10-07 17:15:00
-          const type =
-            column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
-          const timezone = extractTimezone(column.columnDef.meta?.dtype);
-          return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
-              <DatePopover date={value} type={type}>
-                {exactDateTime(value, timezone)}
-              </DatePopover>
-            </div>
-          );
-        }
-
-        if (isMimeValue(value)) {
-          return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
-              <MimeCell value={value} />
-            </div>
-          );
-        }
-
-        if (Array.isArray(value) || typeof value === "object") {
-          const rawStringValue = renderAny(value);
-          return (
-            <div
-              onClick={selectCell}
-              className={getCellStyleClass(
-                justify,
-                wrapped,
-                canSelectCell,
-                isCellSelected,
-              )}
-            >
-              <EmotionCacheProvider container={null}>
-                <Popover>
-                  <PopoverTrigger>
-                    <span
-                      className="cursor-pointer hover:text-link"
-                      title={rawStringValue}
-                    >
-                      {rawStringValue}
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent>
-                    <PopoverClose className="absolute top-2 right-2">
-                      <Button variant="link" size="xs">
-                        Close
-                      </Button>
-                    </PopoverClose>
-                    <JsonOutput data={value} format="tree" />
-                  </PopoverContent>
-                </Popover>
-              </EmotionCacheProvider>
-            </div>
-          );
-        }
-
-        return (
-          <div
-            onClick={selectCell}
-            className={getCellStyleClass(
-              justify,
-              wrapped,
-              canSelectCell,
-              isCellSelected,
-            )}
-          >
-            {renderAny(getValue())}
-          </div>
+        return renderCellValue(
+          column,
+          renderValue,
+          getValue,
+          selectCell,
+          cellStyles,
         );
       },
       // Remove any default filtering
@@ -369,6 +275,45 @@ export function generateColumns<T>({
 
   return columns;
 }
+
+const PopoutColumn = ({
+  cellStyles,
+  selectCell,
+  rawStringValue,
+  contentClassName,
+  buttonText,
+  children,
+}: {
+  cellStyles?: string;
+  selectCell?: () => void;
+  rawStringValue: string;
+  contentClassName?: string;
+  buttonText?: string;
+  children: React.ReactNode;
+}) => {
+  return (
+    <EmotionCacheProvider container={null}>
+      <Popover>
+        <PopoverTrigger className={cellStyles} onClick={selectCell}>
+          <span
+            className="cursor-pointer hover:text-link"
+            title={rawStringValue}
+          >
+            {rawStringValue}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent className={contentClassName}>
+          <PopoverClose className="absolute top-2 right-2">
+            <Button variant="link" size="xs">
+              {buttonText ?? "Close"}
+            </Button>
+          </PopoverClose>
+          {children}
+        </PopoverContent>
+      </Popover>
+    </EmotionCacheProvider>
+  );
+};
 
 function isPrimitiveOrNullish(value: unknown): boolean {
   if (value == null) {
@@ -433,4 +378,104 @@ function renderAny(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+export function renderCellValue<TData, TValue>(
+  column: Column<TData, TValue>,
+  renderValue: () => TValue | null,
+  getValue: () => TValue,
+  selectCell?: () => void,
+  cellStyles?: string,
+) {
+  const value = getValue();
+  const format = column.getColumnFormatting?.();
+
+  if (typeof value === "string") {
+    const stringValue = format
+      ? String(column.applyColumnFormatting(value))
+      : String(renderValue());
+
+    const parts = parseContent(stringValue);
+    const hasMarkup = parts.some((part) => part.type !== "text");
+    if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
+      return (
+        <div onClick={selectCell} className={cellStyles}>
+          <UrlDetector parts={parts} />
+        </div>
+      );
+    }
+
+    return (
+      <PopoutColumn
+        cellStyles={cellStyles}
+        selectCell={selectCell}
+        rawStringValue={stringValue}
+        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+        buttonText="X"
+      >
+        <UrlDetector parts={parts} />
+      </PopoutColumn>
+    );
+  }
+
+  if (format) {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {column.applyColumnFormatting(value)}
+      </div>
+    );
+  }
+
+  if (isPrimitiveOrNullish(value)) {
+    const rendered = renderValue();
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {rendered == null ? "" : String(rendered)}
+      </div>
+    );
+  }
+
+  if (value instanceof Date) {
+    // e.g. 2010-10-07 17:15:00
+    const type =
+      column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
+    const timezone = extractTimezone(column.columnDef.meta?.dtype);
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        <DatePopover date={value} type={type}>
+          {exactDateTime(value, timezone)}
+        </DatePopover>
+      </div>
+    );
+  }
+
+  const mimeValues = getMimeValues(value);
+  if (mimeValues) {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {mimeValues.map((mimeValue, idx) => (
+          <MimeCell key={idx} value={mimeValue} />
+        ))}
+      </div>
+    );
+  }
+
+  if (Array.isArray(value) || typeof value === "object") {
+    const rawStringValue = renderAny(value);
+    return (
+      <PopoutColumn
+        cellStyles={cellStyles}
+        selectCell={selectCell}
+        rawStringValue={rawStringValue}
+      >
+        <JsonOutput data={value} format="tree" className="max-h-64" />
+      </PopoutColumn>
+    );
+  }
+
+  return (
+    <div onClick={selectCell} className={cellStyles}>
+      {renderAny(value)}
+    </div>
+  );
 }

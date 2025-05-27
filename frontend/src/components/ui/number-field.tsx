@@ -17,7 +17,13 @@ export interface NumberFieldProps extends AriaNumberFieldProps {
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
   ({ placeholder, ...props }, ref) => {
     return (
-      <AriaNumberField {...props}>
+      <AriaNumberField
+        {...props}
+        formatOptions={{
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 100,
+        }}
+      >
         <div
           className={cn(
             "shadow-xsSolid hover:shadow-smSolid hover:focus-within:shadow-mdSolid",

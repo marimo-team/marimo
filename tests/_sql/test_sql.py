@@ -10,6 +10,8 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
+from marimo._sql.engines.ibis import IbisEngine
+from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.sql import _query_includes_limit, sql
 
 if TYPE_CHECKING:
@@ -21,6 +23,7 @@ if TYPE_CHECKING:
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
+HAS_IBIS = DependencyManager.ibis.has()
 HAS_POLARS = DependencyManager.polars.has()
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_SQLGLOT = DependencyManager.sqlglot.has()
@@ -331,3 +334,29 @@ def test_sql_output_flag(mock_replace: MagicMock) -> None:
 
     # Clean up
     duckdb.sql("DROP TABLE test_table_2")
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sql_with_cursor_result(sqlite_engine: sa.Engine):
+    from sqlalchemy.engine import CursorResult
+
+    with patch.object(
+        SQLAlchemyEngine, "sql_output_format", return_value="native"
+    ):
+        result = sql("SELECT * FROM test", engine=sqlite_engine)
+        assert isinstance(result, CursorResult)
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+def test_sql_with_ibis_expression_result():
+    import ibis
+    from ibis import Expr
+
+    duckdb_backend = ibis.duckdb.connect()  # in-memory
+    # Create a test table with data
+    data_table = ibis.memtable({"id": [1, 2], "name": ["test1", "test2"]})
+    duckdb_backend.create_table("test", obj=data_table)
+
+    with patch.object(IbisEngine, "sql_output_format", return_value="native"):
+        result = sql("SELECT * FROM test", engine=duckdb_backend)
+        assert isinstance(result, Expr)

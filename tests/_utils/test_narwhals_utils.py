@@ -10,13 +10,16 @@ from marimo._utils.narwhals_utils import (
     assert_narwhals_dataframe,
     assert_narwhals_series,
     can_narwhalify,
+    can_narwhalify_lazyframe,
     dataframe_to_csv,
     empty_df,
     is_narwhals_integer_type,
+    is_narwhals_lazyframe,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
     unwrap_narwhals_dataframe,
     unwrap_py_scalar,
+    upgrade_narwhals_df,
 )
 from tests._data.mocks import create_dataframes
 
@@ -29,17 +32,25 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"a": [1, 2, 3], "b": ["x", "y", "z"]}, exclude=["ibis", "duckdb"]
+        {"a": [1, 2, 3], "b": ["x", "y", "z"]},
     ),
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_empty_df(df: IntoDataFrame) -> None:
     empty: Any = empty_df(df)
-    assert len(empty) == 0
-    assert len(empty.columns) == 2
+
+    # Assert shape is empty
+    n_df = upgrade_narwhals_df(nw.from_native(empty))
+    if is_narwhals_lazyframe(n_df):
+        n_df = n_df.collect()
+
+    assert n_df.shape == (0, 2)
 
 
-@pytest.mark.parametrize("df", create_dataframes({"a": [1, 2, 3]}))
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"a": [1, 2, 3]}, exclude=["lazy-polars"]),
+)
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_assert_narwhals_dataframe(df: IntoDataFrame) -> None:
     df_wrapped = nw.from_native(df)
@@ -119,3 +130,27 @@ def test_unwrap_py_scalar():
     # Test non-scalar values are returned as-is
     complex_obj = {"a": 1}
     assert unwrap_py_scalar(complex_obj) == complex_obj
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_can_narwhalify_lazyframe():
+    import duckdb
+    import polars as pl
+
+    # Test with a LazyFrame
+    lazy_df = pl.DataFrame({"a": [1, 2, 3]}).lazy()
+    assert can_narwhalify_lazyframe(lazy_df) is True
+
+    # Test with a regular DataFrame
+    df = pl.DataFrame({"a": [1, 2, 3]})
+    assert can_narwhalify_lazyframe(df) is False
+
+    # Test with non-polars objects
+    assert can_narwhalify_lazyframe({"a": [1, 2, 3]}) is False
+    assert can_narwhalify_lazyframe([1, 2, 3]) is False
+    assert can_narwhalify_lazyframe(None) is False
+
+    # Test with duckdb relation
+    con = duckdb.connect(":memory:")
+    rel = con.sql("SELECT 1")
+    assert can_narwhalify_lazyframe(rel) is True

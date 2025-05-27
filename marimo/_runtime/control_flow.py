@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from typing import Optional
 
 from marimo._output.rich_help import mddoc
@@ -14,6 +16,9 @@ class MarimoStopError(BaseException):
 
     Inherits from `BaseException` to prevent accidental capture with
     `except Exception` (similar to `KeyboardInterrupt`)
+
+    Args:
+        output: optional output object
     """
 
     def __init__(self, output: Optional[object]) -> None:
@@ -30,15 +35,17 @@ def stop(predicate: bool, output: Optional[object] = None) -> None:
     scheduled to run will not be run, and their defs will be removed from
     program memory.
 
-    **Example:**
+    Examples:
+        ```python
+        mo.stop(form.value is None, mo.md("**Submit the form to continue.**"))
+        ```
 
-    ```python
-    mo.stop(form.value is None, mo.md("**Submit the form to continue.**"))
-    ```
+    Args:
+        predicate (bool): The predicate indicating whether to stop.
+        output (bool): The output to be assigned to the current cell.
 
-    **Raises:**
-
-    When `predicate` is `True`, raises a `MarimoStopError`.
+    Raises:
+        MarimoStopError: When `predicate` is `True`
     """
     if predicate:
         raise MarimoStopError(output)

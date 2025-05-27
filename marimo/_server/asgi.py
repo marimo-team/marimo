@@ -386,9 +386,11 @@ def create_asgi_app(
     from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
+    from marimo._server.registry import LIFESPAN_REGISTRY
     from marimo._server.sessions import SessionManager
     from marimo._server.tokens import AuthToken
     from marimo._server.utils import initialize_asyncio
+    from marimo._utils.lifespans import Lifespans
     from marimo._utils.marimo_path import MarimoPath
 
     config_reader = get_default_config_manager(current_path=None)
@@ -458,17 +460,19 @@ def create_asgi_app(
                 # since we don't want to read arbitrary args and apply them
                 # to each application
                 cli_args={},
+                argv=None,
                 auth_token=auth_token,
                 redirect_console_to_browser=False,
                 ttl_seconds=None,
             )
             app = create_starlette_app(
                 base_url="",
-                lifespan=lifespans.Lifespans(
+                lifespan=Lifespans(
                     [
                         # Not all lifespans are needed for run mode
                         lifespans.etc,
                         lifespans.signal_handler,
+                        *LIFESPAN_REGISTRY.get_all(),
                     ]
                 ),
                 enable_auth=not AuthToken.is_empty(auth_token),

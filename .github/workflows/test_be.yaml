@@ -24,6 +24,7 @@ jobs:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
+              - '!{marimo/_smoke_tests,frontend}/**'
             docs:
               - 'docs/**'
 
@@ -71,6 +72,9 @@ jobs:
             python-version: '3.12'
             dependencies: 'core'
           - os: ubuntu-latest
+            python-version: '3.13'
+            dependencies: 'core'
+          - os: ubuntu-latest
             python-version: '3.9'
             dependencies: 'core,optional'
           - os: ubuntu-latest
@@ -81,6 +85,9 @@ jobs:
             dependencies: 'core,optional'
           - os: ubuntu-latest
             python-version: '3.12'
+            dependencies: 'core,optional'
+          - os: ubuntu-latest
+            python-version: '3.13'
             dependencies: 'core,optional'
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -124,7 +131,7 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     name: Test coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: 🛑 Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1

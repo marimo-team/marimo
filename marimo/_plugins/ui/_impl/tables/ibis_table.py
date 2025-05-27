@@ -1,10 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 from typing import Any, Optional
 
 from marimo._data.models import (
-    ColumnSummary,
+    ColumnStats,
     ExternalDataType,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -40,15 +41,18 @@ class IbisTableManagerFactory(TableManagerFactory):
         class IbisTableManager(TableManager[ibis.Table]):
             type = "ibis"
 
-            def to_csv(
+            def to_csv_str(
                 self, format_mapping: Optional[FormatMapping] = None
-            ) -> bytes:
-                return self._as_table_manager().to_csv(format_mapping)
+            ) -> str:
+                return self._as_table_manager().to_csv_str(format_mapping)
 
-            def to_json(
+            def to_json_str(
                 self, format_mapping: Optional[FormatMapping] = None
-            ) -> bytes:
-                return self._as_table_manager().to_json(format_mapping)
+            ) -> str:
+                return self._as_table_manager().to_json_str(format_mapping)
+
+            def to_parquet(self) -> bytes:
+                return self._as_table_manager().to_parquet()
 
             def supports_download(self) -> bool:
                 return False
@@ -77,8 +81,9 @@ class IbisTableManagerFactory(TableManagerFactory):
                 return IbisTableManager(self.data.select(columns))
 
             def select_cells(
-                self, _cells: list[TableCoordinate]
+                self, cells: list[TableCoordinate]
             ) -> list[TableCell]:
+                del cells
                 raise NotImplementedError("Cell selection not supported")
 
             def drop_columns(
@@ -137,21 +142,21 @@ class IbisTableManagerFactory(TableManagerFactory):
 
                 return IbisTableManager(filtered)
 
-            def get_summary(self, column: str) -> ColumnSummary:
+            def get_stats(self, column: str) -> ColumnStats:
                 col = self.data[column]
                 total = self.data.count().execute()
                 nulls = col.isnull().sum().execute()
 
-                summary = ColumnSummary(total=total, nulls=nulls)
+                stats = ColumnStats(total=total, nulls=nulls)
 
                 if col.type().is_numeric():
-                    summary.min = col.min().execute()
-                    summary.max = col.max().execute()
-                    summary.mean = col.mean().execute()
-                    summary.median = col.median().execute()
-                    summary.std = col.std().execute()
+                    stats.min = col.min().execute()
+                    stats.max = col.max().execute()
+                    stats.mean = col.mean().execute()
+                    stats.median = col.median().execute()
+                    stats.std = col.std().execute()
 
-                return summary
+                return stats
 
             @memoize_last_value
             def get_num_rows(self, force: bool = True) -> Optional[int]:
@@ -189,6 +194,24 @@ class IbisTableManagerFactory(TableManagerFactory):
                     ibis.desc(by) if descending else ibis.asc(by)
                 )
                 return IbisTableManager(sorted_data)
+
+            @functools.lru_cache(maxsize=5)  # noqa: B019
+            def calculate_top_k_rows(
+                self, column: ColumnName, k: int
+            ) -> list[tuple[Any, int]]:
+                count_col_name = f"{column}_count"
+                result = (
+                    self.data[[column]]
+                    .value_counts(name=count_col_name)
+                    .order_by(ibis.desc(count_col_name))
+                    .limit(k)
+                    .execute()
+                )
+
+                return [
+                    (row[0], int(row[1]))
+                    for row in result.itertuples(index=False)
+                ]
 
             def get_field_type(
                 self, column_name: str

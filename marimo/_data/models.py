@@ -44,7 +44,8 @@ class DataTableColumn:
 # Local -> Python dataframes
 # DuckDB -> DuckDB tables using the global in-memory DuckDB instance
 # Connection -> SQL tables using a named data source connection (e.g. SQLAlchemy, or a custom DuckDB connection)
-DataTableSource = Literal["local", "duckdb", "connection"]
+# Catalog -> Data catalog (e.g. iceberg)
+DataTableSource = Literal["local", "duckdb", "connection", "catalog"]
 DataTableType = Literal["table", "view"]
 
 
@@ -110,9 +111,9 @@ NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
 
 
 @dataclass
-class ColumnSummary:
+class ColumnStats:
     """
-    Represents a summary of a column in a data table.
+    Represents stats for a column in a data table.
 
     """
 

@@ -11,6 +11,8 @@ import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { EditorView } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { cellConfigExtension } from "../../config/extension";
+import { languageMetadataField } from "../metadata";
+import { DUCKDB_ENGINE } from "@/core/datasets/data-source-connections";
 
 function createState(content: string, selection?: { anchor: number }) {
   const state = EditorState.create({
@@ -145,9 +147,9 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "mo.md(
           r"""
-          print('Hello')
-          print('Goodbye')
-          """
+      print('Hello')
+      print('Goodbye')
+      """
       )"
     `);
 
@@ -168,5 +170,74 @@ describe("switchLanguage", () => {
           """
       )"
     `);
+  });
+
+  it("sets default metadata when switching from Python to SQL with keepCodeAsIs false", () => {
+    const state = createState("SELECT * FROM df");
+    const mockEditor = new EditorView({ state });
+
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({});
+
+    // Switch to SQL
+    switchLanguage(mockEditor, "sql", { keepCodeAsIs: false });
+
+    // Check that the language was switched
+    expect(mockEditor.state.field(languageAdapterState).type).toBe("sql");
+
+    // Check that the default metadata was set
+    const metadata = mockEditor.state.field(languageMetadataField);
+    expect(metadata).toMatchInlineSnapshot(`
+      {
+        "commentLines": [],
+        "dataframeName": "_df",
+        "engine": "${DUCKDB_ENGINE}",
+        "quotePrefix": "f",
+        "showOutput": true,
+      }
+    `);
+
+    // Check that the document was transformed correctly
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+  });
+
+  it("handle when switching from Python to Markdown with keepCodeAsIs true", () => {
+    const state = createState("# hello");
+    const mockEditor = new EditorView({ state });
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({});
+
+    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("# hello");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      quotePrefix: "r",
+    });
+  });
+
+  it("handles when switching from Python to Markdown to SQL with keepCodeAsIs true", () => {
+    const state = createState("SELECT * FROM df");
+    const mockEditor = new EditorView({ state });
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({});
+
+    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      quotePrefix: "r",
+    });
+
+    switchLanguage(mockEditor, "sql", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      commentLines: [],
+      dataframeName: "_df",
+      engine: DUCKDB_ENGINE,
+      quotePrefix: "f",
+      showOutput: true,
+    });
+
+    // Switch back to markdown
+    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
+    expect(mockEditor.state.field(languageMetadataField)).toEqual({
+      quotePrefix: "r",
+    });
   });
 });

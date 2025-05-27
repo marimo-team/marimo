@@ -29,11 +29,15 @@ import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
 import { ColumnWrappingFeature } from "./column-wrapping/feature";
-import type { DataTableSelection } from "./types";
-import { INDEX_COLUMN_NAME } from "./types";
+import type { DataTableSelection, TooManyRows } from "./types";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
+import { CellStylingFeature } from "./cell-styling/feature";
+import type { CellStyleState } from "./cell-styling/types";
+import { CopyColumnFeature } from "./copy-column/feature";
+import { FocusRowFeature } from "./focus-row/feature";
+import { getStableRowId } from "./utils";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -45,7 +49,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   sorting?: SortingState; // controlled sorting
   setSorting?: OnChangeFn<SortingState>; // controlled sorting
   // Pagination
-  totalRows: number | "too_many";
+  totalRows: number | TooManyRows;
   totalColumns: number;
   pagination?: boolean;
   manualPagination?: boolean; // server-side pagination
@@ -55,6 +59,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   selection?: DataTableSelection;
   rowSelection?: RowSelectionState;
   cellSelection?: CellSelectionState;
+  cellStyling?: CellStyleState | null;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onCellSelectionChange?: OnChangeFn<CellSelectionState>;
   getRowIds?: GetRowIds;
@@ -69,6 +74,13 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   // Columns
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
+  toggleDisplayHeader?: () => void;
+  // Focus row
+  onFocusRowChange?: OnChangeFn<number>;
+  // Others
+  chartsFeatureEnabled?: boolean;
+  toggleRowViewerPanel?: () => void;
+  isRowViewerPanelOpen?: boolean;
 }
 
 const DataTableInternal = <TData,>({
@@ -84,6 +96,7 @@ const DataTableInternal = <TData,>({
   setSorting,
   rowSelection,
   cellSelection,
+  cellStyling,
   paginationState,
   setPaginationState,
   downloadAs,
@@ -101,6 +114,11 @@ const DataTableInternal = <TData,>({
   reloading,
   freezeColumnsLeft,
   freezeColumnsRight,
+  toggleDisplayHeader,
+  chartsFeatureEnabled,
+  toggleRowViewerPanel,
+  isRowViewerPanelOpen,
+  onFocusRowChange,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -109,12 +127,28 @@ const DataTableInternal = <TData,>({
     freezeColumnsRight,
   );
 
+  // Returns the row index, accounting for pagination
+  function getPaginatedRowIndex(row: TData, idx: number): number {
+    if (!paginationState) {
+      return idx;
+    }
+
+    // Add offset if manualPagination is enabled
+    const offset = manualPagination
+      ? paginationState.pageIndex * paginationState.pageSize
+      : 0;
+    return idx + offset;
+  }
+
   const table = useReactTable<TData>({
     _features: [
       ColumnPinning,
       ColumnWrappingFeature,
       ColumnFormattingFeature,
       CellSelectionFeature,
+      CellStylingFeature,
+      CopyColumnFeature,
+      FocusRowFeature,
     ],
     data,
     columns,
@@ -126,19 +160,13 @@ const DataTableInternal = <TData,>({
           onPaginationChange: setPaginationState,
           getRowId: (row, idx) => {
             // Prefer stable row ID if it exists
-            if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
-              return String(row[INDEX_COLUMN_NAME]);
+            const stableRowId = getStableRowId(row);
+            if (stableRowId) {
+              return stableRowId;
             }
 
-            if (!paginationState) {
-              return String(idx);
-            }
-
-            // Add offset if manualPagination is enabled
-            const offset = manualPagination
-              ? paginationState.pageIndex * paginationState.pageSize
-              : 0;
-            return String(idx + offset);
+            const paginatedRowIndex = getPaginatedRowIndex(row, idx);
+            return String(paginatedRowIndex);
           },
         }
       : {}),
@@ -159,6 +187,12 @@ const DataTableInternal = <TData,>({
     enableCellSelection:
       selection === "single-cell" || selection === "multi-cell",
     enableMultiCellSelection: selection === "multi-cell",
+    // pinning
+    onColumnPinningChange: setColumnPinning,
+    // focus row
+    enableFocusRow: true,
+    onFocusRowChange: onFocusRowChange,
+    // state
     state: {
       ...(sorting ? { sorting } : {}),
       columnFilters: filters,
@@ -172,9 +206,9 @@ const DataTableInternal = <TData,>({
             { pagination: { pageIndex: 0, pageSize: data.length } }),
       rowSelection,
       cellSelection,
+      cellStyling,
       columnPinning: columnPinning,
     },
-    onColumnPinningChange: setColumnPinning,
   });
 
   return (
@@ -192,7 +226,12 @@ const DataTableInternal = <TData,>({
         )}
         <Table>
           {renderTableHeader(table)}
-          {renderTableBody(table, columns)}
+          {renderTableBody(
+            table,
+            columns,
+            isRowViewerPanelOpen,
+            getPaginatedRowIndex,
+          )}
         </Table>
       </div>
       <TableActions
@@ -207,6 +246,10 @@ const DataTableInternal = <TData,>({
         table={table}
         downloadAs={downloadAs}
         getRowIds={getRowIds}
+        toggleDisplayHeader={toggleDisplayHeader}
+        chartsFeatureEnabled={chartsFeatureEnabled}
+        toggleRowViewerPanel={toggleRowViewerPanel}
+        isRowViewerPanelOpen={isRowViewerPanelOpen}
       />
     </div>
   );

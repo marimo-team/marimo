@@ -62,10 +62,17 @@ export function renderTableHeader<TData>(
 export function renderTableBody<TData>(
   table: Table<TData>,
   columns: Array<ColumnDef<TData>>,
+  isSelectionPanelOpen?: boolean,
+  getRowIndex?: (row: TData, idx: number) => number,
 ): JSX.Element {
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
-      const { className, style } = getPinningStyles(cell.column);
+      const { className, style: pinningstyle } = getPinningStyles(cell.column);
+      const style = Object.assign(
+        {},
+        cell.getUserStyling?.() || {},
+        pinningstyle,
+      );
       return (
         <TableCell
           key={cell.id}
@@ -86,6 +93,11 @@ export function renderTableBody<TData>(
     });
   };
 
+  const handleRowClick = (row: Row<TData>) => {
+    const rowIndex = getRowIndex?.(row.original, row.index) ?? row.index;
+    row.focusRow?.(rowIndex);
+  };
+
   return (
     <TableBody>
       {table.getRowModel().rows?.length ? (
@@ -93,11 +105,12 @@ export function renderTableBody<TData>(
           <TableRow
             key={row.id}
             data-state={row.getIsSelected() && "selected"}
-            onClick={() => {
-              if (table.getIsSomeRowsSelected()) {
-                row.toggleSelected();
-              }
-            }}
+            // These classes ensure that empty rows (nulls) still render
+            className={cn(
+              "border-t h-6",
+              isSelectionPanelOpen && "cursor-pointer",
+            )}
+            onClick={() => handleRowClick(row)}
           >
             {renderCells(row, row.getLeftVisibleCells())}
             {renderCells(row, row.getCenterVisibleCells())}
@@ -164,4 +177,24 @@ function columnSizingHandler<TData>(
     ...prevSizes,
     [column.id]: thead.getBoundingClientRect().width,
   }));
+}
+
+/**
+ * Render an unknown value as a string. Converts objects to JSON strings.
+ * @param opts.value - The value to render.
+ * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
+ */
+export function renderUnknownValue(opts: {
+  value: unknown;
+  nullAsEmptyString?: boolean;
+}): string {
+  const { value, nullAsEmptyString = false } = opts;
+
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  if (value === null && nullAsEmptyString) {
+    return "";
+  }
+  return String(value);
 }

@@ -17,7 +17,7 @@ marimo is a reactive Python notebook: run a cell or interact with a UI
 element, and marimo automatically runs dependent cells (or [marks them as
 stale](guides/reactivity.md#configuring-how-marimo-runs-cells)), keeping code and outputs
 consistent and preventing bugs before they happen. Every marimo notebook is
-stored as pure Python, executable as a script, and deployable as an app.
+stored as pure Python (Git-friendly), executable as a script, and deployable as an app.
 
 /// admonition | Built from the ground up
     type: tip
@@ -36,7 +36,7 @@ pip install marimo && marimo tutorial intro
 /// tab | install with uv
 
 ```bash
-uv pip install marimo && marimo tutorial intro
+uv add marimo && uv run marimo tutorial intro
 ```
 
 ///
@@ -57,12 +57,13 @@ reproducibility, maintainability, composability, and shareability.
 - 🚀 **batteries-included:** replaces `jupyter`, `streamlit`, `jupytext`, `ipywidgets`, `papermill`, and more
 - ⚡️ **reactive**: run a cell, and marimo reactively [runs all dependent cells](guides/reactivity.md) or <a href="#expensive-notebooks">marks them as stale</a>
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](guides/interactivity.md) to Python — no callbacks required
+- 🐍 **git-friendly:** stored as `.py` files
+- 🛢️ **designed for data**: query dataframes, databases, warehouses, and lakehouses [with SQL](guides/working_with_data/sql.md); filter and search [dataframes](guides/working_with_data/dataframes.md)
 - 🔬 **reproducible:** [no hidden state](guides/reactivity.md), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
 - 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
-- 🧪 **testable:** [run your favorite test suite](guides/testing/index.md), verify your notebook's correctness
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
-- 🛢️ **designed for data**: query dataframes and databases [with SQL](guides/working_with_data/sql.md), filter and search [dataframes](guides/working_with_data/dataframes.md)
-- 🐍 **git-friendly:** notebooks are stored as `.py` files
+- 🧩 **reusable:** [import functions and classes](guides/reusing_functions.md) from one notebook to another
+- 🧪 **testable:** [run pytest](guides/testing/index.md) on notebooks
 - ⌨️ **a modern editor**: [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), [AI assistants](guides/editor_features/ai_completion.md#using-ollama), vim keybindings, variable explorer, and [more](guides/editor_features/index.md)
 
 ## A reactive programming environment
@@ -130,7 +131,7 @@ Organize your notebooks to best fit the stories you'd like to tell.
 **Built-in package management.** marimo has built-in support for all major
 package managers, letting you [install packages on import](guides/editor_features/package_management.md). marimo can even
 [serialize package
-requirements](guides/package_reproducibility.md)
+requirements](guides/package_management/inlining_dependencies.md)
 in notebook files, and auto install them in
 isolated venv sandboxes.
 
@@ -214,10 +215,8 @@ For example, here's an embedding visualizer made in marimo
   <source src="/_static/embedding.webm" type="video/webm">
 </video>
 
-Check out our [guides](guides/index.md), our [example
-gallery](https://marimo.io/gallery), and our
-[`examples/`](https://github.com/marimo-team/marimo/tree/main/examples) on
-GitHub to learn more.
+Check out our [guides](guides/index.md), [usage examples](examples/index.md),
+and our [gallery](https://marimo.io/gallery) to learn more.
 
 <table border="0">
   <tr>

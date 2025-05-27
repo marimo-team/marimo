@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { API, marimoClient } from "./api";
+import { waitForConnectionOpen } from "./connection";
 import type { RunRequests, EditRequests } from "./types";
 
 const { handleResponse, handleResponseReturnNull } = API;
@@ -9,6 +10,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     sendComponentValues: (request) => {
       return marimoClient
         .POST("/api/kernel/set_ui_element_value", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    sendModelValue: (request) => {
+      return marimoClient
+        .POST("/api/kernel/set_model_value", {
           body: request,
         })
         .then(handleResponseReturnNull);
@@ -172,6 +180,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    previewDataSourceConnection: (request) => {
+      return marimoClient
+        .POST("/api/datasources/preview_datasource_connection", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
     openFile: async (request) => {
       await marimoClient
         .POST("/api/files/open", {
@@ -182,6 +197,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     getUsageStats: () => {
       return marimoClient.GET("/api/usage").then(handleResponse);
+    },
+    sendPdb: (request) => {
+      return marimoClient
+        .POST("/api/kernel/pdb/pm", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     sendListFiles: (request) => {
       return marimoClient
@@ -311,8 +333,26 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
-    getPackageList: () => {
+    getPackageList: async () => {
+      // If the sidebar is already open, it may try to load before the session has been initialized
+      await waitForConnectionOpen();
       return marimoClient.GET("/api/packages/list").then(handleResponse);
+    },
+    listSecretKeys: async (request) => {
+      // If the sidebar is already open, it may try to load before the session has been initialized
+      await waitForConnectionOpen();
+      return marimoClient
+        .POST("/api/secrets/keys", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+    },
+    writeSecret: async (request) => {
+      return marimoClient
+        .POST("/api/secrets/create", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
   };
 }

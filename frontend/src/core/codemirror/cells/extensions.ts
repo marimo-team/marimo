@@ -14,7 +14,10 @@ import {
   cellIdState,
   type CodemirrorCellActions,
 } from "./state";
-import { SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { errorLineHighlighter } from "./traceback-decorations";
+import { createObservable } from "@/core/state/observable";
+import { store } from "@/core/state/jotai";
 
 /**
  * Extensions for cell actions
@@ -140,7 +143,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
 
           if (isAtStartOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: true });
+            actions.moveToNextCell({ cellId, before: true, noCreate: true });
             return true;
           }
           return false;
@@ -159,7 +162,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
 
           if (isAtEndOfEditor(ev)) {
             const actions = ev.state.facet(cellActionsState);
-            actions.moveToNextCell({ cellId, before: false });
+            actions.moveToNextCell({ cellId, before: false, noCreate: true });
             return true;
           }
           return false;
@@ -171,7 +174,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: false });
+          actions.moveToNextCell({ cellId, before: false, noCreate: true });
           return true;
         },
       },
@@ -181,7 +184,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         stopPropagation: true,
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
-          actions.moveToNextCell({ cellId, before: true });
+          actions.moveToNextCell({ cellId, before: true, noCreate: true });
           return true;
         },
       },
@@ -301,7 +304,11 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
 /**
  * Extension for auto-running markdown cells
  */
-export function markdownAutoRunExtension(): Extension {
+export function markdownAutoRunExtension({
+  predicate,
+}: {
+  predicate: () => boolean;
+}): Extension {
   return EditorView.updateListener.of((update) => {
     // If the doc didn't change, ignore
     if (!update.docChanged) {
@@ -311,6 +318,10 @@ export function markdownAutoRunExtension(): Extension {
     // If not focused, ignore
     // This can cause multiple runs when in RTC mode
     if (!update.view.hasFocus) {
+      return;
+    }
+
+    if (!predicate()) {
       return;
     }
 
@@ -338,5 +349,8 @@ export function cellBundle(
     cellIdState.of(cellId),
     cellKeymaps(cellId, hotkeys),
     cellCodeEditing(hotkeys),
+    errorLineHighlighter(
+      createObservable(createTracebackInfoAtom(cellId), store),
+    ),
   ];
 }

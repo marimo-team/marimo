@@ -20,10 +20,11 @@ from marimo._plugins.ui._impl.altair_chart import (
     _has_legend_param,
     _has_selection_param,
     _parse_spec,
+    _update_vconcat_width,
     altair_chart,
 )
 from marimo._runtime.runtime import Kernel
-from tests._data.mocks import create_dataframes
+from tests._data.mocks import NON_EAGER_LIBS, create_dataframes
 from tests.conftest import ExecReqProvider
 from tests.mocks import snapshotter
 
@@ -64,7 +65,7 @@ class TestAltairChart:
                 "field_2": [1, 2, 3, 4],
                 "field_3": [10, 20, 30, 40],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe(df: ChartDataType) -> None:
@@ -143,7 +144,7 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 10),
                 ],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_dates(
@@ -151,7 +152,7 @@ class TestAltairChart:
     ) -> None:
         assert (
             nw.Datetime
-            == nw.from_native(df, strict=True).schema["datetime_column"]
+            == nw.from_native(df, pass_through=False).schema["datetime_column"]
         )
 
         # Define an interval selection
@@ -241,7 +242,7 @@ class TestAltairChart:
                     datetime.datetime(2020, 1, 1),
                 ],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_strings(
@@ -397,7 +398,7 @@ class TestAltairChart:
                     datetime.datetime.fromtimestamp(20000),
                 ],
             },
-            exclude=["ibis", "duckdb"],
+            exclude=NON_EAGER_LIBS,
         ),
     )
     def test_filter_dataframe_with_datetimes_as_numbers(
@@ -802,7 +803,8 @@ def test_no_selection_polars() -> None:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
-        {"x": [1, 2, 3], "y1": [4, 5, 6], "y2": [7, 8, 9]}, exclude=["ibis"]
+        {"x": [1, 2, 3], "y1": [4, 5, 6], "y2": [7, 8, 9]},
+        exclude=["ibis", "lazy-polars"],
     ),
 )
 def test_layered_chart(df: IntoDataFrame):
@@ -821,7 +823,7 @@ def test_layered_chart(df: IntoDataFrame):
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"values": range(100)}),
+    create_dataframes({"values": range(100)}, exclude=["lazy-polars"]),
 )
 def test_chart_with_binning(df: IntoDataFrame):
     import altair as alt
@@ -847,7 +849,7 @@ def test_chart_with_binning(df: IntoDataFrame):
             "y": [1, 2, 3, 4],
             "category": ["A", "A", "B", "B"],
         },
-        exclude=["ibis", "pyarrow", "duckdb"],
+        exclude=["ibis", "pyarrow", "duckdb", "lazy-polars"],
     ),
 )
 def test_apply_selection(df: IntoDataFrame):
@@ -883,7 +885,9 @@ def test_chart_with_url_data():
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes({"x": [1, 2, 3], "y": [4, 5, 6]}),
+    create_dataframes(
+        {"x": [1, 2, 3], "y": [4, 5, 6]}, exclude=["lazy-polars"]
+    ),
 )
 def test_chart_operations(df: IntoDataFrame):
     import altair as alt
@@ -977,3 +981,47 @@ def test_has_legend_param() -> None:
     # Invalid chart
     chart = None
     assert _has_legend_param(chart) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_update_vconcat_width() -> None:
+    import altair as alt
+
+    # Create a simple chart
+    chart1 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_point()
+    chart2 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_line()
+
+    # Create a vconcat chart
+    vconcat_chart = alt.vconcat(chart1, chart2)
+
+    # Update the width
+    updated_chart = _update_vconcat_width(vconcat_chart)
+
+    # Check that the width is set to container for both subcharts
+    assert updated_chart.vconcat[0].width == "container"
+    assert updated_chart.vconcat[1].width == "container"
+
+    # Test with nested vconcat
+    nested_vconcat = alt.vconcat(
+        alt.vconcat(chart1, chart2), alt.vconcat(chart1, chart2)
+    )
+
+    updated_nested = _update_vconcat_width(nested_vconcat)
+
+    # Check that all nested charts have container width
+    assert updated_nested.vconcat[0].vconcat[0].width == "container"
+    assert updated_nested.vconcat[0].vconcat[1].width == "container"
+    assert updated_nested.vconcat[1].vconcat[0].width == "container"
+    assert updated_nested.vconcat[1].vconcat[1].width == "container"
+
+    # Test with layer chart
+    layer_chart = alt.layer(chart1, chart2)
+    updated_layer = _update_vconcat_width(layer_chart)
+    assert updated_layer.layer[0].width == "container"
+    assert updated_layer.layer[1].width == "container"
+
+    # Test with hconcat chart
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    updated_hconcat = _update_vconcat_width(hconcat_chart)
+    assert updated_hconcat.hconcat[0].width == "container"
+    assert updated_hconcat.hconcat[1].width == "container"

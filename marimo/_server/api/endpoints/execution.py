@@ -11,19 +11,21 @@ from starlette.responses import JSONResponse
 from marimo import _loggers
 from marimo._messaging.ops import Alert
 from marimo._runtime.requests import (
+    ExecuteScratchpadRequest,
     FunctionCallRequest,
     HTTPRequest,
+    PdbRequest,
+    SetModelMessageRequest,
     SetUIElementValueRequest,
 )
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.ws import FILE_QUERY_PARAM_KEY
+from marimo._server.api.endpoints.ws import DOC_MANAGER, FILE_QUERY_PARAM_KEY
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.models.models import (
     BaseResponse,
     InstantiateRequest,
     RunRequest,
-    RunScratchpadRequest,
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
@@ -68,6 +70,35 @@ async def set_ui_element_values(
             token=str(uuid4()),
             request=HTTPRequest.from_request(request),
         ),
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+
+    return SuccessResponse()
+
+
+@router.post("/set_model_value")
+async def set_model_values(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SetModelMessageRequest"
+    responses:
+        200:
+            description: Set model value
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=SetModelMessageRequest)
+    app_state.require_current_session().put_control_request(
+        body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -195,7 +226,7 @@ async def run_scratchpad(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/RunScratchpadRequest"
+                    $ref: "#/components/schemas/ExecuteScratchpadRequest"
     responses:
         200:
             description: Run the scratchpad
@@ -205,9 +236,39 @@ async def run_scratchpad(
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
     app_state = AppState(request)
-    body = await parse_request(request, cls=RunScratchpadRequest)
+    body = await parse_request(request, cls=ExecuteScratchpadRequest)
     app_state.require_current_session().put_control_request(
-        body.as_execution_request(),
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+
+    return SuccessResponse()
+
+
+@router.post("/pdb/pm")
+@requires("edit")
+async def run_post_mortem(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PdbRequest"
+    responses:
+        200:
+            description: Run a post mortem on the most recent failed cell.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """  # noqa: E501
+    app_state = AppState(request)
+    body = await parse_request(request, cls=PdbRequest)
+    app_state.require_current_session().put_control_request(
+        body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -230,10 +291,24 @@ async def restart_session(
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
     app_state = AppState(request)
+    session_manager = app_state.session_manager
+
     # This just closes the session, and the frontend will
     # do a full reload, which will restart the session.
     session_id = app_state.require_current_session_id()
-    app_state.session_manager.close_session(session_id)
+    session = app_state.require_current_session()
+    session_manager.close_session(session_id)
+
+    # Close RTC doc if it exists
+    file_key: Optional[MarimoFileKey] = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or session_manager.file_router.get_unique_file_key()
+        or session.app_file_manager.path
+    )
+    if file_key is not None:
+        await DOC_MANAGER.remove_doc(file_key)
+    else:
+        LOGGER.warning("Unable to close RTC doc as no file key was provided")
 
     return SuccessResponse()
 

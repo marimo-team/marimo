@@ -7,14 +7,16 @@ from abc import ABC, abstractmethod
 from typing import Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
-from marimo._config.config import CompletionConfig, LanguageServersConfig
+from marimo._config.config import MarimoConfig
+from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
-from marimo._runtime.complete import _get_docstring
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
-from marimo._utils.paths import import_files
+from marimo._types.ids import CellId_t
+from marimo._utils.formatter import DefaultFormatter, FormatError
+from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -39,7 +41,7 @@ class LspServer(ABC):
 class BaseLspServer(LspServer):
     def __init__(self, port: int) -> None:
         self.port = port
-        self.process: Optional[subprocess.Popen[bytes]] = None
+        self.process: Optional[subprocess.Popen[str]] = None
 
     @server_tracer.start_as_current_span("lsp_server.start")
     def start(self) -> Optional[Alert]:
@@ -63,28 +65,51 @@ class BaseLspServer(LspServer):
             if not cmd:
                 return None
 
-            file_out = (
-                None
-                if GLOBAL_SETTINGS.DEVELOPMENT_MODE
-                else subprocess.DEVNULL
-            )
             LOGGER.debug("... running command: %s", cmd)
             self.process = subprocess.Popen(
                 cmd,
-                stdout=file_out,
-                stderr=file_out,
+                # only show stdout when in development
+                stdout=subprocess.PIPE
+                if GLOBAL_SETTINGS.DEVELOPMENT_MODE
+                else subprocess.DEVNULL,
+                # subprocess.PIPE in Windows breaks the lsp-server
+                stderr=subprocess.DEVNULL,
                 stdin=None,
+                text=True,
             )
+
             LOGGER.debug(
-                "... process return code (`None` means success): %s",
+                "... process return code (`None` means still running): %s",
                 self.process.returncode,
             )
+
+            if (
+                self.process.returncode is not None
+                and self.process.returncode != 0
+            ):
+                # Process failed immediately
+                stderr_output = (
+                    self.process.stderr.read()
+                    if self.process.stderr
+                    else "No error output available"
+                )
+                LOGGER.error(
+                    "LSP server failed to start with return code %s",
+                    self.process.returncode,
+                )
+                LOGGER.error("Error output: %s", stderr_output)
+                return Alert(
+                    title="LSP server failed to start",
+                    description="The LSP server failed to start. Please check the logs for more information.",
+                    variant="danger",
+                )
+
             LOGGER.debug("Started LSP server at port %s", self.port)
+
         except Exception as e:
+            cmd_str = " ".join(cmd or [])
             LOGGER.error(
-                "When starting language server (%s), got error: %s",
-                cmd,
-                e,
+                f"Failed to start {self.id} language server ({cmd_str}), got error: {e}",
             )
             self.process = None
 
@@ -126,11 +151,8 @@ class CopilotLspServer(BaseLspServer):
         )
 
     def _lsp_bin(self) -> str:
-        lsp_bin = os.path.join(
-            str(import_files("marimo").joinpath("_lsp")),
-            "index.js",
-        )
-        return lsp_bin
+        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
+        return str(lsp_bin)
 
     def get_command(self) -> list[str]:
         lsp_bin = self._lsp_bin()
@@ -157,6 +179,13 @@ class CopilotLspServer(BaseLspServer):
 class PyLspServer(BaseLspServer):
     id = "pylsp"
 
+    def start(self) -> Optional[Alert]:
+        # pylsp is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.pylsp.has():
+            LOGGER.debug("pylsp is not installed. Skipping LSP server.")
+            return None
+        return super().start()
+
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if DependencyManager.pylsp.has():
             return True
@@ -164,6 +193,8 @@ class PyLspServer(BaseLspServer):
 
     def get_command(self) -> list[str]:
         import sys
+
+        log_file = _loggers.get_log_directory() / "pylsp.log"
 
         return [
             sys.executable,
@@ -174,6 +205,8 @@ class PyLspServer(BaseLspServer):
             "--port",
             str(self.port),
             "--check-parent-process",
+            "--log-file",
+            str(log_file),
         ]
 
     def missing_binary_alert(self) -> Alert:
@@ -196,84 +229,99 @@ class NoopLspServer(LspServer):
 
 
 class CompositeLspServer(LspServer):
-    language_servers = {
+    LANGUAGE_SERVERS = {
         "pylsp": PyLspServer,
         "copilot": CopilotLspServer,
     }
 
     def __init__(
         self,
-        lsp_config: LanguageServersConfig,
-        completion_config: CompletionConfig,
+        config_reader: MarimoConfigReader,
         min_port: int,
     ) -> None:
-        is_enabled: dict[str, bool] = {
-            "copilot": (
-                completion_config["copilot"] is True
-                or completion_config["copilot"] == "github"
-            ),
-            **{
-                server_name: cast(dict[str, bool], config)["enabled"]
-                for server_name, config in lsp_config.items()
-            },
-        }
-        self.servers: list[LspServer] = [
-            constructor(find_free_port(min_port + 100 * i))
-            for i, (server_name, constructor) in enumerate(
-                self.language_servers.items()
-            )
-            if is_enabled.get(server_name, False)
-        ]
+        self.config_reader = config_reader
+        self.min_port = min_port
 
-    def start(self) -> None:
-        for server in self.servers:
-            server.start()
+        last_free_port = find_free_port(min_port)
+
+        # NOTE: we construct all servers up front regardless of whether they are enabled
+        # in order to properly mount them as Starlette routes with their own ports
+        # With 2 servers, this is OK, but if we want to support more, we should
+        # lazily construct servers, routes, and ports.
+        # We still lazily start servers as they are enabled.
+        # We also need to ensure that the ports are unique
+        self.servers: dict[str, LspServer] = {}
+        for server_name, server_constructor in self.LANGUAGE_SERVERS.items():
+            last_free_port = find_free_port(last_free_port + 1)
+            self.servers[server_name] = server_constructor(last_free_port)
+
+    def _is_enabled(self, server_name: str) -> bool:
+        # .get_config() is not cached
+        config = self.config_reader.get_config()
+        if server_name == "copilot":
+            copilot = config["completion"]["copilot"]
+            return copilot is True or copilot == "github"
+
+        return cast(
+            bool,
+            cast(Any, config.get("language_servers", {}))
+            .get(server_name, {})
+            .get("enabled", False),
+        )
+
+    def start(self) -> Optional[Alert]:
+        alerts: list[Alert] = []
+        for server_name, server in self.servers.items():
+            if not self._is_enabled(server_name):
+                # We don't shut down the server if it is already running
+                # in case the user wants to re-enable it
+                continue
+            # We call start again even for existing servers in case it failed
+            # to start the first time (e.g. got new dependencies)
+            alert = server.start()
+            if alert is not None:
+                alerts.append(alert)
+
+        return alerts[0] if alerts else None
 
     def stop(self) -> None:
-        for server in self.servers:
+        for server in self.servers.values():
             server.stop()
 
     def is_running(self) -> bool:
-        return any(server.is_running() for server in self.servers)
+        return any(server.is_running() for server in self.servers.values())
+
+
+def any_lsp_server_running(config: MarimoConfig) -> bool:
+    # Check if any language servers or copilot are enabled
+    copilot_enabled = config["completion"]["copilot"]
+    language_servers = config.get("language_servers", {})
+    language_servers_enabled = any(
+        cast(dict[str, Any], server).get("enabled", False)
+        for server in language_servers.values()
+    )
+    return (copilot_enabled is not False) or language_servers_enabled
 
 
 if DependencyManager.pylsp.has():
-    from pylsp import hookimpl  # type: ignore[import-untyped,import-not-found]
+    from pylsp import hookimpl
 
-    @hookimpl(tryfirst=True)  # type: ignore[misc]
-    def pylsp_hover(
-        config: Any, document: Any, position: dict[str, int]
-    ) -> Optional[dict[str, Any]]:
+    formatter = DefaultFormatter(line_length=88)
+
+    def format_signature(signature: str) -> str:
         try:
-            del config
-            LOGGER.debug("Hovering over %s", document.path)
-            import jedi  # type: ignore[import-untyped]
-
-            # Use Jedi to get information about the symbol under cursor
-            script = jedi.Script(document.source, path=document.path)
-
-            definitions = script.goto(
-                position["line"] + 1, position["character"]
+            signature_as_func = f"def {signature.strip()}:\n    pass"
+            dummy_cell_id = cast(CellId_t, "")
+            reformatted = formatter.format({dummy_cell_id: signature_as_func})[
+                dummy_cell_id
+            ]
+            signature = reformatted.removeprefix("def ").removesuffix(
+                ":\n    pass"
             )
+        except (ModuleNotFoundError, FormatError):
+            pass
+        return "```python\n" + signature + "\n```\n"
 
-            if not definitions:
-                return None
-
-            definition = definitions[0]
-
-            docstring = _get_docstring(definition)
-
-            if not docstring:
-                return None
-
-            return {"contents": {"kind": "markdown", "value": docstring}}
-        except Exception:
-            return None
-
-    @hookimpl()  # type: ignore[misc]
-    def pylsp_completions(
-        document: Any, position: dict[str, int]
-    ) -> Optional[list[dict[str, Any]]]:
-        del document
-        del position
-        return None
+    @hookimpl
+    def pylsp_signatures_to_markdown(signatures: list[str]) -> str:
+        return format_signature("\n".join(signatures))

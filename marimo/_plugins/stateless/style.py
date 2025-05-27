@@ -15,18 +15,23 @@ def style(
 ) -> Html:
     """Wrap an object in a styled container.
 
-    **Example.**
+    Example:
+        ```python
+        mo.style(item, styles={"max-height": "300px", "overflow": "auto"})
+        mo.style(item, max_height="300px", overflow="auto")
+        ```
 
-    ```python
-    mo.style(item, styles={"max-height": "300px", "overflow": "auto"})
-    mo.style(item, max_height="300px", overflow="auto")
-    ```
+    Args:
+        item (object): An object to render as HTML.
+        style (Optional[dict[str, Any]]): A dictionary of CSS styles,
+            keyed by property name (e.g., "max-height"). Defaults to None.
+        **kwargs (Any): Additional CSS styles specified as keyword arguments.
+            Underscores in keyword arguments are converted to hyphens
+            (e.g., `max_height` becomes `max-height`).
 
-    **Args.**
-
-    - `item`: an object to render as HTML
-    - `styles`: a optional dict of CSS styles, keyed by property name
-    - `**kwargs`: additional CSS styles
+    Returns:
+        Html: An HTML object representing the item wrapped in a div
+                with the specified styles.
     """
     # Initialize combined_style with style dict if provided,
     # otherwise empty dict

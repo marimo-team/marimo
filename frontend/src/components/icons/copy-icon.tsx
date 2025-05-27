@@ -6,17 +6,20 @@ import { Tooltip } from "../ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
+import { toast } from "../ui/use-toast";
 
 interface Props {
   value: string | (() => string);
   className?: string;
   tooltip?: string | false;
+  toastTitle?: string;
 }
 
 export const CopyClipboardIcon: React.FC<Props> = ({
   value,
   className,
   tooltip,
+  toastTitle,
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
@@ -25,17 +28,20 @@ export const CopyClipboardIcon: React.FC<Props> = ({
     await copyToClipboard(valueToCopy).then(() => {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
+      if (toastTitle) {
+        toast({ title: toastTitle });
+      }
     });
   });
 
   const button = (
-    <span onClick={handleCopy}>
+    <button type="button" onClick={handleCopy} aria-label="Copy to clipboard">
       {isCopied ? (
         <CheckIcon className={cn(className, "text-[var(--grass-11)]")} />
       ) : (
         <Copy className={className} />
       )}
-    </span>
+    </button>
   );
 
   if (tooltip === false) {

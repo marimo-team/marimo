@@ -1275,6 +1275,36 @@ class TestCacheDecorator:
             return
 
     @staticmethod
+    def test_shadowed_kwargs(app) -> None:
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            @mo.cache
+            def g(value="hello"):
+                return value
+
+            return g
+
+        @app.cell
+        def __(g):
+            assert g() == "hello"
+            assert g(value="world") == "world"
+            assert g(123) == 123
+            assert g.hits == 0
+            assert g(value="hello") == "hello"
+            # Subjective whether this hits
+            # But add to test to capture behavior.
+            assert g.hits == 0
+            assert g() == "hello"
+            assert g.hits == 1
+            return
+
+    @staticmethod
     def test_shadowed_state(app) -> None:
         @app.cell
         def __():

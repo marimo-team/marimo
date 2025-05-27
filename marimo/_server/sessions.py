@@ -65,6 +65,7 @@ from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
 from marimo._server.session.serialize import (
+    SessionCacheKey,
     SessionCacheManager,
 )
 from marimo._server.session.session_view import SessionView
@@ -705,13 +706,21 @@ class Session:
         Overwrites the existing session view.
         Mutates the existing session.
         """
+        from marimo import __version__
+
         LOGGER.debug("Syncing session view from cache")
         self.session_cache_manager = SessionCacheManager(
             session_view=self.session_view,
             path=self.app_file_manager.path,
             interval=self.SESSION_CACHE_INTERVAL_SECONDS,
         )
-        self.session_view = self.session_cache_manager.read_session_view()
+
+        app = self.app_file_manager.app
+        codes = tuple(
+            cell_data.code for cell_data in app.cell_manager.cell_data()
+        )
+        key = SessionCacheKey(codes=codes, marimo_version=__version__)
+        self.session_view = self.session_cache_manager.read_session_view(key)
         self.session_cache_manager.start()
 
     def __repr__(self) -> str:
@@ -748,6 +757,7 @@ class SessionManager:
         lsp_server: LspServer,
         config_manager: MarimoConfigManager,
         cli_args: SerializedCLIArgs,
+        argv: list[str] | None,
         auth_token: Optional[AuthToken],
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
@@ -765,6 +775,7 @@ class SessionManager:
         self.watch = watch
         self.recents = RecentFilesManager()
         self.cli_args = cli_args
+        self.argv = argv
         self.redirect_console_to_browser = redirect_console_to_browser
 
         # We should access the config_manager from the session if possible
@@ -782,7 +793,8 @@ class SessionManager:
             self.skew_protection_token = SkewProtectionToken.random()
         else:
             app = file_router.get_single_app_file_manager(
-                default_width=self._config_manager.default_width
+                default_width=self._config_manager.default_width,
+                default_sql_output=self._config_manager.default_sql_output,
             ).app
             codes = "".join(code for code in app.cell_manager.codes())
             # Because run-mode is read-only and we could have multiple
@@ -798,6 +810,7 @@ class SessionManager:
         return self.file_router.get_file_manager(
             key,
             default_width=self._config_manager.default_width,
+            default_sql_output=self._config_manager.default_sql_output,
         )
 
     def create_session(
@@ -813,6 +826,7 @@ class SessionManager:
             app_file_manager = self.file_router.get_file_manager(
                 file_key,
                 default_width=self._config_manager.default_width,
+                default_sql_output=self._config_manager.default_sql_output,
             )
 
             if app_file_manager.path:
@@ -826,6 +840,8 @@ class SessionManager:
                     query_params=query_params,
                     filename=app_file_manager.path,
                     cli_args=self.cli_args,
+                    argv=self.argv,
+                    app_config=app_file_manager.app.config,
                 ),
                 app_file_manager=app_file_manager,
                 config_manager=self._config_manager,
@@ -907,7 +923,7 @@ class SessionManager:
                     UpdateCellCodes(
                         cell_ids=cell_ids,
                         codes=codes,
-                        code_is_stale=not should_autorun,
+                        code_is_stale=True,
                     ),
                     from_consumer_id=None,
                 )

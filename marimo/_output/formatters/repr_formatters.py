@@ -56,7 +56,11 @@ def maybe_get_repr_formatter(
                     # N.B. We cannot pass this as an argument to the method
                     # because this unfortunately could break some libraries
                     # (e.g. ibis)
-                    if "text/plain" in contents and len(contents) > 1:
+                    if (
+                        isinstance(contents, dict)
+                        and "text/plain" in contents
+                        and len(contents) > 1
+                    ):
                         contents.pop("text/plain")
                     # Convert markdown/latex to text/html if text/html is
                     # not present

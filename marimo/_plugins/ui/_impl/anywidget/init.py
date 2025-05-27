@@ -21,10 +21,10 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     import ipywidgets  # type: ignore
 
     __protocol_version__ = ipywidgets._version.__protocol_version__
-    _remove_buffers = ipywidgets.widgets.widget._remove_buffers  # type: ignore
+    from marimo._plugins.ui._impl.anywidget.utils import extract_buffer_paths
 
     # Get the initial state of the widget
-    state, buffer_paths, buffers = _remove_buffers(w.get_state())  # type: ignore
+    state, buffer_paths, buffers = extract_buffer_paths(w.get_state())
 
     # Generate a random model_id so we can assign the same id to the comm
     if getattr(w, "_model_id", None) is None:
@@ -33,9 +33,9 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     # Initialize the comm...this will also send the initial state of the widget
     w.comm = MarimoComm(
         comm_id=w._model_id,  # pyright: ignore
-        comm_manager=COMM_MANAGER,
+        comm_manager=WIDGET_COMM_MANAGER,
         target_name="jupyter.widgets",
-        data={"state": state, "buffer_paths": buffer_paths},
+        data={"state": state, "buffer_paths": buffer_paths, "method": "open"},
         buffers=cast(BufferType, buffers),
         # TODO: should this be hard-coded?
         metadata={"version": __protocol_version__},
@@ -43,4 +43,4 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
     )
 
 
-COMM_MANAGER = MarimoCommManager()
+WIDGET_COMM_MANAGER = MarimoCommManager()

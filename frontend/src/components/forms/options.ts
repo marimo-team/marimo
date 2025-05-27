@@ -26,7 +26,12 @@ export interface FieldOptions {
     | "column_values"
     | "date"
     | "datetime"
-    | "time";
+    | "time"
+    | "tabs";
+  /**
+   * Only show options that match the regex
+   */
+  optionRegex?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare

@@ -4,6 +4,9 @@ import type { EditorView, Panel } from "@codemirror/view";
 import { Provider } from "jotai";
 import { type Root, createRoot } from "react-dom/client";
 
+/**
+ * Bridge between Codemirror panels and React
+ */
 export function createPanel(
   view: EditorView,
   Component: React.ComponentType<{ view: EditorView }>,

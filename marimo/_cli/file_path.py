@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -11,7 +12,7 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 from urllib.error import HTTPError
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._cli.print import green
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
@@ -84,10 +85,11 @@ class GitHubIssueReader(FileReader):
 
 
 class StaticNotebookReader(FileReader):
-    CODE_PREFIX = '<marimo-code hidden="">'
-    CODE_SUFFIX = "</marimo-code>"
-    FILENAME_PREFIX = '<marimo-filename hidden="">'
-    FILENAME_SUFFIX = "</marimo-filename>"
+    CODE_TAG = r"marimo-code"
+    CODE_REGEX = re.compile(r"<marimo-code\s+hidden(?:=['\"]{2})?\s*>(.*?)<")
+    FILENAME_REGEX = re.compile(
+        r"<marimo-filename\s+hidden(?:=['\"]{2})?\s*>(.*?)<"
+    )
 
     def can_read(self, name: str) -> bool:
         return self._is_static_marimo_notebook_url(name)[0]
@@ -105,12 +107,12 @@ class StaticNotebookReader(FileReader):
             request = urllib.request.Request(
                 url,
                 # User agent to avoid 403 Forbidden some bot protection
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={"User-Agent": f"marimo/{__version__}"},
             )
             file_contents = (
                 urllib.request.urlopen(request).read().decode("utf-8")
             )
-            return StaticNotebookReader.CODE_PREFIX in file_contents, str(
+            return StaticNotebookReader.CODE_TAG in file_contents, str(
                 file_contents
             )
 
@@ -123,27 +125,33 @@ class StaticNotebookReader(FileReader):
             return download(url)
 
         # Starts with https://static.marimo.app/, append /download
-        if url.startswith("https://static.marimo.app/"):
+        if url.startswith("https://static.marimo.app/static"):
             return download(os.path.join(url, "download"))
+
+        # Other marimo domains
+        DOMAINS = [
+            "marimo.app",
+            "links.marimo.app",
+        ]
+        if any(url.startswith(f"https://{domain}/") for domain in DOMAINS):
+            return download(url)
 
         # Otherwise, not a static marimo notebook
         return False, ""
 
     @staticmethod
     def _extract_code_from_static_notebook(file_contents: str) -> str:
-        # normalize hidden attribute
-        file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        return file_contents.split(StaticNotebookReader.CODE_PREFIX)[1].split(
-            StaticNotebookReader.CODE_SUFFIX
-        )[0]
+        search = re.search(StaticNotebookReader.CODE_REGEX, file_contents)
+        assert search is not None, "<marimo-code> not found in file contents"
+        return urllib.parse.unquote(search.group(1))
 
     @staticmethod
     def _extract_filename_from_static_notebook(file_contents: str) -> str:
-        # normalize hidden attribute
-        file_contents = file_contents.replace("hidden=''", 'hidden=""')
-        return file_contents.split(StaticNotebookReader.FILENAME_PREFIX)[
-            1
-        ].split(StaticNotebookReader.FILENAME_SUFFIX)[0]
+        if search := re.search(
+            StaticNotebookReader.FILENAME_REGEX, file_contents
+        ):
+            return urllib.parse.unquote(search.group(1))
+        return "notebook.py"
 
 
 class GitHubSourceReader(FileReader):

@@ -13,12 +13,14 @@ def test_smoke_test():
     lcls = dict(lcls)
 
     def_count = {
-        "test_parameterized": 3,
-        "test_parameterized_collected": 2,
-        "test_parameterized_collected2": 2,
-        "test_normal_regular": 1,
-        "TestParent": 2,
-        "test_sanity": 1,
+        "TestParent": (2, 0, 0),
+        "test_failure": (0, 0, 1),
+        "test_parameterized": (3, 0, 0),
+        "test_parameterized_collected": (2, 0, 0),
+        "test_sanity": (1, 0, 0),
+        "test_skip": (0, 1, 0),
+        "test_using_var_in_scope": (3, 0, 0),
+        "test_using_var_in_toplevel": (3, 0, 0),
     }
 
     path = Path(__file__).parent / "script_data/contains_tests.py"
@@ -35,7 +37,11 @@ def test_smoke_test():
             response = run_pytest(
                 defs=cell.defs, lcls=lcls, notebook_path=path
             )
-            assert response.total == sum([def_count[d] for d in cell.defs]), (
+            assert (
+                response.passed,
+                response.skipped,
+                response.failed,
+            ) == tuple(map(sum, zip(*[def_count[d] for d in cell.defs]))), (
                 response.output
             )
             total += response.total
@@ -43,4 +49,5 @@ def test_smoke_test():
     os.environ["PYTEST_CURRENT_TEST"] = previous
     # put it back on
 
-    assert total == sum(def_count.values()) == 11
+    # Assert all cases captured, and nothing missed.
+    assert total == sum(map(sum, def_count.values())) == 16

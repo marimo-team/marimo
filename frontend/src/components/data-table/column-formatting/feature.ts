@@ -144,7 +144,7 @@ export const applyFormat = (
         case "Percent":
           return percentFormatter.format(num);
         case "Scientific":
-          return prettyScientificNumber(num);
+          return prettyScientificNumber(num, { shouldRound: true });
         case "Engineering":
           return prettyEngineeringNumber(num);
         case "Integer":

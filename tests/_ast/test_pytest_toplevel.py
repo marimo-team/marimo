@@ -3,7 +3,7 @@
 import marimo
 
 __generated_with = "0.0.0"
-app = marimo.App(_toplevel_fn=True)
+app = marimo.App()
 
 with app.setup:
     # Special setup cell
@@ -31,6 +31,21 @@ def test_add_good(a, b, c):
 @pytest.mark.parametrize(("a", "b", "c"), [(1, 1, 3), (2, 2, 5)])
 def test_add_bad(a, b, c):
     assert add(a, b) == c
+
+
+@app.class_definition
+class TestClassWorks:
+    def test_sanity(self):
+        assert True
+
+    @pytest.mark.parametrize(("a", "b", "c"), [(1, 1, 2), (1, 2, 3)])
+    def test_decorated(self, a, b, c):
+        assert add(a, b) == c
+
+    @staticmethod
+    @pytest.mark.parametrize(("a", "b", "c"), [(1, 1, 2), (1, 2, 3)])
+    def test_decorated_static(a, b, c) -> None:
+        assert add(a, b) == c
 
 
 if __name__ == "__main__":

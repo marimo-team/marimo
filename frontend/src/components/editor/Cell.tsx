@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { completionStatus } from "@codemirror/autocomplete";
+import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import {
   memo,
@@ -49,7 +49,11 @@ import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { StopButton } from "@/components/editor/cell/StopButton";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
-import { HelpCircleIcon, MoreHorizontalIcon } from "lucide-react";
+import {
+  HelpCircleIcon,
+  MoreHorizontalIcon,
+  SquareFunctionIcon,
+} from "lucide-react";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { cn } from "@/utils/cn";
 import { isErrorMime } from "@/core/mime";
@@ -75,7 +79,7 @@ function useCellCompletion(
       !cellRef.current.contains(e.relatedTarget) &&
       editorView.current !== null
     ) {
-      // closeCompletion(editorView.current);
+      closeCompletion(editorView.current);
     }
   });
 
@@ -165,8 +169,10 @@ function useCellHotkeys(
         editorView.current?.focus();
       }
     },
-    "cell.focusDown": () => actions.moveToNextCell({ cellId, before: false }),
-    "cell.focusUp": () => actions.moveToNextCell({ cellId, before: true }),
+    "cell.focusDown": () =>
+      actions.moveToNextCell({ cellId, before: false, noCreate: true }),
+    "cell.focusUp": () =>
+      actions.moveToNextCell({ cellId, before: true, noCreate: true }),
     "cell.sendToBottom": () => actions.sendToBottom({ cellId }),
     "cell.sendToTop": () => actions.sendToTop({ cellId }),
     "cell.aiCompletion": () => {
@@ -259,36 +265,44 @@ function useCellHiddenLogic(
   const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
 
   // Callback to show the code editor temporarily
-  const temporarilyShowCode = useCallback(() => {
-    if (!isCellCodeShown) {
-      setTemporarilyVisible(true);
+  const temporarilyShowCode = useEvent((opts?: { focus?: boolean }) => {
+    if (isCellCodeShown) {
+      return;
+    }
+
+    // Default to true
+    const focus = opts?.focus ?? true;
+    setTemporarilyVisible(true);
+
+    if (focus) {
       editorView.current?.focus();
-      // Reach one parent up
-      const parent = editorViewParentRef.current?.parentElement;
-      if (!parent) {
-        Logger.error("Cell: No parent element found for editor view");
-        return;
-      }
-
-      const handleFocusOut = () => {
-        requestAnimationFrame(() => {
-          if (!parent.contains(document.activeElement)) {
-            // Hide the code editor
-            setTemporarilyVisible(false);
-            editorView.current?.dom.blur();
-            parent.removeEventListener("focusout", handleFocusOut);
-          }
-        });
-      };
-      parent.addEventListener("focusout", handleFocusOut);
     }
-  }, [isCellCodeShown, editorView, editorViewParentRef, setTemporarilyVisible]);
 
-  const showHiddenMarkdownCode = useCallback(() => {
+    // Reach one parent up
+    const parent = editorViewParentRef.current?.parentElement;
+    if (!parent) {
+      Logger.error("Cell: No parent element found for editor view");
+      return;
+    }
+
+    const handleFocusOut = () => {
+      requestAnimationFrame(() => {
+        if (!parent.contains(document.activeElement)) {
+          // Hide the code editor
+          setTemporarilyVisible(false);
+          editorView.current?.dom.blur();
+          parent.removeEventListener("focusout", handleFocusOut);
+        }
+      });
+    };
+    parent.addEventListener("focusout", handleFocusOut);
+  });
+
+  const showHiddenMarkdownCode = useEvent(() => {
     if (isMarkdownCodeHidden) {
-      temporarilyShowCode();
+      temporarilyShowCode({ focus: true });
     }
-  }, [isMarkdownCodeHidden, temporarilyShowCode]);
+  });
 
   return {
     isCellCodeShown,
@@ -311,6 +325,7 @@ export type CellComponentActions = Pick<
   | "updateCellConfig"
   | "clearSerializedEditorState"
   | "setStdinResponse"
+  | "clearCellConsoleOutput"
   | "sendToBottom"
   | "sendToTop"
 >;
@@ -323,6 +338,10 @@ export interface CellHandle {
    * The CodeMirror editor view.
    */
   editorView: EditorView;
+  /**
+   * The CodeMirror editor view, or null if it is not yet mounted.
+   */
+  editorViewOrNull: EditorView | null;
 }
 
 export interface CellProps
@@ -338,6 +357,7 @@ export interface CellProps
       | "staleInputs"
       | "runStartTimestamp"
       | "lastRunStartTimestamp"
+      | "serialization"
       | "runElapsedTimeMs"
       | "debuggerActive"
     >,
@@ -401,6 +421,9 @@ const CellComponent = (
     () => ({
       get editorView() {
         return derefNotNull(editorView);
+      },
+      get editorViewOrNull() {
+        return editorView.current;
       },
     }),
     [editorView],
@@ -526,6 +549,7 @@ const EditableCellComponent = ({
   stopped,
   staleInputs,
   serializedEditorState,
+  serialization,
   debuggerActive,
   appClosed,
   canDelete,
@@ -722,6 +746,10 @@ const EditableCellComponent = ({
     return undefined;
   };
 
+  const isToplevel = !!(
+    serialization && serialization.toLowerCase() === "valid"
+  );
+
   return (
     <TooltipProvider>
       <CellActionsContextMenu
@@ -830,11 +858,60 @@ const EditableCellComponent = ({
               </div>
             </div>
             {cellOutput === "below" && outputArea}
+            {serialization && (
+              <a
+                href="https://links.marimo.app/reusable-definitions"
+                target="_blank"
+                className="hover:underline py-1 px-2 flex items-center justify-end gap-2 last:rounded-b"
+              >
+                {isToplevel && (
+                  <span className="text-muted-foreground text-xs font-bold">
+                    reusable
+                  </span>
+                )}
+                <Tooltip
+                  content={
+                    <span className="max-w-16 text-xs">
+                      {(isToplevel &&
+                        "This function or class can be imported into other Python notebooks or modules.") || (
+                        <>
+                          This definition can't be reused in other Python
+                          modules:
+                          <br />
+                          <br />
+                          <pre>{serialization}</pre>
+                          <br />
+                          Click this icon to learn more.
+                        </>
+                      )}
+                    </span>
+                  }
+                >
+                  {(isToplevel && (
+                    <SquareFunctionIcon
+                      size={16}
+                      strokeWidth={1.5}
+                      className="rounded-lg text-muted-foreground"
+                    />
+                  )) || (
+                    <HelpCircleIcon
+                      size={16}
+                      strokeWidth={1.5}
+                      className="rounded-lg text-muted-foreground"
+                    />
+                  )}
+                </Tooltip>
+              </a>
+            )}
             <ConsoleOutput
               consoleOutputs={consoleOutputs}
               stale={consoleOutputStale}
-              cellName={name}
+              // Empty name if serialization triggered
+              cellName={serialization ? "_" : name}
               onRefactorWithAI={handleRefactorWithAI}
+              onClear={() => {
+                actions.clearCellConsoleOutput({ cellId });
+              }}
               onSubmitDebugger={(text, index) => {
                 actions.setStdinResponse({
                   cellId,
@@ -1279,6 +1356,9 @@ const SetupCellComponent = ({
             // Don't show name
             cellName={"_"}
             onRefactorWithAI={handleRefactorWithAI}
+            onClear={() => {
+              actions.clearCellConsoleOutput({ cellId });
+            }}
             onSubmitDebugger={(text, index) => {
               actions.setStdinResponse({
                 cellId,

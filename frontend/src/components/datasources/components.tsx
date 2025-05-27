@@ -14,7 +14,7 @@ export const DatasourceLabel: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   return (
-    <div className="flex gap-1 items-center font-bold px-2 py-1.5 text-muted-foreground bg-[var(--slate-2)] text-sm">
+    <div className="flex gap-1.5 items-center font-bold px-2 py-1.5 text-muted-foreground bg-[var(--slate-2)] text-sm">
       {children}
     </div>
   );

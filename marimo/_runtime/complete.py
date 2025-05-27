@@ -11,6 +11,7 @@ import jedi  # type: ignore # noqa: F401
 import jedi.api  # type: ignore # noqa: F401
 
 from marimo import _loggers as loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.ops import CompletionResult
 from marimo._messaging.types import Stream
@@ -18,7 +19,7 @@ from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.requests import CodeCompletionRequest
 from marimo._server.types import QueueType
-from marimo._utils.docs import google_docstring_to_markdown
+from marimo._utils.docs import MarimoConverter
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
 
@@ -55,13 +56,19 @@ def _should_include_name(name: str, prefix: str) -> bool:
 
 
 DOC_CACHE_SIZE = 200
+# Normally '.' is the trigger character for completions.
+#
+# We also want to trigger completions on '(', ',' because
+# we don't open the signature popup on these characters.
+#
+# We also add '/' for file path completion.
+COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "(", ",", "/"})
 
 
 @lru_cache(maxsize=DOC_CACHE_SIZE)
 def _build_docstring_cached(
     completion_type: str,
     completion_name: str,
-    module_name: str,
     signature_strings: tuple[str, ...],
     raw_body: str | None,
     init_docstring: str | None,
@@ -97,9 +104,7 @@ def _build_docstring_cached(
         ).text
 
     body_converted = (
-        _convert_docstring_to_markdown(module_name, raw_body)
-        if raw_body
-        else ""
+        _convert_docstring_to_markdown(raw_body) if raw_body else ""
     )
 
     if signature_text and body_converted:
@@ -113,40 +118,44 @@ def _build_docstring_cached(
     return docstring
 
 
-def _convert_docstring_to_markdown(
-    module_name: str,
-    raw_docstring: str,
-) -> str:
+doc_convert = MarimoConverter()
+
+
+def _convert_docstring_to_markdown(raw_docstring: str) -> str:
     """
-    Convert raw docstring to markdown or HTML, depending on module origin.
+    Convert raw docstring to markdown then to HTML.
     """
-    # for marimo docstrings, treat them as markdown
-    # for other modules, treat them as plain text
-    if module_name.startswith("marimo"):
-        # Convert Google-style docstrings to markdown, if applicable
-        if "Returns:" in raw_docstring or "Args:" in raw_docstring:
-            return _md(
-                google_docstring_to_markdown(raw_docstring),
-                apply_markdown_class=False,
-            ).text
-        else:
-            return _md(raw_docstring, apply_markdown_class=False).text
-    else:
-        # Possibly RST -> HTML
-        try:
-            return (
-                "<div class='external-docs'>"
-                + convert_rst_to_html(raw_docstring)
-                + "</div>"
-            )
-        except Exception:
-            # if docutils chokes, we don't want to crash the completion
-            # worker
-            return (
-                "<pre class='external-docs'>"
-                + html.escape(raw_docstring)
-                + "</pre>"
-            )
+
+    def as_md_html(raw: str) -> str:
+        return _md(raw, apply_markdown_class=False).text
+
+    # Prefer using docstring_to_markdown if available
+    # which uses our custom MarimoConverter
+    if DependencyManager.docstring_to_markdown.has():
+        import docstring_to_markdown  # type: ignore
+
+        return as_md_html(docstring_to_markdown.convert(raw_docstring))
+
+    # Then try our custom MarimoConverter
+    if doc_convert.can_convert(raw_docstring):
+        return as_md_html(doc_convert.convert(raw_docstring))
+
+    # Then try RST
+    try:
+        return (
+            "<div class='external-docs'>"
+            + convert_rst_to_html(raw_docstring)
+            + "</div>"
+        )
+    except Exception:
+        # Then return plain text
+        # if docutils chokes, we don't want to crash the completion
+        # worker
+        return (
+            "<pre class='external-docs'>"
+            + html.escape(raw_docstring)
+            + "</pre>"
+        )
 
 
 def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
@@ -187,7 +196,6 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
     return _build_docstring_cached(
         completion.type,
         completion.name,
-        str(completion.module_name),
         signature_strings,
         raw_body,
         init_docstring or None,
@@ -328,7 +336,7 @@ def _get_completions_with_interpreter(
     # for the lock to be released.
     script = jedi.Interpreter(document, [glbls])
     locked = False
-    completions = []
+    completions: list[jedi.api.classes.Completion] = []
     locked = glbls_lock.acquire(blocking=False)
     if locked:
         LOGGER.debug("Completion worker acquired globals lock")
@@ -341,22 +349,14 @@ def _get_completions(
     document: str,
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
-    prefer_interpreter_completion: bool,
 ) -> tuple[jedi.Script, list[jedi.api.classes.Completion]]:
-    if prefer_interpreter_completion:
+    script, completions = _get_completions_with_script(codes, document)
+    completions = script.complete()
+    if not completions:
         script, completions = _get_completions_with_interpreter(
             document, glbls, glbls_lock
         )
-        if not completions:
-            script, completions = _get_completions_with_script(codes, document)
-        return script, completions
-    else:
-        script, completions = _get_completions_with_script(codes, document)
-        if not completions:
-            script, completions = _get_completions_with_interpreter(
-                document, glbls, glbls_lock
-            )
-        return script, completions
+    return script, completions
 
 
 def complete(
@@ -367,13 +367,8 @@ def complete(
     stream: Stream,
     docstrings_limit: int = 80,
     timeout: float | None = None,
-    prefer_interpreter_completion: bool = False,
 ) -> None:
     """Gets code completions for a request.
-
-    If `prefer_interpreter_completion`, a runtime-based method is used,
-    falling back to a static analysis method. Otherwise the static method
-    is used, with the interpreter method as a fallback.
 
     Static completions are safer since they don't execute code, but they
     are slower and sometimes fail. Interpreter executions are faster
@@ -405,25 +400,22 @@ def complete(
             )
         ]
 
+    completions: list[jedi.api.classes.Completion] = []
     try:
         script, completions = _get_completions(
             codes,
             request.document,
             glbls,
             glbls_lock,
-            prefer_interpreter_completion,
         )
-        prefix_length = (
+        prefix_length: int = (
             completions[0].get_completion_prefix_length() if completions else 0
         )
 
-        # Only complete an empty symbol (prefix length == 0) when we're
-        # using dot notation; this prevents autocomplete from kicking in at
-        # awkward times, such as when parentheses are first opened
         if (
             prefix_length == 0
             and len(request.document) >= 1
-            and request.document[-1] != "."
+            and request.document[-1] not in COMPLETION_TRIGGER_CHARACTERS
         ):
             # Empty prefix, not dot notation; don't complete ...
             completions = []
@@ -503,13 +495,12 @@ def completion_worker(
     """Code completion worker.
 
 
-    **Args:**
-
-    - `completion_queue`: queue from which requests are pulled.
-    - `graph`: dataflow graph backing the marimo program
-    - `glbls`: dictionary of global variables in interpreter memory
-    - `glbls_lock`: lock protecting globals
-    - `stream`: stream used to communicate completion results
+    Args:
+        completion_queue: queue from which requests are pulled.
+        graph: dataflow graph backing the marimo program
+        glbls: dictionary of global variables in interpreter memory
+        glbls_lock: lock protecting globals
+        stream: stream used to communicate completion results
     """
 
     while True:

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
 
+from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 class TestHash:
@@ -214,22 +218,76 @@ class TestHash:
             return shared
 
     @staticmethod
-    def test_transitive_content_hash(app) -> None:
-        @app.cell
-        def load() -> tuple[int]:
-            from marimo._save.save import persistent_cache
-            from tests._save.loaders.mocks import MockLoader
+    def test_transitive_content_hash() -> None:
+        app1 = App()
+        app1._anonymous_file = True
+        app1._pytest_rewrite = True
 
-            shared = [None, object()]
-            return persistent_cache, MockLoader, shared
+        @app1.cell
+        def _():
+            import marimo as mo
 
-        @app.cell
-        def one(persistent_cache, MockLoader, shared) -> tuple[int]:
-            _a = len(shared)
-            with persistent_cache(name="one", _loader=MockLoader()) as cache:
-                Y = 8 + _a
-            assert cache._cache.cache_type == "ContentAddressed"
-            return (Y,)
+            return mo
+
+        @app1.cell
+        def _():
+            value = False
+
+        @app1.cell
+        def cache_1(args, mo):
+            with mo.persistent_cache("cache_bug") as cache:
+                output = args.value
+            assert cache.cache_type == "ExecutionPath"
+
+        @app1.cell
+        def _(value):
+            class Unhashable:
+                def __eq__(self, other):
+                    return isinstance(other, Unhashable)
+
+                __hash__ = None  # Makes instances unhashable
+
+            args = Unhashable()
+            args.value = value
+            return (args,)
+
+        app2 = App()
+        app2._anonymous_file = True
+        app2._pytest_rewrite = True
+
+        @app2.cell
+        def _():
+            import marimo as mo
+
+            return mo
+
+        @app2.cell
+        def _():
+            value = True
+
+        @app2.cell
+        def cache_2(args, mo):
+            with mo.persistent_cache("cache_bug") as cache:
+                output = args.value
+            assert cache.cache_type == "ExecutionPath"
+
+        @app2.cell
+        def _(value):
+            class Unhashable:
+                def __eq__(self, other):
+                    return isinstance(other, Unhashable)
+
+                __hash__ = None  # Makes instances unhashable
+
+            args = Unhashable()
+            args.value = value
+            return (args,)
+
+        _, defs1 = app1.run()
+        _, defs2 = app2.run()
+
+        assert defs1["cache"]._cache.hash != defs2["cache"]._cache.hash
+        assert defs1["output"] != defs2["output"]
 
     @staticmethod
     def test_function_ui_content_hash(app) -> None:
@@ -834,3 +892,532 @@ class TestDataHash:
             )
             assert _A == 28
             return (two,)
+
+
+# Skip for now, as the local branch is cache busting
+@pytest.mark.skipif(True, reason="Cache busting")
+class TestDynamicHash:
+    @staticmethod
+    async def test_transitive_state_hash(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("import marimo as mo; from pathlib import Path"),
+                exec_req.get("value, set_value = mo.state(False)"),
+                exec_req.get("""
+                class Unhashable:
+                    def __eq__(self, other):
+                        return isinstance(other, Unhashable)
+
+                    __hash__ = None  # Makes instances unhashable
+
+                args = Unhashable()
+                args.value = value
+                """),
+                exec_req.get(f"""
+                with mo.persistent_cache("cache", save_path=Path("{tmp_path.as_posix()}")) as cache:
+                    output = args.value
+                """),
+            ]
+        )
+        assert not k.errors
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert not k.globals["cache"]._cache.hit
+
+        hash_1 = k.globals["cache"]._cache.hash
+        output_1 = k.globals["output"]
+
+        await k.run([exec_req.get("set_value(True)")])
+        assert not k.errors
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert not k.globals["cache"]._cache.hit
+
+        hash_2 = k.globals["cache"]._cache.hash
+        output_2 = k.globals["output"]
+
+        assert hash_1 != hash_2
+        assert output_1 != output_2
+
+
+class TestSideEffects:
+    @staticmethod
+    async def test_side_effect_cache_different(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                state, set_state = mo.state(0)
+                hashes = []
+                """),
+                exec_req.get("""
+                with mo.cache("prim") as prim_cache:
+                    non_primitive = [object(), len(hashes)]
+                state
+                """),
+                exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                """),
+            ]
+        )
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    set_state(1)
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                hashes.append((prim_cache.cache_type, prim_cache._cache.hash))
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 4
+        assert hashes[1] != hashes[3]
+        assert hashes[0] != hashes[2]
+        assert non_primitive[1] == 2 == v
+
+    @staticmethod
+    async def test_side_effect_cache_context(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                state, set_state = mo.state(0)
+                hashes = []
+                """),
+                exec_req.get("""
+                with mo.cache("prim") as prim_cache:
+                    non_primitive = [object(), len(hashes)]
+
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                state
+                """),
+            ]
+        )
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    set_state(1)
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                hashes.append((prim_cache.cache_type, prim_cache._cache.hash))
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 4
+        assert hashes[1] != hashes[3]
+        assert hashes[0] != hashes[2]
+        assert non_primitive[1] == 2 == v
+
+    @staticmethod
+    async def test_side_effect_exception(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                state, set_state = mo.state(1)
+                hashes = []
+                """),
+                exec_req.get("""
+                non_primitive = [object(), 0]
+                ref = 1
+                1 / state() # Throw an exception when 0
+                non_primitive = [object(), 1]
+                """),
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                req := exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1] + ref
+                """),
+                exec_req.get("""
+                if len(hashes) < 1:
+                    set_state(0)
+                hashes.append((v_cache.cache_type, v_cache._cache.hash, v))
+                """),
+            ]
+        )
+        await k.run([req])
+
+        assert not k.stdout.messages, k.stdout
+        assert "ZeroDivisionError" in str(k.stderr), k.stderr
+
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+
+        v = k.globals["v"]
+
+        assert len(hashes) == 2
+        assert non_primitive[1] == 0
+        assert v == 1
+        assert hashes[0] != hashes[1]
+
+    @staticmethod
+    async def test_side_effect_decorator_different(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                import weakref
+
+                state, set_state = mo.state(0)
+                hashes = []
+                """),
+                exec_req.get("""
+                @mo.cache
+                def prim_cache():
+                    return [weakref.ref(object), len(hashes)]
+                non_primitive = prim_cache()
+                state
+                """),
+                exec_req.get("""
+                @mo.cache
+                def v_cache():
+                    return non_primitive[1]
+                v = v_cache()
+                """),
+            ]
+        )
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    set_state(1)
+                hashes.append(v_cache._last_hash)
+                hashes.append(prim_cache._last_hash)
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 4
+        assert hashes[1] != hashes[3]
+        assert hashes[0] != hashes[2]
+        assert non_primitive[1] == 2 == v
+
+    @staticmethod
+    async def test_side_effect_decorator_context(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Actually doesn't test side effects, because there's
+        # no "context" level hash for functions. Placed here incase the
+        # functionality does change in the future.
+        await k.run(
+            [
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                import weakref
+
+                state, set_state = mo.state(0)
+                hashes = []
+                """),
+                exec_req.get("""
+                @mo.cache
+                def prim_cache():
+                    return [weakref.ref(object), len(hashes)]
+                non_primitive = prim_cache()
+
+                @mo.cache
+                def v_cache():
+                    return non_primitive[1]
+                v = v_cache()
+                state
+                """),
+            ]
+        )
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    set_state(1)
+                hashes.append(v_cache._last_hash)
+                hashes.append(prim_cache._last_hash)
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert k.stderr.messages, k.stderr
+        assert "Content addressed hash could not be utilized" in str(
+            k.stderr
+        ), k.stderr
+
+    @staticmethod
+    async def test_side_effect_decorator_exception(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                state, set_state = mo.state(1)
+                hashes = []
+                """),
+                exec_req.get("""
+                non_primitive = [object(), 0]
+                ref = 1
+                1 / state() # Throw an exception when 0
+                non_primitive = [object(), 1]
+                """),
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                req := exec_req.get("""
+                @mo.cache
+                def v_cache():
+                    return non_primitive[1] + ref
+                v = v_cache()
+                """),
+                exec_req.get("""
+                if len(hashes) < 1:
+                    set_state(0)
+                hashes.append((v_cache._last_hash, v))
+                """),
+            ]
+        )
+        await k.run([req])
+
+        assert not k.stdout.messages, k.stdout
+        assert "ZeroDivisionError" in str(k.stderr), k.stderr
+
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+
+        v = k.globals["v"]
+
+        assert len(hashes) == 2
+        assert non_primitive[1] == 0
+        assert v == 1
+        assert hashes[0] != hashes[1]
+
+    @staticmethod
+    async def test_side_effect_file(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                mo.watch._file._TEST_SLEEP_INTERVAL = 0.01
+                from pathlib import Path
+
+                hashes = []
+                """),
+                exec_req.get("""
+                f = mo.watch.file(tmp_path_fixture / "test.txt")
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                exec_req.get("""
+                f
+                non_primitive = [object(), len(hashes), f.exists()]
+                """),
+                exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                r := exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                """),
+            ]
+        )
+        (tmp_path / "test.txt").touch()
+        await asyncio.sleep(0.25)
+        await k.run([])
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 2
+        assert hashes[0] != hashes[1]
+        assert non_primitive[1] == 1 == v
+
+    @staticmethod
+    async def test_side_effect_directory(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                mo.watch._directory._TEST_SLEEP_INTERVAL = 0.01
+                from pathlib import Path
+
+                hashes = []
+                """),
+                exec_req.get("""
+                (tmp_path_fixture / "test_dir").mkdir(parents=True, exist_ok=True)
+                d = mo.watch.directory(tmp_path_fixture / "test_dir")
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                exec_req.get("""
+                non_primitive = [object(), len(hashes), d.glob("*")]
+                """),
+                exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                r := exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                """),
+            ]
+        )
+        (tmp_path / "test_dir" / "test.txt").write_text("test")
+        await asyncio.sleep(0.25)
+        await k.run([])
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        assert len(hashes) == 2
+        assert hashes[0] != hashes[1]
+        assert non_primitive[1] == 1 == v
+
+    @staticmethod
+    async def test_side_effect_file_ref(
+        k: Kernel, exec_req: ExecReqProvider, tmp_path
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    f'tmp_path_fixture = Path("{tmp_path.as_posix()}")'
+                ),
+                exec_req.get("""
+                from tests._save.loaders.mocks import MockLoader
+                import marimo as mo
+                from pathlib import Path
+
+                hashes = []
+                """),
+                exec_req.get(
+                    'u = mo.watch.file(tmp_path_fixture / "test.txt")'
+                ),
+                exec_req.get("""
+                non_primitive = [object(), len(hashes)]
+                with mo.cache("prim") as prim_cache:
+                    # unused, but should trigger side effect
+                    u
+                """),
+                exec_req.get("""
+                with mo.persistent_cache("get_v", save_path=tmp_path_fixture) as v_cache:
+                    v = non_primitive[1]
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        await k.run(
+            [
+                exec_req.get("""
+                if len(hashes) < 1:
+                    assert non_primitive[1] == 0
+                    u.write_text("test")
+                hashes.append((v_cache.cache_type, v_cache._cache.hash))
+                hashes.append((prim_cache.cache_type, prim_cache._cache.hash))
+                """),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        v = k.globals["v"]
+        hashes = k.globals["hashes"]
+        non_primitive = k.globals["non_primitive"]
+        # Docs warn not to use write directly since RC can occur, causing double
+        # event.
+        assert len(hashes) == 4
+        assert hashes[1] != hashes[3]
+        assert hashes[0] != hashes[2]
+        assert non_primitive[1] == 2 == v

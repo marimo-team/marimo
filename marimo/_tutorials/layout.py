@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.9.30"
+__generated_with = "0.12.10"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         # Layout
@@ -20,7 +20,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Rows and columns
@@ -32,7 +32,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.hstack(
         [mo.ui.text(label="hello"), mo.ui.slider(1, 10, label="slider")],
         justify="start",
@@ -41,13 +41,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.vstack([mo.ui.text(label="world"), mo.ui.number(1, 10, label="number")])
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     grid = mo.vstack(
         [
             mo.hstack(
@@ -69,11 +69,11 @@ def __(mo):
         plots!).
         """
     )
-    return (grid,)
+    return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         **Customization.**
@@ -85,7 +85,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     justify = mo.ui.dropdown(
         ["start", "center", "end", "space-between", "space-around"],
         value="space-between",
@@ -102,14 +102,14 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     size = mo.ui.slider(label="box size", start=60, stop=500)
     mo.hstack([size], justify="center")
     return (size,)
 
 
 @app.cell
-def __(align, boxes, gap, justify, mo, wrap):
+def _(align, boxes, gap, justify, mo, wrap):
     mo.hstack(
         boxes,
         align=align.value,
@@ -121,7 +121,7 @@ def __(align, boxes, gap, justify, mo, wrap):
 
 
 @app.cell
-def __(align, boxes, gap, mo):
+def _(align, boxes, gap, mo):
     mo.vstack(
         boxes,
         align=align.value,
@@ -131,7 +131,7 @@ def __(align, boxes, gap, mo):
 
 
 @app.cell
-def __(mo, size):
+def _(mo, size):
     def create_box(num=1):
         box_size = size.value + num * 10
         return mo.Html(
@@ -140,11 +140,11 @@ def __(mo, size):
 
 
     boxes = [create_box(i) for i in range(1, 5)]
-    return boxes, create_box
+    return (boxes,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Documentation: `mo.hstack`": mo.doc(mo.hstack),
@@ -155,7 +155,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         **Justifying `Html`.** While you can center or right-justify any object
@@ -168,25 +168,25 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""This markdown is left-justified.""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("This markdown is centered.").center()
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("This markdown is right-justified.").right()
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Documentation: `Html.center`": mo.doc(mo.Html.center),
@@ -198,7 +198,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Accordion
@@ -210,13 +210,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""An accordion can contain multiple items:""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Multiple items": "By default, only one item can be open at a time",
@@ -232,7 +232,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Tabs
@@ -244,7 +244,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _settings = mo.vstack(
         [
             mo.md("**Edit User**"),
@@ -271,13 +271,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion({"Documentation: `mo.ui.tabs`": mo.doc(mo.ui.tabs)})
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     _t = [
         mo.md("**Hello!**"),
         mo.md(r"$f(x)$"),
@@ -298,13 +298,13 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion({"Documentation: `mo.tree`": mo.doc(mo.tree)})
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## Callout
@@ -317,7 +317,7 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     callout_kind = mo.ui.dropdown(
         ["neutral", "warn", "success", "info", "danger"], value="neutral"
     )
@@ -325,7 +325,7 @@ def __(mo):
 
 
 @app.cell
-def __(callout_kind, mo):
+def _(callout_kind, mo):
     mo.md(
         f"""
         **This is a callout!**
@@ -339,13 +339,13 @@ def __(callout_kind, mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion({"Documentation: `mo.callout`": mo.doc(mo.callout)})
     return
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     return (mo,)
 

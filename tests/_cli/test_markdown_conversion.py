@@ -95,6 +95,9 @@ def test_markdown_frontmatter() -> None:
     filters:
     - name: "filter1"
     - name: "filter2"
+    header: |
+        #!/usr/bin/env python
+        # and some other random stuff
     ---
 
     # Notebook
@@ -109,6 +112,7 @@ def test_markdown_frontmatter() -> None:
     # As python file
     output = sanitized_version(convert_from_md(script))
     assert 'app_title="My Title"' in output
+    assert output.startswith("#!/usr/bin/env python")
     snapshot("frontmatter-test.py.txt", output)
 
     # As python object
@@ -237,6 +241,22 @@ def test_markdown_empty() -> None:
     ids = list(app.cell_manager.cell_ids())
     assert len(ids) == 1
     assert app.cell_manager.cell_data_at(ids[0]).code == ""
+
+
+def test_python_to_md_header() -> None:
+    script = dedent(
+        remove_empty_lines(
+            """
+        #!/usr/bin/env python
+        import marimo
+        __generated_with = "0.0.0"
+        app = marimo.App()
+        """
+        )
+    )
+    md = convert_from_py(script)
+    assert "#!/usr/bin/env python" in md
+    snapshot("has-header.md.txt", md)
 
 
 def test_python_to_md_code_injection() -> None:

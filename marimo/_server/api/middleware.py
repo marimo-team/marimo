@@ -216,11 +216,12 @@ class _AsyncHTTPResponse:
 
 
 class _AsyncHTTPClient:
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, timeout: float = 30.0):
         self.base_url = base_url.rstrip("/")
         parsed = urlparse(base_url)
         self.host = parsed.netloc
         self.is_https = parsed.scheme == "https"
+        self.timeout = timeout
 
     def build_request(
         self, method: str, url: Any, headers: dict[str, str], content: Any
@@ -243,70 +244,88 @@ class _AsyncHTTPClient:
         request.method = method
         return request
 
+    async def _collect_body(self, request: _URLRequest) -> bytes:
+        if not hasattr(request, "data") or request.data is None:
+            return b""
+
+        if isinstance(request.data, AsyncIterable):
+            chunks: list[bytes] = []
+            try:
+                async for chunk in request.data:
+                    if isinstance(chunk, str):
+                        chunks.append(chunk.encode())
+                    elif isinstance(chunk, bytes):
+                        chunks.append(chunk)
+                    else:
+                        # Handle unexpected types
+                        chunks.append(str(chunk).encode())
+                return b"".join(chunks)
+            except Exception as e:
+                LOGGER.error(f"Error collecting async request body: {e}")
+                raise
+        if isinstance(request.data, str):
+            return request.data.encode()
+        if isinstance(request.data, bytes):
+            return request.data
+        if hasattr(request.data, "read"):
+            return request.data.read()  # type: ignore
+
+        raise ValueError(
+            f"Unsupported request data type: {type(request.data)}"
+        )
+
+    def _send_request(self, request: _URLRequest, body: bytes) -> HTTPResponse:
+        from http.client import HTTPConnection
+
+        parsed_url = urlparse(request.full_url)
+        path_and_query = parsed_url.path
+        if parsed_url.query:
+            path_and_query += f"?{parsed_url.query}"
+
+        conn_class = HTTPSConnection if self.is_https else HTTPConnection
+        conn = conn_class(self.host, timeout=self.timeout)
+
+        method = request.method or "GET"
+
+        try:
+            conn.request(
+                method=method,
+                url=path_and_query,  # Only path and query
+                body=body,
+                headers=request.headers,
+            )
+            resp = conn.getresponse()
+            return resp  # type: ignore[no-any-return]
+        except Exception:
+            raise
+
     async def send(
-        self, request: _URLRequest, stream: bool = False
+        self, request: _URLRequest, stream: bool = False, max_retries: int = 2
     ) -> _AsyncHTTPResponse:
         del stream
         loop = asyncio.get_event_loop()
 
-        async def collect_body() -> bytes:
-            if hasattr(request, "data"):
-                if request.data is None:
-                    return b""
-                if isinstance(request.data, AsyncIterable):
-                    chunks: list[bytes] = []
-                    try:
-                        async for chunk in request.data:
-                            if isinstance(chunk, str):
-                                chunks.append(chunk.encode())
-                            else:
-                                chunks.append(chunk)
-                        return b"".join(chunks)
-                    except Exception:
-                        raise
-                if isinstance(request.data, str):
-                    return request.data.encode()
-                if isinstance(request.data, bytes):
-                    return request.data
-                if hasattr(request.data, "read"):
-                    return request.data.read()  # type: ignore
-                raise ValueError(
-                    f"Unsupported request data type: {type(request.data)}"
-                )
-            return b""
+        body = await self._collect_body(request)
 
-        try:
-            body = await collect_body()
-        except Exception:
-            raise
-
-        def _send() -> HTTPResponse:
-            from http.client import HTTPConnection
-
-            parsed_url = urlparse(request.full_url)
-            path_and_query = parsed_url.path
-            if parsed_url.query:
-                path_and_query += f"?{parsed_url.query}"
-
-            conn_class = HTTPSConnection if self.is_https else HTTPConnection
-            conn = conn_class(self.host)
-
-            method = request.method if request.method is not None else "GET"
-
+        for attempt in range(max_retries + 1):
             try:
-                conn.request(
-                    method=method,
-                    url=path_and_query,  # Only path and query
-                    body=body,
-                    headers=request.headers,
+                response = await loop.run_in_executor(
+                    None, lambda: self._send_request(request, body)
                 )
-                resp = conn.getresponse()
-                return resp  # type: ignore[no-any-return]
-            except Exception:
-                raise
+                return _AsyncHTTPResponse(response)
+            except (ConnectionError, TimeoutError) as e:
+                if attempt < max_retries:
+                    # Exponential backoff
+                    wait_time = 0.1 * (2**attempt)
+                    LOGGER.warning(
+                        f"Connection attempt {attempt + 1} failed: {e}. Retrying in {wait_time}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+                else:
+                    LOGGER.error(f"All connection attempts failed: {e}")
+                    raise
 
-        response = await loop.run_in_executor(None, _send)
-        return _AsyncHTTPResponse(response)
+        raise ValueError("Failed to send request")
 
 
 class ProxyMiddleware:
@@ -341,10 +360,10 @@ class ProxyMiddleware:
             if self.path_rewrite:
                 ws_path = self.path_rewrite(ws_path)
             ws_url = urljoin(ws_target_url, ws_path)
-            if scope["scheme"] in ("http", "ws"):
+            if ws_url.startswith("http"):
+                # http -> ws
+                # https -> wss
                 ws_url = ws_url.replace("http", "ws", 1)
-            elif scope["scheme"] in ("https", "wss"):
-                ws_url = ws_url.replace("https", "wss", 1)
 
             LOGGER.debug(f"Creating websocket proxy for {ws_url}")
             try:
@@ -397,66 +416,74 @@ class ProxyMiddleware:
         self, scope: Scope, receive: Receive, send: Send, ws_url: str
     ) -> None:
         websocket = WebSocket(scope, receive=receive, send=send)
-        original_params = websocket.query_params
-        if original_params:
-            ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in original_params.items())}"
-        await websocket.accept()
+        try:
+            original_params = websocket.query_params
+            if original_params:
+                ws_url = f"{ws_url}?{'&'.join(f'{k}={v}' for k, v in original_params.items())}"
+            await websocket.accept()
 
-        async with connect(ws_url) as ws_client:
+            async with connect(ws_url) as ws_client:
 
-            async def client_to_upstream() -> None:
+                async def client_to_upstream() -> None:
+                    try:
+                        while True:
+                            msg = await websocket.receive()
+                            if msg["type"] == "websocket.disconnect":
+                                # Cancel the other task when client disconnects
+                                for task in relay_tasks:
+                                    if not task.done():
+                                        task.cancel()
+                                return
+
+                            if "text" in msg:
+                                await ws_client.send(msg["text"])
+                            elif "bytes" in msg:
+                                await ws_client.send(msg["bytes"])
+                    except Exception as e:
+                        LOGGER.error(f"Client to upstream relay error: {e}")
+                        # Cancel other tasks only if this is a fatal error
+                        for task in relay_tasks:
+                            if not task.done():
+                                task.cancel()
+
+                async def upstream_to_client() -> None:
+                    try:
+                        while True:
+                            msg = await ws_client.recv()
+                            if isinstance(msg, bytes):
+                                await websocket.send_bytes(msg)
+                            else:
+                                await websocket.send_text(msg)
+                    except ConnectionClosed:
+                        # Cancel the other task when connection closes
+                        for task in relay_tasks:
+                            if not task.done():
+                                task.cancel()
+                        return
+                    except Exception:
+                        return
+
+                # Run both relay loops concurrently
+                relay_tasks = [
+                    asyncio.create_task(client_to_upstream()),
+                    asyncio.create_task(upstream_to_client()),
+                ]
+
                 try:
-                    while True:
-                        msg = await websocket.receive()
-                        if msg["type"] == "websocket.disconnect":
-                            # Cancel the other task when client disconnects
-                            for task in relay_tasks:
-                                if not task.done():
-                                    task.cancel()
-                            return
-
-                        if "text" in msg:
-                            await ws_client.send(msg["text"])
-                        elif "bytes" in msg:
-                            await ws_client.send(msg["bytes"])
-                except ConnectionClosed:
-                    return
-                except Exception:
-                    return
-
-            async def upstream_to_client() -> None:
-                try:
-                    while True:
-                        msg = await ws_client.recv()
-                        if isinstance(msg, bytes):
-                            await websocket.send_bytes(msg)
-                        else:
-                            await websocket.send_text(msg)
-                except ConnectionClosed:
-                    # Cancel the other task when connection closes
+                    await asyncio.gather(*relay_tasks)
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    raise e
+                finally:
                     for task in relay_tasks:
                         if not task.done():
                             task.cancel()
-                    return
-                except Exception:
-                    return
-
-            # Run both relay loops concurrently
-            relay_tasks = [
-                asyncio.create_task(client_to_upstream()),
-                asyncio.create_task(upstream_to_client()),
-            ]
-
-            try:
-                await asyncio.gather(*relay_tasks)
-            except asyncio.CancelledError:
-                pass
-            except Exception as e:
-                raise e
-            finally:
-                for task in relay_tasks:
-                    if not task.done():
-                        task.cancel()
-                if websocket.client_state != WebSocketState.DISCONNECTED:
-                    await websocket.close()
-                await ws_client.close()
+                    if websocket.client_state != WebSocketState.DISCONNECTED:
+                        await websocket.close()
+                    await ws_client.close()
+        except Exception as e:
+            LOGGER.error(f"WebSocket proxy error: {e}")
+            if websocket.client_state != WebSocketState.DISCONNECTED:
+                await websocket.close(code=1011)  # Internal error
+            raise

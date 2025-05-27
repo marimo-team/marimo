@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import pathlib
 import sys
-from types import ModuleType
 from typing import TYPE_CHECKING, cast
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, Mock, call, patch
 
 import pytest
 
@@ -225,15 +224,14 @@ async def test_manage_script_metadata_pip_noop(
         assert "" == f.read()
 
 
+@patch.dict(sys.modules, {"pyodide": Mock()})
 async def test_install_missing_packages_micropip(
     mocked_kernel: MockedKernel,
 ) -> None:
     k = mocked_kernel.k
-    # Fake put pyodide in sys.modules
-    sys.modules["pyodide"] = ModuleType("pyodide")
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
-        await k.install_missing_packages(
+        await k.packages_callbacks.install_missing_packages(
             InstallMissingPackagesRequest(
                 manager="micropip",
                 versions={"barbaz": "", "foobar": ""},
@@ -245,19 +243,15 @@ async def test_install_missing_packages_micropip(
             call(["foobar"]),
         ]
 
-    # Remove pyodide from sys.modules
-    del sys.modules["pyodide"]
 
-
+@patch.dict(sys.modules, {"pyodide": Mock()})
 async def test_install_missing_packages_micropip_with_versions(
     mocked_kernel: MockedKernel,
 ) -> None:
     k = mocked_kernel.k
-    # Fake put pyodide in sys.modules
-    sys.modules["pyodide"] = ModuleType("pyodide")
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
-        await k.install_missing_packages(
+        await k.packages_callbacks.install_missing_packages(
             InstallMissingPackagesRequest(
                 manager="micropip",
                 versions={"numpy": "1.22.0", "pandas": "1.5.0"},
@@ -269,10 +263,8 @@ async def test_install_missing_packages_micropip_with_versions(
             call(["pandas==1.5.0"]),
         ]
 
-    # Remove pyodide from sys.modules
-    del sys.modules["pyodide"]
 
-
+@patch.dict(sys.modules, {"pyodide": Mock(), "already_installed": Mock()})
 async def test_install_missing_packages_micropip_other_modules(
     mocked_kernel: MockedKernel,
 ) -> None:
@@ -281,11 +273,9 @@ async def test_install_missing_packages_micropip_other_modules(
     k.module_registry.modules = lambda: set(
         {"idk", "done", "already_installed"}
     )
-    sys.modules["pyodide"] = ModuleType("pyodide")
-    sys.modules["already_installed"] = ModuleType("already_installed")
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
-        await k.install_missing_packages(
+        await k.packages_callbacks.install_missing_packages(
             InstallMissingPackagesRequest(
                 manager="micropip",
                 versions={},
@@ -297,15 +287,12 @@ async def test_install_missing_packages_micropip_other_modules(
             call(["idk"]),
         ]
 
-    # Remove pyodide from sys.modules
-    del sys.modules["pyodide"]
-    del sys.modules["already_installed"]
 
-
-async def test_broadcast_missing_packages(
+@patch.dict(sys.modules, {"pyodide": Mock()})
+async def test_missing_packages_hook(
     mocked_kernel: MockedKernel,
 ) -> None:
-    """Test that _broadcast_missing_packages correctly handles missing packages for micropip"""
+    """Test that missing_packages_hook correctly handles missing packages for micropip"""
     k = mocked_kernel.k
     control_requests: list[ControlRequest] = []
     broadcast_messages: list[InstallingPackageAlert | MissingPackageAlert] = []
@@ -321,8 +308,6 @@ async def test_broadcast_missing_packages(
     k.enqueue_control_request = mock_enqueue
     InstallingPackageAlert.broadcast = mock_broadcast  # type: ignore
     MissingPackageAlert.broadcast = mock_broadcast  # type: ignore
-
-    sys.modules["pyodide"] = ModuleType("pyodide")
 
     # Create a mock runner with ModuleNotFoundError
     class MockRunner:
@@ -348,10 +333,12 @@ async def test_broadcast_missing_packages(
     # Case 1: Auto-install enabled
     with patch("micropip.install", new_callable=AsyncMock):
         runner = cast(cell_runner.Runner, MockRunner())
-        k.package_manager = create_package_manager("micropip")
-        package_manager = k.package_manager
+        k.packages_callbacks.package_manager = create_package_manager(
+            "micropip"
+        )
+        package_manager = k.packages_callbacks.package_manager
         assert isinstance(package_manager, MicropipPackageManager)
-        k._broadcast_missing_packages(runner)
+        k.packages_callbacks.missing_packages_hook(runner)
 
         # Should create install request
         assert len(control_requests) == 1
@@ -370,7 +357,7 @@ async def test_broadcast_missing_packages(
         control_requests.clear()
         broadcast_messages.clear()
         package_manager.should_auto_install = lambda: False  # type: ignore
-        k._broadcast_missing_packages(runner)
+        k.packages_callbacks.missing_packages_hook(runner)
 
         # Should broadcast alert instead of installing
         assert len(control_requests) == 0
@@ -394,7 +381,7 @@ async def test_broadcast_missing_packages(
             "scipy",
         }  # type: ignore
         package_manager.should_auto_install = lambda: True  # type: ignore
-        k._broadcast_missing_packages(runner)
+        k.packages_callbacks.missing_packages_hook(runner)
 
         # Should create install request with all missing packages
         assert len(control_requests) == 1
@@ -416,7 +403,7 @@ async def test_broadcast_missing_packages(
         package_manager.attempted_to_install = (
             lambda package: package == "numpy"
         )  # type: ignore
-        k._broadcast_missing_packages(runner)
+        k.packages_callbacks.missing_packages_hook(runner)
 
         # Should only include packages not yet attempted
         assert len(control_requests) == 1
@@ -431,13 +418,11 @@ async def test_broadcast_missing_packages(
             "scipy": "",
         }
 
-    del sys.modules["pyodide"]
 
-
-def test_broadcast_missing_packages_pip(
+def test_missing_packages_hook_pip(
     mocked_kernel: MockedKernel,
 ) -> None:
-    """Test that _broadcast_missing_packages correctly handles missing packages for pip"""
+    """Test that missing_packages_hook correctly handles missing packages for pip"""
     k = mocked_kernel.k
     control_requests: list[ControlRequest] = []
     broadcast_messages: list[InstallingPackageAlert | MissingPackageAlert] = []
@@ -471,8 +456,8 @@ def test_broadcast_missing_packages_pip(
                 ),
             }
 
-    k.package_manager = create_package_manager("pip")
-    package_manager = k.package_manager
+    k.packages_callbacks.package_manager = create_package_manager("pip")
+    package_manager = k.packages_callbacks.package_manager
     assert isinstance(package_manager, PipPackageManager)
     package_manager.install = AsyncMock()
     runner = cast(cell_runner.Runner, MockRunner())
@@ -480,7 +465,7 @@ def test_broadcast_missing_packages_pip(
     # Case 1: Missing modules with auto-install disabled
     k.module_registry.missing_modules = lambda: {"numpy", "pandas"}  # type: ignore
     package_manager.should_auto_install = lambda: False  # type: ignore
-    k._broadcast_missing_packages(runner)
+    k.packages_callbacks.missing_packages_hook(runner)
 
     # Should broadcast alert instead of installing
     assert len(control_requests) == 0
@@ -500,7 +485,7 @@ def test_broadcast_missing_packages_pip(
         "scipy",
     }  # type: ignore
     package_manager.should_auto_install = lambda: True  # type: ignore
-    k._broadcast_missing_packages(runner)
+    k.packages_callbacks.missing_packages_hook(runner)
 
     # Should create install request with all missing packages
     assert len(control_requests) == 1

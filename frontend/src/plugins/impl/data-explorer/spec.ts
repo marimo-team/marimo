@@ -16,7 +16,12 @@ export function toSpecQuery(spec: ChartSpec): SpecQuery {
   };
 }
 
-function adaptEncodings(encoding: SpecificEncoding): EncodingQuery[] {
+function adaptEncodings(
+  encoding: SpecificEncoding | undefined,
+): EncodingQuery[] {
+  if (!encoding) {
+    return [];
+  }
   return Object.entries(encoding).map(([channel, def]) => {
     return toFieldQuery(def, channel as EncodingChannel);
   });

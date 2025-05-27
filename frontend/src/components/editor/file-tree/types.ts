@@ -38,6 +38,7 @@ export function guessFileType(name: string): FileType {
       return "python";
     case "txt":
     case "md":
+    case "qmd":
       return "text";
     case "png":
     case "jpg":

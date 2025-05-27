@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Final,
+    Literal,
     Optional,
     Union,
 )
@@ -46,7 +47,7 @@ from marimo._utils.parse_dataclass import parse_raw
 @dataclass
 class GetDataFrameResponse:
     url: str
-    total_rows: int
+    total_rows: Union[int, Literal["too_many"]]
     # List of column names that are actually row headers
     # This really only applies to Pandas, that has special index columns
     row_headers: list[str]
@@ -197,7 +198,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             field_types=manager.get_field_types(),
             python_code=self._handler.as_python_code(
                 self._dataframe_name,
-                manager.get_column_names(),
+                # manager.get_column_names(),
+                self._manager.get_column_names(),
                 self._last_transforms.transforms,
             ),
             sql_code=self._handler.as_sql_code(manager.data),
@@ -254,7 +256,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         )
 
         # Save the manager to be used for selection
-        data = result.take(args.page_size, offset).to_data()
+        data = result.take(args.page_size, offset).to_json_str()
         return SearchTableResponse(
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,

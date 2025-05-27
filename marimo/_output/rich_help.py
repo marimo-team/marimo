@@ -19,20 +19,22 @@ _WRAP_WIDTH = 72
 
 
 def _format_parameter(parameter: inspect.Parameter) -> str:
-    annotation = (
-        ""
-        if parameter.annotation == inspect.Parameter.empty
-        else ": " + cast(str, parameter.annotation)
-    )
-    default = (
-        ""
-        if parameter.default == inspect.Parameter.empty
-        else (
-            f" = '{str(parameter.default)}'"
-            if isinstance(parameter.default, str)
-            else f" = {str(parameter.default)}"
-        )
-    )
+    # Handle annotation
+    if parameter.annotation == inspect.Parameter.empty:
+        annotation = ""
+    elif isinstance(parameter.annotation, str):
+        annotation = f": {parameter.annotation}"
+    else:
+        annotation = f": {parameter.annotation.__name__}"
+
+    # Handle default value
+    if parameter.default == inspect.Parameter.empty:
+        default = ""
+    elif isinstance(parameter.default, str):
+        default = f" = '{parameter.default}'"
+    else:
+        default = f" = {parameter.default}"
+
     return parameter.name + annotation + default
 
 

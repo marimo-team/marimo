@@ -22,9 +22,7 @@ jobs:
           filters: |
             cli:
               - '**'
-              - '!docs/**'
-              - '!examples/**'
-              - '!README.md'
+              - '!{docs/**,examples/**,README.md,tests/**,frontend/**}'
 
   build_wheel:
     needs: changes
@@ -45,20 +43,21 @@ jobs:
         with:
           fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
 
       - name: 📦 Build frontend
         run: make fe
         env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           NODE_OPTIONS: '--max_old_space_size=8192'
 
       - name: 🥚 Install Hatch
@@ -87,6 +86,8 @@ jobs:
             fi
           done
 
+      - name: Run LSP binary
+        run: ./scripts/test-lsp.sh
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
@@ -120,7 +121,7 @@ jobs:
 
       - name: Install Python deps
         run: |
-          uv pip install pytest pytest-asyncio pytest-timeout nbformat
+          uv add pytest pytest-asyncio pytest-timeout nbformat
 
       - name: Download wheel
         uses: actions/download-artifact@v4
@@ -161,7 +162,7 @@ jobs:
 
       - name: Install Python deps
         run: |
-          uv pip install pytest pytest-asyncio
+          uv add pytest pytest-asyncio
           uv pip install marimo*whl
 
       - name: Test examples

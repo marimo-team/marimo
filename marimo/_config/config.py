@@ -83,10 +83,12 @@ class KeymapConfig(TypedDict):
 
     - `preset`: one of `"default"` or `"vim"`
     - `overrides`: a dict of keymap actions to their keymap override
+    - `vimrc`: path to a vimrc file to load keymaps from
     """
 
     preset: Literal["default", "vim"]
     overrides: NotRequired[dict[str, str]]
+    vimrc: NotRequired[Optional[str]]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
@@ -107,6 +109,8 @@ class RuntimeConfig(TypedDict):
     - `auto_reload`: if `lazy`, cells importing modified modules will marked
       as stale; if `autorun`, affected cells will be automatically run. similar
       to IPython's %autoreload extension but with more code intelligence.
+    - `reactive_tests`: if `True`, marimo will automatically run pytest on cells containing only test functions and test classes.
+      execution.
     - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
@@ -123,21 +127,31 @@ class RuntimeConfig(TypedDict):
         Directories will be added to the head of sys.path. Similar to the
         `PYTHONPATH` environment variable, the directories will be included in
         where Python will look for imported modules.
+    - `dotenv`: a list of paths to `.env` files to load.
+        If the file does not exist, it will be silently ignored.
+        The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+    - `default_sql_output`: the default output format for SQL queries. Can be one of:
+        `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
+        The default is `"auto"`.
     """
 
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
+    reactive_tests: bool
     on_cell_change: OnCellChangeType
     watcher_on_save: Literal["lazy", "autorun"]
     output_max_bytes: int
     std_stream_max_bytes: int
-    pythonpath: list[str]
+    pythonpath: NotRequired[list[str]]
+    dotenv: NotRequired[list[str]]
+    default_sql_output: SqlOutputType
 
 
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
+SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
 
 
 @mddoc
@@ -151,6 +165,8 @@ class DisplayConfig(TypedDict):
     - `code_editor_font_size`: font size for the code editor
     - `cell_output`: `"above"` or `"below"`
     - `dataframes`: `"rich"` or `"plain"`
+    - `custom_css`: list of paths to custom CSS files
+    - `default_table_page_size`: default number of rows to display in tables
     """
 
     theme: Theme
@@ -158,6 +174,8 @@ class DisplayConfig(TypedDict):
     cell_output: Literal["above", "below"]
     default_width: WidthType
     dataframes: Literal["rich", "plain"]
+    custom_css: NotRequired[list[str]]
+    default_table_page_size: int
 
 
 @mddoc
@@ -212,6 +230,7 @@ class AiConfig(TypedDict, total=False):
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
+    - `bedrock`: the Bedrock config
     """
 
     rules: NotRequired[str]
@@ -219,6 +238,7 @@ class AiConfig(TypedDict, total=False):
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig
+    bedrock: BedrockConfig
 
 
 @dataclass
@@ -231,11 +251,17 @@ class OpenAiConfig(TypedDict, total=False):
     - `model`: the model to use.
         if model starts with `claude-` we use the AnthropicConfig
     - `base_url`: the base URL for the API
+    - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
+    - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
+    - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
     """
 
     api_key: str
     model: NotRequired[str]
     base_url: NotRequired[str]
+    ssl_verify: NotRequired[bool]
+    ca_bundle_path: NotRequired[str]
+    client_pem: NotRequired[str]
 
 
 @dataclass
@@ -244,7 +270,7 @@ class AnthropicConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Anthropic
+    - `api_key`: the Anthropic API key
     """
 
     api_key: str
@@ -260,6 +286,24 @@ class GoogleAiConfig(TypedDict, total=False):
     """
 
     api_key: str
+
+
+@dataclass
+class BedrockConfig(TypedDict, total=False):
+    """Configuration options for Bedrock.
+
+    **Keys.**
+
+    - `profile_name`: the AWS profile to use
+    - `region_name`: the AWS region to use
+    - `aws_access_key_id`: the AWS access key ID
+    - `aws_secret_access_key`: the AWS secret access key
+    """
+
+    profile_name: NotRequired[str]
+    region_name: NotRequired[str]
+    aws_access_key_id: NotRequired[str]
+    aws_secret_access_key: NotRequired[str]
 
 
 @dataclass
@@ -382,12 +426,14 @@ DEFAULT_CONFIG: MarimoConfig = {
         "cell_output": "above",
         "default_width": "medium",
         "dataframes": "rich",
+        "default_table_page_size": 10,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
     "runtime": {
         "auto_instantiate": True,
         "auto_reload": "off",
+        "reactive_tests": True,
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(
@@ -396,7 +442,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "std_stream_max_bytes": int(
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
-        "pythonpath": [],
+        "default_sql_output": "auto",
     },
     "save": {
         "autosave": "after_delay",
@@ -436,7 +482,16 @@ def merge_default_config(
 def merge_config(
     config: MarimoConfig, new_config: PartialMarimoConfig | MarimoConfig
 ) -> MarimoConfig:
-    """Merge a user configuration with a new configuration."""
+    """Merge a user configuration with a new configuration. The new config
+    will take precedence over the default config.
+
+    Args:
+        config: The default configuration.
+        new_config: The new configuration to merge with the default config.
+
+    Returns:
+        A merged configuration.
+    """
     # Remove the keymap overrides from the incoming config,
     # so that they don't get merged into the new config
     if new_config.get("keymap", {}).get("overrides") is not None:

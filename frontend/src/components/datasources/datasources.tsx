@@ -8,6 +8,7 @@ import {
   XIcon,
   Table2Icon,
   EyeIcon,
+  RefreshCwIcon,
 } from "lucide-react";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
@@ -26,7 +27,10 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { previewDatasetColumn } from "@/core/network/requests";
+import {
+  previewDataSourceConnection,
+  previewDatasetColumn,
+} from "@/core/network/requests";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
@@ -56,15 +60,12 @@ import { dbDisplayName } from "@/components/databases/display";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import {
   dataConnectionsMapAtom,
-  DEFAULT_ENGINE,
+  DUCKDB_ENGINE,
+  INTERNAL_SQL_ENGINES,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
 import { PythonIcon } from "../editor/cell/code/icons";
-import {
-  PreviewSQLTable,
-  PreviewSQLTableList,
-} from "@/core/functions/FunctionRegistry";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   DatasourceLabel,
@@ -74,8 +75,12 @@ import {
   RotatingChevron,
 } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { sqlCode } from "./utils";
+import { isSchemaless, sqlCode } from "./utils";
 import { useOnMount } from "@/hooks/useLifecycle";
+import {
+  PreviewSQLTableList,
+  PreviewSQLTable,
+} from "@/core/datasets/request-registry";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -105,16 +110,18 @@ const sortedTablesAtom = atom((get) => {
 
 const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
-  const defaultEngine = dataConnections.get(DEFAULT_ENGINE);
 
-  // Filter out the internal duckdb engine if it has no databases
-  if (defaultEngine && defaultEngine.databases.length === 0) {
-    dataConnections.delete(DEFAULT_ENGINE);
+  // Filter out the internal engines if it has no databases
+  for (const engine of INTERNAL_SQL_ENGINES) {
+    const connection = dataConnections.get(engine);
+    if (connection && connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
   }
 
-  // Sort by name, but put the default engine at the top
+  // Put internal engines last to prioritize user-defined connections
   return sortBy([...dataConnections.values()], (connection) =>
-    connection.name === DEFAULT_ENGINE ? "" : connection.name,
+    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
   );
 });
 
@@ -133,7 +140,7 @@ export const DataSources: React.FC = () => {
         action={
           <AddDatabaseDialog>
             <Button variant="outline" size="sm">
-              Add database
+              Add database or catalog
               <PlusIcon className="h-4 w-4 ml-2" />
             </Button>
           </AddDatabaseDialog>
@@ -213,7 +220,7 @@ export const DataSources: React.FC = () => {
         {dataConnections.length > 0 && tables.length > 0 && (
           <DatasourceLabel>
             <PythonIcon className="h-4 w-4 text-muted-foreground" />
-            <span>Python</span>
+            <span className="text-xs">Python</span>
           </DatasourceLabel>
         )}
         {tables.length > 0 && (
@@ -229,11 +236,20 @@ const Engine: React.FC<{
   children: React.ReactNode;
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
-  const hasEngine = connection.databases.length > 0;
-  // If the connection has no engine, it's the internal duckdb engine
-  const engineName = hasEngine
-    ? connection.databases[0]?.engine || "In-Memory"
-    : connection.name;
+  // The internal duckdb connection is updated automatically, so we do not need to refresh.
+  const internalEngine = connection.name === DUCKDB_ENGINE;
+  const engineName = internalEngine ? "In-Memory" : connection.name;
+
+  const [isSpinning, setIsSpinning] = React.useState(false);
+
+  const handleRefreshConnection = async () => {
+    setIsSpinning(true);
+    await previewDataSourceConnection({
+      engine: connection.name,
+    });
+    // Artificially spin the icon if the request is really fast
+    setTimeout(() => setIsSpinning(false), 500);
+  };
 
   return (
     <>
@@ -242,10 +258,27 @@ const Engine: React.FC<{
           className="h-4 w-4 text-muted-foreground"
           name={connection.dialect}
         />
-        <span>{dbDisplayName(connection.dialect)}</span>
+        <span className="text-xs">{dbDisplayName(connection.dialect)}</span>
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={engineName as VariableName} />)
         </span>
+        {!internalEngine && (
+          <Tooltip content="Refresh connection">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto hover:bg-transparent hover:shadow-none"
+              onClick={handleRefreshConnection}
+            >
+              <RefreshCwIcon
+                className={cn(
+                  "h-4 w-4 text-muted-foreground hover:text-foreground",
+                  isSpinning && "animate-[spin_0.5s]",
+                )}
+              />
+            </Button>
+          </Tooltip>
+        )}
       </DatasourceLabel>
       {hasChildren ? (
         children
@@ -366,6 +399,10 @@ const SchemaItem: React.FC<{
   React.useEffect(() => {
     setIsExpanded(hasSearch);
   }, [hasSearch]);
+
+  if (isSchemaless(schema.name)) {
+    return children;
+  }
 
   return (
     <>
@@ -508,26 +545,32 @@ const DatasetTableItem: React.FC<{
 
   const handleAddTable = () => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    let code = "";
-    if (sqlTableContext) {
-      code = sqlCode(table, "*", sqlTableContext);
-    } else {
+    const getCode = () => {
+      if (table.source_type === "catalog") {
+        const identifier = sqlTableContext?.database
+          ? `${sqlTableContext.database}.${table.name}`
+          : table.name;
+        return `${table.engine}.load_table("${identifier}")`;
+      }
+
+      if (sqlTableContext) {
+        return sqlCode(table, "*", sqlTableContext);
+      }
+
       switch (table.source_type) {
         case "local":
-          code = `mo.ui.table(${table.name})`;
-          break;
+          return `mo.ui.table(${table.name})`;
         case "duckdb":
         case "connection":
-          code = sqlCode(table, "*", sqlTableContext);
-          break;
+          return sqlCode(table, "*", sqlTableContext);
         default:
           logNever(table.source_type);
-          break;
+          return "";
       }
-    }
+    };
 
     createNewCell({
-      code,
+      code: getCode(),
       before: false,
       cellId: lastFocusedCellId ?? "__end__",
     });
@@ -598,7 +641,8 @@ const DatasetTableItem: React.FC<{
       <CommandItem
         className={cn(
           "rounded-none group h-8 cursor-pointer",
-          sqlTableContext && "pl-12",
+          sqlTableContext &&
+            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}
@@ -796,6 +840,14 @@ const DatasetColumnPreview: React.FC<{
     );
   }
 
+  if (table.source_type === "catalog") {
+    return (
+      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
+        {column.name} ({column.external_type})
+      </span>
+    );
+  }
+
   if (!preview) {
     return <span className="text-xs text-muted-foreground">Loading...</span>;
   }
@@ -809,9 +861,9 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 
-  const summary = preview.summary && (
+  const stats = preview.stats && (
     <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
-      {Object.entries(preview.summary).map(([key, value]) => {
+      {Object.entries(preview.stats).map(([key, value]) => {
         if (value == null) {
           return null;
         }
@@ -887,7 +939,7 @@ const DatasetColumnPreview: React.FC<{
     </span>
   );
 
-  if (!error && !summary && !chart && !chartMaxRowsWarning) {
+  if (!error && !stats && !chart && !chartMaxRowsWarning) {
     return <span className="text-xs text-muted-foreground">No data</span>;
   }
 
@@ -898,7 +950,7 @@ const DatasetColumnPreview: React.FC<{
       {addSQLChart}
       {chartMaxRowsWarning}
       {chart}
-      {summary}
+      {stats}
     </div>
   );
 };

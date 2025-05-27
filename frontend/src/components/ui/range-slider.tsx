@@ -28,6 +28,7 @@ const RangeSlider = React.forwardRef<
         "relative flex touch-none select-none hover:cursor-pointer",
         "data-[orientation=horizontal]:w-full data-[orientation=horizontal]:items-center",
         "data-[orientation=vertical]:h-full data-[orientation=vertical]:justify-center",
+        "data-[disabled]:cursor-not-allowed",
         className,
       )}
       {...props}
@@ -46,6 +47,7 @@ const RangeSlider = React.forwardRef<
             "absolute bg-blue-500 dark:bg-primary",
             "data-[orientation=horizontal]:h-full",
             "data-[orientation=vertical]:w-full",
+            "data-[disabled]:opacity-50",
           )}
         />
       </SliderPrimitive.Track>
@@ -54,7 +56,7 @@ const RangeSlider = React.forwardRef<
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
               data-testid="thumb"
-              className="block h-4 w-4 rounded-full shadow-xsSolid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="block h-4 w-4 rounded-full shadow-xsSolid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
               onMouseEnter={openActions.setTrue}
@@ -75,7 +77,7 @@ const RangeSlider = React.forwardRef<
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
               data-testid="thumb"
-              className="block h-4 w-4 rounded-full shadow-xsSolid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="block h-4 w-4 rounded-full shadow-xsSolid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
               onMouseEnter={openActions.setTrue}

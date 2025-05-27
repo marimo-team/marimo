@@ -8,17 +8,25 @@
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>用户手册</strong></a> ·
   <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord 社区</strong></a> ·
-  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>示例</strong></a>
+  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>示例</strong></a> ·
+  <a href="https://marimo.io/gallery/" target="_blank"><strong>展示廊</strong></a> ·
+  <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a>
 </p>
 
 <p align="center">
   <a href= "https://github.com/marimo-team/marimo/blob/main/README.md" target="_blank"><b>English</b></a>
-  <b> | 简体中文</b>
+  <b> | 简体中文 | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>日本語</b></a>
+  <b> | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Spanish.md" target="_blank"><b>Español</b></a>
 </p>
 
 <p align="center">
-<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
+<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi"/></a>
 <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
+<a href="https://marimo.io/discord?ref=readme"><img src="https://shields.io/discord/1059888774789730424" alt="discord" /></a>
+<img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
+<img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo" />
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
@@ -26,23 +34,25 @@
 
 **为什么选择 marimo**
 
-- 🚀 **功能齐全:** 替代 `jupyter`、`streamlit`、`jupytext`、`ipywidgets`、`papermill` 等更多工具
-- ⚡️ **响应式**: 运行一个单元格，marimo 会响应式地[运行所有依赖单元格](https://docs.marimo.io/guides/reactivity.html) 或 <a href="#expensive-notebooks">将它们标记为陈旧</a>
-- 🖐️ **交互性:** [绑定滑块、表格、图表等 UI 元素](https://docs.marimo.io/guides/interactivity.html) 到 Python——无需回调
-- 🔬 **可复现:** [无隐藏状态](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)，确定性执行
-- 🏃‍♂️ **可执行:** [作为 Python 脚本执行](https://docs.marimo.io/guides/scripts.html)，通过命令行调整参数
-- 🛜 **可分享**: [部署为交互式 Web 应用](https://docs.marimo.io/guides/apps.html) 或 [幻灯片](https://docs.marimo.io/guides/apps.html#slides-layout)，[通过 WASM 在浏览器中运行](https://docs.marimo.io/guides/wasm.html)
-- 🛢️ **为数据设计**: 使用 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 查询数据框和数据库，过滤和搜索 [数据框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
-- 🐍 **支持 Git:** 笔记本以 `.py` 文件格式存储
-- ⌨️ **现代编辑器**: GitHub Copilot、AI 助手、vim 快捷键、变量浏览器，和 [更多功能](https://docs.marimo.io/guides/editor_features/index.html)
+- 🚀 **功能齐全**：替代 `jupyter`、`streamlit`、`jupytext`、`ipywidgets`、`papermill` 等更多工具
+- ⚡️ **响应式**：运行一个单元格，marimo会响应式地[运行所有依赖单元格](https://docs.marimo.io/guides/reactivity.html)或<a href="#expensive-notebooks">将它们标记为过时</a>
+- 🖐️ **交互性**：[绑定滑块、表格、图表等UI元素](https://docs.marimo.io/guides/interactivity.html)到Python代码——无需回调函数
+- 🐍 **支持Git版本控制**：笔记本以`.py`文件格式存储
+- 🛢️ **为数据设计**：使用[SQL](https://docs.marimo.io/guides/working_with_data/sql.html)查询数据框和数据库，过滤和搜索[数据框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+- 🔬 **可复现**：[无隐藏状态](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)，确定性执行，[内置包管理](https://docs.marimo.io/guides/editor_features/package_management.html)
+- 🏃 **可执行**：[作为Python脚本执行](https://docs.marimo.io/guides/scripts.html)，通过命令行参数进行配置
+- 🛜 **可分享**：[部署为交互式Web应用](https://docs.marimo.io/guides/apps.html)或[幻灯片](https://docs.marimo.io/guides/apps.html#slides-layout)，[通过WASM在浏览器中运行](https://docs.marimo.io/guides/wasm.html)
+- 🧩 **可复用：** 可从一个笔记本[导入函数和类](https://docs.marimo.io/guides/reusing_functions/)到另一个笔记本
+- 🧪 **便于测试：** 可在笔记本上运行 [pytest](https://docs.marimo.io/guides/testing/)
+- ⌨️ **现代编辑器**：[GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot)、[AI助手](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama)、vim快捷键、变量浏览器和[更多功能](https://docs.marimo.io/guides/editor_features/index.html)
 
 ```python
 pip install marimo && marimo tutorial intro
 ```
 
-_在浏览器中运行[在线体验平台](https://marimo.app/l/c7h6pz)！_
+_在我们的[在线体验平台](https://marimo.app/l/c7h6pz)试用marimo，完全在浏览器中运行！_
 
-_跳转到[快速起步](#快速起步)，了解命令行工具。_
+_跳转到[快速入门](#快速入门)了解我们的命令行工具。_
 
 ## 响应式编程环境
 
@@ -55,23 +65,29 @@ Marimo 确保了您的代码、输出和程序的状态始的一致性，解决�
 
 <a name="expensive-notebooks"></a>
 
-**与计算成本高昂的笔记兼容** marimo 允许你将运行时配置为 “懒惰”模式，将受影响的单元标记为过时单元，而不是自动运行它们。这样既能保证程序状态，又能防止意外执行昂贵的单元。
+**兼容计算密集型笔记本**。marimo允许您[将运行时配置为延迟模式](https://docs.marimo.io/guides/configuration/runtime_configuration.html)，将受影响的单元格标记为过时而不是自动运行它们。这既能保证程序状态的完整性，又能防止意外执行计算密集型单元格。
 
-**同步的 UI 元素** 与滑块、下拉菜单和数据框转换器等 UI 元素交互，使用这些元素的单元格会自动以最新值重新运行。
+**同步的UI元素**。与[UI元素](https://docs.marimo.io/guides/interactivity.html)如[滑块](https://docs.marimo.io/api/inputs/slider.html#slider)、[下拉菜单](https://docs.marimo.io/api/inputs/dropdown.html)、[数据框转换器](https://docs.marimo.io/api/inputs/dataframe.html)和[聊天界面](https://docs.marimo.io/api/inputs/chat.html)交互时，使用它们的单元格会自动以最新值重新运行。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
 
-**高效运行** 通过静态分析代码，marimo 只运行需要运行的单元。
+**交互式数据框**。[分页浏览、搜索、过滤和排序](https://docs.marimo.io/guides/working_with_data/dataframes.html)数百万行数据，极速运行，无需编写代码。
 
-**动态的 Markdown 与 SQL** 使用 Markdown 编写 Python 代码的输出动态进行更新的文档。同时，使用内置 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 引擎，可创建依赖于 Python 值的 SQL 查询，并针对数据框、数据库、CSV、Google Sheets 或其他任何内容执行查询，SQL 引擎会将结果返回为 Python 数据框。
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-df.gif" width="700px" />
+
+**高效运行时**。marimo通过静态分析代码，只运行需要运行的单元格。
+
+**动态Markdown和SQL**。使用Markdown创建依赖Python数据的动态文档。或者构建依赖Python值的[SQL](https://docs.marimo.io/guides/working_with_data/sql.html)查询，并针对数据框、数据库、CSV、Google Sheets或其他数据源执行，使用我们内置的SQL引擎将结果作为Python数据框返回。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />
 
-即使笔记本（notebook）使用了 markdown 或 SQL，它仍然是纯 Python 程序。
+即使使用了Markdown或SQL，您的笔记本仍然是纯Python代码。
 
-**确定性的执行顺序** 笔记本的执行顺序是确定的，基于变量引用，而不是单元格在页面上的位置。根据你顺序逻辑来组织笔记本。
+**确定性执行顺序**。笔记本按照基于变量引用而非单元格页面位置的确定性顺序执行。您可以根据想要讲述的故事组织笔记本。
 
-**易用且强大** Marimo 集成了包括 GitHub Copilot、Ruff 代码格式化、HTML 导出、快速代码补全、[VSCode 扩展](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、交互式数据框查看器等非常有用的功能。
+**内置包管理**。marimo内置支持所有主要的包管理器，允许您[在导入时安装包](https://docs.marimo.io/guides/editor_features/package_management.html)。marimo甚至可以[序列化包依赖](https://docs.marimo.io/guides/package_management/inlining_dependencies/)到笔记本文件中，并在隔离的venv沙箱中自动安装它们。
+
+**功能齐全**。marimo集成了GitHub Copilot、AI助手、Ruff代码格式化、HTML导出、快速代码补全、[VS Code扩展](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、交互式数据框查看器和[更多](https://docs.marimo.io/guides/editor_features/index.html)便捷功能。
 
 ## 快速起步
 
@@ -82,11 +98,11 @@ pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
 ```
 
-**或者在 Gitpod 运行**
+要安装包含额外依赖项的版本（启用SQL单元格、AI补全等功能），运行：
 
-单击此链接以在 Gitpod 工作区中打开存储库：
-
-[https://gitpod.io/#https://github.com/marimo-team/marimo](https://gitpod.io/#https://github.com/marimo-team/marimo)
+```bash
+pip install marimo[recommended]
+```
 
 **创建新的笔记本**
 
@@ -96,7 +112,7 @@ marimo tutorial intro
 marimo edit
 ```
 
-**运行应用** 将笔记本作为网络应用程序运行，隐藏 Python 代码，且不可编辑：
+**运行应用** 将笔记本作为Web应用运行，隐藏并锁定Python代码：
 
 ```bash
 marimo run your_notebook.py
@@ -136,8 +152,8 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
-参阅我们的 [用户手册](https://docs.marimo.io),
-在 `examples/` 文件夹下, 以及我们的[精选示例](https://marimo.io/@public)。
+查看我们的[文档](https://docs.marimo.io)、
+[使用示例](https://docs.marimo.io/examples/)和[展示廊](https://marimo.io/gallery)了解更多。
 
 <table border="0">
   <tr>
@@ -167,13 +183,13 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
       <a target="_blank" href="https://docs.marimo.io/getting_started/key_concepts.html"> 教程 </a>
     </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html"> 自定义输入 </a>
+      <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html"> 输入控件 </a>
     </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/working_with_data/plotting.html"> 自定义绘图 </a>
+      <a target="_blank" href="https://docs.marimo.io/guides/working_with_data/plotting.html"> 绘图 </a>
     </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html"> 自定义布局 </a>
+      <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html"> 布局 </a>
     </td>
   </tr>
   <tr>
@@ -205,20 +221,21 @@ Marimo 很容易上手，为高级用户提供了很大的空间。 例如，这
 我们感谢所有人的贡献! 这是为所有人设计的工具，我们真挚的欢迎任何人的任何意见！
 请参阅[CONTRIBUTING.md](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md) 获取更多信息，了解如何参与到这个项目中来。
 
-> 看到这里，如果你有任何的想法或者问题，欢迎加入我们的 [Discord](https://marimo.io/discord?ref=readme)！
+> 有问题？请[在Discord上联系我们](https://marimo.io/discord?ref=readme)。
 
 ## 社区
 
 我们也正在建设 marimo 社区，来和我们一起玩吧！
 
-- 🌟 [给我们的项目点一颗星星](https://github.com/marimo-team/marimo)
-- 💬 [在 Discord 上与我们交流](https://marimo.io/discord?ref=readme)
-- 📧 [订阅我们的最新动态](https://marimo.io/newsletter)
-- ☁️ [加入我们的云服务器候补名单](https://marimo.io/cloud)
-- ✏️ [在 github 上开始一个讨论话题](https://github.com/marimo-team/marimo/discussions)
-- 🐦 [在推特上关注我们](https://twitter.com/marimo_io)
-- 🎥 [在 YouTube 上关注我们](https://www.youtube.com/@marimo-team)
-- 🕴️ [在领英上关注我们](https://www.linkedin.com/company/marimo-io)
+- 🌟 [在GitHub上为我们点赞](https://github.com/marimo-team/marimo)
+- 💬 [在Discord上与我们交流](https://marimo.io/discord?ref=readme)
+- 📧 [订阅我们的通讯](https://marimo.io/newsletter)
+- ☁️ [加入我们的云服务候补名单](https://marimo.io/cloud)
+- ✏️ [在GitHub上开始讨论](https://github.com/marimo-team/marimo/discussions)
+- 🦋 [在Bluesky上关注我们](https://bsky.app/profile/marimo.io)
+- 🐦 [在Twitter上关注我们](https://twitter.com/marimo_io)
+- 🎥 [在YouTube上订阅](https://www.youtube.com/@marimo-team)
+- 🕴️ [在LinkedIn上关注我们](https://www.linkedin.com/company/marimo-io)
 
 ## 愿景 ✨
 

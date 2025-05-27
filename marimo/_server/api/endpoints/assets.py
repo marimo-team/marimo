@@ -22,7 +22,7 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
-from marimo._utils.paths import import_files
+from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -33,7 +33,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 # Root directory for static assets
-root = Path(import_files("marimo").joinpath("_static")).resolve()
+root = (marimo_package_path() / "_static").resolve()
 
 server_config = (
     get_default_config_manager(current_path=None)

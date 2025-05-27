@@ -87,7 +87,7 @@
    },
    "outputs": [],
    "source": [
-    "import marimo as mo"
+    "import marimo as mo\n"
    ]
   },
   {
@@ -139,7 +139,7 @@
     {
      "data": {
       "text/markdown": [
-       "&lt;marimo-slider data-initial-value=&#x27;0&#x27; data-label=&#x27;null&#x27; data-start=&#x27;0&#x27; data-stop=&#x27;10&#x27; data-steps=&#x27;[]&#x27; data-debounce=&#x27;false&#x27; data-orientation=&#x27;&amp;quot;horizontal&amp;quot;&#x27; data-show-value=&#x27;false&#x27; data-full-width=&#x27;false&#x27;&gt;&lt;/marimo-slider&gt;"
+       "&lt;marimo-slider data-initial-value=&#x27;0&#x27; data-label=&#x27;null&#x27; data-start=&#x27;0&#x27; data-stop=&#x27;10&#x27; data-steps=&#x27;[]&#x27; data-debounce=&#x27;false&#x27; data-disabled=&#x27;false&#x27; data-orientation=&#x27;&amp;quot;horizontal&amp;quot;&#x27; data-show-value=&#x27;false&#x27; data-include-input=&#x27;false&#x27; data-full-width=&#x27;false&#x27;&gt;&lt;/marimo-slider&gt;"
       ]
      },
      "metadata": {},
@@ -163,7 +163,7 @@
     {
      "data": {
       "text/html": [
-       "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><div><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">hello</span></span></div><div><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">world</span></span></div></div>"
+       "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">hello</span></span><span class=\"markdown prose dark:prose-invert\"><span class=\"paragraph\">world</span></span></div>"
       ]
      },
      "metadata": {},

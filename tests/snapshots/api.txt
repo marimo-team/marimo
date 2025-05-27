@@ -11,6 +11,7 @@ ai
   ChatModelConfig
   llm
     anthropic
+    bedrock
     google
     groq
     openai
@@ -25,6 +26,7 @@ carousel
 center
 cli_args
 create_asgi_app
+current_thread
 defs
 doc
 download
@@ -35,6 +37,7 @@ image
 islands
   MarimoIslandGenerator
   MarimoIslandStub
+json
 latex
 lazy
 left
@@ -84,6 +87,7 @@ ui
   chat
   checkbox
   code_editor
+  data_editor
   data_explorer
   dataframe
   date
@@ -112,3 +116,6 @@ ui
   text_area
 video
 vstack
+watch
+  directory
+  file

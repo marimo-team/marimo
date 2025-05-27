@@ -67,33 +67,36 @@ const replaceSrcScripts = (domNode: DOMNode): JSX.Element | undefined => {
 const addCopyButtonToCodehilite: TransformFn = (
   reactNode: ReactNode,
   domNode: DOMNode,
+  index: number,
 ): JSX.Element | undefined => {
   if (
     domNode instanceof Element &&
     domNode.name === "div" &&
     domNode.attribs?.class?.includes("codehilite")
   ) {
-    return <CopyableCode>{reactNode}</CopyableCode>;
+    return <CopyableCode key={index}>{reactNode}</CopyableCode>;
   }
 };
 
 const CopyableCode = ({ children }: { children: ReactNode }) => {
   const id = useId();
   return (
-    <div className="relative group" id={id}>
+    <div className="relative group codehilite-wrapper" id={id}>
       {children}
 
-      <CopyClipboardIcon
-        tooltip={false}
-        className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-        value={() => {
-          const codeElement = document.getElementById(id)?.firstChild;
-          if (codeElement) {
-            return codeElement.textContent || "";
-          }
-          return "";
-        }}
-      />
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <CopyClipboardIcon
+          tooltip={false}
+          className="p-1"
+          value={() => {
+            const codeElement = document.getElementById(id)?.firstChild;
+            if (codeElement) {
+              return codeElement.textContent || "";
+            }
+            return "";
+          }}
+        />
+      </div>
     </div>
   );
 };

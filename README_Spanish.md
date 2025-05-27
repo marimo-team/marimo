@@ -108,7 +108,7 @@ Organize your notebooks to best fit the stories you'd like to tell.
 **Gestión de paquetes integrado.** marimo has built-in support for all major
 package managers, letting you [install packages on import](https://docs.marimo.io/guides/editor_features/package_management.html). marimo can even
 [serialize package
-requirements](https://docs.marimo.io/guides/package_reproducibility.html)
+requirements](https://docs.marimo.io/guides/package_management/inlining_dependencies/)
 in notebook files, and auto install them in
 isolated venv sandboxes.
 

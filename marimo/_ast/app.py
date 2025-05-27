@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import ast
 import base64
-import builtins
 import inspect
 import sys
 import threading
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
 from typing import (
@@ -24,6 +23,8 @@ from typing import (
 )
 from uuid import uuid4
 
+from marimo._ast.app_config import _AppConfig
+from marimo._ast.variables import BUILTINS
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
@@ -40,9 +41,9 @@ from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
     MultipleDefinitionError,
+    SetupRootError,
     UnparsableError,
 )
-from marimo._config.config import WidthType
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -58,76 +59,20 @@ from marimo._runtime.requests import (
     FunctionCallRequest,
     SetUIElementValueRequest,
 )
-from marimo._utils.with_skip import SkipContext
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from types import TracebackType
+    from types import FrameType, TracebackType
 
     from marimo._messaging.ops import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 
-
 P = ParamSpec("P")
 R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
+Cls: TypeAlias = type
 LOGGER = _loggers.marimo_logger()
-
-
-@dataclass
-class _AppConfig:
-    """Program-specific configuration.
-
-    Configuration for frontends or runtimes that is specific to
-    a single marimo program.
-    """
-
-    width: WidthType = "compact"
-    app_title: Optional[str] = None
-
-    # The file path of the layout file, relative to the app file.
-    layout_file: Optional[str] = None
-
-    # CSS file, relative to the app file
-    css_file: Optional[str] = None
-
-    # HTML head file, relative to the app file
-    html_head_file: Optional[str] = None
-
-    # Whether to automatically download the app as HTML and Markdown
-    auto_download: list[Literal["html", "markdown"]] = field(
-        default_factory=list
-    )
-
-    # Experimental top-level cell support
-    _toplevel_fn: bool = False
-
-    @staticmethod
-    def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
-        config = _AppConfig()
-        for key in updates:
-            if hasattr(config, key):
-                config.__setattr__(key, updates[key])
-            else:
-                LOGGER.warning(
-                    f"Unrecognized key '{key}' in app config. Ignoring."
-                )
-        return config
-
-    def asdict(self) -> dict[str, Any]:
-        # Used for experimental hooks which start with _
-        return {
-            k: v for (k, v) in asdict(self).items() if not k.startswith("_")
-        }
-
-    def update(self, updates: dict[str, Any]) -> _AppConfig:
-        config_dict = asdict(self)
-        for key in updates:
-            if key in config_dict:
-                self.__setattr__(key, updates[key])
-
-        return self
 
 
 class _Namespace(Mapping[str, object]):
@@ -152,7 +97,7 @@ class _Namespace(Mapping[str, object]):
         return tree(self._dict)._mime_()
 
 
-class _SetupContext(SkipContext):
+class _SetupContext:
     """
     A context manager that controls imports from being executed in top level code.
     See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
@@ -161,28 +106,50 @@ class _SetupContext(SkipContext):
     def __init__(self, cell: Cell):
         super().__init__()
         self._cell = cell
+        self._glbls: dict[str, Any] = {}
+        self._frame: Optional[FrameType] = None
+        self._previous: dict[str, Any] = {}
 
-    def trace(self, _frame: Any) -> None:
-        if self._cell.refs - set(builtins.__dict__.keys()):
-            self.skip()
+    def __enter__(self) -> None:
+        if maybe_frame := inspect.currentframe():
+            with_frame = maybe_frame.f_back
+        else:
+            raise SetupRootError("Unable to establish current frame.")
+        if "app" in self._cell.defs:
+            # Otherwise fail in say a script context.
+            raise SetupRootError("The setup cell cannot redefine 'app'")
+        if refs := self._cell.refs - BUILTINS:
+            # Otherwise fail in say a script context.
+            raise SetupRootError(
+                f"The setup cell cannot reference any additional variables: {refs}"
+            )
+
+        if with_frame is not None:
+            self._frame = with_frame
+            previous = {**with_frame.f_locals}
+            # A reference to the key app must be maintained in the frame.
+            # This may be a python quirk, so just remove refs to explicit defs
+            for var in self._cell.defs:
+                if var in previous:
+                    del self._frame.f_locals[var]
 
     def __exit__(
         self,
         exception: Optional[type[BaseException]],
         instance: Optional[BaseException],
-        _tracebacktype: Optional[TracebackType],
+        _traceback: Optional[TracebackType],
     ) -> Literal[False]:
-        # Must be a Literal[False], for linters.
-        # Whether to suppress a given exception.
-        self.teardown()
-
         if exception is not None:
-            LOGGER.warning(
-                "The setup cell was unable to execute, your notebook may not "
-                "work as expected."
-            )
-            LOGGER.debug("Exception: %s", exception)
-            return True  # type: ignore
+            # Always should fail, since static loading still allows bad apps to
+            # load.
+            # But don't record the variables.
+            return False
+
+        if self._frame is not None:
+            # Collect new definitions
+            for var in self._cell.defs:
+                if var in self._frame.f_locals:
+                    self._glbls[var] = self._frame.f_locals.get(var)
         return False
 
 
@@ -257,13 +224,17 @@ class App:
         self._anonymous_file = False
         # injection hook to rewrite cells for pytest
         self._pytest_rewrite = False
+        # setup context for script mode and module imports
+        self._setup: Optional[_SetupContext] = None
 
         # Filename is derived from the callsite of the app
-        self._filename: str | None = None
-        try:
-            self._filename = inspect.getfile(inspect.stack()[1].frame)
-        except Exception:
-            ...
+        # unless explicitly set (e.g. for static loading case)
+        self._filename: str | None = kwargs.get("_filename", None)
+        if self._filename is None:
+            try:
+                self._filename = inspect.getfile(inspect.stack()[1].frame)
+            except Exception:
+                ...
 
     def __del__(self) -> None:
         try:
@@ -311,6 +282,14 @@ class App:
                     )
         return app
 
+    # Overloads are required to preserve the wrapped function's signature.
+    # mypy is not smart enough to carry transitive typing in this case.
+    @overload
+    def cell(self, func: Fn[P, R]) -> Cell: ...
+
+    @overload
+    def cell(self, **kwargs: Any) -> Callable[[Fn[P, R]], Cell]: ...
+
     def cell(
         self,
         func: Fn[P, R] | None = None,
@@ -355,8 +334,6 @@ class App:
             ),
         )
 
-    # Overloads are required to preserve the wrapped function's signature.
-    # mypy is not smart enough to carry transitive typing in this case.
     @overload
     def function(self, func: Fn[P, R]) -> Fn[P, R]: ...
 
@@ -372,7 +349,7 @@ class App:
         hide_code: bool = False,
         **kwargs: Any,
     ) -> Fn[P, R] | Callable[[Fn[P, R]], Fn[P, R]]:
-        """A decorator to wrap a callable function into a cell in the app.
+        """A decorator to wrap a callable function into a marimo cell.
 
         This decorator can be called with or without parentheses. Each of the
         following is valid:
@@ -414,6 +391,61 @@ class App:
             ),
         )
 
+    @overload
+    def class_definition(self, cls: Cls) -> Cls: ...
+
+    @overload
+    def class_definition(self, **kwargs: Any) -> Callable[[Cls], Cls]: ...
+
+    def class_definition(
+        self,
+        cls: Cls | None = None,
+        *,
+        column: Optional[int] = None,
+        disabled: bool = False,
+        hide_code: bool = False,
+        **kwargs: Any,
+    ) -> Cls | Callable[[Cls], Cls]:
+        """A decorator to wrap a class into a marimo cell.
+
+        This decorator can be called with or without parentheses. Each of the
+        following is valid:
+
+        ```
+        @app.class_definition
+        class MyClass: ...
+
+
+        @app.class_definition()
+        class TestClass: ...
+
+
+        @app.class_definition(disabled=True)
+        @dataclasses.dataclass
+        class MyStruct: ...
+        ```
+
+        Args:
+            cls: The decorated class.
+            column: The column number to place this cell in.
+            disabled: Whether to disable the cell.
+            hide_code: Whether to hide the cell's code.
+            **kwargs: For forward-compatibility with future arguments.
+        """
+        del kwargs
+
+        return cast(
+            Union[Cls, Callable[[Cls], Cls]],
+            self._cell_manager.cell_decorator(
+                cls,
+                column,
+                disabled,
+                hide_code,
+                app=InternalApp(self),
+                top_level=True,
+            ),
+        )
+
     @property
     def setup(self) -> _SetupContext:
         """Provides a context manager to initialize the setup cell.
@@ -434,7 +466,8 @@ class App:
         cell = self._cell_manager.cell_context(
             app=InternalApp(self), frame=frame
         )
-        return _SetupContext(cell)
+        self._setup = _SetupContext(cell)
+        return self._setup
 
     def _unparsable_cell(
         self,
@@ -527,8 +560,13 @@ class App:
         self,
     ) -> tuple[Sequence[Any], Mapping[str, Any]]:
         self._maybe_initialize()
+        glbls: dict[str, Any] = {}
+        if self._setup is not None:
+            glbls = self._setup._glbls
         outputs, glbls = AppScriptRunner(
-            InternalApp(self), filename=self._filename
+            InternalApp(self),
+            filename=self._filename,
+            glbls=glbls,
         ).run()
         return (self._flatten_outputs(outputs), self._globals_to_defs(glbls))
 

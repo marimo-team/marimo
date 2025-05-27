@@ -25,6 +25,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.validators import validate_page_size
+from marimo._utils.deprecated import deprecated
 
 LOGGER = _loggers.marimo_logger()
 
@@ -71,6 +72,16 @@ RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 
 
+@deprecated(
+    "mo.ui.experimental_data_editor is deprecated. Use mo.ui.data_editor instead"
+)
+def experimental_data_editor(
+    *args: Any,
+    **kwargs: Any,
+) -> data_editor:
+    return data_editor(*args, **kwargs)
+
+
 @mddoc
 class data_editor(
     UIElement[
@@ -78,7 +89,7 @@ class data_editor(
         Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
     ]
 ):
-    """[EXPERIMENTAL] A data editor component for editing tabular data.
+    """A data editor component for editing tabular data.
 
     This component is experimental and intentionally limited in features,
     if you have any feature requests, please file an issue at
@@ -96,21 +107,21 @@ class data_editor(
         import pandas as pd
 
         df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-        editor = mo.ui.experimental_data_editor(data=df, label="Edit Data")
+        editor = mo.ui.data_editor(data=df, label="Edit Data")
         ```
 
         Create a data editor from a list of dicts:
 
         ```python
         data = [{"A": 1, "B": "a"}, {"A": 2, "B": "a"}, {"A": 3, "B": "c"}]
-        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
         Create a data editor from a dict of lists:
 
         ```python
         data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
-        editor = mo.ui.experimental_data_editor(data=data, label="Edit Data")
+        editor = mo.ui.data_editor(data=data, label="Edit Data")
         ```
 
     Attributes:
@@ -124,6 +135,8 @@ class data_editor(
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
         column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
             `auto` will size columns based on the content, `fit` will size columns to fit the view.
+        pagination (Optional[bool]): Whether to use pagination, enabled by default.
+        page_size (Optional[int]): Page size if pagination is in use, 50 by default.
     """
 
     _name: Final[str] = "marimo-data-editor"
@@ -254,9 +267,8 @@ def _apply_edits_dataframe(
     column_oriented = df.to_dict(as_series=False)
     schema = schema or cast(nw.Schema, df.schema)
     new_data = _apply_edits_column_oriented(column_oriented, edits, schema)
-    native_namespace = nw.get_native_namespace(df)
     new_native_df = nw.from_dict(
-        new_data, native_namespace=native_namespace
+        new_data, backend=nw.get_native_namespace(df)
     ).to_native()
     return new_native_df  # type: ignore[no-any-return]
 

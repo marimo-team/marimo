@@ -15,53 +15,56 @@
 
 import marimo
 
-__generated_with = "0.8.20"
+__generated_with = "0.13.10"
 app = marimo.App(
     width="medium",
     layout_file="layouts/grid-dashboard.grid.json",
 )
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""# Gapminder Dashboard""")
     return
 
 
 @app.cell(hide_code=True)
-def __(__file__, mo):
+def _(mo):
     mo.md(
         rf"""
-        !!! tip "This notebook is best viewed as an app."
+    /// TIP 
 
-            `marimo run {__file__}`
+    "This notebook is best viewed as an app."
 
-            or hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
-        """
+    `marimo run {__file__}`
+
+    or hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+    ///
+    """
     )
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
-        If you would like to see _how_ this application is made, continue down.
+    If you would like to see _how_ this application is made, continue down.
 
-        This application is adapted from <https://examples.holoviz.org/gallery/gapminders/gapminders.html>
-        """
+    This application is adapted from <https://examples.holoviz.org/gallery/gapminders/gapminders.html>
+    """
     )
     return
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""# Getting the data""")
     return
 
 
 @app.cell
-def __():
+def _():
     import numpy as np
     import pandas as pd
     import panel as pn
@@ -78,11 +81,11 @@ def __():
     warnings.simplefilter("ignore")
     pn.extension("vega", "plotly", defer_load=True, sizing_mode="stretch_width")
     mpl.use("agg")
-    return alt, go, hvplot, mo, mpl, np, pd, pio, plt, pn, warnings
+    return alt, go, mo, np, pd, pio, plt
 
 
 @app.cell
-def __():
+def _():
     XLABEL = "GDP per capita (2000 dollars)"
     YLABEL = "Life expectancy (years)"
     YLIM = (20, 90)
@@ -90,11 +93,11 @@ def __():
     WIDTH = 500  # pixels
     ACCENT = "#D397F8"
     PERIOD = 1000  # milliseconds
-    return ACCENT, HEIGHT, PERIOD, WIDTH, XLABEL, YLABEL, YLIM
+    return HEIGHT, XLABEL, YLABEL, YLIM
 
 
 @app.cell
-def __(pd):
+def _(pd):
     dataset = pd.read_csv(
         "https://raw.githubusercontent.com/kirenz/datasets/b8f17b8fc4907748b3317554d65ffd780edcc057/gapminder.csv"
     )
@@ -103,20 +106,20 @@ def __(pd):
 
 
 @app.cell
-def __(dataset):
+def _(dataset):
     YEARS = [int(year) for year in dataset.year.unique()]
     str(YEARS)
     return (YEARS,)
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""# Charting the data""")
     return
 
 
 @app.cell
-def __(dataset, np):
+def _(dataset, np):
     # Common utility functions
 
 
@@ -140,18 +143,7 @@ def __(dataset, np):
 
 
 @app.cell
-def __(
-    XLABEL,
-    YLABEL,
-    YLIM,
-    alt,
-    get_data,
-    get_title,
-    get_xlim,
-    go,
-    pio,
-    plt,
-):
+def _(XLABEL, YLABEL, YLIM, alt, get_data, get_title, get_xlim, go, pio, plt):
     # Charting functions
 
 
@@ -288,7 +280,7 @@ def __(
 
 
 @app.cell
-def __(HEIGHT, altair_view, hvplot_view, mo, mpl_view, plotly_view):
+def _(HEIGHT, altair_view, hvplot_view, mo, mpl_view, plotly_view):
     mo.ui.tabs(
         {
             "matplotlib": mpl_view(1952, True),
@@ -300,26 +292,26 @@ def __(HEIGHT, altair_view, hvplot_view, mo, mpl_view, plotly_view):
     return
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""# Building a dashboard""")
     return
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md("""## Creating widgets""")
     return
 
 
 @app.cell
-def __(YEARS, mo):
+def _(YEARS, mo):
     get_year, set_year = mo.state(YEARS[-1])
     return get_year, set_year
 
 
 @app.cell
-def __(YEARS, get_year, mo, set_year):
+def _(YEARS, get_year, mo, set_year):
     year = mo.ui.slider(
         value=get_year(), steps=YEARS, full_width=True, on_change=set_year
     )
@@ -328,7 +320,7 @@ def __(YEARS, get_year, mo, set_year):
 
 
 @app.cell
-def __(mo, show_legend, year):
+def _(mo, show_legend, year):
     mo.vstack(
         [
             mo.md(f"Year: **{year.value}**"),
@@ -340,14 +332,14 @@ def __(mo, show_legend, year):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     autoplay = mo.ui.refresh(options=["1s", "3s", "5s"], label="Autoplay")
     autoplay
     return (autoplay,)
 
 
 @app.cell
-def __(YEARS, autoplay, set_year):
+def _(YEARS, autoplay, set_year):
     autoplay
 
 
@@ -359,67 +351,67 @@ def __(YEARS, autoplay, set_year):
 
 
     set_year(increment)
-    return (increment,)
+    return
 
 
-@app.cell
-def __(mo):
+@app.cell(hide_code=True)
+def _(mo):
     mo.md(r"""## Creating the charts, reactive to the widgets""")
     return
 
 
 @app.cell
-def __(mpl_view, show_legend, year):
+def _(mpl_view, show_legend, year):
     mpl_view(year=year.value, show_legend=show_legend.value)
     return
 
 
 @app.cell
-def __(plotly_view, show_legend, year):
+def _(plotly_view, show_legend, year):
     plotly_view(year=year.value, show_legend=show_legend.value)
     return
 
 
 @app.cell
-def __(HEIGHT, altair_view, show_legend, year):
+def _(HEIGHT, altair_view, show_legend, year):
     altair_view(year=year.value, show_legend=show_legend.value, height=HEIGHT - 100)
     return
 
 
 @app.cell
-def __(hvplot_view, show_legend, year):
+def _(hvplot_view, show_legend, year):
     hvplot_view(year=year.value, show_legend=show_legend.value)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
-        ## Add any extra flair
+    ## Add any extra flair
 
-        Next we will toggle to "App view" (hit `Cmd/Ctrl+.` or click the "app view") in order to layout our dashboard with the grid layout editor.
-        """
+    Next we will toggle to "App view" (hit `Cmd/Ctrl+.` or click the "app view") in order to layout our dashboard with the grid layout editor.
+    """
     )
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.image("https://marimo.io/logotype-wide.svg")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
-        ## 🎓 Info
+    ## 🎓 Info
 
-        Here you can try out four different plotting libraries controlled by a couple of widgets, for Hans Rosling's [gapminder](https://demo.bokeh.org/gapminder) example.
+    Here you can try out four different plotting libraries controlled by a couple of widgets, for Hans Rosling's [gapminder](https://demo.bokeh.org/gapminder) example.
 
-        This application is inspired by [Panel](https://examples.holoviz.org/gallery/gapminders/gapminders.html).
-        """
+    This application is inspired by [Panel](https://examples.holoviz.org/gallery/gapminders/gapminders.html).
+    """
     )
     return
 

@@ -46,6 +46,38 @@ its visual outputs before saving as HTML.
     If any cells error during the export process, the status code will be non-zero. However, the export result may still be generated, with the error included in the output.
     Errors can be ignored by appending `|| true` to the command, e.g. `marimo export html notebook.py || true`.
 
+### Pre-render HTML exports
+
+Static marimo exports execute Javascript to render the notebook source code as HTML at browser runtime. If you would like to directly serve the HTML representation of your notebook, you can run the following post-processing script and serve the resulting file instead.
+
+```python
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "playwright",
+# ]
+# ///
+
+import os
+import subprocess
+from playwright.sync_api import sync_playwright
+
+input_file = "input.html"
+output_file = "output.html"
+
+subprocess.run(["playwright", "install", "chromium-headless-shell"], check=True)
+
+with sync_playwright() as p:
+    with p.chromium.launch(headless=True) as browser:
+        page = browser.new_page()
+        page.goto(
+            f"file:///{os.path.abspath(input_file)}",
+            wait_until="networkidle",
+        )
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(page.content())
+```
+
 ## Export to a Python script
 
 Export to a flat Python script in topological order, so the cells adhere to
@@ -72,6 +104,9 @@ marimo export md notebook.py -o notebook.md
 
 This can be useful to plug into other tools that read markdown, such as [Quarto](https://quarto.org/) or [MyST](https://myst-parser.readthedocs.io/).
 
+!!! tip "marimo can directly open markdown files as notebooks"
+    Learn more with `marimo tutorial markdown-format` at the command line.
+
 You can also convert the markdown back to a marimo notebook:
 
 ```bash
@@ -89,7 +124,10 @@ marimo export ipynb notebook.py -o notebook.ipynb
 
 ## Exporting to PDF, slides, or rst
 
-If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
+The marimo [Quarto](https://www.github.com/marimo-team/quarto-marimo) plugin
+enables exporting to PDF and other formats with Pandoc. See this [publishing](./publishing/quarto.md) for more details.
+
+However, if you export to a Jupyter notebook, you can leverage various other Jupyter ecosystem tools. For PDFs, you will
 need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
@@ -147,6 +185,7 @@ Options:
 - `--output`: Directory to save the HTML and required assets
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
+- `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
 
 !!! note "Note"
 
@@ -154,8 +193,28 @@ Options:
     cannot be opened directly from the filesystem (`file://`). Your server must
     also serve the assets in the `assets` directory, next to the HTML file. For
     a simpler publishing experience, publish to [GitHub
-    Pages](publishing/github_pages.md), [Cloudflare Pages](publishing/cloudflare_pages.md) or use the [online
+    Pages](publishing/github_pages.md), [Cloudflare](publishing/cloudflare.md) or use the [online
     playground](publishing/playground.md).
+
+??? note "Deploying to Cloudflare"
+
+    You can include `--include-cloudflare` for deploying to Cloudflare. For example:
+
+    ```
+    marimo export html-wasm notebook.py -o my_app/dist --include-cloudflare
+    ```
+
+    To run locally, run:
+
+    ```
+    npx wrangler dev
+    ```
+
+    To deploy to Cloudflare, run:
+
+    ```
+    npx wrangler deploy
+    ```
 
 ### Testing the export
 
@@ -176,7 +235,6 @@ to include data files in exported WASM HTML notebooks.
 After exporting your notebook to WASM HTML, you can publish it to
 [GitHub Pages](https://pages.github.com/) for free. See our [guide on
 GitHub Pages](publishing/github_pages.md) to learn more.
-
 
 ### Exporting multiple notebooks
 
@@ -325,6 +383,5 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
   </marimo-island>
 </body>
 ```
-
 
 ::: marimo.MarimoIslandGenerator

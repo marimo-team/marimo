@@ -148,6 +148,27 @@ def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
         assert "app = marimo.App()" not in contents
 
 
+def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
+    initial_filename = app_file_manager.filename
+    assert initial_filename
+    assert initial_filename.endswith(".py")
+    with open(initial_filename) as f:
+        contents = f.read()
+        assert "app = marimo.App()" in contents
+        assert "marimo-team/marimo" not in contents
+        assert "marimo-version" not in contents
+    app_file_manager.rename(initial_filename[:-3] + ".qmd")
+    next_filename = app_file_manager.filename
+    assert next_filename
+    assert next_filename.endswith(".qmd")
+    with open(next_filename) as f:
+        contents = f.read()
+        assert "marimo-version" in contents
+        assert "filters:" in contents
+        assert "marimo-team/marimo" in contents
+        assert "app = marimo.App()" not in contents
+
+
 def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "app_config.py"
     try:
@@ -246,7 +267,7 @@ def test_to_code(app_file_manager: AppFileManager) -> None:
             "@app.cell",
             "def _():",
             "    import marimo as mo",
-            "    return (mo,)",
+            "    return",
             "",
             "",
             'if __name__ == "__main__":',
@@ -575,3 +596,37 @@ if __name__ == "__main__":
 
     # Clean up
     os.remove(tmp_file)
+
+
+def test_default_app_settings(tmp_path: Path) -> None:
+    """Test that default_sql_output and default_width are properly applied."""
+    # Test with custom defaults
+    manager = AppFileManager(
+        filename=None,
+        default_width="full",
+        default_sql_output="polars",
+    )
+    assert manager.app.config.width == "full"
+    assert manager.app.config.sql_output == "polars"
+
+    # Test with None defaults (should use system defaults)
+    manager = AppFileManager(filename=None)
+
+    assert manager.app.config.width == "compact"
+    assert manager.app.config.sql_output == "auto"
+
+    # Existing file does not get overwritten
+    tmp_file = tmp_path / "test.py"
+    tmp_file.write_text(
+        """
+import marimo
+app = marimo.App(sql_output="lazy-polars", width="columns")
+"""
+    )
+    manager = AppFileManager(
+        filename=tmp_file,
+        default_width="full",
+        default_sql_output="polars",
+    )
+    assert manager.app.config.width == "columns"
+    assert manager.app.config.sql_output == "lazy-polars"

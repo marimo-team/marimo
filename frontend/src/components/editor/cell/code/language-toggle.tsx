@@ -8,8 +8,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { LanguageAdapter } from "@/core/codemirror/language/types";
 import { DatabaseIcon } from "lucide-react";
 import { useMemo } from "react";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/sql";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { Functions } from "@/utils/functions";
 
 interface LanguageTogglesProps {

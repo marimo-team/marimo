@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
+    python_print_ibis,
     python_print_pandas,
     python_print_polars,
     python_print_transforms,
@@ -24,6 +25,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     SortColumnTransform,
     Transform,
     TransformHandler,
+    UniqueTransform,
 )
 from marimo._utils.assert_never import assert_never
 
@@ -126,7 +128,13 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
                 df_filter = column.str.endswith(str(value), na=False)
             # Handle list operations with proper Unicode handling
             elif condition.operator == "in":
-                df_filter = df[condition.column_id].isin(value)
+                # Nested lists can be filtered directly without converting the value
+                if condition.value and isinstance(
+                    condition.value[0], (list, tuple)
+                ):
+                    df_filter = df[condition.column_id].isin(condition.value)
+                else:
+                    df_filter = df[condition.column_id].isin(value)
             else:
                 assert_never(condition.operator)
 
@@ -222,6 +230,20 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             df_name, columns, transforms, python_print_pandas
         )
 
+    @staticmethod
+    def handle_unique(
+        df: pd.DataFrame, transform: UniqueTransform
+    ) -> pd.DataFrame:
+        if transform.keep == "first":
+            return df.drop_duplicates(
+                subset=transform.column_ids, keep="first"
+            )
+        if transform.keep == "last":
+            return df.drop_duplicates(subset=transform.column_ids, keep="last")
+        if transform.keep == "none":
+            return df.drop_duplicates(subset=transform.column_ids, keep=False)
+        assert_never(cast(NoReturn, transform.keep))
+
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
     @staticmethod
@@ -267,6 +289,12 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         # Start with no filter (all rows included)
         filter_expr: Optional[pl.Expr] = None
 
+        # Convert a value whether it's a list or single value
+        def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
+            if isinstance(v, (tuple, list)):
+                return [converter(str(item)) for item in v]
+            return converter(str(v))
+
         # Iterate over all conditions and build the filter expression
         for condition in transform.where:
             column = col(str(condition.column_id))
@@ -275,12 +303,12 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             value_str = str(value)
 
             # If columns type is a Datetime, we need to convert the value to a datetime
-            if dtype == pl.Datetime and isinstance(value, str):
-                value = datetime.datetime.fromisoformat(value)
-            elif dtype == pl.Date and isinstance(value, str):
-                value = datetime.date.fromisoformat(value)
-            elif dtype == pl.Time and isinstance(value, str):
-                value = datetime.time.fromisoformat(value)
+            if dtype == pl.Datetime:
+                value = convert_value(value, datetime.datetime.fromisoformat)
+            elif dtype == pl.Date:
+                value = convert_value(value, datetime.date.fromisoformat)
+            elif dtype == pl.Time:
+                value = convert_value(value, datetime.time.fromisoformat)
 
             # If columns type is a Categorical, we need to cast the value to a string
             if dtype == pl.Categorical:
@@ -320,7 +348,11 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             elif condition.operator == "ends_with":
                 condition_expr = column.str.ends_with(value_str)
             elif condition.operator == "in":
-                condition_expr = column.is_in(value or [])
+                # is_in doesn't support None values, so we need to handle them separately
+                if value is not None and None in value:
+                    condition_expr = column.is_in(value) | column.is_null()
+                else:
+                    condition_expr = column.is_in(value or [])
             else:
                 assert_never(condition.operator)
 
@@ -456,6 +488,22 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             df_name, columns, transforms, python_print_polars
         )
 
+    @staticmethod
+    def handle_unique(
+        df: pl.DataFrame, transform: UniqueTransform
+    ) -> pl.DataFrame:
+        keep = transform.keep
+        if (
+            keep == "first"
+            or keep == "last"
+            or keep == "any"
+            or keep == "none"
+        ):
+            return df.unique(
+                subset=cast(Sequence[str], transform.column_ids), keep=keep
+            )
+        assert_never(keep)
+
 
 class IbisTransformHandler(TransformHandler["ibis.Table"]):
     @staticmethod
@@ -464,13 +512,15 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     ) -> ibis.Table:
         import ibis
 
+        transform_data_type = transform.data_type.replace("_", "")
+
         if transform.errors == "ignore":
             try:
                 # Use coalesce to handle conversion errors
                 return df.mutate(
                     ibis.coalesce(
                         df[transform.column_id].cast(
-                            ibis.dtype(transform.data_type)
+                            ibis.dtype(transform_data_type)
                         ),
                         df[transform.column_id],
                     ).name(transform.column_id)
@@ -481,7 +531,7 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             # Default behavior (raise errors)
             return df.mutate(
                 df[transform.column_id]
-                .cast(ibis.dtype(transform.data_type))
+                .cast(ibis.dtype(transform_data_type))
                 .name(transform.column_id)
             )
 
@@ -548,7 +598,13 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
             elif condition.operator == "ends_with":
                 filter_conditions.append(column.endswith(value))
             elif condition.operator == "in":
-                filter_conditions.append(column.isin(value))
+                # is_in doesn't support None values, so we need to handle them separately
+                if value is not None and None in value:
+                    filter_conditions.append(
+                        column.isnull() | column.isin(value)
+                    )
+                else:
+                    filter_conditions.append(column.isin(value))
             else:
                 assert_never(condition.operator)
 
@@ -642,14 +698,25 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
     ) -> ibis.Table:
         return df.unpack(transform.column_id)
 
-    # TODO: support as_python_code for Ibis
-    # @staticmethod
-    # def as_python_code(
-    #     df_name: str, columns: List[str], transforms: List[Transform]
-    # ) -> str | None:
-    #     return python_print_transforms(
-    #         df_name, columns, transforms, python_print_ibis
-    #     )
+    @staticmethod
+    def handle_unique(
+        df: ibis.Table, transform: UniqueTransform
+    ) -> ibis.Table:
+        if transform.keep == "first":
+            return df.distinct(on=transform.column_ids, keep="first")
+        if transform.keep == "last":
+            return df.distinct(on=transform.column_ids, keep="last")
+        if transform.keep == "none":
+            return df.distinct(on=transform.column_ids, keep=None)
+        assert_never(cast(NoReturn, transform.keep))
+
+    @staticmethod
+    def as_python_code(
+        df_name: str, columns: list[str], transforms: list[Transform]
+    ) -> str | None:
+        return python_print_transforms(
+            df_name, columns, transforms, python_print_ibis
+        )
 
     @staticmethod
     def as_sql_code(transformed_df: ibis.Table) -> str | None:

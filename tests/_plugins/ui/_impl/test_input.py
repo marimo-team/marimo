@@ -608,6 +608,23 @@ def test_file_validation() -> None:
     assert "or contain a forward slash" in str(e.value)
     assert "doc, pdf" in str(e.value)
 
+    # Test max_size validation
+    with pytest.raises(ValueError) as e:
+        ui.file(max_size=0)
+    assert "max_size must be greater than 0" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.file(max_size=-1)
+    assert "max_size must be greater than 0" in str(e.value)
+
+    # Test default max_size
+    f = ui.file()
+    assert f._component_args["max_size"] == 100_000_000  # 100MB
+
+    # Test custom max_size
+    f = ui.file(max_size=50_000_000)  # 50MB
+    assert f._component_args["max_size"] == 50_000_000
+
 
 @pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")
 def test_numpy_steps() -> None:

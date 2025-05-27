@@ -39,6 +39,7 @@ describe("Cell data attributes", () => {
           cell_output: "below",
           code_editor_font_size: 14,
           dataframes: "rich",
+          default_table_page_size: 10,
           default_width: "normal",
           theme: "light",
         },
@@ -51,12 +52,15 @@ describe("Cell data attributes", () => {
         package_management: { manager: "pip" },
         runtime: {
           auto_instantiate: false,
+          default_sql_output: "native",
           auto_reload: "off",
           on_cell_change: "lazy",
           watcher_on_save: "lazy",
+          reactive_tests: true,
           output_max_bytes: 1_000_000,
           std_stream_max_bytes: 1_000_000,
           pythonpath: [],
+          dotenv: [".env"],
         },
         server: {
           browser: "default",
@@ -64,7 +68,7 @@ describe("Cell data attributes", () => {
         },
         save: { autosave: "off", autosave_delay: 1000, format_on_save: false },
         ai: {},
-      };
+      } as UserConfig;
 
       const { container } = render(
         <TooltipProvider>

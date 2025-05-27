@@ -18,6 +18,10 @@ export function createStaticRequests(): EditRequests & RunRequests {
       Logger.log("Updating UI elements is not supported in static mode");
       return null;
     },
+    sendModelValue: async () => {
+      Logger.log("Updating model values is not supported in static mode");
+      return null;
+    },
     sendInstantiate: async () => {
       Logger.log("Viewing as static notebook");
       return null;
@@ -52,9 +56,11 @@ export function createStaticRequests(): EditRequests & RunRequests {
     previewDatasetColumn: throwNotInEditMode,
     previewSQLTable: throwNotInEditMode,
     previewSQLTableList: throwNotInEditMode,
+    previewDataSourceConnection: throwNotInEditMode,
     openFile: throwNotInEditMode,
     getUsageStats: throwNotInEditMode,
     sendListFiles: throwNotInEditMode,
+    sendPdb: throwNotInEditMode,
     sendCreateFileOrFolder: throwNotInEditMode,
     sendDeleteFileOrFolder: throwNotInEditMode,
     sendRenameFileOrFolder: throwNotInEditMode,
@@ -74,5 +80,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     addPackage: throwNotInEditMode,
     removePackage: throwNotInEditMode,
     getPackageList: throwNotInEditMode,
+    listSecretKeys: throwNotInEditMode,
+    writeSecret: throwNotInEditMode,
   };
 }

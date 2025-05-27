@@ -5,8 +5,8 @@ from typing import Any
 
 import pytest
 
-from marimo._data.models import ColumnSummary
-from marimo._data.sql_summaries import get_column_type, get_sql_summary
+from marimo._data.models import ColumnStats
+from marimo._data.sql_summaries import get_column_type, get_sql_stats
 from marimo._dependencies.dependencies import DependencyManager
 
 HAS_DEPS = DependencyManager.duckdb.has()
@@ -63,8 +63,8 @@ def test_get_column_type(setup_test_db: Any):
 def test_get_sql_summary_integer(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table_3", "age", "integer")
-    assert isinstance(summary, ColumnSummary)
+    summary = get_sql_stats("test_table_3", "age", "integer")
+    assert isinstance(summary, ColumnStats)
     assert summary.total == 5
     assert summary.unique == 4
     assert summary.nulls == 1
@@ -77,8 +77,8 @@ def test_get_sql_summary_integer(setup_test_db: Any):
 def test_get_sql_summary_string(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table_3", "name", "string")
-    assert isinstance(summary, ColumnSummary)
+    summary = get_sql_stats("test_table_3", "name", "string")
+    assert isinstance(summary, ColumnStats)
     assert summary.total == 5
     assert summary.unique == 5
     assert summary.nulls == 0
@@ -88,8 +88,8 @@ def test_get_sql_summary_string(setup_test_db: Any):
 def test_get_sql_summary_boolean(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table_3", "is_active", "boolean")
-    assert isinstance(summary, ColumnSummary)
+    summary = get_sql_stats("test_table_3", "is_active", "boolean")
+    assert isinstance(summary, ColumnStats)
     assert summary.total == 5
     assert summary.unique == 2
     assert summary.nulls == 0
@@ -101,8 +101,8 @@ def test_get_sql_summary_boolean(setup_test_db: Any):
 def test_get_sql_summary_date(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table_3", "birth_date", "date")
-    assert isinstance(summary, ColumnSummary)
+    summary = get_sql_stats("test_table_3", "birth_date", "date")
+    assert isinstance(summary, ColumnStats)
     assert summary.total == 5
     assert summary.unique == 5
     assert summary.nulls == 0
@@ -114,8 +114,8 @@ def test_get_sql_summary_date(setup_test_db: Any):
 def test_get_sql_summary_time(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table_3", "time_col", "time")
-    assert isinstance(summary, ColumnSummary)
+    summary = get_sql_stats("test_table_3", "time_col", "time")
+    assert isinstance(summary, ColumnStats)
     assert summary.total == 5
     assert summary.unique == 5
     assert summary.nulls == 0
@@ -127,8 +127,8 @@ def test_get_sql_summary_time(setup_test_db: Any):
 def test_get_sql_summary_datetime(setup_test_db: Any):
     del setup_test_db
 
-    summary = get_sql_summary("test_table_3", "datetime_col", "datetime")
-    assert isinstance(summary, ColumnSummary)
+    summary = get_sql_stats("test_table_3", "datetime_col", "datetime")
+    assert isinstance(summary, ColumnStats)
     assert summary.total == 5
     assert summary.unique == 5
     assert summary.nulls == 0

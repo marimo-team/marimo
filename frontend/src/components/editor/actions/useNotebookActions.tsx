@@ -38,6 +38,8 @@ import {
   MessagesSquareIcon,
   YoutubeIcon,
   DiamondPlusIcon,
+  ChevronDownCircleIcon,
+  ChevronRightCircleIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -82,7 +84,6 @@ import { settingDialogAtom } from "@/components/app-config/state";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 import { Constants } from "@/core/constants";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -92,7 +93,7 @@ const NOOP_HANDLER = (event?: Event) => {
 export function useNotebookActions() {
   const filename = useFilename();
   const { openModal, closeModal } = useImperativeModal();
-  const { openApplication } = useChromeActions();
+  const { toggleApplication } = useChromeActions();
   const { selectedPanel } = useChromeState();
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
@@ -103,6 +104,8 @@ export function useNotebookActions() {
     undoDeleteCell,
     clearAllCellOutputs,
     upsertSetupCell,
+    collapseAllCells,
+    expandAllCells,
   } = useCellActions();
   const restartKernel = useRestartKernel();
   const runAllCells = useRunAllCells();
@@ -269,7 +272,7 @@ export function useNotebookActions() {
           label: startCase(type),
           rightElement: renderCheckboxElement(selectedPanel === type),
           icon: <Icon size={14} strokeWidth={1.5} />,
-          handle: () => openApplication(type),
+          handle: () => toggleApplication(type),
         };
       }),
     },
@@ -376,9 +379,20 @@ export function useNotebookActions() {
       handle: hideAllMarkdownCode,
     },
     {
+      icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Collapse all sections",
+      hotkey: "global.collapseAllSections",
+      handle: collapseAllCells,
+    },
+    {
+      icon: <ChevronDownCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Expand all sections",
+      hotkey: "global.expandAllSections",
+      handle: expandAllCells,
+    },
+    {
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
-      hidden: !getFeatureFlag("setup_cell"),
       handle: () => {
         upsertSetupCell({
           code: "# Initialization code that runs before all other cells",

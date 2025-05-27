@@ -7,12 +7,12 @@ You can find the containers and tags on [marimo's GitHub packages page](https://
 We provide the following variants:
 
 - `marimo:latest` - The latest version of marimo
-- `marimo:latest-data` - The latest version of marimo with `altair`, `pandas`, and `numpy` preinstalled.
-- `marimo:latest-sql` - The latest version of marimo with `marimo[sql]` and `duckdb` preinstalled.
+- `marimo:latest-data` - The latest version of marimo with `marimo[recommended,lsp]`, `altair`, `pandas`, and `numpy` preinstalled.
+- `marimo:latest-sql` - The latest version of marimo with `marimo[recommended,lsp,sql]` preinstalled.
 
 or any particular version of marimo; for example, `marimo:0.8.3`, `marimo:0.8.3-data`, `marimo:0.8.3-sql`.
 
-Each container is built on `3.12-slim`, but if you'd like to see different configurations, please file an issue or submit a PR!
+Each container is built on `3.13-slim`, but if you'd like to see different configurations, please file an issue or submit a PR!
 
 ## Running locally
 

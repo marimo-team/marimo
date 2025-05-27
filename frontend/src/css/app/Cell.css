@@ -42,6 +42,12 @@
       overflow: auto;
     }
 
+    /* Special case for particular components */
+    .output-area:has(> .output > marimo-ui-element > marimo-table) {
+      max-height: none;
+      overflow: hidden;
+    }
+
     & > :first-child {
       border-top-left-radius: 9px;
       border-top-right-radius: 9px;
@@ -118,30 +124,7 @@
     }
   }
 
-  /* Needs Run */
-  &.needs-run {
-    @apply divide-stale shadow-mdSolid shadow-stale;
-
-    &:hover {
-      @apply shadow-lgSolid shadow-stale;
-    }
-
-    &:focus-within:hover,
-    &:focus-within {
-      @apply shadow-xlSolid shadow-stale;
-    }
-
-    &:focus-within .cm-editor {
-      box-shadow: none;
-      border: 1px solid transparent;
-    }
-
-    .RunButton {
-      visibility: visible;
-    }
-  }
-
-  /* Error styles for Cell */
+  /* Error styles for Cell, less precedence than needs run */
   &.has-error,
   &.error-outline {
     outline: 1px solid var(--red-4);
@@ -161,6 +144,31 @@
   &.error-outline:focus-within {
     box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
     background-color: var(--red-2);
+  }
+
+  /* Needs Run */
+  &.needs-run {
+    /* TODO(akshayka): Can give this an outline to make more visible. */
+    outline: none;
+    @apply divide-stale shadow-mdSolid shadow-stale;
+
+    &:hover {
+      @apply shadow-lgSolid shadow-stale;
+    }
+
+    &:focus-within:hover,
+    &:focus-within {
+      @apply shadow-xlSolid shadow-stale;
+    }
+
+    &:focus-within .cm-editor {
+      box-shadow: none;
+      border: 1px solid transparent;
+    }
+
+    .RunButton {
+      visibility: visible;
+    }
   }
 
   /* Focus state */
@@ -212,8 +220,8 @@
     justify-content: flex-end;
     height: 100%;
     position: absolute;
-    right: -90px;
-    width: 80px;
+    left: calc(100% + 12px);
+    width: fit-content;
     gap: 4px;
   }
 
@@ -326,6 +334,10 @@
   font-size: var(--marimo-code-editor-font-size, 0.9rem);
 }
 
+.cm-lineNumbers {
+  font-size: var(--marimo-code-editor-font-size, 0.9rem);
+}
+
 /* .marimo-cell is needed to take precedence over codemirror's generated class ... */
 .marimo-cell .cm-editor {
   border: 1px solid transparent;
@@ -337,12 +349,12 @@
       background: #e2f2ff;
     }
 
-    .cm-activeLine {
+    .cm-activeLine:not(.cm-error-line) {
       background: hsl(210deg 100% 50% / 3%);
     }
   }
 
-  .cm-activeLine {
+  .cm-activeLine:not(.cm-error-line) {
     background: transparent;
 
     /* Soften the corners of the active-line highlight. */

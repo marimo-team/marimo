@@ -6,8 +6,9 @@ import { type VariantProps, cva } from "class-variance-authority";
 import { cn } from "@/utils/cn";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { useEventListener } from "@/hooks/useEventListener";
+import { Events } from "@/utils/events";
 
-const activeCommon = "active:shadow-xsSolid";
+const activeCommon = "active:shadow-none";
 
 const buttonVariants = cva(
   cn(
@@ -18,37 +19,37 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: cn(
-          "bg-primary text-primary-foreground hover:bg-primary/90 shadow-smSolid border border-primary",
+          "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs border border-primary",
           activeCommon,
         ),
         destructive: cn(
-          "border shadow-smSolid",
+          "border shadow-xs",
           "bg-[var(--red-9)] hover:bg-[var(--red-10)] dark:bg-[var(--red-6)] dark:hover:bg-[var(--red-7)]",
           "text-[var(--red-1)] dark:text-[var(--red-12)]",
           "border-[var(--red-11)]",
           activeCommon,
         ),
         success: cn(
-          "border shadow-smSolid",
+          "border shadow-xs",
           "bg-[var(--grass-9)] hover:bg-[var(--grass-10)] dark:bg-[var(--grass-6)] dark:hover:bg-[var(--grass-7)]",
           "text-[var(--grass-1)] dark:text-[var(--grass-12)]",
           "border-[var(--grass-11)]",
           activeCommon,
         ),
         warn: cn(
-          "border shadow-smSolid",
+          "border shadow-xs",
           "bg-[var(--yellow-9)] hover:bg-[var(--yellow-10)] dark:bg-[var(--yellow-6)] dark:hover:bg-[var(--yellow-7)]",
           "text-[var(--yellow-12)]",
           "border-[var(--yellow-11)]",
           activeCommon,
         ),
         action: cn(
-          "bg-action text-action-foreground shadow-smSolid",
+          "bg-action text-action-foreground shadow-xs",
           "hover:bg-action-hover border border-action",
           activeCommon,
         ),
         outline: cn(
-          "border border-slate-300 shadow-smSolid",
+          "border border-slate-300 shadow-xs",
           "hover:bg-accent hover:text-accent-foreground",
           "hover:border-primary",
           "aria-selected:text-accent-foreground aria-selected:border-primary",
@@ -56,13 +57,13 @@ const buttonVariants = cva(
         ),
         secondary: cn(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-          "border border-input shadow-smSolid",
+          "border border-input shadow-xs",
           activeCommon,
         ),
         text: cn("opacity-80 hover:opacity-100", "active:opacity-100"),
         ghost: cn(
           "border border-transparent",
-          "hover:bg-accent hover:text-accent-foreground hover:shadow-xsSolid",
+          "hover:bg-accent hover:text-accent-foreground hover:shadow-xs",
           activeCommon,
           "active:text-accent-foreground",
         ),
@@ -113,6 +114,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         if (!keyboardShortcut) {
           return;
         }
+
+        // Ignore keyboard events from input elements
+        if (Events.shouldIgnoreKeyboardEvent(e)) {
+          return;
+        }
+
         if (parseShortcut(keyboardShortcut)(e)) {
           e.preventDefault();
           e.stopPropagation();

@@ -43,6 +43,17 @@ def test_create_file_with_duplicate_name(
     assert os.path.exists(expected_path)
 
 
+def test_create_file_and_parent_directories(
+    test_dir: str, fs: OSFileSystem
+) -> None:
+    test_file_name = "test_file.txt"
+    fs.create_file_or_directory(
+        f"{test_dir}/parent", "file", test_file_name, None
+    )
+    expected_path = os.path.join(test_dir, "parent", test_file_name)
+    assert os.path.exists(expected_path)
+
+
 def test_create_directory(test_dir: str, fs: OSFileSystem) -> None:
     test_dir_name = "test_dir"
     fs.create_file_or_directory(test_dir, "directory", test_dir_name, None)

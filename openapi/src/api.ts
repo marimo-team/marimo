@@ -200,6 +200,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/preview_datasource_connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PreviewDataSourceConnectionRequest"];
+        };
+      };
+      responses: {
+        /** @description Broadcasts a datasource connection */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_sql_table": {
     parameters: {
       query?: never;
@@ -1357,6 +1396,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/pdb/pm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["PdbRequest"];
+        };
+      };
+      responses: {
+        /** @description Run a post mortem on the most recent failed cell. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/read_code": {
     parameters: {
       query?: never;
@@ -1647,7 +1725,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["RunScratchpadRequest"];
+          "application/json": components["schemas"]["ExecuteScratchpadRequest"];
         };
       };
       responses: {
@@ -1691,6 +1769,45 @@ export interface paths {
       };
       responses: {
         /** @description Set the configuration of a cell */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/kernel/set_model_value": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SetModelMessageRequest"];
+        };
+      };
+      responses: {
+        /** @description Set model value */
         200: {
           headers: {
             [name: string]: unknown;
@@ -1997,6 +2114,119 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/secrets/create": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateSecretRequest"];
+        };
+      };
+      responses: {
+        /** @description Create a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Delete a secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["BaseResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/secrets/keys": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ListSecretKeysRequest"];
+        };
+      };
+      responses: {
+        /** @description List all secret keys */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ListSecretKeysResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/status": {
     parameters: {
       query?: never;
@@ -2104,6 +2334,16 @@ export interface paths {
               cpu: {
                 percent: number;
               };
+              gpu?: {
+                index: number;
+                memory: {
+                  free: number;
+                  percent: number;
+                  total: number;
+                  used: number;
+                };
+                name: string;
+              }[];
               kernel?: {
                 memory?: number;
               };
@@ -2225,6 +2465,7 @@ export interface components {
     };
     AiCompletionContext: {
       schema: components["schemas"]["SchemaTable"][];
+      variables: (components["schemas"]["VariableContext"] | string)[];
     };
     AiCompletionRequest: {
       code: string;
@@ -2233,6 +2474,7 @@ export interface components {
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
       prompt: string;
+      selectedText?: string | null;
     };
     AiInlineCompletionRequest: {
       /** @enum {string} */
@@ -2247,19 +2489,6 @@ export interface components {
       title: string;
       /** @enum {string|null} */
       variant?: "danger" | null;
-    };
-    AppMetadata: {
-      cliArgs: {
-        [key: string]:
-          | string
-          | boolean
-          | number
-          | (string | boolean | number)[];
-      };
-      filename?: string | null;
-      queryParams: {
-        [key: string]: string | string[];
-      };
     };
     Banner: {
       /** @enum {string|null} */
@@ -2300,6 +2529,7 @@ export interface components {
       name: "cell-op";
       output?: components["schemas"]["CellOutput"];
       run_id?: string | null;
+      serialization?: string | null;
       stale_inputs?: boolean | null;
       status?: components["schemas"]["RuntimeState"];
       timestamp: number;
@@ -2333,14 +2563,14 @@ export interface components {
         role: "user" | "assistant" | "system";
       }[];
       model?: string | null;
-      variables?: string[] | null;
+      variables?: (components["schemas"]["VariableContext"] | string)[] | null;
     };
     CodeCompletionRequest: {
       cellId: string;
       document: string;
       id: string;
     };
-    ColumnSummary: {
+    ColumnStats: {
       false?: number | null;
       max?: components["schemas"]["NonNestedLiteral"];
       mean?: components["schemas"]["NonNestedLiteral"];
@@ -2375,6 +2605,13 @@ export interface components {
       destination: string;
       source: string;
     };
+    CreateSecretRequest: {
+      key: string;
+      name: string;
+      /** @enum {string} */
+      provider: "env" | "dotenv";
+      value: string;
+    };
     CycleError: {
       edges_with_vars: [string, string[], string][];
       /** @enum {string} */
@@ -2389,7 +2626,7 @@ export interface components {
       missing_packages?: string[] | null;
       /** @enum {string} */
       name: "data-column-preview";
-      summary?: components["schemas"]["ColumnSummary"];
+      stats?: components["schemas"]["ColumnStats"];
       table_name: string;
     };
     DataSourceConnection: {
@@ -2424,7 +2661,7 @@ export interface components {
       primary_keys?: string[] | null;
       source: string;
       /** @enum {string} */
-      source_type: "local" | "duckdb" | "connection";
+      source_type: "local" | "duckdb" | "connection" | "catalog";
       /** @enum {string} */
       type: "table" | "view";
       variable_name?: string | null;
@@ -2453,7 +2690,7 @@ export interface components {
     };
     Datasets: {
       /** @enum {string|null} */
-      clear_channel?: "local" | "duckdb" | "connection" | null;
+      clear_channel?: "local" | "duckdb" | "connection" | "catalog" | null;
       /** @enum {string} */
       name: "datasets";
       tables: components["schemas"]["DataTable"][];
@@ -2467,7 +2704,11 @@ export interface components {
       /** @enum {string} */
       type: "delete-nonlocal";
     };
+    DeleteSecretRequest: {
+      key: string;
+    };
     Error:
+      | components["schemas"]["SetupRootError"]
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["ImportStarError"]
@@ -2490,7 +2731,9 @@ export interface components {
       code: string;
       request?: components["schemas"]["HTTPRequest"];
     };
-    ExecuteStaleRequest: Record<string, never>;
+    ExecuteStaleRequest: {
+      request?: components["schemas"]["HTTPRequest"];
+    };
     ExecutionRequest: {
       cellId: string;
       code: string;
@@ -2664,16 +2907,18 @@ export interface components {
       | null;
     KernelReady: {
       app_config: {
-        _toplevel_fn: boolean;
         app_title?: string | null;
         auto_download: ("html" | "markdown")[];
         css_file?: string | null;
         html_head_file?: string | null;
         layout_file?: string | null;
         /** @enum {string} */
+        sql_output: "polars" | "lazy-polars" | "pandas" | "native" | "auto";
+        /** @enum {string} */
         width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
+        pylsp: boolean;
         terminal: boolean;
       };
       cell_ids: string[];
@@ -2746,6 +2991,12 @@ export interface components {
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
     };
+    ListSecretKeysRequest: {
+      requestId: string;
+    };
+    ListSecretKeysResponse: {
+      keys: components["schemas"]["SecretKeysWithProvider"][];
+    };
     MIME: Record<string, never>;
     MarimoAncestorPreventedError: {
       blamed_cell?: string | null;
@@ -2765,6 +3016,12 @@ export interface components {
         anthropic?: {
           api_key?: string;
         };
+        bedrock?: {
+          aws_access_key_id?: string;
+          aws_secret_access_key?: string;
+          profile_name?: string;
+          region_name?: string;
+        };
         google?: {
           api_key?: string;
         };
@@ -2772,7 +3029,10 @@ export interface components {
         open_ai?: {
           api_key?: string;
           base_url?: string;
+          ca_bundle_path?: string;
+          client_pem?: string;
           model?: string;
+          ssl_verify?: boolean;
         };
         rules?: string;
       };
@@ -2796,8 +3056,10 @@ export interface components {
         /** @enum {string} */
         cell_output: "above" | "below";
         code_editor_font_size: number;
+        custom_css?: string[];
         /** @enum {string} */
         dataframes: "rich" | "plain";
+        default_table_page_size: number;
         /** @enum {string} */
         default_width: "normal" | "compact" | "medium" | "full" | "columns";
         /** @enum {string} */
@@ -2815,6 +3077,7 @@ export interface components {
         };
         /** @enum {string} */
         preset: "default" | "vim";
+        vimrc?: string | null;
       };
       language_servers?: {
         pylsp?: {
@@ -2836,9 +3099,18 @@ export interface components {
         /** @enum {string} */
         auto_reload: "off" | "lazy" | "autorun";
         /** @enum {string} */
+        default_sql_output:
+          | "polars"
+          | "lazy-polars"
+          | "pandas"
+          | "native"
+          | "auto";
+        dotenv?: string[];
+        /** @enum {string} */
         on_cell_change: "lazy" | "autorun";
         output_max_bytes: number;
-        pythonpath: string[];
+        pythonpath?: string[];
+        reactive_tests: boolean;
         std_stream_max_bytes: number;
         /** @enum {string} */
         watcher_on_save: "lazy" | "autorun";
@@ -2919,11 +3191,8 @@ export interface components {
       | components["schemas"]["DataColumnPreview"]
       | components["schemas"]["SQLTablePreview"]
       | components["schemas"]["SQLTableListPreview"]
-      | {
-          connections: components["schemas"]["DataSourceConnection"][];
-          /** @enum {string} */
-          name: "data-source-connections";
-        }
+      | components["schemas"]["DataSourceConnections"]
+      | components["schemas"]["SecretKeysResult"]
       | components["schemas"]["FocusCell"]
       | components["schemas"]["UpdateCellCodes"]
       | components["schemas"]["UpdateCellIdsRequest"];
@@ -2985,12 +3254,19 @@ export interface components {
       error?: string | null;
       success: boolean;
     };
+    PdbRequest: {
+      cellId: string;
+      request?: components["schemas"]["HTTPRequest"];
+    };
+    PreviewDataSourceConnectionRequest: {
+      engine: string;
+    };
     PreviewDatasetColumnRequest: {
       columnName: string;
       fullyQualifiedTableName?: string | null;
       source: string;
       /** @enum {string} */
-      sourceType: "local" | "duckdb" | "connection";
+      sourceType: "local" | "duckdb" | "connection" | "catalog";
       tableName: string;
     };
     PreviewSQLTableListRequest: {
@@ -3061,10 +3337,6 @@ export interface components {
       codes: string[];
       request?: components["schemas"]["HTTPRequest"];
     };
-    RunScratchpadRequest: {
-      code: string;
-      request?: components["schemas"]["HTTPRequest"];
-    };
     RunningNotebooksResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
@@ -3116,14 +3388,27 @@ export interface components {
       columns: components["schemas"]["SchemaColumn"][];
       name: string;
     };
+    SecretKeysResult: {
+      /** @enum {string} */
+      name: "secret-keys-result";
+      request_id: string;
+      secrets: components["schemas"]["SecretKeysWithProvider"][];
+    };
+    SecretKeysWithProvider: {
+      keys: string[];
+      name: string;
+      /** @enum {string} */
+      provider: "env" | "dotenv";
+    };
     SendUIElementMessage: {
       buffers?: string[] | null;
       message: {
         [key: string]: unknown;
       };
+      model_id?: string | null;
       /** @enum {string} */
       name: "send-ui-element-message";
-      ui_element: string;
+      ui_element?: string | null;
     };
     SetCellConfigRequest: {
       configs: {
@@ -3131,6 +3416,16 @@ export interface components {
           [key: string]: unknown;
         };
       };
+    };
+    SetModelMessageRequest: {
+      buffers?: string[] | null;
+      message: {
+        bufferPaths: (string | number)[][];
+        state: {
+          [key: string]: unknown;
+        };
+      };
+      modelId: string;
     };
     SetUIElementValueRequest: {
       objectIds: string[];
@@ -3140,6 +3435,11 @@ export interface components {
     };
     SetUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
+    };
+    SetupRootError: {
+      edges_with_vars: [string, string[], string][];
+      /** @enum {string} */
+      type: "setup-refs";
     };
     ShutdownSessionRequest: {
       sessionId: string;
@@ -3183,6 +3483,11 @@ export interface components {
     UpdateComponentValuesRequest: {
       objectIds: string[];
       values: unknown[];
+    };
+    VariableContext: {
+      name: string;
+      previewValue: unknown;
+      valueType: string;
     };
     VariableDeclaration: {
       declared_by: string[];

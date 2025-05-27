@@ -310,7 +310,8 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
         ? Paths.rest(node.data.path, root)
         : node.data.path;
 
-    const isMarkdown = relativePath.endsWith(".md");
+    const isMarkdown =
+      relativePath.endsWith(".md") || relativePath.endsWith(".qmd");
 
     return (
       <a

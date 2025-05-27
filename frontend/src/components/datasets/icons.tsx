@@ -11,17 +11,20 @@ import {
   ClockIcon,
   CurlyBracesIcon,
 } from "lucide-react";
+import type { SelectableDataType } from "../data-table/charts/types";
 
 /**
  * Maps a data type to an icon.
  */
-export const DATA_TYPE_ICON: Record<DataType, LucideIcon> = {
-  boolean: ToggleLeftIcon,
-  date: CalendarIcon,
-  time: ClockIcon,
-  datetime: CalendarClockIcon,
-  number: HashIcon,
-  string: TypeIcon,
-  integer: HashIcon,
-  unknown: CurlyBracesIcon,
-};
+export const DATA_TYPE_ICON: Record<DataType | SelectableDataType, LucideIcon> =
+  {
+    boolean: ToggleLeftIcon,
+    date: CalendarIcon,
+    time: ClockIcon,
+    datetime: CalendarClockIcon,
+    temporal: CalendarClockIcon,
+    number: HashIcon,
+    string: TypeIcon,
+    integer: HashIcon,
+    unknown: CurlyBracesIcon,
+  };

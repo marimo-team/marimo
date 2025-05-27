@@ -21,7 +21,9 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
         if key not in obj:
             return
         if len(path) == 1:
-            if obj[key]:
+            if isinstance(obj[key], list):
+                obj[key] = []
+            elif obj[key]:
                 obj[key] = SECRET_PLACEHOLDER
         else:
             deep_remove_from_path(path[1:], cast(dict[str, Any], obj[key]))
@@ -30,6 +32,9 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
         ["ai", "open_ai", "api_key"],
         ["ai", "anthropic", "api_key"],
         ["ai", "google", "api_key"],
+        ["ai", "bedrock", "aws_access_key_id"],
+        ["ai", "bedrock", "aws_secret_access_key"],
+        ["runtime", "dotenv"],
     ]
 
     new_config = deep_copy(config)

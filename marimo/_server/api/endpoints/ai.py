@@ -10,11 +10,19 @@ from starlette.responses import PlainTextResponse, StreamingResponse
 from marimo import _loggers
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
-from marimo._server.ai.prompts import Prompter
+from marimo._server.ai.prompts import (
+    FILL_ME_TAG,
+    get_chat_system_prompt,
+    get_inline_system_prompt,
+    get_refactor_or_insert_notebook_cell_system_prompt,
+)
 from marimo._server.ai.providers import (
     DEFAULT_MODEL,
+    AnyProviderConfig,
     get_completion_provider,
     get_max_tokens,
+    get_model,
+    without_wrapping_backticks,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
@@ -38,6 +46,7 @@ router = APIRouter()
 
 def get_ai_config(config: MarimoConfig) -> AiConfig:
     ai_config = config.get("ai", None)
+    LOGGER.debug(f"ai_config: {ai_config}")
     if ai_config is None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -79,15 +88,22 @@ async def ai_completion(
 
     custom_rules = ai_config.get("rules", None)
 
-    prompter = Prompter(code=body.code)
-    system_prompt = Prompter.get_system_prompt(
-        language=body.language, custom_rules=custom_rules
+    system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
+        language=body.language,
+        is_insert=False,
+        custom_rules=custom_rules,
+        cell_code=body.code,
+        selected_text=body.selected_text,
+        other_cell_codes=body.include_other_code,
+        context=body.context,
     )
-    prompt = prompter.get_prompt(
-        user_prompt=body.prompt, include_other_code=body.include_other_code
-    )
+    prompt = body.prompt
 
-    provider = get_completion_provider(ai_config)
+    model = get_model(ai_config)
+    provider = get_completion_provider(
+        AnyProviderConfig.for_model(model, ai_config),
+        model=model,
+    )
     response = provider.stream_completion(
         messages=[ChatMessage(role="user", content=prompt)],
         system_prompt=system_prompt,
@@ -95,7 +111,9 @@ async def ai_completion(
     )
 
     return StreamingResponse(
-        content=provider.as_stream_response(response),
+        content=without_wrapping_backticks(
+            provider.as_stream_response(response)
+        ),
         media_type="application/json",
     )
 
@@ -122,19 +140,23 @@ async def ai_chat(
         request, cls=ChatRequest, allow_unknown_keys=True
     )
     ai_config = get_ai_config(config)
+    custom_rules = ai_config.get("rules", None)
     messages = body.messages
 
     # Get the system prompt
-    system_prompt = Prompter.get_chat_system_prompt(
-        custom_rules=config.get("ai", {}).get("rules", None),
-        variables=body.variables,
+    system_prompt = get_chat_system_prompt(
+        custom_rules=custom_rules,
         context=body.context,
         include_other_code=body.include_other_code,
     )
 
     max_tokens = get_max_tokens(config)
 
-    provider = get_completion_provider(ai_config, model_override=body.model)
+    model = body.model or get_model(ai_config)
+    provider = get_completion_provider(
+        AnyProviderConfig.for_model(model, ai_config),
+        model=model,
+    )
     response = provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
@@ -175,10 +197,9 @@ async def ai_inline_completion(
     body = await parse_request(
         request, cls=AiInlineCompletionRequest, allow_unknown_keys=True
     )
-    prompt = f"{body.prefix}<FILL_ME>{body.suffix}"
+    prompt = f"{body.prefix}{FILL_ME_TAG}{body.suffix}"
     messages = [ChatMessage(role="user", content=prompt)]
-    system_prompt = Prompter.get_inline_system_prompt(language=body.language)
-    ai_config = get_ai_config(config)
+    system_prompt = get_inline_system_prompt(language=body.language)
 
     # This is currently not configurable and smaller than the default
     # of 4096, since it is smaller/faster for inline completions
@@ -189,7 +210,10 @@ async def ai_inline_completion(
     except Exception:
         model = DEFAULT_MODEL
 
-    provider = get_completion_provider(ai_config, model_override=model)
+    provider = get_completion_provider(
+        AnyProviderConfig.for_completion(config["completion"]),
+        model=model,
+    )
     response = provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,

@@ -1,0 +1,92 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
+/*
+ * Global styling for progress bars to ensure consistent appearance
+ * across both marimo native components and IPython outputs
+ */
+
+/* Container styling */
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  margin-left: auto;
+  margin-right: auto;
+
+  @apply max-w-sm p-6;
+}
+
+/* Title styling */
+.progress-title {
+  font-family: var(--heading-font, "Lora", serif);
+
+  @apply text-lg font-bold text-foreground/60;
+}
+
+/* Subtitle styling */
+.progress-subtitle {
+  font-family: var(--text-font, "PT Sans", sans-serif);
+
+  @apply text-sm text-muted-foreground font-normal;
+}
+
+/* Progress wrapper */
+.progress-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+
+  @apply gap-1 mt-2;
+}
+
+/* Progress bar row */
+.progress-row {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--text-font, "PT Sans", sans-serif);
+
+  @apply gap-3 text-sm text-muted-foreground;
+}
+
+/* Meta information row */
+.progress-meta {
+  display: flex;
+  font-family: var(--text-font, "PT Sans", sans-serif);
+
+  @apply gap-2 text-muted-foreground text-sm;
+}
+
+/* Base progress element styling */
+progress {
+  appearance: none;
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: none;
+  flex: 1;
+
+  @apply bg-slate-200 dark:bg-accent/60 h-2 max-h-2 mr-1;
+}
+
+/* Progress bar fill styling */
+progress::-webkit-progress-bar {
+  border-radius: 9999px;
+
+  @apply bg-slate-200 dark:bg-accent/60;
+}
+
+progress::-webkit-progress-value {
+  transition: width 0.2s ease;
+
+  @apply bg-blue-500 dark:bg-primary;
+}
+
+progress::-moz-progress-bar {
+  transition: width 0.2s ease;
+
+  @apply bg-blue-500 dark:bg-primary;
+}
+
+/* Wrap existing progress elements */
+progress:not(.wrapped) {
+  display: inline-block;
+}

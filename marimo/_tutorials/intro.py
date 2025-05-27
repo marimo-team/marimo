@@ -2,12 +2,12 @@
 
 import marimo
 
-__generated_with = "0.9.2"
+__generated_with = "0.12.10"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
 
     mo.md("# Welcome to marimo! 🌊🍃")
@@ -15,13 +15,13 @@ def __():
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(1, 22)
     return (slider,)
 
 
 @app.cell
-def __(mo, slider):
+def _(mo, slider):
     mo.md(
         f"""
         marimo is a **reactive** Python notebook.
@@ -37,7 +37,7 @@ def __(mo, slider):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: disabling automatic execution": mo.md(
@@ -59,7 +59,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         Tip: This is a tutorial notebook. You can create your own notebooks
@@ -70,7 +70,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## 1. Reactive execution
@@ -91,7 +91,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(changed, mo):
+def _(changed, mo):
     (
         mo.md(
             f"""
@@ -118,13 +118,13 @@ def __(changed, mo):
 
 
 @app.cell
-def __():
+def _():
     changed = False
     return (changed,)
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: execution order": (
@@ -142,7 +142,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         **Global names must be unique.** To enable reactivity, marimo imposes a
@@ -154,7 +154,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: encapsulation": (
@@ -169,7 +169,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "Tip: private variables": (
@@ -184,7 +184,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## 2. UI elements
@@ -202,37 +202,37 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.md("""**🌊 Some UI elements.** Try interacting with the below elements.""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
     return (icon,)
 
 
 @app.cell
-def __(icon, mo):
+def _(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
     return (repetitions,)
 
 
 @app.cell
-def __(icon, repetitions):
+def _(icon, repetitions):
     icon, repetitions
     return
 
 
 @app.cell
-def __(icon, mo, repetitions):
+def _(icon, mo, repetitions):
     mo.md("# " + icon.value * repetitions.value)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## 3. marimo is just Python
@@ -255,7 +255,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## 4. Running notebooks as apps
@@ -272,7 +272,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## 5. The `marimo` command-line tool
@@ -330,7 +330,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         ## 6. The marimo editor
@@ -342,19 +342,19 @@ def __(mo):
 
 
 @app.cell
-def __(mo, tips):
+def _(mo, tips):
     mo.accordion(tips)
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md("""## Finally, a fun fact""")
     return
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         """
         The name "marimo" is a reference to a type of algae that, under
@@ -367,7 +367,7 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
-def __():
+def _():
     tips = {
         "Saving": (
             """
@@ -462,6 +462,15 @@ def __():
             """
            Configure the editor by clicking the gears icon near the top-right
            of the screen.
+           """
+        ),
+        "Exit & Shutdown": (
+            """
+           You can leave Marimo & shut down the server by clicking the
+           circled X at the top right of the screen and responding
+           to the prompt. 
+
+           :floppy_disk: _Be sure to save your work first!_ 
            """
         ),
     }

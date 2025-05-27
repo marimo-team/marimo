@@ -9,7 +9,7 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatting import as_html
 from marimo._plugins.ui._impl.from_panel import panel as from_panel
 
-LOGGER = _loggers.get_logger(__name__)
+LOGGER = _loggers.marimo_logger()
 
 
 class HoloViewsFormatter(FormatterFactory):

@@ -8,7 +8,7 @@ app = marimo.App()
 def one():
     import numpy as np
     import asyncio
-    return asyncio, np
+    return (asyncio,)
 
 
 @app.cell
@@ -16,7 +16,7 @@ async def two(asyncio):
     x = 0
     xx = 1
     await asyncio.sleep(1)
-    return x, xx
+    return (x,)
 
 
 @app.cell

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 
 from __future__ import annotations
 
@@ -143,6 +143,80 @@ class TestTopLevelExtraction:
         assert [TopLevelType.TOPLEVEL] == [s.type for s in extraction]
 
     @staticmethod
+    def test_decorator_reversed(app) -> None:
+        with app.setup:
+            from typing import Callable
+
+        @app.cell
+        def second(wrap):
+            @wrap
+            def c() -> float:
+                return 1 + 1
+
+        @app.cell
+        def first():
+            def wrap(fn: Callable[[], float]) -> float:
+                return lambda: fn() + 1
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.CELL, TopLevelType.TOPLEVEL] == [
+            s.type for s in extraction
+        ], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_decorator(app) -> None:
+        with app.setup:
+            from typing import Callable
+
+        @app.cell
+        def first():
+            def wrap(fn: Callable[[], float]) -> float:
+                return lambda: fn() + 1
+
+        @app.cell
+        def second(wrap):
+            @wrap
+            def c() -> float:
+                return 1 + 1
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.TOPLEVEL, TopLevelType.TOPLEVEL] == [
+            s.type for s in extraction
+        ], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_function_trailing_comment(app) -> None:
+        @app.cell
+        def cell():
+            def add(a: int, b: int) -> float:
+                return a + b
+
+            # Comment
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.CELL] == [s.type for s in extraction]
+        assert extraction.statuses[0].hint == toplevel.HINT_HAS_COMMENT
+
+    @staticmethod
+    def test_function_trailing_comment_ok(app) -> None:
+        @app.cell
+        def cell():
+            def add(a: int, b: int) -> float:
+                return a + b
+                # Comment
+
+        @app.cell
+        def tricky_cell():
+            def md() -> float:
+                return """
+            #"""
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [TopLevelType.TOPLEVEL, TopLevelType.TOPLEVEL] == [
+            s.type for s in extraction
+        ]
+
+    @staticmethod
     def test_function_uses_top_fn_unresolved(app) -> None:
         @app.cell
         def cell(c):
@@ -273,3 +347,247 @@ class TestTopLevelExtraction:
         assert [TopLevelType.TOPLEVEL, TopLevelType.TOPLEVEL] == [
             s.type for s in extraction
         ], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_name_is_not_propagated(app) -> None:
+        @app.cell
+        def cell():
+            value = 1
+
+        @app.function
+        def to_be_demoted():
+            return value + 1  # type: ignore # noqa: F821
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.CELL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+        assert ["cell", "_"] == [s.name for s in extraction], [
+            s.hint for s in extraction
+        ]
+
+    @staticmethod
+    def test_variables_extracted(app) -> None:
+        with app.setup:
+            CONSTANT: int = 42
+
+        @app.cell
+        def _():
+            x: int = 2
+            # No typing
+            z = CONSTANT
+            return (x, z)
+
+        @app.cell
+        def _():
+            y: float = 2.0
+            return (y,)
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+
+        from marimo._ast.visitor import AnnotationData, VariableData
+
+        assert extraction.variables == {
+            "x": VariableData(
+                kind="variable",
+                required_refs={
+                    "int",
+                },
+                unbounded_refs=set(),
+                annotation_data=AnnotationData(
+                    repr="int",
+                    refs={
+                        "int",
+                    },
+                ),
+                import_data=None,
+            ),
+            "y": VariableData(
+                kind="variable",
+                required_refs={
+                    "float",
+                },
+                unbounded_refs=set(),
+                annotation_data=AnnotationData(
+                    repr="float",
+                    refs={
+                        "float",
+                    },
+                ),
+                import_data=None,
+            ),
+            "z": VariableData(
+                kind="variable",
+                required_refs={
+                    "CONSTANT",
+                },
+                unbounded_refs=set(),
+                annotation_data=None,
+                import_data=None,
+            ),
+        }
+
+
+class TestTopLevelClasses:
+    @staticmethod
+    def test_class_converted(app) -> None:
+        @app.cell
+        def cell():
+            class Example: ...
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order(app) -> None:
+        @app.cell
+        def Example():
+            class Example: ...
+
+        @app.cell
+        def SubExample(Example):
+            class SubExample(Example): ...
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_scoped_vars(app) -> None:
+        @app.cell
+        def Example():
+            class Example: ...
+
+        @app.cell
+        def SubExample(A, Example):
+            class SubExample(Example):
+                def __init__(self):
+                    self.a = A()
+
+        @app.cell
+        def _():
+            def A() -> float:
+                return 1.0
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order_vars(app) -> None:
+        @app.cell
+        def Example(A):
+            class Example:
+                a = A()
+
+        @app.cell
+        def _():
+            def A() -> float:
+                return 1.0
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order_vars_recursion(app) -> None:
+        @app.cell
+        def Example(A):
+            class Example:
+                class SubExample:
+                    a = A()
+
+        @app.cell
+        def _():
+            def A() -> float:
+                return 1.0
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_subclassing_order_breaks(app) -> None:
+        @app.cell
+        def cell(Example):
+            class SubExample(Example): ...
+
+        @app.cell
+        def _():
+            class Example: ...
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.CELL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_class_properties(app) -> None:
+        @app.class_definition
+        class Example:
+            @property
+            def prop(self) -> int:
+                return 1
+
+            @prop.setter
+            def prop(self, value: int) -> None:
+                pass
+
+        @app.function
+        def f():
+            return Example()
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    def test_class_invocation(app) -> None:
+        @app.class_definition
+        class Example: ...
+
+        @app.function
+        def f():
+            return Example()
+
+        extraction = TopLevelExtraction.from_app(InternalApp(app))
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+
+class TestTopLevelHook:
+    @staticmethod
+    def test_toplevel_hook(app) -> None:
+        @app.class_definition
+        class Example: ...
+
+        @app.cell()
+        def f():
+            def f():
+                return Example()
+
+        extraction = TopLevelExtraction.from_graph(
+            f._cell,
+            InternalApp(app).graph,
+        )
+        assert [
+            TopLevelType.TOPLEVEL,
+            TopLevelType.TOPLEVEL,
+        ] == [s.type for s in extraction], [s.hint for s in extraction]

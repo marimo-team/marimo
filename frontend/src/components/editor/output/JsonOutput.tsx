@@ -7,6 +7,7 @@ import {
   booleanType,
   defineDataType,
   intType,
+  floatType,
   nullType,
   objectType,
   stringType,
@@ -14,7 +15,6 @@ import {
 
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";
-import { TextOutput } from "./TextOutput";
 import { VideoOutput } from "./VideoOutput";
 import { logNever } from "../../../utils/assertNever";
 import { useTheme } from "../../../theme/useTheme";
@@ -37,6 +37,11 @@ interface Props {
   name?: string | false;
 
   className?: string;
+
+  /**
+   * The value types to use for the JSON viewer.
+   */
+  valueTypes?: "json" | "python";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,7 +55,7 @@ const CopyButton: React.FC<DataItemProps<any>> = ({ value }) => {
 
   const handleCopy = async (evt: React.MouseEvent) => {
     evt.stopPropagation();
-    await copyToClipboard(getCopyValue(value));
+    await copyToClipboard(value);
     setCopied(true);
     setTimeout(() => setCopied(false), 1000);
   };
@@ -76,21 +81,43 @@ const CopyButton: React.FC<DataItemProps<any>> = ({ value }) => {
   );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const JSONCopyButton: React.FC<DataItemProps<any>> = (props) => {
+  // if
+  return <CopyButton {...props} value={JSON.stringify(props.value, null, 2)} />;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PyCopyButton: React.FC<DataItemProps<any>> = (props) => {
+  return <CopyButton {...props} value={getCopyValue(props.value)} />;
+};
+
 /**
  * Output component for JSON data.
  */
 export const JsonOutput: React.FC<Props> = memo(
-  ({ data, format = "auto", name = false, className }) => {
+  ({
+    data,
+    format = "auto",
+    name = false,
+    valueTypes = "python",
+    className,
+  }) => {
     const { theme } = useTheme();
     if (format === "auto") {
       format = inferBestFormat(data);
     }
 
+    const valueTypesMap: Record<string, typeof PYTHON_VALUE_TYPES> = {
+      python: PYTHON_VALUE_TYPES,
+      json: JSON_VALUE_TYPES,
+    };
+
     switch (format) {
       case "tree":
         return (
           <JsonViewer
-            className="marimo-json-output"
+            className={cn("marimo-json-output", className)}
             rootName={name}
             theme={theme}
             displayDataTypes={false}
@@ -99,7 +126,8 @@ export const JsonOutput: React.FC<Props> = memo(
               backgroundColor: "transparent",
             }}
             collapseStringsAfterLength={COLLAPSED_TEXT_LENGTH}
-            valueTypes={VALUE_TYPE}
+            // leave the default valueTypes as it was - 'python', only 'json' is changed
+            valueTypes={valueTypesMap[valueTypes]}
             // disable array grouping (it's misleading) by using a large value
             groupArraysAfterLength={1_000_000}
             // Built-in clipboard shifts content on hover
@@ -173,27 +201,38 @@ const LEAF_RENDERERS = {
 const MIME_TYPES: Array<DataType<any>> = Object.entries(LEAF_RENDERERS).map(
   ([leafType, render]) => ({
     is: (value) => typeof value === "string" && value.startsWith(leafType),
-    PostComponent: CopyButton,
+    PostComponent: PyCopyButton,
     Component: (props) => renderLeaf(props.value, render),
   }),
 );
 
 const PYTHON_BOOLEAN_TYPE = defineDataType<boolean>({
   ...booleanType,
-  PostComponent: CopyButton,
+  PostComponent: PyCopyButton,
   Component: ({ value }) => <span>{value ? "True" : "False"}</span>,
 });
 
 const PYTHON_NONE_TYPE = defineDataType<null>({
   ...nullType,
-  PostComponent: CopyButton,
+  PostComponent: PyCopyButton,
   Component: () => <span>None</span>,
+});
+
+const JSON_BOOLEAN_TYPE = defineDataType<boolean>({
+  ...booleanType,
+  PostComponent: JSONCopyButton,
+});
+
+const JSON_NONE_TYPE = defineDataType<null>({
+  ...nullType,
+  PostComponent: JSONCopyButton,
+  Component: () => <span>null</span>,
 });
 
 const URL_TYPE = defineDataType<string>({
   ...stringType,
   is: (value) => isUrl(value),
-  PostComponent: CopyButton,
+  PostComponent: PyCopyButton,
   Component: ({ value }) => (
     <a
       href={value}
@@ -208,12 +247,17 @@ const URL_TYPE = defineDataType<string>({
 
 const INTEGER_TYPE = defineDataType<number>({
   ...intType,
-  PostComponent: CopyButton,
+  PostComponent: JSONCopyButton,
+});
+
+const FLOAT_TYPE = defineDataType<number>({
+  ...floatType,
+  PostComponent: JSONCopyButton,
 });
 
 const FALLBACK_RENDERER = defineDataType<string>({
   ...stringType,
-  PostComponent: CopyButton,
+  PostComponent: PyCopyButton,
 });
 
 const OBJECT_TYPE = defineDataType<object>({
@@ -221,12 +265,27 @@ const OBJECT_TYPE = defineDataType<object>({
   PreComponent: (props) => (
     <>
       {objectType.PreComponent && <objectType.PreComponent {...props} />}
-      <CopyButton {...props} />
+      <PyCopyButton {...props} />
     </>
   ),
 });
 
-const VALUE_TYPE = [
+const JSON_OBJECT_TYPE = defineDataType<object>({
+  ...objectType,
+  PreComponent: (props) => (
+    <>
+      {objectType.PreComponent && <objectType.PreComponent {...props} />}
+      <JSONCopyButton {...props} />
+    </>
+  ),
+});
+
+const JSON_FALLBACK_RENDERER = defineDataType<string>({
+  ...stringType,
+  PostComponent: JSONCopyButton,
+});
+
+const PYTHON_VALUE_TYPES = [
   INTEGER_TYPE,
   PYTHON_BOOLEAN_TYPE,
   PYTHON_NONE_TYPE,
@@ -237,10 +296,19 @@ const VALUE_TYPE = [
 ].reverse();
 // Last one wins, so we reverse the array.
 
+const JSON_VALUE_TYPES = [
+  INTEGER_TYPE,
+  FLOAT_TYPE,
+  JSON_BOOLEAN_TYPE,
+  JSON_NONE_TYPE,
+  JSON_OBJECT_TYPE,
+  JSON_FALLBACK_RENDERER,
+].reverse();
+
 function leafData(leaf: string): string {
   const delimIndex = leaf.indexOf(":");
   if (delimIndex === -1) {
-    throw new Error("Invalid leaf");
+    return leaf;
   }
   return leaf.slice(delimIndex + 1);
 }
@@ -256,13 +324,12 @@ function leafData(leaf: string): string {
  */
 function renderLeaf(
   leaf: string,
-  render: (data: string) => JSX.Element,
-): JSX.Element {
-  try {
+  render: (data: string) => React.ReactNode,
+): React.ReactNode {
+  if (leaf.includes(":")) {
     return render(leafData(leaf));
-  } catch {
-    return <TextOutput text={`Invalid leaf: ${leaf}`} />;
   }
+  return <span>{leaf}</span>;
 }
 
 const MIME_PREFIXES = Object.keys(LEAF_RENDERERS);

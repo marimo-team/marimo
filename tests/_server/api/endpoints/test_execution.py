@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import sys
 import time
 from typing import TYPE_CHECKING, Any
+
+import pytest
 
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.lists import first
@@ -87,6 +90,25 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_set_model_value(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/set_model_value",
+            headers=HEADERS,
+            json={
+                "model_id": "model-1",
+                "message": {
+                    "state": {"key": "value"},
+                    "buffer_paths": [["a"], ["b"]],
+                },
+                "buffers": ["buffer1", "buffer2"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
         response = client.post("/api/kernel/interrupt", headers=HEADERS)
         assert response.status_code == 200, response.text
@@ -160,6 +182,10 @@ class TestExecutionRoutes_EditMode:
         assert response.json()["status"] == "ok"
 
     @staticmethod
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Skipping test on Windows due to websocket issues",
+    )
     @with_session(SESSION_ID)
     def test_app_meta_request(client: TestClient) -> None:
         response = client.post(
@@ -271,6 +297,25 @@ class TestExecutionRoutes_RunMode:
 
     @staticmethod
     @with_read_session(SESSION_ID)
+    def test_set_model_value(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/set_model_value",
+            headers=HEADERS,
+            json={
+                "model_id": "model-1",
+                "message": {
+                    "state": {"key": "value"},
+                    "buffer_paths": [["a"], ["b"]],
+                },
+                "buffers": ["buffer1", "buffer2"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
         response = client.post("/api/kernel/interrupt", headers=HEADERS)
         assert response.status_code == 401, response.text
@@ -360,7 +405,7 @@ def get_printed_object(
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
 
-    timeout = 2
+    timeout = 4
     start = time.time()
     console = None
     while time.time() - start < timeout:

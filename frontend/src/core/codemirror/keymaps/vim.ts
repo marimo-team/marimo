@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { type CodeMirror, getCM, Vim } from "@replit/codemirror-vim";
+import {
+  type CodeMirror,
+  type CodeMirrorV,
+  getCM,
+  Vim,
+} from "@replit/codemirror-vim";
 import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   isAtEndOfEditor,
@@ -14,9 +19,14 @@ import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 import { once } from "@/utils/once";
 import { onIdle } from "@/utils/idle";
 import { cellActionsState, cellIdState } from "../cells/state";
+import { sendFileDetails } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
+import { parseVimrc, type VimCommand } from "./vimrc";
 
 export function vimKeymapExtension(): Extension[] {
   addCustomVimCommandsOnce();
+  loadVimrcOnce();
 
   return [
     keymap.of([
@@ -26,7 +36,7 @@ export function vimKeymapExtension(): Extension[] {
           if (isAtEndOfEditor(ev, true) && isInVimNormalMode(ev)) {
             const actions = ev.state.facet(cellActionsState);
             const cellId = ev.state.facet(cellIdState);
-            actions.moveToNextCell({ cellId, before: false });
+            actions.moveToNextCell({ cellId, before: false, noCreate: true });
             return true;
           }
           return false;
@@ -40,7 +50,33 @@ export function vimKeymapExtension(): Extension[] {
           if (isAtStartOfEditor(ev) && isInVimNormalMode(ev)) {
             const actions = ev.state.facet(cellActionsState);
             const cellId = ev.state.facet(cellIdState);
-            actions.moveToNextCell({ cellId, before: true });
+            actions.moveToNextCell({ cellId, before: true, noCreate: true });
+            return true;
+          }
+          return false;
+        },
+      },
+    ]),
+    keymap.of([
+      {
+        // Ctrl-[ by default is to dedent
+        // But for Vim (on Linux), it should exit insert mode when in Insert mode
+        linux: "Ctrl-[",
+        run: (ev) => {
+          const cm = getCM(ev);
+          if (!cm) {
+            Logger.warn(
+              "Expected CodeMirror instance to have CodeMirror instance state",
+            );
+            return false;
+          }
+          if (!hasVimState(cm)) {
+            Logger.warn("Expected CodeMirror instance to have Vim state");
+            return false;
+          }
+          const vim = cm.state.vim;
+          if (vim.insertMode) {
+            Vim.exitInsertMode(cm, true);
             return true;
           }
           return false;
@@ -68,7 +104,134 @@ const addCustomVimCommandsOnce = once(() => {
     return goToDefinitionAtCursorPosition(view);
   });
   Vim.mapCommand("gd", "action", "goToDefinition", {}, { context: "normal" });
+
+  // Save command
+  Vim.defineEx("write", "w", (cm: CodeMirror) => {
+    const view = cm.cm6;
+    if (view) {
+      const actions = view.state.facet(cellActionsState);
+      actions.saveNotebook();
+    }
+  });
 });
+
+const loadVimrcOnce = once(async () => {
+  const config = store.get(resolvedMarimoConfigAtom);
+  const vimrc = config.keymap?.vimrc;
+  if (!vimrc) {
+    return;
+  }
+
+  try {
+    Logger.log(`Loading vimrc from ${vimrc}`);
+    const response = await sendFileDetails({ path: vimrc });
+    const content = response.contents;
+    if (!content) {
+      Logger.error(`Failed to load vimrc from ${vimrc}`);
+      return;
+    }
+    const vimCommands = parseVimrc(content, Logger.warn);
+    applyVimCommands(vimCommands);
+  } catch (error) {
+    Logger.error("Failed to load vimrc:", error);
+  }
+});
+
+function applyVimCommands(vimCommands: VimCommand[]) {
+  // map, noremap and unmap can be used without ctx.
+  // It is an important behavior that we want to use.
+
+  function map(command: VimCommand) {
+    if (!command.args) {
+      Logger.warn(
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
+      );
+      return;
+    }
+    if (!command.args.lhs || !command.args.rhs) {
+      Logger.warn(
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
+      );
+      return;
+    }
+    if (command.mode) {
+      Vim.map(command.args.lhs, command.args.rhs, command.mode);
+    } else {
+      //@ts-expect-error We can use this without providing context (mode)
+      Vim.map(command.args.lhs, command.args.rhs);
+    }
+  }
+
+  function noremap(command: VimCommand) {
+    if (!command.args) {
+      Logger.warn(
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
+      );
+      return;
+    }
+    if (!command.args.lhs || !command.args.rhs) {
+      Logger.warn(
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
+      );
+      return;
+    }
+    if (command.mode) {
+      Vim.noremap(command.args.lhs, command.args.rhs, command.mode);
+    } else {
+      //@ts-expect-error We can use this without providing context (mode)
+      Vim.noremap(command.args.lhs, command.args.rhs);
+    }
+  }
+
+  function unmap(command: VimCommand) {
+    if (!command.args) {
+      Logger.warn(
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
+      );
+      return;
+    }
+    if (!command.args.lhs) {
+      Logger.warn(
+        `Could not execute vimrc command "${command.name}: expected arguments"`,
+      );
+      return;
+    }
+    if (command.mode) {
+      Vim.unmap(command.args.lhs, command.mode);
+    } else {
+      //@ts-expect-error We can use this without providing context (mode)
+      Vim.unmap(command.args.lhs);
+    }
+  }
+
+  function mapclear(command: VimCommand) {
+    if (command.mode) {
+      Vim.mapclear(command.mode);
+    } else {
+      Vim.mapclear();
+    }
+  }
+
+  for (const command of vimCommands) {
+    if ("map|nmap|vmap|imap".split("|").includes(command.name)) {
+      map(command);
+    } else if (
+      "noremap|nnoremap|vnoremap|inoremap".split("|").includes(command.name)
+    ) {
+      noremap(command);
+    } else if ("unmap|nunmap|vunmap|iunmap".split("|").includes(command.name)) {
+      unmap(command);
+    } else if (
+      "mapclear|nmapclear|vmapclear|imapclear".split("|").includes(command.name)
+    ) {
+      mapclear(command);
+    } else {
+      Logger.warn(
+        `Could not execute vimrc command "${command.name}: unknown command"`,
+      );
+    }
+  }
+}
 
 class CodeMirrorVimSync {
   private instances = new Set<EditorView>();
@@ -143,11 +306,11 @@ class CodeMirrorVimSync {
           return [];
         };
 
-        const vim = cm.state.vim;
-        if (!vim) {
+        if (!hasVimState(cm)) {
           Logger.warn("Expected CodeMirror instance to have Vim state");
           continue;
         }
+        const vim = cm.state.vim;
 
         switch (mode) {
           case "normal":
@@ -176,4 +339,8 @@ class CodeMirrorVimSync {
       }
     }
   }
+}
+
+function hasVimState(cm: CodeMirror): cm is CodeMirrorV {
+  return cm.state.vim !== undefined;
 }

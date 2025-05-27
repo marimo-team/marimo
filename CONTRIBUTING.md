@@ -23,10 +23,16 @@ or [on Discord](https://marimo.io/discord?ref=contributing).
 
 To build marimo from source, you'll need to have Node.js, pnpm, GNU make, Python (>=3.9), and Hatch installed.
 
-- Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 18
-  - We use Node.js version 20
-- Install [pnpm](https://github.com/pnpm/pnpm) == 9.x
-  - `npm install -g pnpm@9`
+You can check for pre-requisites with:
+
+```bash
+make check-prereqs
+```
+
+- Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 20
+  - We use Node.js version 23
+- Install [pnpm](https://github.com/pnpm/pnpm) == 10.x
+  - `npm install -g pnpm@10`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
 - Install [Python](https://www.python.org/) >= 3.9. (You may already it installed. To see your version, use `python -V` at the command line.)
 - Install [Hatch](https://hatch.pypa.io/latest/install/). Some installation options:
@@ -36,9 +42,7 @@ To build marimo from source, you'll need to have Node.js, pnpm, GNU make, Python
 And you'll need [pre-commit](https://pre-commit.com/) to run some validation checks:
 
 ```bash
-pipx install pre-commit
-# or `pip install pre-commit` if you have a virtualenv
-# or `brew install pre-commit`
+uv tool install pre-commit
 ```
 
 You can optionally install pre-commit hooks to automatically run the validation checks
@@ -46,6 +50,35 @@ when making a commit:
 
 ```bash
 pre-commit install
+```
+
+You can conveniently create a [pixi](https://github.com/prefix-dev/pixi) environment with all your development dependencies.
+These accomplish the next 3 things respectively:
+
+- Install and activate your development environment (`node`, `pnpm`, `make`, `python`, `uv`, `hatch`, `pre-commit`, `pip`)
+- Set up your front end and python environment
+- Start up your python environment using `hatch`
+You can simply run:
+
+```sh
+pixi shell 
+make fe && make py 
+hatch shell 
+```
+
+After doing this, you can instantiate your marimo dev environment by running the following command:
+
+```sh
+make dev
+```
+
+Under the hood this runs the following 2 commands as 2 separate processes:
+
+```sh
+# in one terminal 
+marimo edit --no-token --headless /tmp/nb.py # port 2718
+# in another terminal 
+cd frontend; pnpm dev # this will open at port 3000
 ```
 
 > [!NOTE]
@@ -92,27 +125,27 @@ NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
 
 | Command        | Category  | Description                                                    |
 | -------------- | --------- | -------------------------------------------------------------- |
-| `help`         | General   | Show this help                                                 |
-| `py`           | Setup     | Editable python install; only need to run once                 |
-| `install-all`  | Setup     | Install everything; takes a long time due to editable install  |
-| `fe`           | Build     | Package frontend into `marimo/`                                |
-| `fe-codegen`   | Build     | Build [api specification](./development_docs/openapi.md)       |
-| `wheel`        | Build     | Build wheel                                                    |
-| `check`        | Test      | Run all checks                                                 |
-| `check-test`   | Test      | Run all checks and tests                                       |
-| `test`         | Test      | Run all tests                                                  |
-| `fe-check`     | Lint/Test | Check frontend                                                 |
-| `fe-test`      | Test      | Test frontend                                                  |
-| `e2e`          | Test      | Test end-to-end                                                |
-| `fe-lint`      | Lint      | Lint frontend                                                  |
-| `fe-typecheck` | Lint      | Typecheck frontend                                             |
-| `py-check`     | Lint      | Check python                                                   |
-| `py-test`      | Test      | Test python                                                    |
-| `py-snapshots` | Test      | Update HTML snapshots                                          |
-| `storybook`    | Docs      | Run Storybook                                                  |
-| `docs`         | Docs      | Build docs. Use `make ARGS="-a" docs` to force docs to rebuild |
-| `docs-serve`   | Docs      | Serve docs                                                     |
-| `docs-clean`   | Docs      | Remove built docs                                              |
+| `help`         | General   | 📖 Show available commands                                     |
+| `install-all`  | Setup     | 🚀 First-time setup: Install all dependencies (frontend & Python) |
+| `check-prereqs`| Setup     | ✓ Check if all required tools are installed                    |
+| `py`           | Setup     | 🐍 Install Python dependencies in editable mode                |
+| `fe`           | Build     | 🔧 Build frontend assets                                       |
+| `test`         | Test      | 🧪 Run all tests (frontend, Python, end-to-end)                |
+| `check`        | Test      | 🧹 Run all checks                                              |
+| `fe-check`     | Lint/Test | 🧹 Check frontend (lint, typecheck)                            |
+| `fe-test`      | Test      | 🧪 Test frontend                                               |
+| `e2e`          | Test      | 🧪 Test end-to-end                                             |
+| `fe-lint`      | Lint      | 🧹 Lint frontend                                               |
+| `fe-typecheck` | Lint      | 🔍 Typecheck frontend                                          |
+| `fe-codegen`   | Build     | 🔄 Generate frontend API                                       |
+| `py-check`     | Lint      | 🔍 Typecheck, lint, format python                              |
+| `typos`        | Lint      | 🔍 Check for typos                                             |
+| `py-test`      | Test      | 🧪 Test python                                                 |
+| `py-snapshots` | Test      | 📸 Update snapshots                                            |
+| `wheel`        | Build     | 📦 Build wheel                                                 |
+| `docs`         | Docs      | 📚 Build docs                                                  |
+| `docs-serve`   | Docs      | 📚 Serve docs                                                  |
+| `storybook`    | Docs      | 🧩 Start Storybook for UI development                          |
 
 ## Lint, Typecheck, Format
 
@@ -351,4 +384,4 @@ marimo edit
 
 ## Your first PR
 
-Marimo has a variety of CI jobs that run on pull requests.  All new PRs will fail until you have signed the [CLA](https://marimo.io/cla).  Don't fret.  You can sign the CLA by leaving a comment in the PR with text of `I have read the CLA Document and I hereby sign the CLA`
+Marimo has a variety of CI jobs that run on pull requests. All new PRs will fail until you have signed the [CLA](https://marimo.io/cla). Don't fret. You can sign the CLA by leaving a comment in the PR with text of `I have read the CLA Document and I hereby sign the CLA`

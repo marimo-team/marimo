@@ -22,7 +22,6 @@ import {
 import {
   useState,
   useRef,
-  useEffect,
   type SetStateAction,
   type Dispatch,
   memo,
@@ -259,8 +258,9 @@ const ChatPanelBody = () => {
     append,
     handleSubmit,
     error,
-    isLoading,
+    status,
     reload,
+    stop,
   } = useChat({
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
@@ -270,9 +270,9 @@ const ChatPanelBody = () => {
     experimental_prepareRequestBody: (options) => {
       return {
         ...options,
-        ...getAICompletionBody(
-          options.messages.map((m) => m.content).join("\n"),
-        ),
+        ...getAICompletionBody({
+          input: options.messages.map((m) => m.content).join("\n"),
+        }),
         includeOtherCode: getCodes(""),
       };
     },
@@ -293,24 +293,8 @@ const ChatPanelBody = () => {
       Logger.debug("Received HTTP response from server:", response);
     },
   });
-  const lastMessageText = messages.at(-1)?.content;
-  useEffect(() => {
-    if (isLoading) {
-      const BUFFER = 150;
-      const container = messagesEndRef.current?.parentElement;
-      if (!container) {
-        return;
-      }
 
-      const isNearBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight <
-        BUFFER;
-
-      if (isNearBottom) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [messages, isLoading, lastMessageText]);
+  const isLoading = status === "submitted" || status === "streaming";
 
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
@@ -436,6 +420,14 @@ const ChatPanelBody = () => {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {isLoading && (
+        <div className="w-full flex justify-center items-center z-20 border-t">
+          <Button variant="linkDestructive" size="sm" onClick={stop}>
+            Stop
+          </Button>
+        </div>
+      )}
 
       {messages && messages.length > 0 && (
         <ChatInput

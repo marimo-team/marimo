@@ -171,7 +171,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-[300px]">
+      <ContextMenuContent className="w-[300px]" scrollable={true}>
         {allActions.map((group, i) => (
           <Fragment key={i}>
             {group.map((action) => {

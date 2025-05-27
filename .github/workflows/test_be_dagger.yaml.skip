@@ -21,6 +21,7 @@ jobs:
               - 'tests/**'
               - 'pyproject.toml'
               - 'dagger/**'
+              - '!{marimo/_smoke_tests,frontend}/**'
 
   test_python:
     needs: changes

@@ -22,20 +22,30 @@ describe("prettyScientificNumber", () => {
     expect(prettyScientificNumber(Number.NEGATIVE_INFINITY)).toBe("-Infinity");
   });
 
-  it("should format decimals with scientific notation, ignoring integer part", () => {
+  it("should format decimals with scientific notation, ignoring integer part rounding", () => {
+    const opts = { shouldRound: true };
+    expect(prettyScientificNumber(123_456, opts)).toBe("123,456");
+    expect(prettyScientificNumber(123_456.7, opts)).toBe("123,456.7");
+    expect(prettyScientificNumber(12_345.6789, opts)).toBe("12,345.68");
+    expect(prettyScientificNumber(1.2345, opts)).toBe("1.23");
+    expect(prettyScientificNumber(1.000_001_234, opts)).toBe("1");
+    expect(prettyScientificNumber(0.12, opts)).toBe("0.12");
+    expect(prettyScientificNumber(0.1234, opts)).toBe("0.12");
+    expect(prettyScientificNumber(0.000_123_4, opts)).toBe("1.2e-4");
+    expect(prettyScientificNumber(-1.2345, opts)).toBe("-1.23"); // Test with negative numbers
+    expect(prettyScientificNumber(-1.000_001_234, opts)).toBe("-1");
+    expect(prettyScientificNumber(-0.12, opts)).toBe("-0.12");
+    expect(prettyScientificNumber(-0.1234, opts)).toBe("-0.12");
+    expect(prettyScientificNumber(-0.000_123_4, opts)).toBe("-1.2e-4");
+  });
+
+  it("should not round numbers when shouldRound is false", () => {
     expect(prettyScientificNumber(123_456)).toBe("123,456");
     expect(prettyScientificNumber(123_456.7)).toBe("123,456.7");
-    expect(prettyScientificNumber(12_345.6789)).toBe("12,345.68");
-    expect(prettyScientificNumber(1.2345)).toBe("1.23");
-    expect(prettyScientificNumber(1.000_001_234)).toBe("1");
-    expect(prettyScientificNumber(0.12)).toBe("0.12");
-    expect(prettyScientificNumber(0.1234)).toBe("0.12");
-    expect(prettyScientificNumber(0.000_123_4)).toBe("1.2e-4");
-    expect(prettyScientificNumber(-1.2345)).toBe("-1.23"); // Test with negative numbers
-    expect(prettyScientificNumber(-1.000_001_234)).toBe("-1");
-    expect(prettyScientificNumber(-0.12)).toBe("-0.12");
-    expect(prettyScientificNumber(-0.1234)).toBe("-0.12");
-    expect(prettyScientificNumber(-0.000_123_4)).toBe("-1.2e-4");
+    expect(prettyScientificNumber(12_345.6789)).toBe("12,345.6789");
+    expect(prettyScientificNumber(1.234_567_891_011_12)).toBe(
+      "1.23456789101112",
+    );
   });
 });
 
