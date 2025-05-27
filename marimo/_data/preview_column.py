@@ -209,8 +209,7 @@ def _get_altair_chart(
 
     chart_builder = get_chart_builder(column_type, should_limit_to_10_items)
     code = chart_builder.altair_code(
-        request.table_name,
-        request.column_name,
+        request.table_name, request.column_name, simple=True
     )
 
     chart_max_rows_errors = False

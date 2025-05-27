@@ -1,63 +1,79 @@
 # boolean
-_chart = (
+_base = (
     alt.Chart(df)
-    .mark_bar()
+    .transform_aggregate(count="count()", groupby=["some_column"])
+    .transform_joinaggregate(total="sum(count)")
+    .transform_calculate(percentage="datum.count / datum.total")
     .encode(
-        x=alt.X("some_column", type="nominal"),
-        y=alt.Y("count()", type="quantitative"),
+        theta=alt.Theta(
+            field="count",
+            type="quantitative",
+            stack=True,
+        ),
+        color=alt.Color("some_column:N"),
+        tooltip=[
+            alt.Tooltip("some_column:N", title="some_column"),
+            alt.Tooltip("count:Q", title="Number of records", format=",.0f"),
+        ],
     )
-    .properties(width="container")
 )
+
+_pie = _base.mark_arc(outerRadius=85)
+_text = _base.mark_text(radius=100, size=13).encode(
+    text=alt.Text("percentage:Q", format=".2%"),
+)
+
+_chart = (_pie + _text).properties(width="container").configure_view(stroke=None)
 _chart
 
 # date
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .transform_filter(f"datum.some_column != null")
+    .transform_timeunit(as_="_some_column", field="some_column", timeUnit="yearmonthdate")
+    .mark_area()
     .encode(
-        x=alt.X(
-            "some_column",
-            type="temporal",
-            bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
-        ),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+        x=alt.X("_some_column:T", title="some_column"),
+        y=alt.Y("count():Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("_some_column:T", title="some_column", timeUnit="yearmonthdate"),
+            alt.Tooltip("count():Q", title="Number of records", format=",.0f")
+        ]
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart
 
 # datetime
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .transform_filter(f"datum.some_column != null")
+    .transform_timeunit(as_="_some_column", field="some_column", timeUnit="yearmonthdate")
+    .mark_area()
     .encode(
-        x=alt.X(
-            "some_column",
-            type="temporal",
-            bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
-        ),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+        x=alt.X("_some_column:T", title="some_column"),
+        y=alt.Y("count():Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("_some_column:T", title="some_column", timeUnit="yearmonthdate"),
+            alt.Tooltip("count():Q", title="Number of records", format=",.0f")
+        ]
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart
 
 # time
 _chart = (
     alt.Chart(df)
-    .mark_bar()
+    .transform_filter(f"datum.some_column != null")
+    .transform_timeunit(as_="_some_column", field="some_column", timeUnit="yearmonthdate")
+    .mark_area()
     .encode(
-        x=alt.X(
-            "some_column",
-            type="temporal",
-            bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
-        ),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+        x=alt.X("_some_column:T", title="some_column"),
+        y=alt.Y("count():Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("_some_column:T", title="some_column", timeUnit="yearmonthdate"),
+            alt.Tooltip("count():Q", title="Number of records", format=",.0f")
+        ]
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart
 
@@ -66,10 +82,23 @@ _chart = (
     alt.Chart(df)
     .mark_bar()
     .encode(
-        x=alt.X("some_column", type="quantitative", bin=True),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+        x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
+        tooltip=[
+            alt.Tooltip(
+                "some_column",
+                type="quantitative",
+                bin=True,
+                title="some_column",
+            ),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+                title="Number of records",
+            ),
+        ],
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart
 
@@ -78,10 +107,24 @@ _chart = (
     alt.Chart(df)
     .mark_bar()
     .encode(
-        x=alt.X("some_column", type="quantitative", bin=True),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+        x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
+        tooltip=[
+            alt.Tooltip(
+                "some_column",
+                type="quantitative",
+                bin=True,
+                title="some_column",
+                format=",.2f",
+            ),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+                title="Number of records",
+            ),
+        ],
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart
 
@@ -89,17 +132,6 @@ _chart
 _chart = (
     alt.Chart(df)
     .mark_bar()
-    .encode(
-        y=alt.Y("some_column", type="nominal"),
-        x=alt.X("count()", type="quantitative"),
-    )
-    .properties(width="container")
-)
-_chart
-
-# string (limit to 10 items)
-_chart = (
-    alt.Chart(df)
     .transform_aggregate(count="count()", groupby=["some_column"])
     .transform_window(
         rank="rank()",
@@ -109,12 +141,52 @@ _chart = (
         ],
     )
     .transform_filter(alt.datum.rank <= 10)
-    .mark_bar()
     .encode(
-        y=alt.Y("some_column", type="nominal", sort="-x"),
-        x=alt.X("count", type="quantitative"),
+        y=alt.Y(
+            "some_column:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("some_column:N"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
+        ],
     )
-    .properties(title="Top 10 some_column", width="container")
+    .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
+)
+_chart
+
+# string (limit to 10 items)
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .transform_aggregate(count="count()", groupby=["some_column"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("some_column", order="ascending"),
+        ],
+    )
+    .transform_filter(alt.datum.rank <= 10)
+    .encode(
+        y=alt.Y(
+            "some_column:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("some_column:N"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
+        ],
+    )
+    .properties(title="Top 10 {column}", width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
 )
 _chart
 
@@ -124,8 +196,11 @@ _chart = (
     .mark_bar()
     .encode(
         x=alt.X("some_column", type="nominal"),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("some_column", type="nominal"),
+            alt.Tooltip("count()", type="quantitative", title="Number of records"),
+        ],
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart

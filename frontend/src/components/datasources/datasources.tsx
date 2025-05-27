@@ -75,7 +75,7 @@ import {
   RotatingChevron,
 } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { isSchemaless, sqlCode } from "./utils";
+import { convertStatsName, isSchemaless, sqlCode } from "./utils";
 import { useOnMount } from "@/hooks/useLifecycle";
 import {
   PreviewSQLTableList,
@@ -874,7 +874,9 @@ const DatasetColumnPreview: React.FC<{
               className="h-3 w-3 invisible group-hover:visible"
               value={String(value)}
             />
-            <span className="text-xs min-w-[60px] uppercase">{key}</span>
+            <span className="text-xs min-w-[60px] capitalize">
+              {convertStatsName(key, column.type)}
+            </span>
             <span className="text-xs font-bold text-muted-foreground tracking-wide">
               {prettyNumber(value)}
             </span>

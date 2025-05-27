@@ -6,22 +6,6 @@
   },
   "axes": [
     {
-      "aria": false,
-      "domain": false,
-      "grid": true,
-      "gridScale": "y",
-      "labels": false,
-      "maxExtent": 0,
-      "minExtent": 0,
-      "orient": "bottom",
-      "scale": "x",
-      "tickCount": {
-        "signal": "ceil(width/40)"
-      },
-      "ticks": false,
-      "zindex": 0
-    },
-    {
       "grid": false,
       "labelFlush": true,
       "labelOverlap": true,
@@ -30,18 +14,27 @@
       "tickCount": {
         "signal": "ceil(width/40)"
       },
-      "title": "count",
+      "title": "Number of records",
       "zindex": 0
     },
     {
       "grid": false,
       "orient": "left",
       "scale": "y",
-      "title": "category",
       "zindex": 0
     }
   ],
   "background": "white",
+  "config": {
+    "axis": {
+      "grid": false
+    },
+    "style": {
+      "cell": {
+        "stroke": null
+      }
+    }
+  },
   "data": [
     {
       "name": "data-6f2678becc24b5ff9fbec3e85cf09cd0"
@@ -50,25 +43,54 @@
       "name": "data_0"
     },
     {
-      "name": "data_1",
+      "name": "data_2",
       "values": [
         {
           "category": "A",
+          "count": 25,
+          "percentage": 0.25
+        },
+        {
+          "category": "B",
+          "count": 25,
+          "percentage": 0.25
+        },
+        {
+          "category": "C",
+          "count": 25,
+          "percentage": 0.25
+        },
+        {
+          "category": "D",
+          "count": 25,
+          "percentage": 0.25
+        }
+      ]
+    },
+    {
+      "name": "data_3",
+      "values": [
+        {
+          "category": "A",
+          "count": 25,
           "count_end": 25.0,
           "count_start": 0.0
         },
         {
           "category": "B",
+          "count": 25,
           "count_end": 25.0,
           "count_start": 0.0
         },
         {
           "category": "C",
+          "count": 25,
           "count_end": 25.0,
           "count_start": 0.0
         },
         {
           "category": "D",
+          "count": 25,
           "count_end": 25.0,
           "count_start": 0.0
         }
@@ -101,10 +123,13 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#4c78a8"
+            "value": "#1C7361"
           },
           "height": {
             "signal": "max(0.25, bandwidth('y'))"
+          },
+          "tooltip": {
+            "signal": "{\"category\": isValid(datum[\"category\"]) ? datum[\"category\"] : \"\"+datum[\"category\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
           },
           "x": {
             "field": "count_end",
@@ -121,23 +146,73 @@
         }
       },
       "from": {
-        "data": "data_1"
+        "data": "data_3"
       },
-      "name": "marks",
+      "name": "layer_0_marks",
       "style": [
         "bar"
       ],
       "type": "rect"
+    },
+    {
+      "encode": {
+        "update": {
+          "align": {
+            "value": "left"
+          },
+          "baseline": {
+            "value": "middle"
+          },
+          "dx": {
+            "value": 3
+          },
+          "fill": {
+            "value": "black"
+          },
+          "text": {
+            "signal": "format(datum[\"percentage\"], \".2%\")"
+          },
+          "tooltip": {
+            "signal": "{\"category\": isValid(datum[\"category\"]) ? datum[\"category\"] : \"\"+datum[\"category\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
+          "x": {
+            "field": "count",
+            "scale": "x"
+          },
+          "y": {
+            "band": 0.5,
+            "field": "category",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "data_2"
+      },
+      "name": "layer_1_marks",
+      "style": [
+        "text"
+      ],
+      "type": "text"
     }
   ],
   "padding": 5,
   "scales": [
     {
       "domain": {
-        "data": "data_1",
         "fields": [
-          "count_start",
-          "count_end"
+          {
+            "data": "data_3",
+            "field": "count_start"
+          },
+          {
+            "data": "data_3",
+            "field": "count_end"
+          },
+          {
+            "data": "data_2",
+            "field": "count"
+          }
         ]
       },
       "name": "x",
