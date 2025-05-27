@@ -21,9 +21,6 @@ export class ImageComparisonPlugin
     afterSrc: z.string(),
     value: z.number().min(0).max(100).default(50),
     direction: z.enum(["horizontal", "vertical"]).default("horizontal"),
-    showLabels: z.boolean().default(false),
-    beforeLabel: z.string().default("Before"),
-    afterLabel: z.string().default("After"),
     width: z.string().optional(),
     height: z.string().optional(),
   });
