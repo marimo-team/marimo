@@ -87,6 +87,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.54.2(react@18.3.1))
+      '@img-comparison-slider/react':
+        specifier: ^8.0.2
+        version: 8.0.2
       '@internationalized/date':
         specifier: ^3.8.0
         version: 3.8.0
@@ -306,6 +309,9 @@ importers:
       iconify-icon:
         specifier: ^2.3.0
         version: 2.3.0
+      img-comparison-slider:
+        specifier: ^8.0.6
+        version: 8.0.6
       jotai:
         specifier: ^2.12.3
         version: 2.12.3(@types/react@18.3.20)(react@18.3.1)
@@ -1443,8 +1449,8 @@ packages:
   '@iconify/utils@2.1.33':
     resolution: {integrity: sha512-jP9h6v/g0BIZx0p7XGJJVtkVnydtbgTgt9mVNcGDYwaa7UhdHdI9dvoq+gKj9sijMSJKxUPEG2JyjsgXjxL7Kw==}
 
-  '@internationalized/date@3.8.0':
-    resolution: {integrity: sha512-J51AJ0fEL68hE4CwGPa6E0PO6JDaVLd8aln48xFCSy7CZkZc96dGEGmLs2OEEbBxcsVZtfrqkXJwI2/MSG8yKw==}
+  '@internationalized/date@3.7.0':
+    resolution: {integrity: sha512-VJ5WS3fcVx0bejE/YHfbDKR/yawZgKqn/if+oEeLqNwBtPzVB06olkfcnojTmEMX+gTpH+FlQ69SHNitJ8/erQ==}
 
   '@internationalized/message@3.1.7':
     resolution: {integrity: sha512-gLQlhEW4iO7DEFPf/U7IrIdA3UyLGS0opeqouaFwlMObLUzwexRjbygONHDVbC9G9oFLXsLyGKYkJwqXw/QADg==}
@@ -5910,6 +5916,9 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
+  immediate@3.3.0:
+    resolution: {integrity: sha512-HR7EVodfFUdQCTIeySw+WDRFJlPcLOJbXfwwZ7Oom6tjsvZ3bOkCDJHehQC3nxJrv7+f9XecwazynjU8e4Vw3Q==}
+
   import-fresh@3.3.0:
     resolution: {integrity: sha512-veYYhQa+D1QBKznvhUHxb8faxlrwUnxseDAbAp457E0wLNio2bOSKnjYDhMj+YiAq61xrMGhQk9iXVk5FzgQMw==}
     engines: {node: '>=6'}
@@ -10139,7 +10148,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@internationalized/date@3.8.0':
+  '@internationalized/date@3.7.0':
     dependencies:
       '@swc/helpers': 0.5.1
 
@@ -15750,6 +15759,9 @@ snapshots:
   ignore@7.0.3: {}
 
   image-size@0.5.5:
+    optional: true
+
+  immediate@3.3.0:
     optional: true
 
   import-fresh@3.3.0:
