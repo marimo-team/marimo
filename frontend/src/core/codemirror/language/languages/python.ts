@@ -70,6 +70,8 @@ const lspClient = once((lspConfig: LSPConfig) => {
   const ignoredRuffRules = [
     // Even ruff documentation of this rule explains it is not useful in notebooks
     "B018", // Useless expression
+    // isort
+    "I001", // Import block is un-sorted or un-formatted
   ];
   const settings = {
     pylsp: {
