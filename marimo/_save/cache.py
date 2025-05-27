@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import importlib
 import inspect
 import re
 from collections import namedtuple
@@ -44,8 +45,8 @@ class ModuleStub:
     def __init__(self, module: Any) -> None:
         self.name = module.__name__
 
-    def load(self):
-        return __import__(self.name)
+    def load(self) -> Any:
+        return importlib.import_module(self.name)
 
 
 class FunctionStub:
@@ -114,14 +115,20 @@ class Cache:
     ) -> None:
         """Loads values from scope, updating the cache."""
         for var, lookup in self.contextual_defs():
+            if lookup not in scope:
+                raise CacheException(
+                    "Failure while saving cached values. "
+                    "Cache expected a reference to a "
+                    f"variable that is not present ({lookup})."
+                )
             self.defs[var] = scope[lookup]
 
         self.meta = {}
         if meta is not None:
-            for key, value in meta.items():
-                if key not in get_args(MetaKey):
-                    raise CacheException(f"Unexpected meta key: {key}")
-                self.meta[key] = value
+            for metakey, metavalue in meta.items():
+                if metakey not in get_args(MetaKey):
+                    raise CacheException(f"Unexpected meta key: {metakey}")
+                self.meta[metakey] = metavalue
         self.meta["version"] = MARIMO_CACHE_VERSION
 
         defs = {**globals(), **scope}

@@ -338,7 +338,7 @@ class TestAppCache:
                     return 2
 
                 with persistent_cache(
-                    name="one", _loader=MockLoader({"mo": mod})})
+                    name="one", _loader=MockLoader({"mo": mod})
                 ) as cache:
                     import marimo as mo
                 """
@@ -362,7 +362,7 @@ class TestAppCache:
                 from tests._save.loaders.mocks import MockLoader
 
                 with persistent_cache(
-                    name="one", _loader=MockLoader()})
+                    name="one", _loader=MockLoader()
                 ) as cache:
                     import marimo as mo
                 """
@@ -371,6 +371,7 @@ class TestAppCache:
             ]
         )
         # No warning messages.
+        assert k.errors == {}
         assert not k.stderr.messages, k.stderr
         assert not k.stdout.messages, k.stdout
         assert k.globals["mo"].__version__ == marimo.__version__
@@ -390,7 +391,7 @@ class TestAppCache:
                     return 2
 
                 with persistent_cache(
-                    name="one", _loader=MockLoader({"my_func": my_func_2})})
+                    name="one", _loader=MockLoader({"my_func": my_func_2})
                 ) as cache:
                     def my_func():
                         return 1
@@ -448,7 +449,6 @@ class TestAppCache:
                 ),
             ]
         )
-        assert k.errors == {}
         assert k.errors == {}
         assert k.globals["X"] == 1
         assert k.globals["Y"] == 2

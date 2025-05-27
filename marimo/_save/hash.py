@@ -21,6 +21,7 @@ from marimo._ast.visitor import Name, ScopedVisitor
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.dataflow import induced_subgraph
 from marimo._runtime.primitives import (
     FN_CACHE_TYPE,
     is_data_primitive,
@@ -28,7 +29,7 @@ from marimo._runtime.primitives import (
     is_primitive,
     is_pure_function,
 )
-from marimo._runtime.side_effect import SideEffect
+from marimo._runtime.side_effect import CellHash, SideEffect
 from marimo._runtime.state import SetFunctor, State
 from marimo._runtime.watch._path import PathState
 from marimo._save.cache import Cache, CacheType
@@ -427,11 +428,20 @@ class BlockHasher:
         # execution hashing.
         if refs:
             cache_type = "ExecutionPath"
+            to_hash = self.cells_from_refs(refs)
             if ctx:
-                self.collect_and_hash_side_effects(
-                    self.cells_from_refs(refs), ctx
-                )
-            refs = self.hash_and_dequeue_execution_refs(refs)
+                self.collect_and_hash_side_effects(to_hash, ctx)
+            subgraph, children = induced_subgraph(
+                graph, to_hash | {self.cell_id}
+            )
+            assert not children.get(self.cell_id, None), (
+                "No children expected, please report this issue. "
+                "You may have a cycle which marimo should have previously "
+                "detected."
+            )
+            refs = self.hash_and_dequeue_execution_refs(
+                refs, subgraph[self.cell_id], scope, ctx
+            )
         self.execution_refs -= refs | self.content_refs
 
         # Remove values that should be provided by external scope.
@@ -489,11 +499,16 @@ class BlockHasher:
         return block
 
     @property
+    def raw_hash(self) -> bytes:
+        assert self.hash_alg is not None, "Hash algorithm not initialized."
+        return self.hash_alg.digest()
+
+    @property
     def hash(self) -> str:
         if self._hash is None:
             assert self.hash_alg is not None, "Hash algorithm not initialized."
             self._hash = (
-                base64.urlsafe_b64encode(self.hash_alg.digest())
+                base64.urlsafe_b64encode(self.raw_hash)
                 .decode("utf-8")
                 .strip("=")
             )
@@ -824,18 +839,12 @@ class BlockHasher:
         )
         return SerialRefs(refs, content_serialization, stateful_refs)
 
-    def hash_and_dequeue_execution_refs(self, refs: set[Name]) -> set[Name]:
-        """Determines and uses the hash of refs' cells to update the hash.
-
-        Args:
-          refs: List of references to account for in cell lookup.
-
-        Returns a list of references that were not utilized in updating the
-        hash. This should only be possible in the case where a cell context is
-        provided, as those references should be accounted for in that context.
-        """
+    def hash_and_dequeue_execution_refs_fallback(
+        self, refs: set[Name], to_hash: set[CellId_t]
+    ) -> set[Name]:
+        """Fallback for execution refs, when the context is not available."""
         self._hash = None
-        to_hash = self.cells_from_refs(refs)
+        refs = set(refs)
         for ancestor_id in to_hash:
             cell_impl = self.graph.cells[ancestor_id]
             for ref in cell_impl.defs:
@@ -849,6 +858,70 @@ class BlockHasher:
         self.hash_alg.update(
             hash_cell_group(to_hash, self.graph, self.hash_alg.name)
         )
+        return refs
+
+    def hash_and_dequeue_execution_refs(
+        self,
+        refs: set[Name],
+        parents: set[CellId_t],
+        scope: dict[str, Any],
+        ctx: Optional[RuntimeContext] = None,
+    ) -> set[Name]:
+        """Determines and uses the hash of refs' cells to update the hash.
+
+        Args:
+          refs: List of references to account for in cell lookup.
+          parents: A set of parent cell ids to hash.
+          scope: The definitions of (globals) available in execution context.
+          ctx: The runtime context to use for stateful lookups.
+
+        Returns a list of references that were not utilized in updating the
+        hash. This should only be possible in the case where a cell context is
+        provided, as those references should be accounted for in that context.
+        """
+        if ctx is None:
+            return self.hash_and_dequeue_execution_refs_fallback(refs, parents)
+
+        self._hash = None
+        # We want to do a DFS graph traversal, pruning when we either get to a
+        # content, or pure hashed cell. For each cell, we either use the known
+        # hash, present in CellLifeCycle OR we compute and register it.
+        hashes = []
+        # Recursive, but in a very round about way.
+        # As such, only utilize the top layer.
+        for cell_id in parents:
+            cell = self.graph.cells[cell_id]
+
+            if cell_id in ctx.cell_lifecycle_registry.registry:
+                registry = ctx.cell_lifecycle_registry.registry[cell_id]
+                cell_hash = [
+                    obj.key for obj in registry if isinstance(obj, CellHash)
+                ]
+                if cell_hash:
+                    assert len(cell_hash) == 1, (
+                        "Cell Hash registered multiple times, this is unexpected. "
+                        "Please report this issue to marimo-team/marimo"
+                    )
+                    hashes.append(cell_hash[0])
+                    refs -= cell.defs
+                    continue
+
+            attempt = BlockHasher(
+                cell.mod,
+                self.graph,
+                cell.cell_id,
+                scope=scope,
+                pin_modules=self.pin_modules,
+                hash_type=self.hash_alg.name,
+            )
+            # Register the hash in the lifecycle registry
+            ctx.cell_lifecycle_registry.inject(
+                cell_id, CellHash(attempt.raw_hash)
+            )
+            refs -= cell.defs
+            hashes.append(attempt.raw_hash)
+
+        self.hash_alg.update(b"".join(sorted(hashes)))
         return refs
 
     def hash_and_verify_context_refs(
@@ -896,7 +969,7 @@ class BlockHasher:
         )
         assert ref_cells == {self.cell_id}, (
             "Unexpected execution cell residual "
-            f"{ref_cells.pop()} expected {self.cell_id}."
+            f"{ref_cells.pop()} expected {self.cell_id}. "
             "This is unexpected, please report this issue to "
             "https://github.com/marimo-team/marimo/issues"
         )
