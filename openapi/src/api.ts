@@ -3016,6 +3016,7 @@ export interface components {
         anthropic?: {
           api_key?: string;
         };
+        azure?: components["schemas"]["OpenAiConfig"];
         bedrock?: {
           aws_access_key_id?: string;
           aws_secret_access_key?: string;
@@ -3026,14 +3027,8 @@ export interface components {
           api_key?: string;
         };
         max_tokens?: number;
-        open_ai?: {
-          api_key?: string;
-          base_url?: string;
-          ca_bundle_path?: string;
-          client_pem?: string;
-          model?: string;
-          ssl_verify?: boolean;
-        };
+        open_ai?: components["schemas"]["OpenAiConfig"];
+        provider_type?: string;
         rules?: string;
       };
       completion: {
@@ -3231,6 +3226,14 @@ export interface components {
       type: "multiple-defs";
     };
     NonNestedLiteral: number | string | boolean;
+    OpenAiConfig: {
+      api_key?: string;
+      base_url?: string;
+      ca_bundle_path?: string;
+      client_pem?: string;
+      model?: string;
+      ssl_verify?: boolean;
+    };
     OpenTutorialRequest: {
       tutorialId:
         | (

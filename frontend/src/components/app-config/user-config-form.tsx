@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import { ExternalLink } from "../ui/links";
 import { cn } from "@/utils/cn";
-import { KNOWN_AI_MODELS, AWS_REGIONS, KNOWN_AI_PROVIDERS } from "./constants";
+import { AWS_REGIONS, KNOWN_AI_MODELS, KNOWN_AI_PROVIDERS } from "./constants";
 import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
@@ -54,6 +54,12 @@ import { Badge } from "../ui/badge";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { OptionalFeatures } from "./optional-features";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -350,7 +356,6 @@ export const UserConfigForm: React.FC = () => {
                           data-testid="line-length-input"
                           className="m-0 w-24"
                           {...field}
-                          value={field.value}
                           minValue={1}
                           maxValue={1000}
                           onChange={(value) => {
@@ -640,7 +645,6 @@ export const UserConfigForm: React.FC = () => {
                           data-testid="code-editor-font-size-input"
                           className="m-0 w-24"
                           {...field}
-                          value={field.value}
                           minValue={8}
                           maxValue={32}
                           onChange={(value) => {
@@ -744,7 +748,6 @@ export const UserConfigForm: React.FC = () => {
                           data-testid="default-table-page-size-input"
                           className="m-0 w-24"
                           {...field}
-                          value={field.value}
                           minValue={1}
                           step={1}
                           onChange={(value) => {
@@ -1070,240 +1073,24 @@ export const UserConfigForm: React.FC = () => {
 
               {renderCopilotProvider()}
             </SettingGroup>
-            <SettingGroup title="AI Keys">
-              <FormField
-                control={form.control}
-                name="ai.open_ai.api_key"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>OpenAI API Key</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-openai-api-key-input"
-                          className="m-0 inline-flex"
-                          placeholder="sk-proj..."
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Don't allow *
-                            if (!value.includes("*")) {
-                              field.onChange(value);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.open_ai.api_key"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Your OpenAI API key from{" "}
-                      <ExternalLink href="https://platform.openai.com/account/api-keys">
-                        platform.openai.com
-                      </ExternalLink>
-                      .
-                    </FormDescription>
-                  </div>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="ai.anthropic.api_key"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Anthropic API Key</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-anthropic-api-key-input"
-                          className="m-0 inline-flex"
-                          placeholder="sk-ant..."
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Don't allow *
-                            if (!value.includes("*")) {
-                              field.onChange(value);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.anthropic.api_key"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Your Anthropic API key from{" "}
-                      <ExternalLink href="https://console.anthropic.com/settings/keys">
-                        console.anthropic.com
-                      </ExternalLink>
-                      .
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ai.google.api_key"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Google AI API Key</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-google-api-key-input"
-                          className="m-0 inline-flex"
-                          placeholder="AI..."
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Don't allow *
-                            if (!value.includes("*")) {
-                              field.onChange(value);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.google.api_key"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Your Google AI API key from{" "}
-                      <ExternalLink href="https://aistudio.google.com/app/apikey">
-                        aistudio.google.com
-                      </ExternalLink>
-                      .
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <p className="text-sm font-semibold mt-3">
-                AWS Bedrock Configuration
+            <SettingGroup title="AI Providers">
+              <p className="text-sm text-muted-secondary">
+                Configure your AI providers for marimo's AI assistant. Each
+                provider can be configured independently.
               </p>
-              <p className="text-sm text-muted-secondary mb-2">
-                To use AWS Bedrock, you need to configure AWS credentials and
-                region. See the{" "}
-                <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#aws-bedrock">
-                  documentation
-                </ExternalLink>{" "}
-                for more details.
-              </p>
-              <FormField
-                control={form.control}
-                disabled={isWasmRuntime}
-                name="ai.bedrock.region_name"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>AWS Region</FormLabel>
-                      <FormControl>
-                        <NativeSelect
-                          data-testid="bedrock-region-select"
-                          onChange={(e) => field.onChange(e.target.value)}
-                          value={
-                            typeof field.value === "string"
-                              ? field.value
-                              : "us-east-1"
-                          }
-                          disabled={field.disabled}
-                          className="inline-flex mr-2"
-                        >
-                          {AWS_REGIONS.map((option) => (
-                            <option value={option} key={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.bedrock.region_name"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      The AWS region where Bedrock service is available.
-                    </FormDescription>
-                  </div>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                disabled={isWasmRuntime}
-                name="ai.bedrock.profile_name"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>AWS Profile Name (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="bedrock-profile-input"
-                          className="m-0 inline-flex"
-                          placeholder="default"
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.bedrock.profile_name"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      The AWS profile name from your ~/.aws/credentials file.
-                      Leave blank to use your default AWS credentials.
-                    </FormDescription>
-                  </div>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ai.azure.api_key"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Azure OpenAI API Key</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-azure-api-key-input"
-                          className="m-0 inline-flex"
-                          placeholder="sk-proj..."
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Don't allow *
-                            if (!value.includes("*")) {
-                              field.onChange(value);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.azure.api_key"
-                      />
-                    </FormItem>
-                    <FormDescription>
-                      Your Azure OpenAI API key.
-                    </FormDescription>
-                  </div>
-                )}
-              />
+              <Accordion
+                type="multiple"
+                className="w-full"
+                defaultValue={["openai"]}
+              >
+                <OpenAIAccordionSection form={form} config={config} />
+                <AnthropicAccordionSection form={form} config={config} />
+                <GoogleAccordionSection form={form} config={config} />
+                <BedrockAccordionSection form={form} config={config} />
+                <AzureAccordionSection form={form} config={config} />
+              </Accordion>
             </SettingGroup>
 
             <SettingGroup title="AI Assist">
@@ -1325,13 +1112,19 @@ export const UserConfigForm: React.FC = () => {
                     <FormItem className={formItemClasses}>
                       <FormLabel>AI Provider</FormLabel>
                       <FormControl>
-                        <Input
-                          list="ai-provider-type-datalist"
+                        <NativeSelect
                           data-testid="ai-provider-type-input"
-                          className="m-0 inline-flex"
-                          placeholder="gpt-4-turbo"
-                          {...field}
-                        />
+                          onChange={(e) => field.onChange(e.target.value)}
+                          value={field.value || ""}
+                          disabled={field.disabled}
+                          className="inline-flex mr-2"
+                        >
+                          {KNOWN_AI_PROVIDERS.map((provider) => (
+                            <option value={provider} key={provider}>
+                              {provider}
+                            </option>
+                          ))}
+                        </NativeSelect>
                       </FormControl>
                       <FormMessage />
                       <IsOverridden
@@ -1339,41 +1132,8 @@ export const UserConfigForm: React.FC = () => {
                         name="ai.provider_type"
                       />
                     </FormItem>
-                    <datalist id="ai-provider-type-datalist">
-                      {KNOWN_AI_PROVIDERS.map((provider) => (
-                        <option value={provider} key={provider}>
-                          {provider}
-                        </option>
-                      ))}
-                    </datalist>
-                    <FormDescription>AI provider to use.</FormDescription>
-                  </div>
-                )}
-              />
-              <FormField
-                control={form.control}
-                disabled={isWasmRuntime}
-                name="ai.open_ai.base_url"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Base URL</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="ai-base-url-input"
-                          className="m-0 inline-flex"
-                          placeholder="https://api.openai.com/v1"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.open_ai.base_url"
-                      />
-                    </FormItem>
                     <FormDescription>
-                      This URL can be any OpenAI-compatible API endpoint.
+                      The AI provider to use from above
                     </FormDescription>
                   </div>
                 )}
@@ -1409,13 +1169,7 @@ export const UserConfigForm: React.FC = () => {
                       ))}
                     </datalist>
                     <FormDescription>
-                      If the model starts with "claude-", we will use your
-                      Anthropic API key. If the model starts with "gemini-", we
-                      will use your Google AI API key. If the model starts with
-                      a "bedrock/" prefix followed by a model id (e.g.,
-                      "bedrock/anthropic.claude-3-sonnet-20240229"), we will use
-                      your AWS Bedrock configuration. Otherwise, we will use
-                      your OpenAI API key.
+                      Your model must be available in the provider's API.
                     </FormDescription>
                   </div>
                 )}
@@ -1434,7 +1188,6 @@ export const UserConfigForm: React.FC = () => {
                           className="m-0 inline-flex w-full h-32 p-2 text-sm"
                           placeholder="e.g. Always use type hints; prefer polars over pandas"
                           {...field}
-                          value={field.value}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1656,3 +1409,341 @@ const IsOverridden = ({
     </Tooltip>
   );
 };
+
+// AI Provider Accordion Sections
+interface AccordionSectionProps {
+  form: ReturnType<typeof useForm<UserConfig>>;
+  config: UserConfig;
+  isWasmRuntime?: boolean;
+}
+
+const OpenAIAccordionSection: React.FC<AccordionSectionProps> = ({
+  form,
+  config,
+  isWasmRuntime,
+}) => (
+  <AccordionItem value="openai">
+    <AccordionTrigger>OpenAI or OpenAI-compatible</AccordionTrigger>
+    <AccordionContent>
+      <div className="space-y-4">
+        <FormField
+          control={form.control}
+          name="ai.open_ai.api_key"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="ai-openai-api-key-input"
+                    className="m-0 inline-flex"
+                    rootClassName="flex-1"
+                    placeholder="sk-proj..."
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value.includes("*")) {
+                        field.onChange(value);
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="ai.open_ai.api_key" />
+              </FormItem>
+              <FormDescription>
+                Your OpenAI API key from{" "}
+                <ExternalLink href="https://platform.openai.com/account/api-keys">
+                  platform.openai.com
+                </ExternalLink>
+                .
+              </FormDescription>
+            </div>
+          )}
+        />
+        <FormField
+          control={form.control}
+          disabled={isWasmRuntime}
+          name="ai.open_ai.base_url"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>Base URL</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="ai-base-url-input"
+                    className="m-0 inline-flex"
+                    rootClassName="flex-1"
+                    placeholder="https://api.openai.com/v1"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="ai.open_ai.base_url" />
+              </FormItem>
+              <FormDescription>
+                This URL can be any OpenAI-compatible API endpoint.
+              </FormDescription>
+            </div>
+          )}
+        />
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+);
+
+const AnthropicAccordionSection: React.FC<AccordionSectionProps> = ({
+  form,
+  config,
+}) => (
+  <AccordionItem value="anthropic">
+    <AccordionTrigger>Anthropic</AccordionTrigger>
+    <AccordionContent>
+      <div className="space-y-4">
+        <FormField
+          control={form.control}
+          name="ai.anthropic.api_key"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="ai-anthropic-api-key-input"
+                    className="m-0 inline-flex"
+                    rootClassName="flex-1"
+                    placeholder="sk-ant..."
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value.includes("*")) {
+                        field.onChange(value);
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="ai.anthropic.api_key" />
+              </FormItem>
+              <FormDescription>
+                Your Anthropic API key from{" "}
+                <ExternalLink href="https://console.anthropic.com/settings/keys">
+                  console.anthropic.com
+                </ExternalLink>
+                .
+              </FormDescription>
+            </div>
+          )}
+        />
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+);
+
+const GoogleAccordionSection: React.FC<AccordionSectionProps> = ({
+  form,
+  config,
+}) => (
+  <AccordionItem value="google">
+    <AccordionTrigger>Google AI</AccordionTrigger>
+    <AccordionContent>
+      <div className="space-y-4">
+        <FormField
+          control={form.control}
+          name="ai.google.api_key"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="ai-google-api-key-input"
+                    className="m-0 inline-flex"
+                    placeholder="AI..."
+                    rootClassName="flex-1"
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value.includes("*")) {
+                        field.onChange(value);
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="ai.google.api_key" />
+              </FormItem>
+              <FormDescription>
+                Your Google AI API key from{" "}
+                <ExternalLink href="https://aistudio.google.com/app/apikey">
+                  aistudio.google.com
+                </ExternalLink>
+                .
+              </FormDescription>
+            </div>
+          )}
+        />
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+);
+
+const BedrockAccordionSection: React.FC<AccordionSectionProps> = ({
+  form,
+  config,
+}) => (
+  <AccordionItem value="bedrock">
+    <AccordionTrigger>AWS Bedrock</AccordionTrigger>
+    <AccordionContent>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-secondary">
+          To use AWS Bedrock, you need to configure AWS credentials and region.
+          See the{" "}
+          <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#aws-bedrock">
+            documentation
+          </ExternalLink>{" "}
+          for more details.
+        </p>
+
+        <FormField
+          control={form.control}
+          name="ai.bedrock.region_name"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>AWS Region</FormLabel>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="bedrock-region-select"
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={
+                      typeof field.value === "string"
+                        ? field.value
+                        : "us-east-1"
+                    }
+                    disabled={field.disabled}
+                    className="inline-flex mr-2"
+                  >
+                    {AWS_REGIONS.map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+                <IsOverridden
+                  userConfig={config}
+                  name="ai.bedrock.region_name"
+                />
+              </FormItem>
+              <FormDescription>
+                The AWS region where Bedrock service is available.
+              </FormDescription>
+            </div>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="ai.bedrock.profile_name"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>AWS Profile Name (Optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="bedrock-profile-input"
+                    className="m-0 inline-flex"
+                    rootClassName="flex-1"
+                    placeholder="default"
+                    {...field}
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden
+                  userConfig={config}
+                  name="ai.bedrock.profile_name"
+                />
+              </FormItem>
+              <FormDescription>
+                The AWS profile name from your ~/.aws/credentials file. Leave
+                blank to use your default AWS credentials.
+              </FormDescription>
+            </div>
+          )}
+        />
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+);
+
+const AzureAccordionSection: React.FC<AccordionSectionProps> = ({
+  form,
+  config,
+}) => (
+  <AccordionItem value="azure">
+    <AccordionTrigger>Azure OpenAI</AccordionTrigger>
+    <AccordionContent>
+      <div className="space-y-4">
+        <FormField
+          control={form.control}
+          name="ai.azure.api_key"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>API Key</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="ai-azure-api-key-input"
+                    className="m-0 inline-flex"
+                    rootClassName="flex-1"
+                    placeholder="sk-proj..."
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value.includes("*")) {
+                        field.onChange(value);
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="ai.azure.api_key" />
+              </FormItem>
+              <FormDescription>Your Azure OpenAI API key.</FormDescription>
+            </div>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="ai.azure.base_url"
+          render={({ field }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>Base URL</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="ai-azure-base-url-input"
+                    className="m-0 inline-flex"
+                    rootClassName="flex-1"
+                    placeholder="https://your-resource.openai.azure.com"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+                <IsOverridden userConfig={config} name="ai.azure.base_url" />
+              </FormItem>
+              <FormDescription>Your Azure OpenAI endpoint URL</FormDescription>
+            </div>
+          )}
+        />
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+);

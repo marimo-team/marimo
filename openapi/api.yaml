@@ -1329,6 +1329,8 @@ components:
                 api_key:
                   type: string
               type: object
+            azure:
+              $ref: '#/components/schemas/OpenAiConfig'
             bedrock:
               properties:
                 aws_access_key_id:
@@ -1348,20 +1350,9 @@ components:
             max_tokens:
               type: integer
             open_ai:
-              properties:
-                api_key:
-                  type: string
-                base_url:
-                  type: string
-                ca_bundle_path:
-                  type: string
-                client_pem:
-                  type: string
-                model:
-                  type: string
-                ssl_verify:
-                  type: boolean
-              type: object
+              $ref: '#/components/schemas/OpenAiConfig'
+            provider_type:
+              type: string
             rules:
               type: string
           type: object
@@ -1817,6 +1808,21 @@ components:
       - type: boolean
       - format: byte
         type: string
+    OpenAiConfig:
+      properties:
+        api_key:
+          type: string
+        base_url:
+          type: string
+        ca_bundle_path:
+          type: string
+        client_pem:
+          type: string
+        model:
+          type: string
+        ssl_verify:
+          type: boolean
+      type: object
     OpenTutorialRequest:
       properties:
         tutorialId:
@@ -2572,7 +2578,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.11
+  version: 0.13.12
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
