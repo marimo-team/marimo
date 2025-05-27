@@ -392,11 +392,9 @@ def test_dropdown_with_non_string_options() -> None:
     assert dd.value == "2"
 
 
-def test_dropdown_too_many_options() -> None:
-    with pytest.raises(ValueError) as e:
-        ui.dropdown(options={str(i): i for i in range(2000)})
-
-    assert "maximum number" in str(e.value)
+def test_dropdown_lots_of_options() -> None:
+    dropdown = ui.dropdown(options={str(i): i for i in range(2000)})
+    assert dropdown._component_args["searchable"] is True
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
