@@ -17,7 +17,6 @@ import type { DataTableSelection } from "./types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { toast } from "../ui/use-toast";
 import { cn } from "@/utils/cn";
-import { initialMode } from "@/core/mode";
 import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 
 interface TableActionsProps<TData> {
@@ -125,8 +124,7 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {/* Disable in read mode, for now, until the panel is shown */}
-      {togglePanel && isPanelOpen && initialMode !== "read" && (
+      {togglePanel && isPanelOpen !== undefined && (
         <>
           <Tooltip content="Toggle row viewer">
             <Button
