@@ -9,7 +9,7 @@ class TestVersionCache:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_load_v1_pickle(app) -> None:
+    def test_load_v3_pickle(app) -> None:
         @app.cell
         def _():
             unhashable = [object()]
@@ -21,7 +21,7 @@ class TestVersionCache:
 
             ref = 1
             with persistent_cache(
-                name="pickle-dump-v1", save_path="tests/_save/cache-dumps"
+                name="pickle-dump-v3", save_path="tests/_save/cache-dumps"
             ) as cache:
                 value = 1 + len(unhashable) + ref
             assert cache.hit
@@ -31,7 +31,7 @@ class TestVersionCache:
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
-    def test_load_v1_json(app) -> None:
+    def test_load_v3_json(app) -> None:
         @app.cell
         def _():
             unhashable = [object()]
@@ -43,7 +43,7 @@ class TestVersionCache:
 
             ref = 1
             with persistent_cache(
-                name="json-dump-v1",
+                name="json-dump-v3",
                 save_path="tests/_save/cache-dumps",
                 method="json",
             ) as cache:
