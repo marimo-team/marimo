@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from functools import cache
 from importlib.util import find_spec
 from inspect import cleandoc
@@ -9,6 +10,7 @@ from typing import Any, Literal, Optional, Union
 from urllib.request import urlopen
 
 import markdown  # type: ignore
+import markdown.preprocessors  # type: ignore
 import pymdownx.emoji  # type: ignore
 
 from marimo._output.hypertext import Html
@@ -17,32 +19,125 @@ from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
 from marimo._utils.url import is_url
 
-extension_configs: dict[str, dict[str, Any]] = {
-    "pymdownx.arithmatex": {
-        # Use "generic" mode, no preview, since we don't use MathJax
-        "preview": False,
-        "generic": True,
-        # The default "\\(" causes problems when passing
-        # html-escaped `md` output back into `md`
-        "tex_inline_wrap": ["||(", "||)"],
-        "tex_block_wrap": ["||[", "||]"],
-        # Wrap latex in a custom element
-        "block_tag": "marimo-tex",
-        "inline_tag": "marimo-tex",
-    },
-    "pymdownx.superfences": {
-        "disable_indented_code_blocks": True,
-        "css_class": "codehilite",
-    },
-    "pymdownx.emoji": {
-        # This uses native emoji characters,
-        # instead of loading from a CDN
-        "emoji_generator": pymdownx.emoji.to_alt,
-    },
-    "footnotes": {
-        "UNIQUE_IDS": True,
-    },
-}
+
+class PyconDetectorExtension(markdown.Extension):
+    """Markdown extension to detect Python console sessions and mark them as pycon."""
+
+    def extendMarkdown(self, md: markdown.Markdown) -> None:
+        """Add the preprocessor to the markdown instance."""
+        processor = PyconDetectorPreprocessor(md)
+        md.preprocessors.register(processor, "pycon_detector", 30)
+
+
+class PyconDetectorPreprocessor(markdown.preprocessors.Preprocessor):
+    """Preprocessor that detects Python console sessions in fenced code blocks.
+
+    For example, the following code:
+
+    ```
+    >>> print("Hello, world!")
+    ... print("Hello, world!")
+    ```
+
+    will be detected as a Python console session and marked as `pycon`.
+    """
+
+    def __init__(self, md: markdown.Markdown) -> None:
+        super().__init__(md)
+        # Pattern to match fenced code blocks
+        self.fence_pattern = re.compile(
+            r"^(\s*)```(\w*)\s*\n(.*?)^(\s*)```\s*$", re.MULTILINE | re.DOTALL
+        )
+
+    def run(self, lines: list[str]) -> list[str]:
+        """Process the lines and detect pycon patterns."""
+        text = "\n".join(lines)
+
+        def replace_fence(match: re.Match[str]) -> str:
+            indent = match.group(1)
+            language = match.group(2) or ""
+            code = match.group(3)
+
+            # Only process if no language is specified
+            if not language:
+                if self._detect_pycon(code):
+                    # Replace with pycon language
+                    return f"{indent}```pycon\n{code}{indent}```"
+
+            # Return original
+            return match.group(0)
+
+        modified_text = self.fence_pattern.sub(replace_fence, text)
+        return modified_text.split("\n")
+
+    def _detect_pycon(self, code: str) -> bool:
+        """
+        Detect if code contains Python console session patterns.
+
+        Returns True if the code appears to be a Python console session
+        (contains >>> or ... prompts).
+        """
+        lines = code.strip().split("\n")
+
+        # Look for Python console prompts
+        console_prompt_pattern = re.compile(r"^\s*>>>")
+        continuation_prompt_pattern = re.compile(r"^\s*\.\.\.")
+
+        # Count lines that look like console prompts
+        prompt_lines = 0
+        for line in lines:
+            if console_prompt_pattern.match(
+                line
+            ) or continuation_prompt_pattern.match(line):
+                prompt_lines += 1
+
+        # If more than 30% of non-empty lines are prompts, likely a console session
+        non_empty_lines = [line for line in lines if line.strip()]
+        if len(non_empty_lines) == 0:
+            return False
+
+        return prompt_lines / len(non_empty_lines) > 0.3
+
+
+@cache
+def _get_extension_configs() -> dict[str, dict[str, Any]]:
+    extension_configs: dict[str, dict[str, Any]] = {
+        "pymdownx.arithmatex": {
+            # Use "generic" mode, no preview, since we don't use MathJax
+            "preview": False,
+            "generic": True,
+            # The default "\\(" causes problems when passing
+            # html-escaped `md` output back into `md`
+            "tex_inline_wrap": ["||(", "||)"],
+            "tex_block_wrap": ["||[", "||]"],
+            # Wrap latex in a custom element
+            "block_tag": "marimo-tex",
+            "inline_tag": "marimo-tex",
+        },
+        "pymdownx.highlight": {
+            "use_pygments": True,
+            # Try to guess the language of the code block
+            "guess_lang": "block",
+            # Show the language in the classname, helps with debugging and
+            # customizing the styles
+            "pygments_lang_class": True,
+        },
+        "pymdownx.superfences": {
+            "disable_indented_code_blocks": True,
+            "css_class": "codehilite",
+        },
+        "pymdownx.emoji": {
+            # This uses native emoji characters,
+            # instead of loading from a CDN
+            "emoji_generator": pymdownx.emoji.to_alt,
+        },
+        "footnotes": {
+            "UNIQUE_IDS": True,
+        },
+    }
+
+    return extension_configs
+
 
 MarkdownSize = Literal["sm", "base", "lg", "xl", "2xl"]
 
@@ -55,10 +150,11 @@ def _has_module(module_name: str) -> bool:
 
 
 @cache
-def get_extensions() -> list[Union[str, markdown.Extension]]:
+def _get_extensions() -> list[Union[str, markdown.Extension]]:
     return [
         # Syntax highlighting
-        "codehilite",
+        PyconDetectorExtension(),  # Python console detection (run before highlight)
+        "pymdownx.highlight",
         # Markdown tables
         "tables",
         # LaTeX
@@ -131,8 +227,8 @@ class _md(Html):
         # markdown.markdown appends a newline, hence strip
         html_text = markdown.markdown(
             text,
-            extensions=get_extensions(),
-            extension_configs=extension_configs,  # type: ignore[arg-type]
+            extensions=_get_extensions(),
+            extension_configs=_get_extension_configs(),
         ).strip()
         # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
         html_text = html_text.replace(

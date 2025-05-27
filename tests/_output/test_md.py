@@ -32,7 +32,7 @@ def test_md() -> None:
 def test_md_code_blocks() -> None:
     # Test code block conversion
     code_input = "```python\nprint('Hello, world!')\n```"
-    expected_output = '<div class="codehilite"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Hello, world!&#39;</span><span class="p">)</span>\n</code></pre></div>'  # noqa: E501
+    expected_output = '<div class="language-python codehilite"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Hello, world!&#39;</span><span class="p">)</span>\n</code></pre></div>'  # noqa: E501
     assert _md(code_input, apply_markdown_class=False).text == expected_output
 
 
@@ -113,6 +113,142 @@ def test_md_sane_lists() -> None:
     input_text = "2. hey\n3. hey"
     expected_output = '<ol start="2">\n<li>hey</li>\n<li>hey</li>\n</ol>'
     assert _md(input_text, apply_markdown_class=False).text == expected_output
+
+
+def test_md_pycon_detection() -> None:
+    # Test basic pycon detection with >>> prompts
+    pycon_input = """```
+>>> print("Hello, world!")
+Hello, world!
+>>> x = 42
+>>> print(x)
+42
+```"""
+    result = _md(pycon_input, apply_markdown_class=False).text
+    assert "language-pycon" in result
+    assert "&gt;&gt;&gt;" in result  # HTML-encoded >>>
+
+    # Test pycon detection with continuation prompts
+    pycon_continuation = """```
+>>> def hello():
+...     print("Hello")
+...     return True
+>>> hello()
+Hello
+True
+```"""
+    result = _md(pycon_continuation, apply_markdown_class=False).text
+    assert "language-pycon" in result
+    assert "&gt;&gt;&gt;" in result  # HTML-encoded >>>
+
+    # Test mixed prompts
+    mixed_prompts = """```
+>>> import os
+>>> for i in range(2):
+...     print(i)
+0
+1
+>>> print("done")
+done
+```"""
+    result = _md(mixed_prompts, apply_markdown_class=False).text
+    assert "language-pycon" in result
+
+    # Test that regular python code is not converted
+    regular_python = """```python
+def hello():
+    print("Hello")
+    return True
+
+hello()
+```"""
+    result = _md(regular_python, apply_markdown_class=False).text
+    assert "language-python" in result
+    assert "language-pycon" not in result
+
+    # Test that code without language is converted if it has pycon patterns
+    no_language_pycon = """```
+>>> 1 + 1
+2
+>>> "hello".upper()
+'HELLO'
+```"""
+    result = _md(no_language_pycon, apply_markdown_class=False).text
+    assert "language-pycon" in result
+
+    # Test that code without prompts is not converted
+    no_prompts = """```
+print("Hello")
+x = 42
+print(x)
+```"""
+    result = _md(no_prompts, apply_markdown_class=False).text
+    assert "language-pycon" not in result
+
+    # Test edge case: low ratio of prompts (should not convert)
+    low_ratio = """```
+>>> print("one line with prompt")
+line without prompt
+another line without prompt
+yet another line without prompt
+and another line without prompt
+```"""
+    result = _md(low_ratio, apply_markdown_class=False).text
+    # Should not be converted because prompt ratio is too low (1/5 = 20% < 30%)
+    assert "language-pycon" not in result
+
+    # Test edge case: high ratio of prompts (should convert)
+    high_ratio = """```
+>>> print("first")
+first
+>>> print("second")
+second
+>>> print("third")
+third
+some output
+```"""
+    result = _md(high_ratio, apply_markdown_class=False).text
+    # Should be converted because prompt ratio is high (3/7 = ~43% > 30%)
+    assert "language-pycon" in result
+
+    # Test empty code block
+    empty_block = """```
+```"""
+    result = _md(empty_block, apply_markdown_class=False).text
+    assert "language-pycon" not in result
+
+    # Test with specified language other than python (should not convert)
+    other_language = """```javascript
+>>> this is not python
+console.log("hello");
+```"""
+    result = _md(other_language, apply_markdown_class=False).text
+    assert "language-javascript" in result
+    assert "language-pycon" not in result
+
+    # Test with whitespace around prompts
+    whitespace_prompts = """```
+   >>> print("with spaces")
+   with spaces
+   >>> x = 1
+```"""
+    result = _md(whitespace_prompts, apply_markdown_class=False).text
+    assert "language-pycon" in result
+
+    # Test single line with prompt (should convert)
+    single_line = """```
+>>> print("single")
+```"""
+    result = _md(single_line, apply_markdown_class=False).text
+    assert "language-pycon" in result
+
+    # Test only continuation prompts (should convert)
+    only_continuation = """```
+... print("continuation")
+... print("more")
+```"""
+    result = _md(only_continuation, apply_markdown_class=False).text
+    assert "language-pycon" in result
 
 
 def test_md_repr_markdown():

@@ -26,7 +26,7 @@ def test_build_docstring_function_no_init():
     )
     assert "my_func" in result
     assert "This is a simple docstring for a function." in result
-    assert '<div class="codehilite">' in result
+    assert '<div class="language-python3 codehilite">' in result
     if DependencyManager.docstring_to_markdown.has():
         snapshot("docstrings_function.txt", result)
 
