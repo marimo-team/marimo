@@ -220,8 +220,8 @@ def test_altair_formatter_embed_options():
             "timeFormatLocale"
         ] == json.loads(response.read())
 
-    # Old embed option still in
-    assert "formatLocale" in content["usermeta"]["embedOptions"]
+    # Old embed option is no longer present
+    assert "formatLocale" not in content["usermeta"]["embedOptions"]
 
     # Test reset embed options
     alt.renderers.set_embed_options()

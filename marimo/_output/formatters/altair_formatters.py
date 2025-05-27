@@ -119,14 +119,6 @@ def _apply_embed_options(chart: AltairChartType) -> AltairChartType:
     embed_options = alt.renderers.options.get("embed_options", {})
     prev_usermeta = {} if alt.Undefined is chart.usermeta else chart.usermeta
 
-    # If embed_options is None or empty, return chart with empty embedOptions
-    # if not embed_options:
-    #     chart["usermeta"] = {
-    #         **prev_usermeta,
-    #         "embedOptions": {},
-    #     }
-    #     return chart
-
     embed_options = _apply_format_locales(embed_options)
 
     chart["usermeta"] = {
