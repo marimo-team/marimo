@@ -21,15 +21,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import React from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import {
   AddDataframeChart,
+  renderChart,
+  renderChartMaxRowsWarning,
   renderPreviewError,
   renderStats,
 } from "@/components/datasources/column-preview";
-import { ColumnPreviewContainer } from "@/components/datasources/components";
+import {
+  ColumnPreviewContainer,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/datasources/components";
+import { useTheme } from "@/theme/useTheme";
+import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 
 interface ColumnExplorerPanelProps {
   previewColumn: PreviewColumn;
@@ -44,26 +51,32 @@ export const ColumnExplorerPanel = ({
   totalRows,
   totalColumns,
 }: ColumnExplorerPanelProps) => {
-  // TODO: Add copy all column names
+  const columns = fieldTypes?.filter(([columnName]) => {
+    if (
+      columnName === SELECT_COLUMN_ID ||
+      columnName === INDEX_COLUMN_NAME ||
+      columnName.startsWith(NAMELESS_COLUMN_PREFIX)
+    ) {
+      return false;
+    }
+    return true;
+  });
 
   return (
-    <div className="mt-3 mb-3">
-      <span className="text-sm font-semibold ml-1">
+    <div className="mt-5 mb-3">
+      <span className="text-sm font-semibold ml-2 flex group">
         {prettifyRowColumnCount(totalRows, totalColumns)}
+        <CopyClipboardIcon
+          tooltip="Copy column names"
+          value={columns?.map(([columnName]) => columnName).join(",\n") || ""}
+          className="h-3 w-3 ml-1 mt-0.5 group-hover:opacity-100 opacity-0"
+        />
       </span>
       <Command className="h-5/6">
         <CommandInput placeholder="Search columns..." />
         <CommandList className="max-h-full">
           <CommandEmpty>No results.</CommandEmpty>
-          {fieldTypes?.map(([columnName, [dataType, externalType]]) => {
-            if (
-              columnName === SELECT_COLUMN_ID ||
-              columnName === INDEX_COLUMN_NAME ||
-              columnName.startsWith(NAMELESS_COLUMN_PREFIX)
-            ) {
-              return null;
-            }
-
+          {columns?.map(([columnName, [dataType, externalType]]) => {
             return (
               <ColumnItem
                 key={columnName}
@@ -124,11 +137,13 @@ const ColumnItem = ({
         </div>
       </CommandItem>
       {isExpanded && (
-        <ColumnPreview
-          previewColumn={previewColumn}
-          columnName={columnName}
-          dataType={dataType}
-        />
+        <ErrorBoundary>
+          <ColumnPreview
+            previewColumn={previewColumn}
+            columnName={columnName}
+            dataType={dataType}
+          />
+        </ErrorBoundary>
       )}
     </>
   );
@@ -143,26 +158,23 @@ const ColumnPreview = ({
   columnName: string;
   dataType: DataType;
 }) => {
+  const { theme } = useTheme();
+
   const { data, error, loading } = useAsyncData(async () => {
     const response = await previewColumn({ column: columnName });
     return response;
   }, []);
 
-  // TODO: Display errors and loading state nicely
   if (error) {
-    return (
-      <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
-        <span>{error.message}</span>
-      </div>
-    );
+    return <ErrorState error={error} />;
   }
 
   if (loading) {
-    return <span>Loading...</span>;
+    return <LoadingState message="Loading..." />;
   }
 
   if (!data) {
-    return <span>No data</span>;
+    return <EmptyState content="No data" className="pl-4" />;
   }
 
   const {
@@ -179,34 +191,17 @@ const ColumnPreview = ({
 
   const previewStats = stats && renderStats(stats, dataType);
 
-  const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
-    return {
-      ...spec,
-      config: { ...spec.config, background: "transparent" },
-    };
-  };
-  const chart = chart_spec && (
-    <LazyVegaLite
-      spec={updateSpec(JSON.parse(chart_spec) as TopLevelFacetedUnitSpec)}
-      width={"container" as unknown as number}
-      height={100}
-      actions={false}
-      // theme={theme === "dark" ? "dark" : "vox"}
-    />
-  );
+  const chart = chart_spec && renderChart(chart_spec, theme);
 
   const addDataframeChart = chart_code && (
     <AddDataframeChart chartCode={chart_code} />
   );
 
-  const chartMaxRowsWarning = chart_max_rows_errors && (
-    <span className="text-xs text-muted-foreground">
-      Too many rows to render the chart.
-    </span>
-  );
+  const chartMaxRowsWarning =
+    chart_max_rows_errors && renderChartMaxRowsWarning();
 
   return (
-    <ColumnPreviewContainer>
+    <ColumnPreviewContainer className="px-2">
       {errorState}
       {addDataframeChart}
       {chartMaxRowsWarning}
@@ -215,7 +210,3 @@ const ColumnPreview = ({
     </ColumnPreviewContainer>
   );
 };
-
-const LazyVegaLite = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
-);

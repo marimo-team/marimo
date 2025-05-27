@@ -92,10 +92,8 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    const rowsLabel = prettifyRowCount(numRows);
-    const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
-
-    return <span>{[rowsLabel, columnsLabel].join(", ")}</span>;
+    const rowColumnCount = prettifyRowColumnCount(numRows, totalColumns);
+    return <span>{rowColumnCount}</span>;
   };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,

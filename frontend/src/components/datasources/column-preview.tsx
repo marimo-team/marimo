@@ -8,7 +8,7 @@ import type {
   DataTableColumn,
   DataType,
 } from "@/core/kernel/messages";
-import { useTheme } from "@/theme/useTheme";
+import { type Theme, useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import React from "react";
 import { previewDatasetColumn } from "@/core/network/requests";
@@ -19,7 +19,6 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { Tooltip } from "../ui/tooltip";
 import { ColumnPreviewContainer } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import type { ColumnHeaderStats } from "../data-table/types";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { maybeAddAltairImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
@@ -97,23 +96,7 @@ export const DatasetColumnPreview: React.FC<{
 
   const stats = preview.stats && renderStats(preview.stats, column.type);
 
-  const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
-    return {
-      ...spec,
-      config: { ...spec.config, background: "transparent" },
-    };
-  };
-  const chart = preview.chart_spec && (
-    <LazyVegaLite
-      spec={updateSpec(
-        JSON.parse(preview.chart_spec) as TopLevelFacetedUnitSpec,
-      )}
-      width={"container" as unknown as number}
-      height={100}
-      actions={false}
-      theme={theme === "dark" ? "dark" : "vox"}
-    />
-  );
+  const chart = preview.chart_spec && renderChart(preview.chart_spec, theme);
 
   const addDataframeChart = preview.chart_code &&
     table.source_type === "local" && (
@@ -166,7 +149,10 @@ export function renderPreviewError(
   );
 }
 
-export function renderStats(stats: ColumnHeaderStats, dataType: DataType) {
+export function renderStats(
+  stats: Record<string, string | number | boolean | null>,
+  dataType: DataType,
+) {
   return (
     <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
       {Object.entries(stats).map(([key, value]) => {
@@ -198,6 +184,25 @@ export function renderChartMaxRowsWarning() {
     <span className="text-xs text-muted-foreground">
       Too many rows to render the chart.
     </span>
+  );
+}
+
+export function renderChart(chartSpec: string, theme: Theme) {
+  const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
+    return {
+      ...spec,
+      config: { ...spec.config, background: "transparent" },
+    };
+  };
+
+  return (
+    <LazyVegaLite
+      spec={updateSpec(JSON.parse(chartSpec) as TopLevelFacetedUnitSpec)}
+      width={"container" as unknown as number}
+      height={100}
+      actions={false}
+      theme={theme === "dark" ? "dark" : "vox"}
+    />
   );
 }
 

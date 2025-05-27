@@ -460,11 +460,11 @@ const TableList: React.FC<{
   }, [tables.length, sqlTableContext, tablesRequested]);
 
   if (loading || tablesLoading) {
-    return <LoadingState message="Loading tables..." />;
+    return <LoadingState message="Loading tables..." className="pl-12" />;
   }
 
   if (error) {
-    return <ErrorState error={error} />;
+    return <ErrorState error={error} className="pl-12" />;
   }
 
   if (tables.length === 0) {
@@ -592,11 +592,11 @@ const DatasetTableItem: React.FC<{
 
   const renderColumns = () => {
     if (loading) {
-      return <LoadingState message="Loading columns..." />;
+      return <LoadingState message="Loading columns..." className="pl-12" />;
     }
 
     if (error) {
-      return <ErrorState error={error} />;
+      return <ErrorState error={error} className="pl-12" />;
     }
 
     const columns = table.columns;
