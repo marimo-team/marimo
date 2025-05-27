@@ -1,7 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
+import { viewStateAtom } from "@/core/mode";
 import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";
+import { cn } from "@/utils/cn";
+import { useAtomValue } from "jotai";
 import { UnlinkIcon, HourglassIcon, LockIcon } from "lucide-react";
 import React from "react";
 
@@ -9,22 +12,28 @@ export const StatusOverlay: React.FC<{
   connection: ConnectionStatus;
   isRunning: boolean;
 }> = ({ connection, isRunning }) => {
+  const { mode } = useAtomValue(viewStateAtom);
+  const isClosed = connection.state === WebSocketState.CLOSED;
+  const isOpen = connection.state === WebSocketState.OPEN;
+
   return (
     <>
-      {connection.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
-      {connection.state === WebSocketState.CLOSED &&
-        !connection.canTakeover && <NoiseBackground />}
-      {connection.state === WebSocketState.CLOSED &&
-        !connection.canTakeover && <DisconnectedIcon />}
-      {connection.state === WebSocketState.CLOSED && connection.canTakeover && (
-        <LockedIcon />
-      )}
+      {isClosed && !connection.canTakeover && <NoiseBackground />}
+      <div
+        className={cn(
+          "z-50 top-4 left-4",
+          mode === "read" ? "fixed" : "absolute",
+        )}
+      >
+        {isOpen && isRunning && <RunningIcon />}
+        {isClosed && !connection.canTakeover && <DisconnectedIcon />}
+        {isClosed && connection.canTakeover && <LockedIcon />}
+      </div>
     </>
   );
 };
 
-const topLeftStatus =
-  "absolute top-4 left-4 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50 hover:cursor-pointer";
+const topLeftStatus = "no-print pointer-events-auto hover:cursor-pointer";
 
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
@@ -43,7 +52,7 @@ const LockedIcon = () => (
 );
 
 const RunningIcon = () => (
-  <Tooltip content={"Jump to running cell"} side="right">
+  <Tooltip content="Jump to running cell" side="right">
     <div
       className={topLeftStatus}
       data-testid="loading-indicator"
