@@ -294,8 +294,8 @@ class TestHash:
         _, defs1 = app1.run()
         _, defs2 = app2.run()
 
-        # assert defs1["ctx"].cell_lifecycle_registry.registry == {}
-        # assert defs2["ctx"].cell_lifecycle_registry.registry == {}
+        assert len(defs1["ctx"].cell_lifecycle_registry.registry) == 2
+        assert len(defs2["ctx"].cell_lifecycle_registry.registry) == 2
         assert defs1["cache"]._cache.hash != defs2["cache"]._cache.hash
         assert defs1["output"] != defs2["output"]
 
