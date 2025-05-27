@@ -14,9 +14,9 @@ if pnpm build; then
   mkdir -p ../marimo/_lsp
   cp dist/index.cjs ../marimo/_lsp/
   # There seems to be a discrepancy between CI and mac for pnpm builds
-  if [ -d dist/copilot ]; then
+  if [ -d dist/copilot/dist ]; then
     echo "Copying dist/copilot to _lsp/copilot"
-    cp -R dist/copilot ../marimo/_lsp/copilot
+    cp -R dist/copilot/dist/. ../marimo/_lsp/copilot/
   elif [ -d dist/dist ]; then
     echo "Copying contents of dist/dist/. to _lsp/copilot"
     cp -R dist/dist/. ../marimo/_lsp/copilot/
