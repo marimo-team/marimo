@@ -338,9 +338,9 @@ class TestAppCache:
                     return 2
 
                 with persistent_cache(
-                    name="one", _loader=MockLoader({"mo": mod})
+                    name="one", _loader=MockLoader(data={"mo": mod})
                 ) as cache:
-                    import marimo as mo
+                    import numpy as mo
                 """
                     ),
                 ),
@@ -390,9 +390,8 @@ class TestAppCache:
                 def my_func_2():
                     return 2
 
-                with persistent_cache(
-                    name="one", _loader=MockLoader({"my_func": my_func_2})
-                ) as cache:
+                with persistent_cache(name="one", _loader=MockLoader(data={"my_func": my_func_2})) as cache:
+                    print("Runs, miss")
                     def my_func():
                         return 1
                 """
@@ -416,7 +415,7 @@ class TestAppCache:
                 from tests._save.loaders.mocks import MockLoader
 
                 with persistent_cache(
-                    name="one", _loader=MockLoader()})
+                    name="one", _loader=MockLoader()
                 ) as cache:
                     def my_func():
                         return 1
