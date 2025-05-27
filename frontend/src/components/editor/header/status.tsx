@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
-import { type AppMode, viewStateAtom } from "@/core/mode";
+import { viewStateAtom } from "@/core/mode";
 import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { useAtomValue } from "jotai";
@@ -13,48 +13,48 @@ export const StatusOverlay: React.FC<{
   isRunning: boolean;
 }> = ({ connection, isRunning }) => {
   const { mode } = useAtomValue(viewStateAtom);
+  const isClosed = connection.state === WebSocketState.CLOSED;
+  const isOpen = connection.state === WebSocketState.OPEN;
+
   return (
     <>
-      {connection.state === WebSocketState.OPEN && isRunning && (
-        <RunningIcon mode={mode} />
-      )}
-      {connection.state === WebSocketState.CLOSED &&
-        !connection.canTakeover && <NoiseBackground />}
-      {connection.state === WebSocketState.CLOSED &&
-        !connection.canTakeover && <DisconnectedIcon mode={mode} />}
-      {connection.state === WebSocketState.CLOSED && connection.canTakeover && (
-        <LockedIcon mode={mode} />
-      )}
+      {isClosed && !connection.canTakeover && <NoiseBackground />}
+      <div
+        className={cn(
+          "z-50 top-4 left-4",
+          mode === "read" ? "fixed" : "absolute",
+        )}
+      >
+        {isOpen && isRunning && <RunningIcon />}
+        {isClosed && !connection.canTakeover && <DisconnectedIcon />}
+        {isClosed && connection.canTakeover && <LockedIcon />}
+      </div>
     </>
   );
 };
 
-const topLeftStatus = (mode: AppMode) =>
-  cn(
-    "flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50 hover:cursor-pointer",
-    mode === "edit" ? "absolute top-4 left-4 m-0" : "fixed top-8 left-8 ml-4",
-  );
+const topLeftStatus = "no-print pointer-events-auto hover:cursor-pointer";
 
-const DisconnectedIcon = ({ mode }: { mode: AppMode }) => (
+const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
-    <div className={topLeftStatus(mode)}>
+    <div className={topLeftStatus}>
       <UnlinkIcon className="w-[25px] h-[25px] text-[var(--red-11)]" />
     </div>
   </Tooltip>
 );
 
-const LockedIcon = ({ mode }: { mode: AppMode }) => (
+const LockedIcon = () => (
   <Tooltip content="Notebook locked">
-    <div className={topLeftStatus(mode)}>
+    <div className={topLeftStatus}>
       <LockIcon className="w-[25px] h-[25px] text-[var(--blue-11)]" />
     </div>
   </Tooltip>
 );
 
-const RunningIcon = ({ mode }: { mode: AppMode }) => (
-  <Tooltip content={"Jump to running cell"} side="right">
+const RunningIcon = () => (
+  <Tooltip content="Jump to running cell" side="right">
     <div
-      className={topLeftStatus(mode)}
+      className={topLeftStatus}
       data-testid="loading-indicator"
       onClick={notebookScrollToRunning}
     >
