@@ -180,6 +180,7 @@ def test_altair_formatter_sanitize_nan_infs(df: IntoDataFrame):
     assert content.count('"B": null') == 3
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
 def test_altair_formatter_embed_options():
     AltairFormatter().register()
     import altair as alt
