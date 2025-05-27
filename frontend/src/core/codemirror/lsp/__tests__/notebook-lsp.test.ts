@@ -211,6 +211,7 @@ describe("NotebookLanguageServerClient", () => {
         [Cells.cell3]: "print(math.sqrt(4))",
       },
     });
+    (NotebookLanguageServerClient as any).SEEN_CELL_DOCUMENT_URIS.clear();
   });
 
   describe("textDocumentHover", () => {
@@ -569,13 +570,13 @@ describe("NotebookLanguageServerClient", () => {
   describe("diagnostics handling", () => {
     it("should transform diagnostic ranges and filter out-of-bounds diagnostics", async () => {
       // Mock processNotification to capture the transformed diagnostics
-      let capturedDiagnostics: LSP.PublishDiagnosticsParams | undefined;
+      const capturedDiagnostics: LSP.PublishDiagnosticsParams[] = [];
       // @ts-expect-error: processNotification is private
       mockClient.processNotification = vi
         .fn()
         .mockImplementation((notification: any) => {
           if (notification.method === "textDocument/publishDiagnostics") {
-            capturedDiagnostics = notification.params;
+            capturedDiagnostics.push(notification.params);
           }
         });
 
@@ -625,12 +626,15 @@ describe("NotebookLanguageServerClient", () => {
       // @ts-expect-error: processNotification is private
       notebookClient.client.processNotification(diagnosticsNotification);
 
-      expect(capturedDiagnostics).toBeDefined();
-      expect(capturedDiagnostics?.diagnostics).toHaveLength(1);
-      expect(capturedDiagnostics?.diagnostics[0].range).toEqual({
+      expect(capturedDiagnostics).toHaveLength(2);
+      expect(capturedDiagnostics[0].diagnostics).toHaveLength(1);
+      expect(capturedDiagnostics[0].diagnostics[0].range).toEqual({
         start: { line: 0, character: 0 },
         end: { line: 0, character: 4 },
       });
+
+      // Rest are cleared
+      expect(capturedDiagnostics[1].diagnostics).toHaveLength(0);
     });
 
     it("should clear diagnostics for all cells when receiving empty diagnostics", async () => {
