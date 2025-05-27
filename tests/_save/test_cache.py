@@ -8,6 +8,7 @@ import warnings
 
 import pytest
 
+import marimo
 from marimo._ast.app import App
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
@@ -320,6 +321,113 @@ class TestAppCache:
         assert k.globals["X"] == 7
         assert k.globals["Y"] == 8
         assert k.globals["Z"] == 3
+
+    async def test_cache_module_hit(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                import marimo as mod
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                def my_func_2():
+                    return 2
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader({"mo": mod})})
+                ) as cache:
+                    import marimo as mo
+                """
+                    ),
+                ),
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["mo"].__version__ == marimo.__version__
+
+    async def test_cache_module_miss(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader()})
+                ) as cache:
+                    import marimo as mo
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["mo"].__version__ == marimo.__version__
+
+    async def test_cache_function_hit(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                def my_func_2():
+                    return 2
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader({"my_func": my_func_2})})
+                ) as cache:
+                    def my_func():
+                        return 1
+                """
+                    ),
+                ),
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["my_func"]() == 2
+
+    async def test_cache_function_miss(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader()})
+                ) as cache:
+                    def my_func():
+                        return 1
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["my_func"]() == 1
 
     async def test_cache_one_line(self, any_kernel: Kernel) -> None:
         k = any_kernel
