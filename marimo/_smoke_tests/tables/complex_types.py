@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.24"
+__generated_with = "0.13.12"
 app = marimo.App(width="medium")
 
 
@@ -89,14 +89,14 @@ def _():
         }
     )
     mo.ui.table(df)
-    return date, datetime, df, mo, np, pl, time
+    return date, datetime, df, mo, pl, time
 
 
 @app.cell
 def _(df):
     pandas = df.to_pandas()
     pandas
-    return (pandas,)
+    return
 
 
 @app.cell
@@ -108,7 +108,74 @@ def _(mo, pd, pl):
         {"complex": [1 + 2j, 2 + 3j], "bigint": [2**64, 2**65]}
     )
     mo.vstack([additional_types_pd, additional_types_pl])
-    return additional_types_pd, additional_types_pl
+    return
+
+
+@app.cell
+def _(alt, df):
+    _chart = (
+        alt.Chart(df)
+        .transform_filter(f"datum.times != null")
+        .transform_timeunit(as_="_times", field="times", timeUnit="hoursminutes")
+        .mark_bar()
+        .encode(
+            x=alt.X("_times:T", title="times"),
+            y=alt.Y("count():Q", title="Number of records"),
+            tooltip=[
+                alt.Tooltip("_times:T", title="times", timeUnit="hoursminutes"),
+                alt.Tooltip("count():Q", title="Number of records", format=",.0f"),
+            ],
+        )
+        .properties(width="container")
+        .configure_view(stroke=None)
+    )
+    _chart
+    return
+
+
+@app.cell
+def _(alt, date, datetime, pl, time):
+    import random
+
+    _df = pl.DataFrame(
+        {
+            "times": [
+                time(
+                    hour=random.choices(
+                        [9, 10, 11, 14, 15, 16], weights=[2, 3, 2, 2, 3, 2]
+                    )[0],
+                )
+                for _ in range(100)
+            ]
+        }
+    )
+
+    _df_dt = _df.with_columns(
+        pl.col("times")
+        .map_elements(
+            lambda t: datetime.combine(date(2021, 1, 1), t),
+            return_dtype=pl.Datetime,
+        )
+        .alias("datetime_times")
+    )
+
+    _chart = (
+        alt.Chart(_df_dt)
+        .mark_bar()
+        .encode(
+            x=alt.X("datetime_times:T", timeUnit="hours", title="Hour"),
+            y=alt.Y("count():Q", title="Number of records"),
+        )
+        .properties(width="container")
+    )
+    _df
+    return
+
+
+@app.cell
+def _():
+    import altair as alt
+    return (alt,)
 
 
 @app.cell
@@ -138,7 +205,7 @@ def _(mo):
         }
     )
     mo.ui.dataframe(pandas_with_timestamp)
-    return pandas_with_timestamp, pd
+    return (pd,)
 
 
 if __name__ == "__main__":

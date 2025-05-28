@@ -112,7 +112,7 @@
         ]
       },
       "mark": {
-        "radius": 100,
+        "radius": 110,
         "size": 13,
         "type": "text"
       },

@@ -20,7 +20,6 @@ import {
   expandedColumnsAtom,
   useDatasets,
 } from "@/core/datasets/state";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Button } from "@/components/ui/button";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
@@ -689,8 +688,6 @@ const DatasetColumnItem: React.FC<{
       return new Set(prev);
     });
   }
-
-  const Icon = DATA_TYPE_ICON[column.type];
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();

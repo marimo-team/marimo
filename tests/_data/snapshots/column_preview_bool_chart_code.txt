@@ -18,7 +18,7 @@ _base = (
 )
 
 _pie = _base.mark_arc(outerRadius=85)
-_text = _base.mark_text(radius=100, size=13).encode(
+_text = _base.mark_text(radius=110, size=13).encode(
     text=alt.Text("percentage:Q", format=".2%"),
 )
 

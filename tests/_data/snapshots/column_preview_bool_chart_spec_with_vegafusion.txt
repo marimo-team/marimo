@@ -137,7 +137,7 @@
             "value": 13
           },
           "radius": {
-            "value": 100
+            "value": 110
           },
           "text": {
             "signal": "format(datum[\"percentage\"], \".2%\")"

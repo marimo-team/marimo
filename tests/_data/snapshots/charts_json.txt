@@ -123,7 +123,7 @@
         ]
       },
       "mark": {
-        "radius": 100,
+        "radius": 110,
         "size": 13,
         "type": "text"
       },
@@ -1351,7 +1351,7 @@
     },
     "y": {
       "aggregate": "count",
-      "title": "{NUM_RECORDS}",
+      "title": "Number of records",
       "type": "quantitative"
     }
   },
