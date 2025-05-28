@@ -56,7 +56,7 @@
         }
       },
       "mark": {
-        "color": "#1C7361",
+        "color": "#8ec8f6",
         "type": "bar"
       },
       "transform": [
@@ -190,5 +190,6 @@
       ]
     }
   ],
+  "title": "some\\[0\\]really\\.bad\\:column",
   "width": "container"
 }

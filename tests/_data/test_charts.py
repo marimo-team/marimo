@@ -30,7 +30,11 @@ TYPES: list[tuple[DataType, bool]] = [
 
 snapshot = snapshotter(__file__)
 
-HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.altair.has()
+HAS_DEPS = (
+    DependencyManager.pandas.has()
+    and DependencyManager.altair.has()
+    and DependencyManager.polars.has()
+)
 
 
 def test_get_chart_builder():
@@ -206,32 +210,40 @@ def test_date_chart_builder_guess_date_format_with_non_narwhalifiable_data():
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_date_chart_builder_get_date_format():
-    from datetime import datetime
+    from datetime import date, datetime, time
 
     import pandas as pd
+    import polars as pl
 
     builder = DateChartBuilder()
 
-    # Test with non-cached format (should guess)
     data = pd.DataFrame(
         {"dates": [datetime(2020, 1, 1), datetime(2020, 2, 1)]}
     )
 
-    # First call should guess the format
-    date_format, time_unit = builder._get_date_format(data, "dates")
+    date_format, time_unit = builder._guess_date_format(data, "dates")
     assert date_format == "%Y-%m-%d %H"
     assert time_unit == "yearmonthdatehours"
 
-    # Second call should use cached format
-    date_format2, time_unit2 = builder._get_date_format(data, "dates")
-    assert date_format2 == date_format
-    assert time_unit2 == time_unit
+    # Test with Polars time types
+    data = pl.DataFrame(
+        {
+            "dates": pl.Series("dates", [date(2021, 1, 1)], dtype=pl.Date),
+            "times": pl.Series("times", [time(12, 0, 0)], dtype=pl.Time),
+            "datetimes": pl.Series(
+                "datetimes", [datetime.now()], dtype=pl.Datetime
+            ),
+        },
+    )
 
-    # Test with manually set format
-    builder2 = DateChartBuilder()
-    builder2.date_format = "%Y"
-    builder2.time_unit = "year"
+    date_format, time_unit = builder._guess_date_format(data, "dates")
+    assert date_format == "%Y-%m-%d %H:%M"
+    assert time_unit == "yearmonthdatehoursminutes"
 
-    date_format3, time_unit3 = builder2._get_date_format(data, "dates")
-    assert date_format3 == "%Y"
-    assert time_unit3 == "year"
+    date_format, time_unit = builder._guess_date_format(data, "times")
+    assert date_format == "%H:%M:%S"
+    assert time_unit == "hoursminutesseconds"
+
+    date_format, time_unit = builder._guess_date_format(data, "datetimes")
+    assert date_format == "%Y-%m-%d %H:%M"
+    assert time_unit == "yearmonthdatehoursminutes"

@@ -18,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { Input } from "@/components/ui/input";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useState, useRef } from "react";
@@ -37,6 +36,7 @@ import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { Column } from "@tanstack/react-table";
 import { renderCellValue } from "../columns";
 import { useKeydownOnElement } from "@/hooks/useHotkey";
+import { ColumnName } from "@/components/datasources/components";
 
 export interface RowViewerPanelProps {
   rowIdx: number;
@@ -159,7 +159,6 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
         </TableHeader>
         <TableBody>
           {fieldTypes?.map(([columnName, [dataType, externalType]]) => {
-            const Icon = dataType ? DATA_TYPE_ICON[dataType] : null;
             const columnValue = rowValues[columnName];
 
             if (!inSearchQuery(columnName, columnValue, searchQuery)) {
@@ -192,11 +191,11 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 
             return (
               <TableRow key={columnName} className="group">
-                <TableCell className="flex flex-row items-center gap-1.5">
-                  {Icon && (
-                    <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />
-                  )}
-                  {columnName}
+                <TableCell>
+                  <ColumnName
+                    columnName={<span>{columnName}</span>}
+                    dataType={dataType}
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-row items-center justify-between gap-1">

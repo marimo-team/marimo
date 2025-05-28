@@ -431,9 +431,9 @@ components:
         table_name:
           type: string
       required:
+      - chart_max_rows_errors
       - table_name
       - column_name
-      - chart_max_rows_errors
       - name
       type: object
     DataSourceConnection:
@@ -2572,7 +2572,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.11
+  version: 0.13.12
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

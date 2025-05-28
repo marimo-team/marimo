@@ -90,7 +90,7 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#1C7361"
+            "value": "#8ec8f6"
           },
           "height": {
             "signal": "max(0.25, bandwidth('y'))"
@@ -234,5 +234,9 @@
       "update": "bandspace(domain('y').length, 0.1, 0.05) * y_step"
     }
   ],
-  "style": "cell"
+  "style": "cell",
+  "title": {
+    "frame": "group",
+    "text": "category_col"
+  }
 }

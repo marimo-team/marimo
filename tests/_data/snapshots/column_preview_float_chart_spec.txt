@@ -42,7 +42,8 @@
     }
   },
   "mark": {
-    "color": "#1C7361",
+    "color": "#be93e4",
+    "stroke": "#8e4ec6",
     "type": "bar"
   },
   "width": "container"

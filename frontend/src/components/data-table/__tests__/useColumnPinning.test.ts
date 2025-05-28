@@ -2,7 +2,7 @@
 import { SELECT_COLUMN_ID } from "../types";
 import { renderHook, act } from "@testing-library/react-hooks";
 import { describe, it, expect } from "vitest";
-import { useColumnPinning } from "../hooks/useColumnPinning";
+import { useColumnPinning } from "../hooks/use-column-pinning";
 
 describe("useColumnPinning", () => {
   it("should initialize with correct default values", () => {

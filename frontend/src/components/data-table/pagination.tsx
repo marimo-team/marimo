@@ -92,10 +92,8 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    const rowsLabel = prettifyRowCount(numRows);
-    const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
-
-    return <span>{[rowsLabel, columnsLabel].join(", ")}</span>;
+    const rowColumnCount = prettifyRowColumnCount(numRows, totalColumns);
+    return <span>{rowColumnCount}</span>;
   };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,
@@ -249,3 +247,14 @@ export const PageSelector = ({
 export function prettifyRowCount(rowCount: number): string {
   return `${prettyNumber(rowCount)} ${new PluralWord("row").pluralize(rowCount)}`;
 }
+
+export const prettifyRowColumnCount = (
+  numRows: number | "too_many",
+  totalColumns: number,
+): string => {
+  const rowsLabel =
+    numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows);
+  const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
+
+  return [rowsLabel, columnsLabel].join(", ");
+};
