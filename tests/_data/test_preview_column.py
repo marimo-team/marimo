@@ -6,8 +6,10 @@ from unittest.mock import patch
 import pytest
 
 from marimo._data.preview_column import (
+    get_column_preview,
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
+    get_table_manager,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.charts.altair_transformer import (
@@ -48,6 +50,37 @@ def cleanup() -> Generator[None, None, None]:
     not HAS_DF_DEPS, reason="optional dependencies not installed"
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
+def test_get_column_preview_for_dataframe() -> None:
+    import pandas as pd
+
+    register_transformers()
+
+    df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
+
+    for column_name in ["A", "B"]:
+        result = get_column_preview_for_dataframe(
+            df,
+            request=PreviewDatasetColumnRequest(
+                source="source",
+                table_name="table",
+                column_name=column_name,
+                source_type="local",
+            ),
+        )
+
+        assert result is not None
+        assert result.table_name == "table"
+        assert result.column_name == column_name
+        assert result.chart_code is not None
+        assert result.chart_spec is not None
+        assert result.stats is not None
+        assert result.error is None
+
+
+@pytest.mark.skipif(
+    not HAS_DF_DEPS, reason="optional dependencies not installed"
+)
+@pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 @pytest.mark.parametrize(
     ("column_name", "snapshot_prefix"),
     [
@@ -59,9 +92,7 @@ def cleanup() -> Generator[None, None, None]:
         ("category_col", "column_preview_categorical"),
     ],
 )
-def test_get_column_preview_for_dataframe(
-    column_name: str, snapshot_prefix: str
-) -> None:
+def test_get_column_preview(column_name: str, snapshot_prefix: str) -> None:
     import pandas as pd
 
     register_transformers()
@@ -88,14 +119,10 @@ def test_get_column_preview_for_dataframe(
         mock_dm.vegafusion.has.return_value = False
         mock_dm.vl_convert_python.has.return_value = True
 
-        result = get_column_preview_for_dataframe(
-            df,
-            request=PreviewDatasetColumnRequest(
-                source="source",
-                table_name="table",
-                column_name=column_name,
-                source_type="local",
-            ),
+        result = get_column_preview(
+            table=get_table_manager(df),
+            table_name="table",
+            column_name=column_name,
         )
         assert result is not None
         assert result.chart_code is not None
@@ -111,14 +138,10 @@ def test_get_column_preview_for_dataframe(
         # Verify vegafusion was checked
         mock_dm.vegafusion.has.assert_called_once()
 
-    result_with_vegafusion = get_column_preview_for_dataframe(
-        df,
-        request=PreviewDatasetColumnRequest(
-            source="source",
-            table_name="table",
-            column_name=column_name,
-            source_type="local",
-        ),
+    result_with_vegafusion = get_column_preview(
+        table=get_table_manager(df),
+        table_name="table",
+        column_name=column_name,
     )
 
     assert result_with_vegafusion is not None

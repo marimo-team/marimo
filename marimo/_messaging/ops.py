@@ -628,14 +628,15 @@ class ColumnPreview:
     stats: Optional[ColumnStats] = None
 
 
-# TODO: kw_only is >=Python 3.10
-@dataclass(kw_only=True)
+# We shouldn't need to make table_name and column_name have default values.
+# We can use kw_only=True once we drop support for Python 3.9.
+@dataclass()
 class DataColumnPreview(Op, ColumnPreview):
     """Preview of a column in a dataset."""
 
     name: ClassVar[str] = "data-column-preview"
-    table_name: str
-    column_name: str
+    table_name: str = ""
+    column_name: str = ""
 
 
 @dataclass
