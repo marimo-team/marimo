@@ -273,7 +273,7 @@ export function useCellActionButtons({ cell }: Props) {
             return;
           }
           maybeAddMarimoImport(autoInstantiate, createCell);
-          switchLanguage(editorView, "markdown", { keepCodeAsIs: true });
+          switchLanguage(editorView, "markdown", { keepCodeAsIs: false });
         },
       },
       {
@@ -285,7 +285,7 @@ export function useCellActionButtons({ cell }: Props) {
             return;
           }
           maybeAddMarimoImport(autoInstantiate, createCell);
-          switchLanguage(editorView, "sql", { keepCodeAsIs: true });
+          switchLanguage(editorView, "sql", { keepCodeAsIs: false });
         },
       },
       {
