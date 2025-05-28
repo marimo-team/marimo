@@ -180,16 +180,16 @@ class StringChartBuilder(ChartBuilder):
 
         if self.should_limit_to_10_items:
             _base_chart = _base_chart.transform_filter(alt.datum.rank <= 10)
-            _chart = add_encodings(_base_chart)
-            return (
-                _chart.properties(title=f"Top 10 {column}", width="container")
-                .configure_view(stroke=None)
-                .configure_axis(grid=False)
-            )
+            title = f"Top 10 {column}"
+        else:
+            title = column
 
-        _chart_with_encodings = add_encodings(_base_chart)
-        _chart = add_common_config(_chart_with_encodings)
-        return _chart.configure_axis(grid=False)
+        _chart = add_encodings(_base_chart)
+        return (
+            _chart.properties(title=title, width="container")
+            .configure_view(stroke=None)
+            .configure_axis(grid=False)
+        )
 
     def altair_code(self, data: str, column: str, simple: bool) -> str:
         return (

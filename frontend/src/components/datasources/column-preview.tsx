@@ -229,7 +229,7 @@ export const AddDataframeChart: React.FC<{
       <Button
         variant="outline"
         size="icon"
-        className="z-10 bg-background absolute right-1 -top-1"
+        className="z-10 bg-background absolute right-1 -top-0.5"
         onClick={Events.stopPropagation(() => handleAddColumn(chartCode))}
       >
         <PlusSquareIcon className="h-3 w-3" />

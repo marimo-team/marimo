@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.12"
+__generated_with = "0.13.14"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,11 @@ def _():
             # Boolean
             "bools": pl.Series("bools", [True, False, True], dtype=pl.Boolean),
             # Temporal
-            "dates": pl.Series("dates", [date(2021, 1, 1)] * 3, dtype=pl.Date),
+            "dates": pl.Series(
+                "dates",
+                [date(2021, 1, 1), date(2021, 2, 2), date(2021, 3, 3)],
+                dtype=pl.Date,
+            ),
             "times": pl.Series("times", [time(12, 0, 0)] * 3, dtype=pl.Time),
             "datetimes": pl.Series(
                 "datetimes", [datetime.now()] * 3, dtype=pl.Datetime
@@ -89,7 +93,7 @@ def _():
         }
     )
     mo.ui.table(df)
-    return date, datetime, df, mo, pl, time
+    return df, mo, pl
 
 
 @app.cell
@@ -109,73 +113,6 @@ def _(mo, pd, pl):
     )
     mo.vstack([additional_types_pd, additional_types_pl])
     return
-
-
-@app.cell
-def _(alt, df):
-    _chart = (
-        alt.Chart(df)
-        .transform_filter(f"datum.times != null")
-        .transform_timeunit(as_="_times", field="times", timeUnit="hoursminutes")
-        .mark_bar()
-        .encode(
-            x=alt.X("_times:T", title="times"),
-            y=alt.Y("count():Q", title="Number of records"),
-            tooltip=[
-                alt.Tooltip("_times:T", title="times", timeUnit="hoursminutes"),
-                alt.Tooltip("count():Q", title="Number of records", format=",.0f"),
-            ],
-        )
-        .properties(width="container")
-        .configure_view(stroke=None)
-    )
-    _chart
-    return
-
-
-@app.cell
-def _(alt, date, datetime, pl, time):
-    import random
-
-    _df = pl.DataFrame(
-        {
-            "times": [
-                time(
-                    hour=random.choices(
-                        [9, 10, 11, 14, 15, 16], weights=[2, 3, 2, 2, 3, 2]
-                    )[0],
-                )
-                for _ in range(100)
-            ]
-        }
-    )
-
-    _df_dt = _df.with_columns(
-        pl.col("times")
-        .map_elements(
-            lambda t: datetime.combine(date(2021, 1, 1), t),
-            return_dtype=pl.Datetime,
-        )
-        .alias("datetime_times")
-    )
-
-    _chart = (
-        alt.Chart(_df_dt)
-        .mark_bar()
-        .encode(
-            x=alt.X("datetime_times:T", timeUnit="hours", title="Hour"),
-            y=alt.Y("count():Q", title="Number of records"),
-        )
-        .properties(width="container")
-    )
-    _df
-    return
-
-
-@app.cell
-def _():
-    import altair as alt
-    return (alt,)
 
 
 @app.cell
