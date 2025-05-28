@@ -129,7 +129,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
+                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -150,7 +150,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
+                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -177,7 +177,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
+                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -198,7 +198,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "jjufTYhiG11S6Fe3odSETSvYbYObdSRZDYhWXFlCaXE"
+                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -238,6 +238,10 @@ class TestHash:
             with mo.persistent_cache("cache_bug") as cache:
                 output = args.value
             assert cache.cache_type == "ExecutionPath"
+            from marimo._runtime.context.types import get_context
+
+            ctx = get_context()
+            return ctx, output
 
         @app1.cell
         def _(value):
@@ -270,6 +274,10 @@ class TestHash:
             with mo.persistent_cache("cache_bug") as cache:
                 output = args.value
             assert cache.cache_type == "ExecutionPath"
+            from marimo._runtime.context.types import get_context
+
+            ctx = get_context()
+            return ctx, output
 
         @app2.cell
         def _(value):
@@ -286,6 +294,8 @@ class TestHash:
         _, defs1 = app1.run()
         _, defs2 = app2.run()
 
+        assert len(defs1["ctx"].cell_lifecycle_registry.registry) == 2
+        assert len(defs2["ctx"].cell_lifecycle_registry.registry) == 2
         assert defs1["cache"]._cache.hash != defs2["cache"]._cache.hash
         assert defs1["output"] != defs2["output"]
 
@@ -378,7 +388,7 @@ class TestHash:
     @staticmethod
     def test_transitive_execution_path_when_state_dependent(app) -> None:
         @app.cell
-        def load() -> tuple[Any]:
+        def load() -> tuple[Any, ...]:
             import marimo as mo
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
@@ -631,7 +641,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "iV5v_cNAxBPqe8tNJnI5volNORTH_gyhKuIvHcG_cds"
+            expected_hash = "rTAh8yNbBbq9qkF1nGNUw4DXhZSxRqGe4ptbDh2AwBI"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -773,7 +783,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "RbeMLx994_-kB9rF2ebi6mFMbCW_S6-Q41MsrgJgwUA"
+            expected_hash = "n4KGJ3wrRHd6pDCyekTWZXShmtT_ZkDY4Wo3C6BXzh4"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -871,7 +881,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "QzGgcNS-eEP58qkkFphgAOJNKEpoTNcXhJ-L2exXzr4"
+            expected_hash = "jMEurCFLl9VI2sSaQOdCShS1MnudIRZNu84578qM3Jc"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -895,7 +905,6 @@ class TestDataHash:
 
 
 # Skip for now, as the local branch is cache busting
-@pytest.mark.skipif(True, reason="Cache busting")
 class TestDynamicHash:
     @staticmethod
     async def test_transitive_state_hash(
@@ -927,7 +936,7 @@ class TestDynamicHash:
         assert not k.globals["cache"]._cache.hit
 
         hash_1 = k.globals["cache"]._cache.hash
-        output_1 = k.globals["output"]
+        output_1 = k.globals["output"]._value
 
         await k.run([exec_req.get("set_value(True)")])
         assert not k.errors
@@ -936,7 +945,7 @@ class TestDynamicHash:
         assert not k.globals["cache"]._cache.hit
 
         hash_2 = k.globals["cache"]._cache.hash
-        output_2 = k.globals["output"]
+        output_2 = k.globals["output"]._value
 
         assert hash_1 != hash_2
         assert output_1 != output_2
