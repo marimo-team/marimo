@@ -212,6 +212,8 @@ const DataTableInternal = <TData,>({
     },
   });
 
+  const isRowSelectable = isPanelOpen?.("row-viewer") ?? false;
+
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
@@ -230,7 +232,7 @@ const DataTableInternal = <TData,>({
           {renderTableBody(
             table,
             columns,
-            isPanelOpen ? isPanelOpen("row-viewer") : false,
+            isRowSelectable,
             getPaginatedRowIndex,
           )}
         </Table>
