@@ -56,7 +56,7 @@ NUM_RECORDS = "Number of records"
 # https://www.radix-ui.com/colors/docs/palette-composition/scales
 DATE_COLOR = "#2a7e3b"  # grass-11
 STRING_COLOR = "#8ec8f6"  # blue-7
-BOOLEAN_COLOR = ["#f76b15", "#00749e"]  # orange-9, sky-11
+BOOLEAN_COLOR = {"scheme": "category10"}
 NUMBER_COLOR = "#be93e4"  # purple-8
 NUMBER_STROKE = "#8e4ec6"  # purple-9
 
@@ -567,7 +567,8 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     f"{column}:N",
-                    scale=alt.Scale(range=BOOLEAN_COLOR),
+                    scale=BOOLEAN_COLOR,
+                    legend=alt.Legend(title=column),
                 ),
                 tooltip=[
                     alt.Tooltip(f"{column}:N", title=column),
@@ -616,7 +617,7 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     "{column}:N",
-                    scale=alt.Scale(range={BOOLEAN_COLOR}),
+                    scale={BOOLEAN_COLOR},
                     legend=alt.Legend(title="{column}")
                 ),
                 tooltip=[

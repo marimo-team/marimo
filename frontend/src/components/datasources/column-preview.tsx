@@ -162,16 +162,16 @@ export function renderStats(
 
         return (
           <div key={key} className="flex items-center gap-1 group">
-            <CopyClipboardIcon
-              className="h-3 w-3 invisible group-hover:visible"
-              value={String(value)}
-            />
             <span className="text-xs min-w-[60px] capitalize">
               {convertStatsName(key, dataType)}
             </span>
             <span className="text-xs font-bold text-muted-foreground tracking-wide">
               {prettyNumber(value)}
             </span>
+            <CopyClipboardIcon
+              className="h-3 w-3 invisible group-hover:visible"
+              value={String(value)}
+            />
           </div>
         );
       })}
