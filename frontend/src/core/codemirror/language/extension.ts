@@ -244,6 +244,12 @@ export function languageAdapterFromCode(doc: string): LanguageAdapter {
 
 /**
  * Switch the language of the editor.
+ *
+ * @param view - The editor view.
+ * @param language - The language to switch to.
+ * @param opts.keepCodeAsIs - If true, we keep the original code but update the language.
+ * If false, we transform the code from the current language to the next language and update
+ * the cursor position.
  */
 export function switchLanguage(
   view: EditorView,
