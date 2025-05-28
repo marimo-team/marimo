@@ -19,7 +19,7 @@ from narwhals.typing import IntoDataFrame
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._data.models import ColumnStats
-from marimo._data.preview_column import get_column_preview
+from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import ColumnPreview
 from marimo._output.mime import MIME
@@ -917,7 +917,7 @@ class table(
         column = args.column
 
         # We use a placeholder for table names
-        column_preview = get_column_preview(
+        column_preview = get_column_preview_dataset(
             self._searched_manager, "_df", column
         )
         return column_preview

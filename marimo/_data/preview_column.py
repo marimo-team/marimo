@@ -40,7 +40,7 @@ def get_table_manager(item: object) -> TableManager[Any] | None:
         return None
 
 
-def get_column_preview(
+def get_column_preview_dataset(
     table: TableManager[Any],
     table_name: str,
     column_name: str,
@@ -145,7 +145,7 @@ def get_column_preview_for_dataframe(
     if table is None:
         return None
 
-    column_preview = get_column_preview(table, table_name, column_name)
+    column_preview = get_column_preview_dataset(table, table_name, column_name)
     return DataColumnPreview(
         table_name=table_name,
         column_name=column_name,

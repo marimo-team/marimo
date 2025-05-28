@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from marimo._data.preview_column import (
-    get_column_preview,
+    get_column_preview_dataset,
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
     get_table_manager,
@@ -119,7 +119,7 @@ def test_get_column_preview(column_name: str, snapshot_prefix: str) -> None:
         mock_dm.vegafusion.has.return_value = False
         mock_dm.vl_convert_python.has.return_value = True
 
-        result = get_column_preview(
+        result = get_column_preview_dataset(
             table=get_table_manager(df),
             table_name="table",
             column_name=column_name,
@@ -138,7 +138,7 @@ def test_get_column_preview(column_name: str, snapshot_prefix: str) -> None:
         # Verify vegafusion was checked
         mock_dm.vegafusion.has.assert_called_once()
 
-    result_with_vegafusion = get_column_preview(
+    result_with_vegafusion = get_column_preview_dataset(
         table=get_table_manager(df),
         table_name="table",
         column_name=column_name,
