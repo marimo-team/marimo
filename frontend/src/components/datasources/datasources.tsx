@@ -61,6 +61,7 @@ import {
 import { PythonIcon } from "../editor/cell/code/icons";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import {
+  ColumnName,
   DatasourceLabel,
   EmptyState,
   ErrorState,
@@ -726,6 +727,10 @@ const DatasetColumnItem: React.FC<{
     );
   };
 
+  const columnText = (
+    <span className={isExpanded ? "font-semibold" : ""}>{column.name}</span>
+  );
+
   return (
     <>
       <CommandItem
@@ -740,10 +745,7 @@ const DatasetColumnItem: React.FC<{
             sqlTableContext ? "pl-14" : "pl-7",
           )}
         >
-          <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
-          <span className={isExpanded ? "font-semibold" : ""}>
-            {column.name}
-          </span>
+          <ColumnName columnName={columnText} dataType={column.type} />
           {isPrimaryKey &&
             renderItemSubtext({ tooltipContent: "Primary key", content: "PK" })}
           {isIndexed &&

@@ -14,7 +14,6 @@ import {
   type FieldTypesWithExternalType,
 } from "../types";
 import { NAMELESS_COLUMN_PREFIX } from "../columns";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
 import { prettifyRowColumnCount } from "../pagination";
 import type { DataType } from "@/core/kernel/messages";
 import { useState } from "react";
@@ -37,6 +36,7 @@ import {
 } from "@/components/datasources/components";
 import { useTheme } from "@/theme/useTheme";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
+import { ColumnName } from "@/components/datasources/components";
 
 interface ColumnExplorerPanelProps {
   previewColumn: PreviewColumn;
@@ -106,16 +106,15 @@ const ColumnItem = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const Icon = dataType ? DATA_TYPE_ICON[dataType] : null;
+  const columnText = (
+    <span className={isExpanded ? "font-semibold" : ""}>{columnName}</span>
+  );
 
   return (
     <>
       <CommandItem key={columnName} onSelect={() => setIsExpanded(!isExpanded)}>
         <div className="flex flex-row items-center gap-1.5 group w-full">
-          {Icon && <Icon className="w-4 h-4 p-0.5 rounded-sm bg-muted" />}
-          <span className={isExpanded ? "font-semibold" : ""}>
-            {columnName}
-          </span>
+          <ColumnName columnName={columnText} dataType={dataType} />
           <div className="ml-auto">
             <Tooltip content="Copy column name" delayDuration={400}>
               <Button

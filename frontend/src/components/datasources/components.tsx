@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
+import { DATA_TYPE_COLOR, DATA_TYPE_ICON } from "../datasets/icons";
 import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
 
 export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
@@ -72,6 +74,24 @@ export const ColumnPreviewContainer: React.FC<{
   return (
     <div className={cn("flex flex-col gap-2 relative", className)}>
       {children}
+    </div>
+  );
+};
+
+export const ColumnName = ({
+  columnName,
+  dataType,
+}: {
+  columnName: React.ReactNode;
+  dataType: DataType;
+}) => {
+  const Icon = DATA_TYPE_ICON[dataType];
+  const color = DATA_TYPE_COLOR[dataType];
+
+  return (
+    <div className="flex flex-row items-center gap-1.5">
+      <Icon className={`w-4 h-4 p-0.5 rounded-sm stroke-black ${color}`} />
+      {columnName}
     </div>
   );
 };

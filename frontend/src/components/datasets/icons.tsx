@@ -30,13 +30,13 @@ export const DATA_TYPE_ICON: Record<DataType | SelectableDataType, LucideIcon> =
   };
 
 export const DATA_TYPE_COLOR: Record<DataType | SelectableDataType, string> = {
-  boolean: "bg-sky-200",
-  date: "bg-amber-200",
-  time: "bg-lime-200",
-  datetime: "bg-purple-200",
-  temporal: "bg-pink-200",
-  number: "bg-cyan-200",
-  string: "bg-blue-200",
-  integer: "bg-green-200",
-  unknown: "bg-slate-200",
+  boolean: "bg-[var(--orange-5)]",
+  date: "bg-[var(--grass-4)]",
+  time: "bg-[var(--grass-4)]",
+  datetime: "bg-[var(--grass-4)]",
+  temporal: "bg-[var(--grass-4)]",
+  number: "bg-[var(--purple-4)]",
+  string: "bg-[var(--blue-4)]",
+  integer: "bg-[var(--purple-4)]",
+  unknown: "bg-[var(--slate-4)]",
 };
