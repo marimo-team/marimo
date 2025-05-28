@@ -470,17 +470,25 @@ class UIElement(Html, Generic[S, T]):
     def __deepcopy__(self, memo: dict[int, Any]) -> UIElement[S, T]:
         # Custom deepcopy that excludes elements that can't be deepcopied
         cls = self.__class__
-        return self._from_args(memo, self.__dict__, cls=cls, args=self._args)
+        return cls.from_args(
+            self.__dict__, args=self._args, memo=memo, basis=self
+        )
 
-    def _from_args(
-        self,
-        memo: dict[int, Any],
-        data: dict[str, Any],
-        cls: type[UIElement[S, T]],
+    @classmethod
+    def from_args(
+        cls,
+        data: dict[str, int],
         args: InitializationArgs[S, T],
+        memo: dict[int, Any] | None = None,
+        basis: UIElement[S, T] | None = None,
     ) -> UIElement[S, T]:
         result = cls.__new__(cls)
-        memo[id(self)] = result
+        if memo is None:
+            memo = {}
+        if basis is None:
+            basis = result
+
+        memo[id(basis)] = result
         for k, v in data.items():
             if isinstance(v, RuntimeContext):
                 setattr(result, k, v)
@@ -494,7 +502,7 @@ class UIElement(Html, Generic[S, T]):
         # if the old one was bound to self.
         if (
             isinstance(args.on_change, types.MethodType)
-            and args.on_change.__self__ is self
+            and args.on_change.__self__ is basis
         ):
             # on_change was bound to self; use the new one.
             args = InitializationArgs(

@@ -14,6 +14,7 @@ class MockLoader(Loader):
         data: Optional[dict[str, Any]] = None,
         stateful_refs: Optional[set[str]] = None,
         config_value: Any = None,
+        strict: bool = False,
     ) -> None:
         self.save_path = save_path
         self._data = data or {}
@@ -22,6 +23,9 @@ class MockLoader(Loader):
         self._saved = False
         self._stateful_refs = stateful_refs or set()
         self.config_value = config_value
+        # "Strict" is more than just spoofing the response, but actually going
+        # through the hydration process.
+        self.strict = strict
         super().__init__(name)
 
     def cache_hit(self, _) -> bool:
@@ -31,14 +35,20 @@ class MockLoader(Loader):
         if not self._cache_hit:
             return None
         self._loaded = True
-        return Cache(
-            defs=self._data,
+        data = self._data
+        if self.strict:
+            data = {key: None for key in self._data}
+        cache = Cache(
+            defs=data,
             hash=key.hash,
             cache_type=key.cache_type,
             stateful_refs=self._stateful_refs,
             hit=True,
             meta={},
         )
+        if self.strict:
+            cache.update(self._data)
+        return cache
 
     def save_cache(self, _cache: Cache) -> bool:
         self._saved = True

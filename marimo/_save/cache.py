@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import re
+import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
@@ -51,21 +52,30 @@ class ModuleStub:
 
 class FunctionStub:
     def __init__(self, function: Any) -> None:
-        self.code = inspect.getsource(function)
+        self.code = textwrap.dedent(inspect.getsource(function))
 
     def load(self, glbls: dict[str, Any]) -> Any:
-        return eval(self.code, glbls)
+        # TODO: Fix line cache and associate with the correct module.
+        code_obj = compile(self.code, "<string>", "exec")
+        lcls: dict[str, Any] = {}
+        exec(code_obj, glbls, lcls)
+        # Update the global scope with the function.
+        for value in lcls.values():
+            return value
 
 
 class UIElementStub:
     def __init__(self, element: UIElement[S, T]) -> None:
         self.args = element._args
         self.cls = element.__class__
+        # Only hashable attributes are stored.
+        self.data = {
+            k: v for k, v in element.__dict__.items() if hasattr(v, "__hash__")
+        }
 
     def load(self) -> UIElement[S, T]:
         # UIElement cannot be restored directly, so we return a stub.
-        basis = self.cls.__new__(self.cls)
-        return self.cls._from_args(basis, {}, self.cls, self.args)  # type: ignore
+        return self.cls.from_args(self.data, self.args)  # type: ignore
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -90,7 +100,18 @@ class Cache:
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
         for var, lookup in self.contextual_defs():
-            scope[lookup] = self.defs[var]
+            value = self.defs.get(var, None)
+            # If it's a module we must replace with a stub.
+            if isinstance(value, ModuleStub):
+                scope[lookup] = value.load()
+            elif isinstance(value, FunctionStub):
+                scope[lookup] = value.load(scope)
+            elif isinstance(value, UIElementStub):
+                # UIElementStub is a placeholder for UIElement, which cannot be
+                # restored directly.
+                scope[lookup] = value.load()
+            else:
+                scope[lookup] = self.defs[var]
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -111,17 +132,6 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
-
-        for key, value in self.defs.items():
-            # If it's a module we must replace with a stub.
-            if isinstance(value, ModuleStub):
-                scope[key] = value.load()
-            elif isinstance(value, FunctionStub):
-                value.load(scope)
-            elif isinstance(value, UIElementStub):
-                # UIElementStub is a placeholder for UIElement, which cannot be
-                # restored directly.
-                scope[key] = value.load()
 
     def update(
         self,
