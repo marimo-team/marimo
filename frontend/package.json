@@ -37,6 +37,7 @@
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@hookform/resolvers": "^3.10.0",
+    "@img-comparison-slider/react": "^8.0.2",
     "@internationalized/date": "^3.8.0",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
