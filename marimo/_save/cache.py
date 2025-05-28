@@ -69,8 +69,11 @@ class UIElementStub:
         self.args = element._args
         self.cls = element.__class__
         # Only hashable attributes are stored.
+        sample = self.cls.__new__(self.cls).__dict__
         self.data = {
-            k: v for k, v in element.__dict__.items() if hasattr(v, "__hash__")
+            k: v
+            for k, v in element.__dict__.items()
+            if hasattr(v, "__hash__") and k not in sample
         }
 
     def load(self) -> UIElement[S, T]:
