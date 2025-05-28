@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { Logger } from "@/utils/Logger";
 import type { ChatState } from "./state";
 
 export const addMessageToChat = (
@@ -8,6 +9,7 @@ export const addMessageToChat = (
   content: string,
 ): ChatState => {
   if (!chatId) {
+    Logger.warn("No active chat");
     return chatState;
   }
   return {
