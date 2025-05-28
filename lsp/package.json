@@ -1,5 +1,7 @@
 {
   "main": "dist/index.cjs",
+  "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "build:ts": "tsup index.ts --format cjs --minify",
     "build:deps": "cp -LR node_modules/@github/copilot-language-server/dist/ dist/",
