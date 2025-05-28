@@ -1101,6 +1101,7 @@
       ]
     }
   ],
+  "title": "some_column",
   "width": "container"
 }
 

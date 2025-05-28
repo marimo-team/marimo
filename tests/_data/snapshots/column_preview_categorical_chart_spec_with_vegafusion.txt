@@ -234,5 +234,9 @@
       "update": "bandspace(domain('y').length, 0.1, 0.05) * y_step"
     }
   ],
-  "style": "cell"
+  "style": "cell",
+  "title": {
+    "frame": "group",
+    "text": "category_col"
+  }
 }

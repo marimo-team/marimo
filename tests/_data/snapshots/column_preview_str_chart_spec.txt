@@ -180,5 +180,6 @@
       ]
     }
   ],
+  "title": "B",
   "width": "container"
 }

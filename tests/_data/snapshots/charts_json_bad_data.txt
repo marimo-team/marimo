@@ -190,5 +190,6 @@
       ]
     }
   ],
+  "title": "some\\[0\\]really\\.bad\\:column",
   "width": "container"
 }
