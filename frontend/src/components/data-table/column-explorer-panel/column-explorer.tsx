@@ -64,12 +64,12 @@ export const ColumnExplorerPanel = ({
 
   return (
     <div className="mt-5 mb-3">
-      <span className="text-sm font-semibold ml-2 flex group">
+      <span className="text-xs font-semibold ml-2 flex">
         {prettifyRowColumnCount(totalRows, totalColumns)}
         <CopyClipboardIcon
           tooltip="Copy column names"
           value={columns?.map(([columnName]) => columnName).join(",\n") || ""}
-          className="h-3 w-3 ml-1 mt-0.5 group-hover:opacity-100 opacity-0"
+          className="h-3 w-3 ml-1 mt-0.5"
         />
       </span>
       <Command className="h-5/6">
@@ -200,7 +200,7 @@ const ColumnPreview = ({
     chart_max_rows_errors && renderChartMaxRowsWarning();
 
   return (
-    <ColumnPreviewContainer className="px-2">
+    <ColumnPreviewContainer className="px-2 py-1">
       {errorState}
       {addDataframeChart}
       {chartMaxRowsWarning}
