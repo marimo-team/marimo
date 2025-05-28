@@ -53,7 +53,10 @@ async def add_package(request: Request) -> PackageOperationResponse:
             f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
         )
 
-    success = await package_manager.install(body.package, version=None)
+    upgrade = body.upgrade or False
+    success = await package_manager.install(
+        body.package, version=None, upgrade=upgrade
+    )
 
     # Update the script metadata
     filename = _get_filename(request)
@@ -61,6 +64,7 @@ async def add_package(request: Request) -> PackageOperationResponse:
         package_manager.update_notebook_script_metadata(
             filepath=filename,
             packages_to_add=split_packages(body.package),
+            upgrade=upgrade,
         )
 
     if success:
@@ -106,6 +110,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
         package_manager.update_notebook_script_metadata(
             filepath=filename,
             packages_to_remove=split_packages(body.package),
+            upgrade=False,
         )
 
     if success:

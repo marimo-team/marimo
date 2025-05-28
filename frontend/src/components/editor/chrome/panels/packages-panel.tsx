@@ -32,6 +32,109 @@ import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { packagesToInstallAtom } from "./packages-state";
 import { useAtomValue, useSetAtom } from "jotai";
 
+const showAddPackageToast = (packageName: string, error?: string | null) => {
+  if (error) {
+    toast({
+      title: "Failed to add package",
+      description: error,
+      variant: "danger",
+    });
+  } else {
+    toast({
+      title: "Package added",
+      description: (
+        <div>
+          <div>
+            The package <Kbd className="inline">{packageName}</Kbd> and its
+            dependencies has been added to your environment.
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Some Python packages may require a kernel restart to see changes.
+          </div>
+        </div>
+      ),
+    });
+  }
+};
+
+const showUpgradePackageToast = (
+  packageName: string,
+  error?: string | null,
+) => {
+  if (error) {
+    toast({
+      title: "Failed to upgrade package",
+      description: error,
+      variant: "danger",
+    });
+  } else {
+    toast({
+      title: "Package upgraded",
+      description: (
+        <div>
+          <div>
+            The package <Kbd className="inline">{packageName}</Kbd> has been
+            upgraded.
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Some Python packages may require a kernel restart to see changes.
+          </div>
+        </div>
+      ),
+    });
+  }
+};
+
+const showRemovePackageToast = (packageName: string, error?: string | null) => {
+  if (error) {
+    toast({
+      title: "Failed to remove package",
+      description: error,
+      variant: "danger",
+    });
+  } else {
+    toast({
+      title: "Package removed",
+      description: (
+        <div>
+          <div>
+            The package <Kbd className="inline">{packageName}</Kbd> has been
+            removed from your environment.
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Some Python packages may require a kernel restart to see changes.
+          </div>
+        </div>
+      ),
+    });
+  }
+};
+
+const PackageActionButton: React.FC<{
+  onClick: () => void;
+  loading: boolean;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ onClick, loading, children, className }) => {
+  if (loading) {
+    return <Spinner size="small" className="h-4 w-4 shrink-0 opacity-50" />;
+  }
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        "px-2 h-full text-xs text-muted-foreground hover:text-foreground",
+        "invisible group-hover:visible",
+        className,
+      )}
+      onClick={Events.stopPropagation(onClick)}
+    >
+      {children}
+    </button>
+  );
+};
+
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
@@ -86,21 +189,9 @@ const InstallPackageForm: React.FC<{
       const response = await addPackage({ package: input });
       if (response.success) {
         onSuccess();
-        toast({
-          title: "Package added",
-          description: (
-            <span>
-              The package <Kbd className="inline">{input}</Kbd> and its
-              dependencies has been added to your environment.
-            </span>
-          ),
-        });
+        showAddPackageToast(input);
       } else {
-        toast({
-          title: "Failed to add package",
-          description: response.error,
-          variant: "danger",
-        });
+        showAddPackageToast(input, response.error);
       }
     } finally {
       setInput("");
@@ -246,13 +337,45 @@ const PackagesList: React.FC<{
           >
             <TableCell>{item.name}</TableCell>
             <TableCell>{item.version}</TableCell>
-            <TableCell>
+            <TableCell className="flex justify-end">
+              <UpgradeButton packageName={item.name} onSuccess={onSuccess} />
               <RemoveButton packageName={item.name} onSuccess={onSuccess} />
             </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+  );
+};
+
+const UpgradeButton: React.FC<{
+  packageName: string;
+  onSuccess: () => void;
+}> = ({ packageName, onSuccess }) => {
+  const [loading, setLoading] = React.useState(false);
+
+  const handleUpgradePackage = async () => {
+    try {
+      setLoading(true);
+      const response = await addPackage({
+        package: packageName,
+        upgrade: true,
+      });
+      if (response.success) {
+        onSuccess();
+        showUpgradePackageToast(packageName);
+      } else {
+        showUpgradePackageToast(packageName, response.error);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <PackageActionButton onClick={handleUpgradePackage} loading={loading}>
+      Upgrade
+    </PackageActionButton>
   );
 };
 
@@ -268,46 +391,18 @@ const RemoveButton: React.FC<{
       const response = await removePackage({ package: packageName });
       if (response.success) {
         onSuccess();
-        toast({
-          title: "Package removed",
-          description: (
-            <span>
-              The package <Kbd className="inline">{packageName}</Kbd> has been
-              removed from your environment.
-            </span>
-          ),
-        });
+        showRemovePackageToast(packageName);
       } else {
-        toast({
-          title: "Failed to add package",
-          description: response.error,
-          variant: "danger",
-        });
+        showRemovePackageToast(packageName, response.error);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <Spinner
-        size="small"
-        className="float-right mr-2 h-4 w-4 shrink-0 opacity-50"
-      />
-    );
-  }
-
   return (
-    <button
-      type="button"
-      className={cn(
-        "float-right px-2 h-full text-xs text-muted-foreground hover:text-foreground",
-        "invisible group-hover:visible",
-      )}
-      onClick={Events.stopPropagation(handleRemovePackage)}
-    >
+    <PackageActionButton onClick={handleRemovePackage} loading={loading}>
       Remove
-    </button>
+    </PackageActionButton>
   );
 };

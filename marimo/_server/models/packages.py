@@ -23,6 +23,7 @@ class AddPackageRequest:
     """
 
     package: str
+    upgrade: Optional[bool] = False
 
 
 @dataclass

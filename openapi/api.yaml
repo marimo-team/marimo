@@ -4,6 +4,9 @@ components:
       properties:
         package:
           type: string
+        upgrade:
+          nullable: true
+          type: boolean
       required:
       - package
       type: object
@@ -2572,7 +2575,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.11
+  version: 0.13.13
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
