@@ -8,7 +8,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
 
-from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._core.ui_element import S, T, UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 
@@ -51,10 +51,21 @@ class ModuleStub:
 
 class FunctionStub:
     def __init__(self, function: Any) -> None:
-        self.code = function.__code__
+        self.code = inspect.getsource(function)
 
     def load(self, glbls: dict[str, Any]) -> Any:
         return eval(self.code, glbls)
+
+
+class UIElementStub:
+    def __init__(self, element: UIElement[S, T]) -> None:
+        self.args = element._args
+        self.cls = element.__class__
+
+    def load(self) -> UIElement[S, T]:
+        # UIElement cannot be restored directly, so we return a stub.
+        basis = self.cls.__new__(self.cls)
+        return self.cls._from_args(basis, {}, self.cls, self.args)  # type: ignore
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -107,6 +118,10 @@ class Cache:
                 scope[key] = value.load()
             elif isinstance(value, FunctionStub):
                 value.load(scope)
+            elif isinstance(value, UIElementStub):
+                # UIElementStub is a placeholder for UIElement, which cannot be
+                # restored directly.
+                scope[key] = value.load()
 
     def update(
         self,
@@ -157,6 +172,9 @@ class Cache:
                 self.defs[key] = ModuleStub(value)
             elif inspect.isfunction(value):
                 self.defs[key] = FunctionStub(value)
+            elif isinstance(value, UIElement):
+                # UIElement cannot be restored directly, so we store a stub.
+                self.defs[key] = UIElementStub(value)
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""

@@ -429,6 +429,59 @@ class TestAppCache:
         assert not k.stdout.messages, k.stdout
         assert k.globals["my_func"]() == 1
 
+    async def test_cache_ui_hit(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                import marimo as mo
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+                loaded_slider = mo.ui.slider(20, 30)
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader(data={"slider": loaded_slider})
+                ) as cache:
+                    slider = mo.ui.slider(0, 1)
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["slider"].value == 20
+
+    async def test_cache_ui_miss(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                import marimo as mo
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader()
+                ) as cache:
+                    slider = mo.ui.slider(0, 1)
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["slider"].value == 0
+
     async def test_cache_one_line(self, any_kernel: Kernel) -> None:
         k = any_kernel
         await k.run(
