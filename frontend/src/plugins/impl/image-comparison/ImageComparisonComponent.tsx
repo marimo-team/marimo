@@ -11,9 +11,7 @@ export interface ImageComparisonData {
   height?: string;
 }
 
-interface ImageComparisonComponentProps extends ImageComparisonData {}
-
-const ImageComparisonComponent: React.FC<ImageComparisonComponentProps> = ({
+const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
   beforeSrc,
   afterSrc,
   value,
