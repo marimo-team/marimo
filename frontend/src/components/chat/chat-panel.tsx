@@ -25,6 +25,7 @@ import {
   type SetStateAction,
   type Dispatch,
   memo,
+  useEffect,
 } from "react";
 import { generateUUID } from "@/utils/uuid";
 import { type Message, useChat } from "ai/react";
@@ -247,6 +248,7 @@ const ChatPanelBody = () => {
   const [newThreadInput, setNewThreadInput] = useState("");
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
@@ -262,6 +264,7 @@ const ChatPanelBody = () => {
     reload,
     stop,
   } = useChat({
+    id: chatState.activeChatId || undefined,
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
@@ -278,10 +281,6 @@ const ChatPanelBody = () => {
     },
     streamProtocol: "text",
     onFinish: (message) => {
-      if (!chatState.activeChatId) {
-        Logger.warn("No active chat");
-        return;
-      }
       setChatState((prev) =>
         addMessageToChat(prev, prev.activeChatId, "assistant", message.content),
       );
@@ -295,6 +294,18 @@ const ChatPanelBody = () => {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  // Scroll to the latest chat message at the bottom
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+    };
+
+    requestAnimationFrame(scrollToBottom);
+  }, [messages, isLoading]);
 
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
@@ -376,7 +387,10 @@ const ChatPanelBody = () => {
         />
       </TooltipProvider>
 
-      <div className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto">
+      <div
+        className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto"
+        ref={scrollContainerRef}
+      >
         {(!messages || messages.length === 0) && (
           <div className="flex rounded-md border px-1 bg-background">
             <PromptInput
