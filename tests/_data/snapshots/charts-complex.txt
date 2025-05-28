@@ -19,7 +19,7 @@ _base = (
         ),
         color=alt.Color(
             "some_column:N",
-            scale=alt.Scale(range=['#99c99c', '#1C7361']),
+            scale={'scheme': 'category10'},
             legend=alt.Legend(title="some_column")
         ),
         tooltip=[
@@ -55,12 +55,12 @@ _nearest = alt.selection_point(
 
 # Area chart
 _area = _transformed.mark_area(
-    line={"color": "#1C7361"},
+    line={"color": "#2a7e3b"},
     color=alt.Gradient(
         gradient="linear",
         stops=[
             alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="#1C7361", offset=1),
+            alt.GradientStop(color="#2a7e3b", offset=1),
         ],
         x1=1,
         x2=1,
@@ -97,7 +97,7 @@ _rule = (
 # Points on the chart
 _points = _transformed.mark_point(
     size=80,
-    color="#1C7361",
+    color="#2a7e3b",
     filled=True,
 ).encode(
     x="_some_column:T",
@@ -126,12 +126,12 @@ _nearest = alt.selection_point(
 
 # Area chart
 _area = _transformed.mark_area(
-    line={"color": "#1C7361"},
+    line={"color": "#2a7e3b"},
     color=alt.Gradient(
         gradient="linear",
         stops=[
             alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="#1C7361", offset=1),
+            alt.GradientStop(color="#2a7e3b", offset=1),
         ],
         x1=1,
         x2=1,
@@ -168,7 +168,7 @@ _rule = (
 # Points on the chart
 _points = _transformed.mark_point(
     size=80,
-    color="#1C7361",
+    color="#2a7e3b",
     filled=True,
 ).encode(
     x="_some_column:T",
@@ -197,12 +197,12 @@ _nearest = alt.selection_point(
 
 # Area chart
 _area = _transformed.mark_area(
-    line={"color": "#1C7361"},
+    line={"color": "#2a7e3b"},
     color=alt.Gradient(
         gradient="linear",
         stops=[
             alt.GradientStop(color="white", offset=0),
-            alt.GradientStop(color="#1C7361", offset=1),
+            alt.GradientStop(color="#2a7e3b", offset=1),
         ],
         x1=1,
         x2=1,
@@ -239,7 +239,7 @@ _rule = (
 # Points on the chart
 _points = _transformed.mark_point(
     size=80,
-    color="#1C7361",
+    color="#2a7e3b",
     filled=True,
 ).encode(
     x="_some_column:T",
@@ -253,7 +253,7 @@ _chart
 # integer
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="{COLOR}")
+    .mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),
@@ -278,7 +278,7 @@ _chart
 # number
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="{COLOR}")
+    .mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),
@@ -331,7 +331,7 @@ _base_chart = (
     )
 )
 
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
+_bar_chart = _base_chart.mark_bar(color="#8ec8f6")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -374,7 +374,7 @@ _base_chart = (
     )
 )
 
-_bar_chart = _base_chart.mark_bar(color="#1C7361")
+_bar_chart = _base_chart.mark_bar(color="#8ec8f6")
 _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
@@ -390,7 +390,7 @@ _chart
 # unknown
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="{COLOR}")
+    .mark_bar()
     .encode(
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),

@@ -30,8 +30,7 @@ CHART_MAX_ROWS = 20_000
 def get_table_manager(item: object) -> TableManager[Any] | None:
     try:
         table = get_table_manager_or_none(item)
-        if table is not None:
-            return table
+        return table
     except Exception as e:
         LOGGER.warning(
             "Failed to get table manager for item %s",

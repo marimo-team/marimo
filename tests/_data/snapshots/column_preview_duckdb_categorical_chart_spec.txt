@@ -123,7 +123,7 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#1C7361"
+            "value": "#8ec8f6"
           },
           "height": {
             "signal": "max(0.25, bandwidth('y'))"
