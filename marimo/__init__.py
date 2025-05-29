@@ -84,7 +84,7 @@ __all__ = [
     "vstack",
     "watch",
 ]
-__version__ = "0.13.14"
+__version__ = "0.13.15"
 
 import marimo._ai as ai
 import marimo._islands as islands
