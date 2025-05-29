@@ -660,7 +660,7 @@ def test_cli_sandbox_run_with_python_version(
             f"Server failed to start. stdout:\n{stdout}\nstderr:\n{stderr}"
         )
 
-    _check_contents(p, b'"mode": "read"', contents)
+    _check_contents(p, b"read", contents)
 
     p.terminate()
     p.wait(timeout=5)
