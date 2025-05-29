@@ -6,7 +6,7 @@ export const KNOWN_AI_MODELS = [
   "claude-3-5-haiku-latest",
   "claude-3-opus-latest",
   "claude-sonnet-4-20250514",
-  "claude-opus-4-20250514	",
+  "claude-opus-4-20250514",
 
   // DeepSeek
   "deepseek-v3",
@@ -51,4 +51,15 @@ export const AWS_REGIONS = [
   "eu-central-1",
   "ap-northeast-1",
   "ap-southeast-1",
+] as const;
+
+/*
+ * Matches the providers in AiConfig
+ */
+export const KNOWN_AI_PROVIDERS = [
+  "open_ai",
+  "anthropic",
+  "google",
+  "bedrock",
+  "azure",
 ] as const;

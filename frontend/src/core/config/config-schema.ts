@@ -128,6 +128,7 @@ export const UserConfigSchema = z
     ai: z
       .object({
         rules: z.string().default(""),
+        provider_type: z.string().optional(),
         open_ai: z
           .object({
             api_key: z.string().optional(),
@@ -151,6 +152,12 @@ export const UserConfigSchema = z
             profile_name: z.string().optional(),
             aws_access_key_id: z.string().optional(),
             aws_secret_access_key: z.string().optional(),
+          })
+          .optional(),
+        azure: z
+          .object({
+            api_key: z.string().optional(),
+            base_url: z.string().optional(),
           })
           .optional(),
       })

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import click
 
 from marimo._cli.print import orange
+from marimo._config.config import OpenAiConfig
 
 if TYPE_CHECKING:
     import psutil
@@ -56,6 +57,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.NonNestedLiteral,
         data.DataType,
         CellConfig,
+        OpenAiConfig,
         MarimoConfig,
         # Errors
         errors.SetupRootError,
