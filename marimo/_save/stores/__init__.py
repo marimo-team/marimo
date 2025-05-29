@@ -34,10 +34,6 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 )
 
 
-def _extract_custom_name(cls: StoreType) -> str:
-    return cls.__name__.lower().rsplit("store", 1).pop(0) or "custom"
-
-
 def get_store(current_path: Optional[str] = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
@@ -59,12 +55,8 @@ def _get_store_from_config(
         return DEFAULT_STORE()
 
     cache_stores = copy.copy(cast(dict[str, StoreType], CACHE_STORES))
-    additional_stores = registry.get_all()
     cache_stores.update(
-        {
-            _extract_custom_name(store_type): store_type
-            for store_type in additional_stores
-        }
+        {name: registry.get(name) for name in registry.names()}
     )
 
     if isinstance(config, list):
