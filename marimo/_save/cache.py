@@ -4,11 +4,12 @@ from __future__ import annotations
 import importlib
 import inspect
 import re
+import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
 
-from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._core.ui_element import S, T, UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 
@@ -51,10 +52,33 @@ class ModuleStub:
 
 class FunctionStub:
     def __init__(self, function: Any) -> None:
-        self.code = function.__code__
+        self.code = textwrap.dedent(inspect.getsource(function))
 
     def load(self, glbls: dict[str, Any]) -> Any:
-        return eval(self.code, glbls)
+        # TODO: Fix line cache and associate with the correct module.
+        code_obj = compile(self.code, "<string>", "exec")
+        lcls: dict[str, Any] = {}
+        exec(code_obj, glbls, lcls)
+        # Update the global scope with the function.
+        for value in lcls.values():
+            return value
+
+
+class UIElementStub:
+    def __init__(self, element: UIElement[S, T]) -> None:
+        self.args = element._args
+        self.cls = element.__class__
+        # Ideally only hashable attributes are stored on the subclass level.
+        defaults = set(self.cls.__new__(self.cls).__dict__.keys())
+        defaults |= {"_ctx"}
+        self.data = {
+            k: v
+            for k, v in element.__dict__.items()
+            if hasattr(v, "__hash__") and k not in defaults
+        }
+
+    def load(self) -> UIElement[S, T]:
+        return self.cls.from_args(self.data, self.args)  # type: ignore
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -79,7 +103,18 @@ class Cache:
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
         for var, lookup in self.contextual_defs():
-            scope[lookup] = self.defs[var]
+            value = self.defs.get(var, None)
+            # If it's a module we must replace with a stub.
+            if isinstance(value, ModuleStub):
+                scope[lookup] = value.load()
+            elif isinstance(value, FunctionStub):
+                scope[lookup] = value.load(scope)
+            elif isinstance(value, UIElementStub):
+                # UIElementStub is a placeholder for UIElement, which cannot be
+                # restored directly.
+                scope[lookup] = value.load()
+            else:
+                scope[lookup] = self.defs[var]
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -100,13 +135,6 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
-
-        for key, value in self.defs.items():
-            # If it's a module we must replace with a stub.
-            if isinstance(value, ModuleStub):
-                scope[key] = value.load()
-            elif isinstance(value, FunctionStub):
-                value.load(scope)
 
     def update(
         self,
@@ -157,6 +185,9 @@ class Cache:
                 self.defs[key] = ModuleStub(value)
             elif inspect.isfunction(value):
                 self.defs[key] = FunctionStub(value)
+            elif isinstance(value, UIElement):
+                # UIElement cannot be restored directly, so we store a stub.
+                self.defs[key] = UIElementStub(value)
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""

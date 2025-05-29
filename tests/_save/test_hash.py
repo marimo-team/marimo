@@ -99,6 +99,54 @@ class TestHash:
             return (Y,)
 
     @staticmethod
+    def test_single_expression_execution_hash() -> None:
+        # The final expression is treated a tiny bit differently than marimo,
+        # which has led to bugs.
+        app = App()
+        app._anonymous_file = True
+        app._pytest_rewrite = True
+
+        @app.cell
+        def _():
+            non_primitive = [object()]
+            return non_primitive
+
+        @app.cell
+        def _(non_primitive) -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            with persistent_cache(name="test", _loader=MockLoader()) as cache:
+                Y = 8 + len(non_primitive)
+            assert cache._cache.cache_type == "ExecutionPath"
+            return (Y,)
+
+        _, defs = app.run()
+
+        app2 = App()
+        app2._anonymous_file = True
+        app2._pytest_rewrite = True
+
+        @app2.cell
+        def _():
+            non_primitive = [object(), object()]
+            return non_primitive
+
+        @app2.cell
+        def _(non_primitive) -> tuple[int]:
+            from marimo._save.save import persistent_cache
+            from tests._save.loaders.mocks import MockLoader
+
+            with persistent_cache(name="test", _loader=MockLoader()) as cache:
+                Y = 8 + len(non_primitive)
+            assert cache._cache.cache_type == "ExecutionPath"
+            return (Y,)
+
+        _, defs2 = app2.run()
+
+        assert defs["cache"]._cache.hash != defs2["cache"]._cache.hash
+
+    @staticmethod
     @pytest.mark.skipif(
         "sys.version_info < (3, 12) or sys.version_info >= (3, 13)"
     )
