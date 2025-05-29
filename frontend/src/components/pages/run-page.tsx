@@ -24,8 +24,8 @@ const RunPage = (props: Props) => {
         autoSaveId="marimo:chrome:v1:run1"
         storage={createStorage("left")}
       >
-        <StaticBanner />
         <Panel>
+          <StaticBanner />
           <RunApp appConfig={props.appConfig} />
           {showWatermark && <Watermark />}
         </Panel>
