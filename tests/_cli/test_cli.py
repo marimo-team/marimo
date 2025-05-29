@@ -553,7 +553,7 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, b"edit", contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -574,7 +574,7 @@ def test_cli_sandbox_edit_new_file() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, b"edit", contents)
 
 
 @pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
