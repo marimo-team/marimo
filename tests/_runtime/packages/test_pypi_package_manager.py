@@ -44,7 +44,7 @@ manager = PipPackageManager()
 async def test_install(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
-    result = await manager._install("package1 package2")
+    result = await manager._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
         ["pip", "--python", PY_EXE, "install", "package1", "package2"],
@@ -56,7 +56,7 @@ async def test_install(mock_run: MagicMock):
 async def test_install_failure(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=1)
 
-    result = await manager._install("nonexistent-package")
+    result = await manager._install("nonexistent-package", upgrade=False)
 
     assert result is False
 
@@ -199,7 +199,7 @@ async def test_uv_install_not_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2")
+    result = await mgr._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
         [
@@ -223,7 +223,7 @@ async def test_uv_install_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2")
+    result = await mgr._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
         ["uv", "add", "--compile", "package1", "package2", "-p", PY_EXE],
@@ -283,3 +283,74 @@ def test_uv_list_packages(mock_run: MagicMock):
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
     assert packages[1] == PackageDescription(name="package2", version="2.1.0")
+
+
+@patch("subprocess.run")
+@patch.object(PipPackageManager, "is_manager_installed", return_value=True)
+async def test_install_with_upgrade(
+    mock_is_installed: MagicMock, mock_run: MagicMock
+):
+    del mock_is_installed
+    mock_run.return_value = MagicMock(returncode=0)
+
+    result = await manager._install("package1", upgrade=True)
+
+    mock_run.assert_called_once_with(
+        ["pip", "--python", PY_EXE, "install", "--upgrade", "package1"],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(PipPackageManager, "is_manager_installed", return_value=True)
+async def test_install_without_upgrade(
+    mock_is_installed: MagicMock, mock_run: MagicMock
+):
+    del mock_is_installed
+    mock_run.return_value = MagicMock(returncode=0)
+
+    result = await manager._install("package1", upgrade=False)
+
+    mock_run.assert_called_once_with(
+        ["pip", "--python", PY_EXE, "install", "package1"],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_with_upgrade_not_in_project(mock_run: MagicMock):
+    """Test UV install with upgrade uses pip subcommand when not in UV project"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr._install("package1", upgrade=True)
+
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--upgrade",
+            "--compile",
+            "package1",
+            "-p",
+            PY_EXE,
+        ]
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_with_upgrade_in_project(mock_run: MagicMock):
+    """Test UV install with upgrade uses add subcommand when in UV project"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr._install("package1", upgrade=True)
+
+    mock_run.assert_called_once_with(
+        ["uv", "add", "--upgrade", "--compile", "package1", "-p", PY_EXE]
+    )
+    assert result is True

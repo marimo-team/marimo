@@ -2462,6 +2462,7 @@ export interface components {
   schemas: {
     AddPackageRequest: {
       package: string;
+      upgrade?: boolean | null;
     };
     AiCompletionContext: {
       schema: components["schemas"]["SchemaTable"][];

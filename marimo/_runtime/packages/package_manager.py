@@ -50,17 +50,21 @@ class PackageManager(abc.ABC):
         return False
 
     @abc.abstractmethod
-    async def _install(self, package: str) -> bool:
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
         """Installation logic."""
         ...
 
-    async def install(self, package: str, version: Optional[str]) -> bool:
+    async def install(
+        self, package: str, version: Optional[str], upgrade: bool = False
+    ) -> bool:
         """Attempt to install a package that makes this module available.
 
         Returns True if installation succeeded, else False.
         """
         self._attempted_packages.add(package)
-        return await self._install(append_version(package, version))
+        return await self._install(
+            append_version(package, version), upgrade=upgrade
+        )
 
     @abc.abstractmethod
     async def uninstall(self, package: str) -> bool:
@@ -92,6 +96,7 @@ class PackageManager(abc.ABC):
         packages_to_remove: Optional[list[str]] = None,
         import_namespaces_to_add: Optional[list[str]] = None,
         import_namespaces_to_remove: Optional[list[str]] = None,
+        upgrade: bool,
     ) -> None:
         del (
             filepath,
@@ -99,6 +104,7 @@ class PackageManager(abc.ABC):
             packages_to_remove,
             import_namespaces_to_add,
             import_namespaces_to_remove,
+            upgrade,
         )
         """
         Add or remove inline script metadata metadata
