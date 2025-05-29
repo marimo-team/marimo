@@ -1,12 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
 import { Logger } from "../../utils/Logger";
-import { getMarimoServerToken } from "../dom/marimo-tag";
 import { getSessionId } from "../kernel/session";
 import { createMarimoClient } from "@marimo-team/marimo-api";
+import { store } from "@/core/state/jotai";
+import { serverTokenAtom } from "@/core/meta/state";
+import { assertExists } from "@/utils/assertExists";
 
 const getServerTokenOnce = once(() => {
-  return getMarimoServerToken();
+  const token = store.get(serverTokenAtom);
+  assertExists(token, "internal-error: server token not found");
+  return token;
 });
 
 function getBaseUriWithoutQueryParams(): string {

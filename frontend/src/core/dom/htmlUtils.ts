@@ -58,6 +58,8 @@ export function getFilenameFromDOM() {
     }
   }
 
+  // TODO: Remove this once downstream usage of `getFilenameFromDOM` is removed
+  // such that is it not called before mounting the app.
   const filenameTag = document.querySelector("marimo-filename");
   if (import.meta.env.MODE === "test" && !filenameTag) {
     return null;

@@ -10,12 +10,12 @@ import { TooltipProvider } from "../components/ui/tooltip";
 import { Toaster } from "../components/ui/toaster";
 import { ModalProvider } from "../components/modal/ImperativeModal";
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
-import { initialMode } from "./mode";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { TailwindIndicator } from "@/components/debug/indicator";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { slotsController } from "./slots/slots";
 import { reactLazyWithPreload } from "@/utils/lazy";
+import { getInitialAppMode } from "@/core/mode";
 
 // Force tailwind classnames
 // tailwind only creates css for classnames that exist the FE files
@@ -33,7 +33,7 @@ const LazyEditPage = reactLazyWithPreload(
   () => import("@/components/pages/edit-page"),
 );
 
-function preload(mode: string) {
+export function preloadPage(mode: string) {
   if (mode === "home") {
     LazyHomePage.preload();
   } else if (mode === "read") {
@@ -42,7 +42,6 @@ function preload(mode: string) {
     LazyEditPage.preload();
   }
 }
-preload(initialMode);
 
 /**
  * The root component of the Marimo app.
@@ -53,6 +52,7 @@ export const MarimoApp: React.FC = memo(() => {
   const editorFontSize = toRem(userConfig.display.code_editor_font_size);
 
   const renderBody = () => {
+    const initialMode = getInitialAppMode();
     if (initialMode === "home") {
       return <LazyHomePage.Component />;
     }

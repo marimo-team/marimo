@@ -10,7 +10,7 @@ import { WebSocketState } from "../websocket/types";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { connectionAtom } from "../network/connection";
 import { getAppConfig } from "../config/config";
-import { filenameAtom } from "./filenameAtom";
+import { filenameAtom } from "./file-state";
 
 export function useFilename() {
   return useAtomValue(filenameAtom);

@@ -20,6 +20,53 @@ from marimo._server.tokens import SkewProtectionToken
 from marimo._types.ids import CellId_t
 from marimo._utils.versions import is_editable
 
+MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
+
+
+def _get_mount_config(
+    *,
+    filename: Optional[str],
+    mode: Literal["edit", "home", "read"],
+    server_token: SkewProtectionToken,
+    user_config: MarimoConfig,
+    config_overrides: PartialMarimoConfig,
+    app_config: Optional[_AppConfig],
+    version: Optional[str] = None,
+    show_app_code: bool = True,
+) -> str:
+    """
+    Return a JSON string with custom indentation and sorting.
+    """
+
+    options: dict[str, Any] = {
+        "filename": filename,
+        "mode": mode,
+        "version": version or get_version(),
+        "server_token": str(server_token),
+        "user_config": user_config,
+        "config_overrides": config_overrides,
+        "app_config": _del_none_or_empty(app_config.asdict())
+        if app_config
+        else None,
+        "view": {
+            "showAppCode": show_app_code,
+        },
+    }
+
+    return """{{
+            "filename": {filename},
+            "mode": {mode},
+            "version": {version},
+            "serverToken": {server_token},
+            "config": {user_config},
+            "configOverrides": {config_overrides},
+            "appConfig": {app_config},
+            "view": {view},
+        }}
+""".format(
+        **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
+    ).strip()
+
 
 def home_page_template(
     html: str,
@@ -29,15 +76,20 @@ def home_page_template(
     server_token: SkewProtectionToken,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
-    html = html.replace("{{ user_config }}", json.dumps(user_config))
-    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    html = html.replace("{{ server_token }}", str(server_token))
-    html = html.replace("{{ version }}", get_version())
-
     html = html.replace("{{ title }}", "marimo")
-    html = html.replace("{{ app_config }}", json.dumps({}))
     html = html.replace("{{ filename }}", "")
-    html = html.replace("{{ mode }}", "home")
+
+    html = html.replace(
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            filename=None,
+            mode="home",
+            server_token=server_token,
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=None,
+        ),
+    )
 
     # Add custom CSS from display config
     html = _inject_custom_css_for_config(html, user_config)
@@ -56,10 +108,19 @@ def notebook_page_template(
     mode: SessionMode,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
-    html = html.replace("{{ user_config }}", json.dumps(user_config))
-    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    html = html.replace("{{ server_token }}", str(server_token))
-    html = html.replace("{{ version }}", get_version())
+
+    html = html.replace("{{ filename }}", filename or "")
+    html = html.replace(
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            filename=filename,
+            mode="read" if mode == SessionMode.RUN else "edit",
+            server_token=server_token,
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=app_config,
+        ),
+    )
 
     html = html.replace(
         "{{ title }}",
@@ -69,14 +130,7 @@ def notebook_page_template(
             else app_config.app_title
         ),
     )
-    html = html.replace(
-        "{{ app_config }}", json.dumps(_del_none_or_empty(app_config.asdict()))
-    )
-    html = html.replace("{{ filename }}", filename or "")
-    html = html.replace(
-        "{{ mode }}",
-        "read" if mode == SessionMode.RUN else "edit",
-    )
+
     # If has custom css, inline the css and add to the head
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
@@ -123,16 +177,24 @@ def static_notebook_template(
         asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
 
     html = html.replace("{{ base_url }}", "")
+    filename = os.path.basename(filepath or "")
+    html = html.replace("{{ filename }}", filename or "")
+
     # We don't need all this user config when we export the notebook,
     # but we do need some:
     # - display.theme
     # - display.cell_output
     html = html.replace(
-        "{{ user_config }}", json.dumps(user_config, sort_keys=True)
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            filename=filename,
+            mode="read",
+            server_token=server_token,
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=app_config,
+        ),
     )
-    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    html = html.replace("{{ server_token }}", str(server_token))
-    html = html.replace("{{ version }}", get_version())
 
     html = html.replace(
         "{{ title }}",
@@ -142,12 +204,6 @@ def static_notebook_template(
             else app_config.app_title
         ),
     )
-    html = html.replace(
-        "{{ app_config }}",
-        json.dumps(_del_none_or_empty(app_config.asdict()), sort_keys=True),
-    )
-    html = html.replace("{{ filename }}", os.path.basename(filepath or ""))
-    html = html.replace("{{ mode }}", "read")
 
     serialized_cell_outputs = {
         cell_id: _serialize_to_base64(json.dumps(output.asdict()))
@@ -274,16 +330,37 @@ def wasm_notebook_template(
         if app_config.app_title is None
         else app_config.app_title,
     )
-    body = body.replace("{{ user_config }}", json.dumps(user_config))
-    body = body.replace(
-        "{{ app_config }}", json.dumps(_del_none_or_empty(app_config.asdict()))
-    )
-    body = body.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    body = body.replace("{{ server_token }}", "123")
-    body = body.replace("{{ version }}", version)
-    # WASM runtime currently expect this to be notebook.py instead of the actual filename
+
     body = body.replace("{{ filename }}", "notebook.py")
-    body = body.replace("{{ mode }}", "edit" if mode == "edit" else "read")
+    body = body.replace(
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            filename="notebook.py",
+            mode="edit" if mode == "edit" else "read",
+            server_token=SkewProtectionToken("unused"),
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=app_config,
+            version=version,
+            show_app_code=show_code,
+        ),
+    )
+
+    body = body.replace(
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            # WASM runtime currently expect this to be notebook.py instead of the actual filename
+            filename="notebook.py",
+            mode="edit" if mode == "edit" else "read",
+            server_token=SkewProtectionToken("unused"),
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=app_config,
+            version=version,
+            show_app_code=show_code,
+        ),
+    )
+
     body = body.replace(
         "</head>", '<marimo-wasm hidden=""></marimo-wasm></head>'
     )
@@ -333,7 +410,7 @@ def wasm_notebook_template(
 
     body = body.replace(
         "</head>",
-        f'<marimo-code hidden="" data-show-code="{json.dumps(show_code)}">{uri_encode_component(code)}</marimo-code></head>',
+        f'<marimo-code hidden="">{uri_encode_component(code)}</marimo-code></head>',
     )
 
     return body

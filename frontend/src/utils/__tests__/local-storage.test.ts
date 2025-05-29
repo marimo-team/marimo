@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { NotebookScopedLocalStorage } from "../localStorage";
 import { z } from "zod";
 import { store } from "@/core/state/jotai";
-import { filenameAtom } from "@/core/saving/filenameAtom";
+import { filenameAtom } from "@/core/saving/file-state";
 
 describe("NotebookScopedLocalStorage", () => {
   const schema = z.object({
