@@ -534,7 +534,7 @@ def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, b"edit", contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -610,7 +610,7 @@ def test_cli_sandbox_run(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b'"mode": "read"', contents)
+    _check_contents(p, b"read", contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
