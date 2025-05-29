@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+// @vitest-environment jsdom
 import { mount, visibleForTesting } from "../mount";
 import { store } from "../core/state/jotai";
 import { type AppMode, viewStateAtom } from "../core/mode";
@@ -18,6 +19,14 @@ import {
 
 vi.mock("../utils/vitals", () => ({
   reportVitals: vi.fn(),
+}));
+
+vi.mock("react-dom/client", () => ({
+  createRoot: vi.fn().mockImplementation((el) => {
+    return {
+      render: vi.fn(),
+    };
+  }),
 }));
 
 describe("main", () => {
