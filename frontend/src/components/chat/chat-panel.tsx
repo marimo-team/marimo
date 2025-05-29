@@ -305,7 +305,7 @@ const ChatPanelBody = () => {
     };
 
     requestAnimationFrame(scrollToBottom);
-  }, [messages, isLoading]);
+  }, [chatState.activeChatId]);
 
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
