@@ -31,6 +31,7 @@ import { PACKAGES_INPUT_ID } from "./constants";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { packagesToInstallAtom } from "./packages-state";
 import { useAtomValue, useSetAtom } from "jotai";
+import { isWasm } from "@/core/wasm/utils";
 
 const showAddPackageToast = (packageName: string, error?: string | null) => {
   if (error) {
@@ -353,6 +354,11 @@ const UpgradeButton: React.FC<{
   onSuccess: () => void;
 }> = ({ packageName, onSuccess }) => {
   const [loading, setLoading] = React.useState(false);
+
+  // Hide upgrade button in WASM
+  if (isWasm()) {
+    return null;
+  }
 
   const handleUpgradePackage = async () => {
     try {
