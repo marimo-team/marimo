@@ -35,13 +35,71 @@ describe("main", () => {
     store.set(configOverridesAtom, {});
   });
 
-  it("should mount with minimal options", () => {
-    const el = document.createElement("div");
-    mount({ mode: "edit" }, el);
+  it.each(["edit", "read", "home", "run"])(
+    "should mount with mode %s",
+    (mode) => {
+      const el = document.createElement("div");
+      mount({ mode: "edit" }, el);
 
+      expect(store.get(viewStateAtom).mode).toBe("edit");
+      expect(store.get(filenameAtom)).toBeDefined();
+      expect(store.get(marimoVersionAtom)).toBe("unknown");
+      expect(store.get(showCodeInRunModeAtom)).toBe(true);
+    },
+  );
+
+  it("should not mount with invalid mode", () => {
+    const el = document.createElement("div");
+    const error = mount({ mode: "invalid" }, el);
+    expect(error).toBeDefined();
+    expect(error?.message).toBe("Invalid marimo mount options");
+  });
+
+  it("should mount with null values", () => {
+    const el = document.createElement("div");
+    const error = mount(
+      { mode: "edit", filename: null, code: null, version: null },
+      el,
+    );
+    expect(error).toBeUndefined();
+
+    mount({ mode: "edit", filename: null, code: null, version: null }, el);
+    expect(store.get(filenameAtom)).toBeNull();
+    expect(store.get(codeAtom)).toBe(null);
+    expect(store.get(marimoVersionAtom)).toBe(null);
     expect(store.get(viewStateAtom).mode).toBe("edit");
-    expect(store.get(filenameAtom)).toBeDefined();
+  });
+
+  it("should mount with undefined values", () => {
+    const el = document.createElement("div");
+    const error = mount(
+      {
+        mode: "edit",
+        filename: undefined,
+        code: undefined,
+        version: undefined,
+      },
+      el,
+    );
+    expect(error).toBeUndefined();
+
+    expect(store.get(filenameAtom)).toBeNull();
+    expect(store.get(codeAtom)).toBe("");
     expect(store.get(marimoVersionAtom)).toBe("unknown");
+    expect(store.get(viewStateAtom).mode).toBe("edit");
+  });
+
+  it("should mount with empty config", () => {
+    const el = document.createElement("div");
+    const error = mount(
+      { mode: "edit", config: {}, configOverrides: {}, appConfig: {} },
+      el,
+    );
+    expect(error).toBeUndefined();
+    expect(store.get(userConfigAtom)).toEqual(parseUserConfig({}));
+    expect(store.get(configOverridesAtom)).toEqual({});
+    expect(store.get(appConfigAtom)).toEqual(parseAppConfig({}));
+    expect(store.get(viewStateAtom).mode).toBe("edit");
     expect(store.get(showCodeInRunModeAtom)).toBe(true);
   });
 
@@ -64,7 +122,7 @@ describe("main", () => {
       },
       configOverrides: { display: { code_editor_font_size: 100 } },
       appConfig: { app_title: "My App" } as AppConfig,
-      showCodeInRunMode: true,
+      view: { showAppCode: true },
     };
 
     mount(options, el);

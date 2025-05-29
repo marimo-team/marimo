@@ -335,20 +335,6 @@ def wasm_notebook_template(
     body = body.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
-            filename="notebook.py",
-            mode="edit" if mode == "edit" else "read",
-            server_token=SkewProtectionToken("unused"),
-            user_config=user_config,
-            config_overrides=config_overrides,
-            app_config=app_config,
-            version=version,
-            show_app_code=show_code,
-        ),
-    )
-
-    body = body.replace(
-        MOUNT_CONFIG_TEMPLATE,
-        _get_mount_config(
             # WASM runtime currently expect this to be notebook.py instead of the actual filename
             filename="notebook.py",
             mode="edit" if mode == "edit" else "read",

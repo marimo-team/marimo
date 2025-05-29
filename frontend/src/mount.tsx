@@ -122,15 +122,23 @@ const mountOptionsSchema = z.object({
   /**
    * notebook code
    */
-  code: z.string().default(getMarimoCode() ?? ""),
+  code: z
+    .string()
+    .nullish()
+    .default(getMarimoCode() ?? ""),
   /**
    * marimo version
    */
-  version: z.string().default("unknown"),
+  version: z.string().nullish().default("unknown"),
   /**
-   * 'edit' or 'run' or 'home'
+   * 'edit' or 'read'/'run' or 'home'
    */
-  mode: z.enum(["edit", "run", "home"] as const),
+  mode: z.enum(["edit", "read", "home", "run"]).transform((val): AppMode => {
+    if (val === "run") {
+      return "read";
+    }
+    return val;
+  }),
   /**
    * marimo config
    */
