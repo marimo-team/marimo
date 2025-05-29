@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import signal
+import sys
 import time
 from typing import Callable
 
@@ -57,6 +58,11 @@ class InterruptHandler:
         try:
             try:
                 if GLOBAL_SETTINGS.YES:
+                    self.shutdown()
+                    return
+
+                # If not in an interactive terminal, just exit
+                if not sys.stdin.isatty():
                     self.shutdown()
                     return
 
