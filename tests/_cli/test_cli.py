@@ -216,7 +216,7 @@ def test_cli_edit_none() -> None:
     _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
-        f'"version: "{get_version()}"'.encode(),
+        f'"version": "{get_version()}"'.encode(),
         contents,
     )
     _check_contents(p, b"marimo-server-token", contents)
@@ -242,7 +242,7 @@ def test_cli_edit_token() -> None:
     _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
-        f'"version: "{get_version()}"'.encode(),
+        f'"version": "{get_version()}"'.encode(),
         contents,
     )
     _check_contents(p, b"marimo-server-token", contents)
@@ -267,7 +267,7 @@ def test_cli_edit_directory() -> None:
     _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
-        f'"version: "{get_version()}"'.encode(),
+        f'"version": "{get_version()}"'.encode(),
         contents,
     )
     _check_contents(p, b"marimo-server-token", contents)
@@ -291,7 +291,7 @@ def test_cli_edit_new_file() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "edit"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
     _check_contents(p, b"marimo-server-token", contents)
 
 
@@ -314,7 +314,7 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "edit"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
 @pytest.mark.skipif(
@@ -379,7 +379,7 @@ def test_cli_new() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "edit"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
     _check_contents(p, b"marimo-server-token", contents)
 
 
@@ -390,7 +390,7 @@ def test_cli_run(temp_marimo_file: str) -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "read"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
@@ -408,7 +408,7 @@ def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "read"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
 def test_cli_run_with_additional_args(temp_marimo_file: str) -> None:
@@ -428,7 +428,7 @@ def test_cli_run_with_additional_args(temp_marimo_file: str) -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "read"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
 def test_cli_tutorial() -> None:
@@ -446,7 +446,7 @@ def test_cli_tutorial() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "edit"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
     _check_contents(p, b"intro.py", contents)
 
 
@@ -465,7 +465,7 @@ def test_cli_md_tutorial() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "edit"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
     _check_contents(p, b"markdown-format.md", contents)
 
 
@@ -476,7 +476,7 @@ def test_cli_md_run(temp_md_marimo_file: str) -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "read"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
 def test_cli_md_edit(temp_md_marimo_file: str) -> None:
@@ -495,7 +495,7 @@ def test_cli_md_edit(temp_md_marimo_file: str) -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "edit"', contents)
-    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
+    _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
 def test_cli_custom_host() -> None:
