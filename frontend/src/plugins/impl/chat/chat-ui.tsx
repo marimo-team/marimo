@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Spinner } from "@/components/icons/spinner";
 import { Logger } from "@/utils/Logger";
-import { type Message, useChat } from "ai/react";
+import type { Message } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import React, { useEffect, useRef } from "react";
 import type {
   ChatMessage,
@@ -92,7 +93,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     input,
     setInput,
     handleSubmit,
-    isLoading,
+    status,
     stop,
     error,
     reload,
@@ -147,6 +148,8 @@ export const Chatbot: React.FC<Props> = (props) => {
       Logger.debug("Received HTTP response from server:", response);
     },
   });
+
+  const isLoading = status === "submitted" || status === "streaming";
 
   const handleDelete = (id: string) => {
     const index = messages.findIndex((message) => message.id === id);

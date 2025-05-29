@@ -28,7 +28,8 @@ import {
   useEffect,
 } from "react";
 import { generateUUID } from "@/utils/uuid";
-import { type Message, useChat } from "ai/react";
+import type { Message } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
