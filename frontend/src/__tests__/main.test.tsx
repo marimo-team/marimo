@@ -65,8 +65,8 @@ describe("main", () => {
 
     mount({ mode: "edit", filename: null, code: null, version: null }, el);
     expect(store.get(filenameAtom)).toBeNull();
-    expect(store.get(codeAtom)).toBe(null);
-    expect(store.get(marimoVersionAtom)).toBe(null);
+    expect(store.get(codeAtom)).toBe("");
+    expect(store.get(marimoVersionAtom)).toBe("unknown");
     expect(store.get(viewStateAtom).mode).toBe("edit");
   });
 

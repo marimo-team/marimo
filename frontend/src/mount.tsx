@@ -97,10 +97,12 @@ const passthroughObject = z
       return val;
     }
     if (typeof val === "string") {
-      Logger.warn("Received, JSON string instead of object. Parsing...");
+      Logger.warn(
+        "[marimo] received JSON string instead of object. Parsing...",
+      );
       return JSON.parse(val);
     }
-    Logger.warn("Missing config data");
+    Logger.warn("[marimo] missing config data");
     return {};
   });
 
@@ -125,11 +127,14 @@ const mountOptionsSchema = z.object({
   code: z
     .string()
     .nullish()
-    .default(getMarimoCode() ?? ""),
+    .transform((val) => val ?? getMarimoCode() ?? ""),
   /**
    * marimo version
    */
-  version: z.string().nullish().default("unknown"),
+  version: z
+    .string()
+    .nullish()
+    .transform((val) => val ?? "unknown"),
   /**
    * 'edit' or 'read'/'run' or 'home'
    */
@@ -159,14 +164,15 @@ const mountOptionsSchema = z.object({
       showAppCode: z.boolean().default(true),
     })
     .nullish()
-    .default({
-      showAppCode: true,
-    }),
+    .transform((val) => val ?? { showAppCode: true }),
 
   /**
    * server token
    */
-  serverToken: z.string().nullish(),
+  serverToken: z
+    .string()
+    .nullish()
+    .transform((val) => val ?? ""),
 });
 
 function initStore(options: unknown) {
@@ -185,12 +191,9 @@ function initStore(options: unknown) {
 
   // Meta
   store.set(marimoVersionAtom, parsedOptions.data.version);
-  store.set(
-    showCodeInRunModeAtom,
-    parsedOptions.data.view?.showAppCode ?? true,
-  );
+  store.set(showCodeInRunModeAtom, parsedOptions.data.view.showAppCode);
   store.set(viewStateAtom, { mode, cellAnchor: null });
-  store.set(serverTokenAtom, parsedOptions.data.serverToken ?? "");
+  store.set(serverTokenAtom, parsedOptions.data.serverToken);
 
   // Config
   store.set(
