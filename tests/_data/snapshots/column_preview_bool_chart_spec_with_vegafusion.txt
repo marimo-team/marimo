@@ -137,7 +137,7 @@
             "value": 13
           },
           "radius": {
-            "value": 100
+            "value": 110
           },
           "text": {
             "signal": "format(datum[\"percentage\"], \".2%\")"
@@ -214,10 +214,9 @@
         "sort": true
       },
       "name": "color",
-      "range": [
-        "#99c99c",
-        "#1C7361"
-      ],
+      "range": {
+        "scheme": "category10"
+      },
       "type": "ordinal"
     }
   ],

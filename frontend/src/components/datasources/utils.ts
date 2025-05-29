@@ -4,7 +4,7 @@ import {
   DUCKDB_ENGINE,
 } from "@/core/datasets/data-source-connections";
 import type { DataTable, DataType } from "@/core/kernel/messages";
-import type { ColumnHeaderStatsKeys } from "../data-table/types";
+import type { ColumnHeaderStatsKey } from "../data-table/types";
 
 // Some databases have no schemas, so we don't show it (eg. Clickhouse)
 export function isSchemaless(schemaName: string) {
@@ -47,10 +47,7 @@ export function sqlCode(
   return `_df = mo.sql(f'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;
 }
 
-export function convertStatsName(
-  stat: (typeof ColumnHeaderStatsKeys)[number],
-  type: DataType,
-) {
+export function convertStatsName(stat: ColumnHeaderStatsKey, type: DataType) {
   if (type === "date" || type === "datetime" || type === "time") {
     if (stat === "min") {
       return "Earliest";

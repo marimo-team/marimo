@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
+from datetime import time
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
@@ -53,8 +54,12 @@ TOOLTIP_PERCENTAGE_FORMAT = ".2%"
 
 NUM_RECORDS = "Number of records"
 
-# Similar to mint.mint11 (same as table charts)
-COLOR = "#1C7361"
+# https://www.radix-ui.com/colors/docs/palette-composition/scales
+DATE_COLOR = "#2a7e3b"  # grass-11
+STRING_COLOR = "#8ec8f6"  # blue-7
+BOOLEAN_COLOR = {"scheme": "category10"}
+NUMBER_COLOR = "#be93e4"  # purple-8
+NUMBER_STROKE = "#8e4ec6"  # purple-9
 
 # Set width to container and remove border lines of chart
 COMMON_CONFIG = 'properties(width="container").configure_view(stroke=None)'
@@ -70,7 +75,7 @@ class NumberChartBuilder(ChartBuilder):
 
         chart = (
             alt.Chart(data)
-            .mark_bar(color=COLOR)
+            .mark_bar(color=NUMBER_COLOR, stroke=NUMBER_STROKE)
             .encode(
                 x=alt.X(column, type="quantitative", bin=True, title=column),
                 y=alt.Y("count()", type="quantitative", title=NUM_RECORDS),
@@ -95,7 +100,9 @@ class NumberChartBuilder(ChartBuilder):
 
     def altair_code(self, data: str, column: str, simple: bool) -> str:
         mark_bar = (
-            """.mark_bar()""" if simple else """.mark_bar(color="{COLOR}")"""
+            """.mark_bar()"""
+            if simple
+            else """.mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
         )
 
         return f"""
@@ -165,7 +172,7 @@ class StringChartBuilder(ChartBuilder):
         )
 
         def add_encodings(chart: alt.Chart) -> alt.Chart:
-            _bar_chart = chart.mark_bar(color=COLOR)
+            _bar_chart = chart.mark_bar(color=STRING_COLOR)
             _text_chart = chart.mark_text(align="left", dx=3).encode(
                 text=alt.Text("percentage:Q", format=TOOLTIP_PERCENTAGE_FORMAT)
             )
@@ -173,16 +180,16 @@ class StringChartBuilder(ChartBuilder):
 
         if self.should_limit_to_10_items:
             _base_chart = _base_chart.transform_filter(alt.datum.rank <= 10)
-            _chart = add_encodings(_base_chart)
-            return (
-                _chart.properties(title=f"Top 10 {column}", width="container")
-                .configure_view(stroke=None)
-                .configure_axis(grid=False)
-            )
+            title = f"Top 10 {column}"
+        else:
+            title = column
 
-        _chart_with_encodings = add_encodings(_base_chart)
-        _chart = add_common_config(_chart_with_encodings)
-        return _chart.configure_axis(grid=False)
+        _chart = add_encodings(_base_chart)
+        return (
+            _chart.properties(title=title, width="container")
+            .configure_view(stroke=None)
+            .configure_axis(grid=False)
+        )
 
     def altair_code(self, data: str, column: str, simple: bool) -> str:
         return (
@@ -261,7 +268,7 @@ class StringChartBuilder(ChartBuilder):
             )
         )
 
-        _bar_chart = _base_chart.mark_bar(color="{COLOR}")
+        _bar_chart = _base_chart.mark_bar(color="{STRING_COLOR}")
         _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
             text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}")
         )
@@ -300,6 +307,7 @@ TimeUnitOptions = Literal[
     "monthdate",
     "yearmonthdatehours",
     "yearmonthdatehoursminutes",
+    "hoursminutesseconds",
 ]
 
 
@@ -310,18 +318,6 @@ class DateChartBuilder(ChartBuilder):
     def __init__(self) -> None:
         self.date_format: Optional[str] = None
         self.time_unit: Optional[TimeUnitOptions] = None
-
-    def _get_date_format(
-        self, data: Any, column: str
-    ) -> tuple[str, TimeUnitOptions]:
-        if self.date_format is not None and self.time_unit is not None:
-            return self.date_format, self.time_unit
-        else:
-            date_format, time_unit = self._guess_date_format(data, column)
-            # Set the date format and time unit to avoid recalculating
-            self.date_format = str(date_format)
-            self.time_unit = time_unit
-            return date_format, time_unit
 
     def _guess_date_format(
         self, data: Any, column: str
@@ -338,6 +334,10 @@ class DateChartBuilder(ChartBuilder):
         # Get min and max dates using narwhals
         min_date = df[column].min()
         max_date = df[column].max()
+
+        # Handle time-only data
+        if isinstance(min_date, time) and isinstance(max_date, time):
+            return "%H:%M:%S", "hoursminutesseconds"
 
         # Calculate the difference in days
         time_diff = max_date - min_date
@@ -365,7 +365,9 @@ class DateChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
-        date_format, time_unit = self._get_date_format(data, column)
+        _, time_unit = self._guess_date_format(data, column)
+        # Time only charts don't work properly
+
         new_field = f"date_{column}"
 
         base = alt.Chart(data).transform_filter(f"datum.{column} != null")
@@ -382,12 +384,12 @@ class DateChartBuilder(ChartBuilder):
 
         # Area chart
         area = transformed.mark_area(
-            line={"color": COLOR},
+            line={"color": DATE_COLOR},
             color=alt.Gradient(
                 gradient="linear",  # type: ignore
                 stops=[
                     alt.GradientStop(color="white", offset=0),
-                    alt.GradientStop(color=COLOR, offset=1),
+                    alt.GradientStop(color=DATE_COLOR, offset=1),
                 ],
                 x1=1,
                 x2=1,
@@ -424,7 +426,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         points = transformed.mark_point(
             size=80,
-            color=COLOR,
+            color=DATE_COLOR,
             filled=True,
         ).encode(
             x=f"{new_field}:T",
@@ -444,7 +446,7 @@ class DateChartBuilder(ChartBuilder):
 
     def simple_altair_code(self, data: str, column: str) -> str:
         """Offer simple charts for users to copy"""
-        _, time_unit = self._get_date_format(data, column)
+        _, time_unit = self._guess_date_format(data, column)
         new_field = f"_{column}"
 
         return f"""
@@ -467,7 +469,7 @@ class DateChartBuilder(ChartBuilder):
 
     def complex_altair_code(self, data: str, column: str) -> str:
         """Complex altair code for data charts. Offer more control over the chart"""
-        _, time_unit = self._get_date_format(data, column)
+        _, time_unit = self._guess_date_format(data, column)
 
         new_field = f"_{column}"
 
@@ -489,12 +491,12 @@ class DateChartBuilder(ChartBuilder):
 
         # Area chart
         _area = _transformed.mark_area(
-            line={{"color": "{COLOR}"}},
+            line={{"color": "{DATE_COLOR}"}},
             color=alt.Gradient(
                 gradient="linear",
                 stops=[
                     alt.GradientStop(color="white", offset=0),
-                    alt.GradientStop(color="{COLOR}", offset=1),
+                    alt.GradientStop(color="{DATE_COLOR}", offset=1),
                 ],
                 x1=1,
                 x2=1,
@@ -531,7 +533,7 @@ class DateChartBuilder(ChartBuilder):
         # Points on the chart
         _points = _transformed.mark_point(
             size=80,
-            color="{COLOR}",
+            color="{DATE_COLOR}",
             filled=True,
         ).encode(
             x="{new_field}:T",
@@ -545,7 +547,9 @@ class DateChartBuilder(ChartBuilder):
 
 
 class BooleanChartBuilder(ChartBuilder):
-    BASE_COLOR = ["#99c99c", "#1C7361"]
+    PIE_RADIUS = 85
+    TEXT_RADIUS = 110
+    TEXT_SIZE = 13
 
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt
@@ -563,7 +567,8 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     f"{column}:N",
-                    scale=alt.Scale(range=self.BASE_COLOR),
+                    scale=BOOLEAN_COLOR,
+                    legend=alt.Legend(title=column),
                 ),
                 tooltip=[
                     alt.Tooltip(f"{column}:N", title=column),
@@ -576,8 +581,10 @@ class BooleanChartBuilder(ChartBuilder):
             )
         )
 
-        pie = base.mark_arc(outerRadius=85)
-        text = base.mark_text(radius=100, size=13).encode(
+        pie = base.mark_arc(outerRadius=self.PIE_RADIUS)
+        text = base.mark_text(
+            radius=self.TEXT_RADIUS, size=self.TEXT_SIZE
+        ).encode(
             text=alt.Text("percentage:Q", format=TOOLTIP_PERCENTAGE_FORMAT)
         )
 
@@ -612,7 +619,7 @@ class BooleanChartBuilder(ChartBuilder):
                 ),
                 color=alt.Color(
                     "{column}:N",
-                    scale=alt.Scale(range={self.BASE_COLOR}),
+                    scale={BOOLEAN_COLOR},
                     legend=alt.Legend(title="{column}")
                 ),
                 tooltip=[
@@ -622,8 +629,8 @@ class BooleanChartBuilder(ChartBuilder):
             )
         )
 
-        _pie = _base.mark_arc(outerRadius=85)
-        _text = _base.mark_text(radius=100, size=13).encode(
+        _pie = _base.mark_arc(outerRadius={self.PIE_RADIUS})
+        _text = _base.mark_text(radius={self.TEXT_RADIUS}, size={self.TEXT_SIZE}).encode(
             text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}"),
         )
 
@@ -654,8 +661,8 @@ class BooleanChartBuilder(ChartBuilder):
             )
         )
 
-        _pie = _base.mark_arc(outerRadius=85)
-        _text = _base.mark_text(radius=100, size=13).encode(
+        _pie = _base.mark_arc(outerRadius={self.PIE_RADIUS})
+        _text = _base.mark_text(radius={self.TEXT_RADIUS}, size={self.TEXT_SIZE}).encode(
             text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}"),
         )
 
@@ -670,7 +677,7 @@ class IntegerChartBuilder(ChartBuilder):
 
         chart = (
             alt.Chart(data)
-            .mark_bar(color=COLOR)
+            .mark_bar(color=NUMBER_COLOR, stroke=NUMBER_STROKE)
             .encode(
                 x=alt.X(column, type="quantitative", bin=True, title=column),
                 y=alt.Y("count()", type="quantitative", title=NUM_RECORDS),
@@ -691,7 +698,9 @@ class IntegerChartBuilder(ChartBuilder):
 
     def altair_code(self, data: str, column: str, simple: bool = True) -> str:
         mark_bar = (
-            """.mark_bar()""" if simple else """.mark_bar(color="{COLOR}")"""
+            """.mark_bar()"""
+            if simple
+            else """.mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
         )
 
         return f"""
@@ -727,10 +736,10 @@ class UnknownChartBuilder(ChartBuilder):
 
         chart = (
             alt.Chart(data)
-            .mark_bar(color=COLOR)
+            .mark_bar()
             .encode(
                 x=alt.X(column, type="nominal"),
-                y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),
+                y=alt.Y("count()", type="quantitative", title=NUM_RECORDS),
                 tooltip=[
                     alt.Tooltip(column, type="nominal"),
                     alt.Tooltip(
@@ -741,15 +750,11 @@ class UnknownChartBuilder(ChartBuilder):
         )
         return add_common_config(chart)
 
-    def altair_code(self, data: str, column: str, simple: bool = True) -> str:
-        mark_bar = (
-            """.mark_bar()""" if simple else """.mark_bar(color="{COLOR}")"""
-        )
-
+    def altair_code(self, data: str, column: str, _simple: bool = True) -> str:
         return f"""
         _chart = (
             alt.Chart({data})
-            {mark_bar}
+            .mark_bar()
             .encode(
                 x=alt.X("{column}", type="nominal"),
                 y=alt.Y("count()", type="quantitative", title="{NUM_RECORDS}"),

@@ -17,11 +17,11 @@
       "encoding": {
         "color": {
           "field": "bool_col",
+          "legend": {
+            "title": "bool_col"
+          },
           "scale": {
-            "range": [
-              "#99c99c",
-              "#1C7361"
-            ]
+            "scheme": "category10"
           },
           "type": "nominal"
         },
@@ -79,11 +79,11 @@
       "encoding": {
         "color": {
           "field": "bool_col",
+          "legend": {
+            "title": "bool_col"
+          },
           "scale": {
-            "range": [
-              "#99c99c",
-              "#1C7361"
-            ]
+            "scheme": "category10"
           },
           "type": "nominal"
         },
@@ -112,7 +112,7 @@
         ]
       },
       "mark": {
-        "radius": 100,
+        "radius": 110,
         "size": 13,
         "type": "text"
       },

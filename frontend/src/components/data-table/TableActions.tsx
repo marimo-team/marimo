@@ -4,7 +4,12 @@
 import React from "react";
 import { Tooltip } from "../ui/tooltip";
 import { Button } from "../ui/button";
-import { SearchIcon, ChartBarIcon, PanelRightIcon } from "lucide-react";
+import {
+  SearchIcon,
+  ChartBarIcon,
+  PanelRightIcon,
+  ChartColumnStacked,
+} from "lucide-react";
 import { DataTablePagination } from "./pagination";
 import { DownloadAs, type DownloadActionProps } from "./download-actions";
 import type { Table, RowSelectionState } from "@tanstack/react-table";
@@ -12,6 +17,7 @@ import type { DataTableSelection } from "./types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { toast } from "../ui/use-toast";
 import { cn } from "@/utils/cn";
+import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -27,8 +33,8 @@ interface TableActionsProps<TData> {
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   chartsFeatureEnabled?: boolean;
-  toggleRowViewerPanel?: () => void;
-  isRowViewerPanelOpen?: boolean;
+  togglePanel?: (panelType: PanelType) => void;
+  isPanelOpen?: (panelType: PanelType) => boolean;
 }
 
 export const TableActions = <TData,>({
@@ -45,8 +51,8 @@ export const TableActions = <TData,>({
   getRowIds,
   toggleDisplayHeader,
   chartsFeatureEnabled,
-  toggleRowViewerPanel,
-  isRowViewerPanelOpen,
+  togglePanel,
+  isPanelOpen,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -118,18 +124,39 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {toggleRowViewerPanel && (
-        <Tooltip content="Toggle row viewer">
-          <Button variant="text" size="xs" onClick={toggleRowViewerPanel}>
-            <PanelRightIcon
-              className={cn(
-                "w-4 h-4 text-muted-foreground",
-                isRowViewerPanelOpen && "text-primary",
-              )}
-            />
-          </Button>
-        </Tooltip>
+      {togglePanel && isPanelOpen !== undefined && (
+        <>
+          <Tooltip content="Toggle row viewer">
+            <Button
+              variant="text"
+              size="xs"
+              onClick={() => togglePanel("row-viewer")}
+            >
+              <PanelRightIcon
+                className={cn(
+                  "w-4 h-4 text-muted-foreground",
+                  isPanelOpen("row-viewer") && "text-primary",
+                )}
+              />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Toggle column explorer">
+            <Button
+              variant="text"
+              size="xs"
+              onClick={() => togglePanel("column-explorer")}
+            >
+              <ChartColumnStacked
+                className={cn(
+                  "w-4 h-4 text-muted-foreground",
+                  isPanelOpen("column-explorer") && "text-primary",
+                )}
+              />
+            </Button>
+          </Tooltip>
+        </>
       )}
+
       {pagination && (
         <DataTablePagination
           totalColumns={totalColumns}

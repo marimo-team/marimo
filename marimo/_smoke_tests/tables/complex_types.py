@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.24"
+__generated_with = "0.13.14"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,11 @@ def _():
             # Boolean
             "bools": pl.Series("bools", [True, False, True], dtype=pl.Boolean),
             # Temporal
-            "dates": pl.Series("dates", [date(2021, 1, 1)] * 3, dtype=pl.Date),
+            "dates": pl.Series(
+                "dates",
+                [date(2021, 1, 1), date(2021, 2, 2), date(2021, 3, 3)],
+                dtype=pl.Date,
+            ),
             "times": pl.Series("times", [time(12, 0, 0)] * 3, dtype=pl.Time),
             "datetimes": pl.Series(
                 "datetimes", [datetime.now()] * 3, dtype=pl.Datetime
@@ -89,14 +93,14 @@ def _():
         }
     )
     mo.ui.table(df)
-    return date, datetime, df, mo, np, pl, time
+    return df, mo, pl
 
 
 @app.cell
 def _(df):
     pandas = df.to_pandas()
     pandas
-    return (pandas,)
+    return
 
 
 @app.cell
@@ -108,7 +112,7 @@ def _(mo, pd, pl):
         {"complex": [1 + 2j, 2 + 3j], "bigint": [2**64, 2**65]}
     )
     mo.vstack([additional_types_pd, additional_types_pl])
-    return additional_types_pd, additional_types_pl
+    return
 
 
 @app.cell
@@ -138,7 +142,7 @@ def _(mo):
         }
     )
     mo.ui.dataframe(pandas_with_timestamp)
-    return pandas_with_timestamp, pd
+    return (pd,)
 
 
 if __name__ == "__main__":
