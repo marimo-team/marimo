@@ -148,7 +148,7 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
         }
         element.remove();
       });
-      // Remove scripts without sort
+      // Remove script that contains __MARIMO_MOUNT_CONFIG__
       const scriptsDev = devDoc.querySelectorAll("script");
       scriptsDev.forEach((script) => {
         if (script.innerHTML.includes("__MARIMO_MOUNT_CONFIG__")) {

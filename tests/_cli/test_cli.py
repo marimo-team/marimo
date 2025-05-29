@@ -213,10 +213,10 @@ def test_cli_edit_none() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='home'", contents)
+    _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
-        f"marimo-version data-version='{get_version()}'".encode(),
+        f'"version: "{get_version()}"'.encode(),
         contents,
     )
     _check_contents(p, b"marimo-server-token", contents)
@@ -239,10 +239,10 @@ def test_cli_edit_token() -> None:
         ]
     )
     contents = _try_fetch(port, "localhost", "secret")
-    _check_contents(p, b"marimo-mode data-mode='home'", contents)
+    _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
-        f"marimo-version data-version='{get_version()}'".encode(),
+        f'"version: "{get_version()}"'.encode(),
         contents,
     )
     _check_contents(p, b"marimo-server-token", contents)
@@ -264,10 +264,10 @@ def test_cli_edit_directory() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='home'", contents)
+    _check_contents(p, b'"mode": "home"', contents)
     _check_contents(
         p,
-        f"marimo-version data-version='{get_version()}'".encode(),
+        f'"version: "{get_version()}"'.encode(),
         contents,
     )
     _check_contents(p, b"marimo-server-token", contents)
@@ -290,10 +290,8 @@ def test_cli_edit_new_file() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
     _check_contents(p, b"marimo-server-token", contents)
 
 
@@ -315,10 +313,8 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
 
 
 @pytest.mark.skipif(
@@ -336,7 +332,7 @@ def test_cli_edit_update_check() -> None:
             env=env,
         )
         contents = _try_fetch(port)
-        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+        _check_contents(p, b'"mode": "home"', contents)
 
         state_contents = _read_toml(
             os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
@@ -365,7 +361,7 @@ def test_cli_edit_skip_update_check() -> None:
             env={**os.environ, "MARIMO_PYTEST_HOME_DIR": tempdir},
         )
         contents = _try_fetch(port)
-        _check_contents(p, b"marimo-mode data-mode='home'", contents)
+        _check_contents(p, b'"mode": "home"', contents)
 
         state_contents = _read_toml(
             os.path.join(tempdir, CONFIG_ROOT_DIR, "state.toml")
@@ -382,10 +378,8 @@ def test_cli_new() -> None:
         ["marimo", "new", "-p", str(port), "--headless", "--no-token"]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
     _check_contents(p, b"marimo-server-token", contents)
 
 
@@ -395,10 +389,8 @@ def test_cli_run(temp_marimo_file: str) -> None:
         ["marimo", "run", temp_marimo_file, "-p", str(port), "--headless"]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='read'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "read"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
 
 
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
@@ -415,10 +407,8 @@ def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='read'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "read"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
 
 
 def test_cli_run_with_additional_args(temp_marimo_file: str) -> None:
@@ -437,10 +427,8 @@ def test_cli_run_with_additional_args(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='read'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "read"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
 
 
 def test_cli_tutorial() -> None:
@@ -457,10 +445,8 @@ def test_cli_tutorial() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
     _check_contents(p, b"intro.py", contents)
 
 
@@ -478,10 +464,8 @@ def test_cli_md_tutorial() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
     _check_contents(p, b"markdown-format.md", contents)
 
 
@@ -491,10 +475,8 @@ def test_cli_md_run(temp_md_marimo_file: str) -> None:
         ["marimo", "run", temp_md_marimo_file, "-p", str(port), "--headless"]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='read'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "read"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
 
 
 def test_cli_md_edit(temp_md_marimo_file: str) -> None:
@@ -512,10 +494,8 @@ def test_cli_md_edit(temp_md_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
-    _check_contents(
-        p, f"marimo-version data-version='{get_version()}'".encode(), contents
-    )
+    _check_contents(p, b'"mode": "edit"', contents)
+    _check_contents(p, f'"version: "{get_version()}"'.encode(), contents)
 
 
 def test_cli_custom_host() -> None:
@@ -535,7 +515,7 @@ def test_cli_custom_host() -> None:
         ]
     )
     contents = _try_fetch(port, host)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(p, b'"mode": "edit"', contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -554,7 +534,7 @@ def test_cli_sandbox_edit(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(p, b'"mode": "edit"', contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -573,7 +553,7 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(p, b'"mode": "edit"', contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -594,7 +574,7 @@ def test_cli_sandbox_edit_new_file() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(p, b'"mode": "edit"', contents)
 
 
 @pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
@@ -612,7 +592,7 @@ def test_cli_edit_by_url() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(p, b'"mode": "edit"', contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -630,7 +610,7 @@ def test_cli_sandbox_run(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+    _check_contents(p, b'"mode": "read"', contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -648,7 +628,7 @@ def test_cli_sandbox_run_no_prompt(temp_marimo_file: str) -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+    _check_contents(p, b'"mode": "read"', contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -680,7 +660,7 @@ def test_cli_sandbox_run_with_python_version(
             f"Server failed to start. stdout:\n{stdout}\nstderr:\n{stderr}"
         )
 
-    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+    _check_contents(p, b'"mode": "read"', contents)
 
     p.terminate()
     p.wait(timeout=5)
