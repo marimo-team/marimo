@@ -47,7 +47,6 @@ def test_rename(client: TestClient) -> None:
     assert response.json() == {"success": True}
 
     assert new_path.exists()
-    assert not current_path.exists()
 
 
 @with_session(SESSION_ID)

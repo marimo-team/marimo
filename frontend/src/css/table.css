@@ -3,7 +3,6 @@ table.dataframe {
   display: block;
   max-width: 100%;
   overflow: auto;
-
   scrollbar-width: thin;
 }
 

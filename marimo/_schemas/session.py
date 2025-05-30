@@ -1,14 +1,16 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, Union
 
+from marimo._schemas.common import BaseDict
 
-# Base types for extensibility
-class BaseDict(TypedDict, total=False):
-    """Base dictionary allowing additional fields"""
-
-    pass
+# This file contains the schema for the notebook session.
+# It may be externally used and must be kept backwards compatible.
+#
+# We generate the OpenAPI schema using a marimo notebook: `python scripts/generate_schemas.py`
+# We generate frontend types using `make fe-codegen`
+# We check for backwards compatibility using a GitHub action: `.github/workflows/test_schemas.yaml`
 
 
 # Metadata types
@@ -57,8 +59,8 @@ class Cell(BaseDict):
     # since that exists in the notebook.py itself
 
 
-# Notebook metadata
-class NotebookMetadata(BaseDict):
+# Notebook session metadata
+class NotebookSessionMetadata(BaseDict):
     """Metadata about the notebook"""
 
     marimo_version: Optional[str]
@@ -74,7 +76,7 @@ class NotebookSessionV1(BaseDict):
     # The notebook format version
     version: str
     # Metadata about the notebook
-    metadata: NotebookMetadata
+    metadata: NotebookSessionMetadata
     # The cells in the notebook
     cells: list[Cell]
 

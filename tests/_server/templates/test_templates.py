@@ -8,13 +8,25 @@ from pathlib import Path
 from typing import Literal
 
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig
 from marimo._config.config import (
     MarimoConfig,
     PartialMarimoConfig,
     merge_default_config,
 )
-from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._schemas.notebook import (
+    NotebookCell,
+    NotebookCellConfig,
+    NotebookMetadata,
+    NotebookV1,
+)
+from marimo._schemas.session import (
+    VERSION,
+    Cell,
+    DataOutput,
+    NotebookSessionMetadata,
+    NotebookSessionV1,
+    StreamOutput,
+)
 from marimo._server.export.exporter import hash_code
 from marimo._server.model import SessionMode
 from marimo._server.templates import templates
@@ -312,35 +324,64 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         self.filename = tmp_path / "notebook.py"
         self.filepath = "path/to/notebook.py"
         self.code = "print('Hello, World!')"
-        self.cell_ids = ["cell1", "cell2"]
-        self.cell_names = ["Cell 1", "Cell 2"]
-        self.cell_codes = ["print('Hello, Cell 1')", "print('Hello, Cell 2')"]
-        self.cell_configs = [CellConfig(), CellConfig()]
-        self.cell_outputs = {
-            "cell1": CellOutput(
-                channel=CellChannel.OUTPUT,
-                data="Hello, Cell 1",
-                mimetype="text/plain",
-                timestamp=0,
-            )
-        }
-        self.cell_console_outputs = {
-            "cell1": [
-                CellOutput(
-                    channel=CellChannel.STDOUT,
-                    data="Hello, Cell 1",
-                    mimetype="text/plain",
-                    timestamp=0,
+
+        # Create session and notebook snapshots
+        self.session_snapshot = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[
+                Cell(
+                    id="cell1",
+                    code_hash="abc123",
+                    outputs=[
+                        DataOutput(
+                            type="data",
+                            data={
+                                "text/plain": "Hello, Cell 1",
+                            },
+                        )
+                    ],
+                    console=[
+                        StreamOutput(
+                            type="stream",
+                            name="stdout",
+                            text="Hello, Cell 1",
+                        ),
+                        StreamOutput(
+                            type="stream",
+                            name="stderr",
+                            text="Error in Cell 1",
+                        ),
+                    ],
                 ),
-                CellOutput(
-                    channel=CellChannel.STDERR,
-                    data="Error in Cell 1",
-                    mimetype="text/plain",
-                    timestamp=0,
+                Cell(
+                    id="cell2",
+                    code_hash="def456",
+                    outputs=[],
+                    console=[],
                 ),
             ],
-            "cell2": [],
-        }
+        )
+
+        self.notebook_snapshot = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[
+                NotebookCell(
+                    id="cell1",
+                    code="print('Hello, Cell 1')",
+                    name="Cell 1",
+                    config=NotebookCellConfig(),
+                ),
+                NotebookCell(
+                    id="cell2",
+                    code="print('Hello, Cell 2')",
+                    name="Cell 2",
+                    config=NotebookCellConfig(),
+                ),
+            ],
+        )
+
         self.files = {"file1": "File 1 content", "file2": "File 2 content"}
 
     def tearDown(self) -> None:
@@ -356,12 +397,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.filepath,
             self.code,
             hash_code(self.code),
-            self.cell_ids,
-            self.cell_names,
-            self.cell_codes,
-            self.cell_configs,
-            self.cell_outputs,
-            self.cell_console_outputs,
+            self.session_snapshot,
+            self.notebook_snapshot,
             self.files,
         )
 
@@ -378,12 +415,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             None,
             self.code,
             hash_code(self.code),
-            self.cell_ids,
-            self.cell_names,
-            self.cell_codes,
-            self.cell_configs,
-            self.cell_outputs,
-            self.cell_console_outputs,
+            self.session_snapshot,
+            self.notebook_snapshot,
             files=self.files,
         )
 
@@ -391,6 +424,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_no_code(self) -> None:
+        # Create empty snapshots for no-code case
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
@@ -400,12 +445,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.filepath,
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
@@ -419,6 +460,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         css_file = self.filename.parent / "custom.css"
         css_file.write_text(css)
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
@@ -428,12 +481,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
@@ -457,6 +506,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         head_file = self.filename.parent / "head.html"
         head_file.write_text(head)
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
@@ -466,12 +527,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
@@ -492,6 +549,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         config = merge_default_config(self.user_config)
         config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             config,
@@ -501,12 +570,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
@@ -526,6 +591,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         config = merge_default_config(self.user_config)
         config["display"]["custom_css"] = [str(css_file)]
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             config,
@@ -535,12 +612,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
@@ -555,6 +628,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         config = merge_default_config(self.user_config)
         config["display"]["custom_css"] = ["nonexistent.css"]
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             config,
@@ -564,12 +649,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 

@@ -30,6 +30,9 @@ import {
 import { appConfigAtom, userConfigAtom } from "@/core/config/config";
 import { configOverridesAtom } from "@/core/config/config";
 import { getMarimoCode } from "@/core/meta/globals";
+import type * as api from "@marimo-team/marimo-api";
+import { notebookAtom } from "./core/cells/cells";
+import { notebookStateFromSession } from "./core/cells/session";
 
 let hasMounted = false;
 
@@ -173,6 +176,38 @@ const mountOptionsSchema = z.object({
     .string()
     .nullish()
     .transform((val) => val ?? ""),
+
+  /**
+   * Serialized Session["NotebookSessionV1"] snapshot
+   */
+  session: z.union([
+    z.null().optional(),
+    z
+      .object({
+        // Rough shape, we don't need to validate the full schema
+        version: z.literal("1"),
+        metadata: z.any(),
+        cells: z.array(z.any()),
+      })
+      .passthrough()
+      .transform((val) => val as api.Session["NotebookSessionV1"]),
+  ]),
+
+  /**
+   * Serialized Notebook["NotebookV1"] snapshot
+   */
+  notebook: z.union([
+    z.null().optional(),
+    z
+      .object({
+        // Rough shape, we don't need to validate the full schema
+        version: z.literal("1"),
+        metadata: z.any(),
+        cells: z.array(z.any()),
+      })
+      .passthrough()
+      .transform((val) => val as api.Notebook["NotebookV1"]),
+  ]),
 });
 
 function initStore(options: unknown) {
@@ -202,6 +237,15 @@ function initStore(options: unknown) {
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
   store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
+
+  // Session/notebook
+  const notebook = notebookStateFromSession(
+    parsedOptions.data.session,
+    parsedOptions.data.notebook,
+  );
+  if (notebook) {
+    store.set(notebookAtom, notebook);
+  }
 }
 
 export const visibleForTesting = {

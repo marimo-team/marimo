@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
+import html
 import json
 import os
 from textwrap import dedent
@@ -9,18 +9,22 @@ from typing import Any, Literal, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
+from marimo._schemas.notebook import NotebookV1
+from marimo._schemas.session import NotebookSessionV1
 from marimo._server.api.utils import parse_title
 from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
-from marimo._types.ids import CellId_t
 from marimo._utils.versions import is_editable
 
 MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
+
+
+def _html_escape(text: str) -> str:
+    """Escape HTML special characters."""
+    return html.escape(text, quote=True)
 
 
 def _get_mount_config(
@@ -33,13 +37,15 @@ def _get_mount_config(
     app_config: Optional[_AppConfig],
     version: Optional[str] = None,
     show_app_code: bool = True,
+    session_snapshot: Optional[NotebookSessionV1] = None,
+    notebook_snapshot: Optional[NotebookV1] = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
     """
 
     options: dict[str, Any] = {
-        "filename": filename,
+        "filename": filename or "",
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
@@ -47,10 +53,12 @@ def _get_mount_config(
         "config_overrides": config_overrides,
         "app_config": _del_none_or_empty(app_config.asdict())
         if app_config
-        else None,
+        else {},
         "view": {
             "showAppCode": show_app_code,
         },
+        "notebook": notebook_snapshot,
+        "session": session_snapshot,
     }
 
     return """{{
@@ -62,6 +70,8 @@ def _get_mount_config(
             "configOverrides": {config_overrides},
             "appConfig": {app_config},
             "view": {view},
+            "notebook": {notebook},
+            "session": {session},
         }}
 """.format(
         **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
@@ -109,7 +119,7 @@ def notebook_page_template(
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
-    html = html.replace("{{ filename }}", filename or "")
+    html = html.replace("{{ filename }}", _html_escape(filename or ""))
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
@@ -124,7 +134,7 @@ def notebook_page_template(
 
     html = html.replace(
         "{{ title }}",
-        (
+        _html_escape(
             parse_title(filename)
             if app_config.app_title is None
             else app_config.app_title
@@ -164,12 +174,8 @@ def static_notebook_template(
     filepath: Optional[str],
     code: str,
     code_hash: str,
-    cell_ids: list[CellId_t],
-    cell_names: list[str],
-    cell_codes: list[str],
-    cell_configs: list[CellConfig],
-    cell_outputs: dict[CellId_t, CellOutput],
-    cell_console_outputs: dict[CellId_t, list[CellOutput]],
+    session_snapshot: NotebookSessionV1,
+    notebook_snapshot: NotebookV1,
     files: dict[str, str],
     asset_url: Optional[str] = None,
 ) -> str:
@@ -178,7 +184,7 @@ def static_notebook_template(
 
     html = html.replace("{{ base_url }}", "")
     filename = os.path.basename(filepath or "")
-    html = html.replace("{{ filename }}", filename or "")
+    html = html.replace("{{ filename }}", _html_escape(filename))
 
     # We don't need all this user config when we export the notebook,
     # but we do need some:
@@ -193,51 +199,24 @@ def static_notebook_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=app_config,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
         ),
     )
 
     html = html.replace(
         "{{ title }}",
-        (
+        _html_escape(
             parse_title(filepath)
             if app_config.app_title is None
             else app_config.app_title
         ),
     )
 
-    serialized_cell_outputs = {
-        cell_id: _serialize_to_base64(json.dumps(output.asdict()))
-        for cell_id, output in cell_outputs.items()
-    }
-    serialized_cell_console_outputs = {
-        cell_id: [_serialize_to_base64(json.dumps(o.asdict())) for o in output]
-        for cell_id, output in cell_console_outputs.items()
-        if output
-    }
-
     static_block = dedent(
         f"""
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
-        window.__MARIMO_STATIC__.version = "{__version__}";
-        window.__MARIMO_STATIC__.notebookState = {
-            json.dumps(
-                {
-                    "cellIds": cell_ids,
-                    "cellNames": _serialize_list_to_base64(cell_names),
-                    "cellCodes": _serialize_list_to_base64(cell_codes),
-                    "cellConfigs": _serialize_list_to_base64(
-                        [
-                            json.dumps(config.asdict())
-                            for config in cell_configs
-                        ]
-                    ),
-                    "cellOutputs": serialized_cell_outputs,
-                    "cellConsoleOutputs": serialized_cell_console_outputs,
-                }
-            )
-        };
-        window.__MARIMO_STATIC__.assetUrl = "{asset_url}";
         window.__MARIMO_STATIC__.files = {json.dumps(files)};
     </script>
     """
@@ -326,12 +305,14 @@ def wasm_notebook_template(
     body = body.replace("{{ base_url }}", "")
     body = body.replace(
         "{{ title }}",
-        parse_title(filename)
-        if app_config.app_title is None
-        else app_config.app_title,
+        _html_escape(
+            parse_title(filename)
+            if app_config.app_title is None
+            else app_config.app_title
+        ),
     )
 
-    body = body.replace("{{ filename }}", "notebook.py")
+    body = body.replace("{{ filename }}", _html_escape("notebook.py"))
     body = body.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
@@ -406,18 +387,6 @@ def inject_script(html: str, script: str) -> str:
     """Inject a script into the HTML before the closing body tag."""
     script_tag = f"<script>{script}</script>"
     return html.replace("</body>", f"{script_tag}</body>")
-
-
-def _serialize_to_base64(value: str) -> str:
-    # Encode the JSON string to URL-encoded format
-    url_encoded = uri_encode_component(value)
-    # Encode the URL-encoded string to Base64
-    base64_encoded = base64.b64encode(url_encoded.encode()).decode()
-    return base64_encoded
-
-
-def _serialize_list_to_base64(value: list[str]) -> list[str]:
-    return [_serialize_to_base64(v) for v in value]
 
 
 def _del_none_or_empty(d: Any) -> Any:

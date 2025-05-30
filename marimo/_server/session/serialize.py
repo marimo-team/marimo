@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Optional, Union, cast
 
 from marimo import __version__, _loggers
+from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
     Error as MarimoError,
@@ -16,12 +17,18 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
+from marimo._schemas.notebook import (
+    NotebookCell,
+    NotebookCellConfig,
+    NotebookMetadata,
+    NotebookV1,
+)
 from marimo._schemas.session import (
     VERSION,
     Cell,
     DataOutput,
     ErrorOutput,
-    NotebookMetadata,
+    NotebookSessionMetadata,
     NotebookSessionV1,
     OutputType,
     StreamOutput,
@@ -32,6 +39,24 @@ from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
 
 LOGGER = _loggers.marimo_logger()
+
+
+def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
+    """Normalize error to consistent format."""
+    if isinstance(error, dict):
+        return ErrorOutput(
+            type="error",
+            ename=error.get("type", "UnknownError"),
+            evalue=error.get("msg", ""),
+            traceback=error.get("traceback", []),
+        )
+    else:
+        return ErrorOutput(
+            type="error",
+            ename=error.type,
+            evalue=error.describe(),
+            traceback=getattr(error, "traceback", []),
+        )
 
 
 def serialize_session_view(view: SessionView) -> NotebookSessionV1:
@@ -49,26 +74,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
                     list[Union[MarimoError, dict[str, Any]]],
                     cell_op.output.data,
                 ):
-                    # Handle both dictionary and object errors
-                    # Errors can be a dictionary if they are serialized
-                    error_type = (
-                        error.get("type", "Unknown")
-                        if isinstance(error, dict)
-                        else error.type
-                    )
-                    error_value = (
-                        error.get("msg", "")
-                        if isinstance(error, dict)
-                        else error.describe()
-                    )
-                    outputs.append(
-                        ErrorOutput(
-                            type="error",
-                            ename=error_type,
-                            evalue=error_value,
-                            traceback=[],
-                        )
-                    )
+                    outputs.append(_normalize_error(error))
             else:
                 outputs.append(
                     DataOutput(
@@ -106,7 +112,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
 
     return NotebookSessionV1(
         version=VERSION,
-        metadata=NotebookMetadata(marimo_version=__version__),
+        metadata=NotebookSessionMetadata(marimo_version=__version__),
         cells=cells,
     )
 
@@ -185,6 +191,48 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
         )
 
     return view
+
+
+def serialize_notebook(
+    view: SessionView, cell_manager: CellManager
+) -> NotebookV1:
+    """Convert a SessionView to a Notebook schema."""
+    cells: list[NotebookCell] = []
+
+    for cell_id in view.cell_operations.keys():
+        # Get the code from last_executed_code, fallback to empty string
+        code = view.last_executed_code.get(cell_id, "")
+        cell_data = cell_manager.get_cell_data(cell_id)
+        if cell_data is None:
+            LOGGER.warning(f"Cell data not found for cell {cell_id}")
+            name = None
+            config = NotebookCellConfig(
+                column=None,
+                disabled=None,
+                hide_code=None,
+            )
+        else:
+            name = cell_data.name
+            config = NotebookCellConfig(
+                column=cell_data.config.column,
+                disabled=cell_data.config.disabled,
+                hide_code=cell_data.config.hide_code,
+            )
+
+        cells.append(
+            NotebookCell(
+                id=cell_id,
+                code=code,
+                name=name,
+                config=config,
+            )
+        )
+
+    return NotebookV1(
+        version=VERSION,
+        metadata=NotebookMetadata(marimo_version=__version__),
+        cells=cells,
+    )
 
 
 def get_session_cache_file(path: Path) -> Path:

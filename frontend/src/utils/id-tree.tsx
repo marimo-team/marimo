@@ -994,3 +994,9 @@ export class MultiColumn<T> {
     return new MultiColumn(newColumns);
   }
 }
+
+export const visibleForTesting = {
+  reset: () => {
+    uniqueId = 0;
+  },
+};

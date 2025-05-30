@@ -57,7 +57,7 @@ components:
       - evalue
       - traceback
       type: object
-    NotebookMetadata:
+    NotebookSessionMetadata:
       properties:
         marimo_version:
           nullable: true
@@ -72,7 +72,7 @@ components:
             $ref: '#/components/schemas/Cell'
           type: array
         metadata:
-          $ref: '#/components/schemas/NotebookMetadata'
+          $ref: '#/components/schemas/NotebookSessionMetadata'
         version:
           type: string
       required:
