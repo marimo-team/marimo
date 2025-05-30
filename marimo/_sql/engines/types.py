@@ -13,9 +13,9 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
+from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 
-ENGINE_REGISTRY: list[type[BaseEngine[Any]]] = []
 NO_SCHEMA_NAME = ""
 
 
@@ -72,11 +72,6 @@ class BaseEngine(ABC, Generic[CONN]):
 T = TypeVar("T", bound=BaseEngine[Any])
 
 
-def register_engine(cls: type[T]) -> type[T]:
-    ENGINE_REGISTRY.append(cls)
-    return cls
-
-
 class EngineCatalog(BaseEngine[CONN], ABC):
     """Protocol for querying the catalog of an engine."""
 
@@ -130,14 +125,26 @@ class QueryEngine(BaseEngine[CONN], ABC):
         """Execute a SQL query and return a dataframe."""
         pass
 
+    # TODO: Maybe this should be called during init of db's
     def sql_output_format(self) -> SqlOutputType:
+        output_format = "auto"
         if runtime_context_installed():
             try:
                 ctx = get_context()
-                return _validate_sql_output_format(ctx.app_config.sql_output)
+                output_format = _validate_sql_output_format(
+                    ctx.app_config.sql_output
+                )
             except ContextNotInitializedError:
-                return "auto"
-        return "auto"
+                pass
+
+        if output_format == "auto":
+            if (
+                not DependencyManager.polars.has()
+                and not DependencyManager.pandas.has()
+            ):
+                raise_df_import_error("polars[pyarrow]")
+
+        return output_format
 
 
 class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):

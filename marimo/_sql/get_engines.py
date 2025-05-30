@@ -22,6 +22,7 @@ from marimo._sql.engines.duckdb import (
 )
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.pyiceberg import PyIcebergEngine
+from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import (
     BaseEngine,
@@ -31,26 +32,27 @@ from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
+# TODO: this is O(n) and can be O(1) using similar logic to the
+# formatters, but order does matter here
+SUPPORTED_ENGINES: list[type[BaseEngine[Any]]] = [
+    SQLAlchemyEngine,
+    IbisEngine,
+    DuckDBEngine,
+    ClickhouseEmbedded,
+    ClickhouseServer,
+    PyIcebergEngine,
+    RedshiftEngine,
+    DBAPIEngine,
+]
+
 
 def get_engines_from_variables(
     variables: list[tuple[VariableName, object]],
 ) -> list[tuple[VariableName, BaseEngine[Any]]]:
     engines: list[tuple[VariableName, BaseEngine[Any]]] = []
 
-    # TODO: this is O(n) and can be O(1) using similar logic to the
-    # formatters, but order does matter here
-    supported_engines: list[type[BaseEngine[Any]]] = [
-        SQLAlchemyEngine,
-        IbisEngine,
-        DuckDBEngine,
-        ClickhouseEmbedded,
-        ClickhouseServer,
-        PyIcebergEngine,
-        DBAPIEngine,
-    ]
-
     for variable_name, value in variables:
-        for sql_engine in supported_engines:
+        for sql_engine in SUPPORTED_ENGINES:
             if sql_engine.is_compatible(value):
                 engines.append(
                     (

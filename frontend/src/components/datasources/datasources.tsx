@@ -600,6 +600,11 @@ const DatasetTableItem: React.FC<{
     }
 
     const columns = table.columns;
+
+    if (columns.length === 0) {
+      return <EmptyState content="No columns found" className="pl-12" />;
+    }
+
     return columns.map((column) => (
       <DatasetColumnItem
         key={column.name}
