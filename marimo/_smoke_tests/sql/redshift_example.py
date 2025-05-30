@@ -42,14 +42,17 @@ def _(mo):
 @app.cell
 def _(os, redshift_connector):
     # IAM Connection
+    _host = os.environ.get("HOST")
+    _aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
+    _aws_secret_access_key = os.environ.get("AWS_SECRET_KEY")
     conn = redshift_connector.connect(
         iam=True,
-        host=os.environ["HOST"],
-        database="dev",
-        access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-        secret_access_key=os.environ["AWS_SECRET_KEY"],
+        host=_host,
         port=5439,
         region="ap-southeast-1",
+        database="dev",
+        access_key_id=_aws_access_key_id,
+        secret_access_key=_aws_secret_access_key,
     )
 
     # Default connection
