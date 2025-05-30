@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
-from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
@@ -29,8 +28,6 @@ if TYPE_CHECKING:
     from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
     from duckdb import DuckDBPyConnection
     from sqlalchemy.engine import Engine as SAEngine
-
-LOGGER = _loggers.marimo_logger()
 
 
 @mddoc
