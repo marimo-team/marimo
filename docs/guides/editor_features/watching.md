@@ -216,7 +216,7 @@ Guide](module_autoreloading.md)
     marimo now supports watching data files and automatically refreshing cells that
     depend on them using `mo.watch.file()` and `mo.watch.directory()`.
 
-    Learn more in the [watch API documentation](https://docs.marimo.io/api/watch/).
+    Learn more in the [watch API documentation](../../api/watch.md).
 
 ## Hot-reloading WebAssembly notebooks
 
