@@ -193,7 +193,7 @@ class SetFunctor(Generic[T]):
 
         # Need to explicitly check that we are not in the defining cell.
         if (
-            self._state._context == None
+            self._state._context is None
             and self._state._defining_cell == ctx.execution_context.cell_id
         ):
             return
