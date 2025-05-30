@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import abc
 import importlib
 import inspect
 import re
@@ -41,6 +42,14 @@ CACHE_PREFIX: dict[CacheType, str] = {
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
 MetaKey = Literal["return", "version"]
 
+class CustomStub(abc.ABC):
+    """Base class for custom stubs that can be registered in the cache."""
+
+    @abc.abstractmethod
+    def load(self) -> Any:
+        """Loads the stub into the global scope."""
+        raise NotImplementedError
+
 
 class ModuleStub:
     def __init__(self, module: Any) -> None:
@@ -48,6 +57,11 @@ class ModuleStub:
 
     def load(self) -> Any:
         return importlib.import_module(self.name)
+
+CUSTOM_STUBS: dict[type, type[CustomStub]] = {}
+
+def register_stub(cls: None | type, stub: type[CustomStub]) -> None:
+    CUSTOM_STUBS[cls] = stub
 
 
 class FunctionStub:
@@ -102,19 +116,27 @@ class Cache:
 
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
-        for var, lookup in self.contextual_defs():
-            value = self.defs.get(var, None)
+        def hydrate(value: Any) -> Any:
             # If it's a module we must replace with a stub.
             if isinstance(value, ModuleStub):
-                scope[lookup] = value.load()
+                return value.load()
             elif isinstance(value, FunctionStub):
-                scope[lookup] = value.load(scope)
+                return value.load(scope)
             elif isinstance(value, UIElementStub):
                 # UIElementStub is a placeholder for UIElement, which cannot be
                 # restored directly.
-                scope[lookup] = value.load()
-            else:
-                scope[lookup] = self.defs[var]
+                return value.load()
+            elif isinstance(value, CustomStub):
+                # CustomStub is a placeholder for a custom type, which cannot be
+                # restored directly.
+                return value.load(scope)
+            return value
+
+        for var, lookup in self.contextual_defs():
+            value = self.defs.get(var, None)
+            scope[lookup] = hydrate(value)
+
+        self.meta["return"] = hydrate(self.meta.get("return", None))
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -179,15 +201,27 @@ class Cache:
                     f"({type(value)}:{ref})."
                 )
 
-        for key, value in self.defs.items():
-            # If it's a module we must replace with a stub.
+        def stub(value: Any) -> Optional[Stub]:
             if inspect.ismodule(value):
-                self.defs[key] = ModuleStub(value)
+                return ModuleStub(value)
             elif inspect.isfunction(value):
-                self.defs[key] = FunctionStub(value)
+                return FunctionStub(value)
             elif isinstance(value, UIElement):
                 # UIElement cannot be restored directly, so we store a stub.
-                self.defs[key] = UIElementStub(value)
+                return UIElementStub(value)
+            elif type(value) in CUSTOM_STUBS:
+                # If the value is a custom stub, we store it as such.
+                return CUSTOM_STUBS[type(value)](value)
+
+        for key, value in self.defs.items():
+            # If it's a module we must replace with a stub.
+            maybe_stub = stub(value)
+            if maybe_stub is not None:
+                self.defs[key] = maybe_stub
+
+        maybe_return_stub = stub(self.meta.get("return", None))
+        if maybe_return_stub is not None:
+            self.meta["return"] = maybe_return_stub
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
