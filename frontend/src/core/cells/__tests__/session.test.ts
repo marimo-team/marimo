@@ -6,7 +6,7 @@ import { notebookStateFromSession } from "../session";
 import { Logger } from "@/utils/Logger";
 import { parseOutline } from "@/core/dom/outline";
 import { MultiColumn } from "@/utils/id-tree";
-import type { ISession, INotebook } from "@marimo-team/marimo-api";
+import type * as api from "@marimo-team/marimo-api";
 import { invariant } from "@/utils/invariant";
 import type { CellId } from "../ids";
 import { visibleForTesting } from "@/utils/id-tree";
@@ -16,6 +16,7 @@ vi.mock("@/utils/Logger", () => ({
   Logger: {
     error: vi.fn(),
     warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
@@ -23,11 +24,11 @@ vi.mock("@/core/dom/outline", () => ({
   parseOutline: vi.fn(),
 }));
 
-type SessionCell = ISession["NotebookSessionV1"]["cells"][0];
-type NotebookCell = INotebook["NotebookV1"]["cells"][0];
+type SessionCell = api.Session["NotebookSessionV1"]["cells"][0];
+type NotebookCell = api.Notebook["NotebookV1"]["cells"][0];
 
+// Test constants
 const CELL_1 = "cell-1" as CellId;
-const CELL_2 = "cell-2" as CellId;
 
 describe("notebookStateFromSession", () => {
   beforeEach(() => {
@@ -51,31 +52,54 @@ describe("notebookStateFromSession", () => {
     id: string,
     code: string | null = null,
     name: string | null = null,
-    config: NotebookCell["config"] = {},
+    config: NotebookCell["config"] | null = null,
   ): NotebookCell => ({
     id,
     code,
     name,
     config: {
-      hide_code: false,
-      disabled: false,
-      column: null,
-      ...config,
+      column: config?.column ?? null,
+      disabled: config?.disabled ?? null,
+      hide_code: config?.hide_code ?? null,
     },
   });
 
   const createSession = (
     cells: SessionCell[],
-  ): ISession["NotebookSessionV1"] => ({
+  ): api.Session["NotebookSessionV1"] => ({
     version: "1",
     metadata: { marimo_version: "1" },
     cells,
   });
 
-  const createNotebook = (cells: NotebookCell[]): INotebook["NotebookV1"] => ({
+  const createNotebook = (
+    cells: NotebookCell[],
+  ): api.Notebook["NotebookV1"] => ({
     version: "1",
     metadata: { marimo_version: "1" },
     cells,
+  });
+
+  describe("validation", () => {
+    it("logs error for both session and notebook null/undefined", () => {
+      const result = notebookStateFromSession(null, null);
+      expect(Logger.error).toHaveBeenCalledWith(
+        "Both session and notebook are null/undefined",
+      );
+      expect(result).toBeNull();
+    });
+
+    it("logs error when session and notebook have different cells", () => {
+      const session = createSession([createSessionCell("cell-1")]);
+      const notebook = createNotebook([createNotebookCell("cell-2")]);
+
+      const result = notebookStateFromSession(session, notebook);
+
+      expect(Logger.error).toHaveBeenCalledWith(
+        "Session and notebook must have the same cells if both are provided",
+      );
+      expect(result).toBeNull();
+    });
   });
 
   describe("null/undefined inputs", () => {
@@ -179,8 +203,8 @@ describe("notebookStateFromSession", () => {
 
     it("handles console outputs in session cell", () => {
       const consoleOutputs = [
-        { type: "stream", name: "stdout", text: "Hello stdout" },
-        { type: "stream", name: "stderr", text: "Hello stderr" },
+        { type: "stream", name: "stdout", text: "Hello stdout" } as const,
+        { type: "stream", name: "stderr", text: "Hello stderr" } as const,
       ];
       const session = createSession([
         createSessionCell("cell-1", [], consoleOutputs),
@@ -356,18 +380,6 @@ describe("notebookStateFromSession", () => {
           timestamp: 0,
         },
       ]);
-    });
-
-    it("logs error and returns null when session and notebook have different cells", () => {
-      const session = createSession([createSessionCell("cell-1")]);
-      const notebook = createNotebook([createNotebookCell("cell-2")]);
-
-      const result = notebookStateFromSession(session, notebook);
-
-      expect(Logger.error).toHaveBeenCalledWith(
-        "Session and notebook must have the same cells if both are provided",
-      );
-      expect(result).toBeNull();
     });
 
     it("creates state when cell order differs but same cells", () => {

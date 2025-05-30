@@ -9,15 +9,14 @@ from typing import Any, Literal, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
+from marimo._schemas.notebook import NotebookV1
+from marimo._schemas.session import NotebookSessionV1
 from marimo._server.api.utils import parse_title
 from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
-from marimo._types.ids import CellId_t
 from marimo._utils.versions import is_editable
 
 MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
@@ -33,13 +32,15 @@ def _get_mount_config(
     app_config: Optional[_AppConfig],
     version: Optional[str] = None,
     show_app_code: bool = True,
+    session_snapshot: Optional[NotebookSessionV1] = None,
+    notebook_snapshot: Optional[NotebookV1] = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
     """
 
     options: dict[str, Any] = {
-        "filename": filename,
+        "filename": filename or "",
         "mode": mode,
         "version": version or get_version(),
         "server_token": str(server_token),
@@ -47,10 +48,12 @@ def _get_mount_config(
         "config_overrides": config_overrides,
         "app_config": _del_none_or_empty(app_config.asdict())
         if app_config
-        else None,
+        else {},
         "view": {
             "showAppCode": show_app_code,
         },
+        "notebook": notebook_snapshot,
+        "session": session_snapshot,
     }
 
     return """{{
@@ -62,6 +65,8 @@ def _get_mount_config(
             "configOverrides": {config_overrides},
             "appConfig": {app_config},
             "view": {view},
+            "notebook": {notebook},
+            "session": {session},
         }}
 """.format(
         **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
@@ -164,12 +169,8 @@ def static_notebook_template(
     filepath: Optional[str],
     code: str,
     code_hash: str,
-    cell_ids: list[CellId_t],
-    cell_names: list[str],
-    cell_codes: list[str],
-    cell_configs: list[CellConfig],
-    cell_outputs: dict[CellId_t, CellOutput],
-    cell_console_outputs: dict[CellId_t, list[CellOutput]],
+    session_snapshot: NotebookSessionV1,
+    notebook_snapshot: NotebookV1,
     files: dict[str, str],
     asset_url: Optional[str] = None,
 ) -> str:
@@ -193,6 +194,8 @@ def static_notebook_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=app_config,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
         ),
     )
 
@@ -205,39 +208,9 @@ def static_notebook_template(
         ),
     )
 
-    serialized_cell_outputs = {
-        cell_id: _serialize_to_base64(json.dumps(output.asdict()))
-        for cell_id, output in cell_outputs.items()
-    }
-    serialized_cell_console_outputs = {
-        cell_id: [_serialize_to_base64(json.dumps(o.asdict())) for o in output]
-        for cell_id, output in cell_console_outputs.items()
-        if output
-    }
-
     static_block = dedent(
         f"""
     <script data-marimo="true">
-        window.__MARIMO_STATIC__ = {{}};
-        window.__MARIMO_STATIC__.version = "{__version__}";
-        window.__MARIMO_STATIC__.notebookState = {
-            json.dumps(
-                {
-                    "cellIds": cell_ids,
-                    "cellNames": _serialize_list_to_base64(cell_names),
-                    "cellCodes": _serialize_list_to_base64(cell_codes),
-                    "cellConfigs": _serialize_list_to_base64(
-                        [
-                            json.dumps(config.asdict())
-                            for config in cell_configs
-                        ]
-                    ),
-                    "cellOutputs": serialized_cell_outputs,
-                    "cellConsoleOutputs": serialized_cell_console_outputs,
-                }
-            )
-        };
-        window.__MARIMO_STATIC__.assetUrl = "{asset_url}";
         window.__MARIMO_STATIC__.files = {json.dumps(files)};
     </script>
     """

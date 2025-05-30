@@ -30,7 +30,7 @@ import {
 import { appConfigAtom, userConfigAtom } from "@/core/config/config";
 import { configOverridesAtom } from "@/core/config/config";
 import { getMarimoCode } from "@/core/meta/globals";
-import type { INotebook, ISession } from "@marimo-team/marimo-api";
+import type * as api from "@marimo-team/marimo-api";
 import { notebookAtom } from "./core/cells/cells";
 import { notebookStateFromSession } from "./core/cells/session";
 
@@ -178,7 +178,7 @@ const mountOptionsSchema = z.object({
     .transform((val) => val ?? ""),
 
   /**
-   * Serialized ISession["NotebookSessionV1"] snapshot
+   * Serialized Session["NotebookSessionV1"] snapshot
    */
   session: z.union([
     z.null().optional(),
@@ -190,11 +190,11 @@ const mountOptionsSchema = z.object({
         cells: z.array(z.any()),
       })
       .passthrough()
-      .transform((val) => val as ISession["NotebookSessionV1"]),
+      .transform((val) => val as api.Session["NotebookSessionV1"]),
   ]),
 
   /**
-   * Serialized INotebook["NotebookV1"] snapshot
+   * Serialized Notebook["NotebookV1"] snapshot
    */
   notebook: z.union([
     z.null().optional(),
@@ -206,7 +206,7 @@ const mountOptionsSchema = z.object({
         cells: z.array(z.any()),
       })
       .passthrough()
-      .transform((val) => val as INotebook["NotebookV1"]),
+      .transform((val) => val as api.Notebook["NotebookV1"]),
   ]),
 });
 
@@ -238,15 +238,13 @@ function initStore(options: unknown) {
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
   store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
 
-  // Session
-  if (parsedOptions.data.session || parsedOptions.data.notebook) {
-    store.set(
-      notebookAtom,
-      notebookStateFromSession(
-        parsedOptions.data.session,
-        parsedOptions.data.notebook,
-      ),
-    );
+  // Session/notebook
+  const notebook = notebookStateFromSession(
+    parsedOptions.data.session,
+    parsedOptions.data.notebook,
+  );
+  if (notebook) {
+    store.set(notebookAtom, notebook);
   }
 }
 

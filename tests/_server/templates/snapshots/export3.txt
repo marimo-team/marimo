@@ -53,7 +53,7 @@
       }
     </script>
     <marimo-filename hidden>notebook.py</marimo-filename>
-    <script>
+    <script data-marimo="true">
       window.__MARIMO_MOUNT_CONFIG__ = {
             "filename": "notebook.py",
             "mode": "read",
@@ -63,6 +63,8 @@
             "configOverrides": {"formatting": {"line_length": 100}},
             "appConfig": {"sql_output": "auto", "width": "compact"},
             "view": {"showAppCode": true},
+            "notebook": {"cells": [], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
+            "session": {"cells": [], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
         };
     </script>
     <title>notebook</title>
@@ -70,10 +72,6 @@
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"" />
   
 <script data-marimo="true">
-    window.__MARIMO_STATIC__ = {};
-    window.__MARIMO_STATIC__.version = "0.0.0";
-    window.__MARIMO_STATIC__.notebookState = {"cellIds": [], "cellNames": [], "cellCodes": [], "cellConfigs": [], "cellOutputs": {}, "cellConsoleOutputs": {}};
-    window.__MARIMO_STATIC__.assetUrl = "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist";
     window.__MARIMO_STATIC__.files = {};
 </script>
 </head>

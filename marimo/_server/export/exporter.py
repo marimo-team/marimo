@@ -14,7 +14,7 @@ from typing import (
 )
 
 from marimo import __version__, _loggers
-from marimo._ast.cell import Cell, CellConfig, CellImpl
+from marimo._ast.cell import Cell, CellImpl
 from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
 from marimo._config.config import (
     DEFAULT_CONFIG,
@@ -37,6 +37,10 @@ from marimo._server.export.utils import (
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
+from marimo._server.session.serialize import (
+    serialize_notebook,
+    serialize_session_view,
+)
 from marimo._server.session.session_view import SessionView
 from marimo._server.templates.templates import (
     static_notebook_template,
@@ -67,7 +71,6 @@ class Exporter:
     ) -> tuple[str, str]:
         index_html = get_html_contents()
 
-        cell_ids = list(file_manager.app.cell_manager.cell_ids())
         filename = get_filename(file_manager)
 
         files: dict[str, str] = {}
@@ -97,18 +100,20 @@ class Exporter:
         config = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
 
-        # code and console outputs are grouped together, but
-        # we can split them up in the future if desired.
-        if request.include_code:
-            code = file_manager.to_code()
-            codes = file_manager.app.cell_manager.codes()
-            configs = file_manager.app.cell_manager.configs()
-            console_outputs = session_view.get_cell_console_outputs(cell_ids)
-        else:
+        session_snapshot = serialize_session_view(session_view)
+        notebook_snapshot = serialize_notebook(
+            session_view, file_manager.app.cell_manager
+        )
+        if not request.include_code:
             code = ""
-            codes = ["" for _ in cell_ids]
-            configs = [CellConfig() for _ in cell_ids]
-            console_outputs = {}
+            # Clear code and console outputs
+            for cell in notebook_snapshot["cells"]:
+                cell["code"] = ""
+                cell["name"] = ""
+            for output in session_snapshot["cells"]:
+                output["console"] = []
+        else:
+            code = file_manager.to_code()
 
         # We include the code hash regardless of whether we include the code
         code_hash = hash_code(file_manager.to_code())
@@ -122,12 +127,8 @@ class Exporter:
             filepath=file_manager.filename,
             code=code,
             code_hash=code_hash,
-            cell_ids=cell_ids,
-            cell_names=list(file_manager.app.cell_manager.names()),
-            cell_codes=list(codes),
-            cell_configs=list(configs),
-            cell_outputs=session_view.get_cell_outputs(cell_ids),
-            cell_console_outputs=console_outputs,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
             files=files,
             asset_url=request.asset_url,
         )

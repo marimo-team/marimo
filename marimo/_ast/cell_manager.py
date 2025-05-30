@@ -17,6 +17,7 @@ if sys.version_info < (3, 10):
 else:
     from typing import ParamSpec, TypeAlias
 
+from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import (
     cell_factory,
@@ -44,6 +45,8 @@ R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
 Cls: TypeAlias = type
 Obj: TypeAlias = "Cls | Fn[P, R]"
+
+LOGGER = _loggers.marimo_logger()
 
 
 class CellManager:
@@ -401,9 +404,31 @@ class CellManager:
         return self._cell_data[cell_id]
 
     def get_cell_code(self, cell_id: CellId_t) -> Optional[str]:
+        """Get the code for a cell by its ID.
+
+        Args:
+            cell_id: The ID of the cell
+
+        Returns:
+            Optional[str]: The cell's code, or None if the cell doesn't exist
+        """
         if cell_id not in self._cell_data:
             return None
         return self._cell_data[cell_id].code
+
+    def get_cell_data(self, cell_id: CellId_t) -> Optional[CellData]:
+        """Get the cell data for a specific cell ID.
+
+        Args:
+            cell_id: The ID of the cell to get data for
+
+        Returns:
+            Optional[CellData]: The cell's data, or None if the cell doesn't exist
+        """
+        if cell_id not in self._cell_data:
+            LOGGER.debug(f"Cell with ID '{cell_id}' not found in cell manager")
+            return None
+        return self._cell_data[cell_id]
 
     def get_cell_id_by_code(self, code: str) -> Optional[CellId_t]:
         """Find a cell ID by its code content.
