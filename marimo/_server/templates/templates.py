@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
+import html
 import json
 import os
 from textwrap import dedent
@@ -20,6 +20,11 @@ from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.versions import is_editable
 
 MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
+
+
+def _html_escape(text: str) -> str:
+    """Escape HTML special characters."""
+    return html.escape(text, quote=True)
 
 
 def _get_mount_config(
@@ -114,7 +119,7 @@ def notebook_page_template(
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
-    html = html.replace("{{ filename }}", filename or "")
+    html = html.replace("{{ filename }}", _html_escape(filename or ""))
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
@@ -129,7 +134,7 @@ def notebook_page_template(
 
     html = html.replace(
         "{{ title }}",
-        (
+        _html_escape(
             parse_title(filename)
             if app_config.app_title is None
             else app_config.app_title
@@ -179,7 +184,7 @@ def static_notebook_template(
 
     html = html.replace("{{ base_url }}", "")
     filename = os.path.basename(filepath or "")
-    html = html.replace("{{ filename }}", filename or "")
+    html = html.replace("{{ filename }}", _html_escape(filename))
 
     # We don't need all this user config when we export the notebook,
     # but we do need some:
@@ -201,7 +206,7 @@ def static_notebook_template(
 
     html = html.replace(
         "{{ title }}",
-        (
+        _html_escape(
             parse_title(filepath)
             if app_config.app_title is None
             else app_config.app_title
@@ -299,12 +304,14 @@ def wasm_notebook_template(
     body = body.replace("{{ base_url }}", "")
     body = body.replace(
         "{{ title }}",
-        parse_title(filename)
-        if app_config.app_title is None
-        else app_config.app_title,
+        _html_escape(
+            parse_title(filename)
+            if app_config.app_title is None
+            else app_config.app_title
+        ),
     )
 
-    body = body.replace("{{ filename }}", "notebook.py")
+    body = body.replace("{{ filename }}", _html_escape("notebook.py"))
     body = body.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
@@ -379,18 +386,6 @@ def inject_script(html: str, script: str) -> str:
     """Inject a script into the HTML before the closing body tag."""
     script_tag = f"<script>{script}</script>"
     return html.replace("</body>", f"{script_tag}</body>")
-
-
-def _serialize_to_base64(value: str) -> str:
-    # Encode the JSON string to URL-encoded format
-    url_encoded = uri_encode_component(value)
-    # Encode the URL-encoded string to Base64
-    base64_encoded = base64.b64encode(url_encoded.encode()).decode()
-    return base64_encoded
-
-
-def _serialize_list_to_base64(value: list[str]) -> list[str]:
-    return [_serialize_to_base64(v) for v in value]
 
 
 def _del_none_or_empty(d: Any) -> Any:

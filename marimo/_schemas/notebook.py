@@ -40,6 +40,3 @@ class NotebookV1(BaseDict):
     metadata: NotebookMetadata
     # The cells in the notebook
     cells: list[NotebookCell]
-
-
-VERSION = "1"
