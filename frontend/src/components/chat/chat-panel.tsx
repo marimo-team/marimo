@@ -26,6 +26,7 @@ import {
   type Dispatch,
   memo,
   useEffect,
+  useMemo,
 } from "react";
 import { generateUUID } from "@/utils/uuid";
 import type { Message } from "ai/react";
@@ -54,7 +55,6 @@ interface ChatHeaderProps {
   activeChatId: string | undefined;
   setActiveChat: (id: string | null) => void;
   chats: Chat[];
-  setMessages: (messages: Message[]) => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -62,7 +62,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   activeChatId,
   setActiveChat,
   chats,
-  setMessages,
 }) => {
   const ai = useAtomValue(aiAtom);
   const { handleClick } = useOpenSettingsToTab();
@@ -112,13 +111,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   )}
                   onClick={() => {
                     setActiveChat(chat.id);
-                    setMessages(
-                      chat.messages.map(({ role, content, timestamp }) => ({
-                        role,
-                        content,
-                        id: timestamp.toString(),
-                      })),
-                    );
                   }}
                 >
                   <div className="font-medium">{chat.title}</div>
@@ -265,7 +257,16 @@ const ChatPanelBody = () => {
     reload,
     stop,
   } = useChat({
-    id: chatState.activeChatId || undefined,
+    id: activeChat?.id,
+    initialMessages: useMemo(() => {
+      return activeChat
+        ? activeChat.messages.map(({ role, content, timestamp }) => ({
+            role,
+            content,
+            id: timestamp.toString(),
+          }))
+        : [];
+    }, [activeChat]),
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
@@ -328,7 +329,6 @@ const ChatPanelBody = () => {
       activeChatId: newChat.id,
     }));
 
-    setMessages([]);
     setInput("");
     append({
       role: "user",
@@ -338,7 +338,6 @@ const ChatPanelBody = () => {
 
   const handleNewChat = () => {
     setActiveChat(null);
-    setMessages([]);
     setInput("");
     setNewThreadInput("");
   };
@@ -384,7 +383,6 @@ const ChatPanelBody = () => {
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
           chats={chatState.chats}
-          setMessages={setMessages}
         />
       </TooltipProvider>
 
