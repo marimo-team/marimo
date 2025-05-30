@@ -231,7 +231,7 @@ class Exporter:
         from marimo._ast.app_config import _AppConfig
         from marimo._ast.cell import Cell
         from marimo._ast.compiler import compile_cell
-        from marimo._cli.convert.markdown import (
+        from marimo._convert.markdown.markdown import (
             extract_frontmatter,
             formatted_code_block,
             is_sanitized_markdown,

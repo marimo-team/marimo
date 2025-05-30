@@ -6,6 +6,7 @@ from typing import Optional
 from marimo._ast import codegen
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
+from marimo._ast.models import NotebookPayload
 from marimo._ast.names import DEFAULT_CELL_NAME
 
 
@@ -66,9 +67,11 @@ def generate_from_sources(
         )
 
     return codegen.generate_filecontents(
-        sources,
-        [DEFAULT_CELL_NAME for _ in sources],
-        cell_configs,
-        config=config,
-        header_comments=header_comments,
+        NotebookPayload(
+            codes=sources,
+            names=[DEFAULT_CELL_NAME for _ in sources],
+            cell_configs=cell_configs,
+            config=config,
+            header_comments=header_comments,
+        )
     )

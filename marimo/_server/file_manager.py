@@ -12,6 +12,7 @@ from marimo._ast import codegen, load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
+from marimo._ast.models import NotebookPayload
 from marimo._config.config import SqlOutputType, WidthType
 from marimo._runtime.layout.layout import (
     LayoutConfig,
@@ -168,11 +169,13 @@ class AppFileManager:
                 header_comments = codegen.get_header_comments(filename)
             # try to save the app under the name `filename`
             contents = codegen.generate_filecontents(
-                codes,
-                names,
-                cell_configs=configs,
-                config=app_config,
-                header_comments=header_comments,
+                NotebookPayload(
+                    codes=codes,
+                    names=names,
+                    cell_configs=configs,
+                    config=app_config,
+                    header_comments=header_comments,
+                )
             )
 
         if persist:
@@ -341,10 +344,12 @@ class AppFileManager:
     def to_code(self) -> str:
         """Read the contents of the unsaved file."""
         contents = codegen.generate_filecontents(
-            codes=list(self.app.cell_manager.codes()),
-            names=list(self.app.cell_manager.names()),
-            cell_configs=list(self.app.cell_manager.configs()),
-            config=self.app.config,
+            NotebookPayload(
+                codes=list(self.app.cell_manager.codes()),
+                names=list(self.app.cell_manager.names()),
+                cell_configs=list(self.app.cell_manager.configs()),
+                config=self.app.config,
+            )
         )
         return contents
 

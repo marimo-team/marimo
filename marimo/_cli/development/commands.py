@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import click
 
 from marimo._cli.print import orange
+from marimo._convert.converters import MarimoConvert
 
 if TYPE_CHECKING:
     import psutil
@@ -530,7 +531,6 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
     from marimo import __version__
     from marimo._ast.app_config import _AppConfig
     from marimo._config.config import DEFAULT_CONFIG
-    from marimo._convert.notebook import convert_from_py_to_notebook_v1
     from marimo._schemas.session import (
         NotebookSessionMetadata,
         NotebookSessionV1,
@@ -545,7 +545,9 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
 
     try:
         # Convert to notebook format
-        notebook_snapshot = convert_from_py_to_notebook_v1(str(file_path))
+        notebook_snapshot = MarimoConvert.from_py(
+            file_path.read_text(encoding="utf-8")
+        ).to_notebook_v1()
 
         # Create empty session snapshot since we're not running the code
         session_snapshot = NotebookSessionV1(

@@ -11,7 +11,7 @@ import pytest
 
 from marimo import __version__
 from marimo._ast.app import InternalApp
-from marimo._cli.convert.markdown import (
+from marimo._convert.markdown.markdown import (
     convert_from_md,
     convert_from_md_to_app,
 )

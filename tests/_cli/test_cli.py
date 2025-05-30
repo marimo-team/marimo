@@ -25,6 +25,7 @@ import pytest
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._ast.models import NotebookPayload
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
@@ -115,7 +116,11 @@ def _check_started(port: int, host: str = "localhost") -> Optional[bytes]:
 
 def _temp_run_file(directory: tempfile.TemporaryDirectory[str]) -> str:
     filecontents = codegen.generate_filecontents(
-        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
+        NotebookPayload(
+            codes=["import marimo as mo"],
+            names=["one"],
+            cell_configs=[CellConfig()],
+        )
     )
     path = Path(directory.name) / "run.py"
     path.write_text(filecontents, encoding="utf-8")

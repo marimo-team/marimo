@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from functools import partial
 from inspect import cleandoc
 from textwrap import dedent
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import codegen_data.test_main as mod
 import pytest
@@ -17,7 +16,12 @@ from marimo._ast import codegen, compiler, load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
+from marimo._ast.models import NotebookPayload
 from marimo._ast.names import is_internal_cell_name
+from marimo._schemas.notebook import NotebookV1
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -63,7 +67,7 @@ def wrap_generate_filecontents(
     else:
         resolved_configs = cell_configs
     filecontents = codegen.generate_filecontents(
-        codes, names, cell_configs=resolved_configs, **kwargs
+        NotebookPayload(codes, names, cell_configs=resolved_configs, **kwargs)
     )
     # leading spaces should be removed too
     assert filecontents.lstrip() == filecontents
@@ -77,11 +81,13 @@ def get_idempotent_marimo_source(name: str) -> str:
     app = load.load_app(path)
     header_comments = codegen.get_header_comments(path)
     generated_contents = codegen.generate_filecontents(
-        list(app._cell_manager.codes()),
-        list(app._cell_manager.names()),
-        list(app._cell_manager.configs()),
-        app._config,
-        header_comments,
+        NotebookPayload(
+            codes=list(app._cell_manager.codes()),
+            names=list(app._cell_manager.names()),
+            cell_configs=list(app._cell_manager.configs()),
+            config=app._config,
+            header_comments=header_comments,
+        )
     )
     generated_contents = sanitized_version(generated_contents)
 
@@ -593,27 +599,21 @@ class TestToFunctionDef:
         assert fndef == expected
 
 
-def test_recover() -> None:
-    cells = {
+def test_recover(tmp_path: Path) -> None:
+    cells: NotebookV1 = {
+        "version": "1",
+        "metadata": {"marimo_version": __version__},
         "cells": [
             {"name": "a", "code": '"santa"\n\n"clause"\n\n\n'},
             {"name": "b", "code": ""},
             {"name": "c", "code": "\n123"},
-        ]
+        ],
     }
     filecontents = json.dumps(cells)
     # keep open for windows compat
-    tempfile_name = ""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False
-    ) as f:
-        f.write(filecontents)
-        f.seek(0)
-        tempfile_name = f.name
-    try:
-        recovered = codegen.recover(tempfile_name)
-    finally:
-        os.remove(tempfile_name)
+    tempfile_name = tmp_path / "test.py"
+    tempfile_name.write_text(filecontents)
+    recovered = codegen.recover(tempfile_name)
 
     codes = [
         "\n".join(['"santa"', "", '"clause"', "", "", ""]),

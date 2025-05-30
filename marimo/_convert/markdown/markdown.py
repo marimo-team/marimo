@@ -28,6 +28,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
+from marimo._ast.models import NotebookPayload
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.utils import markdown_to_marimo, sql_to_marimo
 from marimo._dependencies.dependencies import DependencyManager
@@ -227,11 +228,13 @@ def _tree_to_app(root: Element) -> str:
     if pyproject and not header:
         header = "\n# ".join(["# ///script", *pyproject.splitlines(), "///"])
     return codegen.generate_filecontents(
-        sources,
-        names,
-        cell_config,
-        config=app_config,
-        header_comments=header,
+        NotebookPayload(
+            codes=sources,
+            names=names,
+            cell_configs=cell_config,
+            config=app_config,
+            header_comments=header,
+        )
     )
 
 
@@ -272,7 +275,7 @@ class IdentityParser(Markdown):
         return super().convert(text)
 
 
-class MarimoParser(IdentityParser):
+class MarimoMdParser(IdentityParser):
     """Parses Markdown to marimo notebook string."""
 
     meta: dict[str, Any]
@@ -343,9 +346,9 @@ class FrontMatterPreprocessor(Preprocessor):
     (BSD-3) or python-frontmatter (MIT) for similar implementations.
     """
 
-    def __init__(self, md: MarimoParser):
+    def __init__(self, md: MarimoMdParser):
         super().__init__(md)
-        self.md: MarimoParser = md
+        self.md: MarimoMdParser = md
 
     def run(self, lines: list[str]) -> list[str]:
         if not lines:
@@ -419,7 +422,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
-        assert isinstance(self.parser.md, MarimoParser)
+        assert isinstance(self.parser.md, MarimoMdParser)
         for key, value in self.parser.md.meta.items():
             if isinstance(value, str):
                 parent.set(key, value)
@@ -482,14 +485,16 @@ def convert_from_md_to_app(text: str) -> App:
     if not text.strip():
         app = App()
     else:
-        app = cast(App, MarimoParser(output_format="marimo-app").convert(text))
+        app = cast(
+            App, MarimoMdParser(output_format="marimo-app").convert(text)
+        )
 
     app._cell_manager.ensure_one_cell()
     return app
 
 
 def convert_from_md(text: str) -> str:
-    return MarimoParser(output_format="marimo").convert(text)
+    return MarimoMdParser(output_format="marimo").convert(text)
 
 
 def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
