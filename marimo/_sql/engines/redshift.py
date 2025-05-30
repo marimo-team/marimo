@@ -21,7 +21,7 @@ from marimo._types.ids import VariableName
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from redshift_connector import Connection
+    from redshift_connector import Connection  # type: ignore
 
 
 class RedshiftEngine(SQLConnection["Connection"]):
@@ -70,7 +70,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
         Rollback the connection to avoid errors with the connection being in a bad state.
         For example, after a query failure
         """
-        from redshift_connector.error import ProgrammingError
+        from redshift_connector.error import ProgrammingError  # type: ignore
 
         try:
             self._connection.rollback()
@@ -124,18 +124,19 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 # Fall back to pandas
                 sql_output_format = "pandas"
 
-            result = cursor.execute(query)
+            cursor_result = cursor.execute(query)
             self._try_commit()
 
             if sql_output_format == "native":
-                return result
+                return cursor_result
             if sql_output_format == "pandas":
-                return result.fetch_dataframe()
+                return cursor_result.fetch_dataframe()
+            return cursor_result
 
     def get_default_database(self) -> Optional[str]:
         with self._connection.cursor() as cursor:
             try:
-                return cursor.cur_catalog()
+                return str(cursor.cur_catalog())
             except Exception as e:
                 LOGGER.debug("Failed to get default database. Reason: %s.", e)
                 return None
@@ -144,7 +145,7 @@ class RedshiftEngine(SQLConnection["Connection"]):
         with self._connection.cursor() as cursor:
             try:
                 result = cursor.execute("SELECT current_schema()")
-                return result.fetchone()[0]
+                return str(result.fetchone()[0])
             except Exception as e:
                 LOGGER.debug("Failed to get default schema. Reason: %s.", e)
                 return None
@@ -285,9 +286,9 @@ class RedshiftEngine(SQLConnection["Connection"]):
         catalog: str,
         schema_name: str,
         table_name: str,
-    ) -> tuple:
+    ) -> tuple[tuple[str, ...], ...]:
         """The API is unreliable hence this method is not preferred"""
-        columns = []
+        columns: tuple[tuple[str, ...], ...] = ()
         with self._connection.cursor() as cursor:
             try:
                 # get_columns returns:

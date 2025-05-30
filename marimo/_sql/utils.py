@@ -1,8 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
@@ -52,7 +51,7 @@ def try_convert_to_polars(
     query: str,
     connection: ConnectionOrCursor,
     lazy: bool,
-) -> tuple[Optional[pl.DataFrame | pl.LazyFrame], str]:
+) -> tuple[Optional[pl.DataFrame | pl.LazyFrame], Optional[str]]:
     """Try to convert the query to a polars dataframe.
 
     Returns:

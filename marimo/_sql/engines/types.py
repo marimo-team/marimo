@@ -127,7 +127,7 @@ class QueryEngine(BaseEngine[CONN], ABC):
 
     # TODO: Maybe this should be called during init of db's
     def sql_output_format(self) -> SqlOutputType:
-        output_format = "auto"
+        output_format: SqlOutputType = "auto"
         if runtime_context_installed():
             try:
                 ctx = get_context()
