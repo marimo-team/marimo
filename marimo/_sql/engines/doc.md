@@ -53,3 +53,4 @@ Examples of both catalog and query operations:
 - DuckDB
 - Clickhouse
 - Ibis
+- Redshift

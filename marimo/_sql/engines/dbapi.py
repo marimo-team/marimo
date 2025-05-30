@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import QueryEngine, register_engine
+from marimo._sql.engines.types import QueryEngine
 from marimo._sql.utils import raise_df_import_error
 
 LOGGER = _loggers.marimo_logger()
@@ -20,7 +20,6 @@ class DBAPIConnection(Protocol):
     def commit(self) -> None: ...
 
 
-@register_engine
 class DBAPIEngine(QueryEngine[DBAPIConnection]):
     """DB-API 2.0 (PEP 249) engine."""
 

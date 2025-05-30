@@ -12,11 +12,7 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import (
-    InferenceConfig,
-    SQLConnection,
-    register_engine,
-)
+from marimo._sql.engines.types import InferenceConfig, SQLConnection
 from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 
@@ -31,7 +27,6 @@ class IbisToMarimoConversionError(Exception):
     """Raise for unhandled type during Ibis to Marimo conversion"""
 
 
-@register_engine
 class IbisEngine(SQLConnection["SQLBackend"]):
     """Ibis engine."""
 

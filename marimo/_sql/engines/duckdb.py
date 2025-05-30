@@ -7,11 +7,7 @@ from marimo import _loggers
 from marimo._data.get_datasets import get_databases_from_duckdb
 from marimo._data.models import Database, DataTable
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import (
-    InferenceConfig,
-    SQLConnection,
-    register_engine,
-)
+from marimo._sql.engines.types import InferenceConfig, SQLConnection
 from marimo._sql.utils import raise_df_import_error, wrapped_sql
 from marimo._types.ids import VariableName
 
@@ -24,7 +20,6 @@ if TYPE_CHECKING:
 INTERNAL_DUCKDB_ENGINE = cast(VariableName, "__marimo_duckdb")
 
 
-@register_engine
 class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
     """DuckDB SQL engine."""
 

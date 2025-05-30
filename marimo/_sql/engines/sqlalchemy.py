@@ -13,11 +13,7 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.types import (
-    InferenceConfig,
-    SQLConnection,
-    register_engine,
-)
+from marimo._sql.engines.types import InferenceConfig, SQLConnection
 from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
@@ -29,7 +25,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.type_api import TypeEngine
 
 
-@register_engine
 class SQLAlchemyEngine(SQLConnection["Engine"]):
     """SQLAlchemy engine."""
 
@@ -102,10 +97,9 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 except (
                     pl.exceptions.PanicException,
                     pl.exceptions.ComputeError,
-                ):
-                    LOGGER.info(
-                        "Failed to convert to polars, falling back to pandas"
-                    )
+                ) as e:
+                    LOGGER.warning(f"Failed to convert to polars. Reason: {e}")
+                    DependencyManager.pandas.require("to convert this data")
 
             if DependencyManager.pandas.has():
                 import pandas as pd

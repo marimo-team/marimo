@@ -9,11 +9,10 @@ from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.ibis import IbisEngine
+from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.engines.types import (
-    ENGINE_REGISTRY,
-    QueryEngine,
-)
+from marimo._sql.engines.types import QueryEngine
+from marimo._sql.get_engines import SUPPORTED_ENGINES
 from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 from marimo._utils.narwhals_utils import can_narwhalify_lazyframe
@@ -42,6 +41,7 @@ def sql(
         | ClickhouseClient
         | ChdbConnection
         | IbisEngine
+        | RedshiftEngine
     ] = None,
 ) -> Any:
     """
@@ -57,7 +57,7 @@ def sql(
     Args:
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
-        engine: Optional SQL engine to use. Can be a SQLAlchemy, Clickhouse, or DuckDB engine.
+        engine: Optional SQL engine to use. Can be a SQLAlchemy, DuckDB, Clickhouse, Redshift, Ibis, or DBAPI 2.0 compatible engine.
                If None, uses DuckDB.
 
     Returns:
@@ -75,7 +75,7 @@ def sql(
         )
         sql_engine = DuckDBEngine(connection=None)
     else:
-        for engine_cls in ENGINE_REGISTRY:
+        for engine_cls in SUPPORTED_ENGINES:
             if engine_cls.is_compatible(engine):
                 sql_engine = engine_cls(
                     connection=engine, engine_name=VariableName("custom")
@@ -83,7 +83,7 @@ def sql(
                 break
         else:
             raise ValueError(
-                "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, or DuckDB engine."
+                "Unsupported engine. Must be a SQLAlchemy, Ibis, Clickhouse, DuckDB, Redshift or DBAPI 2.0 compatible engine."
             )
 
     df = sql_engine.execute(query)
