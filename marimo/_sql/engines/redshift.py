@@ -15,7 +15,11 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import sql_type_to_data_type, try_convert_to_polars
+from marimo._sql.utils import (
+    raise_df_import_error,
+    sql_type_to_data_type,
+    try_convert_to_polars,
+)
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -104,8 +108,10 @@ class RedshiftEngine(SQLConnection["Connection"]):
             if sql_output_format == "auto":
                 if DependencyManager.polars.has():
                     sql_output_format = "polars"
-                else:
+                elif DependencyManager.pandas.has():
                     sql_output_format = "pandas"
+                else:
+                    raise_df_import_error("polars[pyarrow]")
 
             if sql_output_format in ("polars", "lazy-polars"):
                 result, error = try_convert_to_polars(

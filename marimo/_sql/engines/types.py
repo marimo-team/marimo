@@ -13,7 +13,6 @@ from marimo._runtime.context.types import (
     get_context,
     runtime_context_installed,
 )
-from marimo._sql.utils import raise_df_import_error
 from marimo._types.ids import VariableName
 
 NO_SCHEMA_NAME = ""
@@ -127,24 +126,13 @@ class QueryEngine(BaseEngine[CONN], ABC):
 
     # TODO: Maybe this should be called during init of db's
     def sql_output_format(self) -> SqlOutputType:
-        output_format: SqlOutputType = "auto"
         if runtime_context_installed():
             try:
                 ctx = get_context()
-                output_format = _validate_sql_output_format(
-                    ctx.app_config.sql_output
-                )
+                return _validate_sql_output_format(ctx.app_config.sql_output)
             except ContextNotInitializedError:
-                pass
-
-        if output_format == "auto":
-            if (
-                not DependencyManager.polars.has()
-                and not DependencyManager.pandas.has()
-            ):
-                raise_df_import_error("polars[pyarrow]")
-
-        return output_format
+                return "auto"
+        return "auto"
 
 
 class SQLConnection(EngineCatalog[CONN], QueryEngine[CONN]):
