@@ -53,15 +53,13 @@
       }
     </script>
     <marimo-filename hidden>{{ filename }}</marimo-filename>
-    <marimo-mode data-mode='{{ mode }}' hidden></marimo-mode>
-    <marimo-version data-version='{{ version }}' hidden></marimo-version>
-    <marimo-user-config data-config='{{ user_config }}' data-overrides='{{ config_overrides }}' hidden></marimo-user-config>
-    <marimo-app-config data-config='{{ app_config }}' hidden></marimo-app-config>
-    <marimo-server-token data-token='{{ server_token }}' hidden></marimo-server-token>
     <title>{{ title }}</title>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.__MARIMO_MOUNT_CONFIG__ = '{{ mount_config }}';
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

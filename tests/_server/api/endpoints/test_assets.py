@@ -34,7 +34,7 @@ def test_index(client: TestClient) -> None:
     assert f"<marimo-filename hidden>{filename}</marimo-filename>" in content
     assert filename is not None
     assert filename in content
-    assert "<marimo-mode data-mode='edit'" in content
+    assert '"mode": "edit"' in content
     assert f"<title>{title}</title>" in content
 
     # Check for /public file service worker
@@ -53,7 +53,7 @@ def test_index_when_empty(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     content = response.text
     assert "<marimo-filename hidden></marimo-filename>" in content
-    assert "<marimo-mode data-mode='home'" in content
+    assert '"mode": "home"' in content
     assert "<title>marimo</title>" in content
 
 
@@ -69,7 +69,7 @@ def test_index_when_new_file(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     content = response.text
     assert "<marimo-filename hidden></marimo-filename>" in content
-    assert "<marimo-mode data-mode='edit'" in content
+    assert '"mode": "edit"' in content
     assert "<title>marimo</title>" in content
 
 
@@ -82,7 +82,7 @@ def test_index_with_directory(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     content = response.text
     assert "<marimo-filename" in content
-    assert "<marimo-mode data-mode='home'" in content
+    assert '"mode": "home"' in content
     assert "<title>marimo</title>" in content
 
 

@@ -16,7 +16,7 @@ import {
 import { MinimalShortcut } from "../../shortcuts/renderShortcut";
 import { useNotebookActions } from "../actions/useNotebookActions";
 import type { ActionButton } from "../actions/types";
-import { getMarimoVersion } from "@/core/dom/marimo-tag";
+import { getMarimoVersion } from "@/core/meta/globals";
 import { Tooltip } from "@/components/ui/tooltip";
 
 export const NotebookMenuDropdown: React.FC = () => {

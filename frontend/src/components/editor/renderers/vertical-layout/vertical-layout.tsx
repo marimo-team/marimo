@@ -39,7 +39,7 @@ import { KnownQueryParams } from "@/core/constants";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { isErrorMime } from "@/core/mime";
-import { getMarimoShowCode } from "@/core/dom/marimo-tag";
+import { showCodeInRunModeAtom } from "@/core/meta/state";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -52,12 +52,12 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
   const [userConfig] = useResolvedMarimoConfig();
+  const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
   const urlParams = new URLSearchParams(window.location.search);
   const [showCode, setShowCode] = useState(() => {
-    // Check marimo-code tag setting first
-    const showCodePreference = getMarimoShowCode();
-    if (!showCodePreference) {
+    // Check if the setting was set in the mount options
+    if (!showCodeInRunModePreference) {
       return false;
     }
     // If 'auto' or not found, use URL param

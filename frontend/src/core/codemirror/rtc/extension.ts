@@ -28,7 +28,6 @@ import { createSelectionLayer } from "./loro/awareness";
 import { createCursorLayer } from "./loro/awareness";
 import { remoteAwarenessStateField } from "./loro/awareness";
 import type { UserState } from "./loro/awareness";
-import { initialMode } from "@/core/mode";
 import { isRtcEnabled, usernameAtom } from "@/core/rtc/state";
 import { getColor } from "./loro/colors";
 import {
@@ -38,6 +37,7 @@ import {
 } from "../language/metadata";
 import { invariant } from "@/utils/invariant";
 import { isEqual } from "lodash-es";
+import { getInitialAppMode } from "@/core/mode";
 
 const logger = Logger.get("rtc");
 const awarenessLogger = logger.get("awareness").disabled();
@@ -90,6 +90,11 @@ const getWs = once(() => {
     // This is to ensure the LoroDoc is created on the server
     await waitForConnectionOpen();
 
+    // Don't open the websocket if not in edit mode
+    if (getInitialAppMode() !== "edit") {
+      return;
+    }
+
     // Now open the websocket
     ws.reconnect();
   });
@@ -138,7 +143,7 @@ const getWs = once(() => {
 });
 
 // Kickoff the WS connection for edit mode
-if (isRtcEnabled() && initialMode === "edit") {
+if (isRtcEnabled()) {
   getWs();
 }
 

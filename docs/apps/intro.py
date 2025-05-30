@@ -1,40 +1,40 @@
 import marimo
 
-__generated_with = "0.0.6"
+__generated_with = "0.13.14"
 app = marimo.App()
 
 
 @app.cell
-def __(mo):
-    mo.md("# Welcome to marimo! 🌊🍃")
+def _(mo):
+    mo.md("""# Welcome to marimo! 🌊🍃""")
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     slider = mo.ui.slider(1, 22)
-    return slider,
+    return (slider,)
 
 
 @app.cell
-def __(mo, slider):
+def _(mo, slider):
     mo.md(
         f"""
-        marimo is a Python library for creating reactive and interactive
-        notebooks and apps.
+    marimo is a Python library for creating reactive and interactive
+    notebooks and apps.
 
-        Unlike traditional notebooks, marimo notebooks **run
-        automatically** when you modify them or
-        interact with UI elements, like this slider: {slider}.
+    Unlike traditional notebooks, marimo notebooks **run
+    automatically** when you modify them or
+    interact with UI elements, like this slider: {slider}.
 
-        {"##" + "🍃" * slider.value}
-        """
+    {"##" + "🍃" * slider.value}
+    """
     )
     return
 
 
 @app.cell
-def __(mo):
+def _(mo):
     mo.accordion(
         {
             "A notebook or an app?": (
@@ -54,9 +54,9 @@ def __(mo):
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
-    return mo,
+    return (mo,)
 
 
 if __name__ == "__main__":

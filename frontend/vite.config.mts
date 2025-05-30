@@ -38,25 +38,24 @@ const htmlDevPlugin = (): Plugin => {
         html = html.replace("{{ base_url }}", "");
         html = html.replace("{{ title }}", "marimo");
         html = html.replace(
-          "{{ user_config }}",
+          "'{{ mount_config }}'",
           JSON.stringify({
-            // Add/remove user config here while developing
-            // runtime: {
-            //   auto_instantiate: false,
-            // },
+            filename: "notebook.py",
+            mode: modeFromUrl,
+            // If VITE_MARIMO_VERSION is defined, pull the local version of marimo
+            // Otherwise, pull the latest version of marimo from PyPI
+            version: process.env.VITE_MARIMO_VERSION ? "local" : "latest",
+            config: {
+              // Add/remove user config here while developing
+              // runtime: {
+              //   auto_instantiate: false,
+              // },
+            },
+            configOverrides: {},
+            appConfig: {},
+            serverToken: "",
           }),
         );
-        html = html.replace("{{ app_config }}", JSON.stringify({}));
-        html = html.replace("{{ server_token }}", "");
-        if (process.env.VITE_MARIMO_VERSION) {
-          // If VITE_MARIMO_VERSION is defined, pull the local version of marimo
-          html = html.replace("{{ version }}", "local");
-        } else {
-          // Otherwise, pull the latest version of marimo from PyPI
-          html = html.replace("{{ version }}", "latest");
-        }
-        html = html.replace("{{ filename }}", "notebook.py");
-        html = html.replace("{{ mode }}", modeFromUrl);
         html = html.replace(/<\/head>/, "<marimo-wasm></marimo-wasm></head>");
         return html;
       }
@@ -138,15 +137,7 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
       }
 
       // copies these elements from server to dev
-      const copyElements = [
-        "title",
-        "marimo-filename",
-        "marimo-version",
-        "marimo-mode",
-        "marimo-user-config",
-        "marimo-app-config",
-        "marimo-server-token",
-      ];
+      const copyElements = ["title", "marimo-filename"];
 
       // remove from dev
       copyElements.forEach((id) => {
@@ -156,6 +147,13 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
           return;
         }
         element.remove();
+      });
+      // Remove script that contains __MARIMO_MOUNT_CONFIG__
+      const scriptsDev = devDoc.querySelectorAll("script");
+      scriptsDev.forEach((script) => {
+        if (script.innerHTML.includes("__MARIMO_MOUNT_CONFIG__")) {
+          script.remove();
+        }
       });
 
       // copy from server
@@ -172,6 +170,12 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
       const styles = serverDoc.querySelectorAll("style");
       styles.forEach((style) => {
         devDoc.head.append(style);
+      });
+
+      // Copy scripts
+      const scripts = serverDoc.querySelectorAll("script");
+      scripts.forEach((script) => {
+        devDoc.head.append(script);
       });
 
       return `<!DOCTYPE html>\n${devDoc.documentElement.outerHTML}`;

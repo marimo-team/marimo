@@ -285,72 +285,29 @@ def test_uv_list_packages(mock_run: MagicMock):
     assert packages[1] == PackageDescription(name="package2", version="2.1.0")
 
 
-@patch("subprocess.run")
-@patch.object(PipPackageManager, "is_manager_installed", return_value=True)
-async def test_install_with_upgrade(
-    mock_is_installed: MagicMock, mock_run: MagicMock
-):
-    del mock_is_installed
-    mock_run.return_value = MagicMock(returncode=0)
-
-    result = await manager._install("package1", upgrade=True)
-
-    mock_run.assert_called_once_with(
-        ["pip", "--python", PY_EXE, "install", "--upgrade", "package1"],
-    )
-    assert result is True
-
-
-@patch("subprocess.run")
-@patch.object(PipPackageManager, "is_manager_installed", return_value=True)
-async def test_install_without_upgrade(
-    mock_is_installed: MagicMock, mock_run: MagicMock
-):
-    del mock_is_installed
-    mock_run.return_value = MagicMock(returncode=0)
-
-    result = await manager._install("package1", upgrade=False)
-
-    mock_run.assert_called_once_with(
-        ["pip", "--python", PY_EXE, "install", "package1"],
-    )
-    assert result is True
-
-
-@patch("subprocess.run")
-@patch.object(UvPackageManager, "is_in_uv_project", False)
-async def test_uv_install_with_upgrade_not_in_project(mock_run: MagicMock):
-    """Test UV install with upgrade uses pip subcommand when not in UV project"""
-    mock_run.return_value = MagicMock(returncode=0)
+@patch.dict(
+    "os.environ",
+    {
+        "VIRTUAL_ENV": "/path/to/venv",
+        "UV_PROJECT_ENVIRONMENT": "/path/to/venv",
+    },
+    clear=True,
+)
+def test_uv_is_in_uv_project_uv_project_environment_match():
+    """Test is_in_uv_project returns True when UV_PROJECT_ENVIRONMENT equals VIRTUAL_ENV"""
     mgr = UvPackageManager()
-
-    result = await mgr._install("package1", upgrade=True)
-
-    mock_run.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "--upgrade",
-            "--compile",
-            "package1",
-            "-p",
-            PY_EXE,
-        ]
-    )
-    assert result is True
+    assert mgr.is_in_uv_project is True
 
 
-@patch("subprocess.run")
-@patch.object(UvPackageManager, "is_in_uv_project", True)
-async def test_uv_install_with_upgrade_in_project(mock_run: MagicMock):
-    """Test UV install with upgrade uses add subcommand when in UV project"""
-    mock_run.return_value = MagicMock(returncode=0)
+@patch.dict(
+    "os.environ",
+    {
+        "VIRTUAL_ENV": "/path/to/venv",
+        "UV_PROJECT_ENVIRONMENT": "/different/path",
+    },
+    clear=True,
+)
+def test_uv_is_in_uv_project_uv_project_environment_mismatch():
+    """Test is_in_uv_project returns False when UV_PROJECT_ENVIRONMENT doesn't match VIRTUAL_ENV"""
     mgr = UvPackageManager()
-
-    result = await mgr._install("package1", upgrade=True)
-
-    mock_run.assert_called_once_with(
-        ["uv", "add", "--upgrade", "--compile", "package1", "-p", PY_EXE]
-    )
-    assert result is True
+    assert mgr.is_in_uv_project is False
