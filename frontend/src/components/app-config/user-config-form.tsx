@@ -49,11 +49,11 @@ import { KNOWN_AI_MODELS, AWS_REGIONS } from "./constants";
 import { Textarea } from "../ui/textarea";
 import { get } from "lodash-es";
 import { Tooltip } from "../ui/tooltip";
-import { getMarimoVersion } from "@/core/dom/marimo-tag";
 import { Badge } from "../ui/badge";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { OptionalFeatures } from "./optional-features";
+import { marimoVersionAtom } from "@/core/meta/state";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -115,6 +115,7 @@ export const UserConfigForm: React.FC = () => {
     activeUserConfigCategoryAtom,
   );
   const capabilities = useAtomValue(capabilitiesAtom);
+  const marimoVersion = useAtomValue(marimoVersionAtom);
 
   // Create form
   const form = useForm<UserConfig>({
@@ -1510,7 +1511,7 @@ export const UserConfigForm: React.FC = () => {
             ))}
 
             <div className="p-2 text-xs text-muted-foreground self-start">
-              <span>Version: {getMarimoVersion()}</span>
+              <span>Version: {marimoVersion}</span>
             </div>
 
             <div className="flex-1" />

@@ -110,19 +110,28 @@ class PandasTableManagerFactory(TableManagerFactory):
                     isinstance(result.index, pd.Index)
                     and not isinstance(result.index, pd.RangeIndex)
                 ):
-                    unnamed_indexes = result.index.names[0] is None
+                    index_names = result.index.names
+                    unnamed_indexes = any(
+                        idx is None for idx in result.index.names
+                    )
+
                     index_levels = result.index.nlevels
                     result = result.reset_index()
 
                     if unnamed_indexes:
-                        # We could rename, but it doesn't work cleanly for multi-col indexes
-                        result.columns = pd.Index(
-                            [""] + list(result.columns[1:])
-                        )
+                        # After reset_index, the index is converted to a column
+                        # We need to rename the new columns to empty strings
+                        # And it must be unique for each column
+                        # TODO: On the frontend this still displays the original index, not the renamed one
+                        empty_name = ""
+                        for i, idx_name in enumerate(index_names):
+                            if idx_name is None:
+                                result.columns.values[i] = empty_name
+                                empty_name += " "
 
                         if index_levels > 1:
                             LOGGER.warning(
-                                "Indexes with more than one level are not supported properly, call reset_index() to flatten"
+                                "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
                             )
 
                 return sanitize_json_bigint(

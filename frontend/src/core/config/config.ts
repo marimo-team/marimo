@@ -4,7 +4,6 @@ import {
   type AppConfig,
   type UserConfig,
   parseAppConfig,
-  parseConfigOverrides,
   parseUserConfig,
 } from "./config-schema";
 import { store } from "../state/jotai";
@@ -14,9 +13,9 @@ import { merge } from "lodash-es";
 /**
  * Atom for storing the user config.
  */
-export const userConfigAtom = atom<UserConfig>(parseUserConfig());
+export const userConfigAtom = atom<UserConfig>(parseUserConfig({}));
 
-export const configOverridesAtom = atom<{}>(parseConfigOverrides());
+export const configOverridesAtom = atom<{}>({});
 
 export const resolvedMarimoConfigAtom = atom<UserConfig>((get) => {
   const overrides = get(configOverridesAtom);
@@ -83,7 +82,7 @@ export function isAiEnabled(config: UserConfig) {
 /**
  * Atom for storing the app config.
  */
-export const appConfigAtom = atom<AppConfig>(parseAppConfig());
+export const appConfigAtom = atom<AppConfig>(parseAppConfig({}));
 
 /**
  * Returns the app config.

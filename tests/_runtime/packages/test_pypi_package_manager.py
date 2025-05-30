@@ -44,7 +44,7 @@ manager = PipPackageManager()
 async def test_install(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
-    result = await manager._install("package1 package2")
+    result = await manager._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
         ["pip", "--python", PY_EXE, "install", "package1", "package2"],
@@ -56,7 +56,7 @@ async def test_install(mock_run: MagicMock):
 async def test_install_failure(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=1)
 
-    result = await manager._install("nonexistent-package")
+    result = await manager._install("nonexistent-package", upgrade=False)
 
     assert result is False
 
@@ -199,7 +199,7 @@ async def test_uv_install_not_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2")
+    result = await mgr._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
         [
@@ -223,7 +223,7 @@ async def test_uv_install_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2")
+    result = await mgr._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
         ["uv", "add", "--compile", "package1", "package2", "-p", PY_EXE],
@@ -283,3 +283,31 @@ def test_uv_list_packages(mock_run: MagicMock):
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
     assert packages[1] == PackageDescription(name="package2", version="2.1.0")
+
+
+@patch.dict(
+    "os.environ",
+    {
+        "VIRTUAL_ENV": "/path/to/venv",
+        "UV_PROJECT_ENVIRONMENT": "/path/to/venv",
+    },
+    clear=True,
+)
+def test_uv_is_in_uv_project_uv_project_environment_match():
+    """Test is_in_uv_project returns True when UV_PROJECT_ENVIRONMENT equals VIRTUAL_ENV"""
+    mgr = UvPackageManager()
+    assert mgr.is_in_uv_project is True
+
+
+@patch.dict(
+    "os.environ",
+    {
+        "VIRTUAL_ENV": "/path/to/venv",
+        "UV_PROJECT_ENVIRONMENT": "/different/path",
+    },
+    clear=True,
+)
+def test_uv_is_in_uv_project_uv_project_environment_mismatch():
+    """Test is_in_uv_project returns False when UV_PROJECT_ENVIRONMENT doesn't match VIRTUAL_ENV"""
+    mgr = UvPackageManager()
+    assert mgr.is_in_uv_project is False

@@ -26,6 +26,11 @@ snapshot = snapshotter(__file__)
 default_config = merge_default_config({})
 
 
+def _assert_no_leftover_replacements(result: str) -> None:
+    has_replacement = "{{" in result and "}}" in result
+    assert not has_replacement, f"Found {{}} in {result}"
+
+
 class TestNotebookPageTemplate(unittest.TestCase):
     def setUp(self) -> None:
         tmp_path = Path(tempfile.mkdtemp())
@@ -61,6 +66,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "read" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_no_filename(self) -> None:
         result = templates.notebook_page_template(
@@ -78,6 +84,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert "<title>marimo</title>" in result
         assert "read" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_edit_mode(self) -> None:
         result = templates.notebook_page_template(
@@ -95,6 +102,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "edit" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_custom_css(self) -> None:
         # Create css file
@@ -115,6 +123,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert css in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_custom_head(self) -> None:
         # Create html head file
@@ -145,6 +154,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert head in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_custom_css_config(self) -> None:
         # Create CSS files
@@ -174,6 +184,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert css1 in result
         assert css2 in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_absolute_custom_css(self) -> None:
         # Create CSS file with absolute path
@@ -198,6 +209,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert css in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_config_overrides_custom_css(
         self,
@@ -224,6 +236,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert css1 in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_nonexistent_custom_css(self) -> None:
         # Update config with nonexistent CSS path
@@ -243,6 +256,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert "nonexistent.css" in result
         assert "<style title='marimo-custom'>" not in result
+        _assert_no_leftover_replacements(result)
 
 
 class TestHomePageTemplate(unittest.TestCase):
@@ -273,11 +287,12 @@ class TestHomePageTemplate(unittest.TestCase):
 
         assert self.base_url not in result
         assert str(self.server_token) in result
-        assert json.dumps(self.user_config) in result
+        assert json.dumps(self.user_config, sort_keys=True) in result
         assert "marimo" in result
         assert json.dumps({}) in result
         assert "" in result
         assert "home" in result
+        _assert_no_leftover_replacements(result)
 
 
 class TestStaticNotebookTemplate(unittest.TestCase):
@@ -351,6 +366,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         )
 
         snapshot("export1.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_no_filename(self) -> None:
         result = templates.static_notebook_template(
@@ -372,6 +388,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         )
 
         snapshot("export2.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_no_code(self) -> None:
         result = templates.static_notebook_template(
@@ -393,6 +410,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         )
 
         snapshot("export3.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_css(self) -> None:
         # Create css file
@@ -420,6 +438,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         )
 
         snapshot("export4.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_head(self) -> None:
         # Create html head file
@@ -457,6 +476,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         )
 
         snapshot("export5.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_custom_css_config(self) -> None:
         # Create CSS files
@@ -494,6 +514,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         assert css2 in result
         assert "<style title='marimo-custom'>" in result
         snapshot("export6.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_absolute_custom_css(self) -> None:
         # Create CSS file with absolute path
@@ -525,6 +546,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         assert css in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_nonexistent_custom_css(
         self,
@@ -553,6 +575,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         assert "nonexistent.css" in result
         assert "<style title='marimo-custom'>" not in result
+        _assert_no_leftover_replacements(result)
 
 
 class TestWasmNotebookTemplate(unittest.TestCase):
@@ -589,10 +612,12 @@ class TestWasmNotebookTemplate(unittest.TestCase):
 
         assert self.filename.name in result
         assert self.mode in result
-        assert json.dumps(self.user_config) in result
+        assert json.dumps(self.user_config, sort_keys=True) in result
         assert '<marimo-wasm hidden="">' in result
-        assert '<marimo-code hidden="" data-show-code="false">' in result
+        assert '<marimo-code hidden="">' in result
+        assert '"showAppCode": false' in result
         assert "<title>notebook</title>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_wasm_notebook_template_custom_css_and_assets(self) -> None:
         # Create css file
@@ -617,7 +642,9 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert css in result
         assert '<marimo-wasm hidden="">' in result
         assert "https://my.cdn.com/assets/" in result
-        assert '<marimo-code hidden="" data-show-code="true">' in result
+        assert '<marimo-code hidden="">' in result
+        assert '"showAppCode": true' in result
+        _assert_no_leftover_replacements(result)
 
     def test_wasm_notebook_template_custom_head(self) -> None:
         # Create html head file
@@ -652,7 +679,9 @@ class TestWasmNotebookTemplate(unittest.TestCase):
 
         assert head in result
         assert '<marimo-wasm hidden="">' in result
-        assert '<marimo-code hidden="" data-show-code="false">' in result
+        assert '<marimo-code hidden="">' in result
+        assert '"showAppCode": false' in result
         assert "#save-button" in result
         assert "#filename-input" in result
         assert "<title>My App</title>" in result
+        _assert_no_leftover_replacements(result)

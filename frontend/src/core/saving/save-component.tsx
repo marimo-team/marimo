@@ -22,7 +22,7 @@ import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { formatAll } from "../codemirror/format";
 import { useFilename, useUpdateFilename } from "./filename";
-import { filenameAtom } from "./filenameAtom";
+import { filenameAtom } from "./file-state";
 import { connectionAtom } from "../network/connection";
 import { autoSaveConfigAtom } from "../config/config";
 import { lastSavedNotebookAtom, needsSaveAtom } from "./state";

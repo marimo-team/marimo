@@ -45,9 +45,8 @@ def find_free_port(port: int, attempts: int = 100) -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         try:
             sock.settimeout(0.1)
-            in_use = sock.connect_ex(("localhost", port)) == 0
-            if not in_use:
-                return port
+            sock.bind(("", port))
+            return port
         except OSError:
             LOGGER.debug(f"Port {port} is already in use")
             pass

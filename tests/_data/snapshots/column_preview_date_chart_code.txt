@@ -1,15 +1,15 @@
 _chart = (
     alt.Chart(table)
-    .mark_bar()
+    .transform_filter(f"datum.date_col != null")
+    .transform_timeunit(as_="_date_col", field="date_col", timeUnit="yearmonthdate")
+    .mark_area()
     .encode(
-        x=alt.X(
-            "date_col",
-            type="temporal",
-            bin=alt.Bin(maxbins=20),
-            axis=alt.Axis(format="%Y-%m-%d")
-        ),
-        y=alt.Y("count()", type="quantitative"),
-    )
-    .properties(width="container")
+        x=alt.X("_date_col:T", title="date_col"),
+        y=alt.Y("count():Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("_date_col:T", title="date_col", timeUnit="yearmonthdate"),
+            alt.Tooltip("count():Q", title="Number of records", format=",.0f")
+        ]
+    ).properties(width="container").configure_view(stroke=None)
 )
 _chart

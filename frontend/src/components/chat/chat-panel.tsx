@@ -25,9 +25,12 @@ import {
   type SetStateAction,
   type Dispatch,
   memo,
+  useEffect,
+  useMemo,
 } from "react";
 import { generateUUID } from "@/utils/uuid";
-import { type Message, useChat } from "ai/react";
+import type { Message } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
@@ -52,7 +55,6 @@ interface ChatHeaderProps {
   activeChatId: string | undefined;
   setActiveChat: (id: string | null) => void;
   chats: Chat[];
-  setMessages: (messages: Message[]) => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -60,7 +62,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   activeChatId,
   setActiveChat,
   chats,
-  setMessages,
 }) => {
   const ai = useAtomValue(aiAtom);
   const { handleClick } = useOpenSettingsToTab();
@@ -110,13 +111,6 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   )}
                   onClick={() => {
                     setActiveChat(chat.id);
-                    setMessages(
-                      chat.messages.map(({ role, content, timestamp }) => ({
-                        role,
-                        content,
-                        id: timestamp.toString(),
-                      })),
-                    );
                   }}
                 >
                   <div className="font-medium">{chat.title}</div>
@@ -247,6 +241,7 @@ const ChatPanelBody = () => {
   const [newThreadInput, setNewThreadInput] = useState("");
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
@@ -262,6 +257,16 @@ const ChatPanelBody = () => {
     reload,
     stop,
   } = useChat({
+    id: activeChat?.id,
+    initialMessages: useMemo(() => {
+      return activeChat
+        ? activeChat.messages.map(({ role, content, timestamp }) => ({
+            role,
+            content,
+            id: timestamp.toString(),
+          }))
+        : [];
+    }, [activeChat]),
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
@@ -278,10 +283,6 @@ const ChatPanelBody = () => {
     },
     streamProtocol: "text",
     onFinish: (message) => {
-      if (!chatState.activeChatId) {
-        Logger.warn("No active chat");
-        return;
-      }
       setChatState((prev) =>
         addMessageToChat(prev, prev.activeChatId, "assistant", message.content),
       );
@@ -295,6 +296,18 @@ const ChatPanelBody = () => {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  // Scroll to the latest chat message at the bottom
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+    };
+
+    requestAnimationFrame(scrollToBottom);
+  }, [chatState.activeChatId]);
 
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
@@ -316,7 +329,6 @@ const ChatPanelBody = () => {
       activeChatId: newChat.id,
     }));
 
-    setMessages([]);
     setInput("");
     append({
       role: "user",
@@ -326,7 +338,6 @@ const ChatPanelBody = () => {
 
   const handleNewChat = () => {
     setActiveChat(null);
-    setMessages([]);
     setInput("");
     setNewThreadInput("");
   };
@@ -372,11 +383,13 @@ const ChatPanelBody = () => {
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
           chats={chatState.chats}
-          setMessages={setMessages}
         />
       </TooltipProvider>
 
-      <div className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto">
+      <div
+        className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto"
+        ref={scrollContainerRef}
+      >
         {(!messages || messages.length === 0) && (
           <div className="flex rounded-md border px-1 bg-background">
             <PromptInput

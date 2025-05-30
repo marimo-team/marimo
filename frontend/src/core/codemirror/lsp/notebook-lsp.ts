@@ -27,7 +27,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     }
   >(20);
 
-  private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<LSP.DocumentUri>();
+  private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
   constructor(
     client: ILanguageServerClient,
@@ -348,6 +348,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       version,
       lens,
     });
+    invariant(
+      CellDocumentUri.is(cellDocumentUri),
+      "Execpted URI to be CellDocumentUri",
+    );
     NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.add(cellDocumentUri);
 
     // Pass merged doc to super
@@ -517,22 +521,6 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
         const diagnostics = notification.params.diagnostics;
 
-        // If diagnostics are empty, we can just clear them for all cells
-        if (diagnostics.length === 0) {
-          Logger.debug("[lsp] clearing diagnostics");
-
-          for (const cellDocumentUri of NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS) {
-            previousProcessNotification({
-              method: "textDocument/publishDiagnostics",
-              params: {
-                uri: cellDocumentUri,
-                diagnostics: [],
-              },
-            });
-          }
-          return;
-        }
-
         const { lens, version: cellVersion } = payload;
 
         // Pre-partition diagnostics by cell
@@ -556,19 +544,41 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
           }
         }
 
+        const cellsToClear = new Set(
+          NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS,
+        );
+
         // Process each cell's diagnostics
         for (const [cellId, cellDiagnostics] of diagnosticsByCellId.entries()) {
           Logger.debug("[lsp] diagnostics for cell", cellId, cellDiagnostics);
+          const cellDocumentUri = CellDocumentUri.of(cellId);
+
+          cellsToClear.delete(cellDocumentUri);
 
           previousProcessNotification({
             ...notification,
             params: {
               ...notification.params,
-              uri: CellDocumentUri.of(cellId),
+              uri: cellDocumentUri,
               version: cellVersion,
               diagnostics: cellDiagnostics,
             },
           });
+        }
+
+        // Clear the rest of the diagnostics
+        if (cellsToClear.size > 0) {
+          Logger.debug("[lsp] clearing diagnostics", cellsToClear);
+
+          for (const cellDocumentUri of cellsToClear) {
+            previousProcessNotification({
+              method: "textDocument/publishDiagnostics",
+              params: {
+                uri: cellDocumentUri,
+                diagnostics: [],
+              },
+            });
+          }
         }
 
         return;

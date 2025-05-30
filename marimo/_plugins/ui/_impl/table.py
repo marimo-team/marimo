@@ -19,7 +19,9 @@ from narwhals.typing import IntoDataFrame
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._data.models import ColumnStats
+from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.ops import ColumnPreview
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -141,6 +143,11 @@ class CalculateTopKRowsArgs:
 @dataclass
 class CalculateTopKRowsResponse:
     data: list[tuple[str, int]]
+
+
+@dataclass
+class PreviewColumnArgs:
+    column: ColumnName
 
 
 def get_default_table_page_size() -> int:
@@ -637,6 +644,11 @@ class table(
                     arg_cls=CalculateTopKRowsArgs,
                     function=self._calculate_top_k_rows,
                 ),
+                Function(
+                    name="preview_column",
+                    arg_cls=PreviewColumnArgs,
+                    function=self._preview_column,
+                ),
             ),
         )
 
@@ -900,6 +912,16 @@ class table(
             LOGGER.error("Failed to calculate top k rows: %s", e)
             return CalculateTopKRowsResponse(data=[])
 
+    def _preview_column(self, args: PreviewColumnArgs) -> ColumnPreview:
+        """Preview a column of a dataset."""
+        column = args.column
+
+        # We use a placeholder for table names
+        column_preview = get_column_preview_dataset(
+            self._searched_manager, "_df", column
+        )
+        return column_preview
+
     def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
@@ -993,7 +1015,6 @@ class table(
                 ),
             )
 
-        # If the arguments are hashable, use the cached method
         filter_function = (
             self._apply_filters_query_sort_cached
             if is_hashable(args.filters, args.query, args.sort)

@@ -30,7 +30,7 @@
       "tickCount": {
         "signal": "ceil(width/10)"
       },
-      "title": "A (binned)",
+      "title": "A",
       "zindex": 0
     },
     {
@@ -41,11 +41,18 @@
       "tickCount": {
         "signal": "ceil(height/40)"
       },
-      "title": "Count of Records",
+      "title": "Number of records",
       "zindex": 0
     }
   ],
   "background": "white",
+  "config": {
+    "style": {
+      "cell": {
+        "stroke": null
+      }
+    }
+  },
   "data": [
     {
       "name": "source_0",
@@ -83,7 +90,13 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#4c78a8"
+            "value": "#be93e4"
+          },
+          "stroke": {
+            "value": "#8e4ec6"
+          },
+          "tooltip": {
+            "signal": "{\"A\": !isValid(datum[\"bin_maxbins_10_A\"]) || !isFinite(+datum[\"bin_maxbins_10_A\"]) ? \"null\" : format(datum[\"bin_maxbins_10_A\"], \"\") + \" \u2013 \" + format(datum[\"bin_maxbins_10_A_end\"], \"\"), \"Number of records\": format(datum[\"__count\"], \",.0f\")}"
           },
           "x": {
             "field": "bin_maxbins_10_A_end",

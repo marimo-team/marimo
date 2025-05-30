@@ -334,7 +334,7 @@ async def test_export_wasm_edit():
 
     assert filename == "notebook.wasm.html"
     assert "alert(" in content
-    assert "mode='edit'" in content
+    assert '"mode": "edit"' in content
 
 
 async def test_export_wasm_run():
@@ -358,7 +358,7 @@ async def test_export_wasm_run():
 
     assert filename == "notebook.wasm.html"
     assert "alert(" in content
-    assert "mode='read'" in content
+    assert '"mode": "read"' in content
 
 
 async def test_export_html_with_layout(tmp_path: Path):

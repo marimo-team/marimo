@@ -1,12 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import importlib
+import inspect
 import re
+import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args
 
-from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._core.ui_element import S, T, UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.state import SetFunctor
 
@@ -15,7 +18,7 @@ if TYPE_CHECKING:
     from marimo._save.hash import HashKey
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 2
+MARIMO_CACHE_VERSION: int = 3
 
 CacheType = Literal[
     "ContextExecutionPath",
@@ -37,6 +40,45 @@ CACHE_PREFIX: dict[CacheType, str] = {
 
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
 MetaKey = Literal["return", "version"]
+
+
+class ModuleStub:
+    def __init__(self, module: Any) -> None:
+        self.name = module.__name__
+
+    def load(self) -> Any:
+        return importlib.import_module(self.name)
+
+
+class FunctionStub:
+    def __init__(self, function: Any) -> None:
+        self.code = textwrap.dedent(inspect.getsource(function))
+
+    def load(self, glbls: dict[str, Any]) -> Any:
+        # TODO: Fix line cache and associate with the correct module.
+        code_obj = compile(self.code, "<string>", "exec")
+        lcls: dict[str, Any] = {}
+        exec(code_obj, glbls, lcls)
+        # Update the global scope with the function.
+        for value in lcls.values():
+            return value
+
+
+class UIElementStub:
+    def __init__(self, element: UIElement[S, T]) -> None:
+        self.args = element._args
+        self.cls = element.__class__
+        # Ideally only hashable attributes are stored on the subclass level.
+        defaults = set(self.cls.__new__(self.cls).__dict__.keys())
+        defaults |= {"_ctx"}
+        self.data = {
+            k: v
+            for k, v in element.__dict__.items()
+            if hasattr(v, "__hash__") and k not in defaults
+        }
+
+    def load(self) -> UIElement[S, T]:
+        return self.cls.from_args(self.data, self.args)  # type: ignore
 
 
 # BaseException because "raise _ as e" is utilized.
@@ -61,7 +103,18 @@ class Cache:
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
         for var, lookup in self.contextual_defs():
-            scope[lookup] = self.defs[var]
+            value = self.defs.get(var, None)
+            # If it's a module we must replace with a stub.
+            if isinstance(value, ModuleStub):
+                scope[lookup] = value.load()
+            elif isinstance(value, FunctionStub):
+                scope[lookup] = value.load(scope)
+            elif isinstance(value, UIElementStub):
+                # UIElementStub is a placeholder for UIElement, which cannot be
+                # restored directly.
+                scope[lookup] = value.load()
+            else:
+                scope[lookup] = self.defs[var]
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -90,14 +143,20 @@ class Cache:
     ) -> None:
         """Loads values from scope, updating the cache."""
         for var, lookup in self.contextual_defs():
+            if lookup not in scope:
+                raise CacheException(
+                    "Failure while saving cached values. "
+                    "Cache expected a reference to a "
+                    f"variable that is not present ({lookup})."
+                )
             self.defs[var] = scope[lookup]
 
         self.meta = {}
         if meta is not None:
-            for key, value in meta.items():
-                if key not in get_args(MetaKey):
-                    raise CacheException(f"Unexpected meta key: {key}")
-                self.meta[key] = value
+            for metakey, metavalue in meta.items():
+                if metakey not in get_args(MetaKey):
+                    raise CacheException(f"Unexpected meta key: {metakey}")
+                self.meta[metakey] = metavalue
         self.meta["version"] = MARIMO_CACHE_VERSION
 
         defs = {**globals(), **scope}
@@ -119,6 +178,16 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(value)}:{ref})."
                 )
+
+        for key, value in self.defs.items():
+            # If it's a module we must replace with a stub.
+            if inspect.ismodule(value):
+                self.defs[key] = ModuleStub(value)
+            elif inspect.isfunction(value):
+                self.defs[key] = FunctionStub(value)
+            elif isinstance(value, UIElement):
+                # UIElement cannot be restored directly, so we store a stub.
+                self.defs[key] = UIElementStub(value)
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""

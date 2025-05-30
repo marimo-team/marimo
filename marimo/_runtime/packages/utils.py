@@ -27,6 +27,10 @@ def is_dockerized() -> bool:
     return os.path.exists("/.dockerenv")
 
 
+def is_modal_image() -> bool:
+    return os.environ.get("MODAL_TASK_ID") is not None
+
+
 def is_python_isolated() -> bool:
     """Returns True if not using system Python"""
     return (
@@ -34,6 +38,7 @@ def is_python_isolated() -> bool:
         or in_conda_env()
         or is_pyodide()
         or is_dockerized()
+        or is_modal_image()
     )
 
 

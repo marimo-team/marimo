@@ -5,22 +5,27 @@ import { Objects } from "@/utils/objects";
 
 export type ColumnName = string;
 
-export interface ColumnHeaderStats {
-  total?: number | null;
-  nulls?: number | null;
-  unique?: number | null;
-  true?: number | null;
-  false?: number | null;
-  min?: number | string | null;
-  max?: number | string | null;
-  mean?: number | string | null;
-  median?: number | string | null;
-  std?: number | string | null;
-  p5?: number | string | null;
-  p25?: number | string | null;
-  p75?: number | string | null;
-  p95?: number | string | null;
-}
+export const ColumnHeaderStatsKeys = [
+  "total",
+  "nulls",
+  "unique",
+  "true",
+  "false",
+  "min",
+  "max",
+  "mean",
+  "median",
+  "std",
+  "p5",
+  "p25",
+  "p75",
+  "p95",
+];
+export type ColumnHeaderStatsKey = (typeof ColumnHeaderStatsKeys)[number];
+export type ColumnHeaderStats = Record<
+  ColumnHeaderStatsKey,
+  number | string | null
+>;
 
 export type FieldTypesWithExternalType = Array<
   [columnName: string, [dataType: DataType, externalType: string]]

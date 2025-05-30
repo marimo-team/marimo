@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { EditRequests, RunRequests } from "../network/types";
 import { Deferred } from "@/utils/Deferred";
-import { getMarimoVersion } from "../dom/marimo-tag";
+import { getMarimoVersion } from "../meta/globals";
 import { getWorkerRPC } from "@/core/wasm/rpc";
 import type { OperationMessage } from "../kernel/messages";
 import type { JsonString } from "@/utils/json/base64";

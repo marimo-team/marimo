@@ -21,6 +21,8 @@ import {
   contextAwarePanelOpen,
 } from "./atoms";
 
+export type PanelType = "row-viewer" | "column-explorer";
+
 export const ContextAwarePanel: React.FC = () => {
   const [owner, setOwner] = useAtom(contextAwarePanelOwner);
   const [isPanelOpen, setIsPanelOpen] = useAtom(contextAwarePanelOpen);

@@ -1,14 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { OutlineItem } from "@/core/cells/outline";
 import { headingToIdentifier } from "@/core/dom/outline";
-import { initialMode } from "@/core/mode";
+import { getInitialAppMode } from "@/core/mode";
 import { Logger } from "@/utils/Logger";
 import { useEffect, useRef, useState } from "react";
 
 function getRootScrollableElement() {
   // HACK: this is a bit leaky
   // this gets the root element that contains the scrollable content
-  return initialMode === "edit" ? document.getElementById("App") : undefined;
+  return getInitialAppMode() === "edit"
+    ? document.getElementById("App")
+    : undefined;
 }
 
 /**

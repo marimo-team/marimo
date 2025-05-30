@@ -161,23 +161,13 @@ If you are used to a venv and pip based workflow, you can use the `uv venv` and
 
 ### Example
 
-=== "macOS and Linux"
 
-    ```console
-    $ uv venv
-    $ uv pip install numpy
-    $ uv pip install marimo
-    $ .venv/bin/marimo edit
-    ```
-
-=== "Windows"
-
-    ```pwsh-session
-    PS> uv venv
-    PS> uv pip install numpy
-    PS> uv pip install marimo
-    PS> .venv\Scripts\marimo edit
-    ```
+```console
+$ uv venv
+$ uv pip install numpy
+$ uv pip install marimo
+$ uv run marimo edit
+```
 
 From here, `import numpy` will work within the notebook, and marimo's UI installer will add
 packages to the environment with `uv pip install` on your behalf.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import inspect
 import io
 import linecache
@@ -193,6 +194,7 @@ def compile_cell(
 
     expr: ast.Expression
     final_expr = module.body[-1]
+    original_module = copy.deepcopy(module)
     # Use final expression if it exists doesn't end in a
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
@@ -272,7 +274,7 @@ def compile_cell(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
         code=code,
-        mod=module,
+        mod=original_module,
         defs=nonlocals,
         refs=v.refs,
         temporaries=temporaries,

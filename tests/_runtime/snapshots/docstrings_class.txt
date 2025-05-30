@@ -1,4 +1,4 @@
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MyClass</span><span class="p">()</span>
+<div class="language-python3 codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MyClass</span><span class="p">()</span>
 </code></pre></div>
 
 <span class="paragraph">Some docstring for the class.</span>

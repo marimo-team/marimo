@@ -43,12 +43,24 @@ To install marimo, run the following in a terminal:
 pip install marimo
 ```
 
+To check if the install worked, run
+
+```bash
+marimo tutorial intro
+```
+
 ///
 
 /// tab | install with uv
 
 ```bash
 uv add marimo
+```
+
+To check if the install worked, run
+
+```bash
+uv run marimo tutorial intro
 ```
 
 ///
@@ -59,13 +71,13 @@ uv add marimo
 conda install -c conda-forge marimo
 ```
 
-///
-
 To check if the install worked, run
 
 ```bash
 marimo tutorial intro
 ```
+
+///
 
 A tutorial notebook should open in your browser.
 

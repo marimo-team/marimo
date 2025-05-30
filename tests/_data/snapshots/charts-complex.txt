@@ -1,0 +1,403 @@
+# boolean
+_base = (
+    alt.Chart(df)
+    .transform_aggregate(
+        count="count()",
+        groupby=["some_column"]
+    )
+    .transform_joinaggregate(
+        total="sum(count)"
+    )
+    .transform_calculate(
+        percentage="datum.count / datum.total"
+    )
+    .encode(
+        theta=alt.Theta(
+            field="count",
+            type="quantitative",
+            stack=True,
+        ),
+        color=alt.Color(
+            "some_column:N",
+            scale={'scheme': 'category10'},
+            legend=alt.Legend(title="some_column")
+        ),
+        tooltip=[
+            alt.Tooltip("some_column:N", title="some_column"),
+            alt.Tooltip("count:Q", title="Number of records", format=",.0f"),
+        ],
+    )
+)
+
+_pie = _base.mark_arc(outerRadius=85)
+_text = _base.mark_text(radius=110, size=13).encode(
+    text=alt.Text("percentage:Q", format=".2%"),
+)
+
+_chart = (_pie + _text).properties(width="container")
+_chart
+
+# date
+_base = alt.Chart(df).transform_filter(f"datum.some_column != null")
+
+# Explicit time binning, create a new field
+_transformed = _base.transform_timeunit(
+    as_="_some_column", field="some_column", timeUnit="yearmonthdate"
+).transform_aggregate(count="count()", groupby=["_some_column"])
+
+# Create a selection that picks the nearest points
+_nearest = alt.selection_point(
+    fields=["_some_column"],
+    nearest=True,
+    on="mouseover",
+    empty=False,
+)
+
+# Area chart
+_area = _transformed.mark_area(
+    line={"color": "#2a7e3b"},
+    color=alt.Gradient(
+        gradient="linear",
+        stops=[
+            alt.GradientStop(color="white", offset=0),
+            alt.GradientStop(color="#2a7e3b", offset=1),
+        ],
+        x1=1,
+        x2=1,
+        y1=1,
+        y2=0,
+    ),
+).encode(
+    x=alt.X("_some_column:T", title="some_column"),
+    y=alt.Y("count:Q", title="Number of records"),
+)
+
+# Vertical line
+_rule = (
+    _transformed.mark_rule(color="seagreen", strokeWidth=1)
+    .encode(
+        x="_some_column:T",
+        opacity=alt.condition(_nearest, alt.value(0.6), alt.value(0)),
+        tooltip=[
+            alt.Tooltip(
+                "_some_column:T",
+                title="some_column",
+                timeUnit="yearmonthdate",
+            ),
+            alt.Tooltip(
+                "count:Q",
+                title="Number of records",
+                format=",.0f",
+            ),
+        ],
+    )
+    .add_params(_nearest)
+)
+
+# Points on the chart
+_points = _transformed.mark_point(
+    size=80,
+    color="#2a7e3b",
+    filled=True,
+).encode(
+    x="_some_column:T",
+    y="count:Q",
+    opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
+)
+
+_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
+_chart
+
+# datetime
+_base = alt.Chart(df).transform_filter(f"datum.some_column != null")
+
+# Explicit time binning, create a new field
+_transformed = _base.transform_timeunit(
+    as_="_some_column", field="some_column", timeUnit="yearmonthdate"
+).transform_aggregate(count="count()", groupby=["_some_column"])
+
+# Create a selection that picks the nearest points
+_nearest = alt.selection_point(
+    fields=["_some_column"],
+    nearest=True,
+    on="mouseover",
+    empty=False,
+)
+
+# Area chart
+_area = _transformed.mark_area(
+    line={"color": "#2a7e3b"},
+    color=alt.Gradient(
+        gradient="linear",
+        stops=[
+            alt.GradientStop(color="white", offset=0),
+            alt.GradientStop(color="#2a7e3b", offset=1),
+        ],
+        x1=1,
+        x2=1,
+        y1=1,
+        y2=0,
+    ),
+).encode(
+    x=alt.X("_some_column:T", title="some_column"),
+    y=alt.Y("count:Q", title="Number of records"),
+)
+
+# Vertical line
+_rule = (
+    _transformed.mark_rule(color="seagreen", strokeWidth=1)
+    .encode(
+        x="_some_column:T",
+        opacity=alt.condition(_nearest, alt.value(0.6), alt.value(0)),
+        tooltip=[
+            alt.Tooltip(
+                "_some_column:T",
+                title="some_column",
+                timeUnit="yearmonthdate",
+            ),
+            alt.Tooltip(
+                "count:Q",
+                title="Number of records",
+                format=",.0f",
+            ),
+        ],
+    )
+    .add_params(_nearest)
+)
+
+# Points on the chart
+_points = _transformed.mark_point(
+    size=80,
+    color="#2a7e3b",
+    filled=True,
+).encode(
+    x="_some_column:T",
+    y="count:Q",
+    opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
+)
+
+_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
+_chart
+
+# time
+_base = alt.Chart(df).transform_filter(f"datum.some_column != null")
+
+# Explicit time binning, create a new field
+_transformed = _base.transform_timeunit(
+    as_="_some_column", field="some_column", timeUnit="yearmonthdate"
+).transform_aggregate(count="count()", groupby=["_some_column"])
+
+# Create a selection that picks the nearest points
+_nearest = alt.selection_point(
+    fields=["_some_column"],
+    nearest=True,
+    on="mouseover",
+    empty=False,
+)
+
+# Area chart
+_area = _transformed.mark_area(
+    line={"color": "#2a7e3b"},
+    color=alt.Gradient(
+        gradient="linear",
+        stops=[
+            alt.GradientStop(color="white", offset=0),
+            alt.GradientStop(color="#2a7e3b", offset=1),
+        ],
+        x1=1,
+        x2=1,
+        y1=1,
+        y2=0,
+    ),
+).encode(
+    x=alt.X("_some_column:T", title="some_column"),
+    y=alt.Y("count:Q", title="Number of records"),
+)
+
+# Vertical line
+_rule = (
+    _transformed.mark_rule(color="seagreen", strokeWidth=1)
+    .encode(
+        x="_some_column:T",
+        opacity=alt.condition(_nearest, alt.value(0.6), alt.value(0)),
+        tooltip=[
+            alt.Tooltip(
+                "_some_column:T",
+                title="some_column",
+                timeUnit="yearmonthdate",
+            ),
+            alt.Tooltip(
+                "count:Q",
+                title="Number of records",
+                format=",.0f",
+            ),
+        ],
+    )
+    .add_params(_nearest)
+)
+
+# Points on the chart
+_points = _transformed.mark_point(
+    size=80,
+    color="#2a7e3b",
+    filled=True,
+).encode(
+    x="_some_column:T",
+    y="count:Q",
+    opacity=alt.condition(_nearest, alt.value(1), alt.value(0)),
+)
+
+_chart = alt.layer(_area, _points, _rule).properties(width="container").configure_view(stroke=None)
+_chart
+
+# integer
+_chart = (
+    alt.Chart(df)
+    .mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")
+    .encode(
+        x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
+        tooltip=[
+            alt.Tooltip(
+                "some_column",
+                type="quantitative",
+                bin=True,
+                title="some_column",
+            ),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+                title="Number of records",
+            ),
+        ],
+    ).properties(width="container").configure_view(stroke=None)
+)
+_chart
+
+# number
+_chart = (
+    alt.Chart(df)
+    .mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")
+    .encode(
+        x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
+        tooltip=[
+            alt.Tooltip(
+                "some_column",
+                type="quantitative",
+                bin=True,
+                title="some_column",
+                format=",.2f",
+            ),
+            alt.Tooltip(
+                "count()",
+                type="quantitative",
+                format=",.0f",
+                title="Number of records",
+            ),
+        ],
+    ).properties(width="container").configure_view(stroke=None)
+)
+_chart
+
+# string
+_base_chart = (
+    alt.Chart(df)
+    .transform_aggregate(count="count()", groupby=["some_column"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("some_column", order="ascending"),
+        ],
+    )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "some_column:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("some_column:N"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar(color="#8ec8f6")
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
+    .properties(width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
+)
+_chart
+
+# string (limit to 10 items)
+_base_chart = (
+    alt.Chart(df)
+    .transform_aggregate(count="count()", groupby=["some_column"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("some_column", order="ascending"),
+        ],
+    )
+    .transform_filter(alt.datum.rank <= 10)
+    .transform_joinaggregate(total_count="sum(count)")
+    .transform_calculate(
+        percentage="datum.count / datum.total_count"
+    )
+    .encode(
+        y=alt.Y(
+            "some_column:N",
+            sort="-x",
+            axis=alt.Axis(title=None),
+        ),
+        x=alt.X("count:Q", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("some_column:N"),
+            alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
+        ],
+    )
+)
+
+_bar_chart = _base_chart.mark_bar(color="#8ec8f6")
+_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+    text=alt.Text("percentage:Q", format=".2%")
+)
+
+_chart = (
+    (_bar_chart + _text_chart)
+    .properties(title="Top 10 some_column", width="container")
+    .configure_view(stroke=None)
+    .configure_axis(grid=False)
+)
+_chart
+
+# unknown
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        x=alt.X("some_column", type="nominal"),
+        y=alt.Y("count()", type="quantitative", title="Number of records"),
+        tooltip=[
+            alt.Tooltip("some_column", type="nominal"),
+            alt.Tooltip("count()", type="quantitative", title="Number of records"),
+        ],
+    ).properties(width="container").configure_view(stroke=None)
+)
+_chart
