@@ -321,6 +321,9 @@ class UvPackageManager(PypiPackageManager):
         - The "uv.lock" file exists where the "VIRTUAL_ENV" is
         - The "pyproject.toml" file exists where the "VIRTUAL_ENV" is
 
+        OR
+        - The "UV_PROJECT_ENVIRONMENT" is equal to "VIRTUAL_ENV"
+
         If at least one of these conditions are not met,
         we are in a temporary virtual environment (e.g. `uvx marimo edit` or `uv --with=marimo run marimo edit`)
         or in the currently activated virtual environment (e.g. `uv venv`).
@@ -329,6 +332,12 @@ class UvPackageManager(PypiPackageManager):
         venv_path = os.environ.get("VIRTUAL_ENV", None)
         if not venv_path:
             return False
+
+        # Check that the "UV_PROJECT_ENVIRONMENT" is equal to "VIRTUAL_ENV"
+        uv_project_environment = os.environ.get("UV_PROJECT_ENVIRONMENT", None)
+        if uv_project_environment == venv_path:
+            return True
+
         # Check that the `UV` environment variable is set
         # This tells us that marimo was run by uv
         uv_env_exists = os.environ.get("UV", None)
