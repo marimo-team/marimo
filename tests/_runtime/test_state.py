@@ -105,7 +105,7 @@ async def test_set_and_get_state_same_block(
         ]
     )
 
-    assert "setter cannot be called" in k.globals["exp"]
+    assert k.globals["state"]() == 1
 
 
 async def test_update_with_function(

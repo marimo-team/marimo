@@ -153,6 +153,7 @@ class State(Generic[T]):
         self.allow_self_loops = allow_self_loops
         self._set_value = SetFunctor(self)
         self._defining_cell: Optional[CellId_t] = None
+        self._context = _context
 
         try:
             ctx = get_context()
@@ -191,10 +192,11 @@ class SetFunctor(Generic[T]):
             return
 
         # Need to explicitly check that we are not in the defining cell.
-        if self._state._defining_cell == ctx.execution_context.cell_id:
-            raise RuntimeError(
-                "State setter cannot be called in the defining cell. "
-            )
+        if (
+            self._state._context == None
+            and self._state._defining_cell == ctx.execution_context.cell_id
+        ):
+            return
         # Note we could allow this with:
         # >>> ctx.state_registry.register_scope(ctx.glbls, defs=cell.defs)
         # But might have unintended consequences.
