@@ -18,14 +18,12 @@ import { prepareCellForExecution, transitionCell } from "./cell";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
-import { findCollapseRange, mergeOutlines, parseOutline } from "../dom/outline";
+import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellHandle } from "@/components/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { splitAtom, selectAtom } from "jotai/utils";
-import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { type CellLog, getCellLogsForMessage } from "./logs";
-import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import {
@@ -127,57 +125,6 @@ function withScratchCell(notebookState: NotebookState): NotebookState {
  * Initial state of the notebook.
  */
 function initialNotebookState(): NotebookState {
-  if (isStaticNotebook()) {
-    const {
-      cellCodes,
-      cellConfigs,
-      cellConsoleOutputs,
-      cellIds,
-      cellNames,
-      cellOutputs,
-    } = parseStaticState();
-    const cellData: Record<CellId, CellData> = {};
-    const cellRuntime: Record<CellId, CellRuntimeState> = {};
-    for (const [i, cellId] of cellIds.entries()) {
-      const name = cellNames[i];
-      const code = cellCodes[i];
-      const config = cellConfigs[i];
-      const outputs = cellConsoleOutputs[cellId] || [];
-      const output = cellOutputs[cellId];
-      cellData[cellId] = {
-        id: cellId,
-        name: deserializeBase64(name),
-        code: deserializeBase64(code),
-        edited: false,
-        lastCodeRun: null,
-        lastExecutionTime: null,
-        config: deserializeJson(deserializeBase64(config)),
-        serializedEditorState: null,
-      };
-      const outputMessage = output
-        ? deserializeJson(deserializeBase64(output))
-        : null;
-      cellRuntime[cellId] = {
-        ...createCellRuntimeState(),
-        output: outputMessage,
-        outline: parseOutline(outputMessage),
-        consoleOutputs: outputs.map((output) =>
-          deserializeJson(deserializeBase64(output)),
-        ),
-      };
-    }
-
-    return {
-      cellIds: MultiColumn.from([cellIds]),
-      cellData: cellData,
-      cellRuntime: cellRuntime,
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
-    };
-  }
-
   return withScratchCell({
     cellIds: MultiColumn.from([]),
     cellData: {},

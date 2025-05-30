@@ -21,7 +21,7 @@ from marimo._schemas.session import (
     Cell,
     DataOutput,
     ErrorOutput,
-    NotebookMetadata,
+    NotebookSessionMetadata,
     NotebookSessionV1,
     OutputType,
     StreamOutput,
@@ -106,7 +106,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
 
     return NotebookSessionV1(
         version=VERSION,
-        metadata=NotebookMetadata(marimo_version=__version__),
+        metadata=NotebookSessionMetadata(marimo_version=__version__),
         cells=cells,
     )
 

@@ -22,7 +22,7 @@ def test_session_schema_up_to_date() -> None:
     result = subprocess.run([script_path], capture_output=True, text=True)
     generated_content = yaml.safe_load(result.stdout)
 
-    cmd = "marimo edit scripts/generate_schemas.py"
+    cmd = "python scripts/generate_schemas.py"
     assert current_content == generated_content, (
         f"session.yaml is not up to date. Run '{cmd}' and press 'Write schema' to update."
     )

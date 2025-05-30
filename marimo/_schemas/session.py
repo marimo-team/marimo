@@ -1,14 +1,9 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, Union
 
-
-# Base types for extensibility
-class BaseDict(TypedDict, total=False):
-    """Base dictionary allowing additional fields"""
-
-    pass
+from marimo._schemas.common import BaseDict
 
 
 # Metadata types
@@ -57,8 +52,8 @@ class Cell(BaseDict):
     # since that exists in the notebook.py itself
 
 
-# Notebook metadata
-class NotebookMetadata(BaseDict):
+# Notebook session metadata
+class NotebookSessionMetadata(BaseDict):
     """Metadata about the notebook"""
 
     marimo_version: Optional[str]
@@ -74,7 +69,7 @@ class NotebookSessionV1(BaseDict):
     # The notebook format version
     version: str
     # Metadata about the notebook
-    metadata: NotebookMetadata
+    metadata: NotebookSessionMetadata
     # The cells in the notebook
     cells: list[Cell]
 
