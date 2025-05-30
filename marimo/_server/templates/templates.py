@@ -216,6 +216,7 @@ def static_notebook_template(
     static_block = dedent(
         f"""
     <script data-marimo="true">
+        window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.files = {json.dumps(files)};
     </script>
     """

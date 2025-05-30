@@ -72,6 +72,7 @@
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"" />
   
 <script data-marimo="true">
+    window.__MARIMO_STATIC__ = {};
     window.__MARIMO_STATIC__.files = {};
 </script>
 
