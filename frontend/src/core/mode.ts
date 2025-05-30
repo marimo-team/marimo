@@ -3,8 +3,8 @@
 import { atom } from "jotai";
 import type { CellId } from "./cells/ids";
 import { store } from "./state/jotai";
-import { assertNever } from "@/utils/assertNever";
-import { Logger } from "@/utils/Logger";
+import { assertExists } from "@/utils/assertExists";
+import { isIslands } from "@/core/islands/utils";
 
 /**
  * This is the internal mode.
@@ -15,28 +15,10 @@ import { Logger } from "@/utils/Logger";
  */
 export type AppMode = "read" | "edit" | "present" | "home";
 
-export function getInitialAppMode(): AppMode {
-  const tag = document.querySelector("marimo-mode");
-  if (tag === null || !(tag instanceof HTMLElement)) {
-    Logger.warn("internal-error: marimo-mode tag not found");
-    return "read";
-  }
-
-  const mode = tag.dataset.mode as AppMode | undefined;
-  switch (mode) {
-    case "read":
-      return "read";
-    case "edit":
-      return "edit";
-    case "home":
-      return "home";
-    case "present":
-      throw new Error("internal-error: present mode is not supported");
-    case undefined:
-      throw new Error("internal-error: mode attribute not found");
-    default:
-      assertNever(mode);
-  }
+export function getInitialAppMode(): Exclude<AppMode, "present"> {
+  const initialMode = store.get(initialModeAtom);
+  assertExists(initialMode, "internal-error: initial mode not found");
+  return initialMode as Exclude<AppMode, "present">;
 }
 
 export function toggleAppMode(mode: AppMode): AppMode {
@@ -63,8 +45,6 @@ interface ViewState {
   cellAnchor: CellId | null;
 }
 
-export const initialMode = getInitialAppMode();
-
 export async function runDuringPresentMode(
   fn: () => void | Promise<void>,
 ): Promise<void> {
@@ -86,8 +66,10 @@ export async function runDuringPresentMode(
 }
 
 export const viewStateAtom = atom<ViewState>({
-  mode: initialMode,
+  mode: isIslands() ? "read" : ("not-set" as AppMode),
   cellAnchor: null,
 });
+
+export const initialModeAtom = atom<AppMode | undefined>(undefined);
 
 export const kioskModeAtom = atom<boolean>(false);

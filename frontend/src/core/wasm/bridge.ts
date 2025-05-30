@@ -22,10 +22,9 @@ import { isWasm } from "./utils";
 import { Deferred } from "@/utils/Deferred";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
-import { getMarimoVersion } from "../dom/marimo-tag";
+import { getMarimoVersion } from "../meta/globals";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
-import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
 import type { SaveWorkerSchema } from "./worker/save-worker";
@@ -33,9 +32,10 @@ import { toast } from "@/components/ui/use-toast";
 import { generateUUID } from "@/utils/uuid";
 import { store } from "../state/jotai";
 import { notebookIsRunningAtom } from "../cells/cells";
-import { getInitialAppMode, initialMode } from "../mode";
+import { getInitialAppMode } from "../mode";
 import { wasmInitializationAtom } from "./state";
 import { reloadSafe } from "@/utils/reload-safe";
+import { userConfigAtom } from "@/core/config/config";
 
 type SaveWorker = ReturnType<
   typeof getWorkerRPC<SaveWorkerSchema>
@@ -58,7 +58,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public initialized = new Deferred<void>();
 
   private getSaveWorker(): SaveWorker {
-    if (initialMode === "read") {
+    if (getInitialAppMode() === "read") {
       Logger.debug("Skipping SaveWorker in read-mode");
       return {
         readFile: throwNotImplemented,
@@ -140,7 +140,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = PyodideRouter.getFilename();
-    const userConfig = parseUserConfig();
+    const userConfig = store.get(userConfigAtom);
 
     const queryParameters: Record<string, string | string[]> = {};
     const searchParams = new URLSearchParams(window.location.search);
