@@ -19,101 +19,37 @@ contribution._ Get in touch at
 [GitHub issues](https://github.com/marimo-team/marimo/issues)
 or [on Discord](https://marimo.io/discord?ref=contributing).
 
-## Prerequisites
+## Setup
 
-To build marimo from source, you'll need to have Node.js, pnpm, GNU make, Python (>=3.9), and Hatch installed.
-
-You can check for pre-requisites with:
-
-```bash
-make check-prereqs
-```
-
-- Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm) >= 20
-  - We use Node.js version 23
-- Install [pnpm](https://github.com/pnpm/pnpm) == 10.x
-  - `npm install -g pnpm@10`
-- Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
-- Install [Python](https://www.python.org/) >= 3.9. (You may already it installed. To see your version, use `python -V` at the command line.)
-- Install [Hatch](https://hatch.pypa.io/latest/install/). Some installation options:
-  - `brew install hatch`
-  - `pipx install hatch`
-
-And you'll need [pre-commit](https://pre-commit.com/) to run some validation checks:
-
-```bash
-uv tool install pre-commit
-```
-
-You can optionally install pre-commit hooks to automatically run the validation checks
-when making a commit:
-
-```bash
-pre-commit install
-```
-
-You can conveniently create a [pixi](https://github.com/prefix-dev/pixi) environment with all your development dependencies.
-These accomplish the next 3 things respectively:
-
-- Install and activate your development environment (`node`, `pnpm`, `make`, `python`, `uv`, `hatch`, `pre-commit`, `pip`)
-- Set up your front end and python environment
-- Start up your python environment using `hatch`
-You can simply run:
-
-```sh
-pixi shell 
-make fe && make py 
-hatch shell 
-```
-
-After doing this, you can instantiate your marimo dev environment by running the following command:
-
-```sh
-make dev
-```
-
-Under the hood this runs the following 2 commands as 2 separate processes:
-
-```sh
-# in one terminal 
-marimo edit --no-token --headless /tmp/nb.py # port 2718
-# in another terminal 
-cd frontend; pnpm dev # this will open at port 3000
-```
+Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed, using `hatch` as the environment manager.
 
 > [!NOTE]
 >
-> As an alternative to building from source, you can try developing
-> [in Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
-> Note that developing in Gitpod is not officially supported by the marimo
-> team.
+> As an alternative to installing `pixi`, you can try developing in
+> [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
+> Note that developing in Gitpod is not officially supported by the marimo team.
 
-## Building from source
+```bash
+pixi run hatch shell
+```
 
-Be sure to install the dependencies above before building from source.
-
-### Build from source
-
-After installing the dependencies, you can use either the traditional method (installing an editable wheel in your current venv) or use Hatch:
-
-Traditional method:
+Now you can install the environment frontend and Python dependencies.
 
 ```bash
 make fe && make py
 ```
 
-Using Hatch:
+After doing this, you can instantiate your marimo development environment by running the following command.
 
 ```bash
-make fe
-hatch shell
+make dev
 ```
 
-`make fe` builds the frontend. `make py` does an [editable install](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of marimo, while `hatch shell` creates a Hatch environment with an editable install of marimo.
+You can optionally install [pre-commit](https://pre-commit.com/) hooks to automatically run the validation checks when making a commit:
 
-(All `make` commands should be run in the project's root directory.)
-
-### Building from source, unminified
+```bash
+uvx pre-commit install
+```
 
 To build the frontend unminified, run:
 
@@ -122,6 +58,9 @@ NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
 ```
 
 ## `make` commands
+
+> [!NOTE]
+> Refer to the [Makefile](Makefile) for the implementation details
 
 | Command        | Category  | Description                                                    |
 | -------------- | --------- | -------------------------------------------------------------- |
@@ -163,19 +102,22 @@ make fe-check
 
 **Python.**
 
-Using Make:
-
-```bash
-make py-check
-```
-
-Using Hatch:
-
-```bash
-hatch run lint
+<table>
+  <tr>
+    <th>Using <code>make</code></th>
+    <th>Using <code>hatch</code></th>
+  </tr>
+  <tr>
+    <td>
+      <pre><code>make py-check         </code></pre>
+    </td>
+    <td>
+      <pre><code>hatch run lint
 hatch run format
-hatch run typecheck:check
-```
+hatch run typecheck:check     </code></pre>
+    </td>
+  </tr>
+</table>
 
 ## Tests
 
@@ -228,8 +170,6 @@ Run tests with a specific Python version
 
 ```bash
 hatch run +py=3.10 test:test tests/_ast/
-# or
-hatch run +py=3.10 test-optional:test tests/_ast/
 ```
 
 Run all tests across all Python versions
@@ -273,25 +213,27 @@ pnpm playwright test --ui
 
 In `frontend/`:
 
-```bash
-pnpm playwright test <filename> --ui
-# e.g.
-pnpm playwright test cells.test.ts --ui
-```
-
-or
-
-```bash
-pnpm playwright test --debug <filename>
-```
+<table>
+  <tr>
+    <th>Without debugger</th>
+    <th>With debugger</th>
+  </tr>
+  <tr>
+    <td>
+      <pre><code>pnpm playwright test $FILENAME        </code></pre>
+    </td>
+    <td>
+      <pre><code>pnpm playwright test --debug $FILENAME</code></pre>
+    </td>
+  </tr>
+</table>
 
 ## Storybook
 
 To open Storybook, run the following:
 
 ```bash
-cd frontend/
-pnpm storybook
+cd frontend && pnpm storybook
 ```
 
 ## Hot reloading / development mode
@@ -301,29 +243,41 @@ mode on the server (which automatically restarts the server on code changes).
 These modes are especially helpful when you're making many small changes and
 want to see changes end-to-end very quickly.
 
-For the frontend, you can run either
+For the frontend, you can choose to run slower hot reloading for an environment closer to production.
 
-```bash
-# starts a dev server on localhost:3000 and proxy requests to your marimo server
-# has hot reloading and the fastest way to develop the frontend
-# read caveats below
-pnpm dev
-```
-
-### OR
-
-```bash
-# OR, in order to test closer to production, you can build the frontend and watch for changes
-pnpm build:watch
-```
+<table>
+  <tr>
+    <th>Production</th>
+    <th>Development</th>
+  </tr>
+  <tr>
+    <td>
+      <pre><code>pnpm build:watch      </code></pre>
+    </td>
+    <td>
+      <pre><code>pnpm dev              </code></pre>
+    </td>
+  </tr>
+</table>
 
 For the backend, we recommend running without auth (`--no-token`):
 
-```bash
-marimo edit --no-token
-# or in debug mode
-marimo -d edit --no-token
-```
+<table>
+  <tr>
+    <th>Production</th>
+    <th>Debug</th>
+  </tr>
+  <tr>
+    <td>
+      <pre><code>marimo edit --no-token   </code></pre>
+    </td>
+    <td>
+      <pre><code>marimo -d edit --no-token</code></pre>
+    </td>
+  </tr>
+</table>
+
+### FAQ
 
 - **When to run with hot-reloading?**: When you are developing on the frontend
   and want to see changes immediately. This is useful for styling, layout, new
