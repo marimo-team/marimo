@@ -42,7 +42,12 @@ function validateSessionNotebookCompatibility(
   const sessionCellIds = new Set(session.cells.map((cell) => cell.id));
   const notebookCellIds = new Set(notebook.cells.map((cell) => cell.id));
 
-  if (!Sets.equals(sessionCellIds, notebookCellIds)) {
+  // Only check they are equal if both are provided
+  if (
+    sessionCellIds.size > 0 &&
+    notebookCellIds.size > 0 &&
+    !Sets.equals(sessionCellIds, notebookCellIds)
+  ) {
     return {
       isValid: false,
       error:
@@ -57,6 +62,7 @@ function getCellIds(
   session: api.Session["NotebookSessionV1"] | null | undefined,
   notebook: api.Notebook["NotebookV1"] | null | undefined,
 ): CellId[] {
+  // Prefer notebook cells (for ordering) over session cells if both are provided
   return (notebook?.cells.map((cell) => cell.id) ??
     session?.cells.map((cell) => cell.id) ??
     []) as CellId[];
@@ -83,10 +89,13 @@ function createCellDataFromNotebook(
 }
 
 function createCellRuntimeFromSession(
-  cellId: string,
-  sessionCell: SessionCell,
+  sessionCell: SessionCell | null | undefined,
 ): CellRuntimeState {
   const runtimeState = createCellRuntimeState();
+
+  if (!sessionCell) {
+    return runtimeState;
+  }
 
   // Handle outputs - prioritize by type and use first available
   const outputs = sessionCell.outputs || [];
@@ -175,10 +184,10 @@ export function notebookStateFromSession(
       cellData[cellId] = createCellDataFromNotebook(cellId, notebookCell);
     }
 
-    // Create cell runtime from session if available
-    if (sessionCell) {
-      cellRuntime[cellId] = createCellRuntimeFromSession(cellId, sessionCell);
-    }
+    // Create cell runtime
+    // This needs always be created even if there is no session cell
+    // in order to display the cell in the correct state
+    cellRuntime[cellId] = createCellRuntimeFromSession(sessionCell);
   }
 
   return {
