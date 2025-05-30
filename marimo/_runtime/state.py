@@ -181,6 +181,19 @@ class SetFunctor(Generic[T]):
             ctx = get_context()
         except ContextNotInitializedError:
             return
+
+        if not ctx.execution_context:
+            return
+        cell = ctx.graph.cells[ctx.execution_context.cell_id]
+        # Need to explicitly check that we are not in the defining cell.
+        for var in cell.defs:
+            if ctx.globals.get(var, None) is self._state:
+                raise RuntimeError(
+                    "State setter cannot be called in the defining cell. "
+                )
+        # Note we could allow this with:
+        # >>> ctx.state_registry.register_scope(ctx.glbls, defs=cell.defs)
+        # But might have unintended consequences.
         ctx.register_state_update(self._state)
 
 

@@ -85,6 +85,29 @@ async def test_allow_self_loops(
     assert k.globals["x"] == 3
 
 
+async def test_set_and_get_state_same_block(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                """
+                state, set_state = mo.state(0)
+                exp = ""
+                try:
+                    set_state(1)
+                except RuntimeError as e:
+                    exp = str(e)
+                """
+            ),
+        ]
+    )
+
+    assert "setter cannot be called" in k.globals["exp"]
+
+
 async def test_update_with_function(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:

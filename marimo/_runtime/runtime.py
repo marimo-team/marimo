@@ -1856,8 +1856,8 @@ class Kernel:
                 # Internal marimo error
                 sys.stderr.write(
                     "An exception was raised when finding cells that "
-                    f"refer to a UIElement value, for bound name {name}. "
-                    "This is a bug in marimo. "
+                    f"refer to a UIElement value, for bound name {name}."
+                    "\nThis is a bug in marimo. "
                     "Please copy the below traceback and paste it in an "
                     "issue: https://github.com/marimo-team/marimo/issues\n"
                 )
