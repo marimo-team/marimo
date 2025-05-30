@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import type { CellId } from "../cells/ids";
+
+const KEY = "marimo:ai:chatState:v1";
 
 export const aiCompletionCellAtom = atom<{
   cellId: CellId;
@@ -27,7 +30,7 @@ export interface ChatState {
   activeChatId: string | null;
 }
 
-export const chatStateAtom = atom<ChatState>({
+export const chatStateAtom = atomWithStorage<ChatState>(KEY, {
   chats: [],
   activeChatId: null,
 });
