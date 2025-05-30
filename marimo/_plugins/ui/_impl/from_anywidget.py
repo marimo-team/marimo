@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import weakref
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -16,7 +17,6 @@ from marimo._plugins.ui._impl.anywidget.utils import (
 )
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
-from copy import deepcopy
 
 if TYPE_CHECKING:
     from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
@@ -193,8 +193,8 @@ class anywidget(UIElement[T, T]):
 
     def __deepcopy__(self, memo):
         # Overriding UIElement deepcopy implementation
-        widget_deep_copy = deepcopy(self.widget, memo) 
-        return from_anywidget(widget_deep_copy) # reuse caching
+        widget_deep_copy = deepcopy(self.widget, memo)
+        return from_anywidget(widget_deep_copy)  # reuse caching
 
     # After the widget has been initialized
     # forward all setattr to the widget
