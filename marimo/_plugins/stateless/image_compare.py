@@ -117,7 +117,12 @@ def _process_image_to_url(src: ImageLike) -> str:
             return mo_data.image(path.read_bytes(), ext=path.suffix).url
         else:
             # If it's a URL or other string, try to use it directly
-            return io_to_data_url(src, fallback_mime_type="image/png")
+            result = io_to_data_url(src, fallback_mime_type="image/png")
+            return (
+                result
+                if result is not None
+                else f"data:text/plain,Unable to process image: {src}"
+            )
     except Exception as e:
         # return an error message otherwise
         error_message = f"Error processing image: {str(e)}"
