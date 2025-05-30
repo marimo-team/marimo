@@ -307,6 +307,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         or db_type.startswith("struct")
         or db_type.startswith("list")
         or db_type.startswith("array")
+        or db_type.startswith("json")
     ):
         return "unknown"
     # Special types
