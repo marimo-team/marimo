@@ -166,6 +166,32 @@ describe("generateDatabaseCode", () => {
     port: 15_002,
   };
 
+  const redshiftDBConnection: DatabaseConnection = {
+    type: "redshift",
+    host: "localhost",
+    port: 5439,
+    database: "test",
+    connectionType: {
+      type: "DB credentials",
+      user: "my_user",
+      password: "my_password",
+    },
+  };
+
+  const redshiftIAMConnection: DatabaseConnection = {
+    type: "redshift",
+    host: "localhost",
+    port: 5439,
+    database: "test",
+    connectionType: {
+      type: "IAM credentials",
+      aws_access_key_id: "my_access_key_id",
+      aws_secret_access_key: "my_secret_access_key",
+      aws_session_token: "my_session_token",
+      region: "ap-southeast-1",
+    },
+  };
+
   describe("basic connections", () => {
     const testCases: Array<[string, DatabaseConnection, ConnectionLibrary]> = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
@@ -190,6 +216,8 @@ describe("generateDatabaseCode", () => {
       ["datafusion with session", datafusionConnSession, "ibis"],
       ["pyspark", pysparkConnection, "ibis"],
       ["pyspark with session", pysparkConnSession, "ibis"],
+      ["redshift with DB credentials", redshiftDBConnection, "redshift"],
+      ["redshift with IAM credentials", redshiftIAMConnection, "redshift"],
     ];
 
     it.each(testCases)("%s", (name, connection, orm) => {

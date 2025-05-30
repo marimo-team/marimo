@@ -174,6 +174,35 @@ session = SparkSession.builder.remote(f"sc://localhost:15002").getOrCreate()
 con = ibis.pyspark.connect(session)"
 `;
 
+exports[`generateDatabaseCode > basic connections > redshift with DB credentials 1`] = `
+"import os
+import redshift_connector
+
+_password = os.environ.get("REDSHIFT_PASSWORD", "my_password")
+con = redshift_connector.connect(
+    host="localhost",
+    port=5439,
+    database="test",
+    user="my_user",
+    password=_password,
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > redshift with IAM credentials 1`] = `
+"import redshift_connector
+
+con = redshift_connector.connect(
+  iam=True,
+  host="localhost",
+  port=5439,
+  region="ap-southeast-1",
+  database="test",
+  access_key_id="my_access_key_id",
+  secret_access_key="my_secret_access_key",
+  session_token="my_session_token",
+)"
+`;
+
 exports[`generateDatabaseCode > basic connections > snowflake 1`] = `
 "from snowflake.sqlalchemy import URL
 import os
