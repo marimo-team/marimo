@@ -180,9 +180,9 @@ To use AWS Bedrock with marimo:
 2. [Enable model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) for the specific models you want to use in the AWS Bedrock console.
 3. Install the boto3 Python client: `pip install boto3`
 4. Configure AWS credentials using one of these methods:
-   - AWS CLI: Run `aws configure` to set up credentials
-   - Environment variables: Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-   - AWS credentials file at `~/.aws/credentials`
+   * AWS CLI: Run `aws configure` to set up credentials
+   * Environment variables: Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+   * AWS credentials file at `~/.aws/credentials`
 5. Add the following to your `marimo.toml`:
 
 ```toml title="marimo.toml"
@@ -198,7 +198,7 @@ model = "bedrock/anthropic.claude-3-sonnet-20240229"
 [ai.bedrock]
 region_name = "us-east-1" # AWS region where Bedrock is available
 # Optional AWS profile name (from ~/.aws/credentials)
-profile_name = "my-profile" 
+profile_name = "my-profile"
 ```
 
 If you're using an AWS named profile different from your default, specify the profile_name. For explicit credentials (not recommended), you can use environment variables instead.
@@ -230,7 +230,7 @@ You can use your GitHub Copilot for code refactoring or the chat panel. This req
 
 ```toml title="marimo.toml"
 [ai.open_ai]
-model = "gpt-4o"
+model = "gpt-4o-mini"
 api_key = "gho_..."
 base_url = "https://api.githubcopilot.com/"
 ```
