@@ -10,15 +10,15 @@ from typing import Any, Optional, Union
 from marimo import _loggers
 from marimo._ast import codegen, load
 from marimo._ast.app import App, InternalApp
-from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._ast.models import NotebookPayload
 from marimo._config.config import SqlOutputType, WidthType
+from marimo._convert.converters import MarimoConvert
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
     save_layout_config,
 )
+from marimo._schemas.serialization import Header, NotebookSerializationV1
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.models.models import (
     CopyNotebookRequest,
@@ -127,10 +127,7 @@ class AppFileManager:
     def _save_file(
         self,
         filename: str,
-        codes: list[str],
-        names: list[str],
-        configs: list[CellConfig],
-        app_config: _AppConfig,
+        notebook: NotebookSerializationV1,
         # Whether or not to persist the app to the file system
         persist: bool,
         # Whether save was triggered by a rename
@@ -149,7 +146,11 @@ class AppFileManager:
             previous = None
             if previous_filename:
                 previous = Path(previous_filename)
-            contents, _ = Exporter().export_as_md(self, previous)
+            contents, _ = Exporter().export_as_md(
+                self.app.to_ir(),
+                self.filename,
+                previous,
+            )
         else:
             # Header might be better kept on the AppConfig side, opposed to
             # reparsing it. Also would allow for md equivalent in a field like
@@ -167,16 +168,14 @@ class AppFileManager:
                 )
             else:
                 header_comments = codegen.get_header_comments(filename)
-            # try to save the app under the name `filename`
-            contents = codegen.generate_filecontents(
-                NotebookPayload(
-                    codes=codes,
-                    names=names,
-                    cell_configs=configs,
-                    config=app_config,
-                    header_comments=header_comments,
+
+            contents = MarimoConvert.from_ir(
+                NotebookSerializationV1(
+                    app=notebook.app,
+                    cells=notebook.cells,
+                    header=Header(value=header_comments or ""),
                 )
-            )
+            ).to_py()
 
         if persist:
             self._create_file(filename, contents)
@@ -234,10 +233,7 @@ class AppFileManager:
         if needs_save:
             self._save_file(
                 self.filename,
-                list(self.app.cell_manager.codes()),
-                list(self.app.cell_manager.names()),
-                list(self.app.cell_manager.configs()),
-                self.app.config,
+                self.app.to_ir(),
                 persist=True,
                 previous_filename=previous_filename,
             )
@@ -278,14 +274,11 @@ class AppFileManager:
         # Update the file with the latest app config
         # TODO(akshayka): Only change the `app = marimo.App` line (at top level
         # of file), instead of overwriting the whole file.
-        new_config = self.app.update_config(config)
+        self.app.update_config(config)
         if self.filename is not None:
             return self._save_file(
                 self.filename,
-                list(self.app.cell_manager.codes()),
-                list(self.app.cell_manager.names()),
-                list(self.app.cell_manager.configs()),
-                new_config,
+                self.app.to_ir(),
                 persist=True,
             )
         return ""
@@ -329,10 +322,7 @@ class AppFileManager:
             self.app.update_config({"layout_file": None})
         return self._save_file(
             filename,
-            codes,
-            names,
-            configs,
-            self.app.config,
+            self.app.to_ir(),
             persist=request.persist,
         )
 
@@ -343,15 +333,7 @@ class AppFileManager:
 
     def to_code(self) -> str:
         """Read the contents of the unsaved file."""
-        contents = codegen.generate_filecontents(
-            NotebookPayload(
-                codes=list(self.app.cell_manager.codes()),
-                names=list(self.app.cell_manager.names()),
-                cell_configs=list(self.app.cell_manager.configs()),
-                config=self.app.config,
-            )
-        )
-        return contents
+        return MarimoConvert.from_ir(self.app.to_ir()).to_py()
 
     def _is_unnamed(self) -> bool:
         return self.filename is None

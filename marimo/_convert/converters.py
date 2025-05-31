@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast.models import NotebookPayload
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.serialization import (
     EMPTY_NOTEBOOK_SERIALIZATION,
@@ -29,9 +28,9 @@ class MarimoConverterIntermediate:
 
     def to_py(self) -> str:
         """Convert to python format."""
-        from marimo._ast.codegen import generate_filecontents
+        from marimo._ast.codegen import generate_fileconents_from_ir
 
-        return generate_filecontents(NotebookPayload.from_ir(self.ir))
+        return generate_fileconents_from_ir(self.ir)
 
     def to_ir(self) -> NotebookSerialization:
         """Convert to notebook IR."""

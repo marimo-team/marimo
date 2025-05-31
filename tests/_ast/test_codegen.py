@@ -16,7 +16,6 @@ from marimo._ast import codegen, compiler, load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._ast.models import NotebookPayload
 from marimo._ast.names import is_internal_cell_name
 from marimo._schemas.notebook import NotebookV1
 
@@ -67,7 +66,7 @@ def wrap_generate_filecontents(
     else:
         resolved_configs = cell_configs
     filecontents = codegen.generate_filecontents(
-        NotebookPayload(codes, names, cell_configs=resolved_configs, **kwargs)
+        codes, names, cell_configs=resolved_configs, **kwargs
     )
     # leading spaces should be removed too
     assert filecontents.lstrip() == filecontents
@@ -81,13 +80,11 @@ def get_idempotent_marimo_source(name: str) -> str:
     app = load.load_app(path)
     header_comments = codegen.get_header_comments(path)
     generated_contents = codegen.generate_filecontents(
-        NotebookPayload(
-            codes=list(app._cell_manager.codes()),
-            names=list(app._cell_manager.names()),
-            cell_configs=list(app._cell_manager.configs()),
-            config=app._config,
-            header_comments=header_comments,
-        )
+        codes=list(app._cell_manager.codes()),
+        names=list(app._cell_manager.names()),
+        cell_configs=list(app._cell_manager.configs()),
+        config=app._config,
+        header_comments=header_comments,
     )
     generated_contents = sanitized_version(generated_contents)
 

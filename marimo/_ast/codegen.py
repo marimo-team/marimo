@@ -12,12 +12,12 @@ from marimo import __version__
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
-from marimo._ast.models import NotebookPayload
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
+from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -350,13 +350,24 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
-def generate_filecontents(notebook: NotebookPayload) -> str:
+def generate_fileconents_from_ir(ir: NotebookSerializationV1) -> str:
+    return generate_filecontents(
+        codes=[cell.code for cell in ir.cells],
+        names=[cell.name for cell in ir.cells],
+        cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
+        config=_AppConfig.from_untrusted_dict(ir.app.options),
+        header_comments=ir.header.value if ir.header else None,
+    )
+
+
+def generate_filecontents(
+    codes: list[str],
+    names: list[str],
+    cell_configs: list[CellConfig],
+    config: Optional[_AppConfig] = None,
+    header_comments: Optional[str] = None,
+) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
-    names = notebook.names
-    codes = notebook.codes
-    cell_configs = notebook.cell_configs
-    config = notebook.config
-    header_comments = notebook.header_comments
 
     # Update old internal cell names to the new ones
     for idx, name in enumerate(names):

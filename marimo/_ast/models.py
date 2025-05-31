@@ -4,9 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
-from marimo._schemas.serialization import NotebookSerialization
 from marimo._types.ids import CellId_t
 
 
@@ -30,31 +28,3 @@ class CellData:
     name: str
     config: CellConfig
     cell: Optional[Cell]
-
-
-@dataclass
-class NotebookPayload:
-    """
-    Dataclass for passing around a bundle of notebook data. Easier than arg drilling.
-    """
-
-    codes: list[str]
-    names: list[str]
-    cell_configs: list[CellConfig]
-    config: Optional[_AppConfig] = None
-    header_comments: Optional[str] = None
-
-    @staticmethod
-    def from_ir(serialization: NotebookSerialization) -> NotebookPayload:
-        return NotebookPayload(
-            codes=[cell.code for cell in serialization.cells],
-            names=[cell.name for cell in serialization.cells],
-            cell_configs=[
-                CellConfig.from_dict(cell.options)
-                for cell in serialization.cells
-            ],
-            config=_AppConfig.from_untrusted_dict(serialization.app.options),
-            header_comments=serialization.header.value
-            if serialization.header
-            else None,
-        )
