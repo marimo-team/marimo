@@ -228,7 +228,7 @@ class UvPackageManager(PypiPackageManager):
         packages_to_remove: list[str],
         upgrade: bool,
     ) -> None:
-        from marimo._cli.convert.markdown import extract_frontmatter
+        from marimo._convert.markdown.markdown import extract_frontmatter
         from marimo._utils import yaml
         from marimo._utils.inline_script_metadata import (
             get_headers_from_frontmatter,

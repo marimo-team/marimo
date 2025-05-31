@@ -208,7 +208,7 @@ def is_marimo_dependency(dependency: str) -> bool:
 
 
 def get_headers_from_markdown(contents: str) -> dict[str, str]:
-    from marimo._cli.convert.markdown import extract_frontmatter
+    from marimo._convert.markdown.markdown import extract_frontmatter
 
     frontmatter, _ = extract_frontmatter(contents)
     return get_headers_from_frontmatter(frontmatter)

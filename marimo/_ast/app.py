@@ -25,6 +25,11 @@ from uuid import uuid4
 
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.variables import BUILTINS
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    NotebookSerializationV1,
+)
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
@@ -806,3 +811,18 @@ class InternalApp:
         self, request: FunctionCallRequest
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         return await self._app._function_call(request)
+
+    def to_ir(self) -> NotebookSerializationV1:
+        return NotebookSerializationV1(
+            cells=[
+                CellDef(
+                    code=cell_data.code,
+                    name=cell_data.name,
+                    options=cell_data.config.asdict(),
+                )
+                for cell_data in self._app._cell_manager._cell_data.values()
+            ],
+            app=AppInstantiation(
+                options=self._app._config.asdict(),
+            ),
+        )

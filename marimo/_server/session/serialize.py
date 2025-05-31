@@ -229,7 +229,7 @@ def serialize_notebook(
         )
 
     return NotebookV1(
-        version=VERSION,
+        version="1",
         metadata=NotebookMetadata(marimo_version=__version__),
         cells=cells,
     )

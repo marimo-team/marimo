@@ -5,10 +5,9 @@ import ast
 import os
 import re
 from textwrap import dedent
-from typing import Optional
+from typing import Optional, Union
 
-from marimo._ast.cell import Cell
-from marimo._server.file_manager import AppFileManager
+from marimo._ast.cell import Cell, CellImpl
 
 
 def format_filename_title(filename: str) -> str:
@@ -18,24 +17,14 @@ def format_filename_title(filename: str) -> str:
     return title.title()
 
 
-def get_filename(
-    file_manager: AppFileManager, default: str = "notebook.py"
-) -> str:
-    filename = file_manager.filename
+def get_filename(filename: Optional[str], default: str = "notebook.py") -> str:
     if not filename:
         filename = default
     return filename
 
 
-def get_app_title(file_manager: AppFileManager) -> str:
-    if file_manager.app.config.app_title:
-        return f"{file_manager.app.config.app_title}"
-    filename = get_filename(file_manager)
-    return format_filename_title(filename)
-
-
-def get_download_filename(file_manager: AppFileManager, extension: str) -> str:
-    filename = get_filename(file_manager, f"notebook.{extension}")
+def get_download_filename(filename: Optional[str], extension: str) -> str:
+    filename = filename or f"notebook.{extension}"
     basename = os.path.basename(filename)
     if basename.endswith(f".{extension}"):
         return basename
@@ -55,7 +44,9 @@ def _const_or_id(args: ast.stmt) -> str:
     return f"{args.id}"  # type: ignore[attr-defined]
 
 
-def get_markdown_from_cell(cell: Cell, code: str) -> Optional[str]:
+def get_markdown_from_cell(
+    cell: Union[CellImpl, Cell], code: str
+) -> Optional[str]:
     """Attempt to extract markdown from a cell, or return None"""
 
     if not (cell.refs == {"mo"} and not cell.defs):

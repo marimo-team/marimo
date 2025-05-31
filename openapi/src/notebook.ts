@@ -10,25 +10,26 @@ export interface components {
     NotebookCell: {
       code: string | null;
       config: {
-        column: number | null;
-        disabled: boolean | null;
-        hide_code: boolean | null;
+        column?: number | null;
+        disabled?: boolean | null;
+        hide_code?: boolean | null;
       };
-      id: string;
+      id: string | null;
       name: string | null;
     };
     NotebookCellConfig: {
-      column: number | null;
-      disabled: boolean | null;
-      hide_code: boolean | null;
+      column?: number | null;
+      disabled?: boolean | null;
+      hide_code?: boolean | null;
     };
     NotebookMetadata: {
-      marimo_version: string | null;
+      marimo_version?: string | null;
     };
     NotebookV1: {
       cells: components["schemas"]["NotebookCell"][];
       metadata: components["schemas"]["NotebookMetadata"];
-      version: string;
+      /** @enum {string} */
+      version: "1";
     };
   };
   responses: never;

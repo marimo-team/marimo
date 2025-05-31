@@ -826,9 +826,11 @@ def run(
 @click.argument(
     "name",
     required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, path_type=Path
+    ),
 )
-def recover(name: str) -> None:
+def recover(name: Path) -> None:
     click.echo(codegen.recover(name))
 
 

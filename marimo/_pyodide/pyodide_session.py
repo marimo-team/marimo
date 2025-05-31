@@ -338,7 +338,8 @@ class PyodideBridge:
     def export_markdown(self, request: str) -> str:
         del request
         md, _filename = Exporter().export_as_md(
-            file_manager=self.session.app_manager,
+            notebook=self.session.app_manager.app.to_ir(),
+            filename=self.session.app_manager.filename,
         )
         return json.dumps(md)
 

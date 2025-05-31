@@ -126,5 +126,12 @@ class NotebookSerializationV1:
 
 NotebookSerialization: TypeAlias = NotebookSerializationV1
 
+EMPTY_NOTEBOOK_SERIALIZATION = NotebookSerializationV1(
+    app=AppInstantiation(options={}),
+    cells=[],
+    violations=[],
+    valid=True,
+)
+
 
 VERSION = "1"

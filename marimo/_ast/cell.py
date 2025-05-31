@@ -28,6 +28,11 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass
 class CellConfig:
+    """
+    Internal representation of a cell's configuration.
+    This is not part of the public API.
+    """
+
     column: Optional[int] = None
 
     # If True, the cell and its descendants cannot be executed,

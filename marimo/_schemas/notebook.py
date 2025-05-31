@@ -1,9 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
-from marimo._schemas.common import BaseDict
+from typing import Literal, Optional, TypedDict
 
 # This file contains the schema for the notebook.
 # It may be externally used and must be kept backwards compatible.
@@ -13,7 +11,7 @@ from marimo._schemas.common import BaseDict
 # We check for backwards compatibility using a GitHub action: `.github/workflows/test_schemas.yaml`
 
 
-class NotebookCellConfig(BaseDict):
+class NotebookCellConfig(TypedDict, total=False):
     """Configuration for a notebook cell"""
 
     column: Optional[int]
@@ -21,28 +19,28 @@ class NotebookCellConfig(BaseDict):
     hide_code: Optional[bool]
 
 
-class NotebookCell(BaseDict):
+class NotebookCell(TypedDict):
     """Code cell specific structure"""
 
-    id: str
+    id: Optional[str]
     code: Optional[str]
     name: Optional[str]
     config: NotebookCellConfig
 
 
 # Notebook metadata
-class NotebookMetadata(BaseDict):
+class NotebookMetadata(TypedDict, total=False):
     """Metadata about the notebook"""
 
     marimo_version: Optional[str]
 
 
 # Main notebook structure
-class NotebookV1(BaseDict):
+class NotebookV1(TypedDict):
     """Main notebook structure"""
 
     # The notebook format version
-    version: str
+    version: Literal["1"]
     # Metadata about the notebook
     metadata: NotebookMetadata
     # The cells in the notebook

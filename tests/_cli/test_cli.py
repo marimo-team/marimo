@@ -115,7 +115,9 @@ def _check_started(port: int, host: str = "localhost") -> Optional[bytes]:
 
 def _temp_run_file(directory: tempfile.TemporaryDirectory[str]) -> str:
     filecontents = codegen.generate_filecontents(
-        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
     )
     path = Path(directory.name) / "run.py"
     path.write_text(filecontents, encoding="utf-8")

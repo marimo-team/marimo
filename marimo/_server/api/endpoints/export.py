@@ -221,7 +221,8 @@ async def export_as_markdown(
         )
 
     markdown, filename = Exporter().export_as_md(
-        file_manager=app_file_manager,
+        notebook=app_file_manager.app.to_ir(),
+        filename=app_file_manager.filename,
     )
 
     if body.download:
@@ -277,7 +278,8 @@ async def auto_export_as_markdown(
     session.app_file_manager.reload()
 
     markdown, _filename = Exporter().export_as_md(
-        file_manager=session.app_file_manager,
+        notebook=session.app_file_manager.app.to_ir(),
+        filename=session.app_file_manager.filename,
     )
 
     # Save the Markdown file to disk, at `.marimo/<filename>.md`

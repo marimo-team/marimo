@@ -3,7 +3,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+)
 
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
@@ -23,21 +32,25 @@ from pymdownx.superfences import (  # type: ignore
 )
 
 from marimo import _loggers
-from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp
-from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.utils import markdown_to_marimo, sql_to_marimo
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    Header,
+    NotebookSerializationV1,
+)
 
 LOGGER = _loggers.marimo_logger()
 
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
 
-ConvertKeys = Union[Literal["marimo"], Literal["marimo-app"]]
+ConvertKeys = Union[Literal["marimo-ir"], Literal["marimo-app"]]
 
 
 def backwards_compatible_sanitization(line: str) -> str:
@@ -107,7 +120,13 @@ def formatted_code_block(
     )
 
 
-def app_config_from_root(root: Element) -> _AppConfig:
+def app_config_from_root(root: Element) -> dict[str, Any]:
+    """
+    Extract app config from the root element.
+
+    This may contains unknown keys.
+    """
+
     # Extract meta data from root attributes.
     config_keys = {
         "title": "app_title",
@@ -122,7 +141,7 @@ def app_config_from_root(root: Element) -> _AppConfig:
     # Remove values particular to markdown saves.
     config.pop("marimo-version", None)
 
-    return _AppConfig.from_untrusted_dict(config, silent=True)
+    return config
 
 
 def get_source_from_tag(tag: Element) -> str:
@@ -161,20 +180,23 @@ def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
     return CellConfig.from_dict(extracted_attrs)
 
 
+T = TypeVar("T")
+
+
 # TODO: Consider upstreaming some logic such that this isn't such a terrible
 # hack. At some point rewriting / overriding the markdown parser would be a
 # better idea than all these little work arounds.
 @dataclass
-class SafeWrap:
-    app: App
+class SafeWrap(Generic[T]):
+    inner: T
 
-    def strip(self) -> App:
-        return self.app
+    def strip(self) -> T:
+        return self.inner
 
 
-def _tree_to_app_obj(root: Element) -> SafeWrap:
+def _tree_to_app_obj(root: Element) -> SafeWrap[App]:
     app_config = app_config_from_root(root)
-    app = InternalApp(App(**app_config.asdict()))
+    app = InternalApp(App(**app_config))
 
     for child in root:
         name = child.get("name", DEFAULT_CELL_NAME)
@@ -208,7 +230,7 @@ def _tree_to_app_obj(root: Element) -> SafeWrap:
     return SafeWrap(app._app)
 
 
-def _tree_to_app(root: Element) -> str:
+def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     app_config = app_config_from_root(root)
 
     sources: list[str] = []
@@ -226,13 +248,19 @@ def _tree_to_app(root: Element) -> str:
     pyproject = root.get("pyproject", None)
     if pyproject and not header:
         header = "\n# ".join(["# ///script", *pyproject.splitlines(), "///"])
-    return codegen.generate_filecontents(
-        sources,
-        names,
-        cell_config,
-        config=app_config,
-        header_comments=header,
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options=app_config),
+        cells=[
+            CellDef(
+                name=name,
+                code=source,
+                options=config.asdict(),
+            )
+            for name, source, config in zip(names, sources, cell_config)
+        ],
+        header=Header(value=header) if header else None,
     )
+    return SafeWrap(notebook)
 
 
 class IdentityParser(Markdown):
@@ -272,18 +300,25 @@ class IdentityParser(Markdown):
         return super().convert(text)
 
 
-class MarimoParser(IdentityParser):
+class MarimoMdParser(IdentityParser):
     """Parses Markdown to marimo notebook string."""
 
     meta: dict[str, Any]
 
-    output_formats: dict[ConvertKeys, Callable[[Element], Union[str, App]]] = {  # type: ignore[assignment, misc]
-        "marimo": _tree_to_app,
+    output_formats: dict[ConvertKeys, Callable[[Element], SafeWrap[Any]]] = {  # type: ignore[assignment, misc]
+        "marimo-ir": _tree_to_ir,
         "marimo-app": _tree_to_app_obj,
     }
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *args: Any,
+        output_format: ConvertKeys,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            *args, output_format=cast(Any, output_format), **kwargs
+        )
         self.meta = {}
         # Build here opposed to the parent class since there is intermediate
         # logic after the parser is built, and it is more clear here what is
@@ -343,9 +378,9 @@ class FrontMatterPreprocessor(Preprocessor):
     (BSD-3) or python-frontmatter (MIT) for similar implementations.
     """
 
-    def __init__(self, md: MarimoParser):
+    def __init__(self, md: MarimoMdParser):
         super().__init__(md)
-        self.md: MarimoParser = md
+        self.md: MarimoMdParser = md
 
     def run(self, lines: list[str]) -> list[str]:
         if not lines:
@@ -419,7 +454,7 @@ class ExpandAndClassifyProcessor(BlockProcessor):
 
     def run(self, parent: Element, blocks: list[str]) -> None:
         # Copy app metadata to the parent element.
-        assert isinstance(self.parser.md, MarimoParser)
+        assert isinstance(self.parser.md, MarimoMdParser)
         for key, value in self.parser.md.meta.items():
             if isinstance(value, str):
                 parent.set(key, value)
@@ -482,14 +517,18 @@ def convert_from_md_to_app(text: str) -> App:
     if not text.strip():
         app = App()
     else:
-        app = cast(App, MarimoParser(output_format="marimo-app").convert(text))
+        app = cast(
+            App, MarimoMdParser(output_format="marimo-app").convert(text)
+        )
 
     app._cell_manager.ensure_one_cell()
     return app
 
 
-def convert_from_md(text: str) -> str:
-    return MarimoParser(output_format="marimo").convert(text)
+def convert_from_md_to_marimo_ir(text: str) -> NotebookSerializationV1:
+    notebook = MarimoMdParser(output_format="marimo-ir").convert(text)
+    assert isinstance(notebook, NotebookSerializationV1)
+    return notebook
 
 
 def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:

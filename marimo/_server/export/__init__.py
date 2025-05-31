@@ -71,7 +71,11 @@ def export_as_md(
     # py -> md
     if new_filename:
         file_manager.filename = str(new_filename)
-    result = Exporter().export_as_md(file_manager, previous=path.path)
+    result = Exporter().export_as_md(
+        notebook=file_manager.app.to_ir(),
+        filename=file_manager.filename,
+        previous=path.path,
+    )
     return ExportResult(
         contents=result[0],
         download_filename=result[1],

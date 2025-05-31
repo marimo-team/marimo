@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import io
 import token as token_types
+from pathlib import Path
 from textwrap import dedent
 from tokenize import TokenInfo, tokenize
 from typing import (
@@ -51,19 +52,12 @@ class MarimoFileError(Exception):
 class Extractor:
     """Helper to extract AST nodes to schema/serialization ir."""
 
-    def __init__(
-        self, filename: Optional[str] = None, contents: Optional[str] = None
-    ):
-        self.contents = None
-        if filename is not None:
-            assert contents is None, (
-                "Cannot provide both filename and contents"
-            )
-            with open(filename, encoding="utf-8") as f:
-                self.contents = f.read().strip()
-        elif contents is not None:
-            self.contents = contents
+    @staticmethod
+    def from_file(filename: Union[str, Path]) -> Extractor:
+        return Extractor(contents=Path(filename).read_text(encoding="utf-8"))
 
+    def __init__(self, contents: str):
+        self.contents = contents.strip()
         self.lines = self.contents.splitlines() if self.contents else []
 
     def extract_from_offsets(
@@ -340,8 +334,12 @@ class Parser:
     the notebook.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any):
-        self.extractor = Extractor(*args, **kwargs)
+    @staticmethod
+    def from_file(filename: Union[str, Path]) -> Parser:
+        return Parser(contents=Path(filename).read_text(encoding="utf-8"))
+
+    def __init__(self, contents: str):
+        self.extractor = Extractor(contents=contents)
 
     def node_stack(self) -> PeekStack[Node]:
         return PeekStack(iter(ast.parse(self.extractor.contents or "").body))
@@ -788,8 +786,8 @@ def is_run_guard(node: Optional[Node]) -> bool:
     )
 
 
-def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
-    parser = Parser(filename)
+def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
+    parser = Parser(contents)
     if not parser.extractor.contents:
         return None
 
