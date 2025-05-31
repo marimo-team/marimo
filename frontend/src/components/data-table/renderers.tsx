@@ -112,7 +112,7 @@ export function renderTableBody<TData>(
               isRowSelectable && "cursor-pointer",
               isRowSelectable &&
                 focusedRowIdx === row.index &&
-                "bg-[var(--slate-3)] hover:bg-[var(--slate-3)]",
+                "bg-[var(--blue-3)] hover:bg-[var(--blue-3)] data-[state=selected]:bg-[var(--blue-4)]",
             )}
             onClick={() => handleRowClick(row)}
           >

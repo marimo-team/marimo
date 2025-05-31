@@ -83,8 +83,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 
   const toggleRowSelection = () => {
     handleRowSelectionChange?.((prev) => {
-      const isSelected = prev[rowIdx];
-      if (isSelected) {
+      if (isRowSelected) {
         // Remove this row from selection
         const { [rowIdx]: removedRow, ...rest } = prev;
         return rest;
