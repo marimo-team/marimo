@@ -41,6 +41,7 @@ import type {
 import { renderCellValue } from "../columns";
 import { useKeydownOnElement } from "@/hooks/useHotkey";
 import { ColumnName } from "@/components/datasources/components";
+import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 
 export interface RowViewerPanelProps {
   rowIdx: number;
@@ -110,6 +111,12 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
         return false;
       }
       setRow(rowIdx + 1);
+    },
+    Space: (e) => {
+      if (e?.target === searchInputRef.current) {
+        return false;
+      }
+      toggleRowSelection();
     },
   });
 
@@ -244,15 +251,19 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
     >
       <div className="flex flex-row gap-2 items-center mr-2">
         {isSelectable && (
-          <Button
-            variant="ghost"
-            size="xs"
-            className="hover:bg-transparent hover:shadow-none underline"
-            onClick={toggleRowSelection}
-          >
-            {isRowSelected ? "Deselect row" : "Select row"}
-          </Button>
+          <div className="flex flex-row gap-1 items-center">
+            <Button
+              variant="ghost"
+              size="xs"
+              className="pr-0 hover:bg-transparent hover:shadow-none underline"
+              onClick={toggleRowSelection}
+            >
+              {isRowSelected ? "Deselect row" : "Select row"}
+            </Button>
+            <KeyboardHotkeys shortcut="Space" />
+          </div>
         )}
+
         <Button
           variant="outline"
           size="xs"
