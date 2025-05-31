@@ -25,9 +25,9 @@ class MarimoConverterIntermediate:
 
     def to_py(self) -> str:
         """Convert to python format."""
-        from marimo._ast.codegen import generate_fileconents_from_ir
+        from marimo._ast.codegen import generate_filecontents_from_ir
 
-        return generate_fileconents_from_ir(self.ir)
+        return generate_filecontents_from_ir(self.ir)
 
     def to_ir(self) -> NotebookSerialization:
         """Convert to notebook IR."""

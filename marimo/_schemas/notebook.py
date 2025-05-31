@@ -1,7 +1,7 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, TypedDict
+from typing import Literal, Optional, TypedDict
 
 # This file contains the schema for the notebook.
 # It may be externally used and must be kept backwards compatible.
@@ -19,7 +19,7 @@ class NotebookCellConfig(TypedDict, total=False):
     hide_code: Optional[bool]
 
 
-class NotebookCell(TypedDict, total=False):
+class NotebookCell(TypedDict):
     """Code cell specific structure"""
 
     id: Optional[str]
@@ -36,11 +36,11 @@ class NotebookMetadata(TypedDict, total=False):
 
 
 # Main notebook structure
-class NotebookV1(TypedDict, total=False):
+class NotebookV1(TypedDict):
     """Main notebook structure"""
 
     # The notebook format version
-    version: str
+    version: Literal["1"]
     # Metadata about the notebook
     metadata: NotebookMetadata
     # The cells in the notebook
