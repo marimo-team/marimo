@@ -76,8 +76,9 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
   toggleDisplayHeader?: () => void;
-  // Focus row
-  onFocusRowChange?: OnChangeFn<number>;
+  // Row viewer panel
+  viewedRowIdx?: number;
+  onViewedRowChange?: OnChangeFn<number>;
   // Others
   chartsFeatureEnabled?: boolean;
   togglePanel?: (panelType: PanelType) => void;
@@ -119,7 +120,8 @@ const DataTableInternal = <TData,>({
   chartsFeatureEnabled,
   togglePanel,
   isPanelOpen,
-  onFocusRowChange,
+  viewedRowIdx,
+  onViewedRowChange,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
 
@@ -192,7 +194,7 @@ const DataTableInternal = <TData,>({
     onColumnPinningChange: setColumnPinning,
     // focus row
     enableFocusRow: true,
-    onFocusRowChange: onFocusRowChange,
+    onFocusRowChange: onViewedRowChange,
     // state
     state: {
       ...(sorting ? { sorting } : {}),
@@ -212,7 +214,7 @@ const DataTableInternal = <TData,>({
     },
   });
 
-  const isRowSelectable = isPanelOpen?.("row-viewer") ?? false;
+  const rowViewerPanelOpen = isPanelOpen?.("row-viewer") ?? false;
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
@@ -232,8 +234,9 @@ const DataTableInternal = <TData,>({
           {renderTableBody(
             table,
             columns,
-            isRowSelectable,
+            rowViewerPanelOpen,
             getPaginatedRowIndex,
+            viewedRowIdx,
           )}
         </Table>
       </div>

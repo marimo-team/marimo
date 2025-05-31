@@ -33,10 +33,15 @@ import { prettifyRowCount } from "../pagination";
 import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
 import { NAMELESS_COLUMN_PREFIX } from "../columns";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
-import type { Column } from "@tanstack/react-table";
+import type {
+  Column,
+  RowSelectionState,
+  OnChangeFn,
+} from "@tanstack/react-table";
 import { renderCellValue } from "../columns";
 import { useKeydownOnElement } from "@/hooks/useHotkey";
 import { ColumnName } from "@/components/datasources/components";
+import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 
 export interface RowViewerPanelProps {
   rowIdx: number;
@@ -44,6 +49,9 @@ export interface RowViewerPanelProps {
   totalRows: number | TooManyRows;
   fieldTypes: FieldTypesWithExternalType | undefined | null;
   getRow: (rowIdx: number) => Promise<GetRowResult>;
+  isSelectable: boolean;
+  isRowSelected: boolean;
+  handleRowSelectionChange?: OnChangeFn<RowSelectionState>;
 }
 
 export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
@@ -52,6 +60,9 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   totalRows,
   fieldTypes,
   getRow,
+  isSelectable,
+  isRowSelected,
+  handleRowSelectionChange,
 }: RowViewerPanelProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -64,16 +75,28 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
     return data.rows;
   }, [getRow, rowIdx, totalRows]);
 
-  const handleSelectRow = (rowIdx: number) => {
+  const setRow = (rowIdx: number) => {
     if (rowIdx < 0 || (typeof totalRows === "number" && rowIdx >= totalRows)) {
       return;
     }
     setRowIdx(rowIdx);
   };
 
+  const toggleRowSelection = () => {
+    handleRowSelectionChange?.((prev) => {
+      if (isRowSelected) {
+        // Remove this row from selection
+        const { [rowIdx]: removedRow, ...rest } = prev;
+        return rest;
+      }
+      // Add this row to selection
+      return { ...prev, [rowIdx]: true };
+    });
+  };
+
   // Total rows may change after the row viewer panel is opened
   if (!tooManyRows && rowIdx > totalRows) {
-    handleSelectRow(totalRows - 1);
+    setRow(totalRows - 1);
   }
 
   useKeydownOnElement(panelRef, {
@@ -81,13 +104,19 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
       if (e?.target === searchInputRef.current) {
         return false;
       }
-      handleSelectRow(rowIdx - 1);
+      setRow(rowIdx - 1);
     },
     ArrowRight: (e) => {
       if (e?.target === searchInputRef.current) {
         return false;
       }
-      handleSelectRow(rowIdx + 1);
+      setRow(rowIdx + 1);
+    },
+    Space: (e) => {
+      if (e?.target === searchInputRef.current) {
+        return false;
+      }
+      toggleRowSelection();
     },
   });
 
@@ -220,12 +249,26 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
       ref={panelRef}
       tabIndex={-1}
     >
-      <div className="flex flex-row gap-2 justify-end items-center mr-2">
+      <div className="flex flex-row gap-2 items-center mr-2">
+        {isSelectable && (
+          <div className="flex flex-row gap-1 items-center">
+            <Button
+              variant="link"
+              size="xs"
+              className="pr-0"
+              onClick={toggleRowSelection}
+            >
+              {isRowSelected ? "Deselect row" : "Select row"}
+            </Button>
+            <KeyboardHotkeys shortcut="Space" />
+          </div>
+        )}
+
         <Button
           variant="outline"
           size="xs"
-          className={buttonStyles}
-          onClick={() => handleSelectRow(0)}
+          className={`${buttonStyles} ml-auto`}
+          onClick={() => setRow(0)}
           disabled={rowIdx === 0}
           aria-label="Go to first row"
         >
@@ -235,7 +278,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           variant="outline"
           size="xs"
           className={buttonStyles}
-          onClick={() => handleSelectRow(rowIdx - 1)}
+          onClick={() => setRow(rowIdx - 1)}
           disabled={rowIdx === 0}
           aria-label="Previous row"
         >
@@ -250,7 +293,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           variant="outline"
           size="xs"
           className={buttonStyles}
-          onClick={() => handleSelectRow(rowIdx + 1)}
+          onClick={() => setRow(rowIdx + 1)}
           disabled={!tooManyRows && rowIdx === totalRows - 1}
           aria-label="Next row"
         >
@@ -262,7 +305,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           className={buttonStyles}
           onClick={() => {
             if (!tooManyRows) {
-              handleSelectRow(totalRows - 1);
+              setRow(totalRows - 1);
             }
           }}
           disabled={tooManyRows || rowIdx === totalRows - 1}
