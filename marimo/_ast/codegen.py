@@ -405,8 +405,10 @@ def generate_filecontents(
 
 def recover(filepath: Path) -> str:
     """Generate a module for code recovered from a disconnected frontend"""
+    import json
+
     contents = filepath.read_text(encoding="utf-8")
-    return MarimoConvert.from_ipynb(contents).to_py()
+    return MarimoConvert.from_notebook_v1(json.loads(contents)).to_py()
 
 
 def is_multiline_comment(node: ast.stmt) -> bool:
