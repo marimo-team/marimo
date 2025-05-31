@@ -10,7 +10,7 @@ def __():
         mo.md("# Introduction"),
         "By the marimo team",
         mo.md("## What is marimo?"),
-        mo.md("![marimo moss ball](https://marimo.io/logo.png)"),
+        mo.md("![marimo moss ball](https://marimo.app/logotype-wide.svg)"),
         mo.md("## Questions?"),
     ])
     return
