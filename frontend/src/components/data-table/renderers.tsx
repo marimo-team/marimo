@@ -107,7 +107,8 @@ export function renderTableBody<TData>(
           const rowIndex = rowViewerPanelOpen
             ? (getRowIndex?.(row.original, row.index) ?? row.index)
             : undefined;
-          const rowSetInPanel = rowViewerPanelOpen && viewedRowIdx === rowIndex;
+          const isRowViewedInPanel =
+            rowViewerPanelOpen && viewedRowIdx === rowIndex;
 
           return (
             <TableRow
@@ -117,7 +118,7 @@ export function renderTableBody<TData>(
               className={cn(
                 "border-t h-6",
                 rowViewerPanelOpen && "cursor-pointer",
-                rowSetInPanel &&
+                isRowViewedInPanel &&
                   "bg-[var(--blue-3)] hover:bg-[var(--blue-3)] data-[state=selected]:bg-[var(--blue-4)]",
               )}
               onClick={() => handleRowClick(row)}
