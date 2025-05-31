@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._types.ids import CellId_t
 
 T = TypeVar("T")
 Id = int
@@ -151,11 +152,16 @@ class State(Generic[T]):
         self._value = value
         self.allow_self_loops = allow_self_loops
         self._set_value = SetFunctor(self)
+        self._defining_cell: Optional[CellId_t] = None
+        self._context = _context
 
         try:
+            ctx = get_context()
             if _registry is None:
-                _registry = get_context().state_registry
+                _registry = ctx.state_registry
             _registry.register(self, _name, _context)
+            if ctx.execution_context:
+                self._defining_cell = ctx.execution_context.cell_id
         except ContextNotInitializedError:
             # Registration may be picked up later, but there is nothing to do
             # at this point.
@@ -181,6 +187,19 @@ class SetFunctor(Generic[T]):
             ctx = get_context()
         except ContextNotInitializedError:
             return
+
+        if not ctx.execution_context:
+            return
+
+        # Need to explicitly check that we are not in the defining cell.
+        if (
+            self._state._context is None
+            and self._state._defining_cell == ctx.execution_context.cell_id
+        ):
+            return
+        # Note we could allow this with:
+        # >>> ctx.state_registry.register_scope(ctx.glbls, defs=cell.defs)
+        # But might have unintended consequences.
         ctx.register_state_update(self._state)
 
 
