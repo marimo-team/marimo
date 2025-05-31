@@ -34,6 +34,7 @@ hstack
 icon
 iframe
 image
+image_compare
 islands
   MarimoIslandGenerator
   MarimoIslandStub
