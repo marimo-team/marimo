@@ -76,7 +76,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
   toggleDisplayHeader?: () => void;
-  // Focus row
+  // Row viewer panel
+  focusedRowIdx?: number;
   onFocusRowChange?: OnChangeFn<number>;
   // Others
   chartsFeatureEnabled?: boolean;
@@ -119,6 +120,7 @@ const DataTableInternal = <TData,>({
   chartsFeatureEnabled,
   togglePanel,
   isPanelOpen,
+  focusedRowIdx,
   onFocusRowChange,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
@@ -234,6 +236,7 @@ const DataTableInternal = <TData,>({
             columns,
             isRowSelectable,
             getPaginatedRowIndex,
+            focusedRowIdx,
           )}
         </Table>
       </div>

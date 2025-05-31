@@ -785,6 +785,8 @@ const DataTableComponent = ({
     },
   );
 
+  const isSelectable = selection === "multi" || selection === "single";
+
   return (
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
@@ -818,6 +820,9 @@ const DataTableComponent = ({
             totalRows={totalRows}
             rowIdx={focusedRowIdx}
             setRowIdx={setFocusedRowIdx}
+            isSelectable={isSelectable}
+            isRowSelected={rowSelection[focusedRowIdx]}
+            handleRowSelectionChange={handleRowSelectionChange}
           />
         </ContextAwarePanelItem>
       )}
@@ -868,6 +873,7 @@ const DataTableComponent = ({
             chartsFeatureEnabled={chartsFeatureEnabled}
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
+            focusedRowIdx={focusedRowIdx}
             onFocusRowChange={(rowIdx) => setFocusedRowIdx(rowIdx)}
           />
         </Labeled>
