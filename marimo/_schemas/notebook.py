@@ -22,7 +22,7 @@ class NotebookCellConfig(TypedDict, total=False):
 class NotebookCell(TypedDict, total=False):
     """Code cell specific structure"""
 
-    id: Optional[str]  # TODO: should we remove id?
+    id: Optional[str]
     code: Optional[str]
     name: Optional[str]
     config: NotebookCellConfig

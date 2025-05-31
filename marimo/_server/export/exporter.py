@@ -224,6 +224,7 @@ class Exporter:
         download_filename = get_download_filename(file_manager, "ipynb")
         return stream.read(), download_filename
 
+    # TODO: pass in NotebookSerializationV1
     def export_as_md(
         self, file_manager: AppFileManager, previous: Path | None = None
     ) -> tuple[str, str]:

@@ -11,10 +11,8 @@ import pytest
 
 from marimo import __version__
 from marimo._ast.app import InternalApp
-from marimo._convert.markdown.markdown import (
-    convert_from_md,
-    convert_from_md_to_app,
-)
+from marimo._convert.converters import MarimoConvert
+from marimo._convert.markdown.markdown import convert_from_md_to_app
 from marimo._server.export import export_as_md
 from marimo._server.export.utils import format_filename_title
 
@@ -32,6 +30,12 @@ modules = {
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 snapshot = snapshotter(__file__)
+
+
+def md_to_py(md: str) -> str:
+    if not md:
+        return ""
+    return MarimoConvert.from_md(md).to_py()
 
 
 def sanitized_version(output: str) -> str:
@@ -80,7 +84,7 @@ def test_idempotent_markdown_to_marimo() -> None:
     for script in modules.keys():
         with open(DIR_PATH + f"/snapshots/{script}.md.txt") as f:
             md = f.read()
-        python_source = sanitized_version(convert_from_md(md))
+        python_source = sanitized_version(md_to_py(md))
         assert convert_from_py(python_source) == md.strip()
 
 
@@ -110,7 +114,7 @@ def test_markdown_frontmatter() -> None:
     )
 
     # As python file
-    output = sanitized_version(convert_from_md(script))
+    output = sanitized_version(md_to_py(script))
     assert 'app_title="My Title"' in output
     assert output.startswith("#!/usr/bin/env python")
     snapshot("frontmatter-test.py.txt", output)
@@ -143,7 +147,7 @@ def test_no_frontmatter() -> None:
     """
         )
     )
-    output = sanitized_version(convert_from_md(script))
+    output = sanitized_version(md_to_py(script))
     snapshot("no-frontmatter.py.txt", output)
 
     # As python object
@@ -170,7 +174,7 @@ def test_markdown_just_frontmatter() -> None:
     """
         )
     )
-    output = sanitized_version(convert_from_md(script))
+    output = sanitized_version(md_to_py(script))
     assert 'app_title="My Title"' in output
     snapshot("frontmatter-only.py.txt", output)
 
@@ -211,7 +215,7 @@ def test_markdown_with_sql() -> None:
     """
         )
     )
-    output = sanitized_version(convert_from_md(script))
+    output = sanitized_version(md_to_py(script))
     snapshot("sql-notebook.py.txt", output)
 
     # As python object
@@ -233,7 +237,7 @@ def test_markdown_with_sql() -> None:
 
 
 def test_markdown_empty() -> None:
-    assert convert_from_md("") == ""
+    assert md_to_py("") == ""
 
     # As python object
     app = InternalApp(convert_from_md_to_app(""))
@@ -345,7 +349,7 @@ def test_python_to_md_code_injection() -> None:
         )
     )
     maybe_unsafe_md = convert_from_py(unsafe_app).strip()
-    maybe_unsafe_py = convert_from_md(maybe_unsafe_md).strip()
+    maybe_unsafe_py = md_to_py(maybe_unsafe_md).strip()
     snapshot("unsafe-app.py.txt", maybe_unsafe_py)
     snapshot("unsafe-app.md.txt", maybe_unsafe_md)
 
@@ -435,12 +439,12 @@ def test_old_md_to_python_code_injection() -> None:
         )
     )
 
-    maybe_unsafe_py = sanitized_version(convert_from_md(script).strip())
+    maybe_unsafe_py = sanitized_version(md_to_py(script).strip())
     maybe_unsafe_md = convert_from_py(maybe_unsafe_py)
 
     # Idempotent even under strange conditions.
     assert maybe_unsafe_py == sanitized_version(
-        convert_from_md(maybe_unsafe_md).strip()
+        md_to_py(maybe_unsafe_md).strip()
     )
 
     snapshot("unsafe-doc-old.py.txt", maybe_unsafe_py)
@@ -522,12 +526,12 @@ def test_md_to_python_code_injection() -> None:
         )
     )
 
-    maybe_unsafe_py = sanitized_version(convert_from_md(script).strip())
+    maybe_unsafe_py = sanitized_version(md_to_py(script).strip())
     maybe_unsafe_md = convert_from_py(maybe_unsafe_py)
 
     # Idempotent even under strange conditions.
     assert maybe_unsafe_py == sanitized_version(
-        convert_from_md(maybe_unsafe_md).strip()
+        md_to_py(maybe_unsafe_md).strip()
     )
 
     snapshot("unsafe-doc.py.txt", maybe_unsafe_py)

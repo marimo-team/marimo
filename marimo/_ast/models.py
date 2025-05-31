@@ -45,9 +45,7 @@ class NotebookPayload:
     header_comments: Optional[str] = None
 
     @staticmethod
-    def from_serialization(
-        serialization: NotebookSerialization,
-    ) -> NotebookPayload:
+    def from_ir(serialization: NotebookSerialization) -> NotebookPayload:
         return NotebookPayload(
             codes=[cell.code for cell in serialization.cells],
             names=[cell.name for cell in serialization.cells],
@@ -55,7 +53,7 @@ class NotebookPayload:
                 CellConfig.from_dict(cell.options)
                 for cell in serialization.cells
             ],
-            config=_AppConfig(**serialization.app.options),
+            config=_AppConfig.from_untrusted_dict(serialization.app.options),
             header_comments=serialization.header.value
             if serialization.header
             else None,

@@ -92,9 +92,11 @@ def notebook_is_openable(filename: str) -> Literal[True]:
         if not contents:
             # We can still "open" it
             return True
-        from marimo._convert.markdown.markdown import convert_from_md
+        from marimo._convert.markdown.markdown import (
+            convert_from_md_to_marimo_ir,
+        )
 
-        _ = convert_from_md(contents)
+        _ = convert_from_md_to_marimo_ir(contents)
         return True
     _ = parse_notebook(filename)
     # NB. A invalid notebook can still be opened.

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast.cell import CellConfig
 from marimo._ast.models import NotebookPayload
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.serialization import (
@@ -30,35 +29,9 @@ class MarimoConverterIntermediate:
 
     def to_py(self) -> str:
         """Convert to python format."""
-        from marimo._ast.app_config import _AppConfig
         from marimo._ast.codegen import generate_filecontents
 
-        codes: list[str] = []
-        names: list[str] = []
-        cell_configs: list[CellConfig] = []
-        config = _AppConfig(**self.ir.app.options)
-        header_comments = self.ir.header.value if self.ir.header else None
-
-        for cell in self.ir.cells:
-            codes.append(cell.code)
-            names.append(cell.name)
-            cell_configs.append(
-                CellConfig(
-                    column=cell.options.get("column", 0),
-                    disabled=cell.options.get("disabled", False),
-                    hide_code=cell.options.get("hide_code", False),
-                )
-            )
-
-        return generate_filecontents(
-            NotebookPayload(
-                codes=codes,
-                names=names,
-                cell_configs=cell_configs,
-                config=config,
-                header_comments=header_comments,
-            )
-        )
+        return generate_filecontents(NotebookPayload.from_ir(self.ir))
 
     def to_ir(self) -> NotebookSerialization:
         """Convert to notebook IR."""
@@ -87,11 +60,11 @@ class MarimoConvert:
         Args:
             source: Markdown source code string
         """
-        from marimo._convert.markdown.markdown import convert_from_md
+        from marimo._convert.markdown.markdown import (
+            convert_from_md_to_marimo_ir,
+        )
 
-        # TODO: convert to IR instead of py file
-        py_source = convert_from_md(source)
-        return MarimoConvert.from_py(py_source)
+        return MarimoConvert.from_ir(convert_from_md_to_marimo_ir(source))
 
     @staticmethod
     def from_ipynb(source: str) -> MarimoConverterIntermediate:

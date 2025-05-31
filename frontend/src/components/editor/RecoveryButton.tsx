@@ -16,16 +16,14 @@ import { downloadBlob } from "@/utils/download";
 import { useEvent } from "@/hooks/useEvent";
 import { getNotebook } from "@/core/cells/cells";
 import { notebookCells } from "@/core/cells/utils";
-import { useFilename } from "@/core/saving/filename";
 import type { Notebook } from "@marimo-team/marimo-api";
 import { getMarimoVersion } from "@/core/meta/globals";
+import { Paths } from "@/utils/paths";
 
 const RecoveryModal = (props: {
   proposedName: string;
   closeModal: () => void;
 }): JSX.Element => {
-  const filename = useFilename();
-
   const downloadRecoveryFile = () => {
     downloadBlob(
       new Blob([getNotebookJSON()], { type: "text/plain" }),
@@ -37,7 +35,6 @@ const RecoveryModal = (props: {
     const notebook = getNotebook();
     const cells = notebookCells(notebook);
     const notbook: Notebook["NotebookV1"] = {
-      // filename: filename,
       version: "1",
       metadata: {
         marimo_version: getMarimoVersion(),
@@ -132,7 +129,8 @@ export const RecoveryButton = (props: {
   const { filename, needsSave } = props;
   const { openModal, closeModal } = useImperativeModal();
 
-  const proposedName = filename === null ? "app" : filename.slice(0, -3);
+  const proposedName =
+    filename === null ? "app" : Paths.basename(filename).split(".")[0];
 
   const openRecoveryModal = () => {
     if (needsSave) {
