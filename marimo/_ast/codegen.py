@@ -350,7 +350,7 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
-def generate_fileconents_from_ir(ir: NotebookSerializationV1) -> str:
+def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
     return generate_filecontents(
         codes=[cell.code for cell in ir.cells],
         names=[cell.name for cell in ir.cells],
