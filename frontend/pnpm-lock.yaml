@@ -87,9 +87,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.54.2(react@18.3.1))
+      '@img-comparison-slider/react':
+        specifier: ^8.0.2
+        version: 8.0.2
       '@internationalized/date':
         specifier: ^3.8.0
-        version: 3.8.0
+        version: 3.8.1
       '@lezer/common':
         specifier: ^1.2.3
         version: 1.2.3
@@ -1443,8 +1446,11 @@ packages:
   '@iconify/utils@2.1.33':
     resolution: {integrity: sha512-jP9h6v/g0BIZx0p7XGJJVtkVnydtbgTgt9mVNcGDYwaa7UhdHdI9dvoq+gKj9sijMSJKxUPEG2JyjsgXjxL7Kw==}
 
-  '@internationalized/date@3.8.0':
-    resolution: {integrity: sha512-J51AJ0fEL68hE4CwGPa6E0PO6JDaVLd8aln48xFCSy7CZkZc96dGEGmLs2OEEbBxcsVZtfrqkXJwI2/MSG8yKw==}
+  '@img-comparison-slider/react@8.0.2':
+    resolution: {integrity: sha512-Him0yhbXpMXdnV6R3XE3LiXcMRhSXFMsbk6I7ct5HxO2YpK/BAGz3ub+7+akJRnK2XI7c3vQqvoIE507N1K4SA==}
+
+  '@internationalized/date@3.8.1':
+    resolution: {integrity: sha512-PgVE6B6eIZtzf9Gu5HvJxRK3ufUFz9DhspELuhW/N0GuMGMTLvPQNRkHP2hTuP9lblOk+f+1xi96sPiPXANXAA==}
 
   '@internationalized/message@3.1.7':
     resolution: {integrity: sha512-gLQlhEW4iO7DEFPf/U7IrIdA3UyLGS0opeqouaFwlMObLUzwexRjbygONHDVbC9G9oFLXsLyGKYkJwqXw/QADg==}
@@ -5910,6 +5916,9 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
+  img-comparison-slider@8.0.6:
+    resolution: {integrity: sha512-ej4de7mWyjcXZvDgHq8K2a/dG8Vv+qYTdUjZa3cVILf316rLtDrHyGbh9fPvixmAFgbs30zTLfmaRDa7abjtzw==}
+
   import-fresh@3.3.0:
     resolution: {integrity: sha512-veYYhQa+D1QBKznvhUHxb8faxlrwUnxseDAbAp457E0wLNio2bOSKnjYDhMj+YiAq61xrMGhQk9iXVk5FzgQMw==}
     engines: {node: '>=6'}
@@ -10139,7 +10148,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@internationalized/date@3.8.0':
+  '@img-comparison-slider/react@8.0.2':
+    dependencies:
+      img-comparison-slider: 8.0.6
+
+  '@internationalized/date@3.8.1':
     dependencies:
       '@swc/helpers': 0.5.1
 
@@ -11247,7 +11260,7 @@ snapshots:
 
   '@react-aria/calendar@3.8.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@react-aria/i18n': 3.12.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@react-aria/interactions': 3.25.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@react-aria/live-announcer': 3.4.2
@@ -11328,7 +11341,7 @@ snapshots:
 
   '@react-aria/datepicker@3.14.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@internationalized/number': 3.6.1
       '@internationalized/string': 3.2.6
       '@react-aria/focus': 3.20.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -11441,7 +11454,7 @@ snapshots:
 
   '@react-aria/i18n@3.12.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@internationalized/message': 3.1.7
       '@internationalized/number': 3.6.1
       '@internationalized/string': 3.2.6
@@ -11849,7 +11862,7 @@ snapshots:
 
   '@react-stately/calendar@3.8.0(react@18.3.1)':
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@react-stately/utils': 3.10.6(react@18.3.1)
       '@react-types/calendar': 3.7.0(react@18.3.1)
       '@react-types/shared': 3.29.0(react@18.3.1)
@@ -11905,7 +11918,7 @@ snapshots:
 
   '@react-stately/datepicker@3.14.0(react@18.3.1)':
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@internationalized/string': 3.2.6
       '@react-stately/form': 3.1.3(react@18.3.1)
       '@react-stately/overlays': 3.6.15(react@18.3.1)
@@ -12119,7 +12132,7 @@ snapshots:
 
   '@react-types/calendar@3.7.0(react@18.3.1)':
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@react-types/shared': 3.29.0(react@18.3.1)
       react: 18.3.1
 
@@ -12141,7 +12154,7 @@ snapshots:
 
   '@react-types/datepicker@3.12.0(react@18.3.1)':
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@react-types/calendar': 3.7.0(react@18.3.1)
       '@react-types/overlays': 3.8.14(react@18.3.1)
       '@react-types/shared': 3.29.0(react@18.3.1)
@@ -15752,6 +15765,8 @@ snapshots:
   image-size@0.5.5:
     optional: true
 
+  img-comparison-slider@8.0.6: {}
+
   import-fresh@3.3.0:
     dependencies:
       parent-module: 1.0.1
@@ -17420,7 +17435,7 @@ snapshots:
 
   react-aria-components@1.8.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
-      '@internationalized/date': 3.8.0
+      '@internationalized/date': 3.8.1
       '@internationalized/string': 3.2.6
       '@react-aria/autocomplete': 3.0.0-beta.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@react-aria/collections': 3.0.0-rc.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

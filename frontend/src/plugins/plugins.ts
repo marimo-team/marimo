@@ -49,6 +49,7 @@ import { MimeRendererPlugin } from "./layout/MimeRenderPlugin";
 import { ChatPlugin } from "./impl/chat/ChatPlugin";
 import { DataEditorPlugin } from "./impl/DataEditorPlugin";
 import { PanelPlugin } from "./impl/panel/PanelPlugin";
+import { ImageComparisonPlugin } from "./layout/ImageComparisonPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -92,6 +93,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new AccordionPlugin(),
   new CalloutPlugin(),
   new CarouselPlugin(),
+  new ImageComparisonPlugin(),
   new JsonOutputPlugin(),
   new MimeRendererPlugin(),
   new MermaidPlugin(),
