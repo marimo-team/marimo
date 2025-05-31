@@ -43,6 +43,11 @@ describe("RowExpandedPanel", () => {
         totalRows={3}
         fieldTypes={mockFieldTypes}
         getRow={mockGetRow}
+        isSelectable={true}
+        isRowSelected={false}
+        handleRowSelectionChange={() => {
+          // NO-OP
+        }}
       />,
     );
 
