@@ -253,9 +253,9 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
         {isSelectable && (
           <div className="flex flex-row gap-1 items-center">
             <Button
-              variant="ghost"
+              variant="link"
               size="xs"
-              className="pr-0 hover:bg-transparent hover:shadow-none underline"
+              className="pr-0"
               onClick={toggleRowSelection}
             >
               {isRowSelected ? "Deselect row" : "Select row"}
