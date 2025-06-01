@@ -17,12 +17,12 @@
     "@types/minimist": "^1.2.5",
     "@types/node": "^20.17.32",
     "@types/ws": "^8.18.1",
-    "@vitest/expect": "^1.4.0",
+    "@vitest/expect": "^1.6.1",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
-    "vitest": "^1.4.0",
+    "vitest": "^1.6.1",
     "ws": "^8.18.1"
   },
   "packageManager": "pnpm@10.10.0"
