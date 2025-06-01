@@ -682,7 +682,7 @@ const DataTableComponent = ({
     getRow: (rowIdx: number) => Promise<GetRowResult>;
   }): JSX.Element => {
   const id = useId();
-  const [focusedRowIdx, setFocusedRowIdx] = useState(0);
+  const [viewedRowIdx, setViewedRowIdx] = useState(0);
   const { isPanelOpen, togglePanel } = usePanelOwnership(id, cellId);
 
   const chartSpecModel = useMemo(() => {
@@ -785,6 +785,8 @@ const DataTableComponent = ({
     },
   );
 
+  const isSelectable = selection === "multi" || selection === "single";
+
   return (
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
@@ -816,8 +818,11 @@ const DataTableComponent = ({
             getRow={getRow}
             fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows}
-            rowIdx={focusedRowIdx}
-            setRowIdx={setFocusedRowIdx}
+            rowIdx={viewedRowIdx}
+            setRowIdx={setViewedRowIdx}
+            isSelectable={isSelectable}
+            isRowSelected={rowSelection[viewedRowIdx]}
+            handleRowSelectionChange={handleRowSelectionChange}
           />
         </ContextAwarePanelItem>
       )}
@@ -868,7 +873,8 @@ const DataTableComponent = ({
             chartsFeatureEnabled={chartsFeatureEnabled}
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
-            onFocusRowChange={(rowIdx) => setFocusedRowIdx(rowIdx)}
+            viewedRowIdx={viewedRowIdx}
+            onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
           />
         </Labeled>
       </ColumnChartContext.Provider>
