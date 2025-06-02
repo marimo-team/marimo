@@ -22,10 +22,7 @@ import { useTheme } from "@/theme/useTheme";
 import { asURL } from "@/utils/url";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { PromptInput } from "./add-cell-with-ai";
-import {
-  getAICompletionBody,
-  parseCompletionContent,
-} from "./completion-utils";
+import { getAICompletionBody } from "./completion-utils";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { selectAllText } from "@/core/codemirror/utils";
 
@@ -100,7 +97,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     },
     onFinish: (_prompt, completion) => {
       // Remove trailing new lines
-      setCompletion(parseCompletionContent(completion));
+      setCompletion(completion);
     },
   });
 
@@ -179,7 +176,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 className="mb-0"
                 disabled={isLoading}
                 onClick={() => {
-                  acceptChange(parseCompletionContent(completion));
+                  acceptChange(completion);
                   setCompletion("");
                 }}
               >
@@ -231,7 +228,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             extensions={baseExtensions}
           />
           <Modified
-            value={parseCompletionContent(completion)}
+            value={completion}
             editable={false}
             readOnly={true}
             extensions={baseExtensions}
