@@ -9,6 +9,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    Literal,
     Optional,
     TypeVar,
     cast,
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
 
 ResponseT = TypeVar("ResponseT")
 StreamT = TypeVar("StreamT")
+ExtractedContent = tuple[str, Literal["text", "reasoning"]]
 
 LOGGER = _loggers.marimo_logger()
 
@@ -207,11 +209,11 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         pass
 
     @abstractmethod
-    def extract_content(self, response: ResponseT) -> tuple[str, str] | None:
+    def extract_content(self, response: ResponseT) -> ExtractedContent | None:
         """Extract content from a response chunk."""
         pass
 
-    def format_stream(self, contentWithType: tuple[str, str]) -> str:
+    def format_stream(self, contentWithType: ExtractedContent) -> str:
         """Format a response into stream protocol string."""
         content, message_type = contentWithType
         if message_type == "text":
@@ -375,7 +377,7 @@ class OpenAIProvider(
 
     def extract_content(
         self, response: ChatCompletionChunk
-    ) -> tuple[str, str] | None:
+    ) -> ExtractedContent | None:
         if (
             hasattr(response, "choices")
             and response.choices
@@ -440,7 +442,7 @@ class AnthropicProvider(
 
     def extract_content(
         self, response: RawMessageStreamEvent
-    ) -> tuple[str, str] | None:
+    ) -> ExtractedContent | None:
         from anthropic.types import (
             RawContentBlockDeltaEvent,
             TextDelta,
@@ -504,7 +506,7 @@ class GoogleProvider(
 
     def extract_content(
         self, response: GenerateContentResponse
-    ) -> tuple[str, str] | None:
+    ) -> ExtractedContent | None:
         if hasattr(response, "text"):
             return (response.text, "text")
         return None
@@ -563,7 +565,7 @@ class BedrockProvider(
 
     def extract_content(
         self, response: LitellmStreamResponse
-    ) -> tuple[str, str] | None:
+    ) -> ExtractedContent | None:
         if (
             hasattr(response, "choices")
             and response.choices
