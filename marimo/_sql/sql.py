@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
+from marimo._sql.engines.dbapi import DBAPIConnection
 from marimo._sql.engines.duckdb import DuckDBEngine
-from marimo._sql.engines.ibis import IbisEngine
-from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
 from marimo._sql.get_engines import SUPPORTED_ENGINES
@@ -23,26 +22,12 @@ def get_default_result_limit() -> Optional[int]:
     return int(limit) if limit is not None else None
 
 
-if TYPE_CHECKING:
-    from chdb.state.sqlitelike import Connection as ChdbConnection  # type: ignore  # noqa: I001
-    from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
-    from duckdb import DuckDBPyConnection
-    from sqlalchemy.engine import Engine as SAEngine
-
-
 @mddoc
 def sql(
     query: str,
     *,
     output: bool = True,
-    engine: Optional[
-        SAEngine
-        | DuckDBPyConnection
-        | ClickhouseClient
-        | ChdbConnection
-        | IbisEngine
-        | RedshiftEngine
-    ] = None,
+    engine: Optional[DBAPIConnection] = None,
 ) -> Any:
     """
     Execute a SQL query.
@@ -50,7 +35,7 @@ def sql(
     By default, this uses duckdb to execute the query. Any dataframes in the global
     namespace can be used inside the query.
 
-    You can also pass a SQLAlchemy engine to execute queries against other databases.
+    You can also pass a custom engine to execute queries against other databases. The custom engine must be a DBAPI 2.0 compatible engine.
 
     The result of the query is displayed in the UI if output is True.
 
