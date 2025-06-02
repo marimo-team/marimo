@@ -219,10 +219,6 @@ class Cache:
             if maybe_stub is not None:
                 self.defs[key] = maybe_stub
 
-        maybe_return_stub = stub(self.meta.get("return", None))
-        if maybe_return_stub is not None:
-            self.meta["return"] = maybe_return_stub
-
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
         try:
