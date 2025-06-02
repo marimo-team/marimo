@@ -21,6 +21,7 @@ import {
   DataFusionConnectionSchema,
   PySparkConnectionSchema,
   MotherDuckConnectionSchema,
+  RedshiftConnectionSchema,
 } from "./schemas";
 import {
   Dialog,
@@ -196,6 +197,16 @@ const DATABASES = [
     connectionLibraries: {
       libraries: ["ibis"],
       preferred: "ibis",
+    },
+  },
+  {
+    name: "Redshift",
+    schema: RedshiftConnectionSchema,
+    color: "#522BAE",
+    logo: "redshift",
+    connectionLibraries: {
+      libraries: ["redshift"],
+      preferred: "redshift",
     },
   },
 ] satisfies ConnectionSchema[];
