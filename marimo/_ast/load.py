@@ -86,21 +86,26 @@ def notebook_is_openable(filename: str) -> Literal[True]:
     Raises:
         SyntaxError: If the file contains a syntax error
     """
+    path = Path(filename)
 
-    if filename.endswith(".md") or filename.endswith(".qmd"):
-        contents = _maybe_contents(filename)
-        if not contents:
-            # We can still "open" it
-            return True
+    contents = _maybe_contents(filename)
+    if not contents:
+        return True
+
+    if path.suffix in (".md", ".qmd"):
         from marimo._convert.markdown.markdown import (
             convert_from_md_to_marimo_ir,
         )
 
         _ = convert_from_md_to_marimo_ir(contents)
         return True
-    _ = parse_notebook(filename)
-    # NB. A invalid notebook can still be opened.
-    return True
+
+    if path.suffix == ".py":
+        _ = parse_notebook(contents)
+        # NB. A invalid notebook can still be opened.
+        return True
+
+    raise MarimoFileError("File must end with .py, .md, or .qmd.")
 
 
 def load_app(filename: Optional[str]) -> Optional[App]:
