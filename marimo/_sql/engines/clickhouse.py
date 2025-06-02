@@ -17,7 +17,6 @@ from marimo._sql.engines.types import (
     NO_SCHEMA_NAME,
     InferenceConfig,
     SQLConnection,
-    register_engine,
 )
 from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
 from marimo._types.ids import VariableName
@@ -35,7 +34,6 @@ WHY_PANDAS_REQUIRED = (
 )
 
 
-@register_engine
 class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
     """Use chdb to connect to an embedded Clickhouse"""
 
@@ -212,7 +210,6 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         )
 
 
-@register_engine
 class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
     """Use clickhouse.connect to connect to a Clickhouse server"""
 

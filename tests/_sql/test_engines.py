@@ -319,6 +319,9 @@ def test_sql_type_to_data_type() -> None:
     # Test date type
     assert sql_type_to_data_type("DATE") == "date"
 
+    # Test time type
+    assert sql_type_to_data_type("TIME") == "time"
+
     # Test boolean type
     assert sql_type_to_data_type("BOOLEAN") == "boolean"
 

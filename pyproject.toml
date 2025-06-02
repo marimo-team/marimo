@@ -267,6 +267,7 @@ extra-dependencies = [
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
     "clickhouse-connect>=0.8.17",
+    "redshift-connector[full]>=2.1.7",
     "pandas>=1.5.3",
     "hvplot~=0.11.3",
     # Causes issues installing `shapely` (v2.0.7)
@@ -460,6 +461,8 @@ banned-module-level-imports = [
     "sqlglot",
     "tomlkit",
     "typing_extensions",
+    "pyiceberg",
+    "redshift_connector",
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
