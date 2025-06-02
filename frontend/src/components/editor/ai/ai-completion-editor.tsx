@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { useEffect, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
-import { useCompletion } from "ai/react";
+import { useCompletion } from "@ai-sdk/react";
 import { API } from "@/core/network/api";
 import { EditorView } from "@codemirror/view";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
@@ -22,7 +22,10 @@ import { useTheme } from "@/theme/useTheme";
 import { asURL } from "@/utils/url";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { PromptInput } from "./add-cell-with-ai";
-import { getAICompletionBody } from "./completion-utils";
+import {
+  getAICompletionBody,
+  parseCompletionContent,
+} from "./completion-utils";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { selectAllText } from "@/core/codemirror/utils";
 
@@ -97,7 +100,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     },
     onFinish: (_prompt, completion) => {
       // Remove trailing new lines
-      setCompletion(completion.trimEnd());
+      setCompletion(parseCompletionContent(completion));
     },
   });
 
@@ -176,7 +179,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 className="mb-0"
                 disabled={isLoading}
                 onClick={() => {
-                  acceptChange(completion);
+                  acceptChange(parseCompletionContent(completion));
                   setCompletion("");
                 }}
               >
@@ -228,7 +231,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             extensions={baseExtensions}
           />
           <Modified
-            value={completion}
+            value={parseCompletionContent(completion)}
             editable={false}
             readOnly={true}
             extensions={baseExtensions}
