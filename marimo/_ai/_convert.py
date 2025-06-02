@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from marimo._ai._types import ChatMessage
 
@@ -173,7 +173,7 @@ def _extract_data(url: str) -> str:
 
 def convert_to_ai_sdk_messages(
     content: str,
-    message_type: str,
+    message_type: Literal["text", "reasoning"],
 ) -> str:
     # Based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
     TEXT_PREFIX = "0:"
