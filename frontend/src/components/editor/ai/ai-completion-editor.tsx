@@ -97,7 +97,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     },
     onFinish: (_prompt, completion) => {
       // Remove trailing new lines
-      setCompletion(completion);
+      setCompletion(completion.trimEnd());
     },
   });
 
