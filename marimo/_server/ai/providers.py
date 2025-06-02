@@ -213,11 +213,11 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         """Extract content from a response chunk."""
         pass
 
-    def format_stream(self, contentWithType: ExtractedContent) -> str:
+    def format_stream(self, content: ExtractedContent) -> str:
         """Format a response into stream protocol string."""
-        content, message_type = contentWithType
-        if message_type in ["text", "reasoning"]:
-            return convert_to_ai_sdk_messages(content, message_type)
+        content_text, content_type = content
+        if content_type in ["text", "reasoning"]:
+            return convert_to_ai_sdk_messages(content_text, content_type)
         return ""
 
     def collect_stream(self, response: StreamT) -> str:

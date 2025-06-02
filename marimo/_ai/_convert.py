@@ -172,17 +172,17 @@ def _extract_data(url: str) -> str:
 
 
 def convert_to_ai_sdk_messages(
-    content: str,
-    message_type: Literal["text", "reasoning"],
+    content_text: str,
+    content_type: Literal["text", "reasoning"],
 ) -> str:
     # Based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
     TEXT_PREFIX = "0:"
     REASON_PREFIX = "g:"
 
-    if message_type == "text":
-        return f"{TEXT_PREFIX}{json.dumps(content)}\n"
-    elif message_type == "reasoning":
-        return f"{REASON_PREFIX}{json.dumps(content)}\n"
+    if content_type == "text":
+        return f"{TEXT_PREFIX}{json.dumps(content_text)}\n"
+    elif content_type == "reasoning":
+        return f"{REASON_PREFIX}{json.dumps(content_text)}\n"
     else:
         # Default to text for unknown types
-        return f"{TEXT_PREFIX}{json.dumps(content)}\n"
+        return f"{TEXT_PREFIX}{json.dumps(content_text)}\n"
