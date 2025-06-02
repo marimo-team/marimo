@@ -329,7 +329,15 @@ const ChatPanelBody = () => {
   const isLoading = status === "submitted" || status === "streaming";
 
   const isLastMessageReasoning = (messages: Message[]): boolean => {
-    const lastMessage = messages[messages.length - 1];
+    if (messages.length === 0) {
+      return false;
+    }
+
+    const lastMessage = messages.at(-1);
+    if (!lastMessage) {
+      return false;
+    }
+
     if (lastMessage.role !== "assistant" || !lastMessage.parts) {
       return false;
     }
