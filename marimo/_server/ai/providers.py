@@ -407,6 +407,12 @@ class AnthropicProvider(
         "RawMessageStreamEvent", "AnthropicStream[RawMessageStreamEvent]"
     ]
 ):
+    # Reasoning requires temperature > 0
+    # Temperature of 0.2 was recommended for coding and data science in these links:
+    # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
+    # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
+    DEFAULT_TEMPERATURE = 0.2
+
     def get_client(self, config: AnyProviderConfig) -> Client:
         DependencyManager.anthropic.require(
             why="for AI assistance with Anthropic"
@@ -431,7 +437,7 @@ class AnthropicProvider(
             ),
             system=system_prompt,
             stream=True,
-            temperature=1,  # Reasoning requires temperature > 0
+            temperature=self.DEFAULT_TEMPERATURE,
             thinking={
                 "type": "enabled",
                 "budget_tokens": 1024,
