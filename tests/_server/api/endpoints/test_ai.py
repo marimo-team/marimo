@@ -794,10 +794,11 @@ class TestGetContent(unittest.TestCase):
 
         # Call get_content with the mock response
         provider = OpenAIProvider(model="gpt-4o", config={})
-        result = provider.extract_content(mock_response)
+        result_text, result_type = provider.extract_content(mock_response)
 
         # Assert that the result is the expected content
-        assert result == "Test content"
+        assert result_text == "Test content"
+        assert result_type == "text"
 
 
 @pytest.mark.parametrize(
