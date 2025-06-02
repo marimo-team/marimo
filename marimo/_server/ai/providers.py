@@ -18,6 +18,7 @@ from starlette.exceptions import HTTPException
 
 from marimo import _loggers
 from marimo._ai._convert import (
+    convert_to_ai_sdk_messages,
     convert_to_anthropic_messages,
     convert_to_google_messages,
     convert_to_openai_messages,
@@ -354,7 +355,9 @@ class OpenAIProvider(
             and response.choices
             and response.choices[0].delta
         ):
-            return response.choices[0].delta.content
+            content = response.choices[0].delta.content
+            if content:
+                return convert_to_ai_sdk_messages(content, "text")
         return None
 
     def _maybe_convert_roles(
@@ -402,18 +405,34 @@ class AnthropicProvider(
             ),
             system=system_prompt,
             stream=True,
-            temperature=0,
+            temperature=1,  # Reasoning requires temperature > 0
+            thinking={
+                "type": "enabled",
+                "budget_tokens": 1024,
+            },
         )
 
     def extract_content(self, response: RawMessageStreamEvent) -> str | None:
-        from anthropic.types import RawContentBlockDeltaEvent, TextDelta
+        from anthropic.types import (
+            RawContentBlockDeltaEvent,
+            TextDelta,
+            ThinkingDelta,
+        )
 
+        # For content blocks
         if isinstance(response, TextDelta):
-            return response.text  # type: ignore[no-any-return]
+            return convert_to_ai_sdk_messages(response.text, "text")
+        if isinstance(response, ThinkingDelta):
+            return convert_to_ai_sdk_messages(response.thinking, "reasoning")
 
+        # For streaming content
         if isinstance(response, RawContentBlockDeltaEvent):
             if isinstance(response.delta, TextDelta):
-                return response.delta.text  # type: ignore[no-any-return]
+                return convert_to_ai_sdk_messages(response.delta.text, "text")
+            if isinstance(response.delta, ThinkingDelta):
+                return convert_to_ai_sdk_messages(
+                    response.delta.thinking, "reasoning"
+                )
 
         return None
 
@@ -459,7 +478,7 @@ class GoogleProvider(
 
     def extract_content(self, response: GenerateContentResponse) -> str | None:
         if hasattr(response, "text"):
-            return response.text  # type: ignore[no-any-return]
+            return convert_to_ai_sdk_messages(response.text, "text")  # type: ignore[no-any-return]
         return None
 
 
@@ -519,8 +538,11 @@ class BedrockProvider(
             hasattr(response, "choices")
             and response.choices
             and response.choices[0].delta
+            and response.choices[0].delta.content
         ):
-            return str(response.choices[0].delta.content)
+            return convert_to_ai_sdk_messages(
+                str(response.choices[0].delta.content), "text"
+            )
         return None
 
 
