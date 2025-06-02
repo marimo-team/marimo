@@ -517,6 +517,7 @@ extend-exclude = [
     "**/snapshots/*",
     "**/__demo__/*",
     "base64.test.ts",
+    "SECURITY.md", # Contains usernames that trigger typos
 ]
 
 [tool.black]
