@@ -204,6 +204,7 @@ export const AppConfigSchema = z
     html_head_file: z.string().nullish(),
     auto_download: z.array(z.enum(["html", "markdown", "ipynb"])).default([]),
     sql_output: SqlOutputSchema,
+    file_stores: z.array(z.string()).optional(),
   })
   .default({ width: "medium", auto_download: [] });
 export type AppConfig = z.infer<typeof AppConfigSchema>;

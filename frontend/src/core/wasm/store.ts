@@ -88,6 +88,10 @@ const emptyFileStore: FileStore = {
 export class CompositeFileStore implements FileStore {
   constructor(private stores: FileStore[]) {}
 
+  insert(index: number, store: FileStore) {
+    this.stores.splice(index, 0, store);
+  }
+
   saveFile(contents: string) {
     this.stores.forEach((store) => store.saveFile(contents));
   }
