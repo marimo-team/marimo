@@ -13,8 +13,14 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
-from marimo._convert.utils import generate_from_sources, markdown_to_marimo
+from marimo._convert.utils import markdown_to_marimo
 from marimo._runtime.dataflow import DirectedGraph
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    Header,
+    NotebookSerializationV1,
+)
 from marimo._types.ids import CellId_t
 
 # Define a type for our transform functions
@@ -698,7 +704,12 @@ def _transform_sources(
     return sources
 
 
-def convert_from_ipynb(raw_notebook: str) -> str:
+def convert_from_ipynb_to_notebook_ir(
+    raw_notebook: str,
+) -> NotebookSerializationV1:
+    """
+    Convert a raw notebook to a NotebookSerializationV1 object.
+    """
     notebook = json.loads(raw_notebook)
     sources: list[str] = []
     metadata: list[dict[str, Any]] = []
@@ -732,8 +743,14 @@ def convert_from_ipynb(raw_notebook: str) -> str:
         for source in transformed_sources
     ]
 
-    return generate_from_sources(
-        sources=transformed_sources,
-        header_comments=inline_meta,
-        cell_configs=cell_configs,
+    return NotebookSerializationV1(
+        app=AppInstantiation(),
+        header=Header(value=inline_meta or ""),
+        cells=[
+            CellDef(
+                code=source,
+                options={"hide_code": config.hide_code},
+            )
+            for source, config in zip(transformed_sources, cell_configs)
+        ],
     )

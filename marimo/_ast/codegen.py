@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import ast
-import json
 import os
 import re
 import sys
 import textwrap
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
@@ -17,6 +16,8 @@ from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._ast.toplevel import TopLevelExtraction, TopLevelStatus
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
+from marimo._convert.converters import MarimoConvert
+from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -349,6 +350,16 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
     return format_tuple_elements("app = marimo.App(...)", kwargs)
 
 
+def generate_filecontents_from_ir(ir: NotebookSerializationV1) -> str:
+    return generate_filecontents(
+        codes=[cell.code for cell in ir.cells],
+        names=[cell.name for cell in ir.cells],
+        cell_configs=[CellConfig.from_dict(cell.options) for cell in ir.cells],
+        config=_AppConfig.from_untrusted_dict(ir.app.options),
+        header_comments=ir.header.value if ir.header else None,
+    )
+
+
 def generate_filecontents(
     codes: list[str],
     names: list[str],
@@ -357,6 +368,7 @@ def generate_filecontents(
     header_comments: Optional[str] = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
+
     # Update old internal cell names to the new ones
     for idx, name in enumerate(names):
         if name == "__":
@@ -391,28 +403,12 @@ def generate_filecontents(
     return "\n".join(filecontents).lstrip()
 
 
-def recover(filename: str) -> str:
+def recover(filepath: Path) -> str:
     """Generate a module for code recovered from a disconnected frontend"""
-    with open(filename, encoding="utf-8") as f:
-        contents = f.read()
-    cells = json.loads(contents)["cells"]
-    codes, names, configs = tuple(
-        zip(
-            *[
-                (
-                    cell["code"],
-                    cell["name"],
-                    cell["config"] if "config" in cell else CellConfig(),
-                )
-                for cell in cells
-            ]
-        )
-    )
-    return generate_filecontents(
-        cast(list[str], list(codes)),
-        cast(list[str], list(names)),
-        cast(list[CellConfig], list(configs)),
-    )
+    import json
+
+    contents = filepath.read_text(encoding="utf-8")
+    return MarimoConvert.from_notebook_v1(json.loads(contents)).to_py()
 
 
 def is_multiline_comment(node: ast.stmt) -> bool:

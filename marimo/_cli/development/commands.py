@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import click
 
 from marimo._cli.print import orange
+from marimo._convert.converters import MarimoConvert
 
 if TYPE_CHECKING:
     import psutil
@@ -481,7 +482,152 @@ def print_routes() -> None:
     return
 
 
+@click.command(help="Preview a marimo file as static HTML")
+@click.argument(
+    "file_path",
+    required=True,
+    type=click.Path(
+        path_type=Path, exists=True, file_okay=True, dir_okay=False
+    ),
+)
+@click.option(
+    "--port",
+    default=8080,
+    help="Port to serve the preview on",
+    type=int,
+)
+@click.option(
+    "--host",
+    default="localhost",
+    help="Host to serve the preview on",
+    type=str,
+)
+@click.option(
+    "--headless",
+    is_flag=True,
+    default=False,
+    help="Don't automatically open the browser",
+)
+def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
+    """
+    Preview a marimo file as static HTML.
+
+    Creates a static HTML export of the marimo file and serves it
+    on a simple HTTP server for preview purposes.
+
+    Example usage:
+        marimo development preview my_notebook.py
+        marimo development preview my_notebook.py --port 8000
+    """
+    import threading
+    import webbrowser
+
+    import uvicorn
+    from starlette.applications import Starlette
+    from starlette.responses import HTMLResponse
+    from starlette.routing import Route
+    from starlette.staticfiles import StaticFiles
+
+    from marimo import __version__
+    from marimo._ast.app_config import _AppConfig
+    from marimo._config.config import DEFAULT_CONFIG
+    from marimo._schemas.session import (
+        NotebookSessionMetadata,
+        NotebookSessionV1,
+    )
+    from marimo._server.export.exporter import hash_code
+    from marimo._server.templates.templates import static_notebook_template
+    from marimo._server.tokens import SkewProtectionToken
+    from marimo._utils.paths import marimo_package_path
+
+    if TYPE_CHECKING:
+        from starlette.requests import Request
+
+    try:
+        # Convert to notebook format
+        notebook_snapshot = MarimoConvert.from_py(
+            file_path.read_text(encoding="utf-8")
+        ).to_notebook_v1()
+
+        # Create empty session snapshot since we're not running the code
+        session_snapshot = NotebookSessionV1(
+            version="1",
+            metadata=NotebookSessionMetadata(marimo_version=__version__),
+            cells=[],
+        )
+
+        # Get the static assets directory
+        static_root = marimo_package_path() / "_static"
+
+        # Get base HTML template
+        template_path = static_root / "index.html"
+
+        html_template = template_path.read_text(encoding="utf-8")
+
+        # Use local assets instead of CDN
+        asset_url = f"http://{host}:{port}"
+        code = file_path.read_text(encoding="utf-8")
+
+        # Generate static HTML
+        html_content = static_notebook_template(
+            html=html_template,
+            user_config=DEFAULT_CONFIG,
+            config_overrides={},
+            server_token=SkewProtectionToken("preview"),
+            app_config=_AppConfig(),
+            filepath=str(file_path),
+            code=code,
+            code_hash=hash_code(code),
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
+            files={},
+            asset_url=asset_url,
+        )
+
+        click.echo(f"Creating preview for {file_path.name}")
+
+        async def serve_html(request: Request) -> HTMLResponse:
+            del request
+            return HTMLResponse(html_content)
+
+        # Create Starlette app
+        app = Starlette(
+            routes=[
+                Route("/", serve_html),
+                Route("/index.html", serve_html),
+            ]
+        )
+
+        # Mount static files for assets
+        app.mount(
+            "/assets",
+            StaticFiles(directory=static_root / "assets"),
+            name="assets",
+        )
+
+        url = f"http://{host}:{port}"
+        click.echo(f"Serving preview at {url}")
+        click.echo("Press Ctrl+C to stop the server")
+
+        # Open browser if requested
+        if not headless:
+
+            def open_browser() -> None:
+                webbrowser.open(url)
+
+            timer = threading.Timer(1.0, open_browser)
+            timer.start()
+
+        # Run the server
+        uvicorn.run(app, host=host, port=port, log_level="error")
+
+    except Exception as e:
+        click.echo(f"Error creating preview: {e}", err=True)
+        raise click.Abort() from e
+
+
 development.add_command(inline_packages)
 development.add_command(openapi)
 development.add_command(ps)
 development.add_command(print_routes)
+development.add_command(preview)

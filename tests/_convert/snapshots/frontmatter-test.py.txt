@@ -1,14 +1,17 @@
+#!/usr/bin/env python
+# and some other random stuff
+
 import marimo
 
 __generated_with = "0.0.0"
-app = marimo.App()
+app = marimo.App(app_title="My Title")
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-        # My Notebook
+        # Notebook
         """
     )
     return
@@ -17,17 +20,6 @@ def _(mo):
 @app.cell
 def _():
     print("Hello, World!")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-        **Appendix**
-        - This is the end of the notebook
-        """
-    )
     return
 
 
