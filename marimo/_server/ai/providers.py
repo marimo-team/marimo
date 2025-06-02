@@ -216,10 +216,8 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
     def format_stream(self, contentWithType: ExtractedContent) -> str:
         """Format a response into stream protocol string."""
         content, message_type = contentWithType
-        if message_type == "text":
-            return convert_to_ai_sdk_messages(content, "text")
-        elif message_type == "reasoning":
-            return convert_to_ai_sdk_messages(content, "reasoning")
+        if message_type in ["text", "reasoning"]:
+            return convert_to_ai_sdk_messages(content, message_type)
         return ""
 
     def collect_stream(self, response: StreamT) -> str:
