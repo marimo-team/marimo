@@ -49,6 +49,7 @@ import { useOpenSettingsToTab } from "../app-config/state";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { timeAgo } from "@/utils/dates";
+import { ReasoningAccordion } from "./reasoning-accordion";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -134,10 +135,21 @@ interface ChatMessageProps {
   onEdit: (index: number, newValue: string) => void;
   setChatState: Dispatch<SetStateAction<ChatState>>;
   chatState: ChatState;
+  isStreamingReasoning: boolean;
+  totalMessages: number;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({ message, index, theme, onEdit, setChatState, chatState }) => (
+  ({
+    message,
+    index,
+    theme,
+    onEdit,
+    setChatState,
+    chatState,
+    isStreamingReasoning,
+    totalMessages,
+  }) => (
     <div
       className={cn(
         "flex group relative",
@@ -180,7 +192,27 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={message.content} />
           </div>
-          <MarkdownRenderer content={message.content} />
+          {message.parts?.map((part, i) => {
+            switch (part.type) {
+              case "text":
+                return <MarkdownRenderer content={part.text} />;
+
+              case "reasoning":
+                return (
+                  <ReasoningAccordion
+                    reasoning={part.reasoning}
+                    index={i}
+                    isStreaming={
+                      index === totalMessages - 1 && isStreamingReasoning
+                    }
+                  />
+                );
+
+              /* handle other part types … */
+              default:
+                return null;
+            }
+          })}
         </div>
       )}
     </div>
@@ -281,7 +313,6 @@ const ChatPanelBody = () => {
         includeOtherCode: getCodes(""),
       };
     },
-    streamProtocol: "text",
     onFinish: (message) => {
       setChatState((prev) =>
         addMessageToChat(prev, prev.activeChatId, "assistant", message.content),
@@ -296,6 +327,26 @@ const ChatPanelBody = () => {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  const isLastMessageReasoning = (messages: Message[]): boolean => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== "assistant" || !lastMessage.parts) {
+      return false;
+    }
+
+    const parts = lastMessage.parts;
+    if (parts.length === 0) {
+      return false;
+    }
+
+    // Check if the last part is reasoning
+    const lastPart = parts[parts.length - 1];
+    return lastPart.type === "reasoning";
+  };
+
+  // Check if we're currently streaming reasoning in the latest message
+  const isStreamingReasoning =
+    isLoading && messages.length > 0 && isLastMessageReasoning(messages);
 
   // Scroll to the latest chat message at the bottom
   useEffect(() => {
@@ -413,6 +464,8 @@ const ChatPanelBody = () => {
             onEdit={handleMessageEdit}
             setChatState={setChatState}
             chatState={chatState}
+            isStreamingReasoning={isStreamingReasoning}
+            totalMessages={messages.length}
           />
         ))}
 
