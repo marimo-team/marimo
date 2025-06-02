@@ -69,6 +69,12 @@ DEFAULT_MODEL = "gpt-4o-mini"
 
 
 @dataclass
+class StreamOptions:
+    include_reasoning: bool = False
+    format_stream: bool = False
+
+
+@dataclass
 class AnyProviderConfig:
     base_url: Optional[str]
     api_key: str
@@ -201,28 +207,46 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         pass
 
     @abstractmethod
-    def extract_content(self, response: ResponseT) -> str | None:
+    def extract_content(self, response: ResponseT) -> tuple[str, str] | None:
         """Extract content from a response chunk."""
         pass
+
+    def format_stream(self, contentWithType: tuple[str, str]) -> str:
+        """Format a response into stream protocol string."""
+        content, message_type = contentWithType
+        if message_type == "text":
+            return convert_to_ai_sdk_messages(content, "text")
+        elif message_type == "reasoning":
+            return convert_to_ai_sdk_messages(content, "reasoning")
+        return ""
 
     def collect_stream(self, response: StreamT) -> str:
         """Collect a stream into a single string."""
         return "".join(self.as_stream_response(response))
 
     def as_stream_response(
-        self, response: StreamT
+        self, response: StreamT, options: Optional[StreamOptions] = None
     ) -> Generator[str, None, None]:
         """Convert a stream to a generator of strings."""
         original_content = ""
         buffer = ""
+        options = options or StreamOptions()
 
         for chunk in cast(Generator[ResponseT, None, None], response):
             content = self.extract_content(chunk)
             if not content:
                 continue
 
-            buffer += content
-            original_content += content
+            content_text, content_type = content
+
+            if not options.include_reasoning and content_type == "reasoning":
+                continue
+
+            if options.format_stream:
+                content_text = self.format_stream(content)
+
+            buffer += content_text
+            original_content += content_text
 
             yield buffer
             buffer = ""
@@ -349,7 +373,9 @@ class OpenAIProvider(
             timeout=15,
         )
 
-    def extract_content(self, response: ChatCompletionChunk) -> str | None:
+    def extract_content(
+        self, response: ChatCompletionChunk
+    ) -> tuple[str, str] | None:
         if (
             hasattr(response, "choices")
             and response.choices
@@ -357,7 +383,7 @@ class OpenAIProvider(
         ):
             content = response.choices[0].delta.content
             if content:
-                return convert_to_ai_sdk_messages(content, "text")
+                return (content, "text")
         return None
 
     def _maybe_convert_roles(
@@ -412,7 +438,9 @@ class AnthropicProvider(
             },
         )
 
-    def extract_content(self, response: RawMessageStreamEvent) -> str | None:
+    def extract_content(
+        self, response: RawMessageStreamEvent
+    ) -> tuple[str, str] | None:
         from anthropic.types import (
             RawContentBlockDeltaEvent,
             TextDelta,
@@ -421,18 +449,16 @@ class AnthropicProvider(
 
         # For content blocks
         if isinstance(response, TextDelta):
-            return convert_to_ai_sdk_messages(response.text, "text")
+            return (response.text, "text")
         if isinstance(response, ThinkingDelta):
-            return convert_to_ai_sdk_messages(response.thinking, "reasoning")
+            return (response.thinking, "reasoning")
 
         # For streaming content
         if isinstance(response, RawContentBlockDeltaEvent):
             if isinstance(response.delta, TextDelta):
-                return convert_to_ai_sdk_messages(response.delta.text, "text")
+                return (response.delta.text, "text")
             if isinstance(response.delta, ThinkingDelta):
-                return convert_to_ai_sdk_messages(
-                    response.delta.thinking, "reasoning"
-                )
+                return (response.delta.thinking, "reasoning")
 
         return None
 
@@ -476,9 +502,11 @@ class GoogleProvider(
             },
         )
 
-    def extract_content(self, response: GenerateContentResponse) -> str | None:
+    def extract_content(
+        self, response: GenerateContentResponse
+    ) -> tuple[str, str] | None:
         if hasattr(response, "text"):
-            return convert_to_ai_sdk_messages(response.text, "text")  # type: ignore[no-any-return]
+            return (response.text, "text")
         return None
 
 
@@ -533,16 +561,16 @@ class BedrockProvider(
             timeout=15,
         )
 
-    def extract_content(self, response: LitellmStreamResponse) -> str | None:
+    def extract_content(
+        self, response: LitellmStreamResponse
+    ) -> tuple[str, str] | None:
         if (
             hasattr(response, "choices")
             and response.choices
             and response.choices[0].delta
             and response.choices[0].delta.content
         ):
-            return convert_to_ai_sdk_messages(
-                str(response.choices[0].delta.content), "text"
-            )
+            return (str(response.choices[0].delta.content), "text")
         return None
 
 
