@@ -31,6 +31,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._server.export.utils import (
+    format_filename_title,
     get_download_filename,
     get_filename,
     get_markdown_from_cell,
@@ -249,11 +250,14 @@ class Exporter:
         from marimo._utils import yaml
 
         filename = get_filename(filename)
+        app_title = notebook.app.options.get("app_title", None)
+        if not app_title:
+            app_title = format_filename_title(filename)
 
         metadata: dict[str, str | list[str]] = {}
         metadata.update(
             {
-                "title": notebook.app.options.get("title", ""),
+                "title": app_title,
                 "marimo-version": __version__,
             }
         )

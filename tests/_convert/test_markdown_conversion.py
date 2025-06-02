@@ -440,7 +440,10 @@ def test_old_md_to_python_code_injection() -> None:
     )
 
     maybe_unsafe_py = sanitized_version(md_to_py(script).strip())
+    assert "Casually malicious md" in maybe_unsafe_py
+
     maybe_unsafe_md = convert_from_py(maybe_unsafe_py)
+    assert "Casually malicious md" in maybe_unsafe_md
 
     # Idempotent even under strange conditions.
     assert maybe_unsafe_py == sanitized_version(
