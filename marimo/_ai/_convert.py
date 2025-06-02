@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from typing import TYPE_CHECKING, Any
 
 from marimo._ai._types import ChatMessage
@@ -168,3 +169,20 @@ def _extract_data(url: str) -> str:
         return url.split(",")[1]
     else:
         return url
+
+
+def convert_to_ai_sdk_messages(
+    content: str,
+    message_type: str,
+) -> str:
+    # Based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
+    TEXT_PREFIX = "0:"
+    REASON_PREFIX = "g:"
+
+    if message_type == "text":
+        return f"{TEXT_PREFIX}{json.dumps(content)}\n"
+    elif message_type == "reasoning":
+        return f"{REASON_PREFIX}{json.dumps(content)}\n"
+    else:
+        # Default to text for unknown types
+        return f"{TEXT_PREFIX}{json.dumps(content)}\n"
