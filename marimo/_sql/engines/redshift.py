@@ -95,7 +95,13 @@ class RedshiftEngine(SQLConnection["Connection"]):
                 LOGGER.debug(
                     f"Closing prepared statement {prepared_statement_name}"
                 )
-                self._connection.rollback()
+                try:
+                    self._connection.rollback()
+                except Exception as e:
+                    LOGGER.debug(
+                        "Failed to rollback after closing prepared statement. Reason: %s.",
+                        e,
+                    )
         except Exception as e:
             LOGGER.debug("Failed to rollback. Reason: %s.", e)
 
