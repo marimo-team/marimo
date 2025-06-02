@@ -107,3 +107,57 @@ export function mentionsCompletionSource(
     };
   };
 }
+
+/**
+ * Parses the completion content string and extracts only text parts.
+ * Ignores reasoning tokens (g: prefix).
+ * Returns concatenated text content as a string.
+ */
+export const parseCompletionContent = (completion: string): string => {
+  if (!completion) {
+    return "";
+  }
+
+  let textContent = "";
+  const lines = completion.split("\n");
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      continue;
+    }
+
+    // Parse text content (0: prefix)
+    if (line.startsWith("0:")) {
+      try {
+        const content = JSON.parse(line.slice(2));
+        if (content && typeof content === "string") {
+          textContent += content;
+        }
+      } catch {
+        // If JSON parsing fails, treat the rest as raw content
+        const content = line.slice(2);
+        if (content) {
+          textContent += content;
+        }
+      }
+    }
+    // Skip reasoning content (g: prefix) - we ignore it
+    else if (line.startsWith("g:")) {
+      // Intentionally skip reasoning content
+    }
+    // Handle content without prefix as text
+    else {
+      textContent += `${line}\n`;
+    }
+  }
+
+  // Remove markdown code fences
+  return (
+    textContent
+      // Remove opening fences for python, py, and sql
+      .replaceAll(/^```(?:python|py|sql)?\s*\n?/gm, "")
+      // Remove closing fences
+      .replaceAll(/^```\s*$/gm, "")
+      .trimEnd()
+  );
+};
