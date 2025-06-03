@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { useEffect, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
-import { useCompletion } from "ai/react";
+import { useCompletion } from "@ai-sdk/react";
 import { API } from "@/core/network/api";
 import { EditorView } from "@codemirror/view";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";

@@ -9,6 +9,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    Literal,
     Optional,
     TypeVar,
     cast,
@@ -18,6 +19,7 @@ from starlette.exceptions import HTTPException
 
 from marimo import _loggers
 from marimo._ai._convert import (
+    convert_to_ai_sdk_messages,
     convert_to_anthropic_messages,
     convert_to_google_messages,
     convert_to_openai_messages,
@@ -60,11 +62,18 @@ if TYPE_CHECKING:
 
 ResponseT = TypeVar("ResponseT")
 StreamT = TypeVar("StreamT")
+ExtractedContent = tuple[str, Literal["text", "reasoning"]]
 
 LOGGER = _loggers.marimo_logger()
 
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_MODEL = "gpt-4o-mini"
+
+
+@dataclass
+class StreamOptions:
+    include_reasoning: bool = False
+    format_stream: bool = False
 
 
 @dataclass
@@ -200,28 +209,44 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         pass
 
     @abstractmethod
-    def extract_content(self, response: ResponseT) -> str | None:
+    def extract_content(self, response: ResponseT) -> ExtractedContent | None:
         """Extract content from a response chunk."""
         pass
+
+    def format_stream(self, content: ExtractedContent) -> str:
+        """Format a response into stream protocol string."""
+        content_text, content_type = content
+        if content_type in ["text", "reasoning"]:
+            return convert_to_ai_sdk_messages(content_text, content_type)
+        return ""
 
     def collect_stream(self, response: StreamT) -> str:
         """Collect a stream into a single string."""
         return "".join(self.as_stream_response(response))
 
     def as_stream_response(
-        self, response: StreamT
+        self, response: StreamT, options: Optional[StreamOptions] = None
     ) -> Generator[str, None, None]:
         """Convert a stream to a generator of strings."""
         original_content = ""
         buffer = ""
+        options = options or StreamOptions()
 
         for chunk in cast(Generator[ResponseT, None, None], response):
             content = self.extract_content(chunk)
             if not content:
                 continue
 
-            buffer += content
-            original_content += content
+            content_text, content_type = content
+
+            if not options.include_reasoning and content_type == "reasoning":
+                continue
+
+            if options.format_stream:
+                content_text = self.format_stream(content)
+
+            buffer += content_text
+            original_content += content_text
 
             yield buffer
             buffer = ""
@@ -348,13 +373,17 @@ class OpenAIProvider(
             timeout=15,
         )
 
-    def extract_content(self, response: ChatCompletionChunk) -> str | None:
+    def extract_content(
+        self, response: ChatCompletionChunk
+    ) -> ExtractedContent | None:
         if (
             hasattr(response, "choices")
             and response.choices
             and response.choices[0].delta
         ):
-            return response.choices[0].delta.content
+            content = response.choices[0].delta.content
+            if content:
+                return (content, "text")
         return None
 
     def _maybe_convert_roles(
@@ -378,6 +407,12 @@ class AnthropicProvider(
         "RawMessageStreamEvent", "AnthropicStream[RawMessageStreamEvent]"
     ]
 ):
+    # Reasoning requires temperature > 0
+    # Temperature of 0.2 was recommended for coding and data science in these links:
+    # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
+    # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
+    DEFAULT_TEMPERATURE = 0.2
+
     def get_client(self, config: AnyProviderConfig) -> Client:
         DependencyManager.anthropic.require(
             why="for AI assistance with Anthropic"
@@ -402,18 +437,34 @@ class AnthropicProvider(
             ),
             system=system_prompt,
             stream=True,
-            temperature=0,
+            temperature=self.DEFAULT_TEMPERATURE,
+            thinking={
+                "type": "enabled",
+                "budget_tokens": 1024,
+            },
         )
 
-    def extract_content(self, response: RawMessageStreamEvent) -> str | None:
-        from anthropic.types import RawContentBlockDeltaEvent, TextDelta
+    def extract_content(
+        self, response: RawMessageStreamEvent
+    ) -> ExtractedContent | None:
+        from anthropic.types import (
+            RawContentBlockDeltaEvent,
+            TextDelta,
+            ThinkingDelta,
+        )
 
+        # For content blocks
         if isinstance(response, TextDelta):
-            return response.text  # type: ignore[no-any-return]
+            return (response.text, "text")
+        if isinstance(response, ThinkingDelta):
+            return (response.thinking, "reasoning")
 
+        # For streaming content
         if isinstance(response, RawContentBlockDeltaEvent):
             if isinstance(response.delta, TextDelta):
-                return response.delta.text  # type: ignore[no-any-return]
+                return (response.delta.text, "text")
+            if isinstance(response.delta, ThinkingDelta):
+                return (response.delta.thinking, "reasoning")
 
         return None
 
@@ -457,9 +508,11 @@ class GoogleProvider(
             },
         )
 
-    def extract_content(self, response: GenerateContentResponse) -> str | None:
+    def extract_content(
+        self, response: GenerateContentResponse
+    ) -> ExtractedContent | None:
         if hasattr(response, "text"):
-            return response.text  # type: ignore[no-any-return]
+            return (response.text, "text")
         return None
 
 
@@ -514,13 +567,16 @@ class BedrockProvider(
             timeout=15,
         )
 
-    def extract_content(self, response: LitellmStreamResponse) -> str | None:
+    def extract_content(
+        self, response: LitellmStreamResponse
+    ) -> ExtractedContent | None:
         if (
             hasattr(response, "choices")
             and response.choices
             and response.choices[0].delta
+            and response.choices[0].delta.content
         ):
-            return str(response.choices[0].delta.content)
+            return (str(response.choices[0].delta.content), "text")
         return None
 
 

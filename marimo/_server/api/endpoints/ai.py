@@ -19,6 +19,7 @@ from marimo._server.ai.prompts import (
 from marimo._server.ai.providers import (
     DEFAULT_MODEL,
     AnyProviderConfig,
+    StreamOptions,
     get_completion_provider,
     get_max_tokens,
     get_model,
@@ -164,7 +165,9 @@ async def ai_chat(
     )
 
     return StreamingResponse(
-        content=provider.as_stream_response(response),
+        content=provider.as_stream_response(
+            response, StreamOptions(include_reasoning=True, format_stream=True)
+        ),
         media_type="application/json",
     )
 
