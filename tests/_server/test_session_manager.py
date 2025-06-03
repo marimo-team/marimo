@@ -16,6 +16,7 @@ from marimo._server.sessions import (
     Session,
     SessionManager,
 )
+from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
@@ -254,3 +255,140 @@ async def test_create_session_with_script_config_overrides(
     )
 
     session.close()
+
+
+def test_session_manager_auth_token_edit_mode_with_provided_token():
+    """Test that provided auth token is used in EDIT mode"""
+    provided_token = AuthToken("custom-edit-token")
+    session_manager = SessionManager(
+        file_router=AppFileRouter.new_file(),
+        mode=SessionMode.EDIT,
+        development_mode=False,
+        quiet=False,
+        include_code=True,
+        lsp_server=MagicMock(spec=LspServer),
+        config_manager=get_default_config_manager(current_path=None),
+        cli_args={},
+        argv=None,
+        auth_token=provided_token,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    assert session_manager.auth_token is provided_token
+    assert str(session_manager.auth_token) == "custom-edit-token"
+    assert session_manager.skew_protection_token is not None
+
+
+def test_session_manager_auth_token_edit_mode_without_provided_token():
+    """Test that random auth token is generated in EDIT mode when none provided"""
+    session_manager = SessionManager(
+        file_router=AppFileRouter.new_file(),
+        mode=SessionMode.EDIT,
+        development_mode=False,
+        quiet=False,
+        include_code=True,
+        lsp_server=MagicMock(spec=LspServer),
+        config_manager=get_default_config_manager(current_path=None),
+        cli_args={},
+        argv=None,
+        auth_token=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    # Should generate a random token (we can't predict the value, but it should exist)
+    assert session_manager.auth_token is not None
+    assert str(session_manager.auth_token) != ""
+    # Verify it's a random token by checking length (AuthToken.random() uses token_urlsafe(16))
+    assert len(str(session_manager.auth_token)) > 10
+    assert session_manager.skew_protection_token is not None
+
+
+def test_session_manager_auth_token_run_mode_with_provided_token():
+    """Test that provided auth token is used in RUN mode"""
+    provided_token = AuthToken("custom-run-token")
+    session_manager = SessionManager(
+        file_router=AppFileRouter.new_file(),
+        mode=SessionMode.RUN,
+        development_mode=False,
+        quiet=False,
+        include_code=True,
+        lsp_server=MagicMock(spec=LspServer),
+        config_manager=get_default_config_manager(current_path=None),
+        cli_args={},
+        argv=None,
+        auth_token=provided_token,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    assert session_manager.auth_token is provided_token
+    assert str(session_manager.auth_token) == "custom-run-token"
+    assert str(session_manager.skew_protection_token) == str(
+        SkewProtectionToken.from_code("")
+    )
+
+
+def test_session_manager_auth_token_run_mode_without_provided_token(
+    tmp_path: Path,
+):
+    """Test that code-based auth token is generated in RUN mode when none provided"""
+    # Create a simple marimo file
+    notebook_content = dedent(
+        """\
+        import marimo
+
+        app = marimo.App()
+
+        @app.cell
+        def test_cell():
+            "hello"
+            return
+        """
+    )
+
+    file_path = tmp_path / "test_notebook.py"
+    file_path.write_text(notebook_content)
+
+    session_manager = SessionManager(
+        file_router=AppFileRouter.infer(str(file_path)),
+        mode=SessionMode.RUN,
+        development_mode=False,
+        quiet=False,
+        include_code=True,
+        lsp_server=MagicMock(spec=LspServer),
+        config_manager=get_default_config_manager(current_path=None),
+        cli_args={},
+        argv=None,
+        auth_token=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    # Should generate a deterministic token based on code
+    assert session_manager.auth_token is not None
+    assert str(session_manager.auth_token) != ""
+    assert str(session_manager.skew_protection_token) != ""
+
+    # Create another session manager with the same code - should have same token
+    session_manager2 = SessionManager(
+        file_router=AppFileRouter.infer(str(file_path)),
+        mode=SessionMode.RUN,
+        development_mode=False,
+        quiet=False,
+        include_code=True,
+        lsp_server=MagicMock(spec=LspServer),
+        config_manager=get_default_config_manager(current_path=None),
+        cli_args={},
+        argv=None,
+        auth_token=None,
+        redirect_console_to_browser=False,
+        ttl_seconds=None,
+    )
+
+    # Should have the same deterministic token
+    assert str(session_manager.auth_token) == str(session_manager2.auth_token)
+    assert str(session_manager.skew_protection_token) == str(
+        session_manager2.skew_protection_token
+    )

@@ -280,7 +280,7 @@ extra-dependencies = [
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
-    "anthropic==0.34.1",
+    "anthropic==0.52.2",
     "google-generativeai==0.8.5",
     "boto3>=1.38.25",
     "litellm>=1.70.0",
