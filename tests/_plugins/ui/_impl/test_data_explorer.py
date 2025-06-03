@@ -84,7 +84,5 @@ def test_data_explorer_initial_spec(
     expected_value: dict[str, str],
 ) -> None:
     """Test data_explorer with various initial spec keyword arguments."""
-    valid_keys = ("x", "y", "row", "column", "color", "size", "shape")
-    expected_value = {**dict.fromkeys(valid_keys, None), **expected_value}
     explorer = data_explorer.data_explorer(df_input, **initial_spec_kwargs)
     assert explorer.value == expected_value
