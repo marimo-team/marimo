@@ -330,6 +330,7 @@ exclude = [
     "tests/_cli/ipynb_data",
     "tests/_runtime/runtime_data",
     "tests/_ast/test_app.py",
+    "tests/_convert/ipynb_data/*.ipynb",
     "frontend",
     "docs",
     "build",
