@@ -19,6 +19,7 @@ import {
   type Cell,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
+import { useCellSelection } from "@/hooks/useCellSelection";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -59,13 +60,39 @@ export function renderTableHeader<TData>(
   );
 }
 
-export function renderTableBody<TData>(
-  table: Table<TData>,
-  columns: Array<ColumnDef<TData>>,
-  rowViewerPanelOpen: boolean,
-  getRowIndex?: (row: TData, idx: number) => number,
-  viewedRowIdx?: number,
-): JSX.Element {
+export const DataTableBody = <TData,>({
+  table,
+  columns,
+  rowViewerPanelOpen,
+  getRowIndex,
+  viewedRowIdx,
+  tableBodyRef,
+}: {
+  table: Table<TData>;
+  columns: Array<ColumnDef<TData>>;
+  rowViewerPanelOpen: boolean;
+  getRowIndex?: (row: TData, idx: number) => number;
+  viewedRowIdx?: number;
+  tableBodyRef?: React.RefObject<HTMLTableSectionElement>;
+}): JSX.Element => {
+  const {
+    handleCellMouseDown,
+    handleCellMouseUp,
+    handleCellMouseOver,
+    handleCellsKeyDown,
+    isCellSelected,
+    isRowSelected,
+    isCellCopied,
+  } = useCellSelection({
+    table,
+    scrollToRow: (index) => {
+      const row = tableBodyRef?.current?.children.namedItem(
+        table.getRowModel().rows[index]?.id,
+      );
+      row?.scrollIntoView({ block: "nearest" });
+    },
+  });
+
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
@@ -77,16 +104,22 @@ export function renderTableBody<TData>(
       return (
         <TableCell
           key={cell.id}
+          tabIndex={0}
           className={cn(
-            "whitespace-pre truncate max-w-[300px]",
+            "whitespace-pre truncate max-w-[300px] select-none",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
             "px-1.5 py-[0.18rem]",
+            isCellSelected(cell) && "bg-[var(--blue-3)]",
+            isCellCopied(cell) && "bg-[var(--blue-4)]",
             className,
           )}
           style={style}
           title={String(cell.getValue())}
+          onMouseDown={(e) => handleCellMouseDown(e, cell)}
+          onMouseUp={(e) => handleCellMouseUp(e, cell)}
+          onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
@@ -100,10 +133,9 @@ export function renderTableBody<TData>(
   };
 
   return (
-    <TableBody>
+    <TableBody ref={tableBodyRef} onKeyDown={handleCellsKeyDown} tabIndex={-1}>
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => {
-          // Only find the row index if the row viewer panel is open
           const rowIndex = rowViewerPanelOpen
             ? (getRowIndex?.(row.original, row.index) ?? row.index)
             : undefined;
@@ -122,6 +154,7 @@ export function renderTableBody<TData>(
                   "bg-[var(--blue-3)] hover:bg-[var(--blue-3)] data-[state=selected]:bg-[var(--blue-4)]",
               )}
               onClick={() => handleRowClick(row)}
+              tabIndex={-1}
             >
               {renderCells(row, row.getLeftVisibleCells())}
               {renderCells(row, row.getCenterVisibleCells())}
@@ -137,6 +170,27 @@ export function renderTableBody<TData>(
         </TableRow>
       )}
     </TableBody>
+  );
+};
+
+// Keep the original renderTableBody as a wrapper for backward compatibility
+export function renderTableBody<TData>(
+  table: Table<TData>,
+  columns: Array<ColumnDef<TData>>,
+  rowViewerPanelOpen: boolean,
+  getRowIndex?: (row: TData, idx: number) => number,
+  viewedRowIdx?: number,
+  tableBodyRef?: React.RefObject<HTMLTableSectionElement>,
+): JSX.Element {
+  return (
+    <DataTableBody
+      table={table}
+      columns={columns}
+      rowViewerPanelOpen={rowViewerPanelOpen}
+      getRowIndex={getRowIndex}
+      viewedRowIdx={viewedRowIdx}
+      tableBodyRef={tableBodyRef}
+    />
   );
 }
 
