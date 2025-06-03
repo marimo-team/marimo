@@ -72,7 +72,7 @@ jobs:
       - name: 📤 Upload to TestPyPI (marimo)
         env:
           HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_MARIMO_BASE_PASSWORD }}
+          HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_PASSWORD }}
         run: hatch publish --repo test
 
       - name: Adapt pyproject.toml to build marimo-base
