@@ -630,3 +630,25 @@ app = marimo.App(sql_output="lazy-polars", width="columns")
     )
     assert manager.app.config.width == "columns"
     assert manager.app.config.sql_output == "lazy-polars"
+
+
+def test_overload_app_settings() -> None:
+    """Test that private env can overload app settings."""
+    # Test with defaults
+    manager = AppFileManager(
+        filename=None,
+    )
+    assert manager.app.config.auto_download == []
+    assert manager.app.config.sql_output == "auto"
+
+    # Test with env set
+    try:
+        os.environ["_MARIMO_APP_OVERLOAD_SQL_OUTPUT"] = "polars"
+        os.environ["_MARIMO_APP_OVERLOAD_AUTO_DOWNLOAD"] = "[html,ipynb]"
+        manager = AppFileManager(filename=None)
+
+        assert manager.app.config.auto_download == ["html", "ipynb"]
+        assert manager.app.config.sql_output == "polars"
+    finally:
+        os.environ.pop("_MARIMO_APP_OVERLOAD_SQL_OUTPUT", None)
+        os.environ.pop("_MARIMO_APP_OVERLOAD_AUTO_DOWNLOAD", None)

@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from marimo import __version__
 from marimo._schemas.notebook import (
     NotebookCell,
