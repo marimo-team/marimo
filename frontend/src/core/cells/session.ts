@@ -2,14 +2,13 @@
 import { MultiColumn } from "@/utils/id-tree";
 import type * as api from "@marimo-team/marimo-api";
 import { parseOutline } from "../dom/outline";
-import type { CellId } from "./ids";
+import { CellId } from "./ids";
 import {
   type CellData,
   type CellRuntimeState,
   createCellRuntimeState,
 } from "./types";
 import { Logger } from "@/utils/Logger";
-import { Maps } from "@/utils/maps";
 import { Sets } from "@/utils/sets";
 
 // Constants
@@ -63,9 +62,16 @@ function getCellIds(
   notebook: api.Notebook["NotebookV1"] | null | undefined,
 ): CellId[] {
   // Prefer notebook cells (for ordering) over session cells if both are provided
-  return (notebook?.cells.map((cell) => cell.id) ??
+  const ids = (notebook?.cells.map((cell) => cell.id) ??
     session?.cells.map((cell) => cell.id) ??
     []) as CellId[];
+  // Replace nulls with unique ids.
+  return ids.map((id) => {
+    if (id === null) {
+      return CellId.create();
+    }
+    return id;
+  });
 }
 
 function createCellDataFromNotebook(
@@ -164,12 +170,14 @@ export function notebookStateFromSession(
   }
 
   // Create lookup maps for efficient access
-  const sessionCellData = session?.cells
-    ? Maps.keyBy(session.cells, (cell) => cell.id)
-    : new Map();
-  const notebookCellData = notebook?.cells
-    ? Maps.keyBy(notebook.cells, (cell) => cell.id)
-    : new Map();
+  // Replacing with the cellIds fallback.
+  const sessionCellData = new Map(
+    cellIds.map((id, idx) => [id, session?.cells[idx]]),
+  );
+
+  const notebookCellData = new Map(
+    cellIds.map((id, idx) => [id, notebook?.cells[idx]]),
+  );
 
   const cellData: Record<CellId, CellData> = {};
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
