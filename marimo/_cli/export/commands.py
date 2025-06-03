@@ -511,6 +511,12 @@ and cannot be opened directly from the file system (e.g. file://).
     type=bool,
     help=_sandbox_message,
 )
+@click.option(
+    "--extra-script",
+    type=click.Path(path_type=Path),
+    required=False,
+    help="Extra JavaScript file to include in the exported HTML.",
+)
 @click.argument(
     "name",
     required=True,
@@ -524,6 +530,7 @@ def html_wasm(
     show_code: bool,
     include_cloudflare: bool,
     sandbox: Optional[bool],
+    extra_script: Optional[Path] = None,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
     import sys
@@ -540,6 +547,11 @@ def html_wasm(
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
+    if extra_script is not None:  # read the script contents
+        script_data = extra_script.read_text(encoding="utf-8")
+    else:
+        script_data = None
+
     out_dir = output
     filename = "index.html"
     ignore_index_html = False
@@ -552,7 +564,9 @@ def html_wasm(
     marimo_file = MarimoPath(name)
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_wasm(file_path, mode, show_code=show_code)
+        return export_as_wasm(
+            file_path, mode, show_code=show_code, extra_script=script_data
+        )
 
     # Export assets first
     Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)

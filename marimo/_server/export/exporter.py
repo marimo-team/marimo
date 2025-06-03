@@ -45,6 +45,7 @@ from marimo._server.session.serialize import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._server.templates.templates import (
+    inject_script,
     static_notebook_template,
     wasm_notebook_template,
 )
@@ -391,6 +392,7 @@ class Exporter:
         mode: Literal["edit", "run"],
         show_code: bool,
         asset_url: Optional[str] = None,
+        extra_script: Optional[str] = None,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
@@ -414,6 +416,8 @@ class Exporter:
             asset_url=asset_url,
             show_code=show_code,
         )
+        if extra_script is not None:
+            html = inject_script(html, extra_script)
 
         download_filename = get_download_filename(
             file_manager.filename, "wasm.html"

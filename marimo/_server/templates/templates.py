@@ -329,7 +329,7 @@ def wasm_notebook_template(
     )
 
     body = body.replace(
-        "</head>", '<marimo-wasm hidden=""></marimo-wasm></head>'
+        "</head>", '<marimo-wasm hidden=""></marimo-wasm>\n</head>'
     )
 
     warning_script = """
@@ -386,7 +386,7 @@ def wasm_notebook_template(
 def inject_script(html: str, script: str) -> str:
     """Inject a script into the HTML before the closing body tag."""
     script_tag = f"<script>{script}</script>"
-    return html.replace("</body>", f"{script_tag}</body>")
+    return html.replace("</body>", f"{script_tag}\n</body>")
 
 
 def _del_none_or_empty(d: Any) -> Any:
