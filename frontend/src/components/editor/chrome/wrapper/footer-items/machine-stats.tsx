@@ -76,7 +76,7 @@ const MemoryUsageBar: React.FC<{
         </div>
       }
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" data-testid="memory-usage-bar">
         <MemoryStickIcon className="w-4 h-4" />
         <Bar percent={roundedPercent} colorClassName="bg-primary" />
       </div>
@@ -96,7 +96,7 @@ const CPUBar: React.FC<{ cpu: UsageResponse["cpu"] }> = ({ cpu }) => {
         </span>
       }
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" data-testid="cpu-bar">
         <CpuIcon className="w-4 h-4" />
         <Bar percent={roundedPercent} colorClassName="bg-primary" />
       </div>
@@ -137,7 +137,7 @@ const GPUBar: React.FC<{ gpus: GPU[] }> = ({ gpus }) => {
         </div>
       }
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" data-testid="gpu-bar">
         <MicrochipIcon className="w-4 h-4" />
         <Bar percent={avgPercent} colorClassName="bg-[var(--grass-9)]" />
       </div>
