@@ -448,3 +448,11 @@ def test_sort_cell_ids_by_similarity_more_cells():
     assert curr_manager.cell_data_at(CELL_B).code == "code2"
     assert curr_manager.cell_data_at(CELL_A).code == "code1"
     assert curr_manager.cell_data_at(CELL_X).code == "code3"
+
+
+def test_create_cell_id_1000():
+    manager = CellManager()
+    ids: set[CellId_t] = set()
+    for _ in range(1000):
+        ids.add(manager.create_cell_id())
+    assert len(ids) == 1000

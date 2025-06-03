@@ -37,6 +37,16 @@ describe("HTMLCellId", () => {
     expect(cell).toBeDefined();
     expect(cell!.id.startsWith("cell-")).toBe(true);
   });
+
+  it("create 1000 ids", () => {
+    const ids: CellId[] = [];
+    for (let i = 0; i < 1000; i++) {
+      const id = CellId.create();
+      ids.push(id);
+    }
+    expect(ids.length).toBe(1000);
+    expect(new Set(ids).size).toBe(1000);
+  });
 });
 
 describe("CellOutputId", () => {

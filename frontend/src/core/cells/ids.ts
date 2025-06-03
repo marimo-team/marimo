@@ -7,6 +7,7 @@ import type { TypedString } from "../../utils/typed";
 const lowercase = "abcdefghijklmnopqrstuvwxyz";
 const uppercase = lowercase.toUpperCase();
 const alphabet = lowercase + uppercase;
+const seen = new Set<CellId>();
 
 /**
  * A typed CellId
@@ -17,11 +18,24 @@ export const CellId = {
    * Create a new CellId, a random 4 letter string.
    */
   create(): CellId {
-    let id = "";
-    for (let i = 0; i < 4; i++) {
-      id += alphabet[Math.floor(Math.random() * alphabet.length)];
+    let attempts = 0;
+    let cellId: CellId;
+
+    do {
+      let id = "";
+      for (let i = 0; i < 4; i++) {
+        id += alphabet[Math.floor(Math.random() * alphabet.length)];
+      }
+      cellId = id as CellId;
+      attempts++;
+    } while (seen.has(cellId) && attempts < 100);
+
+    if (attempts >= 100) {
+      throw new Error("Failed to generate unique CellId after 100 attempts");
     }
-    return id as CellId;
+
+    seen.add(cellId);
+    return cellId;
   },
 };
 
