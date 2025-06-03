@@ -35,7 +35,10 @@ export const StaticBanner: React.FC = () => {
   }
 
   return (
-    <div className="px-4 py-2 bg-[var(--sky-2)] border-b border-[var(--sky-7)] text-md text-[var(--sky-11)] font-semibold flex justify-between items-center gap-4 no-print">
+    <div
+      className="px-4 py-2 bg-[var(--sky-2)] border-b border-[var(--sky-7)] text-md text-[var(--sky-11)] font-semibold flex justify-between items-center gap-4 no-print"
+      data-testid="static-notebook-banner"
+    >
       <span>
         This is a static Python notebook built using{" "}
         <a href={Constants.githubPage} target="_blank" className="underline">
