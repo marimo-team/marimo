@@ -19,7 +19,6 @@ import type {
 import type { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
-import { initializeCustomFileStores } from "./custom-stores";
 import { Deferred } from "@/utils/Deferred";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
@@ -138,9 +137,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Pass the code to the worker
     // If a filename is provided, it will be used to save the file
     // If no filename is provided, the file will not be saved
-
-    // Initialize custom file stores from app config before reading
-    initializeCustomFileStores();
 
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();

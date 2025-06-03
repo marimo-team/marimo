@@ -33,6 +33,8 @@ import { getMarimoCode } from "@/core/meta/globals";
 import type * as api from "@marimo-team/marimo-api";
 import { notebookAtom } from "./core/cells/cells";
 import { notebookStateFromSession } from "./core/cells/session";
+import type { FileStore } from "./core/wasm/store";
+import { notebookFileStore } from "./core/wasm/store";
 
 let hasMounted = false;
 
@@ -178,6 +180,11 @@ const mountOptionsSchema = z.object({
     .transform((val) => val ?? ""),
 
   /**
+   * File stores for persistence
+   */
+  fileStores: z.array(z.custom<FileStore>()).optional(),
+
+  /**
    * Serialized Session["NotebookSessionV1"] snapshot
    */
   session: z.union([
@@ -218,6 +225,22 @@ function initStore(options: unknown) {
   }
   const mode = parsedOptions.data.mode as AppMode;
   preloadPage(mode);
+
+  // Initialize file stores if provided
+  if (
+    parsedOptions.data.fileStores &&
+    parsedOptions.data.fileStores.length > 0
+  ) {
+    Logger.log("🗄️ Initializing file stores via mount...");
+    // Insert file stores at the beginning (highest priority)
+    // Insert in reverse order so first in array gets highest priority
+    for (let i = parsedOptions.data.fileStores.length - 1; i >= 0; i--) {
+      notebookFileStore.insert(0, parsedOptions.data.fileStores[i]);
+    }
+    Logger.log(
+      `🗄️ Injected ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
+    );
+  }
 
   // Files
   store.set(filenameAtom, parsedOptions.data.filename);
