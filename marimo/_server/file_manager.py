@@ -207,7 +207,7 @@ class AppFileManager:
             )
             return empty_app
         # Manually extend config defaults
-        app._config.update(default.asdict())
+        app._config.update(default.asdict_difference())
 
         result = InternalApp(app)
         # Ensure at least one cell
