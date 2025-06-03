@@ -30,7 +30,7 @@ class _AppConfig:
     html_head_file: Optional[str] = None
 
     # Whether to automatically download the app as HTML and Markdown
-    auto_download: list[Literal["html", "markdown"]] = field(
+    auto_download: list[Literal["html", "markdown", "ipynb", "_ir"]] = field(
         default_factory=list
     )
 

@@ -37,10 +37,12 @@ class AppFileManager:
         *,
         default_width: WidthType | None = None,
         default_sql_output: SqlOutputType | None = None,
+        auto_download: str | None = None,
     ) -> None:
         self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
         self._default_sql_output: SqlOutputType | None = default_sql_output
+        self._auto_download: str | None = auto_download
         self.app = self._load_app(self.path)
 
     @staticmethod
@@ -195,6 +197,8 @@ class AppFileManager:
                 kwargs["width"] = self._default_width
             if self._default_sql_output is not None:
                 kwargs["sql_output"] = self._default_sql_output
+            if self._auto_download is not None:
+                kwargs["auto_download"] = [self._auto_download]
 
             empty_app = InternalApp(App(**kwargs))
             empty_app.cell_manager.register_cell(
@@ -203,7 +207,11 @@ class AppFileManager:
                 config=CellConfig(),
             )
             return empty_app
+
         result = InternalApp(app)
+        # Undocumented hook to force output.
+        if self._auto_download is not None:
+            result.config.auto_download[:] = [self._auto_download]
         # Ensure at least one cell
         result.cell_manager.ensure_one_cell()
         return result

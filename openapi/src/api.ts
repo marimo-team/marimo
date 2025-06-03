@@ -2909,7 +2909,7 @@ export interface components {
     KernelReady: {
       app_config: {
         app_title?: string | null;
-        auto_download: ("html" | "markdown")[];
+        auto_download: ("html" | "markdown" | "ipynb" | "_ir")[];
         css_file?: string | null;
         html_head_file?: string | null;
         layout_file?: string | null;

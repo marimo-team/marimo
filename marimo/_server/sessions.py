@@ -762,6 +762,7 @@ class SessionManager:
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
         watch: bool = False,
+        auto_download: Optional[str] = None,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -773,6 +774,7 @@ class SessionManager:
         self.lsp_server = lsp_server
         self.watcher_manager = FileWatcherManager()
         self.watch = watch
+        self.auto_download = auto_download
         self.recents = RecentFilesManager()
         self.cli_args = cli_args
         self.argv = argv
@@ -811,6 +813,7 @@ class SessionManager:
             key,
             default_width=self._config_manager.default_width,
             default_sql_output=self._config_manager.default_sql_output,
+            auto_download=self.auto_download,
         )
 
     def create_session(

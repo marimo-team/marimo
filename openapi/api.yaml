@@ -1116,6 +1116,8 @@ components:
                 enum:
                 - html
                 - markdown
+                - ipynb
+                - _ir
                 type: string
               type: array
             css_file:

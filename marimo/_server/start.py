@@ -82,6 +82,7 @@ def start(
     host: str,
     proxy: Optional[str],
     watch: bool,
+    auto_download: str | None,
     cli_args: SerializedCLIArgs,
     argv: list[str],
     base_url: str = "",
@@ -155,6 +156,7 @@ def start(
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
+        auto_download=auto_download,
     )
 
     log_level = "info" if development_mode else "error"

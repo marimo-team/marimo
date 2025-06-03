@@ -88,6 +88,7 @@ class AppFileRouter(abc.ABC):
         key: MarimoFileKey,
         default_width: WidthType | None = None,
         default_sql_output: SqlOutputType | None = None,
+        auto_download: str | None = None,
     ) -> AppFileManager:
         """
         Given a key, return an AppFileManager.
@@ -97,6 +98,7 @@ class AppFileRouter(abc.ABC):
                 None,
                 default_width=default_width,
                 default_sql_output=default_sql_output,
+                auto_download=auto_download,
             )
 
         if os.path.exists(key):
@@ -104,6 +106,7 @@ class AppFileRouter(abc.ABC):
                 key,
                 default_width=default_width,
                 default_sql_output=default_sql_output,
+                auto_download=auto_download,
             )
 
         raise HTTPException(

@@ -63,9 +63,20 @@ function getCellIds(
   notebook: api.Notebook["NotebookV1"] | null | undefined,
 ): CellId[] {
   // Prefer notebook cells (for ordering) over session cells if both are provided
-  return (notebook?.cells.map((cell) => cell.id) ??
+  const initialPass = (notebook?.cells.map((cell) => cell.id) ??
     session?.cells.map((cell) => cell.id) ??
     []) as CellId[];
+  // Replace nulls with basic ordinal values.
+  // Since cell ids are pulled from strictly 'abc's, numerical values are bound
+  // to be unique.
+  let count = 0;
+  return initialPass.map((id) => {
+    if (id === null || id === undefined) {
+      // pad to 4 chars
+      return `${count++}`.padStart(4, "0") as CellId; // Generate a unique ID
+    }
+    return id;
+  });
 }
 
 function createCellDataFromNotebook(
@@ -164,12 +175,14 @@ export function notebookStateFromSession(
   }
 
   // Create lookup maps for efficient access
-  const sessionCellData = session?.cells
-    ? Maps.keyBy(session.cells, (cell) => cell.id)
-    : new Map();
-  const notebookCellData = notebook?.cells
-    ? Maps.keyBy(notebook.cells, (cell) => cell.id)
-    : new Map();
+  // Replacing with the cellIds fallback.
+  const sessionCellData = new Map(
+    cellIds.map((id, idx) => [id, session?.cells[idx]]),
+  );
+
+  const notebookCellData = new Map(
+    cellIds.map((id, idx) => [id, notebook?.cells[idx]]),
+  );
 
   const cellData: Record<CellId, CellData> = {};
   const cellRuntime: Record<CellId, CellRuntimeState> = {};

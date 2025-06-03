@@ -345,6 +345,7 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Watch the file for changes and reload the code when saved in another editor.",
 )
+@click.option("--auto-download", default=None, type=str, hidden=True)
 @click.argument(
     "name",
     required=False,
@@ -364,6 +365,7 @@ def edit(
     sandbox: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
+    auto_download: str | None,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -447,6 +449,7 @@ def edit(
         mode=SessionMode.EDIT,
         include_code=True,
         watch=watch,
+        auto_download=auto_download,
         cli_args=parse_args(args),
         argv=list(args),
         auth_token=_resolve_token(token, token_password),
