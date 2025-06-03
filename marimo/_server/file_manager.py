@@ -10,6 +10,7 @@ from typing import Any, Optional, Union
 from marimo import _loggers
 from marimo._ast import codegen, load
 from marimo._ast.app import App, InternalApp
+from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
 from marimo._config.config import SqlOutputType, WidthType
 from marimo._convert.converters import MarimoConvert
@@ -188,8 +189,10 @@ class AppFileManager:
     def _load_app(self, path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
         app = load.load_app(path)
+        default = overloads_from_env()
+
         if app is None:
-            kwargs: dict[str, Any] = {}
+            kwargs: dict[str, Any] = default.asdict()
             # Add defaults if it is a new file
             if self._default_width is not None:
                 kwargs["width"] = self._default_width
@@ -203,6 +206,9 @@ class AppFileManager:
                 config=CellConfig(),
             )
             return empty_app
+        # Manually extend config defaults
+        app._config.update(default.asdict_difference())
+
         result = InternalApp(app)
         # Ensure at least one cell
         result.cell_manager.ensure_one_cell()

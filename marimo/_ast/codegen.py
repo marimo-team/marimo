@@ -334,15 +334,11 @@ def serialize_cell(
 
 
 def generate_app_constructor(config: Optional[_AppConfig]) -> str:
-    default_config = _AppConfig().asdict()
     updates = {}
     # only include a config setting if it's not a default setting, to
     # avoid unnecessary edits to the app file
     if config is not None:
-        updates = config.asdict()
-        for key in default_config:
-            if updates[key] == default_config[key]:
-                updates.pop(key)
+        updates = config.asdict_difference()
 
     kwargs = tuple(
         f"{key}={_format_arg(value)}" for key, value in updates.items()

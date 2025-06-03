@@ -1,4 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
+
+import os
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal, Optional
 
@@ -30,7 +32,7 @@ class _AppConfig:
     html_head_file: Optional[str] = None
 
     # Whether to automatically download the app as HTML and Markdown
-    auto_download: list[Literal["html", "markdown"]] = field(
+    auto_download: list[Literal["html", "markdown", "ipynb"]] = field(
         default_factory=list
     )
 
@@ -69,3 +71,28 @@ class _AppConfig:
                 self.__setattr__(key, updates[key])
 
         return self
+
+    def asdict_difference(self) -> dict[str, Any]:
+        default_config = _AppConfig().asdict()
+        updates = self.asdict()
+        for key in default_config:
+            if updates[key] == default_config[key]:
+                updates.pop(key)
+        return updates
+
+
+def overloads_from_env() -> _AppConfig:
+    """Return a dictionary of overloads from environment variables."""
+    overloads: dict[str, Any] = {}
+    prefix = "_MARIMO_APP_OVERLOAD_"
+    for key in os.environ:
+        if key.startswith(prefix):
+            new_key = key[len(prefix) :].lower()
+            value = os.environ[key]
+            if value.lower() in ("true", "false"):
+                overloads[new_key] = value.lower() == "true"
+            elif value.startswith("[") and value.endswith("]"):
+                overloads[new_key] = os.environ[key][1:-1].split(",")
+            else:
+                overloads[new_key] = os.environ[key]
+    return _AppConfig.from_untrusted_dict(overloads, silent=True)
