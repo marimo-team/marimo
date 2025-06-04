@@ -5,7 +5,7 @@ import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
-import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
+import { useRuntimeManager } from "@/core/runtime/config";
 
 const TerminalComponent: React.FC<{
   visible: boolean;
@@ -25,6 +25,7 @@ const TerminalComponent: React.FC<{
     return { terminal: term, fitAddon };
   });
   const [initialized, setInitialized] = React.useState(false);
+  const runtimeManager = useRuntimeManager();
 
   // Websocket Connection
   useEffect(() => {
@@ -32,7 +33,7 @@ const TerminalComponent: React.FC<{
       return;
     }
 
-    const socket = new WebSocket(resolveToWsUrl("terminal/ws"));
+    const socket = new WebSocket(runtimeManager.getTerminalWsURL());
     const attachAddon = new AttachAddon(socket);
     terminal.loadAddon(attachAddon);
 

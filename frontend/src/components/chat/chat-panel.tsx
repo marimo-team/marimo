@@ -34,8 +34,6 @@ import { useChat } from "@ai-sdk/react";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
-import { asURL } from "@/utils/url";
-import { API } from "@/core/network/api";
 import { cn } from "@/utils/cn";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { Logger } from "@/utils/Logger";
@@ -50,6 +48,7 @@ import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { timeAgo } from "@/utils/dates";
 import { ReasoningAccordion } from "./reasoning-accordion";
+import { useRuntimeManager } from "@/core/runtime/config";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -276,6 +275,7 @@ const ChatPanelBody = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
+  const runtimeManager = useRuntimeManager();
 
   const {
     messages,
@@ -302,8 +302,8 @@ const ChatPanelBody = () => {
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
-    api: asURL("api/ai/chat").toString(),
-    headers: API.headers(),
+    api: runtimeManager.getAiURL("chat").toString(),
+    headers: runtimeManager.headers(),
     experimental_prepareRequestBody: (options) => {
       return {
         ...options,

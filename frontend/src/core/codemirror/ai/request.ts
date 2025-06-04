@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { API } from "@/core/network/api";
-import { asURL } from "@/utils/url";
+import { store } from "@/core/state/jotai";
+import { runtimeManagerAtom } from "@/core/runtime/config";
 import type { LanguageAdapterType } from "../language/types";
 import type { AiCompletionRequest } from "@/core/network/types";
 
@@ -26,17 +26,22 @@ ${opts.selection}
 ${opts.codeAfter}
 `.trim();
 
-  const response = await fetch(asURL("api/ai/completion").toString(), {
-    method: "POST",
-    headers: API.headers(),
-    body: JSON.stringify({
-      prompt: opts.prompt,
-      code: codeWithReplacement,
-      selectedText: opts.selection,
-      includeOtherCode: "",
-      language: opts.language,
-    } satisfies AiCompletionRequest),
-  });
+  const runtimeManager = store.get(runtimeManagerAtom);
+
+  const response = await fetch(
+    runtimeManager.getAiURL("completion").toString(),
+    {
+      method: "POST",
+      headers: runtimeManager.headers(),
+      body: JSON.stringify({
+        prompt: opts.prompt,
+        code: codeWithReplacement,
+        selectedText: opts.selection,
+        includeOtherCode: "",
+        language: opts.language,
+      } satisfies AiCompletionRequest),
+    },
+  );
 
   const firstLineIndent = opts.selection.match(/^\s*/)?.[0] || "";
 

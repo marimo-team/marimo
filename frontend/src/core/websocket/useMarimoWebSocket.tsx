@@ -26,7 +26,6 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import type { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
 import { useAlertActions } from "../alerts/state";
-import { createWsUrl } from "./createWsUrl";
 import { useSetAppConfig } from "../config/config";
 import {
   handleCellOperation,
@@ -55,6 +54,7 @@ import {
   isMessageWidgetState,
   MODEL_MANAGER,
 } from "@/plugins/impl/anywidget/model";
+import { useRuntimeManager } from "../runtime/config";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -83,6 +83,7 @@ export function useMarimoWebSocket(opts: {
   const { addPackageAlert } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
+  const runtimeManager = useRuntimeManager();
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -275,7 +276,7 @@ export function useMarimoWebSocket(opts: {
     /**
      * Unique URL for this session.
      */
-    url: createWsUrl(sessionId),
+    url: runtimeManager.getWsURL(sessionId).toString(),
 
     /**
      * Open callback. Set the connection status to open.

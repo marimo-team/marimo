@@ -29,6 +29,10 @@ import {
 } from "@/core/meta/state";
 import { appConfigAtom, userConfigAtom } from "@/core/config/config";
 import { configOverridesAtom } from "@/core/config/config";
+import {
+  DEFAULT_RUNTIME_CONFIG,
+  runtimeConfigAtom,
+} from "./core/runtime/config";
 import { getMarimoCode } from "@/core/meta/globals";
 import type * as api from "@marimo-team/marimo-api";
 import { notebookAtom } from "./core/cells/cells";
@@ -215,6 +219,14 @@ const mountOptionsSchema = z.object({
       .passthrough()
       .transform((val) => val as api.Notebook["NotebookV1"]),
   ]),
+
+  /**
+   * Runtime configs
+   */
+  runtimeConfig: z
+    .array(z.object({ url: z.string() }))
+    .nullish()
+    .transform((val) => val ?? []),
 });
 
 function initStore(options: unknown) {
@@ -260,6 +272,18 @@ function initStore(options: unknown) {
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
   store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
+
+  // Runtime config
+  if (parsedOptions.data.runtimeConfig.length > 0) {
+    const firstRuntimeConfig = parsedOptions.data.runtimeConfig[0];
+    Logger.debug("⚡ Runtime URL", firstRuntimeConfig.url);
+    store.set(runtimeConfigAtom, firstRuntimeConfig);
+  } else {
+    store.set(runtimeConfigAtom, {
+      ...DEFAULT_RUNTIME_CONFIG,
+      authToken: parsedOptions.data.serverToken,
+    });
+  }
 
   // Session/notebook
   const notebook = notebookStateFromSession(

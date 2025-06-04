@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { asURL } from "@/utils/url";
+
 import { vegaLoadData } from "./loader";
 import type {
   Field,
@@ -9,6 +9,7 @@ import type {
   GenericFacetSpec,
   FacetedUnitSpec,
 } from "./types";
+import { asRemoteURL } from "@/core/runtime/config";
 
 type AnySpec =
   | VegaLiteSpec
@@ -75,7 +76,7 @@ export async function resolveVegaSpecData(
     // Parse URL
     let url: URL;
     try {
-      url = asURL(spec.data.url);
+      url = asRemoteURL(spec.data.url);
     } catch {
       return spec;
     }

@@ -5,7 +5,6 @@ import type { CellId } from "@/core/cells/ids";
 import { isWasm } from "@/core/wasm/utils";
 import type { Extension } from "@codemirror/state";
 import ReconnectingWebSocket from "partysocket/ws";
-import { createWsUrl } from "@/core/websocket/createWsUrl";
 import { getSessionId } from "@/core/kernel/session";
 import { once } from "@/utils/once";
 import { loroSyncAnnotation, loroSyncPlugin } from "./loro/sync";
@@ -38,6 +37,7 @@ import {
 import { invariant } from "@/utils/invariant";
 import { isEqual } from "lodash-es";
 import { getInitialAppMode } from "@/core/mode";
+import { runtimeManagerAtom } from "@/core/runtime/config";
 
 const logger = Logger.get("rtc");
 const awarenessLogger = logger.get("awareness").disabled();
@@ -73,7 +73,8 @@ const awareness = new Awareness<AwarenessState>(doc.peerIdStr);
 const getWs = once(() => {
   logger.debug("creating websocket");
 
-  const url = createWsUrl(getSessionId()).replace("/ws", "/ws_sync");
+  const runtimeManager = store.get(runtimeManagerAtom);
+  const url = runtimeManager.getWsSyncURL(getSessionId()).toString();
 
   // Create the websocket, but don't connect it yet
   const ws = new ReconnectingWebSocket(url, undefined, {
