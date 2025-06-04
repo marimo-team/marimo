@@ -109,6 +109,30 @@ def test_skew_protection(edit_app: Starlette) -> None:
     assert response.status_code == 401, response.text
 
 
+def test_skew_protection_disabled() -> None:
+    """Test that skew protection can be disabled via CLI flag"""
+    app = create_starlette_app(base_url="", skew_protection=False)
+    app.state.session_manager = get_mock_session_manager()
+    app.state.session_manager.mode = SessionMode.EDIT
+    app.state.config_manager = MarimoConfigManager(UserConfigManager())
+    # Mock out the server
+    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
+    uvicorn_server.servers = []
+    app.state.server = uvicorn_server
+    app.state.host = "localhost"
+    app.state.port = 1234
+    app.state.base_url = ""
+
+    client = TestClient(app)
+
+    # POST with an invalid skew protection token should succeed when disabled
+    response = client.post(
+        "/api/home/running_notebooks",
+        headers=token_header("fake-token", "old-skew-id"),
+    )
+    assert response.status_code == 200, response.text
+
+
 @pytest.fixture
 def edit_app() -> Starlette:
     app = create_starlette_app(base_url="")

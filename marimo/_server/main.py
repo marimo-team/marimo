@@ -52,6 +52,7 @@ def create_starlette_app(
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
     lsp_servers: Optional[list[LspServer]] = None,
+    skew_protection: bool = True,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
 
@@ -85,10 +86,12 @@ def create_starlette_app(
                 allow_methods=["*"],
                 allow_headers=["*"],
             ),
-            Middleware(SkewProtectionMiddleware),
             _create_mpl_proxy_middleware(),
         ]
     )
+
+    if skew_protection:
+        final_middlewares.append(Middleware(SkewProtectionMiddleware))
 
     if lsp_servers is not None:
         final_middlewares.extend(
