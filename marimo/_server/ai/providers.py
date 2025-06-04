@@ -407,11 +407,35 @@ class AnthropicProvider(
         "RawMessageStreamEvent", "AnthropicStream[RawMessageStreamEvent]"
     ]
 ):
-    # Reasoning requires temperature > 0
     # Temperature of 0.2 was recommended for coding and data science in these links:
     # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
     # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
     DEFAULT_TEMPERATURE = 0.2
+
+    # Extended thinking defaults based on:
+    # https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
+    # Extended thinking requires temperature of 1
+    DEFAULT_EXTENDED_THINKING_TEMPERATURE = 1
+    EXTENDED_THINKING_MODEL_PREFIXES = [
+        "claude-opus-4",
+        "claude-sonnet-4",
+        "claude-3-7-sonnet",
+    ]
+    # 1024 tokens is the minimum budget for extended thinking
+    DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS = 1024
+
+    def is_extended_thinking_model(self, model: str) -> bool:
+        return any(
+            model.startswith(prefix)
+            for prefix in self.EXTENDED_THINKING_MODEL_PREFIXES
+        )
+
+    def get_temperature(self) -> float:
+        return (
+            self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
+            if self.is_extended_thinking_model(self.model)
+            else self.DEFAULT_TEMPERATURE
+        )
 
     def get_client(self, config: AnyProviderConfig) -> Client:
         DependencyManager.anthropic.require(
@@ -437,10 +461,10 @@ class AnthropicProvider(
             ),
             system=system_prompt,
             stream=True,
-            temperature=self.DEFAULT_TEMPERATURE,
+            temperature=self.get_temperature(),
             thinking={
                 "type": "enabled",
-                "budget_tokens": 1024,
+                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
             },
         )
 
