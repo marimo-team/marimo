@@ -292,10 +292,11 @@ const ChatPanelBody = () => {
     id: activeChat?.id,
     initialMessages: useMemo(() => {
       return activeChat
-        ? activeChat.messages.map(({ role, content, timestamp }) => ({
+        ? activeChat.messages.map(({ role, content, timestamp, parts }) => ({
             role,
             content,
             id: timestamp.toString(),
+            parts,
           }))
         : [];
     }, [activeChat]),
@@ -315,7 +316,13 @@ const ChatPanelBody = () => {
     },
     onFinish: (message) => {
       setChatState((prev) =>
-        addMessageToChat(prev, prev.activeChatId, "assistant", message.content),
+        addMessageToChat(
+          prev,
+          prev.activeChatId,
+          "assistant",
+          message.content,
+          message.parts,
+        ),
       );
     },
     onError: (error) => {
