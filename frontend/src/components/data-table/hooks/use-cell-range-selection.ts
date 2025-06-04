@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import type { Cell, Table } from "@tanstack/react-table";
 import useEvent from "react-use-event-hook";
 import { renderUnknownValue } from "../renderers";
@@ -36,264 +36,237 @@ export const useCellSelection = <TData>({
     }),
   );
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = () => {
     const text = getCellValues(table, selectedCells);
     copyToClipboard(text);
     setCopiedCells(selectedCells);
     setTimeout(() => {
       setCopiedCells([]);
     }, 500);
-  }, [selectedCells, table]);
+  };
 
-  const updateSelection = useCallback(
-    (newCell: SelectedCell, isShiftKey: boolean) => {
-      if (isShiftKey && selectedStartCell) {
-        setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
-      } else {
-        setSelectedCells([newCell]);
-        setSelectedStartCell(newCell);
-      }
-    },
-    [selectedStartCell, table],
-  );
+  const updateSelection = (newCell: SelectedCell, isShiftKey: boolean) => {
+    if (isShiftKey && selectedStartCell) {
+      setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
+    } else {
+      setSelectedCells([newCell]);
+      setSelectedStartCell(newCell);
+    }
+  };
 
-  const navigateUp = useCallback(
-    (e: React.KeyboardEvent<HTMLElement>) => {
-      const selectedCell = selectedCells[selectedCells.length - 1];
-      if (!selectedCell) {
-        return;
-      }
+  const navigateUp = (e: React.KeyboardEvent<HTMLElement>) => {
+    const selectedCell = selectedCells[selectedCells.length - 1];
+    if (!selectedCell) {
+      return;
+    }
 
-      const rows = table.getRowModel().rows;
-      const selectedRowIndex = rows.findIndex(
-        (row) => row.id === selectedCell.rowId,
-      );
-      if (selectedRowIndex < 0) {
-        return;
-      }
+    const rows = table.getRowModel().rows;
+    const selectedRowIndex = rows.findIndex(
+      (row) => row.id === selectedCell.rowId,
+    );
+    if (selectedRowIndex < 0) {
+      return;
+    }
 
-      const previousRow = rows[selectedRowIndex - 1];
-      if (!previousRow) {
-        return;
-      }
+    const previousRow = rows[selectedRowIndex - 1];
+    if (!previousRow) {
+      return;
+    }
 
-      const previousCell = previousRow
-        .getAllCells()
-        .find((c) => c.column.id === selectedCell.columnId);
-      if (!previousCell) {
-        return;
-      }
+    const previousCell = previousRow
+      .getAllCells()
+      .find((c) => c.column.id === selectedCell.columnId);
+    if (!previousCell) {
+      return;
+    }
 
-      updateSelection(getSelectedCell(previousCell), e.shiftKey);
-    },
-    [selectedCells, table, updateSelection, getSelectedCell],
-  );
+    updateSelection(getSelectedCell(previousCell), e.shiftKey);
+  };
 
-  const navigateDown = useCallback(
-    (e: React.KeyboardEvent<HTMLElement>) => {
-      const selectedCell = selectedCells[selectedCells.length - 1];
-      if (!selectedCell) {
-        return;
-      }
+  const navigateDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    const selectedCell = selectedCells[selectedCells.length - 1];
+    if (!selectedCell) {
+      return;
+    }
 
-      const rows = table.getRowModel().rows;
-      const selectedRowIndex = rows.findIndex(
-        (row) => row.id === selectedCell.rowId,
-      );
-      if (selectedRowIndex < 0) {
-        return;
-      }
+    const rows = table.getRowModel().rows;
+    const selectedRowIndex = rows.findIndex(
+      (row) => row.id === selectedCell.rowId,
+    );
+    if (selectedRowIndex < 0) {
+      return;
+    }
 
-      const nextRow = rows[selectedRowIndex + 1];
-      if (!nextRow) {
-        return;
-      }
+    const nextRow = rows[selectedRowIndex + 1];
+    if (!nextRow) {
+      return;
+    }
 
-      const nextCell = nextRow
-        .getAllCells()
-        .find((c) => c.column.id === selectedCell.columnId);
-      if (!nextCell) {
-        return;
-      }
+    const nextCell = nextRow
+      .getAllCells()
+      .find((c) => c.column.id === selectedCell.columnId);
+    if (!nextCell) {
+      return;
+    }
 
-      updateSelection(getSelectedCell(nextCell), e.shiftKey);
-    },
-    [selectedCells, table, updateSelection, getSelectedCell],
-  );
+    updateSelection(getSelectedCell(nextCell), e.shiftKey);
+  };
 
-  const navigateLeft = useCallback(
-    (e: React.KeyboardEvent<HTMLElement>) => {
-      const selectedCell = selectedCells[selectedCells.length - 1];
-      if (!selectedCell) {
-        return;
-      }
+  const navigateLeft = (e: React.KeyboardEvent<HTMLElement>) => {
+    const selectedCell = selectedCells[selectedCells.length - 1];
+    if (!selectedCell) {
+      return;
+    }
 
-      const selectedRow = table.getRow(selectedCell.rowId);
-      const cells = selectedRow.getAllCells();
-      const selectedColumnIndex = cells.findIndex(
-        (c) => c.id === selectedCell.cellId,
-      );
-      if (selectedColumnIndex < 0) {
-        return;
-      }
+    const selectedRow = table.getRow(selectedCell.rowId);
+    const cells = selectedRow.getAllCells();
+    const selectedColumnIndex = cells.findIndex(
+      (c) => c.id === selectedCell.cellId,
+    );
+    if (selectedColumnIndex < 0) {
+      return;
+    }
 
-      const previousCell = cells[selectedColumnIndex - 1];
-      if (!previousCell) {
-        return;
-      }
+    const previousCell = cells[selectedColumnIndex - 1];
+    if (!previousCell) {
+      return;
+    }
 
-      updateSelection(getSelectedCell(previousCell), e.shiftKey);
-    },
-    [selectedCells, table, updateSelection, getSelectedCell],
-  );
+    updateSelection(getSelectedCell(previousCell), e.shiftKey);
+  };
 
-  const navigateRight = useCallback(
-    (e: React.KeyboardEvent<HTMLElement>) => {
-      const selectedCell = selectedCells[selectedCells.length - 1];
-      if (!selectedCell) {
-        return;
-      }
+  const navigateRight = (e: React.KeyboardEvent<HTMLElement>) => {
+    const selectedCell = selectedCells[selectedCells.length - 1];
+    if (!selectedCell) {
+      return;
+    }
 
-      const selectedRow = table.getRow(selectedCell.rowId);
-      const cells = selectedRow.getAllCells();
-      const selectedColumnIndex = cells.findIndex(
-        (c) => c.id === selectedCell.cellId,
-      );
-      if (selectedColumnIndex < 0) {
-        return;
-      }
+    const selectedRow = table.getRow(selectedCell.rowId);
+    const cells = selectedRow.getAllCells();
+    const selectedColumnIndex = cells.findIndex(
+      (c) => c.id === selectedCell.cellId,
+    );
+    if (selectedColumnIndex < 0) {
+      return;
+    }
 
-      const nextCell = cells[selectedColumnIndex + 1];
-      if (!nextCell) {
-        return;
-      }
+    const nextCell = cells[selectedColumnIndex + 1];
+    if (!nextCell) {
+      return;
+    }
 
-      updateSelection(getSelectedCell(nextCell), e.shiftKey);
-    },
-    [selectedCells, table, updateSelection, getSelectedCell],
-  );
+    updateSelection(getSelectedCell(nextCell), e.shiftKey);
+  };
 
-  const handleCellsKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLElement>) => {
-      switch (e.key) {
-        case "c":
-          if (e.metaKey || e.ctrlKey) {
-            handleCopy();
-          }
-          break;
-        case "ArrowDown":
-          e.preventDefault();
-          navigateDown(e);
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          navigateUp(e);
-          break;
-        case "ArrowLeft":
-          e.preventDefault();
-          navigateLeft(e);
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          navigateRight(e);
-          break;
-      }
-    },
-    [handleCopy, navigateDown, navigateUp, navigateLeft, navigateRight],
-  );
-
-  const updateRangeSelection = useCallback(
-    (cell: Cell<TData, unknown>) => {
-      if (!selectedStartCell) {
-        return;
-      }
-
-      const selectedCellsInRange = getCellsBetween(
-        table,
-        selectedStartCell,
-        getSelectedCell(cell),
-      );
-
-      setSelectedCells(selectedCellsInRange);
-    },
-    [selectedStartCell, table, getSelectedCell],
-  );
-
-  const handleCellMouseDown = useCallback(
-    (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
-      const selectedCell = getSelectedCell(cell);
-
-      if (!e.ctrlKey && !e.shiftKey) {
-        const deselectCell =
-          selectedCells.length === 1 && selectedCells[0].cellId === cell.id;
-        // Deselect the cell if it's already selected
-        if (deselectCell) {
-          setSelectedCells([]);
-          setSelectedStartCell(null);
-          setIsMouseDown(true);
-          return;
+  const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    switch (e.key) {
+      case "c":
+        if (e.metaKey || e.ctrlKey) {
+          handleCopy();
         }
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        navigateDown(e);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        navigateUp(e);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        navigateLeft(e);
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        navigateRight(e);
+        break;
+    }
+  };
 
-        setSelectedCells([selectedCell]);
-        if (!isMouseDown) {
-          setSelectedStartCell(selectedCell);
-        }
+  const updateRangeSelection = (cell: Cell<TData, unknown>) => {
+    if (!selectedStartCell) {
+      return;
+    }
+
+    const selectedCellsInRange = getCellsBetween(
+      table,
+      selectedStartCell,
+      getSelectedCell(cell),
+    );
+
+    setSelectedCells(selectedCellsInRange);
+  };
+
+  const handleCellMouseDown = (
+    e: React.MouseEvent,
+    cell: Cell<TData, unknown>,
+  ) => {
+    const selectedCell = getSelectedCell(cell);
+
+    if (!e.ctrlKey && !e.shiftKey) {
+      const deselectCell =
+        selectedCells.length === 1 && selectedCells[0].cellId === cell.id;
+      // Deselect the cell if it's already selected
+      if (deselectCell) {
+        setSelectedCells([]);
+        setSelectedStartCell(null);
         setIsMouseDown(true);
         return;
       }
 
-      if (e.ctrlKey) {
-        setSelectedCells((prev) => {
-          const cellExists = prev.some((c) => c.cellId === cell.id);
-          if (cellExists) {
-            return prev.filter(({ cellId }) => cellId !== cell.id);
-          }
-          return [...prev, selectedCell];
-        });
-        if (!isMouseDown) {
-          setSelectedStartCell(selectedCell);
+      setSelectedCells([selectedCell]);
+      if (!isMouseDown) {
+        setSelectedStartCell(selectedCell);
+      }
+      setIsMouseDown(true);
+      return;
+    }
+
+    if (e.ctrlKey) {
+      setSelectedCells((prev) => {
+        const cellExists = prev.some((c) => c.cellId === cell.id);
+        if (cellExists) {
+          return prev.filter(({ cellId }) => cellId !== cell.id);
         }
-        setIsMouseDown(true);
-        return;
+        return [...prev, selectedCell];
+      });
+      if (!isMouseDown) {
+        setSelectedStartCell(selectedCell);
       }
+      setIsMouseDown(true);
+      return;
+    }
 
-      if (e.shiftKey) {
-        updateRangeSelection(cell);
-        setIsMouseDown(true);
-      }
-    },
-    [isMouseDown, updateRangeSelection, getSelectedCell, selectedCells],
-  );
+    if (e.shiftKey) {
+      updateRangeSelection(cell);
+      setIsMouseDown(true);
+    }
+  };
 
-  const handleCellMouseUp = useEvent(
-    (_e: React.MouseEvent, _cell: Cell<TData, unknown>) => {
-      setIsMouseDown(false);
-    },
-  );
+  const handleCellMouseUp = () => {
+    setIsMouseDown(false);
+  };
 
-  const handleCellMouseOver = useCallback(
-    (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
-      if (e.buttons !== 1) {
-        return;
-      }
-      if (isMouseDown) {
-        updateRangeSelection(cell);
-      }
-    },
-    [isMouseDown, updateRangeSelection],
-  );
+  const handleCellMouseOver = (
+    e: React.MouseEvent,
+    cell: Cell<TData, unknown>,
+  ) => {
+    if (e.buttons !== 1) {
+      return;
+    }
+    if (isMouseDown) {
+      updateRangeSelection(cell);
+    }
+  };
 
-  const isCellSelected = useCallback(
-    (cell: Cell<TData, unknown>) =>
-      selectedCells.some((c) => c.cellId === cell.id),
-    [selectedCells],
-  );
+  const isCellSelected = (cell: Cell<TData, unknown>) => {
+    return selectedCells.some((c) => c.cellId === cell.id);
+  };
 
-  const isCellCopied = useCallback(
-    (cell: Cell<TData, unknown>) =>
-      copiedCells.some((c) => c.cellId === cell.id),
-    [copiedCells],
-  );
+  const isCellCopied = (cell: Cell<TData, unknown>) => {
+    return copiedCells.some((c) => c.cellId === cell.id);
+  };
 
   return {
     handleCellMouseDown,

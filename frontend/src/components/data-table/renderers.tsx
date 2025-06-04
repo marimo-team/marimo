@@ -112,7 +112,7 @@ export const DataTableBody = <TData,>({
           style={style}
           title={String(cell.getValue())}
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
-          onMouseUp={(e) => handleCellMouseUp(e, cell)}
+          onMouseUp={() => handleCellMouseUp()}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
