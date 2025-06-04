@@ -6,6 +6,7 @@ import json
 import re
 import sys
 from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import Any, Callable, Union
 
 from marimo._ast.cell import CellConfig
@@ -23,8 +24,18 @@ from marimo._schemas.serialization import (
 )
 from marimo._types.ids import CellId_t
 
-# Define a type for our transform functions
+# Define a type for our 1:1 source-only transform functions
 Transform = Callable[[list[str]], list[str]]
+
+
+@dataclass
+class CodeCell:
+    source: str
+    config: CellConfig = field(default_factory=CellConfig)
+
+
+# Define a type for transforms that add/remove cells
+CellsTransform = Callable[[list[CodeCell]], list[CodeCell]]
 
 
 def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
@@ -74,7 +85,7 @@ def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
     return [transform(source) for source in sources]
 
 
-def transform_add_marimo_import(sources: list[str]) -> list[str]:
+def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
     """
     Add an import statement for marimo if any cell uses
     the `mo.md` or `mo.sql` functions.
@@ -102,13 +113,13 @@ def transform_add_marimo_import(sources: list[str]) -> list[str]:
         return False
 
     already_has_marimo_import = any(
-        has_marimo_import(cell) for cell in sources
+        has_marimo_import(cell.source) for cell in sources
     )
     if already_has_marimo_import:
         return sources
 
-    if any(contains_mo(cell) for cell in sources):
-        return sources + ["import marimo as mo"]
+    if any(contains_mo(cell.source) for cell in sources):
+        return sources + [CodeCell("import marimo as mo")]
 
     return sources
 
@@ -608,22 +619,29 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     return new_sources
 
 
-def transform_cell_metadata(
-    sources: list[str], metadata: list[dict[str, Any]]
-) -> list[str]:
+def bind_cell_metadata(
+    sources: list[str], metadata: list[dict[str, Any]], hide_flags: list[bool]
+) -> list[CodeCell]:
     """
-    Handle cell metadata, such as tags or cell IDs.
+    One-time transformation that binds sources and (ipynb) metadata into CodeCell objects.
+
+    This marks the boundary between source-only transformations and cell-level transformations.
+
+    - If "hide-cell" is present in the tags, the cell is marked hidden (and removed)
+    - Remaining tags (if any) are inserted as a comment at the top of the source.
     """
-    transformed_sources: list[str] = []
-    for source, meta in zip(sources, metadata):
-        if "tags" in meta:
-            tags = meta["tags"]
-            if not tags:
-                transformed_sources.append(source)
-                continue
-            source = f"# Cell tags: {', '.join(tags)}\n{source}"
-        transformed_sources.append(source)
-    return transformed_sources
+    cells: list[CodeCell] = []
+    for source, meta, hide_code in zip(sources, metadata, hide_flags):
+        tags: set[str] = set(meta.get("tags", []))
+        if "hide-cell" in tags:
+            tags.discard("hide-cell")
+            hide_code = True
+        if tags:
+            source = f"# Cell tags: {', '.join(sorted(tags))}\n{source}"
+        cells.append(
+            CodeCell(source=source, config=CellConfig(hide_code=hide_code))
+        )
+    return cells
 
 
 def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
@@ -651,14 +669,14 @@ def transform_remove_duplicate_imports(sources: list[str]) -> list[str]:
     return new_sources
 
 
-def transform_remove_empty_cells(sources: list[str]) -> list[str]:
+def transform_remove_empty_cells(cells: list[CodeCell]) -> list[CodeCell]:
     """
     Remove empty cells.
     """
-    sources = [source for source in sources if source.strip()]
+    sources = [cell for cell in cells if cell.source.strip()]
     # Ensure there is at least one cell
     if not sources:
-        return [""]
+        return [CodeCell("")]
     return sources
 
 
@@ -685,23 +703,46 @@ def extract_inline_meta(script: str) -> tuple[str | None, str]:
 
 
 def _transform_sources(
-    sources: list[str], metadata: list[dict[str, Any]]
-) -> list[str]:
-    transforms: list[Transform] = [
+    sources: list[str], metadata: list[dict[str, Any]], hide_flags: list[bool]
+) -> list[CodeCell]:
+    """
+    Process raw sources and metadata into finalized cells.
+
+    This pipeline runs in three stages:
+    1. Source-only transforms (e.g., stripping whitespace, handling magics)
+    2. A one-time binding of sources and metadata.
+    3. Cell-level transforms (e.g., inserting imports, removing empty cells)
+
+    After this step, cells are ready for execution or rendering.
+    """
+    source_transforms: list[Transform] = [
         transform_strip_whitespace,
         transform_magic_commands,
         transform_remove_duplicate_imports,
         transform_fixup_multiple_definitions,
         transform_duplicate_definitions,
-        lambda s: transform_cell_metadata(s, metadata),
-        transform_add_marimo_import,  # may change cell count
-        transform_remove_empty_cells,  # may change cell count
     ]
 
-    # Run all the transforms
-    for transform in transforms:
-        sources = transform(sources)
-    return sources
+    # Run all the source transforms
+    for transform in source_transforms:
+        new_sources = transform(sources)
+        assert len(new_sources) == len(sources), (
+            f"{transform.__name__} changed cell count"
+        )
+        sources = new_sources
+
+    cells = bind_cell_metadata(sources, metadata, hide_flags)
+
+    # may change cell count
+    cell_transforms = [
+        transform_add_marimo_import,
+        transform_remove_empty_cells,
+    ]
+
+    for transform in cell_transforms:
+        cells = transform(cells)
+
+    return cells
 
 
 def convert_from_ipynb_to_notebook_ir(
@@ -713,9 +754,8 @@ def convert_from_ipynb_to_notebook_ir(
     notebook = json.loads(raw_notebook)
     sources: list[str] = []
     metadata: list[dict[str, Any]] = []
-    cell_configs: list[CellConfig] = []
+    hide_flags: list[bool] = []
     inline_meta: Union[str, None] = None
-    md_cells: set[str] = set()
 
     for cell in notebook["cells"]:
         source = (
@@ -726,7 +766,6 @@ def convert_from_ipynb_to_notebook_ir(
         is_markdown: bool = cell["cell_type"] == "markdown"
         if is_markdown:
             source = markdown_to_marimo(source)
-            md_cells.add(source)
         elif inline_meta is None:
             # Eagerly find PEP 723 metadata, first match wins
             inline_meta, source = extract_inline_meta(source)
@@ -734,23 +773,18 @@ def convert_from_ipynb_to_notebook_ir(
         if source:
             sources.append(source)
             metadata.append(cell.get("metadata", {}))
+            hide_flags.append(is_markdown)
 
-    transformed_sources = _transform_sources(sources, metadata)
-
-    # Cell configs must come after _transform_sources since this may add/remove cells
-    cell_configs = [
-        CellConfig(hide_code=source in md_cells)
-        for source in transformed_sources
-    ]
+    transformed_cells = _transform_sources(sources, metadata, hide_flags)
 
     return NotebookSerializationV1(
         app=AppInstantiation(),
         header=Header(value=inline_meta or ""),
         cells=[
             CellDef(
-                code=source,
-                options={"hide_code": config.hide_code},
+                code=cell.source,
+                options={"hide_code": cell.config.hide_code},
             )
-            for source, config in zip(transformed_sources, cell_configs)
+            for cell in transformed_cells
         ],
     )
