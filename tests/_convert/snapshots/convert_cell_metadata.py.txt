@@ -43,5 +43,18 @@ def _():
     return
 
 
+@app.cell(hide_code=True)
+def _():
+    print('hidden cell')
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    # Cell tags: remove-print
+    print('hidden cell, with other tags')
+    return
+
+
 if __name__ == "__main__":
     app.run()

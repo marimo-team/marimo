@@ -126,6 +126,18 @@ for i_1 in range(X_1.shape[0]):
                     "custom": {"key": "value"},
                 },
             ),
+            nb.new_code_cell(
+                "print('hidden cell')",
+                metadata={
+                    "tags": ["hide-cell"],
+                },
+            ),
+            nb.new_code_cell(
+                "print('hidden cell, with other tags')",
+                metadata={
+                    "tags": ["hide-cell", "remove-print"],
+                },
+            ),
         ],
     )
 
