@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { Cell, Table } from "@tanstack/react-table";
-import useEvent from "react-use-event-hook";
 import { renderUnknownValue } from "../renderers";
 import { copyToClipboard } from "@/utils/copy";
 
@@ -28,13 +27,13 @@ export const useCellSelection = <TData>({
     useState<SelectedCell | null>(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
 
-  const getSelectedCell = useEvent(
-    (cell: Cell<TData, unknown>): SelectedCell => ({
+  const getSelectedCell = (cell: Cell<TData, unknown>): SelectedCell => {
+    return {
       rowId: cell.row.id,
       columnId: cell.column.id,
       cellId: cell.id,
-    }),
-  );
+    };
+  };
 
   const handleCopy = () => {
     const text = getCellValues(table, selectedCells);
@@ -54,108 +53,65 @@ export const useCellSelection = <TData>({
     }
   };
 
-  const navigateUp = (e: React.KeyboardEvent<HTMLElement>) => {
+  const navigate = (
+    e: React.KeyboardEvent<HTMLElement>,
+    direction: "up" | "down" | "left" | "right",
+  ) => {
     const selectedCell = selectedCells[selectedCells.length - 1];
     if (!selectedCell) {
       return;
     }
 
-    const rows = table.getRowModel().rows;
-    const selectedRowIndex = rows.findIndex(
-      (row) => row.id === selectedCell.rowId,
-    );
-    if (selectedRowIndex < 0) {
+    if (direction === "up" || direction === "down") {
+      const rows = table.getRowModel().rows;
+      const selectedRowIndex = rows.findIndex(
+        (row) => row.id === selectedCell.rowId,
+      );
+      if (selectedRowIndex < 0) {
+        return;
+      }
+
+      const nextRow =
+        direction === "up"
+          ? rows[selectedRowIndex - 1]
+          : rows[selectedRowIndex + 1];
+      if (!nextRow) {
+        return;
+      }
+
+      const nextCell = nextRow
+        .getAllCells()
+        .find((c) => c.column.id === selectedCell.columnId);
+      if (!nextCell) {
+        return;
+      }
+
+      updateSelection(getSelectedCell(nextCell), e.shiftKey);
       return;
     }
 
-    const previousRow = rows[selectedRowIndex - 1];
-    if (!previousRow) {
+    if (direction === "left" || direction === "right") {
+      const selectedRow = table.getRow(selectedCell.rowId);
+      const cells = selectedRow.getAllCells();
+      const selectedColumnIndex = cells.findIndex(
+        (c) => c.id === selectedCell.cellId,
+      );
+      if (selectedColumnIndex < 0) {
+        return;
+      }
+
+      const nextCell =
+        direction === "left"
+          ? cells[selectedColumnIndex - 1]
+          : cells[selectedColumnIndex + 1];
+
+      if (!nextCell) {
+        return;
+      }
+
+      updateSelection(getSelectedCell(nextCell), e.shiftKey);
       return;
     }
-
-    const previousCell = previousRow
-      .getAllCells()
-      .find((c) => c.column.id === selectedCell.columnId);
-    if (!previousCell) {
-      return;
-    }
-
-    updateSelection(getSelectedCell(previousCell), e.shiftKey);
-  };
-
-  const navigateDown = (e: React.KeyboardEvent<HTMLElement>) => {
-    const selectedCell = selectedCells[selectedCells.length - 1];
-    if (!selectedCell) {
-      return;
-    }
-
-    const rows = table.getRowModel().rows;
-    const selectedRowIndex = rows.findIndex(
-      (row) => row.id === selectedCell.rowId,
-    );
-    if (selectedRowIndex < 0) {
-      return;
-    }
-
-    const nextRow = rows[selectedRowIndex + 1];
-    if (!nextRow) {
-      return;
-    }
-
-    const nextCell = nextRow
-      .getAllCells()
-      .find((c) => c.column.id === selectedCell.columnId);
-    if (!nextCell) {
-      return;
-    }
-
-    updateSelection(getSelectedCell(nextCell), e.shiftKey);
-  };
-
-  const navigateLeft = (e: React.KeyboardEvent<HTMLElement>) => {
-    const selectedCell = selectedCells[selectedCells.length - 1];
-    if (!selectedCell) {
-      return;
-    }
-
-    const selectedRow = table.getRow(selectedCell.rowId);
-    const cells = selectedRow.getAllCells();
-    const selectedColumnIndex = cells.findIndex(
-      (c) => c.id === selectedCell.cellId,
-    );
-    if (selectedColumnIndex < 0) {
-      return;
-    }
-
-    const previousCell = cells[selectedColumnIndex - 1];
-    if (!previousCell) {
-      return;
-    }
-
-    updateSelection(getSelectedCell(previousCell), e.shiftKey);
-  };
-
-  const navigateRight = (e: React.KeyboardEvent<HTMLElement>) => {
-    const selectedCell = selectedCells[selectedCells.length - 1];
-    if (!selectedCell) {
-      return;
-    }
-
-    const selectedRow = table.getRow(selectedCell.rowId);
-    const cells = selectedRow.getAllCells();
-    const selectedColumnIndex = cells.findIndex(
-      (c) => c.id === selectedCell.cellId,
-    );
-    if (selectedColumnIndex < 0) {
-      return;
-    }
-
-    const nextCell = cells[selectedColumnIndex + 1];
-    if (!nextCell) {
-      return;
-    }
-
-    updateSelection(getSelectedCell(nextCell), e.shiftKey);
   };
 
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
@@ -167,19 +123,19 @@ export const useCellSelection = <TData>({
         break;
       case "ArrowDown":
         e.preventDefault();
-        navigateDown(e);
+        navigate(e, "down");
         break;
       case "ArrowUp":
         e.preventDefault();
-        navigateUp(e);
+        navigate(e, "up");
         break;
       case "ArrowLeft":
         e.preventDefault();
-        navigateLeft(e);
+        navigate(e, "left");
         break;
       case "ArrowRight":
         e.preventDefault();
-        navigateRight(e);
+        navigate(e, "right");
         break;
     }
   };
@@ -306,35 +262,31 @@ export function getCellsBetween<TData>(
   cellEnd: SelectedCell,
 ): SelectedCell[] {
   const rows = table.getRowModel().rows;
-  const cellStartRow = table.getRow(cellStart.rowId);
-  const cellEndRow = table.getRow(cellEnd.rowId);
+  const startRow = table.getRow(cellStart.rowId);
+  const endRow = table.getRow(cellEnd.rowId);
 
-  if (!cellStartRow || !cellEndRow) {
+  if (!startRow || !endRow) {
     return [];
   }
 
-  const cellStartData = cellStartRow
+  const startCell = startRow
     .getAllCells()
     .find((c) => c.id === cellStart.cellId);
-  const cellEndData = cellEndRow
-    .getAllCells()
-    .find((c) => c.id === cellEnd.cellId);
+  const endCell = endRow.getAllCells().find((c) => c.id === cellEnd.cellId);
 
-  if (!cellStartData || !cellEndData) {
+  if (!startCell || !endCell) {
     return [];
   }
 
-  const cellStartRowIdx = rows.findIndex(
-    ({ id }) => id === cellStartData.row.id,
-  );
-  const cellEndRowIdx = rows.findIndex(({ id }) => id === cellEndData.row.id);
-  const cellStartColumnIdx = cellStartData.column.getIndex();
-  const cellEndColumnIdx = cellEndData.column.getIndex();
+  const startRowIdx = rows.findIndex(({ id }) => id === startCell.row.id);
+  const endRowIdx = rows.findIndex(({ id }) => id === endCell.row.id);
+  const startColumnIdx = startCell.column.getIndex();
+  const endColumnIdx = endCell.column.getIndex();
 
-  const minRow = Math.min(cellStartRowIdx, cellEndRowIdx);
-  const maxRow = Math.max(cellStartRowIdx, cellEndRowIdx);
-  const minCol = Math.min(cellStartColumnIdx, cellEndColumnIdx);
-  const maxCol = Math.max(cellStartColumnIdx, cellEndColumnIdx);
+  const minRow = Math.min(startRowIdx, endRowIdx);
+  const maxRow = Math.max(startRowIdx, endRowIdx);
+  const minCol = Math.min(startColumnIdx, endColumnIdx);
+  const maxCol = Math.max(startColumnIdx, endColumnIdx);
 
   const result: SelectedCell[] = [];
 
