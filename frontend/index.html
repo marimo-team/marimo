@@ -51,15 +51,13 @@
         });
         resizeObserver.observe(obj.contentWindow.document.body);
       }
+      window.__MARIMO_MOUNT_CONFIG__ = '{{ mount_config }}';
     </script>
     <marimo-filename hidden>{{ filename }}</marimo-filename>
     <title>{{ title }}</title>
   </head>
   <body>
     <div id="root"></div>
-    <script data-marimo="true">
-      window.__MARIMO_MOUNT_CONFIG__ = '{{ mount_config }}';
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

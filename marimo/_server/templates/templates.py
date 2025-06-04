@@ -293,7 +293,6 @@ def wasm_notebook_template(
     code: str,
     show_code: bool,
     asset_url: Optional[str] = None,
-    extra_scripts: tuple[str, ...] = (),
     show_save: bool = False,
 ) -> str:
     """Template for WASM notebooks."""
@@ -382,13 +381,6 @@ def wasm_notebook_template(
         "</head>",
         f'<marimo-code hidden="">{uri_encode_component(code)}</marimo-code></head>',
     )
-
-    # Inject extra scripts as <script src="..."> tags before closing body
-    if extra_scripts:
-        script_tags = "\n".join(
-            [f'<script src="{url}"></script>' for url in extra_scripts]
-        )
-        body = body.replace("</body>", f"{script_tags}\n</body>")
 
     return body
 

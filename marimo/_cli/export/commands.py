@@ -512,11 +512,10 @@ and cannot be opened directly from the file system (e.g. file://).
     help=_sandbox_message,
 )
 @click.option(
-    "--extra-script",
-    multiple=True,
+    "--html-head",
     type=str,
     required=False,
-    help="Extra JavaScript URLs to include in the exported HTML. Can be specified multiple times.",
+    help="Path to an HTML file containing content to inject into the <head> section of the exported HTML.",
 )
 @click.option(
     "--show-save/--no-show-save",
@@ -537,7 +536,7 @@ def html_wasm(
     show_code: bool,
     include_cloudflare: bool,
     sandbox: Optional[bool],
-    extra_script: tuple[str, ...] = (),
+    html_head: Optional[str] = None,
     show_save: bool = False,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
@@ -571,7 +570,7 @@ def html_wasm(
             file_path,
             mode,
             show_code=show_code,
-            extra_scripts=extra_script,
+            html_head_file=html_head,
             show_save=show_save,
         )
 
