@@ -123,6 +123,6 @@ export class RuntimeManager {
 
 function asWsUrl(url: string): string {
   invariant(url.startsWith("http"), "URL must start with http");
-  // Replace the first http with ws
-  return url.replace("http", "ws");
+  // Replace the protocol http with ws
+  return url.replace(/^http/, "ws");
 }
