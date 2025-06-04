@@ -9,8 +9,7 @@ import { waitForEnabledCopilot } from "./state";
 import { Logger } from "@/utils/Logger";
 import { toast } from "@/components/ui/use-toast";
 import { waitForConnectionOpen } from "@/core/network/connection";
-import { store } from "@/core/state/jotai";
-import { runtimeManagerAtom } from "@/core/runtime/config";
+import { getRuntimeManager } from "@/core/runtime/config";
 
 // Dummy file for the copilot language server
 export const COPILOT_FILENAME = "/__marimo_copilot__.py";
@@ -35,7 +34,7 @@ class LazyWebsocketTransport extends Transport {
   }
 
   private getWsUrl(): string {
-    const runtimeManager = store.get(runtimeManagerAtom);
+    const runtimeManager = getRuntimeManager();
     return runtimeManager.getLSPURL("copilot").toString();
   }
 

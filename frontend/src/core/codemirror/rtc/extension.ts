@@ -37,7 +37,7 @@ import {
 import { invariant } from "@/utils/invariant";
 import { isEqual } from "lodash-es";
 import { getInitialAppMode } from "@/core/mode";
-import { runtimeManagerAtom } from "@/core/runtime/config";
+import { getRuntimeManager } from "@/core/runtime/config";
 
 const logger = Logger.get("rtc");
 const awarenessLogger = logger.get("awareness").disabled();
@@ -73,7 +73,7 @@ const awareness = new Awareness<AwarenessState>(doc.peerIdStr);
 const getWs = once(() => {
   logger.debug("creating websocket");
 
-  const runtimeManager = store.get(runtimeManagerAtom);
+  const runtimeManager = getRuntimeManager();
   const url = runtimeManager.getWsSyncURL(getSessionId()).toString();
 
   // Create the websocket, but don't connect it yet

@@ -16,7 +16,7 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
 };
 
 export const runtimeConfigAtom = atom<RuntimeConfig>(DEFAULT_RUNTIME_CONFIG);
-export const runtimeManagerAtom = atom<RuntimeManager>((get) => {
+const runtimeManagerAtom = atom<RuntimeManager>((get) => {
   const config = get(runtimeConfigAtom);
   return new RuntimeManager(config);
 });

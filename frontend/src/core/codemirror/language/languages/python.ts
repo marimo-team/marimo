@@ -40,11 +40,10 @@ import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { CellDocumentUri } from "../../lsp/types";
 import { hasCapability } from "@/core/config/capabilities";
-import { store } from "@/core/state/jotai";
-import { runtimeManagerAtom } from "@/core/runtime/config";
+import { getRuntimeManager } from "@/core/runtime/config";
 
 const pylspTransport = once(() => {
-  const runtimeManager = store.get(runtimeManagerAtom);
+  const runtimeManager = getRuntimeManager();
   const transport = new WebSocketTransport(
     runtimeManager.getLSPURL("pylsp").toString(),
   );

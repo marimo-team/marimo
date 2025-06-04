@@ -1,8 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Logger } from "../../utils/Logger";
 import { createMarimoClient } from "@marimo-team/marimo-api";
-import { store } from "@/core/state/jotai";
-import { runtimeManagerAtom } from "../runtime/config";
+import { getRuntimeManager } from "../runtime/config";
 import type { RuntimeManager } from "../runtime/runtime";
 
 function getBaseUriWithoutQueryParams(): string {
@@ -92,7 +91,7 @@ export const API = {
       });
   },
   headers() {
-    const runtimeManager = store.get(runtimeManagerAtom);
+    const runtimeManager = getRuntimeManager();
     return runtimeManager.headers();
   },
   handleResponse: <T>(response: {
@@ -125,7 +124,6 @@ export function createClientWithRuntimeManager(runtimeManager: RuntimeManager) {
 
   marimoClient.use({
     onRequest: (req) => {
-      const runtimeManager = store.get(runtimeManagerAtom);
       const headers = runtimeManager.headers();
 
       for (const [key, value] of Object.entries(headers)) {

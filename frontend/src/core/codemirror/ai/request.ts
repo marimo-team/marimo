@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { store } from "@/core/state/jotai";
-import { runtimeManagerAtom } from "@/core/runtime/config";
+import { getRuntimeManager } from "@/core/runtime/config";
 import type { LanguageAdapterType } from "../language/types";
 import type { AiCompletionRequest } from "@/core/network/types";
 
@@ -26,7 +25,7 @@ ${opts.selection}
 ${opts.codeAfter}
 `.trim();
 
-  const runtimeManager = store.get(runtimeManagerAtom);
+  const runtimeManager = getRuntimeManager();
 
   const response = await fetch(
     runtimeManager.getAiURL("completion").toString(),

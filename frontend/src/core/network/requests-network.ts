@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { runtimeManagerAtom } from "../runtime/config";
-import { store } from "../state/jotai";
+
+import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
 import { waitForConnectionOpen } from "./connection";
 import type { RunRequests, EditRequests } from "./types";
@@ -10,7 +10,7 @@ const { handleResponse, handleResponseReturnNull } = API;
 
 export function createNetworkRequests(): EditRequests & RunRequests {
   const getClient = once(() => {
-    const runtimeManager = store.get(runtimeManagerAtom);
+    const runtimeManager = getRuntimeManager();
     return createClientWithRuntimeManager(runtimeManager);
   });
 
