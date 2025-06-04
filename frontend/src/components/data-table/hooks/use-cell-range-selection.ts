@@ -45,7 +45,17 @@ export const useCellSelection = <TData>({
     }, 500);
   }, [selectedCells, table]);
 
-  const getRowModel = useCallback(() => table.getRowModel().rows, [table]);
+  const updateSelection = useCallback(
+    (newCell: SelectedCell, isShiftKey: boolean) => {
+      if (isShiftKey && selectedStartCell) {
+        setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
+      } else {
+        setSelectedCells([newCell]);
+        setSelectedStartCell(newCell);
+      }
+    },
+    [selectedStartCell, table],
+  );
 
   const navigateUp = useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
@@ -54,32 +64,29 @@ export const useCellSelection = <TData>({
         return;
       }
 
-      const rows = getRowModel();
+      const rows = table.getRowModel().rows;
       const selectedRowIndex = rows.findIndex(
         (row) => row.id === selectedCell.rowId,
       );
-      if (selectedRowIndex <= 0) {
+      if (selectedRowIndex < 0) {
         return;
       }
 
       const previousRow = rows[selectedRowIndex - 1];
+      if (!previousRow) {
+        return;
+      }
+
       const previousCell = previousRow
         .getAllCells()
         .find((c) => c.column.id === selectedCell.columnId);
-
       if (!previousCell) {
         return;
       }
 
-      const newCell = getSelectedCell(previousCell);
-      if (e.shiftKey && selectedStartCell) {
-        setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
-      } else {
-        setSelectedCells([newCell]);
-        setSelectedStartCell(newCell);
-      }
+      updateSelection(getSelectedCell(previousCell), e.shiftKey);
     },
-    [selectedCells, getRowModel, getSelectedCell, selectedStartCell, table],
+    [selectedCells, table, updateSelection, getSelectedCell],
   );
 
   const navigateDown = useCallback(
@@ -89,32 +96,29 @@ export const useCellSelection = <TData>({
         return;
       }
 
-      const rows = getRowModel();
+      const rows = table.getRowModel().rows;
       const selectedRowIndex = rows.findIndex(
         (row) => row.id === selectedCell.rowId,
       );
-      if (selectedRowIndex === -1 || selectedRowIndex >= rows.length - 1) {
+      if (selectedRowIndex < 0) {
         return;
       }
 
       const nextRow = rows[selectedRowIndex + 1];
+      if (!nextRow) {
+        return;
+      }
+
       const nextCell = nextRow
         .getAllCells()
         .find((c) => c.column.id === selectedCell.columnId);
-
       if (!nextCell) {
         return;
       }
 
-      const newCell = getSelectedCell(nextCell);
-      if (e.shiftKey && selectedStartCell) {
-        setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
-      } else {
-        setSelectedCells([newCell]);
-        setSelectedStartCell(newCell);
-      }
+      updateSelection(getSelectedCell(nextCell), e.shiftKey);
     },
-    [selectedCells, getRowModel, getSelectedCell, selectedStartCell, table],
+    [selectedCells, table, updateSelection, getSelectedCell],
   );
 
   const navigateLeft = useCallback(
@@ -129,7 +133,7 @@ export const useCellSelection = <TData>({
       const selectedColumnIndex = cells.findIndex(
         (c) => c.id === selectedCell.cellId,
       );
-      if (selectedColumnIndex <= 0) {
+      if (selectedColumnIndex < 0) {
         return;
       }
 
@@ -138,15 +142,9 @@ export const useCellSelection = <TData>({
         return;
       }
 
-      const newCell = getSelectedCell(previousCell);
-      if (e.shiftKey && selectedStartCell) {
-        setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
-      } else {
-        setSelectedCells([newCell]);
-        setSelectedStartCell(newCell);
-      }
+      updateSelection(getSelectedCell(previousCell), e.shiftKey);
     },
-    [selectedCells, table, getSelectedCell, selectedStartCell],
+    [selectedCells, table, updateSelection, getSelectedCell],
   );
 
   const navigateRight = useCallback(
@@ -161,10 +159,7 @@ export const useCellSelection = <TData>({
       const selectedColumnIndex = cells.findIndex(
         (c) => c.id === selectedCell.cellId,
       );
-      if (
-        selectedColumnIndex === -1 ||
-        selectedColumnIndex >= cells.length - 1
-      ) {
+      if (selectedColumnIndex < 0) {
         return;
       }
 
@@ -173,15 +168,9 @@ export const useCellSelection = <TData>({
         return;
       }
 
-      const newCell = getSelectedCell(nextCell);
-      if (e.shiftKey && selectedStartCell) {
-        setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
-      } else {
-        setSelectedCells([newCell]);
-        setSelectedStartCell(newCell);
-      }
+      updateSelection(getSelectedCell(nextCell), e.shiftKey);
     },
-    [selectedCells, table, getSelectedCell, selectedStartCell],
+    [selectedCells, table, updateSelection, getSelectedCell],
   );
 
   const handleCellsKeyDown = useCallback(
@@ -225,17 +214,7 @@ export const useCellSelection = <TData>({
         getSelectedCell(cell),
       );
 
-      setSelectedCells((prev) => {
-        const startIndex = prev.findIndex(
-          (c) => c.cellId === selectedStartCell.cellId,
-        );
-        const prevSelectedCells = prev.slice(0, startIndex);
-        const newCellSelection = selectedCellsInRange.filter(
-          (c) => c.cellId !== selectedStartCell.cellId,
-        );
-
-        return [...prevSelectedCells, selectedStartCell, ...newCellSelection];
-      });
+      setSelectedCells(selectedCellsInRange);
     },
     [selectedStartCell, table, getSelectedCell],
   );
@@ -245,6 +224,16 @@ export const useCellSelection = <TData>({
       const selectedCell = getSelectedCell(cell);
 
       if (!e.ctrlKey && !e.shiftKey) {
+        const deselectCell =
+          selectedCells.length === 1 && selectedCells[0].cellId === cell.id;
+        // Deselect the cell if it's already selected
+        if (deselectCell) {
+          setSelectedCells([]);
+          setSelectedStartCell(null);
+          setIsMouseDown(true);
+          return;
+        }
+
         setSelectedCells([selectedCell]);
         if (!isMouseDown) {
           setSelectedStartCell(selectedCell);
@@ -343,19 +332,25 @@ export function getCellsBetween<TData>(
   cellStart: SelectedCell,
   cellEnd: SelectedCell,
 ): SelectedCell[] {
-  const cellStartData = table
-    .getRow(cellStart.rowId)
+  const rows = table.getRowModel().rows;
+  const cellStartRow = table.getRow(cellStart.rowId);
+  const cellEndRow = table.getRow(cellEnd.rowId);
+
+  if (!cellStartRow || !cellEndRow) {
+    return [];
+  }
+
+  const cellStartData = cellStartRow
     .getAllCells()
     .find((c) => c.id === cellStart.cellId);
-  const cellEndData = table
-    .getRow(cellEnd.rowId)
+  const cellEndData = cellEndRow
     .getAllCells()
     .find((c) => c.id === cellEnd.cellId);
+
   if (!cellStartData || !cellEndData) {
     return [];
   }
 
-  const rows = table.getRowModel().rows;
   const cellStartRowIdx = rows.findIndex(
     ({ id }) => id === cellStartData.row.id,
   );
@@ -368,15 +363,14 @@ export function getCellsBetween<TData>(
   const minCol = Math.min(cellStartColumnIdx, cellEndColumnIdx);
   const maxCol = Math.max(cellStartColumnIdx, cellEndColumnIdx);
 
-  const columns = table.getAllColumns().slice(minCol, maxCol + 1);
   const result: SelectedCell[] = [];
 
   for (let i = minRow; i <= maxRow; i++) {
     const row = rows[i];
     const cells = row.getAllCells();
 
-    for (const column of columns) {
-      const cell = cells.find((c) => c.column.id === column.id);
+    for (let j = minCol; j <= maxCol; j++) {
+      const cell = cells[j];
       if (cell) {
         result.push({
           rowId: cell.row.id,
