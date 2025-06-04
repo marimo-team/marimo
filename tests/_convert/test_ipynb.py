@@ -287,22 +287,6 @@ def test_transform_duplicate_definitions():
     ]
 
 
-def test_transform_cell_metadata():
-    sources = [
-        "print('Hello')",
-        "print('World')",
-    ]
-    metadata = [
-        {"tags": ["tag1", "tag2"]},
-        {},
-    ]
-    result = transform_cell_metadata(sources, metadata)
-    assert result == [
-        "# Cell tags: tag1, tag2\nprint('Hello')",
-        "print('World')",
-    ]
-
-
 def test_transform_remove_duplicate_imports():
     sources = [
         "import numpy as np\nimport pandas as pd\nimport numpy as np",
@@ -429,25 +413,6 @@ def test_transform_duplicate_definitions_complex():
     ]
 
 
-def test_transform_cell_metadata_complex():
-    sources = [
-        "print('Cell 1')",
-        "print('Cell 2')",
-        "print('Cell 3')",
-    ]
-    metadata = [
-        {"tags": ["important", "data-processing"]},
-        {"tags": []},
-        {"tags": ["visualization"], "collapsed": True},
-    ]
-    result = transform_cell_metadata(sources, metadata)
-    assert result == [
-        "# Cell tags: important, data-processing\nprint('Cell 1')",
-        "print('Cell 2')",
-        "# Cell tags: visualization\nprint('Cell 3')",
-    ]
-
-
 def test_transform_remove_duplicate_imports_complex():
     sources = [
         "import numpy as np\nfrom pandas import DataFrame\nimport matplotlib.pyplot as plt",  # noqa: E501
@@ -527,24 +492,6 @@ def test_transform_duplicate_definitions_with_reference_to_previous():
         "x = 1",
         "x_1 = x + 1\nprint(x_1)",
         "print(x_1)",
-    ]
-
-
-def test_transform_cell_metadata_with_complex_metadata():
-    sources = [
-        "print('Complex metadata')",
-    ]
-    metadata = [
-        {
-            "tags": ["tag1", "tag2"],
-            "collapsed": True,
-            "scrolled": False,
-            "custom": {"key": "value"},
-        }
-    ]
-    result = transform_cell_metadata(sources, metadata)
-    assert result == [
-        "# Cell tags: tag1, tag2\nprint('Complex metadata')",
     ]
 
 

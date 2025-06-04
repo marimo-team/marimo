@@ -22,7 +22,6 @@ Output notebooks are written to `tests/_convert/ipynb_data/`.
 """
 
 from __future__ import annotations
-from io import FileIO
 from pathlib import Path
 
 import nbformat.v4.nbbase as nb
@@ -99,6 +98,34 @@ for i_1 in range(X_1.shape[0]):
         [
             "x ( b 2 d & !",
             "x",
+        ],
+    )
+
+    create_notebook_fixture(
+        "cell_metadata",
+        [
+            nb.new_code_cell(
+                "print('Hello')", metadata={"tags": ["tag1", "tag2"]}
+            ),
+            nb.new_code_cell("print('World')", metadata={}),
+            nb.new_code_cell(
+                "print('Cell 1')",
+                metadata={"tags": ["important", "data-processing"]},
+            ),
+            nb.new_code_cell("print('Cell 2')", metadata={"tags": []}),
+            nb.new_code_cell(
+                "print('Cell 3')",
+                metadata={"tags": ["visualization"], "collapsed": True},
+            ),
+            nb.new_code_cell(
+                "print('Complex metadata')",
+                metadata={
+                    "tags": ["tag1", "tag2"],
+                    "collapsed": True,
+                    "scrolled": False,
+                    "custom": {"key": "value"},
+                },
+            ),
         ],
     )
 

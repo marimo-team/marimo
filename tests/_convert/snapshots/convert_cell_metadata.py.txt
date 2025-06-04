@@ -1,0 +1,47 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    # Cell tags: tag1, tag2
+    print('Hello')
+    return
+
+
+@app.cell
+def _():
+    print('World')
+    return
+
+
+@app.cell
+def _():
+    # Cell tags: data-processing, important
+    print('Cell 1')
+    return
+
+
+@app.cell
+def _():
+    print('Cell 2')
+    return
+
+
+@app.cell
+def _():
+    # Cell tags: visualization
+    print('Cell 3')
+    return
+
+
+@app.cell
+def _():
+    # Cell tags: tag1, tag2
+    print('Complex metadata')
+    return
+
+
+if __name__ == "__main__":
+    app.run()
