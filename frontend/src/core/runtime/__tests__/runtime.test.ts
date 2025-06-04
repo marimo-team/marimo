@@ -219,10 +219,13 @@ describe("RuntimeManager", () => {
       const runtime = new RuntimeManager(mockConfig);
       const headers = runtime.headers();
 
-      expect(headers).toEqual({
-        "Marimo-Session-Id": "test-session-id",
-        "Marimo-Server-Token": "test-token",
-      });
+      expect(headers).toMatchInlineSnapshot(`
+        {
+          "Authorization": "Bearer test-token",
+          "Marimo-Server-Token": "",
+          "Marimo-Session-Id": "test-session-id",
+        }
+      `);
     });
 
     it("should return headers with empty token when not provided", () => {
