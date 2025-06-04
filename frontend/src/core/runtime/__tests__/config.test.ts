@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
 import { asRemoteURL, getRuntimeManager } from "../config";
 import { store } from "@/core/state/jotai";
 import type { RuntimeManager } from "../runtime";
@@ -23,6 +23,8 @@ vi.mock("jotai", () => ({
   useAtomValue: vi.fn(),
 }));
 
+const mockedStore = store as Mocked<typeof store>;
+
 describe("runtime config", () => {
   const mockRuntimeManager = {
     httpURL: new URL("http://localhost:8080"),
@@ -30,7 +32,7 @@ describe("runtime config", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (store.get as any).mockReturnValue(mockRuntimeManager);
+    mockedStore.get.mockReturnValue(mockRuntimeManager);
   });
 
   describe("asRemoteURL", () => {
@@ -91,7 +93,7 @@ describe("runtime config", () => {
       const customRuntimeManager = {
         httpURL: new URL("https://custom.marimo.io/app/"),
       } as RuntimeManager;
-      (store.get as any).mockReturnValue(customRuntimeManager);
+      mockedStore.get.mockReturnValue(customRuntimeManager);
 
       const result = asRemoteURL("/api/data");
       expect(result.toString()).toBe("https://custom.marimo.io/api/data");
@@ -149,7 +151,7 @@ describe("runtime config", () => {
 
       testCases.forEach(({ baseURL, path, expected }) => {
         const customManager = { httpURL: new URL(baseURL) } as RuntimeManager;
-        (store.get as any).mockReturnValue(customManager);
+        mockedStore.get.mockReturnValue(customManager);
 
         const result = asRemoteURL(path);
         expect(result.toString()).toBe(expected);
