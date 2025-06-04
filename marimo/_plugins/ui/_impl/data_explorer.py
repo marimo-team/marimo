@@ -60,33 +60,43 @@ class data_explorer(UIElement[dict[str, Any], dict[str, Any]]):
 
         manager = get_table_manager(df_no_idx)
 
-        initial_spec = {}
-        if x is not None:
-            initial_spec["x"] = x
-        if y is not None:
-            initial_spec["y"] = y
-        if row is not None:
-            initial_spec["row"] = row
-        if column is not None:
-            initial_spec["column"] = column
-        if color is not None:
-            initial_spec["color"] = color
-        if size is not None:
-            initial_spec["size"] = size
-        if shape is not None:
-            initial_spec["shape"] = shape
+        encoding_fields = dict(
+            x=x,
+            y=y,
+            row=row,
+            column=column,
+            color=color,
+            size=size,
+            shape=shape,
+        )
+
+        # Create ChartSpec structure for frontend
+        initial_value: dict[str, Any] = {
+            "mark": "?",
+            "encoding": {
+                channel: {"field": field}
+                for channel, field in encoding_fields.items()
+                if field is not None
+            },
+            "config": {},
+        }
 
         super().__init__(
             component_name=data_explorer._name,
-            initial_value=initial_spec,
+            initial_value=initial_value,
             on_change=on_change,
             label="",
-            args={
-                "data": mo_data.csv(manager.to_csv()).url,
-            },
+            args={"data": mo_data.csv(manager.to_csv()).url},
         )
 
     def _convert_value(self, value: dict[str, Any]) -> dict[str, Any]:
+        """Convert ChartSpec format to simple field mapping for public API."""
+        if isinstance(value, dict) and "encoding" in value:
+            return {
+                channel: field_def["field"]
+                for channel, field_def in value["encoding"].items()
+                if isinstance(field_def, dict) and "field" in field_def
+            }
         return value
 
 
