@@ -19,7 +19,7 @@ import {
   type Cell,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
-import { useCellSelection } from "@/hooks/useCellSelection";
+import { useCellSelection } from "@/components/data-table/hooks/use-cell-range-selection";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -81,7 +81,6 @@ export const DataTableBody = <TData,>({
     handleCellMouseOver,
     handleCellsKeyDown,
     isCellSelected,
-    isRowSelected,
     isCellCopied,
   } = useCellSelection({
     table,
@@ -106,13 +105,15 @@ export const DataTableBody = <TData,>({
           key={cell.id}
           tabIndex={0}
           className={cn(
-            "whitespace-pre truncate max-w-[300px] select-none",
+            "whitespace-pre truncate max-w-[300px] select-none outline-none",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
             "px-1.5 py-[0.18rem]",
-            isCellSelected(cell) && "bg-[var(--blue-3)]",
-            isCellCopied(cell) && "bg-[var(--blue-4)]",
+            isCellSelected(cell) &&
+              "bg-[var(--green-3)] transition-colors duration-150",
+            isCellCopied(cell) &&
+              "bg-[var(--green-4)] transition-colors duration-150",
             className,
           )}
           style={style}

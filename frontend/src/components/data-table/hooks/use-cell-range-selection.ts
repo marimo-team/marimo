@@ -2,6 +2,9 @@
 
 import { useState, useCallback } from "react";
 import type { Cell, Table } from "@tanstack/react-table";
+import useEvent from "react-use-event-hook";
+import { renderUnknownValue } from "../renderers";
+import { copyToClipboard } from "@/utils/copy";
 
 export interface SelectedCell {
   rowId: string;
@@ -9,58 +12,40 @@ export interface SelectedCell {
   cellId: string;
 }
 
-export interface UseCellSelectionProps {
-  table: Table<unknown>;
+export interface UseCellSelectionProps<TData> {
+  table: Table<TData>;
   scrollToRow?: (index: number) => void;
 }
 
-export const useCellSelection = ({
+/*
+ * This hook is used to handle selecting multiple cells at once.
+ */
+export const useCellSelection = <TData>({
   table,
   scrollToRow,
-}: UseCellSelectionProps) => {
+}: UseCellSelectionProps<TData>) => {
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
   const [copiedCells, setCopiedCells] = useState<SelectedCell[]>([]);
   const [selectedStartCell, setSelectedStartCell] =
     useState<SelectedCell | null>(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
 
-  const getCellSelectionData = useCallback(
-    (cell: Cell<unknown, unknown>): SelectedCell => ({
+  const getCellSelectionData = useEvent(
+    (cell: Cell<TData, unknown>): SelectedCell => ({
       rowId: cell.row.id,
       columnId: cell.column.id,
       cellId: cell.id,
     }),
-    [],
   );
 
   const handleCopy = useCallback(() => {
     const text = getCellValues(table, selectedCells);
-    navigator.clipboard.writeText(text);
+    copyToClipboard(text);
     setCopiedCells(selectedCells);
     setTimeout(() => {
       setCopiedCells([]);
     }, 500);
   }, [selectedCells, table]);
-
-  const navigateHome = useCallback(() => {
-    const firstCell = table.getRowModel().rows[0]?.getAllCells()[0];
-    if (!firstCell) {
-      return;
-    }
-    setSelectedCells([getCellSelectionData(firstCell)]);
-    scrollToRow?.(0);
-  }, [table, scrollToRow, getCellSelectionData]);
-
-  const navigateEnd = useCallback(() => {
-    const lastRow =
-      table.getRowModel().rows[table.getRowModel().rows.length - 1];
-    const lastCell = lastRow?.getAllCells()[lastRow.getAllCells().length - 1];
-    if (!lastCell) {
-      return;
-    }
-    setSelectedCells([getCellSelectionData(lastCell)]);
-    scrollToRow?.(table.getRowModel().rows.length);
-  }, [table, scrollToRow, getCellSelectionData]);
 
   const navigateUp = useCallback(() => {
     const selectedCell = selectedCells[selectedCells.length - 1];
@@ -162,29 +147,13 @@ export const useCellSelection = ({
           e.preventDefault();
           navigateRight();
           break;
-        case "Home":
-          e.preventDefault();
-          navigateHome();
-          break;
-        case "End":
-          e.preventDefault();
-          navigateEnd();
-          break;
       }
     },
-    [
-      handleCopy,
-      navigateDown,
-      navigateUp,
-      navigateLeft,
-      navigateRight,
-      navigateHome,
-      navigateEnd,
-    ],
+    [handleCopy, navigateDown, navigateUp, navigateLeft, navigateRight],
   );
 
   const updateRangeSelection = useCallback(
-    (cell: Cell<unknown, unknown>) => {
+    (cell: Cell<TData, unknown>) => {
       if (!selectedStartCell) {
         return;
       }
@@ -211,7 +180,7 @@ export const useCellSelection = ({
   );
 
   const handleCellMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLElement>, cell: Cell<unknown, unknown>) => {
+    (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
       if (!e.ctrlKey && !e.shiftKey) {
         setSelectedCells([getCellSelectionData(cell)]);
         if (!isMouseDown) {
@@ -239,15 +208,14 @@ export const useCellSelection = ({
     [isMouseDown, updateRangeSelection, getCellSelectionData],
   );
 
-  const handleCellMouseUp = useCallback(
-    (_e: React.MouseEvent<HTMLElement>, _cell: Cell<unknown, unknown>) => {
+  const handleCellMouseUp = useEvent(
+    (_e: React.MouseEvent, _cell: Cell<TData, unknown>) => {
       setIsMouseDown(false);
     },
-    [],
   );
 
   const handleCellMouseOver = useCallback(
-    (e: React.MouseEvent<HTMLElement>, cell: Cell<unknown, unknown>) => {
+    (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
       if (e.buttons !== 1) {
         return;
       }
@@ -258,19 +226,14 @@ export const useCellSelection = ({
     [isMouseDown, updateRangeSelection],
   );
 
-  const isRowSelected = useCallback(
-    (rowId: string) => selectedCells.some((c) => c.rowId === rowId),
-    [selectedCells],
-  );
-
   const isCellSelected = useCallback(
-    (cell: Cell<unknown, unknown>) =>
+    (cell: Cell<TData, unknown>) =>
       selectedCells.some((c) => c.cellId === cell.id),
     [selectedCells],
   );
 
   const isCellCopied = useCallback(
-    (cell: Cell<unknown, unknown>) =>
+    (cell: Cell<TData, unknown>) =>
       copiedCells.some((c) => c.cellId === cell.id),
     [copiedCells],
   );
@@ -281,16 +244,15 @@ export const useCellSelection = ({
     handleCellMouseOver,
     handleCellsKeyDown,
     isCellSelected,
-    isRowSelected,
     isCellCopied,
   };
 };
 
 // Helper functions
-const getCellValues = (
-  table: Table<unknown>,
+export function getCellValues<TData>(
+  table: Table<TData>,
   cells: SelectedCell[],
-): string => {
+): string {
   const rows = cells.reduce(
     (acc: Record<string, SelectedCell[]>, cell: SelectedCell) => {
       const cellsForRow = acc[cell.rowId] ?? [];
@@ -309,45 +271,47 @@ const getCellValues = (
       const cellValues = row
         .getAllCells()
         .filter((cell) => selectedCells.find((c) => c.cellId === cell.id))
-        .map((cell) => cell.getValue());
+        .map((cell) => renderUnknownValue({ value: cell.getValue() }));
       return cellValues.join("\t");
     })
     .join("\n");
-};
+}
 
-const getCellsBetween = (
-  table: Table<unknown>,
-  cell1: SelectedCell,
-  cell2: SelectedCell,
-): SelectedCell[] => {
-  const cell1Data = table
-    .getRow(cell1.rowId)
+export function getCellsBetween<TData>(
+  table: Table<TData>,
+  cellStart: SelectedCell,
+  cellEnd: SelectedCell,
+): SelectedCell[] {
+  const cellStartData = table
+    .getRow(cellStart.rowId)
     .getAllCells()
-    .find((c) => c.id === cell1.cellId);
-  const cell2Data = table
-    .getRow(cell2.rowId)
+    .find((c) => c.id === cellStart.cellId);
+  const cellEndData = table
+    .getRow(cellEnd.rowId)
     .getAllCells()
-    .find((c) => c.id === cell2.cellId);
-  if (!cell1Data || !cell2Data) {
+    .find((c) => c.id === cellEnd.cellId);
+  if (!cellStartData || !cellEndData) {
     return [];
   }
 
   const rows = table.getRowModel().rows;
-  const cell1RowIndex = rows.findIndex(({ id }) => id === cell1Data.row.id);
-  const cell2RowIndex = rows.findIndex(({ id }) => id === cell2Data.row.id);
-  const cell1ColumnIndex = cell1Data.column.getIndex();
-  const cell2ColumnIndex = cell2Data.column.getIndex();
+  const cellStartRowIdx = rows.findIndex(
+    ({ id }) => id === cellStartData.row.id,
+  );
+  const cellEndRowIdx = rows.findIndex(({ id }) => id === cellEndData.row.id);
+  const cellStartColumnIdx = cellStartData.column.getIndex();
+  const cellEndColumnIdx = cellEndData.column.getIndex();
 
   const selectedRows = rows.slice(
-    Math.min(cell1RowIndex, cell2RowIndex),
-    Math.max(cell1RowIndex, cell2RowIndex) + 1,
+    Math.min(cellStartRowIdx, cellEndRowIdx),
+    Math.max(cellStartRowIdx, cellEndRowIdx) + 1,
   );
 
   const columns = table
     .getAllColumns()
     .slice(
-      Math.min(cell1ColumnIndex, cell2ColumnIndex),
-      Math.max(cell1ColumnIndex, cell2ColumnIndex) + 1,
+      Math.min(cellStartColumnIdx, cellEndColumnIdx),
+      Math.max(cellStartColumnIdx, cellEndColumnIdx) + 1,
     );
 
   return selectedRows.flatMap((row) =>
@@ -367,4 +331,4 @@ const getCellsBetween = (
       })
       .filter((cell): cell is SelectedCell => cell !== null),
   );
-};
+}
