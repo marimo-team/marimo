@@ -105,7 +105,8 @@ def export_as_wasm(
     mode: Literal["edit", "run"],
     show_code: bool,
     asset_url: Optional[str] = None,
-    extra_script: Optional[str] = None,
+    extra_scripts: tuple[str, ...] = (),
+    show_save: bool = False,
 ) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
@@ -122,7 +123,8 @@ def export_as_wasm(
         code=file_manager.to_code(),
         asset_url=asset_url,
         show_code=show_code,
-        extra_script=extra_script,
+        extra_scripts=extra_scripts,
+        show_save=show_save,
     )
     return ExportResult(
         contents=result[0],
