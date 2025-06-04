@@ -653,9 +653,7 @@ class table(
         )
 
     @property
-    def data(
-        self,
-    ) -> TableData:
+    def data(self) -> TableData:
         """Get the original table data.
 
         Returns:

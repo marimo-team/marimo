@@ -124,7 +124,6 @@ class QueryEngine(BaseEngine[CONN], ABC):
         """Execute a SQL query and return a dataframe."""
         pass
 
-    # TODO: Maybe this should be called during init of db's
     def sql_output_format(self) -> SqlOutputType:
         if runtime_context_installed():
             try:
