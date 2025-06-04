@@ -277,11 +277,14 @@ function initStore(options: unknown) {
   if (parsedOptions.data.runtimeConfig.length > 0) {
     const firstRuntimeConfig = parsedOptions.data.runtimeConfig[0];
     Logger.debug("⚡ Runtime URL", firstRuntimeConfig.url);
-    store.set(runtimeConfigAtom, firstRuntimeConfig);
+    store.set(runtimeConfigAtom, {
+      ...firstRuntimeConfig,
+      serverToken: parsedOptions.data.serverToken,
+    });
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
-      authToken: parsedOptions.data.serverToken,
+      serverToken: parsedOptions.data.serverToken,
     });
   }
 

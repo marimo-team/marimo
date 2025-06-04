@@ -75,7 +75,7 @@ export class RuntimeManager {
    * The URL of the health check endpoint.
    */
   healthURL(): URL {
-    return new URL(urlJoin(this.httpURL.toString(), "api/health"));
+    return new URL(urlJoin(this.httpURL.toString(), "health"));
   }
 
   async isHealthy(): Promise<boolean> {
@@ -108,10 +108,16 @@ export class RuntimeManager {
   }
 
   headers(): Record<string, string> {
-    return {
+    const headers: Record<string, string> = {
       "Marimo-Session-Id": getSessionId(),
-      "Marimo-Server-Token": this.config.authToken ?? "",
+      "Marimo-Server-Token": this.config.serverToken,
     };
+
+    if (this.config.authToken) {
+      headers.Authorization = `Bearer ${this.config.authToken}`;
+    }
+
+    return headers;
   }
 }
 

@@ -3,6 +3,7 @@ import { Logger } from "../../utils/Logger";
 import { createMarimoClient } from "@marimo-team/marimo-api";
 import { store } from "@/core/state/jotai";
 import { runtimeManagerAtom } from "../runtime/config";
+import type { RuntimeManager } from "../runtime/runtime";
 
 function getBaseUriWithoutQueryParams(): string {
   // Remove query params and hash
@@ -117,16 +118,22 @@ export const API = {
   },
 };
 
-export const marimoClient = createMarimoClient({});
+export function createClientWithRuntimeManager(runtimeManager: RuntimeManager) {
+  const marimoClient = createMarimoClient({
+    baseUrl: runtimeManager.httpURL.toString(),
+  });
 
-marimoClient.use({
-  onRequest: (req) => {
-    const runtimeManager = store.get(runtimeManagerAtom);
-    const headers = runtimeManager.headers();
+  marimoClient.use({
+    onRequest: (req) => {
+      const runtimeManager = store.get(runtimeManagerAtom);
+      const headers = runtimeManager.headers();
 
-    for (const [key, value] of Object.entries(headers)) {
-      req.headers.set(key, value);
-    }
-    return req;
-  },
-});
+      for (const [key, value] of Object.entries(headers)) {
+        req.headers.set(key, value);
+      }
+      return req;
+    },
+  });
+
+  return marimoClient;
+}

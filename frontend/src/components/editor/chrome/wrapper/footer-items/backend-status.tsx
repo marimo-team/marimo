@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Spinner } from "@/components/icons/spinner";
-import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
 import { WebSocketState } from "@/core/websocket/types";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -8,90 +7,58 @@ import { useAtomValue } from "jotai";
 import { startCase } from "lodash-es";
 import { CheckCircle2Icon, PowerOffIcon, AlertCircleIcon } from "lucide-react";
 import type React from "react";
-import { useState, useEffect } from "react";
-import useEvent from "react-use-event-hook";
 import { useInterval } from "@/hooks/useInterval";
-
-interface HealthStatus {
-  isHealthy: boolean;
-  lastChecked: Date | null;
-  error?: string;
-}
+import { FooterItem } from "../footer-item";
+import { useAsyncData } from "@/hooks/useAsyncData";
 
 const CHECK_HEALTH_INTERVAL_MS = 30_000;
 
 export const BackendConnection: React.FC = () => {
   const connection = useAtomValue(connectionAtom).state;
   const runtime = useRuntimeManager();
-  const [healthStatus, setHealthStatus] = useState<HealthStatus>({
-    isHealthy: false,
-    lastChecked: null,
-  });
-  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
 
-  const checkHealth = useEvent(async () => {
-    if (!runtime) {
+  const { loading, error, data, reload } = useAsyncData(async () => {
+    if (connection !== WebSocketState.OPEN) {
       return;
     }
 
-    setIsCheckingHealth(true);
     try {
       const isHealthy = await runtime.isHealthy();
-      setHealthStatus({
+      return {
         isHealthy,
         lastChecked: new Date(),
         error: undefined,
-      });
+      };
     } catch (error) {
-      setHealthStatus({
+      return {
         isHealthy: false,
         lastChecked: new Date(),
         error: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setIsCheckingHealth(false);
+      };
     }
+  }, [runtime, connection]);
+
+  useInterval(reload, {
+    delayMs:
+      connection === WebSocketState.OPEN ? CHECK_HEALTH_INTERVAL_MS : null,
+    whenVisible: true,
   });
-
-  // Initial health check on mount when connection is open
-  useEffect(() => {
-    if (connection === WebSocketState.OPEN && !healthStatus.lastChecked) {
-      checkHealth();
-    }
-  }, [connection, checkHealth, healthStatus.lastChecked]);
-
-  useInterval(
-    () => {
-      if (connection === WebSocketState.OPEN) {
-        checkHealth();
-      }
-    },
-    {
-      delayMs:
-        connection === WebSocketState.OPEN ? CHECK_HEALTH_INTERVAL_MS : null,
-      whenVisible: true,
-    },
-  );
 
   const getStatusInfo = () => {
     const baseStatus = startCase(connection.toLowerCase());
-    const healthInfo = healthStatus.lastChecked
-      ? `Health: ${healthStatus.isHealthy ? "✓ Healthy" : "✗ Unhealthy"}`
+    const healthInfo = data?.lastChecked
+      ? data.isHealthy
+        ? "✓ Healthy"
+        : "✗ Unhealthy"
       : "Health: Unknown";
 
-    const lastChecked = healthStatus.lastChecked
-      ? `Last checked: ${healthStatus.lastChecked.toLocaleTimeString()}`
-      : "";
+    const errorInfo = error ? `Error: ${error}` : "";
 
-    const error = healthStatus.error ? `Error: ${healthStatus.error}` : "";
-
-    return [baseStatus, healthInfo, lastChecked, error]
-      .filter(Boolean)
-      .join("\n");
+    return [baseStatus, healthInfo, errorInfo].filter(Boolean).join("\n");
   };
 
   const getStatusIcon = () => {
-    if (isCheckingHealth || connection === WebSocketState.CONNECTING) {
+    if (loading || connection === WebSocketState.CONNECTING) {
       return <Spinner size="small" />;
     }
 
@@ -100,11 +67,11 @@ export const BackendConnection: React.FC = () => {
     }
 
     if (connection === WebSocketState.OPEN) {
-      if (healthStatus.isHealthy) {
-        return <CheckCircle2Icon className="w-4 h-4 text-green-500" />;
+      if (data?.isHealthy) {
+        return <CheckCircle2Icon className="w-4 h-4 text-[var(--green-9)]" />;
       }
-      if (healthStatus.lastChecked) {
-        return <AlertCircleIcon className="w-4 h-4 text-yellow-500" />;
+      if (data?.lastChecked) {
+        return <AlertCircleIcon className="w-4 h-4 text-[var(--yellow-9)]" />;
       }
       return <CheckCircle2Icon className="w-4 h-4" />;
     }
@@ -112,16 +79,9 @@ export const BackendConnection: React.FC = () => {
     return <PowerOffIcon className="w-4 h-4 text-red-500" />;
   };
 
-  const handleClick = () => {
-    if (connection === WebSocketState.OPEN && !isCheckingHealth) {
-      checkHealth();
-    }
-  };
-
   return (
-    <Tooltip
-      delayDuration={200}
-      content={
+    <FooterItem
+      tooltip={
         <div className="text-sm whitespace-pre-line">
           {getStatusInfo()}
           {connection === WebSocketState.OPEN && (
@@ -131,13 +91,10 @@ export const BackendConnection: React.FC = () => {
           )}
         </div>
       }
+      selected={false}
+      onClick={reload}
     >
-      <div
-        className={`px-2 ${connection === WebSocketState.OPEN ? "cursor-pointer hover:bg-muted/50 rounded" : ""}`}
-        onClick={handleClick}
-      >
-        {getStatusIcon()}
-      </div>
-    </Tooltip>
+      {getStatusIcon()}
+    </FooterItem>
   );
 };

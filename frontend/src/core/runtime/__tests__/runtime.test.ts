@@ -145,7 +145,7 @@ describe("RuntimeManager", () => {
       const url = runtime.healthURL();
 
       expect(url.protocol).toBe("https:");
-      expect(url.pathname).toBe("/api/health");
+      expect(url.pathname).toBe("/health");
     });
   });
 
@@ -159,7 +159,7 @@ describe("RuntimeManager", () => {
       const result = await runtime.isHealthy();
 
       expect(result).toBe(true);
-      expect(fetch).toHaveBeenCalledWith("https://example.com/api/health");
+      expect(fetch).toHaveBeenCalledWith("https://example.com/health");
     });
 
     it("should return false for failed health check", async () => {
