@@ -8,7 +8,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
-import { useRef } from "react";
 
 interface Props {
   wrapperClassName?: string;
@@ -22,26 +21,6 @@ export const LoadingTable = ({
   pageSize = 10,
 }: Props) => {
   const NUM_COLUMNS = 8;
-  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
-
-  const handleKeyDown = (
-    event: React.KeyboardEvent<HTMLTableRowElement>,
-    row: { id: string },
-  ) => {
-    console.log("row", row);
-    event.stopPropagation();
-    const currentRow = tableBodyRef.current?.children.namedItem(row.id);
-    switch (event.key) {
-      case "ArrowUp":
-        (currentRow?.previousElementSibling as HTMLElement)?.focus();
-        break;
-      case "ArrowDown":
-        (currentRow?.nextElementSibling as HTMLElement)?.focus();
-        break;
-      default:
-        break;
-    }
-  };
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-2")}>
@@ -58,13 +37,9 @@ export const LoadingTable = ({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody ref={tableBodyRef}>
+          <TableBody>
             {Array.from({ length: pageSize }).map((_, i) => (
-              <TableRow
-                key={i}
-                onKeyDown={(e) => handleKeyDown(e, { id: i })}
-                tabIndex={-1}
-              >
+              <TableRow key={i}>
                 {Array.from({ length: NUM_COLUMNS }).map((_, j) => (
                   <TableCell key={j}>
                     <div className="h-4 bg-[var(--slate-5)] animate-pulse rounded-md w-[90%]" />
