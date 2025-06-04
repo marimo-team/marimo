@@ -84,12 +84,6 @@ export const DataTableBody = <TData,>({
     isCellCopied,
   } = useCellSelection({
     table,
-    scrollToRow: (index) => {
-      const row = tableBodyRef?.current?.children.namedItem(
-        table.getRowModel().rows[index]?.id,
-      );
-      row?.scrollIntoView({ block: "nearest" });
-    },
   });
 
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
@@ -110,8 +104,7 @@ export const DataTableBody = <TData,>({
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
             "px-1.5 py-[0.18rem]",
-            isCellSelected(cell) &&
-              "bg-[var(--green-3)] transition-colors duration-150",
+            isCellSelected(cell) && "bg-[var(--green-3)]",
             isCellCopied(cell) &&
               "bg-[var(--green-4)] transition-colors duration-150",
             className,
