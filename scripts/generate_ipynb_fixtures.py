@@ -141,6 +141,21 @@ for i_1 in range(X_1.shape[0]):
         ],
     )
 
+    create_notebook_fixture(
+        "hides_markdown_cells",
+        [
+            nb.new_markdown_cell("A markdown cell."),
+            nb.new_markdown_cell(
+                "A markdown cell with tags: ['blah'].",
+                metadata={"tags": ["blah"]},
+            ),
+            nb.new_markdown_cell(
+                "A markdown cell with tags: ['blah', 'hide-cell'].",
+                metadata={"tags": ["blah", "hide-cell"]},
+            ),
+        ],
+    )
+
 
 if __name__ == "__main__":
     main()
