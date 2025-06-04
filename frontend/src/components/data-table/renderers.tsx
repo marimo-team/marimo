@@ -167,27 +167,6 @@ export const DataTableBody = <TData,>({
   );
 };
 
-// Keep the original renderTableBody as a wrapper for backward compatibility
-export function renderTableBody<TData>(
-  table: Table<TData>,
-  columns: Array<ColumnDef<TData>>,
-  rowViewerPanelOpen: boolean,
-  getRowIndex?: (row: TData, idx: number) => number,
-  viewedRowIdx?: number,
-  tableBodyRef?: React.RefObject<HTMLTableSectionElement>,
-): JSX.Element {
-  return (
-    <DataTableBody
-      table={table}
-      columns={columns}
-      rowViewerPanelOpen={rowViewerPanelOpen}
-      getRowIndex={getRowIndex}
-      viewedRowIdx={viewedRowIdx}
-      tableBodyRef={tableBodyRef}
-    />
-  );
-}
-
 function getPinningStyles<TData>(
   column: Column<TData>,
 ): React.HTMLAttributes<HTMLElement> {

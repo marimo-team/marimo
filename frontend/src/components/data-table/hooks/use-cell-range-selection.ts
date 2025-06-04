@@ -262,7 +262,7 @@ export const useCellSelection = <TData>({
         setIsMouseDown(true);
       }
     },
-    [isMouseDown, updateRangeSelection, getSelectedCell],
+    [isMouseDown, updateRangeSelection, getSelectedCell, selectedCells],
   );
 
   const handleCellMouseUp = useEvent(
