@@ -4,7 +4,7 @@ import { atomWithStorage } from "jotai/utils";
 import type { CellId } from "../cells/ids";
 import type { Message as AIMessage } from "@ai-sdk/react";
 
-const KEY = "marimo:ai:chatState:v1";
+const KEY = "marimo:ai:chatState:v2";
 
 export const aiCompletionCellAtom = atom<{
   cellId: CellId;
