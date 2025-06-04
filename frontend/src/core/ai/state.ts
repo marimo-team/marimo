@@ -2,6 +2,7 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import type { CellId } from "../cells/ids";
+import type { Message as AIMessage } from "@ai-sdk/react";
 
 const KEY = "marimo:ai:chatState:v1";
 
@@ -15,6 +16,7 @@ export interface Message {
   role: "user" | "assistant" | "data" | "system";
   content: string;
   timestamp: number;
+  parts?: AIMessage["parts"];
 }
 
 export interface Chat {
