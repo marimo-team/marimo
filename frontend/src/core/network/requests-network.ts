@@ -196,7 +196,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponseReturnNull);
     },
     openFile: async (request) => {
-      await marimoClient
+      await getClient()
         .POST("/api/files/open", {
           body: request,
         })

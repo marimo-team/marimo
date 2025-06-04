@@ -110,7 +110,7 @@ export class RuntimeManager {
   headers(): Record<string, string> {
     const headers: Record<string, string> = {
       "Marimo-Session-Id": getSessionId(),
-      "Marimo-Server-Token": this.config.serverToken,
+      "Marimo-Server-Token": this.config.serverToken ?? "",
     };
 
     if (this.config.authToken) {
