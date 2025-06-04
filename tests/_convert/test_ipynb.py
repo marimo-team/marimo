@@ -6,7 +6,6 @@ from textwrap import dedent
 import pytest
 
 from marimo._convert.ipynb import (
-    _transform_sources,
     transform_add_marimo_import,
     transform_cell_metadata,
     transform_duplicate_definitions,
@@ -929,64 +928,5 @@ def test_transform_duplicate_definitions_numbered():
             "df_2",
             "df_3 = 3",
             "df_3",
-        ],
-    )
-
-
-def test_transform_duplicate_definitions_and_aug_assign() -> None:
-    sources = dd(
-        [
-            "x = 1",
-            "x",
-            "x += 1",
-            "x",
-        ]
-    )
-    result = _transform_sources(sources, [{} for _ in sources])
-    assert_sources_equal(
-        result,
-        [
-            "x = 1",
-            "x",
-            "x_1 = x + 1",
-            "x_1",
-        ],
-    )
-
-
-def test_transform_duplicate_definitions_read_before_write() -> None:
-    sources = dd(
-        [
-            "x = 1",
-            "x",
-            "x; x = 2; x",
-            "x",
-        ]
-    )
-    result = _transform_sources(sources, [{} for _ in sources])
-    assert_sources_equal(
-        result,
-        [
-            "x = 1",
-            "x",
-            "x; x_1 = 2; x_1",
-            "x_1",
-        ],
-    )
-
-
-def test_transform_duplicate_definitions_syntax_error() -> None:
-    sources = dd(
-        [
-            "x ( b 2 d & !",
-            "x",
-        ]
-    )
-    result = _transform_sources(sources, [{} for _ in sources])
-    assert_sources_equal(
-        result,
-        [
-            "x ( b 2 d & !",
-            "x",
         ],
     )

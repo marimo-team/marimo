@@ -74,6 +74,34 @@ for i_1 in range(X_1.shape[0]):
         ],
     )
 
+    create_notebook_fixture(
+        "duplicate_definitions_and_aug_assign",
+        [
+            "x = 1",
+            "x",
+            "x += 1",
+            "x",
+        ],
+    )
+
+    create_notebook_fixture(
+        "duplicate_definitions_read_before_write",
+        [
+            "x = 1",
+            "x",
+            "x; x = 2; x",
+            "x",
+        ],
+    )
+
+    create_notebook_fixture(
+        "duplicate_definitions_syntax_error",
+        [
+            "x ( b 2 d & !",
+            "x",
+        ],
+    )
+
 
 if __name__ == "__main__":
     main()
