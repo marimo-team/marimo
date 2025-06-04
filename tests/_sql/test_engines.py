@@ -1,8 +1,8 @@
-"""General tests for the SQL engines."""
+# Copyright 2025 Marimo. All rights reserved.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,7 +10,11 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
+from marimo._sql.utils import (
+    raise_df_import_error,
+    sql_type_to_data_type,
+    try_convert_to_polars,
+)
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -358,3 +362,41 @@ def test_sqlalchemy_type_conversion() -> None:
             raise NotImplementedError("Not implemented")
 
     assert engine._get_python_type(CustomType()) is None
+
+
+@pytest.mark.skipif(
+    not HAS_POLARS and not HAS_SQLALCHEMY,
+    reason="Polars and SQLAlchemy not installed",
+)
+def test_try_convert_to_polars() -> None:
+    """Test try_convert_to_polars function."""
+    import polars as pl
+    import sqlalchemy as sa
+
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    df, error = try_convert_to_polars(
+        query="SELECT 1", connection=engine._connection, lazy=False
+    )
+    assert isinstance(df, pl.DataFrame)
+    assert error is None
+
+    # Lazy frame
+    df, error = try_convert_to_polars(
+        query="SELECT 1", connection=engine._connection, lazy=True
+    )
+    assert isinstance(df, pl.LazyFrame)
+    assert error is None
+
+    # Polars error
+    with patch(
+        "polars.read_database",
+        side_effect=pl.exceptions.ComputeError("Test error"),
+    ):
+        df, error = try_convert_to_polars(
+            query="SELECT 1", connection=engine._connection, lazy=False
+        )
+        assert df is None
+        assert isinstance(error, pl.exceptions.ComputeError)
+        assert str(error) == "Test error"
