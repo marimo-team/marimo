@@ -14,6 +14,9 @@ describe("getCellsBetween", () => {
       getRow: () => ({
         getAllCells: () => [],
       }),
+      getRowModel: () => ({
+        rows: [],
+      }),
     } as unknown as Table<unknown>;
 
     const cell1: SelectedCell = {
