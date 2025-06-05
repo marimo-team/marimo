@@ -223,7 +223,7 @@ function initStore(options: unknown) {
     Logger.error("Invalid marimo mount options", parsedOptions.error);
     throw new Error("Invalid marimo mount options");
   }
-  const mode = parsedOptions.data.mode as AppMode;
+  const mode = parsedOptions.data.mode;
   preloadPage(mode);
 
   // Initialize file stores if provided
