@@ -27,7 +27,6 @@ import {
   languageServerWithClient,
   documentUri,
 } from "@marimo-team/codemirror-languageserver";
-import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
 import { WebSocketTransport } from "@open-rpc/client-js";
 import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
 import { once } from "@/utils/once";
@@ -41,9 +40,13 @@ import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { CellDocumentUri } from "../../lsp/types";
 import { hasCapability } from "@/core/config/capabilities";
+import { getRuntimeManager } from "@/core/runtime/config";
 
 const pylspTransport = once(() => {
-  const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
+  const runtimeManager = getRuntimeManager();
+  const transport = new WebSocketTransport(
+    runtimeManager.getLSPURL("pylsp").toString(),
+  );
   return transport;
 });
 

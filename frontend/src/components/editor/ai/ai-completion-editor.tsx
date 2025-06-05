@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { useCompletion } from "@ai-sdk/react";
-import { API } from "@/core/network/api";
 import { EditorView } from "@codemirror/view";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,12 @@ import { includeOtherCellsAtom } from "@/core/ai/state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { useTheme } from "@/theme/useTheme";
-import { asURL } from "@/utils/url";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { PromptInput } from "./add-cell-with-ai";
 import { getAICompletionBody } from "./completion-utils";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { selectAllText } from "@/core/codemirror/utils";
+import { useRuntimeManager } from "@/core/runtime/config";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -68,6 +67,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
     includeOtherCellsAtom,
   );
 
+  const runtimeManager = useRuntimeManager();
+
   const {
     completion,
     input,
@@ -77,8 +78,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
     setInput,
     handleSubmit,
   } = useCompletion({
-    api: asURL("api/ai/completion").toString(),
-    headers: API.headers(),
+    api: runtimeManager.getAiURL("completion").toString(),
+    headers: runtimeManager.headers(),
     initialInput: initialPrompt,
     streamProtocol: "text",
     // Throttle the messages and data updates to 100ms

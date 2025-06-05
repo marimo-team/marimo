@@ -88,6 +88,7 @@ def start(
     allow_origins: Optional[tuple[str, ...]] = None,
     auth_token: Optional[AuthToken],
     redirect_console_to_browser: bool,
+    skew_protection: bool,
 ) -> None:
     """
     Start the server.
@@ -178,6 +179,7 @@ def start(
         lsp_servers=list(lsp_composite_server.servers.values())
         if lsp_composite_server is not None
         else None,
+        skew_protection=skew_protection,
     )
 
     app.state.port = external_port

@@ -4,7 +4,6 @@ import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import { ChevronsUpDown, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { API } from "@/core/network/api";
 import { prettyError } from "@/utils/errors";
 import { useCompletion } from "ai/react";
 import ReactCodeMirror, {
@@ -15,7 +14,6 @@ import ReactCodeMirror, {
 } from "@uiw/react-codemirror";
 import { Prec } from "@codemirror/state";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
-import { asURL } from "@/utils/url";
 import { useMemo, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import {
@@ -45,6 +43,7 @@ import {
   getVariableMentionCompletions,
 } from "./completions";
 import useEvent from "react-use-event-hook";
+import { useRuntimeManager } from "@/core/runtime/config";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -68,6 +67,7 @@ export const AddCellWithAI: React.FC<{
   const [completionBody, setCompletionBody] = useState<object>({});
   const [language, setLanguage] = useAtom(languageAtom);
   const { theme } = useTheme();
+  const runtimeManager = useRuntimeManager();
 
   const {
     completion,
@@ -78,8 +78,8 @@ export const AddCellWithAI: React.FC<{
     setInput,
     handleSubmit,
   } = useCompletion({
-    api: asURL("api/ai/completion").toString(),
-    headers: API.headers(),
+    api: runtimeManager.getAiURL("completion").toString(),
+    headers: runtimeManager.headers(),
     streamProtocol: "text",
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
