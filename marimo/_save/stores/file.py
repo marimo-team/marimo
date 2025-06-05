@@ -16,7 +16,11 @@ def _valid_path(path: Path) -> bool:
 class FileStore(Store):
     def __init__(self, save_path: Optional[str] = None) -> None:
         # Use global config if no explicit save_path
-        cache_dir = save_path or get_persistent_cache_dir() or self._default_save_path()
+        cache_dir = (
+            save_path
+            or get_persistent_cache_dir()
+            or self._default_save_path()
+        )
         self.save_path = Path(cache_dir)
         self._init_save_path()
 

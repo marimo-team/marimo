@@ -2,8 +2,11 @@
 """
 Config access for marimo persistent cache directory.
 """
+
 import os
+
 from marimo._config.manager import get_default_config_manager
+
 
 def get_persistent_cache_dir() -> str | None:
     # 1. Check environment variable
