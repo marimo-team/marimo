@@ -5,6 +5,7 @@ import type { CellId } from "./cells/ids";
 import { store } from "./state/jotai";
 import { assertExists } from "@/utils/assertExists";
 import { isIslands } from "@/core/islands/utils";
+import { invariant } from "@/utils/invariant";
 
 /**
  * This is the internal mode.
@@ -18,7 +19,11 @@ export type AppMode = "read" | "edit" | "present" | "home";
 export function getInitialAppMode(): Exclude<AppMode, "present"> {
   const initialMode = store.get(initialModeAtom);
   assertExists(initialMode, "internal-error: initial mode not found");
-  return initialMode as Exclude<AppMode, "present">;
+  invariant(
+    initialMode !== "present",
+    "internal-error: initial mode cannot be 'present'",
+  );
+  return initialMode;
 }
 
 export function toggleAppMode(mode: AppMode): AppMode {
