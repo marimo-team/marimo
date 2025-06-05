@@ -724,23 +724,23 @@ def _transform_sources(
     ]
 
     # Run all the source transforms
-    for transform in source_transforms:
-        new_sources = transform(sources)
+    for source_transform in source_transforms:
+        new_sources = source_transform(sources)
         assert len(new_sources) == len(sources), (
-            f"{transform.__name__} changed cell count"
+            f"{source_transform.__name__} changed cell count"
         )
         sources = new_sources
 
     cells = bind_cell_metadata(sources, metadata, hide_flags)
 
     # may change cell count
-    cell_transforms = [
+    cell_transforms: list[CellsTransform] = [
         transform_add_marimo_import,
         transform_remove_empty_cells,
     ]
 
-    for transform in cell_transforms:
-        cells = transform(cells)
+    for cell_transform in cell_transforms:
+        cells = cell_transform(cells)
 
     return cells
 
