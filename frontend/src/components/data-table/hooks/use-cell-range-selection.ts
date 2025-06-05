@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Cell, Table } from "@tanstack/react-table";
 import { renderUnknownValue } from "../renderers";
 import { copyToClipboard } from "@/utils/copy";
+import { atom, useAtom, useAtomValue } from "jotai";
 
 export interface SelectedCell {
   rowId: string;
@@ -15,7 +16,9 @@ export interface UseCellSelectionProps<TData> {
   table: Table<TData>;
 }
 
-type SelectedCells = Map<string, SelectedCell>;
+export type SelectedCells = Map<string, SelectedCell>;
+
+export const selectedCellsAtom = atom<SelectedCells>(new Map());
 
 /*
  * This hook is used to handle selecting multiple cells at once.
@@ -24,7 +27,8 @@ export const useCellSelection = <TData>({
   table,
 }: UseCellSelectionProps<TData>) => {
   // Map of unique id to selected cell. So that we can use the unique id to check if a cell is selected.
-  const [selectedCells, setSelectedCells] = useState<SelectedCells>(new Map());
+  // const [selectedCells, setSelectedCells] = useState<SelectedCells>(new Map());
+  const [selectedCells, setSelectedCells] = useAtom(selectedCellsAtom);
   const [copiedCells, setCopiedCells] = useState<SelectedCells>(new Map());
 
   // The cell that is currently selected. This is used for navigation.
@@ -327,7 +331,13 @@ export function getCellsBetween<TData>(
   return result;
 }
 
-function getUniqueCellId(
+export function useIsCellSelected<TData>(cell: Cell<TData, unknown>): boolean {
+  const selectedCells = useAtomValue(selectedCellsAtom);
+  const uniqueId = getUniqueCellId(cell.row.id, cell.column.id, cell.id);
+  return selectedCells.has(uniqueId);
+}
+
+export function getUniqueCellId(
   rowId: string,
   columnId: string,
   cellId: string,

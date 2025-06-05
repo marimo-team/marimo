@@ -3,8 +3,10 @@
 import { describe, it, expect } from "vitest";
 import type { Table } from "@tanstack/react-table";
 import {
+  type SelectedCells,
   getCellValues,
   getCellsBetween,
+  getUniqueCellId,
   type SelectedCell,
 } from "../hooks/use-cell-range-selection";
 
@@ -30,7 +32,7 @@ describe("getCellsBetween", () => {
       cellId: "cell2",
     };
 
-    expect(getCellsBetween(mockTable, cell1, cell2)).toEqual([]);
+    expect(getCellsBetween(mockTable, cell1, cell2)).toEqual(new Map());
   });
 
   it("should return cells in a single row", () => {
@@ -76,10 +78,13 @@ describe("getCellsBetween", () => {
     };
 
     const result = getCellsBetween(mockTable, cell1, cell2);
-    expect(result).toHaveLength(3);
-    expect(result[0].cellId).toBe("cell1");
-    expect(result[1].cellId).toBe("cell2");
-    expect(result[2].cellId).toBe("cell3");
+    expect(result.size).toBe(3);
+    const cell1Id = getUniqueCellId(cell1.rowId, cell1.columnId, cell1.cellId);
+    const cell2Id = getUniqueCellId(cell2.rowId, cell2.columnId, cell2.cellId);
+    const cell3Id = getUniqueCellId(cell2.rowId, cell2.columnId, cell2.cellId);
+    expect(result.get(cell1Id)).toEqual(cell1);
+    expect(result.get(cell2Id)).toEqual(cell2);
+    expect(result.get(cell3Id)).toEqual(cell2);
   });
 
   it("should return cells in a rectangular selection", () => {
@@ -136,13 +141,10 @@ describe("getCellsBetween", () => {
     };
 
     const result = getCellsBetween(mockTable, cell1, cell2);
-    expect(result).toHaveLength(4);
-    expect(result.map((cell) => cell.cellId)).toEqual([
-      "cell1",
-      "cell2",
-      "cell3",
-      "cell4",
-    ]);
+    const cell1Id = getUniqueCellId(cell1.rowId, cell1.columnId, cell1.cellId);
+    const cell2Id = getUniqueCellId(cell2.rowId, cell2.columnId, cell2.cellId);
+    expect(result.get(cell1Id)).toEqual(cell1);
+    expect(result.get(cell2Id)).toEqual(cell2);
   });
 
   it("should handle reverse selection (bottom-right to top-left)", () => {
@@ -199,13 +201,14 @@ describe("getCellsBetween", () => {
     };
 
     const result = getCellsBetween(mockTable, cell1, cell2);
-    expect(result).toHaveLength(4);
-    expect(result.map((cell) => cell.cellId)).toEqual([
-      "cell1",
-      "cell2",
-      "cell3",
-      "cell4",
-    ]);
+    const cell1Id = getUniqueCellId(cell1.rowId, cell1.columnId, cell1.cellId);
+    const cell2Id = getUniqueCellId(cell2.rowId, cell2.columnId, cell2.cellId);
+    const cell3Id = getUniqueCellId(cell1.rowId, cell1.columnId, cell1.cellId);
+    const cell4Id = getUniqueCellId(cell1.rowId, cell1.columnId, cell1.cellId);
+    expect(result.get(cell1Id)).toEqual(cell1);
+    expect(result.get(cell2Id)).toEqual(cell2);
+    expect(result.get(cell3Id)).toEqual(cell1);
+    expect(result.get(cell4Id)).toEqual(cell1);
   });
 });
 
@@ -217,7 +220,7 @@ describe("getCellValues", () => {
       }),
     } as unknown as Table<unknown>;
 
-    expect(getCellValues(mockTable, [])).toBe("");
+    expect(getCellValues(mockTable, new Map())).toBe("");
   });
 
   it("should format cell values with tabs and newlines", () => {
@@ -230,10 +233,10 @@ describe("getCellValues", () => {
       }),
     } as unknown as Table<unknown>;
 
-    const cells: SelectedCell[] = [
-      { rowId: "row1", columnId: "col1", cellId: "cell1" },
-      { rowId: "row1", columnId: "col2", cellId: "cell2" },
-    ];
+    const cells: SelectedCells = new Map([
+      ["cell1", { rowId: "row1", columnId: "col1", cellId: "cell1" }],
+      ["cell2", { rowId: "row1", columnId: "col2", cellId: "cell2" }],
+    ]);
 
     expect(getCellValues(mockTable, cells)).toBe("value1\tvalue2");
   });
@@ -256,12 +259,12 @@ describe("getCellValues", () => {
       }),
     } as unknown as Table<unknown>;
 
-    const cells: SelectedCell[] = [
-      { rowId: "row1", columnId: "col1", cellId: "cell1" },
-      { rowId: "row1", columnId: "col2", cellId: "cell2" },
-      { rowId: "row2", columnId: "col1", cellId: "cell3" },
-      { rowId: "row2", columnId: "col2", cellId: "cell4" },
-    ];
+    const cells: SelectedCells = new Map([
+      ["cell1", { rowId: "row1", columnId: "col1", cellId: "cell1" }],
+      ["cell2", { rowId: "row1", columnId: "col2", cellId: "cell2" }],
+      ["cell3", { rowId: "row2", columnId: "col1", cellId: "cell3" }],
+      ["cell4", { rowId: "row2", columnId: "col2", cellId: "cell4" }],
+    ]);
 
     expect(getCellValues(mockTable, cells)).toBe(
       "value1\tvalue2\nvalue3\tvalue4",

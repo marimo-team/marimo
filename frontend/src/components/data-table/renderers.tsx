@@ -19,7 +19,11 @@ import {
   type Cell,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
-import { useCellSelection } from "@/components/data-table/hooks/use-cell-range-selection";
+import {
+  useCellSelection,
+  useIsCellSelected,
+} from "@/components/data-table/hooks/use-cell-range-selection";
+import React from "react";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -60,6 +64,23 @@ export function renderTableHeader<TData>(
   );
 }
 
+const TableCellOverlay = React.memo<{ cell: Cell<unknown, unknown> }>(
+  ({ cell }) => {
+    const isCellSelected = useIsCellSelected(cell);
+    return (
+      <div
+        id={cell.id}
+        className={cn(
+          "absolute inset-0 pointer-events-none",
+          isCellSelected && "bg-[var(--green-3)]",
+        )}
+      />
+    );
+  },
+);
+
+TableCellOverlay.displayName = "TableCellOverlay";
+
 export const DataTableBody = <TData,>({
   table,
   columns,
@@ -85,6 +106,10 @@ export const DataTableBody = <TData,>({
   } = useCellSelection({
     table,
   });
+
+  // const handleMouseDown = useEvent((e, cell) => handleCellMouseDown(e, cell));
+  // const handleMouseUp = useEvent(() => handleCellMouseUp());
+  // const handleMouseOver = useEvent((e, cell) => handleCellMouseOver(e, cell));
 
   const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
@@ -115,6 +140,7 @@ export const DataTableBody = <TData,>({
           onMouseUp={() => handleCellMouseUp()}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
+          {/* <TableCellOverlay cell={cell} /> */}
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
       );
