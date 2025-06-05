@@ -19,8 +19,9 @@ import { vimKeymapExtension } from "./vim";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../cells/state";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { helix } from "codemirror-helix";
 
-export const KEYMAP_PRESETS = ["default", "vim"] as const;
+export const KEYMAP_PRESETS = ["default", "vim", "helix"] as const;
 
 export function keymapBundle(
   config: KeymapConfig,
@@ -81,6 +82,24 @@ export function keymapBundle(
         vim({ status: false }),
         // Custom vim keymaps for cell navigation
         Prec.high(vimKeymapExtension()),
+      ];
+case "helix":
+      return [
+        helix(), // From codemirror-helix
+        keymap.of(overrideKeymap(hotkeys)), // Custom marimo overrides
+        // Override escape to blur the editor, similar to default preset
+        Prec.low(
+          keymap.of([
+            {
+              key: "Escape",
+              preventDefault: true,
+              run: (view) => {
+                view.contentDOM.blur();
+                return true;
+              },
+            },
+          ]),
+        )
       ];
     default:
       logNever(config.preset);

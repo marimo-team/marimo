@@ -80,7 +80,7 @@ export const UserConfigSchema = z
       .default({}),
     keymap: z
       .object({
-        preset: z.enum(["default", "vim"]).default("default"),
+        preset: z.enum(["default", "vim", "helix"]).default("default"),
         overrides: z.record(z.string()).default({}),
       })
       .passthrough()
