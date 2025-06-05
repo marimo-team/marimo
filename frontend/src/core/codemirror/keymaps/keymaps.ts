@@ -83,7 +83,7 @@ export function keymapBundle(
         // Custom vim keymaps for cell navigation
         Prec.high(vimKeymapExtension()),
       ];
-case "helix":
+    case "helix":
       return [
         helix(), // From codemirror-helix
         keymap.of(overrideKeymap(hotkeys)), // Custom marimo overrides
@@ -99,7 +99,7 @@ case "helix":
               },
             },
           ]),
-        )
+        ),
       ];
     default:
       logNever(config.preset);
