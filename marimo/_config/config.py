@@ -395,6 +395,7 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
+    persistent_cache_dir: NotRequired[str]
 
 
 @mddoc
@@ -416,6 +417,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
+    persistent_cache_dir: NotRequired[str]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -469,6 +471,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "custom_paths": [],
         "include_default_snippets": True,
     },
+    "persistent_cache_dir": None,
 }
 
 

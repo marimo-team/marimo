@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from marimo._runtime.runtime import notebook_dir
+from marimo._save.stores.cache_config import get_persistent_cache_dir
 from marimo._save.stores.store import Store
 
 
@@ -14,7 +15,9 @@ def _valid_path(path: Path) -> bool:
 
 class FileStore(Store):
     def __init__(self, save_path: Optional[str] = None) -> None:
-        self.save_path = Path(save_path or self._default_save_path())
+        # Use global config if no explicit save_path
+        cache_dir = save_path or get_persistent_cache_dir() or self._default_save_path()
+        self.save_path = Path(cache_dir)
         self._init_save_path()
 
     def _default_save_path(self) -> Path:
