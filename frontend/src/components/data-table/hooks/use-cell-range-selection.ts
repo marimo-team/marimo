@@ -15,16 +15,25 @@ export interface UseCellSelectionProps<TData> {
   table: Table<TData>;
 }
 
+type SelectedCells = Map<string, SelectedCell>;
+
 /*
  * This hook is used to handle selecting multiple cells at once.
  */
 export const useCellSelection = <TData>({
   table,
 }: UseCellSelectionProps<TData>) => {
-  const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
-  const [copiedCells, setCopiedCells] = useState<SelectedCell[]>([]);
+  // Map of unique id to selected cell. So that we can use the unique id to check if a cell is selected.
+  const [selectedCells, setSelectedCells] = useState<SelectedCells>(new Map());
+  const [copiedCells, setCopiedCells] = useState<SelectedCells>(new Map());
+
+  // The cell that is currently selected. This is used for navigation.
   const [selectedStartCell, setSelectedStartCell] =
     useState<SelectedCell | null>(null);
+
+  // The cell that is currently focused. This is used for navigation when shift key is pressed.
+  const [focusedCell, setFocusedCell] = useState<SelectedCell | null>(null);
+
   const [isMouseDown, setIsMouseDown] = useState(false);
 
   const getSelectedCell = (cell: Cell<TData, unknown>): SelectedCell => {
@@ -40,16 +49,24 @@ export const useCellSelection = <TData>({
     copyToClipboard(text);
     setCopiedCells(selectedCells);
     setTimeout(() => {
-      setCopiedCells([]);
+      setCopiedCells(new Map());
     }, 500);
   };
 
   const updateSelection = (newCell: SelectedCell, isShiftKey: boolean) => {
     if (isShiftKey && selectedStartCell) {
       setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
+      // Do not update selectedStartCell
+      setFocusedCell(newCell);
     } else {
-      setSelectedCells([newCell]);
+      const uniqueId = getUniqueCellId(
+        newCell.rowId,
+        newCell.columnId,
+        newCell.cellId,
+      );
+      setSelectedCells(new Map([[uniqueId, newCell]]));
       setSelectedStartCell(newCell);
+      setFocusedCell(newCell);
     }
   };
 
@@ -57,15 +74,17 @@ export const useCellSelection = <TData>({
     e: React.KeyboardEvent<HTMLElement>,
     direction: "up" | "down" | "left" | "right",
   ) => {
-    const selectedCell = selectedCells[selectedCells.length - 1];
-    if (!selectedCell) {
+    const currentCell = focusedCell ?? selectedStartCell;
+    if (!currentCell) {
       return;
     }
+
+    let nextCell: Cell<TData, unknown> | undefined;
 
     if (direction === "up" || direction === "down") {
       const rows = table.getRowModel().rows;
       const selectedRowIndex = rows.findIndex(
-        (row) => row.id === selectedCell.rowId,
+        (row) => row.id === currentCell.rowId,
       );
       if (selectedRowIndex < 0) {
         return;
@@ -75,43 +94,36 @@ export const useCellSelection = <TData>({
         direction === "up"
           ? rows[selectedRowIndex - 1]
           : rows[selectedRowIndex + 1];
+
       if (!nextRow) {
         return;
       }
 
-      const nextCell = nextRow
+      nextCell = nextRow
         .getAllCells()
-        .find((c) => c.column.id === selectedCell.columnId);
-      if (!nextCell) {
-        return;
-      }
-
-      updateSelection(getSelectedCell(nextCell), e.shiftKey);
-      return;
+        .find((c) => c.column.id === currentCell.columnId);
     }
 
     if (direction === "left" || direction === "right") {
-      const selectedRow = table.getRow(selectedCell.rowId);
+      const selectedRow = table.getRow(currentCell.rowId);
       const cells = selectedRow.getAllCells();
       const selectedColumnIndex = cells.findIndex(
-        (c) => c.id === selectedCell.cellId,
+        (c) => c.id === currentCell.cellId,
       );
       if (selectedColumnIndex < 0) {
         return;
       }
 
-      const nextCell =
+      nextCell =
         direction === "left"
           ? cells[selectedColumnIndex - 1]
           : cells[selectedColumnIndex + 1];
+    }
 
-      if (!nextCell) {
-        return;
-      }
-
-      updateSelection(getSelectedCell(nextCell), e.shiftKey);
+    if (!nextCell) {
       return;
     }
+    updateSelection(getSelectedCell(nextCell), e.shiftKey);
   };
 
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
@@ -159,36 +171,28 @@ export const useCellSelection = <TData>({
     cell: Cell<TData, unknown>,
   ) => {
     const selectedCell = getSelectedCell(cell);
+    const uniqueId = getUniqueCellId(
+      selectedCell.rowId,
+      selectedCell.columnId,
+      selectedCell.cellId,
+    );
 
     if (!e.ctrlKey && !e.shiftKey) {
       const deselectCell =
-        selectedCells.length === 1 && selectedCells[0].cellId === cell.id;
+        selectedCells.size === 1 && selectedCells.has(uniqueId);
       // Deselect the cell if it's already selected
       if (deselectCell) {
-        setSelectedCells([]);
+        setSelectedCells(new Map());
         setSelectedStartCell(null);
+        setFocusedCell(null);
         setIsMouseDown(true);
         return;
       }
 
-      setSelectedCells([selectedCell]);
+      setSelectedCells(new Map([[uniqueId, selectedCell]]));
       if (!isMouseDown) {
         setSelectedStartCell(selectedCell);
-      }
-      setIsMouseDown(true);
-      return;
-    }
-
-    if (e.ctrlKey) {
-      setSelectedCells((prev) => {
-        const cellExists = prev.some((c) => c.cellId === cell.id);
-        if (cellExists) {
-          return prev.filter(({ cellId }) => cellId !== cell.id);
-        }
-        return [...prev, selectedCell];
-      });
-      if (!isMouseDown) {
-        setSelectedStartCell(selectedCell);
+        setFocusedCell(selectedCell);
       }
       setIsMouseDown(true);
       return;
@@ -217,11 +221,23 @@ export const useCellSelection = <TData>({
   };
 
   const isCellSelected = (cell: Cell<TData, unknown>) => {
-    return selectedCells.some((c) => c.cellId === cell.id);
+    const cellToCheck = getSelectedCell(cell);
+    const uniqueId = getUniqueCellId(
+      cellToCheck.rowId,
+      cellToCheck.columnId,
+      cellToCheck.cellId,
+    );
+    return selectedCells.has(uniqueId);
   };
 
   const isCellCopied = (cell: Cell<TData, unknown>) => {
-    return copiedCells.some((c) => c.cellId === cell.id);
+    const cellToCheck = getSelectedCell(cell);
+    const uniqueId = getUniqueCellId(
+      cellToCheck.rowId,
+      cellToCheck.columnId,
+      cellToCheck.cellId,
+    );
+    return copiedCells.has(uniqueId);
   };
 
   return {
@@ -237,11 +253,11 @@ export const useCellSelection = <TData>({
 // Helper functions
 export function getCellValues<TData>(
   table: Table<TData>,
-  cells: SelectedCell[],
+  cells: SelectedCells,
 ): string {
   const rowValues = new Map<string, string[]>();
 
-  for (const cell of cells) {
+  for (const cell of cells.values()) {
     const row = table.getRow(cell.rowId);
     const tableCell = row.getAllCells().find((c) => c.id === cell.cellId);
     if (!tableCell) {
@@ -260,13 +276,13 @@ export function getCellsBetween<TData>(
   table: Table<TData>,
   cellStart: SelectedCell,
   cellEnd: SelectedCell,
-): SelectedCell[] {
+): SelectedCells {
   const rows = table.getRowModel().rows;
   const startRow = table.getRow(cellStart.rowId);
   const endRow = table.getRow(cellEnd.rowId);
 
   if (!startRow || !endRow) {
-    return [];
+    return new Map();
   }
 
   const startCell = startRow
@@ -275,7 +291,7 @@ export function getCellsBetween<TData>(
   const endCell = endRow.getAllCells().find((c) => c.id === cellEnd.cellId);
 
   if (!startCell || !endCell) {
-    return [];
+    return new Map();
   }
 
   const startRowIdx = rows.findIndex(({ id }) => id === startCell.row.id);
@@ -288,7 +304,7 @@ export function getCellsBetween<TData>(
   const minCol = Math.min(startColumnIdx, endColumnIdx);
   const maxCol = Math.max(startColumnIdx, endColumnIdx);
 
-  const result: SelectedCell[] = [];
+  const result = new Map<string, SelectedCell>();
 
   for (let i = minRow; i <= maxRow; i++) {
     const row = rows[i];
@@ -297,14 +313,24 @@ export function getCellsBetween<TData>(
     for (let j = minCol; j <= maxCol; j++) {
       const cell = cells[j];
       if (cell) {
-        result.push({
+        const uniqueId = getUniqueCellId(cell.row.id, cell.column.id, cell.id);
+        const selectedCell = {
           rowId: cell.row.id,
           columnId: cell.column.id,
           cellId: cell.id,
-        });
+        };
+        result.set(uniqueId, selectedCell);
       }
     }
   }
 
   return result;
+}
+
+function getUniqueCellId(
+  rowId: string,
+  columnId: string,
+  cellId: string,
+): string {
+  return `${rowId}-${columnId}-${cellId}`;
 }
