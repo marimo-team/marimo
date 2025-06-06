@@ -94,7 +94,6 @@ export type CalculateTopKRows = <T>(req: {
 
 export type PreviewColumn = (opts: { column: string }) => Promise<{
   chart_spec: string | null;
-  chart_max_rows_errors: boolean;
   chart_code: string | null;
   error: string | null;
   missing_packages: string[] | null;
@@ -283,7 +282,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     preview_column: rpc.input(z.object({ column: z.string() })).output(
       z.object({
         chart_spec: z.string().nullable(),
-        chart_max_rows_errors: z.boolean(),
         chart_code: z.string().nullable(),
         error: z.string().nullable(),
         missing_packages: z.array(z.string()).nullable(),

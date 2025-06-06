@@ -467,8 +467,10 @@ def test_get_column_preview_for_duckdb_over_limit() -> None:
 
     assert result is not None
     assert result.stats is not None
-    assert result.error is None
-    assert result.chart_max_rows_errors is True
+    assert (
+        result.error == "Too many rows, vegafusion required to render charts"
+    )
+    assert result.missing_packages == ["vegafusion", "vl_convert_python"]
     assert result.chart_spec is None
 
     # Not implemented yet
