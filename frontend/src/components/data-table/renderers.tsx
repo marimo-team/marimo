@@ -201,20 +201,18 @@ const DataTableCell = <TData,>({
   const userStyle = useMemo(() => cell.getUserStyling?.() || {}, [cell]);
   const style = Object.assign({}, userStyle, pinningStyle);
 
-  const className = useMemo(
-    () =>
-      cn(
-        "whitespace-pre truncate max-w-[300px] select-none outline-none",
-        cell.column.getColumnWrapping &&
-          cell.column.getColumnWrapping() === "wrap" &&
-          "whitespace-pre-wrap min-w-[200px]",
-        "px-1.5 py-[0.18rem]",
-        isSelected && "bg-[var(--green-3)]",
-        isCopied && "bg-[var(--green-4)] transition-colors duration-150",
-        pinClassName,
-      ),
-    [cell.column, isCopied, isSelected, pinClassName],
-  );
+  const className = useMemo(() => {
+    return cn(
+      "whitespace-pre truncate max-w-[300px] select-none outline-none",
+      cell.column.getColumnWrapping &&
+        cell.column.getColumnWrapping() === "wrap" &&
+        "whitespace-pre-wrap min-w-[200px]",
+      "px-1.5 py-[0.18rem]",
+      isSelected && "bg-[var(--green-3)]",
+      isCopied && "bg-[var(--green-4)] transition-colors duration-150",
+      pinClassName,
+    );
+  }, [cell.column, isCopied, isSelected, pinClassName]);
 
   return (
     <TableCell
