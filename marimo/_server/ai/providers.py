@@ -382,7 +382,10 @@ class OpenAIProvider(
         }
         if self.is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
-        return client.chat.completions.create(**create_params)
+        return cast(
+            "OpenAiStream[ChatCompletionChunk]",
+            client.chat.completions.create(**create_params),
+        )
 
     def extract_content(
         self, response: ChatCompletionChunk
@@ -479,7 +482,10 @@ class AnthropicProvider(
                 "type": "enabled",
                 "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
             }
-        return client.messages.create(**create_params)
+        return cast(
+            "AnthropicStream[RawMessageStreamEvent]",
+            client.messages.create(**create_params),
+        )
 
     def extract_content(
         self, response: RawMessageStreamEvent
