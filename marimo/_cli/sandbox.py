@@ -34,6 +34,9 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     if name is None:
         return False
 
+    if Path(name).is_dir():
+        return False
+
     pyproject = PyProjectReader.from_filename(name)
     if not pyproject.dependencies:
         return False
