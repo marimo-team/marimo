@@ -31,7 +31,9 @@ memory, letting you pick up where you left off.
 
 !!! tip "Cache location"
     By default, caches are stored in `__marimo__/cache/`, in the directory of the
-    current notebook. For projects versioned with `git`, consider adding
+    current notebook. You can set a global cache directory by adding
+    `persistent_cache_dir = "/your/cache/path"` to your marimo config file, or by setting the
+    environment variable `MARIMO_PERSISTENT_CACHE_DIR`. For projects versioned with `git`, consider adding
     `**/__marimo__/cache/` to your `.gitignore`.
 
 ::: marimo.persistent_cache
