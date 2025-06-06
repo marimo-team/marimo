@@ -90,7 +90,7 @@ export const DataTableBody = <TData,>({
   const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       return (
-        <MemoizedDataTableCell
+        <MemoizedTableCell
           key={cell.id}
           cell={cell}
           isSelected={isCellSelected(cell)}
@@ -231,17 +231,13 @@ const DataTableCell = <TData,>({
   );
 };
 
-DataTableCell.displayName = "DataTableCell";
-
-const MemoizedDataTableCell = React.memo(DataTableCell, (prev, next) => {
+const MemoizedTableCell = React.memo(DataTableCell, (prev, next) => {
   return (
     prev.isSelected === next.isSelected &&
     prev.isCopied === next.isCopied &&
     prev.cell === next.cell
   );
 }) as typeof DataTableCell;
-
-MemoizedDataTableCell.displayName = "DataTableCell";
 
 // Update column sizes in table state for column pinning offsets
 // https://github.com/TanStack/table/discussions/3947#discussioncomment-9564867
