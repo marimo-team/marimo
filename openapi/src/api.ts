@@ -2620,7 +2620,6 @@ export interface components {
     };
     DataColumnPreview: {
       chart_code?: string | null;
-      chart_max_rows_errors: boolean;
       chart_spec?: string | null;
       column_name: string;
       error?: string | null;

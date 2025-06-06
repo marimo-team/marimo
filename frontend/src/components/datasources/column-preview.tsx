@@ -118,10 +118,7 @@ export const DatasetColumnPreview: React.FC<{
     </Tooltip>
   );
 
-  const chartMaxRowsWarning =
-    preview.chart_max_rows_errors && renderChartMaxRowsWarning();
-
-  if (!error && !stats && !chart && !chartMaxRowsWarning) {
+  if (!error && !stats && !chart) {
     return <span className="text-xs text-muted-foreground">No data</span>;
   }
 
@@ -130,7 +127,6 @@ export const DatasetColumnPreview: React.FC<{
       {error}
       {addDataframeChart}
       {addSQLChart}
-      {chartMaxRowsWarning}
       {chart}
       {stats}
     </ColumnPreviewContainer>
@@ -142,9 +138,11 @@ export function renderPreviewError(
   missing_packages?: string[] | null,
 ) {
   return (
-    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
+    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center justify-between">
       <span>{error}</span>
-      {missing_packages && <InstallPackageButton packages={missing_packages} />}
+      {missing_packages && (
+        <InstallPackageButton packages={missing_packages} className="h-8" />
+      )}
     </div>
   );
 }
@@ -176,14 +174,6 @@ export function renderStats(
         );
       })}
     </div>
-  );
-}
-
-export function renderChartMaxRowsWarning() {
-  return (
-    <span className="text-xs text-muted-foreground">
-      Too many rows to render the chart.
-    </span>
   );
 }
 
