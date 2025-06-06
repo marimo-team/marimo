@@ -382,7 +382,7 @@ class TestExportHTML:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "uv run --isolated" in output
+        assert "run --isolated" in output
         html = normalize_index_html(output)
         # Remove folder path
         dirname = path.dirname(temp_marimo_file)
@@ -921,7 +921,7 @@ class TestExportIpynb:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "uv run --isolated" in output
+        assert "run --isolated" in output
 
     @staticmethod
     @pytest.mark.skipif(

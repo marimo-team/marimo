@@ -20,6 +20,7 @@ from marimo._utils.inline_script_metadata import (
     PyProjectReader,
     is_marimo_dependency,
 )
+from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
 
 LOGGER = _loggers.marimo_logger()
@@ -132,7 +133,7 @@ def _uv_export_script_requirements_txt(
 
     result = subprocess.run(
         [
-            "uv",
+            find_uv_bin(),
             "export",
             "--no-hashes",
             "--no-annotate",
@@ -246,7 +247,7 @@ def construct_uv_command(
         else PyProjectReader({}, config_path=None)
     )
 
-    uv_cmd = ["uv", "run"]
+    uv_cmd = [find_uv_bin(), "run"]
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, suffix=".txt", encoding="utf-8"
     ) as temp_file:
@@ -271,8 +272,10 @@ def run_in_sandbox(
     additional_features: Optional[list[DepFeatures]] = None,
     additional_deps: Optional[list[str]] = None,
 ) -> int:
-    if not DependencyManager.which("uv"):
+    # If we fall back to the plain "uv" path, ensure it's actually on the system
+    if find_uv_bin() == "uv" and not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
+
     uv_cmd = construct_uv_command(
         args, name, additional_features or [], additional_deps or []
     )
