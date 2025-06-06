@@ -140,6 +140,9 @@ class UvPackageManager(PypiPackageManager):
     def _uv_bin(self) -> str:
         return find_uv_bin()
 
+    def is_manager_installed(self) -> bool:
+        return self._uv_bin != "uv" or super().is_manager_installed()
+
     async def _install(self, package: str, *, upgrade: bool) -> bool:
         install_cmd: list[str]
         if self.is_in_uv_project:
