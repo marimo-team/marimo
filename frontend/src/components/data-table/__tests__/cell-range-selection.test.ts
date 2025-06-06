@@ -6,9 +6,11 @@ import {
   type SelectedCells,
   getCellValues,
   getCellsBetween,
-  getUniqueCellId,
+  exportedForTesting,
   type SelectedCell,
 } from "../hooks/use-cell-range-selection";
+
+const { getUniqueCellId } = exportedForTesting;
 
 describe("getCellsBetween", () => {
   it("should return empty array when cells are not found", () => {

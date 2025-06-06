@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { Cell, Table } from "@tanstack/react-table";
 import { renderUnknownValue } from "../renderers";
 import { copyToClipboard } from "@/utils/copy";
-import { atom, useAtom, useAtomValue } from "jotai";
+import useEvent from "react-use-event-hook";
 
 export interface SelectedCell {
   rowId: string;
@@ -18,8 +18,6 @@ export interface UseCellSelectionProps<TData> {
 
 export type SelectedCells = Map<string, SelectedCell>;
 
-export const selectedCellsAtom = atom<SelectedCells>(new Map());
-
 /*
  * This hook is used to handle selecting multiple cells at once.
  */
@@ -27,8 +25,7 @@ export const useCellSelection = <TData>({
   table,
 }: UseCellSelectionProps<TData>) => {
   // Map of unique id to selected cell. So that we can use the unique id to check if a cell is selected.
-  // const [selectedCells, setSelectedCells] = useState<SelectedCells>(new Map());
-  const [selectedCells, setSelectedCells] = useAtom(selectedCellsAtom);
+  const [selectedCells, setSelectedCells] = useState<SelectedCells>(new Map());
   const [copiedCells, setCopiedCells] = useState<SelectedCells>(new Map());
 
   // The cell that is currently selected. This is used for navigation.
@@ -40,13 +37,16 @@ export const useCellSelection = <TData>({
 
   const [isMouseDown, setIsMouseDown] = useState(false);
 
-  const getSelectedCell = (cell: Cell<TData, unknown>): SelectedCell => {
-    return {
-      rowId: cell.row.id,
-      columnId: cell.column.id,
-      cellId: cell.id,
-    };
-  };
+  const getSelectedCell = useCallback(
+    (cell: Cell<TData, unknown>): SelectedCell => {
+      return {
+        rowId: cell.row.id,
+        columnId: cell.column.id,
+        cellId: cell.id,
+      };
+    },
+    [],
+  );
 
   const handleCopy = () => {
     const text = getCellValues(table, selectedCells);
@@ -170,79 +170,83 @@ export const useCellSelection = <TData>({
     setSelectedCells(selectedCellsInRange);
   };
 
-  const handleCellMouseDown = (
-    e: React.MouseEvent,
-    cell: Cell<TData, unknown>,
-  ) => {
-    const selectedCell = getSelectedCell(cell);
-    const uniqueId = getUniqueCellId(
-      selectedCell.rowId,
-      selectedCell.columnId,
-      selectedCell.cellId,
-    );
+  const handleCellMouseDown = useEvent(
+    (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
+      const selectedCell = getSelectedCell(cell);
+      const uniqueId = getUniqueCellId(
+        selectedCell.rowId,
+        selectedCell.columnId,
+        selectedCell.cellId,
+      );
 
-    if (!e.ctrlKey && !e.shiftKey) {
-      const deselectCell =
-        selectedCells.size === 1 && selectedCells.has(uniqueId);
-      // Deselect the cell if it's already selected
-      if (deselectCell) {
-        setSelectedCells(new Map());
-        setSelectedStartCell(null);
-        setFocusedCell(null);
+      if (!e.ctrlKey && !e.shiftKey) {
+        const deselectCell =
+          selectedCells.size === 1 && selectedCells.has(uniqueId);
+        // Deselect the cell if it's already selected
+        if (deselectCell) {
+          setSelectedCells(new Map());
+          setSelectedStartCell(null);
+          setFocusedCell(null);
+          setIsMouseDown(true);
+          return;
+        }
+
+        setSelectedCells(new Map([[uniqueId, selectedCell]]));
+        if (!isMouseDown) {
+          setSelectedStartCell(selectedCell);
+          setFocusedCell(selectedCell);
+        }
         setIsMouseDown(true);
         return;
       }
 
-      setSelectedCells(new Map([[uniqueId, selectedCell]]));
-      if (!isMouseDown) {
-        setSelectedStartCell(selectedCell);
-        setFocusedCell(selectedCell);
+      if (e.shiftKey) {
+        updateRangeSelection(cell);
+        setIsMouseDown(true);
       }
-      setIsMouseDown(true);
-      return;
-    }
+    },
+  );
 
-    if (e.shiftKey) {
-      updateRangeSelection(cell);
-      setIsMouseDown(true);
-    }
-  };
-
-  const handleCellMouseUp = () => {
+  const handleCellMouseUp = useEvent(() => {
     setIsMouseDown(false);
-  };
+  });
 
-  const handleCellMouseOver = (
-    e: React.MouseEvent,
-    cell: Cell<TData, unknown>,
-  ) => {
-    if (e.buttons !== 1) {
-      return;
-    }
-    if (isMouseDown) {
-      updateRangeSelection(cell);
-    }
-  };
+  const handleCellMouseOver = useEvent(
+    (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
+      if (e.buttons !== 1) {
+        return;
+      }
+      if (isMouseDown) {
+        updateRangeSelection(cell);
+      }
+    },
+  );
 
-  const isCellSelected = (cell: Cell<TData, unknown>) => {
-    const cellToCheck = getSelectedCell(cell);
-    const uniqueId = getUniqueCellId(
-      cellToCheck.rowId,
-      cellToCheck.columnId,
-      cellToCheck.cellId,
-    );
-    return selectedCells.has(uniqueId);
-  };
+  const isCellSelected = useCallback(
+    (cell: Cell<TData, unknown>) => {
+      const cellToCheck = getSelectedCell(cell);
+      const uniqueId = getUniqueCellId(
+        cellToCheck.rowId,
+        cellToCheck.columnId,
+        cellToCheck.cellId,
+      );
+      return selectedCells.has(uniqueId);
+    },
+    [getSelectedCell, selectedCells],
+  );
 
-  const isCellCopied = (cell: Cell<TData, unknown>) => {
-    const cellToCheck = getSelectedCell(cell);
-    const uniqueId = getUniqueCellId(
-      cellToCheck.rowId,
-      cellToCheck.columnId,
-      cellToCheck.cellId,
-    );
-    return copiedCells.has(uniqueId);
-  };
+  const isCellCopied = useCallback(
+    (cell: Cell<TData, unknown>) => {
+      const cellToCheck = getSelectedCell(cell);
+      const uniqueId = getUniqueCellId(
+        cellToCheck.rowId,
+        cellToCheck.columnId,
+        cellToCheck.cellId,
+      );
+      return copiedCells.has(uniqueId);
+    },
+    [getSelectedCell, copiedCells],
+  );
 
   return {
     handleCellMouseDown,
@@ -331,16 +335,12 @@ export function getCellsBetween<TData>(
   return result;
 }
 
-export function useIsCellSelected<TData>(cell: Cell<TData, unknown>): boolean {
-  const selectedCells = useAtomValue(selectedCellsAtom);
-  const uniqueId = getUniqueCellId(cell.row.id, cell.column.id, cell.id);
-  return selectedCells.has(uniqueId);
-}
-
-export function getUniqueCellId(
+function getUniqueCellId(
   rowId: string,
   columnId: string,
   cellId: string,
 ): string {
   return `${rowId}-${columnId}-${cellId}`;
 }
+
+export const exportedForTesting = { getUniqueCellId };
