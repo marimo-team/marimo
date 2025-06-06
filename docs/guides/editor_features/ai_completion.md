@@ -264,7 +264,7 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 !!! note "Port already in use"
     If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
 
-5. Open a new terminal and install openai client: `pip install openai`
+5. Open a new terminal and install the openai client (e.g. `pip install openai`, `uv add openai`)
 
 6. Start marimo:
 
