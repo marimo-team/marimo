@@ -19,7 +19,7 @@ run a cell, and cells that refer to its defined variables need to run afterward.
 With a cycle, the execution order becomes ambiguous, while also introducing
 an infinite loop.
 
-??? question **What do I get in return?**
+**What do I get in return?**
 
     By accepting this constraint on variables, marimo makes your notebooks:
 
