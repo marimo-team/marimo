@@ -1,6 +1,6 @@
 # Using SQL
 
-marimo lets you can mix and match **Python and SQL**: Use SQL to query
+marimo lets you mix and match **Python and SQL**: Use SQL to query
 Python dataframes (or databases like SQLite and Postgres), and get
 the query result back as a Python dataframe.
 
