@@ -12,7 +12,7 @@ marimo imposes a few constraints on your notebook code:
     - **reproducible**, with a well-defined execution order, no hidden state, and no hidden bugs;
     - **executable** as a script;
     - **interactive** with UI elements that work without callbacks;
-    - **shareable as a web app**, with far better performance that streamlit.
+    - **shareable as a web app**, with far better performance than streamlit.
 
     As a bonus, you'll find that you end up with cleaner, reusable code.
 
