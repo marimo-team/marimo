@@ -19,11 +19,8 @@ import {
   type Cell,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
-import {
-  useCellSelection,
-  useIsCellSelected,
-} from "@/components/data-table/hooks/use-cell-range-selection";
-import React from "react";
+import { useCellSelection } from "@/components/data-table/hooks/use-cell-range-selection";
+import React, { useMemo } from "react";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -64,23 +61,6 @@ export function renderTableHeader<TData>(
   );
 }
 
-const TableCellOverlay = React.memo<{ cell: Cell<unknown, unknown> }>(
-  ({ cell }) => {
-    const isCellSelected = useIsCellSelected(cell);
-    return (
-      <div
-        id={cell.id}
-        className={cn(
-          "absolute inset-0 pointer-events-none",
-          isCellSelected && "bg-[var(--green-3)]",
-        )}
-      />
-    );
-  },
-);
-
-TableCellOverlay.displayName = "TableCellOverlay";
-
 export const DataTableBody = <TData,>({
   table,
   columns,
@@ -107,42 +87,18 @@ export const DataTableBody = <TData,>({
     table,
   });
 
-  // const handleMouseDown = useEvent((e, cell) => handleCellMouseDown(e, cell));
-  // const handleMouseUp = useEvent(() => handleCellMouseUp());
-  // const handleMouseOver = useEvent((e, cell) => handleCellMouseOver(e, cell));
-
-  const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
+  const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
-      const { className, style: pinningstyle } = getPinningStyles(cell.column);
-      const style = Object.assign(
-        {},
-        cell.getUserStyling?.() || {},
-        pinningstyle,
-      );
       return (
-        <TableCell
+        <MemoizedDataTableCell
           key={cell.id}
-          tabIndex={0}
-          className={cn(
-            "whitespace-pre truncate max-w-[300px] select-none outline-none",
-            cell.column.getColumnWrapping &&
-              cell.column.getColumnWrapping() === "wrap" &&
-              "whitespace-pre-wrap min-w-[200px]",
-            "px-1.5 py-[0.18rem]",
-            isCellSelected(cell) && "bg-[var(--green-3)]",
-            isCellCopied(cell) &&
-              "bg-[var(--green-4)] transition-colors duration-150",
-            className,
-          )}
-          style={style}
-          title={String(cell.getValue())}
-          onMouseDown={(e) => handleCellMouseDown(e, cell)}
-          onMouseUp={() => handleCellMouseUp()}
-          onMouseOver={(e) => handleCellMouseOver(e, cell)}
-        >
-          {/* <TableCellOverlay cell={cell} /> */}
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-        </TableCell>
+          cell={cell}
+          isSelected={isCellSelected(cell)}
+          isCopied={isCellCopied(cell)}
+          onMouseDown={handleCellMouseDown}
+          onMouseUp={handleCellMouseUp}
+          onMouseOver={handleCellMouseOver}
+        />
       );
     });
   };
@@ -176,9 +132,9 @@ export const DataTableBody = <TData,>({
               onClick={() => handleRowClick(row)}
               tabIndex={-1}
             >
-              {renderCells(row, row.getLeftVisibleCells())}
-              {renderCells(row, row.getCenterVisibleCells())}
-              {renderCells(row, row.getRightVisibleCells())}
+              {renderCells(row.getLeftVisibleCells())}
+              {renderCells(row.getCenterVisibleCells())}
+              {renderCells(row.getRightVisibleCells())}
             </TableRow>
           );
         })
@@ -220,6 +176,72 @@ function getPinningStyles<TData>(
     },
   };
 }
+
+interface DataTableCellProps<TData> {
+  cell: Cell<TData, unknown>;
+  isSelected: boolean;
+  isCopied: boolean;
+  onMouseDown: (e: React.MouseEvent, cell: Cell<TData, unknown>) => void;
+  onMouseUp: () => void;
+  onMouseOver: (e: React.MouseEvent, cell: Cell<TData, unknown>) => void;
+}
+
+const DataTableCell = <TData,>({
+  cell,
+  isSelected,
+  isCopied,
+  onMouseDown,
+  onMouseUp,
+  onMouseOver,
+}: DataTableCellProps<TData>) => {
+  const { className: pinClassName, style: pinningStyle } = useMemo(
+    () => getPinningStyles(cell.column),
+    [cell.column],
+  );
+  const userStyle = useMemo(() => cell.getUserStyling?.() || {}, [cell]);
+  const style = Object.assign({}, userStyle, pinningStyle);
+
+  const className = useMemo(
+    () =>
+      cn(
+        "whitespace-pre truncate max-w-[300px] select-none outline-none",
+        cell.column.getColumnWrapping &&
+          cell.column.getColumnWrapping() === "wrap" &&
+          "whitespace-pre-wrap min-w-[200px]",
+        "px-1.5 py-[0.18rem]",
+        isSelected && "bg-[var(--green-3)]",
+        isCopied && "bg-[var(--green-4)] transition-colors duration-150",
+        pinClassName,
+      ),
+    [cell.column, isCopied, isSelected, pinClassName],
+  );
+
+  return (
+    <TableCell
+      tabIndex={0}
+      className={className}
+      style={style}
+      title={String(cell.getValue())}
+      onMouseDown={(e) => onMouseDown(e, cell)}
+      onMouseUp={onMouseUp}
+      onMouseOver={(e) => onMouseOver(e, cell)}
+    >
+      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+    </TableCell>
+  );
+};
+
+DataTableCell.displayName = "DataTableCell";
+
+const MemoizedDataTableCell = React.memo(DataTableCell, (prev, next) => {
+  return (
+    prev.isSelected === next.isSelected &&
+    prev.isCopied === next.isCopied &&
+    prev.cell === next.cell
+  );
+}) as typeof DataTableCell;
+
+MemoizedDataTableCell.displayName = "DataTableCell";
 
 // Update column sizes in table state for column pinning offsets
 // https://github.com/TanStack/table/discussions/3947#discussioncomment-9564867
