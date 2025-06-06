@@ -35,6 +35,7 @@ bugs](../coming_from/jupyter.md), and it's part of the reason why [over 96% of
 Jupyter notebooks on GitHub aren't reproducible](https://leomurta.github.io/papers/pimentel2019a.pdf).
 
 **What do I get in return?**
+
 By accepting this constraint on variables, marimo makes your notebooks:
 
 - **reproducible**, with a well-defined execution order, no hidden state, and no hidden bugs;

@@ -19,16 +19,16 @@ run a cell, and cells that refer to its defined variables need to run afterward.
 With a cycle, the execution order becomes ambiguous, while also introducing
 an infinite loop.
 
-!!! question **What do I get in return?**
+**What do I get in return?**
 
-    By accepting this constraint on variables, marimo makes your notebooks:
+By accepting this constraint on variables, marimo makes your notebooks:
 
-    - **reproducible**, with a well-defined execution order, no hidden state, and no hidden bugs;
-    - **executable** as a script;
-    - **interactive** with UI elements that work without callbacks;
-    - **shareable as a web app**, with far better performance than streamlit.
+- **reproducible**, with a well-defined execution order, no hidden state, and no hidden bugs;
+- **executable** as a script;
+- **interactive** with UI elements that work without callbacks;
+- **shareable as a web app**, with far better performance than streamlit.
 
-    As a bonus, you'll find that you end up with cleaner, reusable code.
+As a bonus, you'll find that you end up with cleaner, reusable code.
 
 **How do I read the error message?** In the error message, each line says which
 cell defines a variable and which cell reads a variable. For example, `cell-0

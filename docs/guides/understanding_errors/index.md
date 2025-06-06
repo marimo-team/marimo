@@ -7,6 +7,7 @@ marimo imposes a few constraints on your notebook code:
 * no `import *`: importing all symbols from a library is not allowed
 
 !!! question "Why these constraints?"
+
     These constraints let marimo work its magic, making your notebooks:
 
     - **reproducible**, with a well-defined execution order, no hidden state, and no hidden bugs;
