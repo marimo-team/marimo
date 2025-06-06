@@ -3,7 +3,7 @@
 // tanstack/table is not compatible with React compiler
 // https://github.com/TanStack/table/issues/5567
 
-import React, { memo } from "react";
+import React, { memo, useRef } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -24,7 +24,7 @@ import type { DownloadActionProps } from "./download-actions";
 import { cn } from "@/utils/cn";
 import { FilterPills } from "./filter-pills";
 import { useColumnPinning } from "./hooks/use-column-pinning";
-import { renderTableHeader, renderTableBody } from "./renderers";
+import { renderTableHeader, DataTableBody } from "./renderers";
 import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
@@ -216,6 +216,8 @@ const DataTableInternal = <TData,>({
 
   const rowViewerPanelOpen = isPanelOpen?.("row-viewer") ?? false;
 
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
@@ -231,13 +233,14 @@ const DataTableInternal = <TData,>({
         )}
         <Table>
           {renderTableHeader(table)}
-          {renderTableBody(
-            table,
-            columns,
-            rowViewerPanelOpen,
-            getPaginatedRowIndex,
-            viewedRowIdx,
-          )}
+          <DataTableBody
+            table={table}
+            columns={columns}
+            rowViewerPanelOpen={rowViewerPanelOpen}
+            getRowIndex={getPaginatedRowIndex}
+            viewedRowIdx={viewedRowIdx}
+            tableBodyRef={tableBodyRef}
+          />
         </Table>
       </div>
       <TableActions
