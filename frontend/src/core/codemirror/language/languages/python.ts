@@ -125,8 +125,8 @@ const lspClient = once((lspConfig: LSPConfig) => {
         },
         signature: {
           formatter: config?.enable_ruff ? "ruff" : "black",
-          line_length: 88
-        }
+          line_length: 88,
+        },
       },
     },
   };

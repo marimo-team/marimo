@@ -299,4 +299,3 @@ def any_lsp_server_running(config: MarimoConfig) -> bool:
         for server in language_servers.values()
     )
     return (copilot_enabled is not False) or language_servers_enabled
-
