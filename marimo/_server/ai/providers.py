@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         Client as GoogleClient,
     )
     from google.genai.types import (  # type: ignore[import-not-found]
+        GenerateContentConfig,
         GenerateContentResponse,
     )
 
@@ -508,6 +509,20 @@ class GoogleProvider(
             model.startswith(prefix) for prefix in self.THINKING_MODEL_PREFIXES
         )
 
+    def get_config(
+        self, system_prompt: str, max_tokens: int
+    ) -> GenerateContentConfig:
+        config = {
+            "system_instruction": system_prompt,
+            "temperature": 0,
+            "max_output_tokens": max_tokens,
+        }
+        if self.is_thinking_model(self.model):
+            config["thinking_config"] = {
+                "include_thoughts": True,
+            }
+        return cast("GenerateContentConfig", config)
+
     def get_client(self, config: AnyProviderConfig) -> GoogleClient:
         try:
             from google import genai
@@ -526,26 +541,12 @@ class GoogleProvider(
         max_tokens: int,
     ) -> Iterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        generate_stream_params = {
-            "model": self.model,
-            "contents": convert_to_google_messages(messages),
-            "config": {
-                "system_instruction": system_prompt,
-                "temperature": 0,
-                "max_output_tokens": max_tokens,
-            },
-        }
-        if self.is_thinking_model(self.model):
-            generate_stream_params["config"].update(
-                {
-                    "thinking_config": {
-                        "include_thoughts": True,
-                    }
-                }
-            )
-        return cast(
-            "Iterator[GenerateContentResponse]",
-            client.models.generate_content_stream(**generate_stream_params),
+        return client.models.generate_content_stream(
+            model=self.model,
+            contents=convert_to_google_messages(messages),
+            config=self.get_config(
+                system_prompt=system_prompt, max_tokens=max_tokens
+            ),
         )
 
     def extract_content(
