@@ -536,9 +536,13 @@ class GoogleProvider(
             },
         }
         if self.is_thinking_model(self.model):
-            generate_stream_params["config"]["thinking_config"] = {
-                "include_thoughts": True,
-            }
+            generate_stream_params["config"].update(
+                {
+                    "thinking_config": {
+                        "include_thoughts": True,
+                    }
+                }
+            )
         return cast(
             "Iterator[GenerateContentResponse]",
             client.models.generate_content_stream(**generate_stream_params),
