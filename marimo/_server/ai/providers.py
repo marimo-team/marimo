@@ -541,11 +541,14 @@ class GoogleProvider(
         max_tokens: int,
     ) -> Iterator[GenerateContentResponse]:
         client = self.get_client(self.config)
-        return client.models.generate_content_stream(
-            model=self.model,
-            contents=convert_to_google_messages(messages),
-            config=self.get_config(
-                system_prompt=system_prompt, max_tokens=max_tokens
+        return cast(
+            "Iterator[GenerateContentResponse]",
+            client.models.generate_content_stream(
+                model=self.model,
+                contents=convert_to_google_messages(messages),
+                config=self.get_config(
+                    system_prompt=system_prompt, max_tokens=max_tokens
+                ),
             ),
         )
 
