@@ -265,6 +265,8 @@ def _get_altair_chart(
     if isinstance(column_data, nw.LazyFrame):
         column_data = column_data.collect()
 
+    column_data = _sanitize_dtypes(column_data, column_name)
+
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None
 
@@ -324,3 +326,27 @@ def _get_chart_spec(
             column_data,
             column_name,
         )
+
+
+def _sanitize_dtypes(
+    column_data: nw.DataFrame[Any] | Any, column_name: str
+) -> nw.DataFrame[Any] | Any:
+    """Sanitize dtypes for vegafusion"""
+    try:
+        dtype = column_data.schema[column_name]
+        if dtype == nw.Categorical:
+            column_data = column_data.with_columns(
+                nw.col(column_name).cast(nw.String)
+            )
+        # Int128 and UInt128 are not supported by datafusion
+        elif dtype == nw.Int128:
+            column_data = column_data.with_columns(
+                nw.col(column_name).cast(nw.Int64)
+            )
+        elif dtype == nw.UInt128:
+            column_data = column_data.with_columns(
+                nw.col(column_name).cast(nw.UInt64)
+            )
+    except Exception as e:
+        LOGGER.warning(f"Failed to sanitize dtypes: {str(e)}")
+    return column_data
