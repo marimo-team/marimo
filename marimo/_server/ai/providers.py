@@ -37,10 +37,10 @@ if TYPE_CHECKING:
     from anthropic.types import (  # type: ignore[import-not-found]
         RawMessageStreamEvent,
     )
-    from google.generativeai import (  # type: ignore[import-not-found]
-        GenerativeModel,
+    from google.genai.client import (  # type: ignore[import-not-found]
+        Client as GoogleClient,
     )
-    from google.generativeai.types import (  # type: ignore[import-not-found]
+    from google.genai.types import (  # type: ignore[import-not-found]
         GenerateContentResponse,
     )
 
@@ -496,47 +496,64 @@ class AnthropicProvider(
 class GoogleProvider(
     CompletionProvider["GenerateContentResponse", "GenerateContentResponse"]
 ):
-    def get_client(
-        self, config: AnyProviderConfig, model: str, system_prompt: str
-    ) -> GenerativeModel:
+    # Based on the docs:
+    # https://cloud.google.com/vertex-ai/generative-ai/docs/thinking
+    THINKING_MODEL_PREFIXES = [
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+    ]
+
+    def is_thinking_model(self, model: str) -> bool:
+        return any(
+            model.startswith(prefix) for prefix in self.THINKING_MODEL_PREFIXES
+        )
+
+    def get_client(self, config: AnyProviderConfig) -> GoogleClient:
         try:
-            import google.generativeai as genai
+            from google import genai
         except ImportError:
-            DependencyManager.google_ai.require(
+            DependencyManager.google_ai_new.require(
                 why="for AI assistance with Google AI"
             )
-            import google.generativeai as genai  # type: ignore
+            from google import genai  # type: ignore
 
-        genai.configure(api_key=config.api_key)
-        return genai.GenerativeModel(
-            model_name=model,
-            system_instruction=system_prompt,
-            generation_config=genai.GenerationConfig(
-                max_output_tokens=DEFAULT_MAX_TOKENS,
-                temperature=0,
-            ),
-        )
+        return genai.Client(api_key=config.api_key)
 
     def stream_completion(
         self,
         messages: list[ChatMessage],
         system_prompt: str,
         max_tokens: int,
-    ) -> GenerateContentResponse:
-        client = self.get_client(self.config, self.model, system_prompt)
-        return client.generate_content(
-            contents=convert_to_google_messages(messages),
-            stream=True,
-            generation_config={
+    ) -> Iterator[GenerateContentResponse]:
+        client = self.get_client(self.config)
+        generate_stream_params = {
+            "model": self.model,
+            "contents": convert_to_google_messages(messages),
+            "config": {
+                "system_instruction": system_prompt,
+                "temperature": 0,
                 "max_output_tokens": max_tokens,
             },
+        }
+        if self.is_thinking_model(self.model):
+            generate_stream_params["config"]["thinking_config"] = {
+                "include_thoughts": True,
+            }
+        return cast(
+            "Iterator[GenerateContentResponse]",
+            client.models.generate_content_stream(**generate_stream_params),
         )
 
     def extract_content(
         self, response: GenerateContentResponse
     ) -> ExtractedContent | None:
-        if hasattr(response, "text"):
-            return (response.text, "text")
+        for part in response.candidates[0].content.parts:
+            if not part.text:
+                continue
+            elif part.thought:
+                return (part.text, "reasoning")
+            else:
+                return (part.text, "text")
         return None
 
 
