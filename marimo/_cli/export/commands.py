@@ -511,6 +511,18 @@ and cannot be opened directly from the file system (e.g. file://).
     type=bool,
     help=_sandbox_message,
 )
+@click.option(
+    "--html-head",
+    type=str,
+    required=False,
+    help="Path to an HTML file containing content to inject into the <head> section of the exported HTML.",
+)
+@click.option(
+    "--show-save/--no-show-save",
+    default=False,
+    show_default=True,
+    help="Whether to show the save button in the exported HTML file.",
+)
 @click.argument(
     "name",
     required=True,
@@ -524,6 +536,8 @@ def html_wasm(
     show_code: bool,
     include_cloudflare: bool,
     sandbox: Optional[bool],
+    html_head: Optional[str] = None,
+    show_save: bool = False,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
     import sys
@@ -552,7 +566,13 @@ def html_wasm(
     marimo_file = MarimoPath(name)
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_wasm(file_path, mode, show_code=show_code)
+        return export_as_wasm(
+            file_path,
+            mode,
+            show_code=show_code,
+            html_head_file=html_head,
+            show_save=show_save,
+        )
 
     # Export assets first
     Exporter().export_assets(out_dir, ignore_index_html=ignore_index_html)

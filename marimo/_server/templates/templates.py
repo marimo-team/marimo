@@ -293,6 +293,7 @@ def wasm_notebook_template(
     code: str,
     show_code: bool,
     asset_url: Optional[str] = None,
+    show_save: bool = False,
 ) -> str:
     """Template for WASM notebooks."""
     import re
@@ -329,7 +330,7 @@ def wasm_notebook_template(
     )
 
     body = body.replace(
-        "</head>", '<marimo-wasm hidden=""></marimo-wasm></head>'
+        "</head>", '<marimo-wasm hidden=""></marimo-wasm>\n</head>'
     )
 
     warning_script = """
@@ -341,7 +342,6 @@ def wasm_notebook_template(
     """
     body = body.replace("</head>", f"{warning_script}</head>")
 
-    # Hide save button in WASM mode
     wasm_styles = """
     <style>
         #save-button {
@@ -352,7 +352,9 @@ def wasm_notebook_template(
         }
     </style>
     """
-    body = body.replace("</head>", f"{wasm_styles}</head>")
+    # Hide save button in WASM mode unless explicitly requested to show
+    if not show_save:
+        body = body.replace("</head>", f"{wasm_styles}</head>")
 
     # If has custom css, inline the css and add to the head
     if app_config.css_file:
@@ -386,7 +388,7 @@ def wasm_notebook_template(
 def inject_script(html: str, script: str) -> str:
     """Inject a script into the HTML before the closing body tag."""
     script_tag = f"<script>{script}</script>"
-    return html.replace("</body>", f"{script_tag}</body>")
+    return html.replace("</body>", f"{script_tag}\n</body>")
 
 
 def _del_none_or_empty(d: Any) -> Any:

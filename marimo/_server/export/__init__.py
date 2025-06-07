@@ -105,6 +105,8 @@ def export_as_wasm(
     mode: Literal["edit", "run"],
     show_code: bool,
     asset_url: Optional[str] = None,
+    html_head_file: Optional[str] = None,
+    show_save: bool = False,
 ) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
@@ -112,6 +114,11 @@ def export_as_wasm(
     file_manager = file_router.get_file_manager(file_key)
     # Inline the layout file, if it exists
     file_manager.app.inline_layout_file()
+
+    # Update the app config to set html_head_file if provided
+    if html_head_file is not None:
+        file_manager.app.config.html_head_file = html_head_file
+
     config = get_default_config_manager(current_path=file_manager.path)
 
     result = Exporter().export_as_wasm(
@@ -121,6 +128,7 @@ def export_as_wasm(
         code=file_manager.to_code(),
         asset_url=asset_url,
         show_code=show_code,
+        show_save=show_save,
     )
     return ExportResult(
         contents=result[0],

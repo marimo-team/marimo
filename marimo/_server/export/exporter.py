@@ -391,6 +391,7 @@ class Exporter:
         mode: Literal["edit", "run"],
         show_code: bool,
         asset_url: Optional[str] = None,
+        show_save: bool = False,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
@@ -413,6 +414,7 @@ class Exporter:
             code=code,
             asset_url=asset_url,
             show_code=show_code,
+            show_save=show_save,
         )
 
         download_filename = get_download_filename(
