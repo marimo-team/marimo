@@ -101,6 +101,12 @@ recommended = [
     "nbformat>=5.7.0",          # Export as IPYNB
 ]
 
+lsp = [
+    "python-lsp-server>=1.10.0",
+    "python-lsp-ruff>=2.0.0",
+]
+
+[project.dependency-groups]
 dev = [
     "click>=8.0,<9",
     "black~=23.12.1",
@@ -115,12 +121,6 @@ dev = [
     # For AI
     "openai>=1.55.3",
 ]
-
-lsp = [
-    "python-lsp-server>=1.10.0",
-    "python-lsp-ruff>=2.0.0",
-]
-
 docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.5.49",
