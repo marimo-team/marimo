@@ -831,6 +831,7 @@ const DataTableComponent = ({
             fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows}
             totalColumns={totalColumns}
+            tableId={id}
           />
         </ContextAwarePanelItem>
       )}
