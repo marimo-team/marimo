@@ -187,13 +187,20 @@ const InstallPackageForm: React.FC<{
   const handleAddPackage = async () => {
     try {
       setLoading(true);
-      const response = await addPackage({ package: input });
-      if (response.success) {
-        onSuccess();
-        showAddPackageToast(input);
-      } else {
-        showAddPackageToast(input, response.error);
+      const packages = input.split(",").map((p) => p.trim());
+      for (const [idx, packageName] of packages.entries()) {
+        const response = await addPackage({ package: packageName });
+        if (response.success) {
+          showAddPackageToast(packageName);
+        } else {
+          showAddPackageToast(packageName, response.error);
+        }
+        // Wait 1s if there are more packages to install
+        if (idx < packages.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
+      onSuccess();
     } finally {
       setInput("");
       setLoading(false);

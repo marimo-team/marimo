@@ -621,7 +621,6 @@ class SQLTableListPreview(Op):
 @dataclass
 class ColumnPreview:
     chart_spec: Optional[str] = None
-    chart_max_rows_errors: bool = False
     chart_code: Optional[str] = None
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None

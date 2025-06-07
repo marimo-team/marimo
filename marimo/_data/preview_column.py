@@ -25,6 +25,10 @@ from marimo._sql.utils import wrapped_sql
 LOGGER = _loggers.marimo_logger()
 
 CHART_MAX_ROWS = 20_000
+VEGAFUSION_ERROR = "Too many rows, vegafusion required to render charts"
+VEGAFUSION_MISSING_PACKAGES = ["vegafusion", "vl_convert_python"]
+ALTAIR_ERROR = "Altair is required to render charts"
+ALTAIR_MISSING_PACKAGES = ["altair"]
 
 
 def get_table_manager(item: object) -> TableManager[Any] | None:
@@ -52,7 +56,8 @@ def get_column_preview_dataset(
     """
 
     try:
-        if table.get_num_rows(force=True) == 0:
+        table_rows = table.get_num_rows(force=True)
+        if table_rows == 0:
             return ColumnPreview(
                 error="Table is empty",
             )
@@ -73,8 +78,7 @@ def get_column_preview_dataset(
         error = None
         missing_packages = None
         if not DependencyManager.altair.has():
-            error = "Altair is required to render charts."
-            missing_packages = ["altair"]
+            error, missing_packages = ALTAIR_ERROR, ALTAIR_MISSING_PACKAGES
         else:
             # Check for special characters that can't be escaped easily
             # (e.g. backslash, quotes)
@@ -87,19 +91,18 @@ def get_column_preview_dataset(
                     break
 
         # Get the chart for the column
-        chart_max_rows_errors = False
-        chart_spec = None
-        chart_code = None
-
-        # Get the chart for the column
-        chart_max_rows_errors = False
         chart_spec = None
         chart_code = None
 
         if error is None:
             try:
-                chart_spec, chart_code, chart_max_rows_errors = (
-                    _get_altair_chart(table_name, column_name, table, stats)
+                (
+                    chart_spec,
+                    chart_code,
+                    error,
+                    missing_packages,
+                ) = _get_altair_chart(
+                    table_name, column_name, table, stats, table_rows
                 )
             except Exception as e:
                 error = str(e)
@@ -110,10 +113,8 @@ def get_column_preview_dataset(
                     exc_info=e,
                 )
                 chart_spec, chart_code = None, None
-                chart_max_rows_errors = False
 
         return ColumnPreview(
-            chart_max_rows_errors=chart_max_rows_errors,
             chart_spec=chart_spec,
             chart_code=chart_code,
             error=error,
@@ -149,7 +150,6 @@ def get_column_preview_for_dataframe(
     return DataColumnPreview(
         table_name=table_name,
         column_name=column_name,
-        chart_max_rows_errors=column_preview.chart_max_rows_errors,
         chart_spec=column_preview.chart_spec,
         chart_code=column_preview.chart_code,
         stats=column_preview.stats,
@@ -171,14 +171,11 @@ def get_column_preview_for_duckdb(
     # Generate Altair chart
     chart_spec = None
     chart_code = None
-    chart_max_rows_errors = False
     error = None
     missing_packages = None
     should_limit_to_10_items = True
 
     if DependencyManager.altair.has():
-        from altair import MaxRowsError
-
         try:
             total_rows: int = wrapped_sql(
                 f"SELECT COUNT(*) FROM {fully_qualified_table_name}",
@@ -197,17 +194,16 @@ def get_column_preview_for_duckdb(
                     should_limit_to_10_items=should_limit_to_10_items,
                 )
             else:
-                chart_max_rows_errors = True
-        except MaxRowsError:
-            chart_spec = None
-            chart_max_rows_errors = True
+                error, missing_packages = (
+                    VEGAFUSION_ERROR,
+                    VEGAFUSION_MISSING_PACKAGES,
+                )
         except Exception as e:
             LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 
     return DataColumnPreview(
         table_name=fully_qualified_table_name,
         column_name=column_name,
-        chart_max_rows_errors=chart_max_rows_errors,
         chart_spec=chart_spec,
         chart_code=chart_code,
         stats=stats,
@@ -221,17 +217,35 @@ def _get_altair_chart(
     column_name: str,
     table: TableManager[Any],
     stats: ColumnStats,
-) -> tuple[Optional[str], Optional[str], bool]:
+    table_rows: Optional[int],
+) -> tuple[Optional[str], Optional[str], Optional[str], Optional[list[str]]]:
+    """
+    Get an Altair chart for a column.
+
+    Returns:
+        chart_spec, chart_code, error, missing_packages
+    """
     # We require altair to render the chart
     if not DependencyManager.altair.has() or not table.supports_altair():
-        return None, None, False
+        return None, None, ALTAIR_ERROR, ALTAIR_MISSING_PACKAGES
 
     from altair import MaxRowsError
 
     (column_type, _external_type) = table.get_field_type(column_name)
 
     if stats.total == 0:
-        return None, None, False
+        return None, None, "Table is empty", None
+
+    if (
+        table_rows is not None
+        and table_rows > CHART_MAX_ROWS
+        and not (
+            DependencyManager.vegafusion.has()
+            and DependencyManager.vl_convert_python.has()
+        )
+    ):
+        # If we don't have vegafusion, we can't render charts for large tables
+        return None, None, VEGAFUSION_ERROR, VEGAFUSION_MISSING_PACKAGES
 
     # For categorical columns with more than 10 unique values,
     # we limit the chart to 10 items
@@ -246,14 +260,16 @@ def _get_altair_chart(
     chart_builder = get_chart_builder(column_type, should_limit_to_10_items)
     code = chart_builder.altair_code(table_name, column_name, simple=True)
 
-    chart_max_rows_errors = False
+    # Filter the data to the column we want
+    column_data = table.select_columns([column_name]).data
+    if isinstance(column_data, nw.LazyFrame):
+        column_data = column_data.collect()
 
+    error: Optional[str] = None
+    missing_packages: Optional[list[str]] = None
+
+    # We may not know number of rows, so we can check for max rows error
     try:
-        # Filter the data to the column we want
-        column_data = table.select_columns([column_name]).data
-        if isinstance(column_data, nw.LazyFrame):
-            column_data = column_data.collect()
-
         chart_spec = _get_chart_spec(
             column_data=column_data,
             column_type=column_type,
@@ -262,9 +278,9 @@ def _get_altair_chart(
         )
     except MaxRowsError:
         chart_spec = None
-        chart_max_rows_errors = True
+        error, missing_packages = VEGAFUSION_ERROR, VEGAFUSION_MISSING_PACKAGES
 
-    return chart_spec, code, chart_max_rows_errors
+    return chart_spec, code, error, missing_packages
 
 
 def _get_chart_spec(

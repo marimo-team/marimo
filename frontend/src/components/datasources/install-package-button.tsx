@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { useChromeActions } from "@/components/editor/chrome/state";
 import { packagesToInstallAtom } from "@/components/editor/chrome/panels/packages-state";
 import { useSetAtom } from "jotai";
+import { cn } from "@/utils/cn";
 
 interface InstallPackageButtonProps {
   packages: string[] | undefined;
+  className?: string;
 }
 
 /**
@@ -15,6 +17,7 @@ interface InstallPackageButtonProps {
  */
 export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
   packages,
+  className,
 }) => {
   const chromeActions = useChromeActions();
   const setPackagesToInstall = useSetAtom(packagesToInstallAtom);
@@ -30,11 +33,16 @@ export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
     setPackagesToInstall(packagesString);
 
     // Open the packages panel
-    chromeActions.toggleApplication("packages");
+    chromeActions.openApplication("packages");
   };
 
   return (
-    <Button variant="outline" size="xs" onClick={handleClick} className="ml-2">
+    <Button
+      variant="outline"
+      size="xs"
+      onClick={handleClick}
+      className={cn("ml-2", className)}
+    >
       Install {packages.join(", ")}
     </Button>
   );

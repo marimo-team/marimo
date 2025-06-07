@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { InstallPackageButton } from "../install-package-button";
 
-const mockToggleApplication = vi.fn();
+const mockOpenApplication = vi.fn();
 vi.mock("@/components/editor/chrome/state", () => ({
   useChromeActions: () => ({
-    toggleApplication: mockToggleApplication,
+    openApplication: mockOpenApplication,
   }),
 }));
 
@@ -62,6 +62,6 @@ describe("InstallPackageButton", () => {
 
     expect(mockSetPackagesToInstall).toHaveBeenCalledWith("altair");
 
-    expect(mockToggleApplication).toHaveBeenCalledWith("packages");
+    expect(mockOpenApplication).toHaveBeenCalledWith("packages");
   });
 });

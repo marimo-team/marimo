@@ -24,7 +24,6 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   AddDataframeChart,
   renderChart,
-  renderChartMaxRowsWarning,
   renderPreviewError,
   renderStats,
 } from "@/components/datasources/column-preview";
@@ -179,7 +178,6 @@ const ColumnPreview = ({
   const {
     chart_spec,
     chart_code,
-    chart_max_rows_errors,
     error: previewError,
     missing_packages,
     stats,
@@ -196,14 +194,10 @@ const ColumnPreview = ({
     <AddDataframeChart chartCode={chart_code} />
   );
 
-  const chartMaxRowsWarning =
-    chart_max_rows_errors && renderChartMaxRowsWarning();
-
   return (
     <ColumnPreviewContainer className="px-2 py-1">
       {errorState}
       {addDataframeChart}
-      {chartMaxRowsWarning}
       {chart}
       {previewStats}
     </ColumnPreviewContainer>
