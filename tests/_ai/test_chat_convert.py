@@ -114,21 +114,25 @@ def test_convert_to_google_messages(sample_messages: list[ChatMessage]):
     # Check user message
     assert result[0]["role"] == "user"
     assert result[0]["parts"] == [
-        "Hello, I have a question.",
+        {"text": "Hello, I have a question."},
         {
-            "data": b"m\xa1\x95\xb1\xb1\xbc",
-            "mime_type": "image/png",
+            "inline_data": {
+                "data": b"m\xa1\x95\xb1\xb1\xbc",
+                "mime_type": "image/png",
+            }
         },
         {
-            "data": b"A\n1\n2\n3\n",
-            "mime_type": "text/plain",
+            "inline_data": {
+                "data": b"A\n1\n2\n3\n",
+                "mime_type": "text/plain",
+            }
         },
     ]
 
     # Check assistant message
     assert result[1]["role"] == "model"
     assert result[1]["parts"] == [
-        "Sure, I'd be happy to help. What's your question?"
+        {"text": "Sure, I'd be happy to help. What's your question?"}
     ]
 
 
@@ -177,7 +181,7 @@ def test_message_without_attachments():
     google_result = convert_to_google_messages(messages)
     assert len(google_result) == 1
     assert google_result[0]["role"] == "user"
-    assert google_result[0]["parts"] == ["Just a simple message"]
+    assert google_result[0]["parts"] == [{"text": "Just a simple message"}]
 
     groq_result = convert_to_groq_messages(messages)
     assert len(groq_result) == 1

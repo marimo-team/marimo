@@ -432,7 +432,7 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_google_ai_completion_with_code(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -441,9 +441,12 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.predict.return_value = MagicMock(
-            text="import pandas as pd"
-        )
+        google_client.models.generate_content_stream.return_value = [
+            MagicMock(
+                text="import pandas as pd",
+                thought=None,
+            )
+        ]
 
         with google_ai_config(user_config_manager):
             response = client.post(
@@ -457,14 +460,18 @@ class TestGoogleAiEndpoints:
             )
             assert response.status_code == 200, response.text
             # Assert the prompt it was called with
-            prompt = google_client.generate_content.call_args.kwargs[
-                "contents"
-            ]
-            assert prompt[0]["parts"][0] == "Help me create a dataframe"
+            prompt = (
+                google_client.models.generate_content_stream.call_args.kwargs[
+                    "contents"
+                ]
+            )
+            assert (
+                prompt[0]["parts"][0]["text"] == "Help me create a dataframe"
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_google_ai_completion_without_token(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -488,7 +495,7 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_google_ai_inline_completion(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -497,9 +504,12 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.predict.return_value = MagicMock(
-            text="df = pd.DataFrame()"
-        )
+        google_client.models.generate_content_stream.return_value = [
+            MagicMock(
+                text="df = pd.DataFrame()",
+                thought=None,
+            )
+        ]
 
         with google_ai_config(user_config_manager):
             response = client.post(
@@ -513,11 +523,13 @@ class TestGoogleAiEndpoints:
             )
             assert response.status_code == 200, response.text
             # Assert the prompt it was called with
-            prompt = google_client.generate_content.call_args.kwargs[
-                "contents"
-            ]
+            prompt = (
+                google_client.models.generate_content_stream.call_args.kwargs[
+                    "contents"
+                ]
+            )
             assert (
-                prompt[0]["parts"][0]
+                prompt[0]["parts"][0]["text"]
                 == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
             )
 
