@@ -40,8 +40,9 @@ export class RuntimeManager {
     // if they are "known" query params.
     for (const lookup in KnownQueryParams) {
       const key = KnownQueryParams[lookup as keyof typeof KnownQueryParams];
-      if (currentParams.has(key)) {
-        searchParams.set(key, currentParams.get(key));
+      const value = currentParams.get(key);
+      if (value !== null) {
+        searchParams.set(key, value);
       }
     }
     return new URL(
