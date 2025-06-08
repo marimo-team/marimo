@@ -32,7 +32,18 @@ export class RuntimeManager {
     const wsUrl = asWsUrl(this.config.url);
     const baseUrl = new URL(wsUrl);
     const searchParams = new URLSearchParams(baseUrl.search);
+    const currentParams = new URLSearchParams(window.location.search);
+
     searchParams.set(KnownQueryParams.sessionId, sessionId);
+
+    // Move over window level parameters to the WebSocket URL
+    // if they are "known" query params.
+    for (const lookup in KnownQueryParams) {
+      const key = KnownQueryParams[lookup as keyof typeof KnownQueryParams];
+      if (currentParams.has(key)) {
+        searchParams.set(key, currentParams.get(key));
+      }
+    }
     return new URL(
       urlJoin(wsUrl.split("?")[0], `ws?${searchParams.toString()}`),
     );
