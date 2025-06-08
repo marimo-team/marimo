@@ -34,10 +34,11 @@ describe("RuntimeManager.getWsURL", () => {
     const runtime = new RuntimeManager({
       url: "http://marimo.app/nested/?foo=bar",
     });
+    window.history.pushState({}, "", "/nested/?file=test.py");
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
     expect(url.toString()).toBe(
-      "ws://marimo.app/nested/ws?foo=bar&session_id=1234",
+      "ws://marimo.app/nested/ws?foo=bar&session_id=1234&file=test.py",
     );
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
