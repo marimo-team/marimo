@@ -40,6 +40,7 @@ import { useResolvedMarimoConfig } from "@/core/config/config";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { isErrorMime } from "@/core/mime";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -123,6 +124,19 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
               {columnCells.map(renderCell)}
             </div>
           ))}
+        </div>
+      );
+    }
+
+    if (cells.length === 0) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center py-8">
+          <Alert variant="info">
+            <AlertTitle>Empty Notebook</AlertTitle>
+            <AlertDescription>
+              This notebook has no code or outputs.
+            </AlertDescription>
+          </Alert>
         </div>
       );
     }

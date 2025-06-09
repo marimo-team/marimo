@@ -44,7 +44,7 @@ const Watermark = () => {
         target="_blank"
         className="text-sm text-[var(--grass-11)] font-bold tracking-wide transition-colors bg-[var(--grass-4)] hover:bg-[var(--grass-5)] border-t border-l border-[var(--grass-8)] px-3 py-1 rounded-tl-md flex items-center gap-2"
       >
-        <span className="pb-[2px]">made with marimo</span>
+        <span>made with marimo</span>
         <img src={faviconUrl} alt="marimo" className="h-4 w-auto" />
       </a>
     </div>
