@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -389,8 +389,8 @@ def test_get_column_preview_for_duckdb_time() -> None:
     assert result_time.stats.total == 100
     assert result_time.stats.unique == 100
     assert result_time.stats.nulls == 0
-    assert result_time.stats.min == datetime.time(0, 0)
-    assert result_time.stats.max == datetime.time(23, 47)
+    assert result_time.stats.min == time(0, 0)
+    assert result_time.stats.max == time(23, 47)
 
     # Time is not handled yet
     assert result_time.chart_spec is None
@@ -474,9 +474,8 @@ def test_get_column_preview_for_duckdb_over_limit() -> None:
 
 
 @pytest.mark.skipif(
-    not DependencyManager.narwhals.has()
-    and not DependencyManager.polars.has(),
-    reason="narwhals or polars not installed",
+    not DependencyManager.narwhals.has() or not DependencyManager.polars.has(),
+    reason="narwhals and polars not installed",
 )
 def test_sanitize_dtypes() -> None:
     import narwhals as nw
