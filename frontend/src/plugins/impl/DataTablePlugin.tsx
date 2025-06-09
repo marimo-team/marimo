@@ -409,13 +409,8 @@ export const LoadingDataTableComponent = memo(
 
     // If pageSize changes, reset pagination state
     useEffect(() => {
-      if (paginationState.pageSize !== props.pageSize) {
-        setPaginationState({
-          pageIndex: 0,
-          pageSize: props.pageSize,
-        });
-      }
-    }, [props.pageSize, paginationState.pageSize]);
+      setPaginationState({ pageIndex: 0, pageSize: props.pageSize });
+    }, [props.pageSize]);
 
     // Data loading
     const { data, loading, error } = useAsyncData<{
@@ -433,6 +428,8 @@ export const LoadingDataTableComponent = memo(
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
 
+      const pageSizeChanged = paginationState.pageSize !== props.pageSize;
+
       // If it is just the first page and no search query,
       // we can show the initial page.
       const canShowInitialPage =
@@ -440,7 +437,8 @@ export const LoadingDataTableComponent = memo(
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
         sorting.length === 0 &&
-        !props.lazy;
+        !props.lazy &&
+        !pageSizeChanged;
 
       if (sorting.length > 1) {
         Logger.warn("Multiple sort columns are not supported");

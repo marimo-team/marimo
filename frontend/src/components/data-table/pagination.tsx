@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { PluralWord } from "@/utils/pluralize";
 import { range } from "lodash-es";
 import type { DataTableSelection } from "./types";
+import { NumberField } from "../ui/number-field";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
@@ -101,9 +102,27 @@ export const DataTablePagination = <TData,>({
   );
   const totalPages = table.getPageCount();
 
+  const pageSize = table.getState().pagination.pageSize;
+
   return (
     <div className="flex flex-1 items-center justify-between px-2">
-      <div className="text-sm text-muted-foreground">{renderTotal()}</div>
+      <div className="flex items-center gap-2">
+        <div className="text-sm text-muted-foreground">{renderTotal()}</div>
+        <div className="flex items-center gap-1 text-xs">
+          <NumberField
+            aria-label="Page size"
+            value={pageSize}
+            onChange={(value) => table.setPageSize(value)}
+            minValue={1}
+            maxValue={200}
+            step={1}
+            className="w-11 h-4.5 !shadow-none !hover:shadow-none !ring-0"
+            variant="xs"
+          />
+          rows
+        </div>
+      </div>
+
       <div className="flex items-end space-x-2">
         <Button
           size="xs"
