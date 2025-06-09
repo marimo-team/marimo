@@ -19,8 +19,8 @@ import {
 import { isWasm } from "@/core/wasm/utils";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { logNever } from "@/utils/assertNever";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { startCase } from "lodash-es";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export const LayoutSelect: React.FC = () => {
   const { selectedLayout } = useLayoutState();

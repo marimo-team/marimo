@@ -18,10 +18,10 @@ import { FILE_TYPE_ICONS, guessFileType } from "../file-tree/types";
 import { Popover, PopoverContent } from "../../ui/popover";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { FileInfo } from "@/core/network/types";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 import "./filename-input.css";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;
