@@ -21,6 +21,7 @@ import type { FileInfo } from "@/core/network/types";
 
 import "./filename-input.css";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;
@@ -212,7 +213,9 @@ function getSuggestion(
   }
 
   // Matches allowed files in marimo/_utils/marimo_path.py
-  const extensionsToLeave = new Set(["py", "md", "markdown", "qmd"]);
+  const extensionsToLeave = getFeatureFlag("markdown")
+    ? new Set(["py", "md", "markdown", "qmd"])
+    : new Set(["py"]);
 
   if (extensionsToLeave.has(Paths.extension(search))) {
     // If ends with an allowed extension, leave as is
