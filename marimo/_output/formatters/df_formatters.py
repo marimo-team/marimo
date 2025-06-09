@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 import narwhals.stable.v1 as nw
 
@@ -34,15 +35,52 @@ def include_opinionated() -> bool:
     return True
 
 
+# adapted from https://github.com/pola-rs/polars/pull/20607
+def dot_to_mermaid(dot: str) -> str:
+    """Not comprehensive, only handles components of the dot language used by polars."""
+
+    edge_regex = r"(?P<node1>\w+) -- (?P<node2>\w+)"
+    node_regex = r"(?P<node>\w+)(\s+)?\[label=\"(?P<label>.*)\"]"
+
+    nodes = re.finditer(node_regex, dot)
+    edges = re.finditer(edge_regex, dot)
+
+    mermaid_str = "\n".join(
+        [
+            "graph TD",
+            *[f'\t{n["node"]}["{n["label"]}"]' for n in nodes],
+            *[f"\t{e['node1']} --- {e['node2']}" for e in edges],
+        ]
+    )
+
+    # replace [https://...] with <a> tags to avoid Mermaid interpreting it as markdown
+    mermaid_str = re.sub(
+        r"\[(https?://[^\]]+)\]",
+        lambda m: f"[<a href='{m.group(1)}'>{m.group(1)}</a>]",
+        mermaid_str,
+    )
+
+    # replace escaped newlines
+    mermaid_str = mermaid_str.replace(r"\n", "\n")
+
+    # replace escaped quotes
+    mermaid_str = mermaid_str.replace(r"\"", "#quot;")
+
+    return mermaid_str
+
+
 class PolarsFormatter(FormatterFactory):
     @staticmethod
     def package_name() -> str:
         return "polars"
 
     def register(self) -> Unregister | None:
+        from unittest.mock import patch
+
         import polars as pl
 
         from marimo._output import formatting
+        from marimo._output.hypertext import Html
 
         if not include_opinionated():
             return None
@@ -84,6 +122,35 @@ class PolarsFormatter(FormatterFactory):
                     "Query plan": md(df._repr_html_()),
                 }
             )._mime_()
+
+        # Patch for https://github.com/pola-rs/polars/blob/66ca5b/py-polars/polars/_utils/various.py#L655-L656
+        # Which has the comment: "Don't rename or move. This is used by polars cloud", so monkey patching inline should be safe
+        def display_dot_graph(
+            *,
+            dot: str,
+            show: bool = True,  # noqa: ARG001
+            output_path: str | None = None,  # noqa: ARG001
+            raw_output: bool = False,  # noqa: ARG001
+            figsize: tuple[float, float] = (16.0, 12.0),  # noqa: ARG001
+        ) -> Html:
+            import marimo as mo
+
+            return mo.mermaid(dot_to_mermaid(dot))
+
+        @pl.api.register_lazyframe_namespace("mo")
+        class DTypeOperations:
+            def __init__(self, ldf: pl.LazyFrame) -> None:
+                self._ldf = ldf
+
+            def show_graph(self, *args, **kwargs) -> Html:  # noqa: ANN002, ANN003
+                with patch(
+                    "polars.lazyframe.frame.display_dot_graph"
+                ) as mock_display:
+                    self._ldf.show_graph(*args, **kwargs)
+                    return display_dot_graph(
+                        *mock_display.call_args.args,
+                        **mock_display.call_args.kwargs,
+                    )
 
         return unpatch_polars_write_json
 
