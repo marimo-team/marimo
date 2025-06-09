@@ -260,6 +260,14 @@ class OpenAIProvider(
         "ChatCompletionChunk", "OpenAiStream[ChatCompletionChunk]"
     ]
 ):
+    # Medium effort provides a balance between speed and accuracy
+    # https://openai.com/index/openai-o3-mini/
+    DEFAULT_REASONING_EFFORT = "medium"
+
+    def is_reasoning_model(self, model: str) -> bool:
+        # only o-series models support reasoning
+        return model.startswith("o")
+
     def get_client(self, config: AnyProviderConfig) -> OpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
@@ -358,9 +366,9 @@ class OpenAIProvider(
         max_tokens: int,
     ) -> OpenAiStream[ChatCompletionChunk]:
         client = self.get_client(self.config)
-        return client.chat.completions.create(
-            model=self.model,
-            messages=cast(
+        create_params = {
+            "model": self.model,
+            "messages": cast(
                 Any,
                 convert_to_openai_messages(
                     self._maybe_convert_roles(
@@ -369,9 +377,15 @@ class OpenAIProvider(
                     + messages
                 ),
             ),
-            max_completion_tokens=max_tokens,
-            stream=True,
-            timeout=15,
+            "max_completion_tokens": max_tokens,
+            "stream": True,
+            "timeout": 15,
+        }
+        if self.is_reasoning_model(self.model):
+            create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
+        return cast(
+            "OpenAiStream[ChatCompletionChunk]",
+            client.chat.completions.create(**create_params),
         )
 
     def extract_content(
@@ -453,20 +467,25 @@ class AnthropicProvider(
         max_tokens: int,
     ) -> AnthropicStream[RawMessageStreamEvent]:
         client = self.get_client(self.config)
-        return client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            messages=cast(
+        create_params = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "messages": cast(
                 Any,
                 convert_to_anthropic_messages(messages),
             ),
-            system=system_prompt,
-            stream=True,
-            temperature=self.get_temperature(),
-            thinking={
+            "system": system_prompt,
+            "stream": True,
+            "temperature": self.get_temperature(),
+        }
+        if self.is_extended_thinking_model(self.model):
+            create_params["thinking"] = {
                 "type": "enabled",
                 "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
-            },
+            }
+        return cast(
+            "AnthropicStream[RawMessageStreamEvent]",
+            client.messages.create(**create_params),
         )
 
     def extract_content(
