@@ -112,27 +112,27 @@ const ColumnItem = ({
 
   return (
     <>
-      <CommandItem key={columnName} onSelect={() => setIsExpanded(!isExpanded)}>
-        <div className="flex flex-row items-center gap-1.5 group w-full">
-          <ColumnName columnName={columnText} dataType={dataType} />
-          <div className="ml-auto">
-            <Tooltip content="Copy column name" delayDuration={400}>
-              <Button
-                variant="text"
-                size="icon"
-                className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
-              >
-                <CopyClipboardIcon
-                  tooltip={false}
-                  value={columnName}
-                  className="h-3 w-3"
-                />
-              </Button>
-            </Tooltip>
-            <span className="text-xs text-muted-foreground">
-              {externalType}
-            </span>
-          </div>
+      <CommandItem
+        key={columnName}
+        onSelect={() => setIsExpanded(!isExpanded)}
+        className="flex flex-row items-center gap-1.5 group w-full cursor-pointer"
+      >
+        <ColumnName columnName={columnText} dataType={dataType} />
+        <div className="ml-auto">
+          <Tooltip content="Copy column name" delayDuration={400}>
+            <Button
+              variant="text"
+              size="icon"
+              className="group-hover:opacity-100 opacity-0 hover:bg-muted text-muted-foreground hover:text-foreground"
+            >
+              <CopyClipboardIcon
+                tooltip={false}
+                value={columnName}
+                className="h-3 w-3"
+              />
+            </Button>
+          </Tooltip>
+          <span className="text-xs text-muted-foreground">{externalType}</span>
         </div>
       </CommandItem>
       {isExpanded && (
