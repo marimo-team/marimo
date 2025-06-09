@@ -9,7 +9,7 @@ import { getResolvedMarimoConfig } from "./config";
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   inline_ai_tooltip: boolean;
-  wasm_layouts: boolean; // Used in playground (community cloud) for WASM mode
+  wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
   table_charts: boolean;
   // Add new feature flags here
