@@ -19,7 +19,6 @@ import {
 import { isWasm } from "@/core/wasm/utils";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { logNever } from "@/utils/assertNever";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { startCase } from "lodash-es";
 
 export const LayoutSelect: React.FC = () => {
@@ -28,7 +27,7 @@ export const LayoutSelect: React.FC = () => {
 
   // Layouts are not supported in WASM mode by default,
   // unless the feature flag is enabled
-  if (isWasm() && !getFeatureFlag("wasm_layouts")) {
+  if (isWasm()) {
     return null;
   }
 
