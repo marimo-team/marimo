@@ -14,6 +14,7 @@ export interface ExperimentalFeatures {
   rtc_v2: boolean;
   reactive_tests: boolean;
   table_charts: boolean;
+  glide_data_editor: boolean;
   // Add new feature flags here
 }
 
@@ -25,6 +26,7 @@ const defaultValues: ExperimentalFeatures = {
   rtc_v2: false,
   reactive_tests: false,
   table_charts: false,
+  glide_data_editor: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
