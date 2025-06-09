@@ -55,6 +55,16 @@ describe("InstallPackageButton", () => {
     expect(screen.getByText("Install altair, pandas")).toBeInTheDocument();
   });
 
+  it("should render correct package names when showMaxPackages is set", () => {
+    render(
+      <InstallPackageButton
+        packages={["altair", "pandas"]}
+        showMaxPackages={1}
+      />,
+    );
+    expect(screen.getByText("Install altair")).toBeInTheDocument();
+  });
+
   it("should open the packages panel when clicked", () => {
     render(<InstallPackageButton packages={["altair"]} />);
 

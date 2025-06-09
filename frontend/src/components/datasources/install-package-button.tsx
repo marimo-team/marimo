@@ -8,6 +8,7 @@ import { cn } from "@/utils/cn";
 
 interface InstallPackageButtonProps {
   packages: string[] | undefined;
+  showMaxPackages?: number;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ interface InstallPackageButtonProps {
  */
 export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
   packages,
+  showMaxPackages,
   className,
 }) => {
   const chromeActions = useChromeActions();
@@ -43,7 +45,10 @@ export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
       onClick={handleClick}
       className={cn("ml-2", className)}
     >
-      Install {packages.join(", ")}
+      Install{" "}
+      {showMaxPackages
+        ? packages.slice(0, showMaxPackages).join(", ")
+        : packages.join(", ")}
     </Button>
   );
 };

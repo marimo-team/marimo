@@ -141,7 +141,11 @@ export function renderPreviewError(
     <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center justify-between">
       <span>{error}</span>
       {missing_packages && (
-        <InstallPackageButton packages={missing_packages} className="h-8" />
+        <InstallPackageButton
+          packages={missing_packages}
+          showMaxPackages={1}
+          className="w-32"
+        />
       )}
     </div>
   );
