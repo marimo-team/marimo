@@ -149,6 +149,19 @@ describe("RuntimeManager", () => {
     });
   });
 
+  describe("healthURLwithParam", () => {
+    it("should return health check URL with param", () => {
+      let mockCopy = { ...mockConfig };
+      mockCopy.url = "https://example.com/nested?param=value";
+      const runtime = new RuntimeManager(mockCopy);
+      const url = runtime.healthURL();
+
+      expect(url.protocol).toBe("https:");
+      expect(url.pathname).toBe("/nested/health");
+      expect(url.searchParams.get("param")).toBe("value");
+    });
+  });
+
   describe("isHealthy", () => {
     it("should return true for successful health check", async () => {
       global.fetch = vi.fn().mockResolvedValue({
