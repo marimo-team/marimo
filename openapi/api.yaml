@@ -409,8 +409,6 @@ components:
         chart_code:
           nullable: true
           type: string
-        chart_max_rows_errors:
-          type: boolean
         chart_spec:
           nullable: true
           type: string
@@ -434,7 +432,6 @@ components:
         table_name:
           type: string
       required:
-      - chart_max_rows_errors
       - table_name
       - column_name
       - name
