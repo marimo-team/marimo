@@ -1,6 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import md
@@ -18,17 +23,22 @@ class GoogleAiFormatter(FormatterFactory):
 
     def register(self) -> None:
         try:
-            import google.generativeai as genai  # type: ignore
+            from google.genai.types import (
+                GenerateContentResponse,  # type: ignore
+            )
         except (ImportError, ModuleNotFoundError):
             return
 
         from marimo._output import formatting
 
-        @formatting.formatter(genai.types.GenerateContentResponse)
+        @formatting.formatter(GenerateContentResponse)
         def _show_response(
-            response: genai.types.GenerateContentResponse,
+            # Based on the return values of generate_content and generate_content_stream
+            # https://googleapis.github.io/python-genai/genai.html#genai.types.GenerateContentResponse
+            response: GenerateContentResponse
+            | AsyncIterator[GenerateContentResponse],
         ) -> tuple[KnownMimeType, str]:
-            if hasattr(response, "_iterator") and response._iterator is None:
+            if isinstance(response, GenerateContentResponse):
                 return md.md(response.text)._mime_()
 
             # Streaming response
