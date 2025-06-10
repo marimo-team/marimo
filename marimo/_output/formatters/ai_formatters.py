@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import Iterator
 
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
@@ -36,7 +36,7 @@ class GoogleAiFormatter(FormatterFactory):
             # Based on the return values of generate_content and generate_content_stream
             # https://googleapis.github.io/python-genai/genai.html#genai.types.GenerateContentResponse
             response: GenerateContentResponse
-            | AsyncIterator[GenerateContentResponse],
+            | Iterator[GenerateContentResponse],
         ) -> tuple[KnownMimeType, str]:
             if isinstance(response, GenerateContentResponse):
                 return md.md(response.text)._mime_()
