@@ -1482,6 +1482,7 @@ components:
               enum:
               - default
               - vim
+              - helix
               type: string
             vimrc:
               nullable: true
