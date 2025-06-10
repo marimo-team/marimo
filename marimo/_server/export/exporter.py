@@ -478,7 +478,7 @@ class Exporter:
 class AutoExporter:
     EXPORT_DIR = "__marimo__"
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Cache directories we've already created to avoid redundant checks
         self._created_dirs: set[Path] = set()
         # Thread pool for blocking I/O operations
