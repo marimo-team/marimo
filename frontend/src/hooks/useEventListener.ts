@@ -12,7 +12,7 @@ export type HTMLElementNotDerivedFromRef<T = HTMLElement> = T & {
   __brand: "HTMLElementNotDerivedFromRef";
 };
 
-export function isRefObject<T>(target: unknown): target is RefObject<T> {
+export function isRefObject<T>(target: unknown): target is RefObject<T | null> {
   return target !== null && typeof target === "object" && "current" in target;
 }
 
@@ -29,13 +29,16 @@ export function useEventListener<K extends keyof WindowEventMap>(
   options?: boolean | AddEventListenerOptions,
 ): void;
 export function useEventListener<K extends keyof HTMLElementEventMap>(
-  targetValue: HTMLElementNotDerivedFromRef | RefObject<HTMLElement> | null,
+  targetValue:
+    | HTMLElementNotDerivedFromRef
+    | RefObject<HTMLElement | null>
+    | null,
   type: K,
   listener: (ev: HTMLElementEventMap[K]) => unknown,
   options?: boolean | AddEventListenerOptions,
 ): void;
 export function useEventListener(
-  targetValue: EventTarget | RefObject<EventTarget> | null,
+  targetValue: EventTarget | RefObject<EventTarget | null> | null,
   type: string,
   listener: (ev: Event) => unknown,
   options?: boolean | AddEventListenerOptions,

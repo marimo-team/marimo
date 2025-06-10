@@ -10,6 +10,8 @@ import {
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
 
+import type { JSX } from "react";
+
 type T = string;
 
 interface Data {

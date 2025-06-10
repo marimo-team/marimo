@@ -2,6 +2,8 @@
 import type { ZodType, ZodTypeDef } from "zod";
 import type { PluginFunctions, FunctionSchemas } from "./core/rpc";
 
+import type { JSX } from "react";
+
 /**
  * State setter. Either a value or a function that takes the previous value and
  * returns the new value.

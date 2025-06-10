@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useContext } from "react";
+import React, { memo, use } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS, type Transform } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
@@ -23,7 +23,7 @@ const DragHandleSlot = React.createContext<React.ReactNode>(null);
 
 export const CellDragHandle: React.FC = memo(() => {
   // Slot for drag handle
-  return useContext(DragHandleSlot);
+  return use(DragHandleSlot);
 });
 CellDragHandle.displayName = "DragHandle";
 

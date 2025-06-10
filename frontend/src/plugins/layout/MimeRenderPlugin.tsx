@@ -8,6 +8,8 @@ import type {
 import { OutputRenderer } from "../../components/editor/Output";
 import type { OutputMessage } from "@/core/kernel/messages";
 
+import type { JSX } from "react";
+
 interface Data {
   mime: OutputMessage["mimetype"];
   data: OutputMessage["data"] | null;

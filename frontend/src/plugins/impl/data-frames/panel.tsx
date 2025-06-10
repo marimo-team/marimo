@@ -130,8 +130,8 @@ export const TransformPanel: React.FC<Props> = ({
   };
 
   return (
-    <ColumnInfoContext.Provider value={effectiveColumns}>
-      <ColumnFetchValuesContext.Provider value={getColumnValues}>
+    <ColumnInfoContext value={effectiveColumns}>
+      <ColumnFetchValuesContext value={getColumnValues}>
         <form
           onSubmit={(e) => e.preventDefault()}
           className="flex flex-row max-h-[400px] overflow-hidden bg-background"
@@ -175,8 +175,8 @@ export const TransformPanel: React.FC<Props> = ({
             )}
           </div>
         </form>
-      </ColumnFetchValuesContext.Provider>
-    </ColumnInfoContext.Provider>
+      </ColumnFetchValuesContext>
+    </ColumnInfoContext>
   );
 };
 

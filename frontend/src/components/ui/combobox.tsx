@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { ChevronDownIcon, Check, XCircle } from "lucide-react";
-import React, { createContext, useContext } from "react";
+import React, { createContext } from "react";
 import { cn } from "../../utils/cn";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import {
@@ -192,11 +192,9 @@ export const Combobox = <TValue,>({
             />
             <CommandList className="max-h-60 py-.5">
               <CommandEmpty>{emptyState}</CommandEmpty>
-              <ComboboxContext.Provider
-                value={{ isSelected, onSelect: handleSelect }}
-              >
+              <ComboboxContext value={{ isSelected, onSelect: handleSelect }}>
                 {children}
-              </ComboboxContext.Provider>
+              </ComboboxContext>
             </CommandList>
           </Command>
         </PopoverContent>
@@ -254,7 +252,7 @@ export const ComboboxItem = React.forwardRef(
       typeof value === "object" && "value" in value
         ? value.value
         : String(value);
-    const context = useContext(ComboboxContext);
+    const context = React.use(ComboboxContext);
 
     return (
       <CommandItem

@@ -7,6 +7,8 @@ import type { RuntimeState } from "@/core/network/types";
 import { Functions } from "@/utils/functions";
 import { ToolbarItem } from "./toolbar";
 
+import type { JSX } from "react";
+
 export const StopButton = (props: {
   status: RuntimeState;
   appClosed: boolean;

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type JSX } from "react";
 
 import { z } from "zod";
 import type {

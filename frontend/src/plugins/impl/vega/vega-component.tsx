@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { VegaLite, type SignalListeners, type View } from "react-vega";
 import { makeSelectable } from "./make-selectable";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type JSX } from "react";
 import { getSelectionParamNames, ParamNames } from "./params";
 import type { VegaLiteSpec } from "./types";
 import { Alert, AlertTitle } from "@/components/ui/alert";

@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  type JSX,
 } from "react";
 
 import { z } from "zod";

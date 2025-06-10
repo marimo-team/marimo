@@ -16,7 +16,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { LoadingDataTableComponent, TableProviders } from "../DataTablePlugin";
 import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type JSX } from "react";
 import { ErrorBanner } from "../common/error-banner";
 import type { DataType } from "../vega/vega-loader";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";

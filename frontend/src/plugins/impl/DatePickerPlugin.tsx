@@ -6,6 +6,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import { Labeled } from "./common/labeled";
 
+import type { JSX } from "react";
+
 type T = string;
 
 interface Data {

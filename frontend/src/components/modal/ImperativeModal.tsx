@@ -30,10 +30,10 @@ export const ModalProvider: React.FC<PropsWithChildren<{}>> = (props) => {
   const [modal, setModal] = React.useState<React.ReactNode | null>(null);
 
   return (
-    <ModalContext.Provider value={{ modal, setModal }}>
+    <ModalContext value={{ modal, setModal }}>
       {modal}
       {props.children}
-    </ModalContext.Provider>
+    </ModalContext>
   );
 };
 /**
@@ -49,7 +49,7 @@ export const ModalProvider: React.FC<PropsWithChildren<{}>> = (props) => {
  * ```
  */
 export function useImperativeModal() {
-  const context = React.useContext(ModalContext);
+  const context = React.use(ModalContext);
 
   if (context === undefined) {
     throw new Error("useModal must be used within a ModalProvider");

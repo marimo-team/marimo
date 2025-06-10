@@ -8,6 +8,8 @@ import { useCellActions, useCellIds, useCellNames } from "@/core/cells/cells";
 import { useFilename } from "@/core/saving/filename";
 import { goToCellLine } from "@/core/codemirror/go-to-definition/utils";
 
+import type { JSX } from "react";
+
 interface Props {
   cellId: CellId;
   className?: string;

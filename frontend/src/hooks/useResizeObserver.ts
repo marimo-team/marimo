@@ -14,7 +14,7 @@ interface Size {
 }
 
 interface UseResizeObserverOptions<T extends HTMLElement = HTMLElement> {
-  ref: RefObject<T>;
+  ref: RefObject<T | null>;
   skip?: boolean;
   onResize?: (size: Size) => void;
   box?: "border-box" | "content-box" | "device-pixel-content-box";

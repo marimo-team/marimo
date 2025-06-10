@@ -8,6 +8,8 @@ import type {
 } from "../stateless-plugin";
 import { EmotionCacheProvider } from "../../components/editor/output/EmotionCacheProvider";
 
+import type { JSX } from "react";
+
 interface Data {
   name?: string | null;
   /**

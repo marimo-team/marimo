@@ -9,7 +9,7 @@ import {
 } from "../../components/ui/input";
 import { cn } from "../../utils/cn";
 import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { Labeled } from "./common/labeled";
 
 type T = string;

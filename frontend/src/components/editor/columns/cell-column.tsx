@@ -80,7 +80,7 @@ const ResizableComponent = ({
     onResize,
   });
 
-  const renderResizeHandler = (ref: React.RefObject<HTMLDivElement>) => {
+  const renderResizeHandler = (ref: React.RefObject<HTMLDivElement | null>) => {
     return (
       <div
         ref={ref}

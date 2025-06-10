@@ -4,6 +4,8 @@ import { renderShortcut } from "../../shortcuts/renderShortcut";
 import type { RuntimeState, CellConfig } from "@/core/network/types";
 import { ToolbarItem } from "./toolbar";
 
+import type { JSX } from "react";
+
 function computeColor(
   appClosed: boolean,
   needsRun: boolean,

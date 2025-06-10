@@ -6,6 +6,8 @@ import { Button } from "../../ui/button";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 
+import type { JSX } from "react";
+
 export const DeleteButton = (props: {
   status: RuntimeState;
   appClosed: boolean;

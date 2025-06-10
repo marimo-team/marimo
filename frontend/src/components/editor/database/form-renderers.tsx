@@ -26,7 +26,7 @@ import { cn } from "@/utils/cn";
 import { z } from "zod";
 import { useAsyncData } from "@/hooks/useAsyncData";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 import { Functions } from "@/utils/functions";
 import { NumberField } from "@/components/ui/number-field";
 import { displaySecret, isSecret, prefixSecret } from "./secrets";
@@ -53,7 +53,7 @@ const SecretsContext = createContext<SecretsContextType>({
   refreshSecrets: Functions.NOOP,
 });
 
-export const useSecrets = () => useContext(SecretsContext);
+export const useSecrets = () => use(SecretsContext);
 
 interface SecretsProviderProps {
   children: ReactNode;
@@ -74,7 +74,7 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
   }, []);
 
   return (
-    <SecretsContext.Provider
+    <SecretsContext
       value={{
         secretKeys: data?.secretKeys || [],
         providerNames: data?.providerNames || [],
@@ -84,7 +84,7 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
       }}
     >
       {children}
-    </SecretsContext.Provider>
+    </SecretsContext>
   );
 };
 
