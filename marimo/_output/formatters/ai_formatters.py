@@ -23,8 +23,8 @@ class GoogleAiFormatter(FormatterFactory):
 
     def register(self) -> None:
         try:
-            from google.genai.types import (
-                GenerateContentResponse,  # type: ignore
+            from google.genai.types import (  # type: ignore[import-not-found]
+                GenerateContentResponse,
             )
         except (ImportError, ModuleNotFoundError):
             return
