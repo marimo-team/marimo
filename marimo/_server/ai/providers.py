@@ -546,7 +546,7 @@ class GoogleProvider(
         try:
             from google import genai
         except ImportError:
-            DependencyManager.google_ai_new.require(
+            DependencyManager.google_ai.require(
                 why="for AI assistance with Google AI"
             )
             from google import genai  # type: ignore

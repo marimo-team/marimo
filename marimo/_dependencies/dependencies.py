@@ -191,10 +191,7 @@ class DependencyManager:
     geopandas = Dependency("geopandas")
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
-    # mo.ui.chat uses google.generativeai
-    google_ai = Dependency("google.generativeai")
-    # Backend uses google.genai
-    google_ai_new = Dependency("google.genai")
+    google_ai = Dependency("google.genai")
     groq = Dependency("groq")
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")

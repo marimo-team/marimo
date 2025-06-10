@@ -208,12 +208,12 @@ If you're using an AWS named profile different from your default, specify the pr
 To use Google AI with marimo:
 
 1. Sign up for an account at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
-2. Install the Google AI Python client: `pip install google-generativeai`
+2. Install the Google AI Python client: `pip install google-genai`
 3. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
-model = "gemini-1.5-flash"
+model = "gemini-2.5-flash-preview-05-20"
 # or any model from https://ai.google.dev/gemini-api/docs/models/gemini
 
 [ai.google]

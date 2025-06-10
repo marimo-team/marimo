@@ -78,14 +78,14 @@ def mock_anthropic_client():
 @pytest.fixture
 def mock_google_client():
     """Fixture for mocking the Google client."""
-    with patch("google.generativeai.GenerativeModel") as mock_google_class:
+    with patch("google.genai.Client") as mock_google_class:
         mock_client = MagicMock()
         mock_google_class.return_value = mock_client
 
         # Setup the response structure
         mock_response = MagicMock()
         mock_response.text = "Test response"
-        mock_client.generate_content.return_value = mock_response
+        mock_client.models.generate_content.return_value = mock_response
 
         yield mock_client, mock_google_class
 
@@ -207,7 +207,7 @@ def test_anthropic_require() -> None:
 )
 def test_google_require() -> None:
     """Test that google.require raises ModuleNotFoundError."""
-    model = google("gemini-pro")
+    model = google("gemini-2.5-flash-preview-05-20")
     messages = [ChatMessage(role="user", content="Test prompt")]
     config = ChatModelConfig()
     with pytest.raises(ModuleNotFoundError):
@@ -674,38 +674,36 @@ class TestGroq:
 class TestGoogle:
     def test_init(self) -> None:
         """Test initialization of the google class."""
-        model = google("gemini-pro")
-        assert model.model == "gemini-pro"
+        model = google("gemini-2.5-flash-preview-05-20")
+        assert model.model == "gemini-2.5-flash-preview-05-20"
         assert model.system_message == DEFAULT_SYSTEM_MESSAGE
         assert model.api_key is None
 
         model = google(
-            "gemini-pro",
+            "gemini-2.5-flash-preview-05-20",
             system_message="Custom system message",
             api_key="test-key",
         )
-        assert model.model == "gemini-pro"
+        assert model.model == "gemini-2.5-flash-preview-05-20"
         assert model.system_message == "Custom system message"
         assert model.api_key == "test-key"
 
     @patch.object(google, "_require_api_key")
-    @patch("google.generativeai.configure")
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_call(
         self,
-        mock_generative_model: MagicMock,
-        mock_configure: MagicMock,
+        mock_genai_client_class: MagicMock,
         mock_require_api_key: MagicMock,
     ) -> None:
         """Test calling the google class."""
         mock_require_api_key.return_value = "test-key"
         mock_client = MagicMock()
-        mock_generative_model.return_value = mock_client
+        mock_genai_client_class.return_value = mock_client
         mock_response = MagicMock()
         mock_response.text = "Test response"
-        mock_client.generate_content.return_value = mock_response
+        mock_client.models.generate_content.return_value = mock_response
 
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         # Patch the _require_api_key property to return the test key directly
         with patch.object(model, "_require_api_key", "test-key"):
             messages = [ChatMessage(role="user", content="Test prompt")]
@@ -721,24 +719,24 @@ class TestGoogle:
             result = model(messages, config)
             assert result == "Test response"
 
-            mock_configure.assert_called_once_with(api_key="test-key")
-        mock_generative_model.assert_called_once()
-        call_args = mock_generative_model.call_args[1]
-        assert call_args["model_name"] == "gemini-pro"
-        generation_config = call_args["generation_config"]
-        assert generation_config.max_output_tokens == 100
-        assert generation_config.temperature == 0.7
-        assert generation_config.top_p == 0.9
-        assert generation_config.top_k == 10
-        assert generation_config.frequency_penalty == 0.5
-        assert generation_config.presence_penalty == 0.5
+            mock_genai_client_class.assert_called_once_with(api_key="test-key")
 
-        mock_client.generate_content.assert_called_once()
+        mock_client.models.generate_content.assert_called_once()
+        call_args = mock_client.models.generate_content.call_args[1]
+        assert call_args["model"] == "gemini-2.5-flash-preview-05-20"
+        config_arg = call_args["config"]
+        assert config_arg["system_instruction"] == DEFAULT_SYSTEM_MESSAGE
+        assert config_arg["max_output_tokens"] == 100
+        assert config_arg["temperature"] == 0.7
+        assert config_arg["top_p"] == 0.9
+        assert config_arg["top_k"] == 10
+        assert config_arg["frequency_penalty"] == 0.5
+        assert config_arg["presence_penalty"] == 0.5
 
     @patch.dict(os.environ, {"GOOGLE_AI_API_KEY": "env-key"})
     def test_require_api_key_env(self) -> None:
         """Test _require_api_key with environment variable."""
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         assert model._require_api_key == "env-key"
 
     @patch.dict(os.environ, {}, clear=True)
@@ -751,7 +749,7 @@ class TestGoogle:
         }
         mock_get_context.return_value = mock_context
 
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         assert model._require_api_key == "config-key"
 
     @patch.dict(os.environ, {}, clear=True)
@@ -764,7 +762,7 @@ class TestGoogle:
         mock_context.marimo_config = {"ai": {"google": {"api_key": ""}}}
         mock_get_context.return_value = mock_context
 
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         with pytest.raises(ValueError):
             _ = model._require_api_key
 
