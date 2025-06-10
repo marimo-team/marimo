@@ -1520,6 +1520,62 @@ def test_cell_style_of_next_page():
     assert "green" in cell_styles["2"]["a"]["backgroundColor"]
 
 
+def test_cell_style_last_page():
+    def always_green(_row, _col, _value):
+        return {"backgroundColor": "green"}
+
+    data = [{"a": 1}, {"a": 2}, {"a": 3}]
+    table = ui.table(data, page_size=2, style_cell=always_green)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_styles = last_page.cell_styles
+    assert len(cell_styles) == 1
+    assert "2" in cell_styles
+    assert "a" in cell_styles["2"]
+    assert "backgroundColor" in cell_styles["2"]["a"]
+    assert "green" in cell_styles["2"]["a"]["backgroundColor"]
+
+
+def test_cell_style_edge_cases():
+    """Test cell styling with various edge cases around page sizes and row IDs."""
+
+    def style_cell(row: str, _col: str, _value: Any) -> dict[str, Any]:
+        return {"backgroundColor": "red" if int(row) % 2 == 0 else "blue"}
+
+    # Test with empty data
+    table = ui.table([], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {}
+
+    # Test with single row
+    table = ui.table([{"a": 1}], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {"0": {"a": {"backgroundColor": "red"}}}
+
+    # Test with page size larger than total rows
+    table = ui.table([{"a": 1}, {"a": 2}], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {
+        "0": {"a": {"backgroundColor": "red"}},
+        "1": {"a": {"backgroundColor": "blue"}},
+    }
+
+    # Test with skip beyond total rows
+    response = table._search(SearchTableArgs(page_size=10, page_number=1))
+    assert response.cell_styles == {}
+
+    # Test with "too_many" total rows
+    table = ui.table(
+        [{"a": 1}, {"a": 2}],
+        style_cell=style_cell,
+        _internal_total_rows="too_many",
+    )
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {
+        "0": {"a": {"backgroundColor": "red"}},
+        "1": {"a": {"backgroundColor": "blue"}},
+    }
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
