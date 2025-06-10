@@ -920,37 +920,39 @@ class table(
         )
         return column_preview
 
-    def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
+    def _style_cells(
+        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+    ) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
             return None
+
+        def do_style_cell(row: str, col: str) -> dict[str, Any]:
+            selected_cells = self._searched_manager.select_cells(
+                [TableCoordinate(row_id=row, column_name=col)]
+            )
+            if not selected_cells or self._style_cell is None:
+                return {}
+            return self._style_cell(row, col, selected_cells[0].value)
+
+        columns = self._searched_manager.get_column_names()
+        response = self._get_row_ids(EmptyArgs())
+
+        # Clamp the take to the total number of rows
+        if total_rows != "too_many" and skip + take > total_rows:
+            take = total_rows - skip
+
+        # Determine row range
+        row_ids: Union[list[int], range]
+        if response.all_rows or response.error:
+            row_ids = range(skip, skip + take)
         else:
+            row_ids = response.row_ids[skip : skip + take]
 
-            def do_style_cell(row: str, col: str) -> dict[str, Any]:
-                selected_cells = self._searched_manager.select_cells(
-                    [TableCoordinate(row_id=row, column_name=col)]
-                )
-                if len(selected_cells) == 0 or self._style_cell is None:
-                    return dict()
-                else:
-                    return self._style_cell(row, col, selected_cells[0].value)
-
-            columns = self._searched_manager.get_column_names()
-            response = self._get_row_ids(EmptyArgs())
-
-            row_ids: Union[list[int], range]
-            if response.all_rows is True or response.error is not None:
-                # TODO: Handle sorted rows, they have reverse order of row_ids
-                row_ids = range(skip, skip + take)
-            else:
-                row_ids = response.row_ids[skip : skip + take]
-
-            return {
-                str(row): {
-                    col: do_style_cell(str(row), col) for col in columns
-                }
-                for row in row_ids
-            }
+        return {
+            str(row): {col: do_style_cell(str(row), col) for col in columns}
+            for row in row_ids
+        }
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
@@ -1003,13 +1005,8 @@ class table(
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=total_rows,
-                # The __init__ will just call this with an arbitrary offset,
-                # we need to check this is not larger than our actual number of rows.
                 cell_styles=self._style_cells(
-                    offset,
-                    min(total_rows, args.page_size)
-                    if total_rows != "too_many"
-                    else args.page_size,
+                    offset, args.page_size, total_rows
                 ),
             )
 
@@ -1035,7 +1032,7 @@ class table(
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,
-            cell_styles=self._style_cells(offset, args.page_size),
+            cell_styles=self._style_cells(offset, args.page_size, total_rows),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
