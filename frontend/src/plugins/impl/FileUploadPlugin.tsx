@@ -213,6 +213,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
                   "text-xs cursor-pointer text-destructive hover:underline",
                 )}
                 onClick={() => setValue([])}
+                type="button"
               >
                 Click to clear files.
               </button>
@@ -287,6 +288,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
               <button
                 className={cn("text-destructive", "hover:underline")}
                 onClick={() => setValue([])}
+                type="button"
               >
                 Click to clear {multiple ? "files" : "file"}.
               </button>

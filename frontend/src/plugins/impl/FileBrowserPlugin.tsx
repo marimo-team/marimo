@@ -437,6 +437,7 @@ export const FileBrowser = ({
                   "text-xs text-destructive hover:underline cursor-pointer",
                 )}
                 onClick={() => setValue([])}
+                type="button"
               >
                 clear all
               </button>

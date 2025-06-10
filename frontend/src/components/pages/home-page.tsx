@@ -229,7 +229,7 @@ const NotebookFileTree: React.FC<{
 }> = ({ files, searchText }) => {
   const [openState, setOpenState] = useAtom(expandedFoldersAtom);
   const openStateIsEmpty = Object.keys(openState).length === 0;
-  const ref = useRef<TreeApi<FileInfo>>();
+  const ref = useRef<TreeApi<FileInfo>>(undefined);
 
   useEffect(() => {
     // If empty, collapse all

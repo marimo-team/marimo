@@ -15,7 +15,7 @@ export function useAudioRecorder(opts: {
 
   const [recordingStatus, setRecordingStatus] =
     useState<RecordingStatus>("stopped");
-  const mediaRecorder = useRef<MediaRecorder>();
+  const mediaRecorder = useRef<MediaRecorder>(undefined);
   const [allowed, setAllowed] = useState<boolean>(true);
   const [recordingBlob, setRecordingBlob] = useState<Blob>();
 

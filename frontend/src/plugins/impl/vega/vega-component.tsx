@@ -93,7 +93,7 @@ const LoadedVegaComponent = ({
   spec,
 }: VegaComponentProps<VegaComponentState>): JSX.Element => {
   const { theme } = useTheme();
-  const vegaView = useRef<View>();
+  const vegaView = useRef<View>(undefined);
   const [error, setError] = useState<Error>();
 
   // Aggressively memoize the spec, so Vega doesn't re-render/re-mount the component
