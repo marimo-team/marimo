@@ -130,7 +130,7 @@ export const DataTablePagination = <TData,>({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectLabel>Page size</SelectLabel>
+                <SelectLabel>Rows per page</SelectLabel>
                 {[...pageSizes].map((size) => {
                   const sizeStr = size.toString();
                   return (
