@@ -118,7 +118,6 @@ class PolarsFormatter(FormatterFactory):
         ) -> tuple[KnownMimeType, str]:
             return tabs.tabs(
                 {
-                    "Table": table.lazy(df),
                     # NB(Trevor): Use `optimized=True` to match other methods' defaults (`show_graph`, `collect`).
                     # The _repr_html_ uses `optimized=False`, but "cost" is probably minimal and this is more
                     # accurate/opinionated default.
@@ -126,6 +125,7 @@ class PolarsFormatter(FormatterFactory):
                     "Query plan": mermaid(
                         polars_dot_to_mermaid(df._ldf.to_dot(optimized=True))
                     ),
+                    "Table": table.lazy(df),
                 }
             )._mime_()
 
