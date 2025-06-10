@@ -76,7 +76,7 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config}
+            "runtimeConfig": {runtime_config},
         }}
 """.format(
         **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
