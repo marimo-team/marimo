@@ -51,6 +51,7 @@ import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 import { ExternalLink } from "../ui/links";
 import * as z from "zod";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Utility functions for parsing package specifiers
 function parsePackageSpecifier(spec: string): {
@@ -473,22 +474,16 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
             <PopoverContent className="w-64 p-0" align="start">
               <div className="p-2">
                 <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
-                  {selectedExtras.length > 0 ? (
-                    selectedExtras.map((extra) => (
-                      <span
-                        key={extra}
-                        className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
-                        onClick={() => handleExtraToggle(extra, false)}
-                      >
-                        {extra}
-                        <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground italic text-sm">
-                      Package extras
+                  {selectedExtras.map((extra) => (
+                    <span
+                      key={extra}
+                      className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
+                      onClick={() => handleExtraToggle(extra, false)}
+                    >
+                      {extra}
+                      <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
                     </span>
-                  )}
+                  ))}
                 </div>
               </div>
 
@@ -496,20 +491,25 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                 <div className="border-t border-border" />
               )}
 
-              <div className="space-y-1 max-h-48 overflow-auto px-2">
+              <div>
                 {availableExtras.map((extra) => (
                   <div
                     key={extra}
-                    className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm relative pl-8 cursor-pointer aria-selected:bg-accent aria-selected:text-accent-foreground"
-                    aria-selected={selectedExtras.includes(extra)}
+                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground cursor-pointer"
                     onClick={() =>
                       handleExtraToggle(extra, !selectedExtras.includes(extra))
                     }
                   >
-                    {selectedExtras.includes(extra) && (
-                      <CheckIcon className="absolute left-2 h-4 w-4" />
-                    )}
-                    <span className="text-sm font-mono flex-1">{extra}</span>
+                    <Checkbox
+                      checked={selectedExtras.includes(extra)}
+                      onCheckedChange={(checked) => {
+                        if (checked !== "indeterminate") {
+                          handleExtraToggle(extra, checked);
+                        }
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <span className="font-mono text-sm">{extra}</span>
                   </div>
                 ))}
               </div>
@@ -517,7 +517,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
           </Popover>
           <span className="shrink-0">]</span>
         </span>
-      ) : loading || error || availableExtras.length === 0 ? null : (
+      ) : (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild={true}>
             <button
@@ -536,22 +536,29 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
               </div>
             </div>
 
-            <div className="border-t border-border" />
+            {availableExtras.length > 0 && (
+              <div className="border-t border-border" />
+            )}
 
-            <div className="space-y-1 max-h-48 overflow-auto px-2">
+            <div>
               {availableExtras.map((extra) => (
                 <div
                   key={extra}
-                  className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm relative pl-8 cursor-pointer aria-selected:bg-accent aria-selected:text-accent-foreground"
-                  aria-selected={selectedExtras.includes(extra)}
+                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground cursor-pointer"
                   onClick={() =>
                     handleExtraToggle(extra, !selectedExtras.includes(extra))
                   }
                 >
-                  {selectedExtras.includes(extra) && (
-                    <CheckIcon className="absolute left-2 h-4 w-4" />
-                  )}
-                  <span className="text-sm font-mono flex-1">{extra}</span>
+                  <Checkbox
+                    checked={selectedExtras.includes(extra)}
+                    onCheckedChange={(checked) => {
+                      if (checked !== "indeterminate") {
+                        handleExtraToggle(extra, checked);
+                      }
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <span className="font-mono text-sm">{extra}</span>
                 </div>
               ))}
             </div>
