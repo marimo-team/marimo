@@ -521,10 +521,10 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild={true}>
             <button
-              className="hover:bg-muted/50 rounded text-sm ml-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 h-5 w-5 flex items-center justify-center"
+              className="hover:bg-muted/50 rounded text-sm ml-2 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 h-5 w-5 flex items-center justify-center p-0"
               title="Add extras"
             >
-              <PlusIcon className="w-3 h-3" />
+              <PlusIcon className="w-3 h-3 flex-shrink-0" />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-0" align="start">
