@@ -6,6 +6,7 @@ import { StaticWebsocket } from "./StaticWebsocket";
 import { isWasm } from "../wasm/utils";
 import { PyodideBridge, PyodideWebsocket } from "../wasm/bridge";
 import { Logger } from "@/utils/Logger";
+import { isStaticNotebook } from "../static/static-state";
 
 interface UseWebSocketOptions {
   url: string;
@@ -54,7 +55,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
     // If it's closed, reconnect
     // This starts closed, so we need to connect for the first time
     if (ws.readyState === WebSocket.CLOSED) {
-      if (waitToConnect) {
+      // Ignore waitToConnect for static and wasm notebooks
+      if (waitToConnect && !isStaticNotebook() && !isWasm()) {
         waitToConnect().then(() => {
           ws.reconnect();
         });
