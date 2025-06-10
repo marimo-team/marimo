@@ -151,7 +151,7 @@ describe("RuntimeManager", () => {
 
   describe("healthURLwithParam", () => {
     it("should return health check URL with param", () => {
-      let mockCopy = { ...mockConfig };
+      const mockCopy = { ...mockConfig };
       mockCopy.url = "https://example.com/nested?param=value";
       const runtime = new RuntimeManager(mockCopy);
       const url = runtime.healthURL();
