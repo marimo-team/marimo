@@ -42,6 +42,7 @@ import { PythonIcon } from "@/components/editor/cell/code/icons";
 import { generateAltairChartSnippet } from "./chart-spec/altair-generator";
 import { createSpecWithoutData } from "./chart-spec/spec";
 import { useTheme } from "@/theme/useTheme";
+import type { JSX } from "react";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
@@ -416,7 +417,7 @@ const ChartFormContainer = ({
   }
 
   return (
-    <ChartFormContext.Provider value={{ fields, saveForm: debouncedSave }}>
+    <ChartFormContext value={{ fields, saveForm: debouncedSave }}>
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
           <Tabs defaultValue="data">
@@ -447,6 +448,6 @@ const ChartFormContainer = ({
           </Tabs>
         </form>
       </Form>
-    </ChartFormContext.Provider>
+    </ChartFormContext>
   );
 };

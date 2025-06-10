@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type JSX } from "react";
 import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { Labeled } from "./common/labeled";
 import { cn } from "../../utils/cn";

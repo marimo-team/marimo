@@ -19,7 +19,7 @@ import {
   CopyIcon,
   BugPlayIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { useAtomValue } from "jotai";
 import { aiEnabledAtom } from "@/core/config/config";
 import { Element, Text, type DOMNode } from "html-react-parser";

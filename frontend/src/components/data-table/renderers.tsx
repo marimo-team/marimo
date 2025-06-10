@@ -19,6 +19,7 @@ import {
   type Cell,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
+import type { JSX } from "react";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,

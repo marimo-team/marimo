@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { Table, TableCell, TableRow } from "@/components/ui/table";
 import { createPlugin } from "../core/builder";
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
 import { toast } from "@/components/ui/use-toast";

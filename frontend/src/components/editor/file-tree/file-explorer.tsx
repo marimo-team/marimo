@@ -6,13 +6,7 @@ import {
   type TreeApi,
 } from "react-arborist";
 
-import React, {
-  Suspense,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { Suspense, use, useEffect, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   BracesIcon,
@@ -158,7 +152,7 @@ export const FileExplorer: React.FC<{
         onCollapseAll={handleCollapseAll}
         tree={tree}
       />
-      <RequestingTreeContext.Provider value={tree}>
+      <RequestingTreeContext value={tree}>
         <Tree<FileInfo>
           width="100%"
           ref={treeRef}
@@ -207,7 +201,7 @@ export const FileExplorer: React.FC<{
         >
           {Node}
         </Tree>
-      </RequestingTreeContext.Provider>
+      </RequestingTreeContext>
     </>
   );
 };
@@ -360,7 +354,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
 
   const Icon = FILE_TYPE_ICONS[fileType];
   const { openConfirm, openPrompt } = useImperativeModal();
-  const tree = useContext(RequestingTreeContext);
+  const tree = use(RequestingTreeContext);
 
   const handleOpenMarimoFile = async (
     evt: Pick<Event, "stopPropagation" | "preventDefault">,

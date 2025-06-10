@@ -6,7 +6,7 @@ import { Labeled } from "./common/labeled";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type JSX } from "react";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { EditorView } from "@codemirror/view";
 import useEvent from "react-use-event-hook";

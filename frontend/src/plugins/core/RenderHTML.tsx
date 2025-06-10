@@ -5,7 +5,7 @@ import parse, {
   type HTMLReactParserOptions,
   type DOMNode,
 } from "html-react-parser";
-import React, { useId, type ReactNode } from "react";
+import React, { useId, type ReactNode, type JSX } from "react";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
 type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;

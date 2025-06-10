@@ -9,7 +9,7 @@ import {
 import { z } from "zod";
 import { renderZodSchema, type FormRenderer } from "@/components/forms/form";
 import { FieldOptions } from "@/components/forms/options";
-import { useContext, useEffect } from "react";
+import React, { useEffect } from "react";
 import {
   ColumnInfoContext,
   ColumnNameContext,
@@ -44,7 +44,6 @@ import { DebouncedInput } from "@/components/ui/input";
 import { cn } from "@/utils/cn";
 import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
-import React from "react";
 import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
 import type { ColumnId } from "../types";
 
@@ -57,7 +56,7 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
     return special === "column_id";
   },
   Component: ({ schema, form, path }) => {
-    const columns = useContext(ColumnInfoContext);
+    const columns = React.use(ColumnInfoContext);
     const { label, description } = FieldOptions.parse(schema._def.description);
 
     return (
@@ -154,7 +153,7 @@ const MultiColumnFormField = ({
   path: Path<any>;
   itemLabel?: string;
 }) => {
-  const columns = useContext(ColumnInfoContext);
+  const columns = React.use(ColumnInfoContext);
   const { description } = FieldOptions.parse(schema._def.description);
   const placeholder = itemLabel
     ? `Select ${itemLabel.toLowerCase()}`
@@ -220,8 +219,8 @@ export const columnValuesRenderer = <T extends FieldValues>(): FormRenderer<
     const { label, description, placeholder } = FieldOptions.parse(
       schema._def.description,
     );
-    const column = useContext(ColumnNameContext);
-    const fetchValues = useContext(ColumnFetchValuesContext);
+    const column = React.use(ColumnNameContext);
+    const fetchValues = React.use(ColumnFetchValuesContext);
     const { data, loading } = useAsyncData(
       () => fetchValues({ column }),
       [column],
@@ -297,8 +296,8 @@ export const multiColumnValuesRenderer = <
     return special === "column_values" && schema instanceof z.ZodArray;
   },
   Component: ({ schema, form, path }) => {
-    const column = useContext(ColumnNameContext);
-    const fetchValues = useContext(ColumnFetchValuesContext);
+    const column = React.use(ColumnNameContext);
+    const fetchValues = React.use(ColumnFetchValuesContext);
     const { data, loading } = useAsyncData(
       () => fetchValues({ column }),
       [column],
@@ -393,7 +392,7 @@ const ColumnFilterForm = <T extends FieldValues>({
   path: Path<any>;
 }) => {
   const { description } = FieldOptions.parse(schema._def.description);
-  const columns = useContext(ColumnInfoContext);
+  const columns = React.use(ColumnInfoContext);
 
   const columnIdSchema = Objects.entries(schema._def.shape()).find(
     ([key]) => key === "column_id",

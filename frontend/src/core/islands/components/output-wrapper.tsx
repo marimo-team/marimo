@@ -13,7 +13,12 @@ import { Logger } from "@/utils/Logger";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
 import { CopyIcon, Loader2Icon, PlayIcon } from "lucide-react";
-import React, { type PropsWithChildren, useCallback, useState } from "react";
+import React, {
+  type PropsWithChildren,
+  useCallback,
+  useState,
+  type JSX,
+} from "react";
 
 interface Props {
   cellId: CellId;

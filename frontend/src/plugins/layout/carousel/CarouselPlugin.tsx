@@ -11,7 +11,7 @@ import swiperCssKeyboard from "swiper/css/keyboard?inline";
 import swiperCssNavigation from "swiper/css/navigation?inline";
 import swiperCssPagination from "swiper/css/pagination?inline";
 import swiperCssScrollbar from "swiper/css/scrollbar?inline";
-import React from "react";
+import React, { type JSX } from "react";
 
 interface Data {
   index?: string | null;

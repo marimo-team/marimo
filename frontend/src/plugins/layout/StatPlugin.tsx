@@ -9,6 +9,8 @@ import { TriangleIcon } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { prettyNumber } from "@/utils/numbers";
 
+import type { JSX } from "react";
+
 interface Data {
   value?: string | number | boolean | null;
   label?: string;

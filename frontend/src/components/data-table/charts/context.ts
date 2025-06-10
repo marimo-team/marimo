@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 import type { Field } from "./components/form-fields";
 import { Functions } from "@/utils/functions";
 
@@ -13,5 +13,5 @@ export const ChartFormContext = createContext<{
 });
 
 export const useChartFormContext = () => {
-  return useContext(ChartFormContext);
+  return use(ChartFormContext);
 };

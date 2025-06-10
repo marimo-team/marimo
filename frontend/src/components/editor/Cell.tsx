@@ -74,8 +74,8 @@ import type { WebSocketState } from "../../core/websocket/types";
  * Hook for handling cell completion logic
  */
 function useCellCompletion(
-  cellRef: React.RefObject<HTMLDivElement>,
-  editorView: React.RefObject<EditorView>,
+  cellRef: React.RefObject<HTMLDivElement | null>,
+  editorView: React.RefObject<EditorView | null>,
 ) {
   // Close completion when focus leaves the cell's subtree.
   const closeCompletionHandler = useEvent((e: FocusEvent) => {
@@ -128,7 +128,7 @@ function useCellCompletion(
  * Hook for handling cell hotkeys
  */
 function useCellHotkeys(
-  cellRef: React.RefObject<HTMLDivElement> | null,
+  cellRef: React.RefObject<HTMLDivElement | null> | null,
   cellId: CellId,
   runCell: () => void,
   actions: CellComponentActions,
@@ -138,7 +138,7 @@ function useCellHotkeys(
   setAiCompletionCell: ReturnType<
     typeof useSetAtom<typeof aiCompletionCellAtom>
   >,
-  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle>,
+  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>,
 ) {
   useHotkeysOnElement(cellRef, {
     "cell.run": runCell,
@@ -204,7 +204,7 @@ function useCellHotkeys(
  * Hook for handling cell keyboard listeners
  */
 function useCellKeyboardListener(
-  cellRef: React.RefObject<HTMLDivElement> | null,
+  cellRef: React.RefObject<HTMLDivElement | null> | null,
   cellId: CellId,
   actions: CellComponentActions,
   showHiddenMarkdownCode: () => void,
@@ -260,7 +260,7 @@ function useCellHiddenLogic(
   cellConfig: CellConfig,
   languageAdapter: LanguageAdapterType | undefined,
   editorView: React.RefObject<EditorView | null>,
-  editorViewParentRef: React.RefObject<HTMLDivElement>,
+  editorViewParentRef: React.RefObject<HTMLDivElement | null>,
 ) {
   const [temporarilyVisible, setTemporarilyVisible] = useState(false);
 
@@ -571,7 +571,7 @@ const EditableCellComponent = ({
   setEditorView,
   outputStale,
 }: CellProps & {
-  editorView: React.RefObject<EditorView>;
+  editorView: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
   outputStale: boolean;
 }) => {
@@ -1045,7 +1045,7 @@ interface CellToolbarProps {
   needsRun: boolean;
   hasOutput: boolean;
   hasConsoleOutput: boolean;
-  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle>;
+  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>;
   cellId: CellId;
   name: string;
   includeCellActions?: boolean;
@@ -1144,7 +1144,7 @@ const SetupCellComponent = ({
   editorView,
   setEditorView,
 }: CellProps & {
-  editorView: React.RefObject<EditorView>;
+  editorView: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
   outputStale: boolean;
 }) => {

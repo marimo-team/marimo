@@ -8,6 +8,8 @@ import type {
 import { CalloutOutput } from "../../components/editor/output/CalloutOutput";
 import { type Intent, zodIntent } from "../impl/common/intent";
 
+import type { JSX } from "react";
+
 interface Data {
   /**
    * The html to render

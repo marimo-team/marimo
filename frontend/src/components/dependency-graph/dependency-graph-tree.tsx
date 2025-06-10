@@ -103,7 +103,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   };
 
   return (
-    <EdgeMarkerContext.Provider value={layoutDirection}>
+    <EdgeMarkerContext value={layoutDirection}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -173,6 +173,6 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         />
         {children}
       </ReactFlow>
-    </EdgeMarkerContext.Provider>
+    </EdgeMarkerContext>
   );
 };

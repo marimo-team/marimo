@@ -11,6 +11,8 @@ import {
   getConnectionTooltip,
 } from "@/core/websocket/connection-utils";
 
+import type { JSX } from "react";
+
 export const DeleteButton = (props: {
   status: RuntimeState;
   connectionState: WebSocketState;

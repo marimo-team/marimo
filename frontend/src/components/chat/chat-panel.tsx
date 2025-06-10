@@ -224,7 +224,7 @@ interface ChatInputProps {
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   theme: ResolvedTheme;
-  inputRef: React.RefObject<ReactCodeMirrorRef>;
+  inputRef: React.RefObject<ReactCodeMirrorRef | null>;
 }
 
 const ChatInput: React.FC<ChatInputProps> = memo(

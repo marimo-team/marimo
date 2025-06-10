@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-base-to-string */
 import * as cql from "compassql/build/src";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import React, { useMemo } from "react";
+import React, { useMemo, type JSX } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { vegaLoadData } from "../vega/loader";
 import { VegaLite } from "react-vega";

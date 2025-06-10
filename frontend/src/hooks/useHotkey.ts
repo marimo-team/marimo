@@ -58,7 +58,7 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
  * Registers a hotkey listener on a given element or ref to an element.
  */
 export function useHotkeysOnElement<T extends HotkeyAction>(
-  element: RefObject<HTMLElement> | null,
+  element: RefObject<HTMLElement | null> | null,
   handlers: Record<T, HotkeyHandler | undefined>,
 ) {
   const hotkeys = useAtomValue(hotkeysAtom);
@@ -85,7 +85,7 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
  * Registers a hotkey listener on a given element or ref to an element.
  */
 export function useKeydownOnElement(
-  element: RefObject<HTMLElement> | null,
+  element: RefObject<HTMLElement | null> | null,
   handlers: Record<string, HotkeyHandler>,
 ) {
   useEventListener(element, "keydown", (e) => {

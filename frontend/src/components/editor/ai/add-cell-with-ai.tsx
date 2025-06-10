@@ -215,7 +215,7 @@ export interface AdditionalCompletions {
 }
 
 interface PromptInputProps {
-  inputRef?: React.RefObject<ReactCodeMirrorRef>;
+  inputRef?: React.RefObject<ReactCodeMirrorRef | null>;
   placeholder?: string;
   value: string;
   className?: string;

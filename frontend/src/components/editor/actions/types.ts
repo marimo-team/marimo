@@ -13,7 +13,7 @@ export interface ActionButton {
   tooltip?: React.ReactNode;
   variant?: "danger" | "muted" | "disabled";
   disableClick?: boolean;
-  icon?: React.ReactElement;
+  icon?: React.ReactElement<any>;
   hidden?: boolean;
   rightElement?: React.ReactNode;
   hotkey?: HotkeyAction;

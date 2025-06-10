@@ -3,7 +3,7 @@ import { invariant } from "@/utils/invariant";
 import type { CellId } from "../../cells/ids";
 import { store } from "../../state/jotai";
 import ReactDOM, { type Root } from "react-dom/client";
-import { isValidElement } from "react";
+import { isValidElement, type JSX } from "react";
 import { extractIslandCodeFromEmbed } from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
 import { Provider } from "jotai";

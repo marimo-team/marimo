@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 /* Copyright 2024 Marimo. All rights reserved. */
 
 interface Props {

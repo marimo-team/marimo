@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren } from "react";
+import React, { type PropsWithChildren, type JSX } from "react";
 
 import {
   Tabs,
