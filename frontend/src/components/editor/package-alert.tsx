@@ -48,6 +48,31 @@ import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
 import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 import { ExternalLink } from "../ui/links";
+import * as z from "zod";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Checkbox } from "../ui/checkbox";
+import { Badge } from "../ui/badge";
+
+// Utility functions for parsing package specifiers
+function parsePackageSpecifier(spec: string): {
+  name: string;
+  extras: string[];
+} {
+  const match = spec.match(/^([^\[]+)(?:\[([^\]]+)\])?$/);
+  if (!match) {
+    return { name: spec, extras: [] };
+  }
+  const [, name, extrasStr] = match;
+  const extras = extrasStr ? extrasStr.split(",").map((e) => e.trim()) : [];
+  return { name, extras };
+}
+
+function buildPackageSpecifier(name: string, extras: string[]): string {
+  if (extras.length === 0) {
+    return name;
+  }
+  return `${name}[${extras.join(",")}]`;
+}
 
 export const PackageAlert: React.FC = () => {
   const { packageAlert } = useAlerts();
@@ -55,6 +80,9 @@ export const PackageAlert: React.FC = () => {
   const [userConfig] = useResolvedMarimoConfig();
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
     Record<string, string>
+  >({});
+  const [selectedExtras, setSelectedExtras] = useState<
+    Record<string, string[]>
   >({});
 
   if (packageAlert === null) {
@@ -89,27 +117,43 @@ export const PackageAlert: React.FC = () => {
             <div>
               <p>The following packages were not found:</p>
               <ul className="list-disc ml-4 mt-1">
-                {packageAlert.packages.map((pkg, index) => (
-                  <li
-                    className="flex items-center gap-1 font-mono text-sm"
-                    key={index}
-                  >
-                    <BoxIcon size="1rem" />
-                    {pkg}
-                    {doesSupportVersioning && (
-                      <PackageVersionSelect
-                        value={desiredPackageVersions[pkg] ?? "latest"}
-                        onChange={(value) =>
-                          setDesiredPackageVersions((prev) => ({
+                {packageAlert.packages.map((pkg, index) => {
+                  const parsed = parsePackageSpecifier(pkg);
+                  const currentExtras = selectedExtras[pkg] || parsed.extras;
+
+                  return (
+                    <li
+                      className="flex items-center gap-2 font-mono text-sm"
+                      key={index}
+                    >
+                      <BoxIcon size="1rem" />
+
+                      <ExtrasSelector
+                        packageName={parsed.name}
+                        selectedExtras={currentExtras}
+                        onExtrasChange={(extras) =>
+                          setSelectedExtras((prev) => ({
                             ...prev,
-                            [pkg]: value,
+                            [pkg]: extras,
                           }))
                         }
-                        packageName={pkg}
                       />
-                    )}
-                  </li>
-                ))}
+
+                      {doesSupportVersioning && (
+                        <PackageVersionSelect
+                          value={desiredPackageVersions[pkg] ?? "latest"}
+                          onChange={(value) =>
+                            setDesiredPackageVersions((prev) => ({
+                              ...prev,
+                              [pkg]: value,
+                            }))
+                          }
+                          packageName={parsed.name}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
             <div className="ml-auto flex flex-row items-baseline">
@@ -117,7 +161,12 @@ export const PackageAlert: React.FC = () => {
                 <>
                   <InstallPackagesButton
                     manager={userConfig.package_management.manager}
-                    packages={packageAlert.packages}
+                    packages={packageAlert.packages.map((pkg) => {
+                      const parsed = parsePackageSpecifier(pkg);
+                      const currentExtras =
+                        selectedExtras[pkg] || parsed.extras;
+                      return buildPackageSpecifier(parsed.name, currentExtras);
+                    })}
                     versions={desiredPackageVersions}
                     clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
                   />
@@ -362,9 +411,129 @@ interface PackageVersionSelectProps {
   packageName: string;
 }
 
-interface PyPiResponse {
-  releases: Record<string, unknown>;
+const PyPiPackageResponse = z.object({
+  info: z.object({
+    provides_extra: z.string().array().nullable(),
+  }),
+  releases: z.record(z.string(), z.unknown()),
+});
+
+interface ExtrasSelectorProps {
+  packageName: string;
+  selectedExtras: string[];
+  onExtrasChange: (extras: string[]) => void;
 }
+
+const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
+  packageName,
+  selectedExtras,
+  onExtrasChange,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const {
+    data: availableExtras = [],
+    loading,
+    error,
+  } = useAsyncData(async () => {
+    const response = await fetch(
+      `https://pypi.org/pypi/${cleanPythonModuleName(packageName)}/json`,
+      {
+        method: "GET",
+        signal: AbortSignal.timeout(5000), // 5s timeout
+      },
+    );
+    const pkgInfo = PyPiPackageResponse.parse(await response.json());
+    return pkgInfo.info.provides_extra || [];
+  }, [packageName]);
+
+  const handleExtraToggle = (extra: string, checked: boolean) => {
+    if (checked) {
+      onExtrasChange([...selectedExtras, extra]);
+    } else {
+      onExtrasChange(selectedExtras.filter((e) => e !== extra));
+    }
+  };
+
+  // Format the display text with ellipsis if too many extras
+  const formatExtrasDisplay = () => {
+    if (selectedExtras.length === 0) {
+      return packageName;
+    }
+
+    const extrasStr = selectedExtras.join(",");
+    const fullText = `${packageName}[${extrasStr}]`;
+
+    // If the text is too long, truncate with ellipsis
+    if (fullText.length > 25) {
+      const truncatedExtras = selectedExtras.slice(0, 2).join(",");
+      const remaining = selectedExtras.length - 2;
+      return remaining > 0
+        ? `${packageName}[${truncatedExtras},...+${remaining}]`
+        : `${packageName}[${truncatedExtras}]`;
+    }
+
+    return fullText;
+  };
+
+  // If no extras available and none selected, just show package name
+  if (
+    (error || loading || availableExtras.length === 0) &&
+    selectedExtras.length === 0
+  ) {
+    return <span className="max-w-[200px] truncate">{packageName}</span>;
+  }
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className="text-left hover:bg-muted/50 rounded px-1 -mx-1 transition-colors max-w-[200px] truncate"
+          title={
+            selectedExtras.length > 0
+              ? `${packageName}[${selectedExtras.join(",")}]`
+              : packageName
+          }
+        >
+          {formatExtrasDisplay()}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3" align="start">
+        <div className="space-y-3">
+          <div className="text-sm font-medium">Package extras</div>
+          {selectedExtras.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {selectedExtras.map((extra) => (
+                <Badge key={extra} variant="defaultOutline" className="text-xs">
+                  {extra}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <div className="space-y-2 max-h-48 overflow-auto">
+            {availableExtras.map((extra) => (
+              <div key={extra} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`${packageName}-${extra}`}
+                  checked={selectedExtras.includes(extra)}
+                  onCheckedChange={(checked) =>
+                    handleExtraToggle(extra, checked === true)
+                  }
+                />
+                <label
+                  htmlFor={`${packageName}-${extra}`}
+                  className="text-sm font-mono cursor-pointer flex-1"
+                >
+                  {extra}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
   value,
@@ -383,8 +552,8 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
         signal: AbortSignal.timeout(5000), // 5s timeout
       },
     );
-    const json = await response.json<PyPiResponse>();
-    const versions = Object.keys(json.releases).sort(reverseSemverSort);
+    const pkgInfo = PyPiPackageResponse.parse(await response.json());
+    const versions = Object.keys(pkgInfo.releases).toSorted(reverseSemverSort);
     // Add latest, limit to 100 versions
     return ["latest", ...versions.slice(0, 100)];
   }, [packageName]);
@@ -396,7 +565,7 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={true}
-          className="inline-flex ml-2"
+          className="inline-flex ml-2 w-24 text-ellipsis"
         >
           <option value="latest">latest</option>
         </NativeSelect>
@@ -409,7 +578,7 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={loading}
-      className="inline-flex ml-2"
+      className="inline-flex ml-2 w-24 text-ellipsis"
     >
       {loading ? (
         <option value="latest">latest</option>
