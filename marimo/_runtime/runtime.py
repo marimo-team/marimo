@@ -2479,10 +2479,20 @@ class PackagesCallbacks:
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest
     ) -> None:
-        """Install missing packages."""
-        assert self.package_manager, (
+        """Attempts to install packages for modules that cannot be imported
+
+        Runs cells affected by successful installation.
+        """
+        assert self.package_manager is not None, (
             "Cannot install packages without a package manager"
         )
+        if request.manager != self.package_manager.name:
+            # Swap out the package manager
+            self.package_manager = create_package_manager(request.manager)
+
+        if not self.package_manager.is_manager_installed():
+            self.package_manager.alert_not_installed()
+            return
 
         resolved_packages: dict[str, PackageRequirement] = {}
         for pkg in request.versions.keys():
