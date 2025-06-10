@@ -799,7 +799,7 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
           data-rac=""
         >
           <div
-            class="shadow-xsSolid hover:shadow-smSolid hover:focus-within:shadow-mdSolid flex h-6 w-full overflow-hidden rounded-sm border border-input bg-background text-sm font-code ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-xsSolid focus-within:shadow-mdSolid focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:border-primary my-0"
+            class="shadow-xsSolid hover:shadow-smSolid hover:focus-within:shadow-mdSolid flex overflow-hidden rounded-sm border border-input bg-background text-sm font-code ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-xsSolid focus-within:shadow-mdSolid focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:border-primary h-6 w-full my-0"
           >
             <input
               aria-describedby=":r2a:-form-item-description"
@@ -822,7 +822,7 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
               <button
                 aria-controls=":r2a:-form-item"
                 aria-label="Increase"
-                class="px-0.5 cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted"
+                class="cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted px-0.5"
                 data-rac=""
                 id="react-aria-:r2h:"
                 slot="increment"
@@ -853,7 +853,7 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
               <button
                 aria-controls=":r2a:-form-item"
                 aria-label="Decrease"
-                class="px-0.5 cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted"
+                class="cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted px-0.5"
                 data-rac=""
                 id="react-aria-:r2i:"
                 slot="decrement"
