@@ -51,8 +51,6 @@ import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 import { ExternalLink } from "../ui/links";
 import * as z from "zod";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Checkbox } from "../ui/checkbox";
-import { Badge } from "../ui/badge";
 
 // Utility functions for parsing package specifiers
 function parsePackageSpecifier(spec: string): {
@@ -457,71 +455,67 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
   };
 
   return (
-    <div className="flex items-center">
-      <span>{packageName}</span>
+    <div className="flex items-center max-w-72">
+      <span className="shrink-0">{packageName}</span>
 
       {selectedExtras.length > 0 ? (
-        <span>
-          [
+        <span className="flex items-center min-w-0 flex-1">
+          <span className="shrink-0">[</span>
           <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild={true}>
               <button
-                className="hover:bg-muted/50 rounded text-sm px-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 max-w-24 truncate"
+                className="hover:bg-muted/50 rounded text-sm px-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 min-w-0 flex-1 truncate text-left"
                 title={`Selected extras: ${selectedExtras.join(", ")}`}
               >
-                {(() => {
-                  const maxLength = 18;
-                  let result = "";
-                  for (const [i, selectedExtra] of selectedExtras.entries()) {
-                    const next = i === 0 ? selectedExtra : `,${selectedExtra}`;
-                    if ((result + next).length > maxLength) {
-                      return `${result}...`;
-                    }
-                    result += next;
-                  }
-                  return result;
-                })()}
+                {selectedExtras.join(",")}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="start">
-              <div className="space-y-3">
-                <div className="text-sm font-medium">Package extras</div>
-                {selectedExtras.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {selectedExtras.map((extra) => (
-                      <Badge
+            <PopoverContent className="w-64 p-0" align="start">
+              <div className="p-2">
+                <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
+                  {selectedExtras.length > 0 ? (
+                    selectedExtras.map((extra) => (
+                      <span
                         key={extra}
-                        variant="defaultOutline"
-                        className="text-xs"
+                        className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
+                        onClick={() => handleExtraToggle(extra, false)}
                       >
                         {extra}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <div className="space-y-2 max-h-48 overflow-auto">
-                  {availableExtras.map((extra) => (
-                    <div key={extra} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`${packageName}-${extra}`}
-                        checked={selectedExtras.includes(extra)}
-                        onCheckedChange={(checked) =>
-                          handleExtraToggle(extra, checked === true)
-                        }
-                      />
-                      <label
-                        htmlFor={`${packageName}-${extra}`}
-                        className="text-sm font-mono cursor-pointer flex-1"
-                      >
-                        {extra}
-                      </label>
-                    </div>
-                  ))}
+                        <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground italic text-sm">
+                      Package extras
+                    </span>
+                  )}
                 </div>
+              </div>
+
+              {availableExtras.length > 0 && (
+                <div className="border-t border-border" />
+              )}
+
+              <div className="space-y-1 max-h-48 overflow-auto px-2">
+                {availableExtras.map((extra) => (
+                  <div
+                    key={extra}
+                    className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm relative pl-8 cursor-pointer aria-selected:bg-accent aria-selected:text-accent-foreground"
+                    aria-selected={selectedExtras.includes(extra)}
+                    onClick={() =>
+                      handleExtraToggle(extra, !selectedExtras.includes(extra))
+                    }
+                  >
+                    {selectedExtras.includes(extra) && (
+                      <CheckIcon className="absolute left-2 h-4 w-4" />
+                    )}
+                    <span className="text-sm font-mono flex-1">{extra}</span>
+                  </div>
+                ))}
               </div>
             </PopoverContent>
           </Popover>
-          ]
+          <span className="shrink-0">]</span>
         </span>
       ) : loading || error || availableExtras.length === 0 ? null : (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -533,28 +527,33 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
               <PlusIcon className="w-3 h-3" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-3" align="start">
-            <div className="space-y-3">
-              <div className="text-sm font-medium">Package extras</div>
-              <div className="space-y-2 max-h-48 overflow-auto">
-                {availableExtras.map((extra) => (
-                  <div key={extra} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`${packageName}-${extra}`}
-                      checked={selectedExtras.includes(extra)}
-                      onCheckedChange={(checked) =>
-                        handleExtraToggle(extra, checked === true)
-                      }
-                    />
-                    <label
-                      htmlFor={`${packageName}-${extra}`}
-                      className="text-sm font-mono cursor-pointer flex-1"
-                    >
-                      {extra}
-                    </label>
-                  </div>
-                ))}
+          <PopoverContent className="w-64 p-0" align="start">
+            <div className="p-2">
+              <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
+                <span className="text-muted-foreground italic text-sm">
+                  Package extras
+                </span>
               </div>
+            </div>
+
+            <div className="border-t border-border" />
+
+            <div className="space-y-1 max-h-48 overflow-auto px-2">
+              {availableExtras.map((extra) => (
+                <div
+                  key={extra}
+                  className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm relative pl-8 cursor-pointer aria-selected:bg-accent aria-selected:text-accent-foreground"
+                  aria-selected={selectedExtras.includes(extra)}
+                  onClick={() =>
+                    handleExtraToggle(extra, !selectedExtras.includes(extra))
+                  }
+                >
+                  {selectedExtras.includes(extra) && (
+                    <CheckIcon className="absolute left-2 h-4 w-4" />
+                  )}
+                  <span className="text-sm font-mono flex-1">{extra}</span>
+                </div>
+              ))}
             </div>
           </PopoverContent>
         </Popover>
