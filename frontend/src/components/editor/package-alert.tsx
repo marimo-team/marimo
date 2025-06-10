@@ -455,6 +455,8 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
     }
   };
 
+  const canSelectExtras = !loading && !error;
+
   return (
     <div className="flex items-center max-w-72">
       <span className="shrink-0">{packageName}</span>
@@ -462,7 +464,14 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
       {selectedExtras.length > 0 ? (
         <span className="flex items-center min-w-0 flex-1">
           <span className="shrink-0">[</span>
-          <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <Popover
+            open={isOpen && canSelectExtras}
+            onOpenChange={(open) => {
+              if (canSelectExtras) {
+                setIsOpen(open);
+              }
+            }}
+          >
             <PopoverTrigger asChild={true}>
               <button
                 className="hover:bg-muted/50 rounded text-sm px-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 min-w-0 flex-1 truncate text-left"
@@ -517,12 +526,23 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
           </Popover>
           <span className="shrink-0">]</span>
         </span>
-      ) : (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+      ) : availableExtras.length > 0 ? (
+        <Popover
+          open={isOpen && canSelectExtras}
+          onOpenChange={(open) => {
+            if (canSelectExtras) {
+              setIsOpen(open);
+            }
+          }}
+        >
           <PopoverTrigger asChild={true}>
             <button
-              className="hover:bg-muted/50 rounded text-sm ml-2 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 h-5 w-5 flex items-center justify-center p-0"
-              title="Add extras"
+              disabled={!canSelectExtras}
+              className={cn(
+                "hover:bg-muted/50 rounded text-sm ml-2 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 h-5 w-5 flex items-center justify-center p-0",
+                !canSelectExtras && "opacity-50 cursor-not-allowed",
+              )}
+              title={canSelectExtras ? "Add extras" : "Loading extras..."}
             >
               <PlusIcon className="w-3 h-3 flex-shrink-0" />
             </button>
@@ -564,7 +584,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
             </div>
           </PopoverContent>
         </Popover>
-      )}
+      ) : null}
     </div>
   );
 };
