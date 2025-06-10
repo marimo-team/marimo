@@ -30,7 +30,6 @@ import { HideInKioskMode } from "../kiosk-mode";
 import { Functions } from "@/utils/functions";
 import { SaveComponent } from "@/core/saving/save-component";
 import { useAtomValue } from "jotai";
-
 import type { JSX } from "react";
 
 interface ControlsProps {

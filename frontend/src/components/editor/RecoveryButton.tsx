@@ -19,7 +19,6 @@ import { notebookCells } from "@/core/cells/utils";
 import type { Notebook } from "@marimo-team/marimo-api";
 import { getMarimoVersion } from "@/core/meta/globals";
 import { Paths } from "@/utils/paths";
-
 import type { JSX } from "react";
 
 const RecoveryModal = (props: {

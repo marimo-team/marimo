@@ -3,7 +3,6 @@
 import type { OutputChannel } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { AnsiUp } from "ansi_up";
-
 import type { JSX } from "react";
 
 const ansiUp = new AnsiUp();

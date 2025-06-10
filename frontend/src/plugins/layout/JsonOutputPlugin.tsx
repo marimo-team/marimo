@@ -7,7 +7,6 @@ import type {
   IStatelessPluginProps,
 } from "../stateless-plugin";
 import { EmotionCacheProvider } from "../../components/editor/output/EmotionCacheProvider";
-
 import type { JSX } from "react";
 
 interface Data {

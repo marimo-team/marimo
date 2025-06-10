@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
+
 import type { RuntimeState } from "@/core/network/types";
 import { Tooltip } from "../../ui/tooltip";
 import { Button } from "../../ui/button";
