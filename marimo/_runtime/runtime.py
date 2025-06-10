@@ -108,7 +108,10 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
-from marimo._runtime.packages.utils import is_python_isolated
+from marimo._runtime.packages.utils import (
+    PackageRequirement,
+    is_python_isolated,
+)
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
@@ -2476,30 +2479,31 @@ class PackagesCallbacks:
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest
     ) -> None:
-        """Attempts to install packages for modules that cannot be imported
+        """Install missing packages."""
+        assert self.package_manager, (
+            "Cannot install packages without a package manager"
+        )
 
-        Runs cells affected by successful installation.
-        """
-        assert self.package_manager is not None
-        if request.manager != self.package_manager.name:
-            # Swap out the package manager
-            self.package_manager = create_package_manager(request.manager)
+        resolved_packages: dict[str, PackageRequirement] = {}
+        for pkg in request.versions.keys():
+            pkg_req = PackageRequirement.parse(pkg)
+            resolved_packages[pkg_req.name] = pkg_req
 
-        if not self.package_manager.is_manager_installed():
-            self.package_manager.alert_not_installed()
-            return
-
-        missing_packages_set = set(request.versions.keys())
         # Append all other missing packages from the notebook; the missing
         # package request only contains the packages from the cell the user
         # executed.
-        missing_packages_set.update(
-            [
+        for module in self._kernel.module_registry.missing_modules():
+            pkg_req = PackageRequirement.parse(
                 self.package_manager.module_to_package(module)
-                for module in self._kernel.module_registry.missing_modules()
-            ]
-        )
-        missing_packages = list(sorted(missing_packages_set))
+            )
+            if pkg_req.name not in resolved_packages:
+                resolved_packages[pkg_req.name] = pkg_req
+
+        # Convert back to list of package strings
+        missing_packages = [
+            str(pkg)
+            for pkg in sorted(resolved_packages.values(), key=lambda p: p.name)
+        ]
 
         # Frontend shows package names, not module names
         package_statuses: PackageStatusType = {

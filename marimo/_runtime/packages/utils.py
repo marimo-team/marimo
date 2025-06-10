@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import os
+import re
 import sys
 from typing import Optional
 
@@ -103,3 +105,27 @@ def split_packages(package: str) -> list[str]:
         packages.append(" ".join(current_package))
 
     return [pkg.strip() for pkg in packages]
+
+
+@dataclasses.dataclass
+class PackageRequirement:
+    """A package requirement with name and optional extras."""
+
+    name: str
+    extras: set[str] = dataclasses.field(default_factory=set)
+
+    @classmethod
+    def parse(cls, requirement: str) -> PackageRequirement:
+        """Parse a package requirement string into name and extras."""
+        match = re.match(r"^([^\[\]]+)(?:\[([^\[\]]+)\])?$", requirement)
+        if not match:
+            return cls(name=requirement)
+        name = match.group(1)
+        extras = set(match.group(2).split(",")) if match.group(2) else set()
+        return cls(name=name, extras=extras)
+
+    def __str__(self) -> str:
+        """Convert back to a package requirement string."""
+        if not self.extras:
+            return self.name
+        return f"{self.name}[{','.join(sorted(self.extras))}]"
