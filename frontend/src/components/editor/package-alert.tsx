@@ -31,6 +31,7 @@ import {
   DownloadCloudIcon,
   PackageCheckIcon,
   XIcon,
+  PlusIcon,
 } from "lucide-react";
 import type React from "react";
 import { Button } from "../ui/button";
@@ -58,7 +59,7 @@ function parsePackageSpecifier(spec: string): {
   name: string;
   extras: string[];
 } {
-  const match = spec.match(/^([^\[]+)(?:\[([^\]]+)\])?$/);
+  const match = spec.match(/^([^[]+)(?:\[([^\]]+)])?$/);
   if (!match) {
     return { name: spec, extras: [] };
   }
@@ -455,83 +456,110 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
     }
   };
 
-  // Format the display text with ellipsis if too many extras
-  const formatExtrasDisplay = () => {
-    if (selectedExtras.length === 0) {
-      return packageName;
-    }
-
-    const extrasStr = selectedExtras.join(",");
-    const fullText = `${packageName}[${extrasStr}]`;
-
-    // If the text is too long, truncate with ellipsis
-    if (fullText.length > 25) {
-      const truncatedExtras = selectedExtras.slice(0, 2).join(",");
-      const remaining = selectedExtras.length - 2;
-      return remaining > 0
-        ? `${packageName}[${truncatedExtras},...+${remaining}]`
-        : `${packageName}[${truncatedExtras}]`;
-    }
-
-    return fullText;
-  };
-
-  // If no extras available and none selected, just show package name
-  if (
-    (error || loading || availableExtras.length === 0) &&
-    selectedExtras.length === 0
-  ) {
-    return <span className="max-w-[200px] truncate">{packageName}</span>;
-  }
-
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <button
-          className="text-left hover:bg-muted/50 rounded px-1 -mx-1 transition-colors max-w-[200px] truncate"
-          title={
-            selectedExtras.length > 0
-              ? `${packageName}[${selectedExtras.join(",")}]`
-              : packageName
-          }
-        >
-          {formatExtrasDisplay()}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="start">
-        <div className="space-y-3">
-          <div className="text-sm font-medium">Package extras</div>
-          {selectedExtras.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {selectedExtras.map((extra) => (
-                <Badge key={extra} variant="defaultOutline" className="text-xs">
-                  {extra}
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div className="space-y-2 max-h-48 overflow-auto">
-            {availableExtras.map((extra) => (
-              <div key={extra} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`${packageName}-${extra}`}
-                  checked={selectedExtras.includes(extra)}
-                  onCheckedChange={(checked) =>
-                    handleExtraToggle(extra, checked === true)
+    <div className="flex items-center">
+      <span>{packageName}</span>
+
+      {selectedExtras.length > 0 ? (
+        <span>
+          [
+          <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <PopoverTrigger asChild={true}>
+              <button
+                className="hover:bg-muted/50 rounded text-sm px-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 max-w-24 truncate"
+                title={`Selected extras: ${selectedExtras.join(", ")}`}
+              >
+                {(() => {
+                  const maxLength = 18;
+                  let result = "";
+                  for (const [i, selectedExtra] of selectedExtras.entries()) {
+                    const next = i === 0 ? selectedExtra : `,${selectedExtra}`;
+                    if ((result + next).length > maxLength) {
+                      return `${result}...`;
+                    }
+                    result += next;
                   }
-                />
-                <label
-                  htmlFor={`${packageName}-${extra}`}
-                  className="text-sm font-mono cursor-pointer flex-1"
-                >
-                  {extra}
-                </label>
+                  return result;
+                })()}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3" align="start">
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Package extras</div>
+                {selectedExtras.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedExtras.map((extra) => (
+                      <Badge
+                        key={extra}
+                        variant="defaultOutline"
+                        className="text-xs"
+                      >
+                        {extra}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-2 max-h-48 overflow-auto">
+                  {availableExtras.map((extra) => (
+                    <div key={extra} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`${packageName}-${extra}`}
+                        checked={selectedExtras.includes(extra)}
+                        onCheckedChange={(checked) =>
+                          handleExtraToggle(extra, checked === true)
+                        }
+                      />
+                      <label
+                        htmlFor={`${packageName}-${extra}`}
+                        className="text-sm font-mono cursor-pointer flex-1"
+                      >
+                        {extra}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+            </PopoverContent>
+          </Popover>
+          ]
+        </span>
+      ) : loading || error || availableExtras.length === 0 ? null : (
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <PopoverTrigger asChild={true}>
+            <button
+              className="hover:bg-muted/50 rounded text-sm ml-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 h-5 w-5 flex items-center justify-center"
+              title="Add extras"
+            >
+              <PlusIcon className="w-3 h-3" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="start">
+            <div className="space-y-3">
+              <div className="text-sm font-medium">Package extras</div>
+              <div className="space-y-2 max-h-48 overflow-auto">
+                {availableExtras.map((extra) => (
+                  <div key={extra} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`${packageName}-${extra}`}
+                      checked={selectedExtras.includes(extra)}
+                      onCheckedChange={(checked) =>
+                        handleExtraToggle(extra, checked === true)
+                      }
+                    />
+                    <label
+                      htmlFor={`${packageName}-${extra}`}
+                      className="text-sm font-mono cursor-pointer flex-1"
+                    >
+                      {extra}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
   );
 };
 
