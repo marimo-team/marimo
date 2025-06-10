@@ -64,6 +64,11 @@ import { Events } from "@/utils/events";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { useRunCell } from "./cell/useRunCells";
 import type { Milliseconds, Seconds } from "@/utils/time";
+import {
+  isAppConnected,
+  isAppInteractionDisabled,
+} from "../../core/websocket/connection-utils";
+import type { WebSocketState } from "../../core/websocket/types";
 
 /**
  * Hook for handling cell completion logic
@@ -370,7 +375,7 @@ export interface CellProps
   theme: Theme;
   showPlaceholder: boolean;
   mode: AppMode;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   /**
    * False only when there is only one cell in the notebook.
    */
@@ -551,7 +556,7 @@ const EditableCellComponent = ({
   serializedEditorState,
   serialization,
   debuggerActive,
-  appClosed,
+  connectionState,
   canDelete,
   actions,
   deleteCell,
@@ -783,7 +788,7 @@ const EditableCellComponent = ({
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
                   edited={edited}
-                  appClosed={appClosed}
+                  connectionState={connectionState}
                   status={status}
                   cellConfig={cellConfig}
                   needsRun={needsRun}
@@ -805,7 +810,7 @@ const EditableCellComponent = ({
                     isCellButtonsInline &&
                     "-left-[3.8rem]",
                 )}
-                appClosed={appClosed}
+                connectionState={connectionState}
                 actions={actions}
               />
               <CellEditor
@@ -846,10 +851,13 @@ const EditableCellComponent = ({
               <div className="shoulder-bottom hover-action">
                 {canDelete && isCellCodeShown && (
                   <DeleteButton
-                    appClosed={appClosed}
+                    connectionState={connectionState}
                     status={status}
                     onClick={() => {
-                      if (!loading && !appClosed) {
+                      if (
+                        !loading &&
+                        !isAppInteractionDisabled(connectionState)
+                      ) {
                         deleteCell({ cellId });
                       }
                     }}
@@ -993,10 +1001,10 @@ const CellRightSideActions = (props: {
 const CellLeftSideActions = (props: {
   className?: string;
   cellId: CellId;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   actions: CellComponentActions;
 }) => {
-  const { className, appClosed, actions, cellId } = props;
+  const { className, connectionState, actions, cellId } = props;
 
   const createBelow = useEvent((opts: { code?: string } = {}) =>
     actions.createNewCell({ cellId, before: false, ...opts }),
@@ -1004,6 +1012,8 @@ const CellLeftSideActions = (props: {
   const createAbove = useEvent((opts: { code?: string } = {}) =>
     actions.createNewCell({ cellId, before: true, ...opts }),
   );
+
+  const isConnected = isAppConnected(connectionState);
 
   return (
     <div
@@ -1014,14 +1024,14 @@ const CellLeftSideActions = (props: {
     >
       <CreateCellButton
         tooltipContent={renderShortcut("cell.createAbove")}
-        appClosed={appClosed}
-        onClick={appClosed ? undefined : createAbove}
+        connectionState={connectionState}
+        onClick={isConnected ? createAbove : undefined}
       />
       <div className="flex-1" />
       <CreateCellButton
         tooltipContent={renderShortcut("cell.createBelow")}
-        appClosed={appClosed}
-        onClick={appClosed ? undefined : createBelow}
+        connectionState={connectionState}
+        onClick={isConnected ? createBelow : undefined}
       />
     </div>
   );
@@ -1029,7 +1039,7 @@ const CellLeftSideActions = (props: {
 
 interface CellToolbarProps {
   edited: boolean;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   status: RuntimeState;
   cellConfig: CellConfig;
   needsRun: boolean;
@@ -1045,7 +1055,7 @@ interface CellToolbarProps {
 
 const CellToolbar = ({
   edited,
-  appClosed,
+  connectionState,
   status,
   cellConfig,
   needsRun,
@@ -1058,6 +1068,8 @@ const CellToolbar = ({
   name,
   includeCellActions = true,
 }: CellToolbarProps) => {
+  const isConnected = isAppConnected(connectionState);
+
   return (
     <Toolbar
       className={cn(
@@ -1067,13 +1079,13 @@ const CellToolbar = ({
     >
       <RunButton
         edited={edited}
-        onClick={appClosed ? Functions.NOOP : onRun}
-        appClosed={appClosed}
+        onClick={isConnected ? onRun : Functions.NOOP}
+        connectionState={connectionState}
         status={status}
         config={cellConfig}
         needsRun={needsRun}
       />
-      <StopButton status={status} appClosed={appClosed} />
+      <StopButton status={status} connectionState={connectionState} />
       {includeCellActions && (
         <CellActionsDropdown
           ref={cellActionDropdownRef}
@@ -1121,7 +1133,7 @@ const SetupCellComponent = ({
   staleInputs,
   serializedEditorState,
   debuggerActive,
-  appClosed,
+  connectionState,
   canDelete,
   actions,
   deleteCell,
@@ -1257,7 +1269,7 @@ const SetupCellComponent = ({
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={edited}
-                appClosed={appClosed}
+                connectionState={connectionState}
                 status={status}
                 cellConfig={cellConfig}
                 needsRun={needsRun}
@@ -1307,10 +1319,13 @@ const SetupCellComponent = ({
             <div className="shoulder-bottom hover-action">
               {canDelete && (
                 <DeleteButton
-                  appClosed={appClosed}
+                  connectionState={connectionState}
                   status={status}
                   onClick={() => {
-                    if (!loading && !appClosed) {
+                    if (
+                      !loading &&
+                      !isAppInteractionDisabled(connectionState)
+                    ) {
                       deleteCell({ cellId });
                     }
                   }}

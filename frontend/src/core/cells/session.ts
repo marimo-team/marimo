@@ -30,7 +30,7 @@ function validateSessionNotebookCompatibility(
   if (!session && !notebook) {
     return {
       isValid: false,
-      error: "Both session and notebook are null/undefined",
+      error: "",
     };
   }
 

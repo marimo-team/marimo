@@ -6,10 +6,12 @@ import { StaticWebsocket } from "./StaticWebsocket";
 import { isWasm } from "../wasm/utils";
 import { PyodideBridge, PyodideWebsocket } from "../wasm/bridge";
 import { Logger } from "@/utils/Logger";
+import { isStaticNotebook } from "../static/static-state";
 
 interface UseWebSocketOptions {
   url: string;
   static: boolean;
+  waitToConnect?: () => Promise<void>;
   onOpen?: (event: WebSocketEventMap["open"]) => void;
   onMessage?: (event: WebSocketEventMap["message"]) => void;
   onClose?: (event: WebSocketEventMap["close"]) => void;
@@ -22,7 +24,8 @@ interface UseWebSocketOptions {
  * We use the WebSocket from partysocket, which is a wrapper around the native WebSocket API with reconnect logic.
  */
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { onOpen, onMessage, onClose, onError, ...rest } = options;
+  const { onOpen, onMessage, onClose, onError, waitToConnect, ...rest } =
+    options;
 
   // eslint-disable-next-line react/hook-use-state
   const [ws] = useState<IReconnectingWebSocket>(() => {
@@ -52,7 +55,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
     // If it's closed, reconnect
     // This starts closed, so we need to connect for the first time
     if (ws.readyState === WebSocket.CLOSED) {
-      ws.reconnect();
+      // Ignore waitToConnect for static and wasm notebooks
+      if (waitToConnect && !isStaticNotebook() && !isWasm()) {
+        waitToConnect().then(() => {
+          ws.reconnect();
+        });
+      } else {
+        ws.reconnect();
+      }
     }
 
     return () => {

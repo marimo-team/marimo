@@ -3,14 +3,19 @@ import { HardDriveDownloadIcon, PlayIcon } from "lucide-react";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import type { RuntimeState, CellConfig } from "@/core/network/types";
 import { ToolbarItem } from "./toolbar";
+import type { WebSocketState } from "@/core/websocket/types";
+import {
+  isAppInteractionDisabled,
+  getConnectionTooltip,
+} from "@/core/websocket/connection-utils";
 
 function computeColor(
-  appClosed: boolean,
+  connectionState: WebSocketState,
   needsRun: boolean,
   loading: boolean,
   inactive: boolean,
 ) {
-  if (appClosed) {
+  if (isAppInteractionDisabled(connectionState)) {
     return "disabled";
   }
   if (needsRun && !loading) {
@@ -26,17 +31,19 @@ export const RunButton = (props: {
   edited: boolean;
   status: RuntimeState;
   needsRun: boolean;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   config: CellConfig;
   onClick?: () => void;
 }): JSX.Element => {
-  const { onClick, appClosed, needsRun, status, config, edited } = props;
+  const { onClick, connectionState, needsRun, status, config, edited } = props;
 
   const blockedStatus = status === "disabled-transitively";
   const loading = status === "running" || status === "queued";
   const inactive =
-    appClosed || loading || (!config.disabled && blockedStatus && !edited);
-  const variant = computeColor(appClosed, needsRun, loading, inactive);
+    isAppInteractionDisabled(connectionState) ||
+    loading ||
+    (!config.disabled && blockedStatus && !edited);
+  const variant = computeColor(connectionState, needsRun, loading, inactive);
 
   if (config.disabled) {
     return (
@@ -66,8 +73,9 @@ export const RunButton = (props: {
   }
 
   let tooltipMsg: React.ReactNode = "";
-  if (appClosed) {
-    tooltipMsg = "App disconnected";
+
+  if (isAppInteractionDisabled(connectionState)) {
+    tooltipMsg = getConnectionTooltip(connectionState);
   } else if (status === "queued") {
     tooltipMsg = "This cell is already queued to run";
   } else if (status === "running") {

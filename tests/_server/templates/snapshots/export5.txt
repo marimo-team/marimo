@@ -65,6 +65,7 @@
             "view": {"showAppCode": true},
             "notebook": {"cells": [], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
             "session": {"cells": [], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
+            "runtimeConfig": null,
         };
     </script>
     <title>My App</title>

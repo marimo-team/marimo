@@ -3,6 +3,7 @@
 import { getRuntimeManager } from "@/core/runtime/config";
 import type { LanguageAdapterType } from "../language/types";
 import type { AiCompletionRequest } from "@/core/network/types";
+import { waitForConnectionOpen } from "@/core/network/connection";
 
 /**
  * Request to edit code with AI
@@ -26,6 +27,8 @@ ${opts.codeAfter}
 `.trim();
 
   const runtimeManager = getRuntimeManager();
+
+  await waitForConnectionOpen();
 
   const response = await fetch(
     runtimeManager.getAiURL("completion").toString(),

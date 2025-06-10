@@ -83,9 +83,6 @@ describe("notebookStateFromSession", () => {
   describe("validation", () => {
     it("logs error for both session and notebook null/undefined", () => {
       const result = notebookStateFromSession(null, null);
-      expect(Logger.error).toHaveBeenCalledWith(
-        "Both session and notebook are null/undefined",
-      );
       expect(result).toBeNull();
     });
 

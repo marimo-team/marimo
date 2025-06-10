@@ -9,6 +9,7 @@ import type { UserConfig } from "@/core/config/config-schema";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { AppMode } from "@/core/mode";
 import { Functions } from "@/utils/functions";
+import { WebSocketState } from "@/core/websocket/types";
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {
@@ -90,7 +91,7 @@ describe("Cell data attributes", () => {
             serializedEditorState={null}
             mode={mode as AppMode}
             debuggerActive={false}
-            appClosed={false}
+            connectionState={WebSocketState.OPEN}
             canDelete={true}
             actions={{} as CellComponentActions}
             userConfig={userConfig}

@@ -6,12 +6,14 @@ import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
 import type { RuntimeState } from "@/core/network/types";
 import { Functions } from "@/utils/functions";
 import { ToolbarItem } from "./toolbar";
+import type { WebSocketState } from "@/core/websocket/types";
+import { isAppInteractionDisabled } from "@/core/websocket/connection-utils";
 
 export const StopButton = (props: {
   status: RuntimeState;
-  appClosed: boolean;
+  connectionState: WebSocketState;
 }): JSX.Element => {
-  const { appClosed, status } = props;
+  const { connectionState, status } = props;
 
   const running = status === "running";
 
@@ -21,7 +23,7 @@ export const StopButton = (props: {
   return (
     <ToolbarItem
       tooltip={renderShortcut("global.interrupt")}
-      disabled={appClosed || !showInterrupt}
+      disabled={isAppInteractionDisabled(connectionState) || !showInterrupt}
       onClick={showInterrupt ? sendInterrupt : Functions.NOOP}
       variant={showInterrupt ? "stale" : "disabled"}
       data-testid="run-button"

@@ -1491,7 +1491,7 @@ export const columnIdsAtom = atom((get) =>
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
   return cellIds.inOrderIds
-    .map((cellId) => cellHandles[cellId].current?.editorView)
+    .map((cellId) => cellHandles[cellId]?.current?.editorView)
     .filter(Boolean);
 };
 

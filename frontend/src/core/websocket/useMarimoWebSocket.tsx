@@ -287,6 +287,13 @@ export function useMarimoWebSocket(opts: {
       setConnection({ state: WebSocketState.OPEN });
     },
 
+    waitToConnect: async () => {
+      if (runtimeManager.isSameOrigin) {
+        return;
+      }
+      await runtimeManager.waitForHealthy();
+    },
+
     /**
      * Message callback. Handle messages sent by the kernel.
      */

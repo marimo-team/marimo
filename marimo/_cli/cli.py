@@ -353,6 +353,13 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
+@click.option(
+    "--remote-url",
+    default=None,
+    type=str,
+    hidden=True,
+    help="Remote URL for runtime configuration.",
+)
 @click.argument(
     "name",
     required=False,
@@ -373,6 +380,7 @@ def edit(
     profile_dir: Optional[str],
     watch: bool,
     skew_protection: bool,
+    remote_url: Optional[str],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -464,6 +472,7 @@ def edit(
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
         ttl_seconds=None,
+        remote_url=remote_url,
     )
 
 
