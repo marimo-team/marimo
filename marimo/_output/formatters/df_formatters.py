@@ -12,7 +12,7 @@ from marimo._output.formatters.formatter_factory import (
     FormatterFactory,
     Unregister,
 )
-from marimo._output.md import md
+from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.ui._impl import tabs
 from marimo._plugins.ui._impl.table import get_default_table_page_size, table
 from marimo._runtime.patches import patch_polars_write_json
@@ -35,9 +35,12 @@ def include_opinionated() -> bool:
     return True
 
 
-# adapted from https://github.com/pola-rs/polars/pull/20607
-def dot_to_mermaid(dot: str) -> str:
-    """Not comprehensive, only handles components of the dot language used by polars."""
+def polars_dot_to_mermaid(dot: str) -> str:
+    """Converts polars DOT query plan renderings to mermaid.
+
+    Adapted from https://github.com/pola-rs/polars/pull/20607
+    Note: Not comprehensive, only handles components of the dot language used by polars.
+    """
 
     edge_regex = r"(?P<node1>\w+) -- (?P<node2>\w+)"
     node_regex = r"(?P<node>\w+)(\s+)?\[label=\"(?P<label>.*)\"]"
@@ -75,12 +78,9 @@ class PolarsFormatter(FormatterFactory):
         return "polars"
 
     def register(self) -> Unregister | None:
-        from unittest.mock import patch
-
         import polars as pl
 
         from marimo._output import formatting
-        from marimo._output.hypertext import Html
 
         if not include_opinionated():
             return None
@@ -119,38 +119,15 @@ class PolarsFormatter(FormatterFactory):
             return tabs.tabs(
                 {
                     "Table": table.lazy(df),
-                    "Query plan": md(df._repr_html_()),
+                    # NB(Trevor): Use `optimized=True` to match other methods' defaults (`show_graph`, `collect`).
+                    # The _repr_html_ uses `optimized=False`, but "cost" is probably minimal and this is more
+                    # accurate/opinionated default.
+                    # See: https://github.com/pola-rs/polars/blob/911352/py-polars/polars/lazyframe/frame.py#L773-L790
+                    "Query plan": mermaid(
+                        polars_dot_to_mermaid(df._ldf.to_dot(optimized=True))
+                    ),
                 }
             )._mime_()
-
-        # Patch for https://github.com/pola-rs/polars/blob/66ca5b/py-polars/polars/_utils/various.py#L655-L656
-        # Which has the comment: "Don't rename or move. This is used by polars cloud", so monkey patching inline should be safe
-        def display_dot_graph(
-            *,
-            dot: str,
-            show: bool = True,  # noqa: ARG001
-            output_path: str | None = None,  # noqa: ARG001
-            raw_output: bool = False,  # noqa: ARG001
-            figsize: tuple[float, float] = (16.0, 12.0),  # noqa: ARG001
-        ) -> Html:
-            import marimo as mo
-
-            return mo.mermaid(dot_to_mermaid(dot))
-
-        @pl.api.register_lazyframe_namespace("mo")
-        class DTypeOperations:
-            def __init__(self, ldf: pl.LazyFrame) -> None:
-                self._ldf = ldf
-
-            def show_graph(self, *args, **kwargs) -> Html:  # noqa: ANN002, ANN003
-                with patch(
-                    "polars.lazyframe.frame.display_dot_graph"
-                ) as mock_display:
-                    self._ldf.show_graph(*args, **kwargs)
-                    return display_dot_graph(
-                        *mock_display.call_args.args,
-                        **mock_display.call_args.kwargs,
-                    )
 
         return unpatch_polars_write_json
 
