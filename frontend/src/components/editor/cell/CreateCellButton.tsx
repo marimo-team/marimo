@@ -13,24 +13,32 @@ import { MarkdownIcon, PythonIcon } from "./code/icons";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import type { WebSocketState } from "@/core/websocket/types";
+import {
+  isAppInteractionDisabled,
+  getConnectionTooltip,
+} from "@/core/websocket/connection-utils";
 
 export const CreateCellButton = ({
-  appClosed,
+  connectionState,
   onClick,
   tooltipContent,
 }: {
-  appClosed: boolean;
+  connectionState: WebSocketState;
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string }) => void) | undefined;
 }) => {
+  const finalTooltipContent =
+    getConnectionTooltip(connectionState) || tooltipContent;
+
   return (
     <CreateCellButtonContextMenu onClick={onClick}>
-      <Tooltip content={tooltipContent} usePortal={false}>
+      <Tooltip content={finalTooltipContent} usePortal={false}>
         <Button
           onClick={() => onClick?.({ code: "" })}
           className={cn(
             "shoulder-button hover-action",
-            appClosed && " inactive-button",
+            isAppInteractionDisabled(connectionState) && " inactive-button",
           )}
           onMouseDown={Events.preventFocus}
           shape="circle"

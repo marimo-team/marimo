@@ -96,6 +96,14 @@ const getWs = once(() => {
       return;
     }
 
+    // Ensure runtime is healthy before connecting
+    try {
+      await runtimeManager.waitForHealthy();
+    } catch (error) {
+      logger.error("Runtime health check failed for RTC", error);
+      return;
+    }
+
     // Now open the websocket
     ws.reconnect();
   });

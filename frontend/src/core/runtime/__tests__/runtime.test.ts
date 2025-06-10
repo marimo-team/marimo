@@ -186,30 +186,35 @@ describe("RuntimeManager", () => {
 
   describe("waitForHealthy", () => {
     it("should resolve immediately if healthy", async () => {
-      const runtime = new RuntimeManager(mockConfig);
+      const runtime = new RuntimeManager(mockConfig, true);
+
       vi.spyOn(runtime, "isHealthy").mockResolvedValue(true);
+      runtime.init();
 
       await expect(runtime.waitForHealthy()).resolves.toBeUndefined();
     });
 
     it("should retry and eventually succeed", async () => {
-      const runtime = new RuntimeManager(mockConfig);
+      const runtime = new RuntimeManager(mockConfig, true);
       const healthySpy = vi
         .spyOn(runtime, "isHealthy")
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(true);
 
+      runtime.init({ disableRetryDelay: true });
+
       await expect(runtime.waitForHealthy()).resolves.toBeUndefined();
       expect(healthySpy).toHaveBeenCalledTimes(3);
     });
 
-    it.skip("should throw after max retries", async () => {
-      const runtime = new RuntimeManager(mockConfig);
+    it("should throw after max retries", async () => {
+      const runtime = new RuntimeManager(mockConfig, true);
       vi.spyOn(runtime, "isHealthy").mockResolvedValue(false);
+      runtime.init({ disableRetryDelay: true });
 
       await expect(runtime.waitForHealthy()).rejects.toThrow(
-        "Failed to connect after 5 retries",
+        "Failed to connect after 6 retries",
       );
     });
   });

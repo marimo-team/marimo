@@ -4,12 +4,14 @@ from __future__ import annotations
 import html
 import json
 import os
+from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._convert.converters import MarimoConvert
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
@@ -124,6 +126,16 @@ def notebook_page_template(
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
+    # When we have a remote URL, let's pre-populate the index.html page
+    # with a view of the notebook.
+    notebook_snapshot = None
+    if remote_url and filename:
+        filepath = Path(filename)
+        if filepath.exists():
+            notebook_snapshot = MarimoConvert.from_py(
+                filepath.read_text(encoding="utf-8")
+            ).to_notebook_v1()
+
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
@@ -135,6 +147,7 @@ def notebook_page_template(
             config_overrides=config_overrides,
             app_config=app_config,
             remote_url=remote_url,
+            notebook_snapshot=notebook_snapshot,
         ),
     )
 

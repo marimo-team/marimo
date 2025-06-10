@@ -7,6 +7,8 @@ import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { Spinner } from "@/components/icons/spinner";
+import { Logger } from "@/utils/Logger";
+import { waitForConnectionOpen } from "@/core/network/connection";
 
 const TerminalComponent: React.FC<{
   visible: boolean;
@@ -34,20 +36,31 @@ const TerminalComponent: React.FC<{
       return;
     }
 
-    const socket = new WebSocket(runtimeManager.getTerminalWsURL());
-    const attachAddon = new AttachAddon(socket);
-    terminal.loadAddon(attachAddon);
+    const connectTerminal = async () => {
+      try {
+        await waitForConnectionOpen();
 
-    const handleDisconnect = () => {
-      onClose();
-      // Reset
-      attachAddon.dispose();
-      terminal.clear();
-      setInitialized(false);
+        const socket = new WebSocket(runtimeManager.getTerminalWsURL());
+        const attachAddon = new AttachAddon(socket);
+        terminal.loadAddon(attachAddon);
+
+        const handleDisconnect = () => {
+          onClose();
+          // Reset
+          attachAddon.dispose();
+          terminal.clear();
+          setInitialized(false);
+        };
+
+        socket.addEventListener("close", handleDisconnect);
+        setInitialized(true);
+      } catch (error) {
+        Logger.error("Runtime health check failed for terminal", error);
+        onClose();
+      }
     };
 
-    socket.addEventListener("close", handleDisconnect);
-    setInitialized(true);
+    connectTerminal();
 
     return () => {
       // noop

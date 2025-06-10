@@ -1,10 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect } from "react";
 import { Cell } from "@/components/editor/Cell";
-import {
-  type ConnectionStatus,
-  WebSocketState,
-} from "../../../core/websocket/types";
+import type { ConnectionStatus } from "../../../core/websocket/types";
 import {
   useNotebook,
   type CellActions,
@@ -194,7 +191,7 @@ const CellColumn: React.FC<{
   hasSetupCell,
   onDeleteCell,
 }) => {
-  const appClosed = connStatus.state !== WebSocketState.OPEN;
+  const connectionState = connStatus.state;
 
   return (
     <Column
@@ -236,7 +233,7 @@ const CellColumn: React.FC<{
             }
             canDelete={true}
             mode={mode}
-            appClosed={appClosed}
+            connectionState={connectionState}
             ref={notebook.cellHandles[SETUP_CELL_ID]}
             userConfig={userConfig}
             isCollapsed={false}
@@ -269,7 +266,7 @@ const CellColumn: React.FC<{
               }
               canDelete={!hasOnlyOneCell}
               mode={mode}
-              appClosed={appClosed}
+              connectionState={connectionState}
               ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
               config={cellData.config}

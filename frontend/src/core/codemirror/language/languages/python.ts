@@ -41,12 +41,21 @@ import { Logger } from "@/utils/Logger";
 import { CellDocumentUri } from "../../lsp/types";
 import { hasCapability } from "@/core/config/capabilities";
 import { getRuntimeManager } from "@/core/runtime/config";
+import { waitForConnectionOpen } from "@/core/network/connection";
 
 const pylspTransport = once(() => {
   const runtimeManager = getRuntimeManager();
   const transport = new WebSocketTransport(
     runtimeManager.getLSPURL("pylsp").toString(),
   );
+
+  // Override connect to ensure runtime is healthy
+  const originalConnect = transport.connect.bind(transport);
+  transport.connect = async () => {
+    await waitForConnectionOpen();
+    return originalConnect();
+  };
+
   return transport;
 });
 

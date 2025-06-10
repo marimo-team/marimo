@@ -5,9 +5,15 @@ import { urlJoin } from "./utils";
 import { Logger } from "@/utils/Logger";
 import { getSessionId, type SessionId } from "../kernel/session";
 import { KnownQueryParams } from "../constants";
+import { Deferred } from "@/utils/Deferred";
 
 export class RuntimeManager {
-  constructor(private config: RuntimeConfig) {
+  private initialHealthyCheck = new Deferred<void>();
+
+  constructor(
+    private config: RuntimeConfig,
+    private lazy = false,
+  ) {
     // Validate the URL on construction
     try {
       new URL(this.config.url);
@@ -16,6 +22,10 @@ export class RuntimeManager {
         `Invalid runtime URL: ${this.config.url}. ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
+
+    if (!this.lazy) {
+      this.init();
+    }
   }
 
   /**
@@ -23,6 +33,10 @@ export class RuntimeManager {
    */
   get httpURL(): URL {
     return new URL(this.config.url);
+  }
+
+  get isSameOrigin(): boolean {
+    return this.httpURL.origin === window.location.origin;
   }
 
   /**
@@ -94,29 +108,41 @@ export class RuntimeManager {
     try {
       const response = await fetch(this.healthURL().toString());
       return response.ok;
-    } catch (error) {
-      Logger.error("Failed to check health", error);
+    } catch {
       return false;
     }
   }
 
-  /**
-   * Wait for the runtime to be healthy.
-   * @throws if the runtime is not healthy after 5 retries
-   */
-  async waitForHealthy(): Promise<void> {
+  async init(options?: {
+    disableRetryDelay?: boolean;
+  }) {
     let retries = 0;
-    const maxRetries = 5;
+    const maxRetries = 6;
     const baseDelay = 1000;
 
     while (!(await this.isHealthy())) {
       if (retries >= maxRetries) {
-        throw new Error("Failed to connect after 5 retries");
+        Logger.error(`Failed to connect after ${maxRetries} retries`);
+        this.initialHealthyCheck.reject(
+          new Error(`Failed to connect after ${maxRetries} retries`),
+        );
+        return;
       }
-      const delay = baseDelay * 2 ** retries;
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      if (!options?.disableRetryDelay) {
+        const delay = baseDelay * 2 ** retries;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
       retries++;
     }
+
+    this.initialHealthyCheck.resolve();
+  }
+
+  /**
+   * Wait for the runtime to be healthy.
+   */
+  async waitForHealthy(): Promise<void> {
+    return this.initialHealthyCheck.promise;
   }
 
   headers(): Record<string, string> {
