@@ -305,26 +305,26 @@ class google(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
-            "chat model requires google. `pip install google-generativeai`"
+            "chat model requires google. `pip install google-genai`"
         )
-        import google.generativeai as genai  # type: ignore[import-not-found]
+        from google import genai  # type: ignore[import-not-found]
 
-        genai.configure(api_key=self._require_api_key)
-        client = genai.GenerativeModel(
-            model_name=self.model,
-            system_instruction=self.system_message,
-            generation_config=genai.GenerationConfig(
-                max_output_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                top_k=config.top_k,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-            ),
-        )
+        client = genai.Client(api_key=self._require_api_key)
 
         google_messages = convert_to_google_messages(messages)
-        response = client.generate_content(google_messages)
+        response = client.models.generate_content(
+            model=self.model,
+            contents=google_messages,
+            config={
+                "system_instruction": self.system_message,
+                "max_output_tokens": config.max_tokens,
+                "temperature": config.temperature,
+                "top_p": config.top_p,
+                "top_k": config.top_k,
+                "frequency_penalty": config.frequency_penalty,
+                "presence_penalty": config.presence_penalty,
+            },
+        )
 
         content = response.text
         return content or ""
