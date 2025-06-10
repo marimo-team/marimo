@@ -39,6 +39,7 @@ def _get_mount_config(
     show_app_code: bool = True,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
+    remote_url: Optional[str] = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
@@ -59,6 +60,7 @@ def _get_mount_config(
         },
         "notebook": notebook_snapshot,
         "session": session_snapshot,
+        "runtime_config": [{"url": remote_url}] if remote_url else None,
     }
 
     return """{{
@@ -72,6 +74,7 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
+            "runtimeConfig": {runtime_config}
         }}
 """.format(
         **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
@@ -98,6 +101,7 @@ def home_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=None,
+            remote_url=None,
         ),
     )
 
@@ -116,6 +120,7 @@ def notebook_page_template(
     app_config: _AppConfig,
     filename: Optional[str],
     mode: SessionMode,
+    remote_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
@@ -129,6 +134,7 @@ def notebook_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=app_config,
+            remote_url=remote_url,
         ),
     )
 
@@ -201,6 +207,7 @@ def static_notebook_template(
             app_config=app_config,
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
+            remote_url=None,
         ),
     )
 
@@ -325,6 +332,7 @@ def wasm_notebook_template(
             app_config=app_config,
             version=version,
             show_app_code=show_code,
+            remote_url=None,
         ),
     )
 

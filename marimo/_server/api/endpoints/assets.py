@@ -111,6 +111,7 @@ async def index(request: Request) -> HTMLResponse:
             app_config=app_config,
             filename=app_manager.filename,
             mode=app_state.mode,
+            remote_url=app_state.remote_url,
         )
 
         # Inject service worker registration with the notebook ID
