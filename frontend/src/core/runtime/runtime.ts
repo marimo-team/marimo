@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
 import type { RuntimeConfig } from "./types";
-import { urlJoin } from "./utils";
 import { Logger } from "@/utils/Logger";
 import { getSessionId, type SessionId } from "../kernel/session";
 import { KnownQueryParams } from "../constants";
@@ -18,23 +17,26 @@ export class RuntimeManager {
     }
   }
 
-  /**
-   * The base URL of the runtime.
-   */
   get httpURL(): URL {
     return new URL(this.config.url);
   }
 
   /**
-   * The WebSocket URL of the runtime.
+   * The base URL of the runtime.
    */
-  getWsURL(sessionId: SessionId): URL {
-    const wsUrl = asWsUrl(this.config.url);
-    const baseUrl = new URL(wsUrl);
-    const searchParams = new URLSearchParams(baseUrl.search);
+  formatHttpURL(path?: string, searchParams?: URLSearchParams): URL {
+    if (!path) {
+      path = "";
+    }
+    // URL may be something like "http://localhost:8000?auth=123"
+    const baseUrl = this.httpURL;
     const currentParams = new URLSearchParams(window.location.search);
-
-    searchParams.set(KnownQueryParams.sessionId, sessionId);
+    // Copy over search params if provided
+    if (searchParams) {
+      for (const [key, value] of searchParams.entries()) {
+        baseUrl.searchParams.set(key, value);
+      }
+    }
 
     // Move over window level parameters to the WebSocket URL
     // if they are "known" query params.
@@ -42,52 +44,64 @@ export class RuntimeManager {
       const key = KnownQueryParams[lookup as keyof typeof KnownQueryParams];
       const value = currentParams.get(key);
       if (value !== null) {
-        searchParams.set(key, value);
+        baseUrl.searchParams.set(key, value);
       }
     }
-    return new URL(
-      urlJoin(wsUrl.split("?")[0], `ws?${searchParams.toString()}`),
-    );
+
+    const cleanPath = baseUrl.pathname.replace(/\/$/, "");
+    baseUrl.pathname = `${cleanPath}/${path.replace(/^\//, "")}`;
+    baseUrl.hash = "";
+    return baseUrl;
+  }
+
+  formatWsURL(path: string, searchParams?: URLSearchParams): URL {
+    const url = this.formatHttpURL(path, searchParams);
+    return asWsUrl(url.toString());
+  }
+
+  /**
+   * The WebSocket URL of the runtime.
+   */
+  getWsURL(sessionId: SessionId): URL {
+    const baseUrl = new URL(this.config.url);
+    const searchParams = new URLSearchParams(baseUrl.search);
+    searchParams.set(KnownQueryParams.sessionId, sessionId);
+    return this.formatWsURL("/ws", searchParams);
   }
 
   /**
    * The WebSocket Sync URL of the runtime, for real-time updates.
    */
   getWsSyncURL(sessionId: SessionId): URL {
-    const wsSyncUrl = asWsUrl(this.config.url);
-    const baseUrl = new URL(wsSyncUrl);
+    const baseUrl = new URL(this.config.url);
     const searchParams = new URLSearchParams(baseUrl.search);
     searchParams.set(KnownQueryParams.sessionId, sessionId);
-    return new URL(
-      urlJoin(wsSyncUrl.split("?")[0], `ws_sync?${searchParams.toString()}`),
-    );
+    return this.formatWsURL("/ws_sync", searchParams);
   }
 
   /**
    * The WebSocket URL of the terminal.
    */
   getTerminalWsURL(): URL {
-    const terminalUrl = asWsUrl(this.config.url);
-    return new URL(urlJoin(terminalUrl, "terminal/ws"));
+    return this.formatWsURL("/terminal/ws");
   }
 
   /**
    * The URL of the copilot server.
    */
   getLSPURL(lsp: "pylsp" | "copilot"): URL {
-    const lspUrl = asWsUrl(this.config.url);
-    return new URL(urlJoin(lspUrl, `lsp/${lsp}`));
+    return this.formatWsURL(`/lsp/${lsp}`);
   }
 
   getAiURL(path: "completion" | "chat"): URL {
-    return new URL(urlJoin(this.httpURL.toString(), `api/ai/${path}`));
+    return this.formatHttpURL(`/api/ai/${path}`);
   }
 
   /**
    * The URL of the health check endpoint.
    */
   healthURL(): URL {
-    return new URL(urlJoin(this.httpURL.toString(), "health"));
+    return this.formatHttpURL("/health");
   }
 
   async isHealthy(): Promise<boolean> {
@@ -133,8 +147,8 @@ export class RuntimeManager {
   }
 }
 
-function asWsUrl(url: string): string {
+function asWsUrl(url: string): URL {
   invariant(url.startsWith("http"), "URL must start with http");
   // Replace the protocol http with ws
-  return url.replace(/^http/, "ws");
+  return new URL(url.replace(/^http/, "ws"));
 }
