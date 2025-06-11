@@ -20,13 +20,13 @@ class EntryPointRegistry(Generic[T]):
     1. Through an explicit call to `.register(name, value)`
     2. By looking for Python packages that provide a setuptools entry point group
 
-    The registry can be configured with whitelists and blacklists through environment variables:
-    - MARIMO_{GROUP}_WHITELIST: Comma-separated list of allowed extensions
-    - MARIMO_{GROUP}_BLACKLIST: Comma-separated list of blocked extensions
+    The registry can be configured with allowlists and denylists through environment variables:
+    - MARIMO_{GROUP}_ALLOWLIST: Comma-separated list of allowed extensions
+    - MARIMO_{GROUP}_DENYLIST: Comma-separated list of denied extensions
 
     Example:
-        MARIMO_CELL_EXECUTOR_WHITELIST=my-executor,another-executor
-        MARIMO_CELL_EXECUTOR_BLACKLIST=blocked-executor
+        MARIMO_CELL_EXECUTOR_ALLOWLIST=my-executor,another-executor
+        MARIMO_CELL_EXECUTOR_DENYLIST=denied-executor
 
     Usage:
         registry = EntryPointRegistry[MyType]("my_entrypoint_group")
@@ -53,22 +53,22 @@ class EntryPointRegistry(Generic[T]):
         Returns:
             True if the extension is allowed, False otherwise.
         """
-        # Check blacklist first
-        blacklist_var = f"{self._env_prefix}_BLACKLIST"
-        if blacklist_var in os.environ:
-            blacklist = {
-                n.strip().lower() for n in os.environ[blacklist_var].split(",")
+        # Check denylist first
+        denylist_var = f"{self._env_prefix}_DENYLIST"
+        if denylist_var in os.environ:
+            denylist = {
+                n.strip().lower() for n in os.environ[denylist_var].split(",")
             }
-            if name.lower() in blacklist:
+            if name.lower() in denylist:
                 return False
 
-        # Then check whitelist
-        whitelist_var = f"{self._env_prefix}_WHITELIST"
-        if whitelist_var in os.environ:
-            whitelist = {
-                n.strip().lower() for n in os.environ[whitelist_var].split(",")
+        # Then check allowlist
+        allowlist_var = f"{self._env_prefix}_ALLOWLIST"
+        if allowlist_var in os.environ:
+            allowlist = {
+                n.strip().lower() for n in os.environ[allowlist_var].split(",")
             }
-            return name.lower() in whitelist
+            return name.lower() in allowlist
 
         return True
 
@@ -118,7 +118,7 @@ class EntryPointRegistry(Generic[T]):
 
         Raises:
             KeyError: If the plugin cannot be found.
-            ValueError: If the plugin is not allowed by whitelist/blacklist.
+            ValueError: If the plugin is not allowed by allowlist/denylist.
         """
         if not self._is_allowed(name):
             LOGGER.debug("Extension ignored %s", name)

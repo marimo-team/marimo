@@ -40,9 +40,9 @@ class TestEntryPointRegistry:
         assert "EntryPointRegistry" in repr(registry)
         assert "test" in repr(registry)
 
-    def test_whitelist(self, registry: EntryPointRegistry[str]) -> None:
+    def test_allowlist(self, registry: EntryPointRegistry[str]) -> None:
         with patch.dict(
-            os.environ, {"MARIMO_TEST_GROUP_WHITELIST": "test1,test2"}
+            os.environ, {"MARIMO_TEST_GROUP_ALLOWLIST": "test1,test2"}
         ):
             # Allowed extension
             registry.register("test1", "value1")
@@ -56,41 +56,41 @@ class TestEntryPointRegistry:
             with pytest.raises(ValueError, match="not allowed"):
                 registry.get("test3")
 
-    def test_blacklist(self, registry: EntryPointRegistry[str]) -> None:
+    def test_denylist(self, registry: EntryPointRegistry[str]) -> None:
         with patch.dict(
-            os.environ, {"MARIMO_TEST_GROUP_BLACKLIST": "test2,test3"}
+            os.environ, {"MARIMO_TEST_GROUP_DENYLIST": "test2,test3"}
         ):
             # Allowed extension
             registry.register("test1", "value1")
             assert registry.get("test1") == "value1"
 
-            # Blacklisted extension - should be silently ignored
+            # Denied extension - should be silently ignored
             registry.register("test2", "value2")
             assert "test2" not in registry.names()
 
-            # Blacklisted extension - should raise on get
+            # Denied extension - should raise on get
             with pytest.raises(ValueError, match="not allowed"):
                 registry.get("test2")
 
-    def test_whitelist_and_blacklist(
+    def test_allowlist_and_denylist(
         self, registry: EntryPointRegistry[str]
     ) -> None:
         with patch.dict(
             os.environ,
             {
-                "MARIMO_TEST_GROUP_WHITELIST": "test1,test2",
-                "MARIMO_TEST_GROUP_BLACKLIST": "test2,test3",
+                "MARIMO_TEST_GROUP_ALLOWLIST": "test1,test2",
+                "MARIMO_TEST_GROUP_DENYLIST": "test2,test3",
             },
         ):
             # Allowed extension
             registry.register("test1", "value1")
             assert registry.get("test1") == "value1"
 
-            # Blacklisted extension - should be silently ignored even if in whitelist
+            # Denied extension - should be silently ignored even if in allowlist
             registry.register("test2", "value2")
             assert "test2" not in registry.names()
 
-            # Not in whitelist - should be silently ignored
+            # Not in allowlist - should be silently ignored
             registry.register("test4", "value4")
             assert "test4" not in registry.names()
 
@@ -98,16 +98,16 @@ class TestEntryPointRegistry:
         with patch.dict(
             os.environ,
             {
-                "MARIMO_TEST_GROUP_WHITELIST": "Test1,TEST2",
-                "MARIMO_TEST_GROUP_BLACKLIST": "TEST3,test4",
+                "MARIMO_TEST_GROUP_ALLOWLIST": "Test1,TEST2",
+                "MARIMO_TEST_GROUP_DENYLIST": "TEST3,test4",
             },
         ):
-            # Case-insensitive whitelist match
+            # Case-insensitive allowlist match
             registry.register("test1", "value1")
             registry.register("TEST2", "value2")
             assert set(registry.names()) == {"test1", "TEST2"}
 
-            # Case-insensitive blacklist match
+            # Case-insensitive denylist match
             registry.register("Test3", "value3")
             registry.register("TEST4", "value4")
             assert "Test3" not in registry.names()
