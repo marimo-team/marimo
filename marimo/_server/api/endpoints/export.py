@@ -29,6 +29,8 @@ LOGGER = _loggers.marimo_logger()
 # Router for export endpoints
 router = APIRouter()
 
+auto_exporter = AutoExporter()
+
 
 @router.post("/html")
 @requires("read")
@@ -135,7 +137,7 @@ async def auto_export_as_html(
     )
 
     # Save the HTML file to disk, at `.marimo/<filename>.html`
-    AutoExporter().save_html(
+    await auto_exporter.save_html(
         file_manager=session.app_file_manager,
         html=html,
     )
@@ -283,7 +285,7 @@ async def auto_export_as_markdown(
     )
 
     # Save the Markdown file to disk, at `.marimo/<filename>.md`
-    AutoExporter().save_md(
+    await auto_exporter.save_md(
         file_manager=session.app_file_manager,
         markdown=markdown,
     )
@@ -339,7 +341,7 @@ async def auto_export_as_ipynb(
     )
 
     # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
-    AutoExporter().save_ipynb(
+    await auto_exporter.save_ipynb(
         file_manager=session.app_file_manager,
         ipynb=ipynb,
     )
