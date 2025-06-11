@@ -15,7 +15,8 @@ import { OutlineList } from "./outline/floating-outline";
 export const OutlinePanel: React.FC = () => {
   const { items } = useAtomValue(notebookOutline);
   const headerElements = useMemo(() => findOutlineElements(items), [items]);
-  const { activeHeaderId } = useActiveOutline(headerElements);
+  const { activeHeaderId, activeOccurrences } =
+    useActiveOutline(headerElements);
 
   if (items.length === 0) {
     return (
@@ -27,5 +28,11 @@ export const OutlinePanel: React.FC = () => {
     );
   }
 
-  return <OutlineList items={items} activeHeaderId={activeHeaderId} />;
+  return (
+    <OutlineList
+      items={items}
+      activeHeaderId={activeHeaderId}
+      activeOccurrences={activeOccurrences}
+    />
+  );
 };
