@@ -282,7 +282,9 @@ We're building a community. Come hang out with us!
 ecosystem and is a member of the NumFOCUS community, which includes projects
 such as NumPy, SciPy, and Matplotlib.
 
+<div>
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/numfocus_affiliated_project.png" height="50px" align="right" />
+</div>
 
 
 ## Inspiration ✨
