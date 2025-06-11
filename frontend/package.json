@@ -36,7 +36,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
-    "@glideapps/glide-data-grid": "^6.0.3",
+    "@glideapps/glide-data-grid": "6.0.4-alpha9",
     "@hookform/resolvers": "^3.10.0",
     "@img-comparison-slider/react": "^8.0.2",
     "@internationalized/date": "^3.8.0",

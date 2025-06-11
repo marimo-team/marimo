@@ -80,6 +80,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           edits={props.value.edits}
           onEdits={props.setValue}
           columnSizingMode={props.data.columnSizingMode}
+          host={props.host}
         />
       </TooltipProvider>
     );
@@ -90,6 +91,7 @@ interface Props
   data: TableData<object>;
   edits: Edits["edits"];
   onEdits: Setter<Edits>;
+  host: HTMLElement;
 }
 
 const LoadingDataEditor = (props: Props) => {
@@ -136,6 +138,7 @@ const LoadingDataEditor = (props: Props) => {
         data={data}
         fieldTypes={props.fieldTypes}
         rows={data.length}
+        host={props.host}
       />
     );
   }

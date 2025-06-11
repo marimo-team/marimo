@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable ssr-friendly/no-dom-globals-in-module-scope */
 
 import { inferFieldTypes } from "@/components/data-table/columns";
 import {
@@ -14,16 +15,39 @@ import DataEditor, {
 } from "@glideapps/glide-data-grid";
 import { useCallback } from "react";
 
+const originalGetElementById = document.getElementById.bind(document);
+document.getElementById = (id: string): HTMLElement | null => {
+  const element = originalGetElementById.call(document, id);
+  if (element) {
+    return element;
+  }
+
+  // Check all marimo-data-editor shadow roots
+  const editors = document.querySelectorAll("marimo-data-editor");
+  for (const editor of editors) {
+    const root = editor.shadowRoot;
+    if (root) {
+      const element = root.getElementById(id);
+      if (element) {
+        return element;
+      }
+    }
+  }
+  return null;
+};
+
 interface GlideDataEditorProps<T> {
   data: T[];
   fieldTypes?: FieldTypesWithExternalType | null;
   rows: number;
+  host: HTMLElement;
 }
 
 export const GlideDataEditor = <T,>({
   data,
   fieldTypes,
   rows,
+  host,
 }: GlideDataEditorProps<T>) => {
   const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
   const columns = Object.entries(columnFields).map(
@@ -67,13 +91,24 @@ export const GlideDataEditor = <T,>({
   );
 
   return (
-    <DataEditor
-      getCellContent={getCellContent}
-      columns={columns}
-      rows={rows}
-      onCellEdited={onCellEdited}
-      // editOnType={true}
-    />
+    <>
+      <DataEditor
+        getCellContent={getCellContent}
+        columns={columns}
+        rows={rows}
+        width={300}
+        height={300}
+        onCellEdited={onCellEdited}
+        experimental={{
+          eventTarget: (host.shadowRoot as unknown as HTMLElement) || window,
+        }}
+        // editOnType={true}
+      />
+      <div
+        id="portal"
+        style={{ position: "fixed", left: 0, top: 0, zIndex: 9999 }}
+      />
+    </>
   );
 };
 
