@@ -6,7 +6,7 @@ import type { RuntimeManager } from "../runtime/runtime";
 
 function getBaseUriWithoutQueryParams(): string {
   // Remove query params and hash
-  const url = new URL(document.baseURI);
+  const url = getRuntimeManager().httpURL;
   url.search = "";
   url.hash = "";
   return url.toString();
