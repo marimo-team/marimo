@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.1.61"
+__generated_with = "0.13.15"
 app = marimo.App()
 
 
 @app.cell
-def __(np, plt):
+def _(np, plt):
     # Generate some random data
     categories = ["A", "B", "C", "D", "E"]
     values = np.random.rand(5)
@@ -15,11 +15,11 @@ def __(np, plt):
     plt.xlabel("Categories")
     plt.ylabel("Values")
     None
-    return bar, categories, values
+    return (bar,)
 
 
 @app.cell
-def __(mo):
+def _(mo):
     # options
     callout_kind = mo.ui.dropdown(
         label="Color",
@@ -41,7 +41,7 @@ def __(mo):
 
 
 @app.cell
-def __(alt, callout_kind, mo, office_characters, vega_datasets):
+def _(alt, callout_kind, mo, office_characters, vega_datasets):
     options = ["Apples", "Oranges", "Pears"]
 
     # inputs
@@ -84,7 +84,7 @@ def __(alt, callout_kind, mo, office_characters, vega_datasets):
     # status
     # TODO(akshayka): this is using an internal API since we don't expose the progress bar
     progress_bar = mo._plugins.stateless.status._progress.ProgressBar(
-        title=None, subtitle=None, total=10
+        title=None, subtitle=None, total=10, show_rate=True, show_eta=True
     )
 
     with mo.status.spinner(title="Hang tight!") as spinner:
@@ -111,7 +111,6 @@ def __(alt, callout_kind, mo, office_characters, vega_datasets):
         microphone,
         multiselect,
         number,
-        options,
         progress_bar,
         radio,
         refresh,
@@ -126,7 +125,7 @@ def __(alt, callout_kind, mo, office_characters, vega_datasets):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     # array
     wish = mo.ui.text(placeholder="Wish")
 
@@ -134,11 +133,11 @@ def __(create_wrapper, mo):
         mo.ui.array([wish] * 3, label="Three wishes"),
         "array",
     )
-    return wish,
+    return
 
 
 @app.cell
-def __(batch, create_wrapper, mo):
+def _(batch, create_wrapper, mo):
     # batch
     create_wrapper(
         mo.hstack([batch, batch.value]),
@@ -148,14 +147,14 @@ def __(batch, create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo, refresh):
+def _(create_wrapper, mo, refresh):
     # refresh
     create_wrapper(mo.hstack([refresh, refresh.value]), "refresh")
     return
 
 
 @app.cell
-def __(button, create_wrapper, mo):
+def _(button, create_wrapper, mo):
     # button
     create_wrapper(
         mo.hstack([button]),
@@ -165,7 +164,7 @@ def __(button, create_wrapper, mo):
 
 
 @app.cell
-def __(checkbox, create_wrapper, mo):
+def _(checkbox, create_wrapper, mo):
     # checkbox
     create_wrapper(
         mo.hstack([checkbox, mo.md(f"Has value: {checkbox.value}")]),
@@ -175,7 +174,7 @@ def __(checkbox, create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     # dictionary
     first_name = mo.ui.text(placeholder="First name")
     last_name = mo.ui.text(placeholder="Last name")
@@ -191,11 +190,11 @@ def __(create_wrapper, mo):
         ),
         "dictionary",
     )
-    return email, first_name, last_name
+    return
 
 
 @app.cell
-def __(callout, callout_kind, create_wrapper, mo):
+def _(callout, callout_kind, create_wrapper, mo):
     create_wrapper(
         mo.vstack([callout_kind, callout], align="stretch", gap=0),
         "callout",
@@ -204,7 +203,7 @@ def __(callout, callout_kind, create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     create_wrapper(
         mo.md(
             f"""
@@ -239,7 +238,7 @@ def __(create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     create_wrapper(
         mo.md(
             r"""
@@ -256,7 +255,7 @@ def __(create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, file):
+def _(create_wrapper, file):
     create_wrapper(
         file,
         "file",
@@ -265,7 +264,7 @@ def __(create_wrapper, file):
 
 
 @app.cell
-def __(create_wrapper, mo, multiselect):
+def _(create_wrapper, mo, multiselect):
     create_wrapper(
         mo.hstack([multiselect, mo.md(f"Has value: {multiselect.value}")]),
         "multiselect",
@@ -274,7 +273,7 @@ def __(create_wrapper, mo, multiselect):
 
 
 @app.cell
-def __(create_wrapper, dropdown, mo):
+def _(create_wrapper, dropdown, mo):
     create_wrapper(
         mo.hstack([dropdown, mo.md(f"Has value: {dropdown.value}")]),
         "dropdown",
@@ -283,7 +282,7 @@ def __(create_wrapper, dropdown, mo):
 
 
 @app.cell
-def __(create_wrapper, date, mo):
+def _(create_wrapper, date, mo):
     create_wrapper(
         mo.hstack([date, mo.md(f"Has value: {date.value}")]),
         "date",
@@ -292,7 +291,7 @@ def __(create_wrapper, date, mo):
 
 
 @app.cell
-def __(create_wrapper, mo, switch):
+def _(create_wrapper, mo, switch):
     create_wrapper(
         mo.hstack([switch, mo.md(f"Has value: {switch.value}")]),
         "switch",
@@ -301,17 +300,25 @@ def __(create_wrapper, mo, switch):
 
 
 @app.cell
-def __(create_wrapper, microphone, mo):
+def _(create_wrapper, microphone, mo):
     # microphone
+    has_audio_content = len(microphone.value.getbuffer()) != 0
     create_wrapper(
-        mo.hstack([microphone, mo.audio(microphone.value)]),
+        mo.hstack(
+            [
+                microphone,
+                mo.audio(microphone.value)
+                if has_audio_content
+                else mo.md("Waiting..."),
+            ]
+        ),
         "microphone",
     )
     return
 
 
 @app.cell
-def __(create_wrapper, mo, slider):
+def _(create_wrapper, mo, slider):
     create_wrapper(
         mo.hstack([slider, mo.md(f"Has value: {slider.value}")]),
         "slider",
@@ -320,7 +327,7 @@ def __(create_wrapper, mo, slider):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     _src = "https://upload.wikimedia.org/wikipedia/commons/8/8c/Ivan_Ili%C4%87-Chopin_-_Prelude_no._1_in_C_major.ogg"
     create_wrapper(
         mo.audio(_src),
@@ -330,7 +337,7 @@ def __(create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     create_wrapper(
         mo.pdf(
             src="https://arxiv.org/pdf/2104.00282.pdf",
@@ -343,7 +350,7 @@ def __(create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     _src = (
         "https://images.pexels.com/photos/86596/owl-bird-eyes-eagle-owl-86596.jpeg"
     )
@@ -355,7 +362,7 @@ def __(create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo, number):
+def _(create_wrapper, mo, number):
     create_wrapper(
         mo.hstack([number, mo.md(f"Has value: {number.value}")]),
         "number",
@@ -364,16 +371,16 @@ def __(create_wrapper, mo, number):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def create_wrapper(element, key, code=""):
         return mo.vstack(
             [mo.md(f"## **{key.upper()}**"), element], align="stretch", gap=2
         )
-    return create_wrapper,
+    return (create_wrapper,)
 
 
 @app.cell
-def __(create_wrapper, mo, text):
+def _(create_wrapper, mo, text):
     create_wrapper(
         mo.hstack([text, mo.md(f"Has value: {text.value}")]),
         "text",
@@ -382,7 +389,7 @@ def __(create_wrapper, mo, text):
 
 
 @app.cell
-def __(create_wrapper, mo, text_area):
+def _(create_wrapper, mo, text_area):
     create_wrapper(
         mo.hstack([text_area, mo.md(f"Has value: {text_area.value}")]),
         "text_area",
@@ -391,7 +398,7 @@ def __(create_wrapper, mo, text_area):
 
 
 @app.cell
-def __(create_wrapper, mo, radio):
+def _(create_wrapper, mo, radio):
     create_wrapper(
         mo.hstack([radio, mo.md(f"Has value: {radio.value}")]),
         "radio",
@@ -400,7 +407,7 @@ def __(create_wrapper, mo, radio):
 
 
 @app.cell
-def __(create_wrapper, form, mo):
+def _(create_wrapper, form, mo):
     create_wrapper(
         mo.hstack([form, mo.md(f"Has value: {form.value}")]),
         "form",
@@ -409,7 +416,7 @@ def __(create_wrapper, form, mo):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     create_wrapper(
         mo.accordion(
             {
@@ -427,7 +434,7 @@ def __(create_wrapper, mo):
 
 
 @app.cell
-def __(bar, create_wrapper, mo):
+def _(bar, create_wrapper, mo):
     create_wrapper(
         mo.ui.tabs(
             {
@@ -441,7 +448,7 @@ def __(bar, create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, mo):
+def _(create_wrapper, mo):
     tree = mo.tree(
         [
             "entry",
@@ -455,11 +462,11 @@ def __(create_wrapper, mo):
         tree,
         "tree",
     )
-    return tree,
+    return
 
 
 @app.cell
-def __(align, boxes, create_wrapper, gap, justify, mo, wrap):
+def _(align, boxes, create_wrapper, gap, justify, mo, wrap):
     horizontal = mo.hstack(
         boxes,
         align=align.value,
@@ -488,11 +495,11 @@ def __(align, boxes, create_wrapper, gap, justify, mo, wrap):
         stacks,
         "stacks",
     )
-    return horizontal, stacks, vertical
+    return
 
 
 @app.cell
-def __(create_wrapper, table):
+def _(create_wrapper, table):
     create_wrapper(
         table, "table", "mo.ui.table(data=office_characters, pagination=True)"
     )
@@ -500,7 +507,7 @@ def __(create_wrapper, table):
 
 
 @app.cell
-def __(create_wrapper, spinner):
+def _(create_wrapper, spinner):
     # spinner
     create_wrapper(
         spinner,
@@ -510,7 +517,7 @@ def __(create_wrapper, spinner):
 
 
 @app.cell
-def __(create_wrapper, progress_bar):
+def _(create_wrapper, progress_bar):
     # progress bar
     create_wrapper(
         progress_bar,
@@ -520,7 +527,7 @@ def __(create_wrapper, progress_bar):
 
 
 @app.cell
-def __(create_wrapper, stat):
+def _(create_wrapper, stat):
     create_wrapper(
         stat,
         "stat",
@@ -529,7 +536,7 @@ def __(create_wrapper, stat):
 
 
 @app.cell
-def __(chart, create_wrapper, mo):
+def _(chart, create_wrapper, mo):
     create_wrapper(
         mo.vstack([chart, mo.ui.table(chart.value)]),
         "altair-chart",
@@ -538,7 +545,7 @@ def __(chart, create_wrapper, mo):
 
 
 @app.cell
-def __(mo):
+def _(mo):
     def create_box(num=1):
         box_size = 30 + num * 10
         return mo.Html(
@@ -547,11 +554,11 @@ def __(mo):
 
 
     boxes = [create_box(i) for i in range(1, 5)]
-    return boxes, create_box
+    return (boxes,)
 
 
 @app.cell
-def __():
+def _():
     office_characters = [
         {"first_name": "Michael", "last_name": "Scott"},
         {"first_name": "Jim", "last_name": "Halpert"},
@@ -574,11 +581,11 @@ def __():
         {"first_name": "David", "last_name": "Wallace"},
         {"first_name": "Holly", "last_name": "Flax"},
     ]
-    return office_characters,
+    return (office_characters,)
 
 
 @app.cell
-def __():
+def _():
     import altair as alt
     import vega_datasets
     import marimo as mo

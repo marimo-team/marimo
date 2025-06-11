@@ -16,6 +16,7 @@ import React, {
   useImperativeHandle,
   useMemo,
   useState,
+  type JSX,
 } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
 

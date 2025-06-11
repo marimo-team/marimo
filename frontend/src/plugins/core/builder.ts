@@ -2,6 +2,7 @@
 import type { ZodType, ZodTypeDef } from "zod";
 import type { IPluginProps, IPlugin } from "../types";
 import type { FunctionSchemas, PluginFunctions } from "./rpc";
+import type { JSX } from "react";
 
 type Renderer<S, D, F> = (props: IPluginProps<S, D, F>) => JSX.Element;
 // If this simple builder pattern becomes unwieldy, we can switch to a more

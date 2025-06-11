@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, type JSX } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
 import { Tooltip } from "@/components/ui/tooltip";

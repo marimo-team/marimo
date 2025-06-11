@@ -8,7 +8,7 @@ import { Logger } from "@/utils/Logger";
 
 import "./plotly.css";
 import "./mapbox.css";
-import { lazy, memo, useEffect, useMemo, useState } from "react";
+import { lazy, memo, useEffect, useMemo, useState, type JSX } from "react";
 import useEvent from "react-use-event-hook";
 import { type PlotlyTemplateParser, createParser } from "./parse-from-template";
 import { Objects } from "@/utils/objects";

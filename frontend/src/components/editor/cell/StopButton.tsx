@@ -9,6 +9,8 @@ import { ToolbarItem } from "./toolbar";
 import type { WebSocketState } from "@/core/websocket/types";
 import { isAppInteractionDisabled } from "@/core/websocket/connection-utils";
 
+import type { JSX } from "react";
+
 export const StopButton = (props: {
   status: RuntimeState;
   connectionState: WebSocketState;

@@ -14,7 +14,7 @@ export function focusAndScrollCellIntoView({
   variableName,
 }: {
   cellId: CellId;
-  cell: RefObject<CellHandle>;
+  cell: RefObject<CellHandle | null>;
   config: CellConfig;
   codeFocus: "top" | "bottom" | undefined;
   variableName: string | undefined;

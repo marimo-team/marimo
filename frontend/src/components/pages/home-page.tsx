@@ -7,7 +7,7 @@ import {
 } from "@/core/network/requests";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import type React from "react";
-import { Suspense, useContext, useEffect, useRef, useState } from "react";
+import { Suspense, use, useEffect, useRef, useState } from "react";
 import { Spinner } from "../icons/spinner";
 import {
   BookTextIcon,
@@ -107,7 +107,7 @@ const HomePage: React.FC = () => {
 
   return (
     <Suspense>
-      <RunningNotebooksContext.Provider
+      <RunningNotebooksContext
         value={{
           runningNotebooks: running,
           setRunningNotebooks: runningResponse.setData,
@@ -136,7 +136,7 @@ const HomePage: React.FC = () => {
             <WorkspaceNotebooks />
           </ErrorBoundary>
         </div>
-      </RunningNotebooksContext.Provider>
+      </RunningNotebooksContext>
     </Suspense>
   );
 };
@@ -164,7 +164,7 @@ const WorkspaceNotebooks: React.FC = () => {
   const workspace = workspaceResponse.data;
 
   return (
-    <WorkspaceRootContext.Provider value={workspace.root}>
+    <WorkspaceRootContext value={workspace.root}>
       <div className="flex flex-col gap-2">
         <Header
           Icon={BookTextIcon}
@@ -202,7 +202,7 @@ const WorkspaceNotebooks: React.FC = () => {
           <NotebookFileTree searchText={searchText} files={workspace.files} />
         </div>
       </div>
-    </WorkspaceRootContext.Provider>
+    </WorkspaceRootContext>
   );
 };
 
@@ -287,7 +287,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
   const Icon = FILE_TYPE_ICONS[fileType];
   const iconEl = <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />;
-  const root = useContext(WorkspaceRootContext);
+  const root = use(WorkspaceRootContext);
 
   const renderItem = () => {
     const itemClassName =
@@ -441,7 +441,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
   filePath,
 }) => {
   const { openConfirm, closeModal } = useImperativeModal();
-  const { runningNotebooks, setRunningNotebooks } = useContext(
+  const { runningNotebooks, setRunningNotebooks } = use(
     RunningNotebooksContext,
   );
   if (!runningNotebooks.has(filePath)) {

@@ -76,7 +76,7 @@ export interface NotebookState {
   /**
    * Cell handlers
    */
-  cellHandles: Record<CellId, React.RefObject<CellHandle>>;
+  cellHandles: Record<CellId, React.RefObject<CellHandle | null>>;
   /**
    * Array of deleted cells (with their data and index) so that cell deletion can be undone
    *

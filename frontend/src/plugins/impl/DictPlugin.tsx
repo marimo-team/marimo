@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect } from "react";
+import { useEffect, type JSX } from "react";
 import { z } from "zod";
 
 import { getUIElementObjectId } from "../../core/dom/ui-element";

@@ -11,6 +11,7 @@ import { renderHTML } from "../core/RenderHTML";
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { Logger } from "@/utils/Logger";
+import type { JSX } from "react";
 
 type FileUploadType = "button" | "area";
 

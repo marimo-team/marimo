@@ -9,6 +9,8 @@ import {
   getConnectionTooltip,
 } from "@/core/websocket/connection-utils";
 
+import type { JSX } from "react";
+
 function computeColor(
   connectionState: WebSocketState,
   needsRun: boolean,

@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { IPlugin } from "./types";
 
+import type { JSX } from "react";
+
 export interface IStatelessPluginProps<D> {
   /**
    * Host element.

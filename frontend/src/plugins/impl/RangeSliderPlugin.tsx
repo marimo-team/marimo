@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type JSX } from "react";
 import { z } from "zod";
 
 import type { IPlugin, IPluginProps, Setter } from "../types";

@@ -6,6 +6,7 @@ import { Labeled } from "./common/labeled";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { AudioRecorder } from "@/components/audio/audio-recorder";
 import { blobToBase64 } from "@/utils/fileToBase64";
+import type { JSX } from "react";
 
 /**
  * Base64 encoded audio file.

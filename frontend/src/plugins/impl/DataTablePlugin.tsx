@@ -65,6 +65,7 @@ import { store } from "@/core/state/jotai";
 import { loadTableData } from "@/components/data-table/utils";
 import { hasChart } from "@/components/data-table/charts/storage";
 import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
+import type { JSX } from "react";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
@@ -834,7 +835,7 @@ const DataTableComponent = ({
         </ContextAwarePanelItem>
       )}
 
-      <ColumnChartContext.Provider value={chartSpecModel}>
+      <ColumnChartContext value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
             data={data}
@@ -874,7 +875,7 @@ const DataTableComponent = ({
             onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
           />
         </Labeled>
-      </ColumnChartContext.Provider>
+      </ColumnChartContext>
     </>
   );
 };

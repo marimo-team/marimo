@@ -8,6 +8,7 @@ import { type Intent, zodIntent } from "./common/intent";
 import { cn } from "@/utils/cn";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
+import type { JSX } from "react";
 
 interface Data {
   label: string;

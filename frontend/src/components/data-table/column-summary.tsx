@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useContext } from "react";
+import React from "react";
 import { ColumnChartSpecModel } from "./chart-spec-model";
 import { useTheme } from "@/theme/useTheme";
 import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
@@ -29,7 +29,7 @@ const batchedLoader = createBatchedLoader();
 export const TableColumnSummary = <TData, TValue>({
   columnId,
 }: Props<TData, TValue>) => {
-  const chartSpecModel = useContext(ColumnChartContext);
+  const chartSpecModel = React.use(ColumnChartContext);
   const { theme } = useTheme();
   const { spec, type, stats } = chartSpecModel.getHeaderSummary(columnId);
   let chart: React.ReactNode = null;

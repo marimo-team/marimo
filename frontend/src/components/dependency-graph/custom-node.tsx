@@ -2,7 +2,7 @@
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { cn } from "@/utils/cn";
 import { useAtomValue } from "jotai";
-import React, { memo, useContext } from "react";
+import React, { memo, use } from "react";
 import { Handle, Position, useStore } from "reactflow";
 import { type CustomNodeProps, getNodeHeight } from "./elements";
 import { displayCellName } from "@/core/cells/names";
@@ -34,7 +34,7 @@ export const CustomNode = memo((props: CustomNodeProps) => {
   const selectedColor = "var(--gray-9)";
   const color = selected ? selectedColor : nonSelectedColor;
   const reactFlowWidth = useStore(({ width }) => width);
-  const edgeMarkers = useContext(EdgeMarkerContext);
+  const edgeMarkers = use(EdgeMarkerContext);
 
   const linesOfCode = cell.code.split("\n").length;
   return (

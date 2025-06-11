@@ -105,7 +105,7 @@ const CalendarGridBody = ({
 );
 
 const CalendarCell = ({ className, ...props }: AriaCalendarCellProps) => {
-  const isRange = Boolean(React.useContext(AriaRangeCalendarStateContext));
+  const isRange = Boolean(React.use(AriaRangeCalendarStateContext));
   return (
     <AriaCalendarCell
       className={composeRenderProps(className, (className, renderProps) =>

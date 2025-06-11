@@ -8,6 +8,7 @@ import { ErrorBanner } from "../impl/common/error-banner";
 import { renderHTML } from "../core/RenderHTML";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { Loader2Icon } from "lucide-react";
+import type { JSX } from "react";
 
 interface Data {
   showLoadingIndicator: boolean;

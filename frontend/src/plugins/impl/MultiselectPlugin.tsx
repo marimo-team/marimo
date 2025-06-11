@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type JSX } from "react";
 import { z } from "zod";
 
 import type { IPlugin, IPluginProps, Setter } from "../types";

@@ -12,7 +12,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Fragment } from "react";
+import { Fragment, type JSX } from "react";
 import { CellLinkError } from "../links/cell-link";
 import type { CellId } from "@/core/cells/ids";
 import { AutoFixButton } from "../errors/auto-fix";

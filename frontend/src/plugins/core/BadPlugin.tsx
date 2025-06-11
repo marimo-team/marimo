@@ -10,6 +10,7 @@ import {
 } from "@radix-ui/react-accordion";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
+import type { JSX } from "react";
 
 interface Props {
   error: ZodError | Error;
