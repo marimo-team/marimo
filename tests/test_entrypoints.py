@@ -1,3 +1,4 @@
+import os
 from typing import cast
 from unittest.mock import MagicMock, patch
 
@@ -11,7 +12,9 @@ from marimo._runtime.executor import ExecutionConfig, Executor, get_executor
 class TestEntryPointRegistry:
     @pytest.fixture
     def registry(self) -> EntryPointRegistry[str]:
-        return EntryPointRegistry[str](cast(KnownEntryPoint, "plugins"))
+        return EntryPointRegistry[str](
+            cast(KnownEntryPoint, "marimo.test.group")
+        )
 
     def test_register_and_get(self, registry: EntryPointRegistry[str]) -> None:
         registry.register("test", "value")
@@ -36,6 +39,79 @@ class TestEntryPointRegistry:
         registry.register("test", "value")
         assert "EntryPointRegistry" in repr(registry)
         assert "test" in repr(registry)
+
+    def test_whitelist(self, registry: EntryPointRegistry[str]) -> None:
+        with patch.dict(
+            os.environ, {"MARIMO_TEST_GROUP_WHITELIST": "test1,test2"}
+        ):
+            # Allowed extension
+            registry.register("test1", "value1")
+            assert registry.get("test1") == "value1"
+
+            # Not allowed extension - should be silently ignored
+            registry.register("test3", "value3")
+            assert "test3" not in registry.names()
+
+            # Not allowed extension - should raise on get
+            with pytest.raises(ValueError, match="not allowed"):
+                registry.get("test3")
+
+    def test_blacklist(self, registry: EntryPointRegistry[str]) -> None:
+        with patch.dict(
+            os.environ, {"MARIMO_TEST_GROUP_BLACKLIST": "test2,test3"}
+        ):
+            # Allowed extension
+            registry.register("test1", "value1")
+            assert registry.get("test1") == "value1"
+
+            # Blacklisted extension - should be silently ignored
+            registry.register("test2", "value2")
+            assert "test2" not in registry.names()
+
+            # Blacklisted extension - should raise on get
+            with pytest.raises(ValueError, match="not allowed"):
+                registry.get("test2")
+
+    def test_whitelist_and_blacklist(
+        self, registry: EntryPointRegistry[str]
+    ) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "MARIMO_TEST_GROUP_WHITELIST": "test1,test2",
+                "MARIMO_TEST_GROUP_BLACKLIST": "test2,test3",
+            },
+        ):
+            # Allowed extension
+            registry.register("test1", "value1")
+            assert registry.get("test1") == "value1"
+
+            # Blacklisted extension - should be silently ignored even if in whitelist
+            registry.register("test2", "value2")
+            assert "test2" not in registry.names()
+
+            # Not in whitelist - should be silently ignored
+            registry.register("test4", "value4")
+            assert "test4" not in registry.names()
+
+    def test_case_insensitive(self, registry: EntryPointRegistry[str]) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "MARIMO_TEST_GROUP_WHITELIST": "Test1,TEST2",
+                "MARIMO_TEST_GROUP_BLACKLIST": "TEST3,test4",
+            },
+        ):
+            # Case-insensitive whitelist match
+            registry.register("test1", "value1")
+            registry.register("TEST2", "value2")
+            assert set(registry.names()) == {"test1", "TEST2"}
+
+            # Case-insensitive blacklist match
+            registry.register("Test3", "value3")
+            registry.register("TEST4", "value4")
+            assert "Test3" not in registry.names()
+            assert "TEST4" not in registry.names()
 
     @patch("marimo._entrypoints.registry.entry_points")
     def test_get_entry_points_modern(
