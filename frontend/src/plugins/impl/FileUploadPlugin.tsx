@@ -184,7 +184,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     const label = props.label ?? "Upload";
     return (
       <TooltipProvider>
-        <div className="flex flex-row items-center justify-start flex-grow gap-2">
+        <div className="flex flex-row items-center justify-start gap-2">
           <button
             data-testid="marimo-plugin-file-upload-button"
             {...getRootProps({})}
