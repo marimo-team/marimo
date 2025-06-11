@@ -318,7 +318,7 @@ We're building a community. Come hang out with us!
 ecosystem and is a member of the NumFOCUS community, which includes projects
 such as NumPy, SciPy, and Matplotlib.
 
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/numfocus_affiliated_project.png" height="40px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/numfocus_affiliated_project.png" style="height:40px" />
 
 ## Inspiration ✨
 
@@ -344,5 +344,5 @@ declarative, and reactive programming are transforming a broad range of tools
 for the better.
 
 <p align="right">
-  <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" height="200px">
+  <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" style="height:200px">
 </p>
