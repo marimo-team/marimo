@@ -11,36 +11,55 @@ import useEvent from "react-use-event-hook";
 
 interface LoadingResponse {
   loading: true;
+  reloading: false;
   data: undefined;
+  error: undefined;
+}
+
+interface ReloadingResponse<T> {
+  loading: true;
+  reloading: true;
+  data: T;
   error: undefined;
 }
 
 interface ErrorResponse {
   loading: false;
+  reloading: false;
   data: undefined;
   error: Error;
 }
 
 interface SuccessResponse<T> {
   loading: false;
+  reloading: false;
   data: T;
   error: undefined;
 }
 
 function isSuccess<T>(
-  x: LoadingResponse | ErrorResponse | SuccessResponse<T>,
+  x:
+    | LoadingResponse
+    | ReloadingResponse<T>
+    | ErrorResponse
+    | SuccessResponse<T>,
 ): x is SuccessResponse<T> {
   return !x.loading && x.error === undefined;
 }
 
 function isError(
-  x: LoadingResponse | ErrorResponse | SuccessResponse<unknown>,
+  x:
+    | LoadingResponse
+    | ReloadingResponse<unknown>
+    | ErrorResponse
+    | SuccessResponse<unknown>,
 ): x is ErrorResponse {
   return !x.loading && x.data === undefined;
 }
 
 export type AsyncDataResponse<T> =
   | LoadingResponse
+  | ReloadingResponse<T>
   | ErrorResponse
   | SuccessResponse<T>;
 
@@ -63,6 +82,7 @@ export function combineAsyncData<T extends unknown[]>(
   if (maybeErrorResponse?.error) {
     return {
       loading: false,
+      reloading: false,
       data: undefined,
       error: maybeErrorResponse.error,
       reload,
@@ -73,15 +93,32 @@ export function combineAsyncData<T extends unknown[]>(
   if (responses.every(isSuccess)) {
     return {
       loading: false,
+      reloading: false,
       data: responses.map((response) => response.data) as T,
       error: undefined,
       reload,
     };
   }
 
-  // otherwise, we are still "loading"
+  const hasReloadingResponse = responses.some((response) => response.reloading);
+  const allHaveData = responses.every(
+    (response) => response.data !== undefined,
+  );
+
+  if (hasReloadingResponse && allHaveData) {
+    return {
+      loading: true,
+      reloading: true,
+      data: responses.map((response) => response.data) as T,
+      error: undefined,
+      reload,
+    };
+  }
+
+  // Otherwise, we are still "loading" (initial load)
   return {
     loading: true,
+    reloading: false,
     data: undefined,
     error: undefined,
     reload,
@@ -111,8 +148,8 @@ export function useAsyncData<T>(
 } {
   const [nonce, setNonce] = useState(0);
   const [result, setResult] = useState<
-    LoadingResponse | ErrorResponse | SuccessResponse<T>
-  >({ loading: true, data: undefined, error: undefined });
+    LoadingResponse | ReloadingResponse<T> | ErrorResponse | SuccessResponse<T>
+  >({ loading: true, reloading: false, data: undefined, error: undefined });
 
   const asProps =
     typeof loaderOrProps === "function"
@@ -129,7 +166,24 @@ export function useAsyncData<T>(
         keepPrevious = true;
       },
     };
-    setResult({ loading: true, data: undefined, error: undefined });
+    setResult((prevResult) => {
+      // If we have previous data, show reloading state
+      if (isSuccess(prevResult)) {
+        return {
+          loading: true,
+          reloading: true,
+          data: prevResult.data,
+          error: undefined,
+        };
+      }
+      // Otherwise, show initial loading state
+      return {
+        loading: true,
+        reloading: false,
+        data: undefined,
+        error: undefined,
+      };
+    });
     fetchStable(context)
       .then((data) => {
         if (controller.signal.aborted) {
@@ -138,13 +192,13 @@ export function useAsyncData<T>(
         if (keepPrevious) {
           return;
         }
-        setResult({ data, error: undefined, loading: false });
+        setResult({ data, error: undefined, loading: false, reloading: false });
       })
       .catch((error) => {
         if (controller.signal.aborted) {
           return;
         }
-        setResult({ data: undefined, error, loading: false });
+        setResult({ data: undefined, error, loading: false, reloading: false });
       });
 
     return () => {
@@ -157,13 +211,18 @@ export function useAsyncData<T>(
     setData: (update) => {
       let data: T;
       if (typeof update === "function") {
-        invariant(isSuccess(result), "No previous state value.");
+        invariant(
+          isSuccess(result) || result.reloading,
+          "No previous state value.",
+        );
         // @ts-expect-error - TS can't narrow the type correctly
         data = update(result.data);
       } else {
         data = update;
       }
-      setResult({ data, error: undefined, loading: false });
+
+      // Always transition to success state - manual updates complete the loading
+      setResult({ data, error: undefined, loading: false, reloading: false });
     },
     reload: () => setNonce(nonce + 1),
   };
