@@ -21,25 +21,24 @@ function createPackageMock(options: {
   };
 }
 
-// https://mswjs.io/docs/api/setup-server/#usage
-const server = setupServer();
-
-beforeAll(() => {
-  // Start the interception.
-  server.listen();
-});
-
-afterEach(() => {
-  // Remove any handlers you may have added in individual tests (runtime handlers).
-  server.resetHandlers();
-});
-
-afterAll(() => {
-  // Disable request interception and clean up.
-  server.close();
-});
-
 describe("usePackageMetadata", () => {
+  // https://mswjs.io/docs/api/setup-server/#usage
+  const server = setupServer();
+  beforeAll(() => {
+    // Start the interception.
+    server.listen();
+  });
+
+  afterEach(() => {
+    // Remove any handlers you may have added in individual tests (runtime handlers).
+    server.resetHandlers();
+  });
+
+  afterAll(() => {
+    // Disable request interception and clean up.
+    server.close();
+  });
+
   it("should return loading state initially", async () => {
     server.use(
       msw.http.get("https://pypi.org/pypi/numpy/json", async () => {
