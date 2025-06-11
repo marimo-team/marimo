@@ -13202,7 +13202,7 @@ snapshots:
   '@types/jsdom@21.1.7':
     dependencies:
       '@types/node': 24.0.0
-      '@types/tough-cookie': 4.0.4
+      '@types/tough-cookie': 4.0.5
       parse5: 7.1.2
 
   '@types/json-schema@7.0.15': {}

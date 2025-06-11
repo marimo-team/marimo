@@ -489,9 +489,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                     key={extra}
                     checked={selectedExtras.includes(extra)}
                     onCheckedChange={(checked) => {
-                      if (checked !== "indeterminate") {
-                        handleExtraToggle(extra, checked);
-                      }
+                      handleExtraToggle(extra, checked);
                     }}
                     className="font-mono text-sm"
                     onSelect={(e) => e.preventDefault()}
@@ -540,9 +538,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                   key={extra}
                   checked={selectedExtras.includes(extra)}
                   onCheckedChange={(checked) => {
-                    if (checked !== "indeterminate") {
-                      handleExtraToggle(extra, checked);
-                    }
+                    handleExtraToggle(extra, checked);
                   }}
                   className="font-mono text-sm"
                   onSelect={(e) => e.preventDefault()}

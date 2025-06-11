@@ -2,12 +2,17 @@
 
 import { useAsyncData } from "./useAsyncData";
 import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
+import { TimedCache } from "@/utils/timed-cache";
 import * as z from "zod";
 
 interface PackageMetadata {
   versions: string[];
   extras: string[];
 }
+
+const PACKAGE_CACHE = new TimedCache<PackageMetadata>({
+  ttl: 5 * 60 * 1000, // 5 minutes
+});
 
 export type PyPiPackageResponse = z.infer<typeof PyPiPackageResponse>;
 
@@ -17,49 +22,6 @@ const PyPiPackageResponse = z.object({
   }),
   releases: z.record(z.string(), z.unknown()),
 });
-
-const packageCache = new Map<
-  string,
-  { data: PackageMetadata; timestamp: number }
->();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-function getCachedData(
-  normalizedPackageName: string,
-): PackageMetadata | undefined {
-  // cleanup expired entries
-  {
-    const now = Date.now();
-    for (const [key, cached] of packageCache.entries()) {
-      if (now - cached.timestamp > CACHE_DURATION) {
-        packageCache.delete(key);
-      }
-    }
-  }
-
-  const cached = packageCache.get(normalizedPackageName);
-  if (!cached) {
-    return undefined;
-  }
-
-  const now = Date.now();
-  if (now - cached.timestamp > CACHE_DURATION) {
-    packageCache.delete(normalizedPackageName);
-    return undefined;
-  }
-
-  return cached.data;
-}
-
-function setCachedData(
-  normalizedPackageName: string,
-  data: PackageMetadata,
-): void {
-  packageCache.set(normalizedPackageName, {
-    data,
-    timestamp: Date.now(),
-  });
-}
 
 interface LoadingResponse {
   loading: true;
@@ -90,7 +52,7 @@ export function usePackageMetadata(
   const cleanedName = cleanPythonModuleName(packageName);
 
   const { data, loading, error } = useAsyncData(async () => {
-    const cached = getCachedData(cleanedName);
+    const cached = PACKAGE_CACHE.get(cleanedName);
     if (cached) {
       return cached;
     }
@@ -108,7 +70,7 @@ export function usePackageMetadata(
       extras: meta.info.provides_extra ?? [],
     })).parse(await response.json());
 
-    setCachedData(cleanedName, pkgMeta);
+    PACKAGE_CACHE.set(cleanedName, pkgMeta);
     return pkgMeta;
   }, [cleanedName]);
 
