@@ -444,7 +444,11 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
       },
     );
     const pkgInfo = PyPiPackageResponse.parse(await response.json());
-    return pkgInfo.info.provides_extra || [];
+    return (pkgInfo.info.provides_extra ?? []).filter(
+      // Some packages use `project.optional-dependencies` (aka "extras")
+      // for dev/test deps. Filter common ones not meant for users.
+      (extra) => !/^(dev|test|testing)$/i.test(extra),
+    );
   }, [packageName]);
 
   const handleExtraToggle = (extra: string, checked: boolean) => {
