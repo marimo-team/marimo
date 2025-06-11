@@ -480,8 +480,11 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                 {selectedExtras.join(",")}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <div className="p-2">
+            <PopoverContent
+              className="w-64 p-0 max-h-96 flex flex-col"
+              align="start"
+            >
+              <div className="p-2 sticky top-0 bg-popover border-b border-border">
                 <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
                   {selectedExtras.map((extra) => (
                     <span
@@ -496,11 +499,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
                 </div>
               </div>
 
-              {availableExtras.length > 0 && (
-                <div className="border-t border-border" />
-              )}
-
-              <div>
+              <div className="overflow-y-auto flex-1">
                 {availableExtras.map((extra) => (
                   <div
                     key={extra}
@@ -547,8 +546,11 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
               <PlusIcon className="w-3 h-3 flex-shrink-0" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-0" align="start">
-            <div className="p-2">
+          <PopoverContent
+            className="w-64 p-0 max-h-96 flex flex-col"
+            align="start"
+          >
+            <div className="p-2 sticky top-0 bg-popover border-b border-border">
               <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
                 <span className="text-muted-foreground italic text-sm">
                   Package extras
@@ -556,11 +558,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
               </div>
             </div>
 
-            {availableExtras.length > 0 && (
-              <div className="border-t border-border" />
-            )}
-
-            <div>
+            <div className="overflow-y-auto flex-1">
               {availableExtras.map((extra) => (
                 <div
                   key={extra}
