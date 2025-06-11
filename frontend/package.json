@@ -188,7 +188,7 @@
     "@biomejs/biome": "1.9.4",
     "@codecov/vite-plugin": "^1.9.1",
     "@csstools/postcss-light-dark-function": "^2.0.8",
-    "@playwright/test": "^1.49.1",
+    "@playwright/test": "^1.53.0",
     "@storybook/addon-docs": "^8.6.14",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-interactions": "^8.6.14",
