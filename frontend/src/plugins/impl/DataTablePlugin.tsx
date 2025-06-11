@@ -215,14 +215,14 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         )
         .nullish(),
       totalColumns: z.number(),
-      maxColumns: z.union([z.number(), z.literal("all")]),
+      maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       // Whether to load the data lazily.
-      lazy: z.boolean(),
+      lazy: z.boolean().default(false),
       // If lazy, this will preload the first page of data
       // without user confirmation.
-      preload: z.boolean(),
+      preload: z.boolean().default(false),
     }),
   )
   .withFunctions<DataTableFunctions>({
