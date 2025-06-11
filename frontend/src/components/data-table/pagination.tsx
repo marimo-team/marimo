@@ -125,7 +125,7 @@ export const DataTablePagination = <TData,>({
             value={pageSize.toString()}
             onValueChange={(value) => table.setPageSize(Number(value))}
           >
-            <SelectTrigger className="w-12 h-[18px] !shadow-none !hover:shadow-none !ring-0">
+            <SelectTrigger className="w-11 h-[18px] !shadow-none !hover:shadow-none !ring-0 border-border text-xs p-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
