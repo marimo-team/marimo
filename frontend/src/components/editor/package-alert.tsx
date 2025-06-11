@@ -48,8 +48,12 @@ import { usePackageMetadata } from "@/hooks/usePackageMetadata";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
 import { ExternalLink } from "../ui/links";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 function parsePackageSpecifier(spec: string): {
   name: string;
@@ -443,7 +447,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
       {selectedExtras.length > 0 ? (
         <span className="flex items-center min-w-0 flex-1">
           <span className="shrink-0">[</span>
-          <Popover
+          <DropdownMenu
             open={isOpen && canSelectExtras}
             onOpenChange={(open) => {
               if (canSelectExtras) {
@@ -451,61 +455,57 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
               }
             }}
           >
-            <PopoverTrigger asChild={true}>
+            <DropdownMenuTrigger asChild={true}>
               <button
                 className="hover:bg-muted/50 rounded text-sm px-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 min-w-0 flex-1 truncate text-left"
                 title={`Selected extras: ${selectedExtras.join(", ")}`}
               >
                 {selectedExtras.join(",")}
               </button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-64 p-0 max-h-96 flex flex-col"
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
               align="start"
+              className="w-64 p-0 max-h-96 flex flex-col"
             >
-              <div className="p-2 sticky top-0 bg-popover border-b border-border">
-                <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
-                  {selectedExtras.map((extra) => (
-                    <span
-                      key={extra}
-                      className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
-                      onClick={() => handleExtraToggle(extra, false)}
-                    >
-                      {extra}
-                      <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
-                    </span>
-                  ))}
+              {selectedExtras.length > 0 && (
+                <div className="p-2 bg-popover border-b border-border">
+                  <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
+                    {selectedExtras.map((extra) => (
+                      <span
+                        key={extra}
+                        className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
+                        onClick={() => handleExtraToggle(extra, false)}
+                      >
+                        {extra}
+                        <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-
+              )}
               <div className="overflow-y-auto flex-1">
                 {availableExtras.map((extra) => (
-                  <div
+                  <DropdownMenuCheckboxItem
                     key={extra}
-                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                    onClick={() =>
-                      handleExtraToggle(extra, !selectedExtras.includes(extra))
-                    }
+                    checked={selectedExtras.includes(extra)}
+                    onCheckedChange={(checked) => {
+                      if (checked !== "indeterminate") {
+                        handleExtraToggle(extra, checked);
+                      }
+                    }}
+                    className="font-mono text-sm"
+                    onSelect={(e) => e.preventDefault()}
                   >
-                    <Checkbox
-                      checked={selectedExtras.includes(extra)}
-                      onCheckedChange={(checked) => {
-                        if (checked !== "indeterminate") {
-                          handleExtraToggle(extra, checked);
-                        }
-                      }}
-                      className="h-4 w-4"
-                    />
-                    <span className="font-mono text-sm">{extra}</span>
-                  </div>
+                    {extra}
+                  </DropdownMenuCheckboxItem>
                 ))}
               </div>
-            </PopoverContent>
-          </Popover>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <span className="shrink-0">]</span>
         </span>
       ) : availableExtras.length > 0 ? (
-        <Popover
+        <DropdownMenu
           open={isOpen && canSelectExtras}
           onOpenChange={(open) => {
             if (canSelectExtras) {
@@ -513,7 +513,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
             }
           }}
         >
-          <PopoverTrigger asChild={true}>
+          <DropdownMenuTrigger asChild={true}>
             <button
               disabled={!canSelectExtras}
               className={cn(
@@ -524,43 +524,35 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
             >
               <PlusIcon className="w-3 h-3 flex-shrink-0" />
             </button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-64 p-0 max-h-96 flex flex-col"
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
             align="start"
+            className="w-64 p-0 max-h-96 flex flex-col"
           >
-            <div className="p-2 sticky top-0 bg-popover border-b border-border">
-              <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
-                <span className="text-muted-foreground italic text-sm">
-                  Package extras
-                </span>
-              </div>
+            <div className="p-2 bg-popover border-b border-border">
+              <span className="text-muted-foreground italic text-sm">
+                Package extras
+              </span>
             </div>
-
             <div className="overflow-y-auto flex-1">
               {availableExtras.map((extra) => (
-                <div
+                <DropdownMenuCheckboxItem
                   key={extra}
-                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent hover:text-accent-foreground cursor-pointer"
-                  onClick={() =>
-                    handleExtraToggle(extra, !selectedExtras.includes(extra))
-                  }
+                  checked={selectedExtras.includes(extra)}
+                  onCheckedChange={(checked) => {
+                    if (checked !== "indeterminate") {
+                      handleExtraToggle(extra, checked);
+                    }
+                  }}
+                  className="font-mono text-sm"
+                  onSelect={(e) => e.preventDefault()}
                 >
-                  <Checkbox
-                    checked={selectedExtras.includes(extra)}
-                    onCheckedChange={(checked) => {
-                      if (checked !== "indeterminate") {
-                        handleExtraToggle(extra, checked);
-                      }
-                    }}
-                    className="h-4 w-4"
-                  />
-                  <span className="font-mono text-sm">{extra}</span>
-                </div>
+                  {extra}
+                </DropdownMenuCheckboxItem>
               ))}
             </div>
-          </PopoverContent>
-        </Popover>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </div>
   );
