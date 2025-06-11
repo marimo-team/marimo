@@ -1460,6 +1460,30 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.glide_data_editor"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Glide Data Editor
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="glide-data-editor-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable data editor using Glide Data Grid. This replaces the
+                    original data editor using AG Grid.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

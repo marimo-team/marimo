@@ -13,9 +13,12 @@ import React from "react";
 import gridCss from "./data-editor/grid.css?inline";
 import agGridCss from "ag-grid-community/styles/ag-grid.css?inline";
 import agThemeCss from "ag-grid-community/styles/ag-theme-quartz.css?inline";
+
+import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { toFieldTypes } from "@/components/data-table/types";
 import { getVegaFieldTypes } from "./vega/utils";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -27,12 +30,17 @@ interface Edits {
     value: unknown;
   }>;
 }
+// Lazy load the data editor since it brings in ag-grid and glide-data-grid
+const GlideDataEditor = React.lazy(() => {
+  return import("./data-editor/glide-data-editor");
+});
 
-// Lazy load the data editor since it brings in ag-grid
-const LazyDataEditor = React.lazy(() => import("./data-editor/data-editor"));
+const AGDataEditor = React.lazy(() => {
+  return import("./data-editor/data-editor");
+});
 
 export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
-  cssStyles: [gridCss, agGridCss, agThemeCss],
+  cssStyles: [gridCss, agGridCss, agThemeCss, glideCss],
 })
   .withData(
     z.object({
@@ -121,8 +129,19 @@ const LoadingDataEditor = (props: Props) => {
     );
   }
 
+  const useGlideDataEditor = getFeatureFlag("glide_data_editor");
+  if (useGlideDataEditor) {
+    return (
+      <GlideDataEditor
+        data={data}
+        fieldTypes={props.fieldTypes}
+        rows={data.length}
+      />
+    );
+  }
+
   return (
-    <LazyDataEditor
+    <AGDataEditor
       data={data}
       pagination={props.pagination}
       pageSize={props.pageSize}
