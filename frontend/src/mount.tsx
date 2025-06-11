@@ -224,7 +224,14 @@ const mountOptionsSchema = z.object({
    * Runtime configs
    */
   runtimeConfig: z
-    .array(z.object({ url: z.string() }))
+    .array(
+      z
+        .object({
+          url: z.string(),
+          authToken: z.string().nullish(),
+        })
+        .passthrough(),
+    )
     .nullish()
     .transform((val) => val ?? []),
 });
