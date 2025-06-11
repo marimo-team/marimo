@@ -44,16 +44,13 @@ import {
   PackageManagerNames,
 } from "../../core/config/config-schema";
 import { Logger } from "@/utils/Logger";
-import { useAsyncData } from "@/hooks/useAsyncData";
+import { usePackageMetadata } from "@/hooks/usePackageMetadata";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
-import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 import { ExternalLink } from "../ui/links";
-import * as z from "zod";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 
-// Utility functions for parsing package specifiers
 function parsePackageSpecifier(spec: string): {
   name: string;
   extras: string[];
@@ -411,13 +408,6 @@ interface PackageVersionSelectProps {
   packageName: string;
 }
 
-const PyPiPackageResponse = z.object({
-  info: z.object({
-    provides_extra: z.string().array().nullable(),
-  }),
-  releases: z.record(z.string(), z.unknown()),
-});
-
 interface ExtrasSelectorProps {
   packageName: string;
   selectedExtras: string[];
@@ -430,26 +420,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
   onExtrasChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  const {
-    data: availableExtras = [],
-    loading,
-    error,
-  } = useAsyncData(async () => {
-    const response = await fetch(
-      `https://pypi.org/pypi/${cleanPythonModuleName(packageName)}/json`,
-      {
-        method: "GET",
-        signal: AbortSignal.timeout(5000), // 5s timeout
-      },
-    );
-    const pkgInfo = PyPiPackageResponse.parse(await response.json());
-    return (pkgInfo.info.provides_extra ?? []).filter(
-      // Some packages use `project.optional-dependencies` (aka "extras")
-      // for dev/test deps. Filter common ones not meant for users.
-      (extra) => !/^(dev|test|testing)$/i.test(extra),
-    );
-  }, [packageName]);
+  const { loading, error, data: pkgMeta } = usePackageMetadata(packageName);
 
   const handleExtraToggle = (extra: string, checked: boolean) => {
     if (checked) {
@@ -460,6 +431,10 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
   };
 
   const canSelectExtras = !loading && !error;
+  const availableExtras = (pkgMeta?.extras ?? []).filter(
+    // Filter out common development-only extras like "dev" and "test".
+    (extra) => !/^(dev|test|testing)$/i.test(extra),
+  );
 
   return (
     <div className="flex items-center max-w-72">
@@ -596,23 +571,7 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
   onChange,
   packageName,
 }) => {
-  const {
-    data = [],
-    loading,
-    error,
-  } = useAsyncData(async () => {
-    const response = await fetch(
-      `https://pypi.org/pypi/${cleanPythonModuleName(packageName)}/json`,
-      {
-        method: "GET",
-        signal: AbortSignal.timeout(5000), // 5s timeout
-      },
-    );
-    const pkgInfo = PyPiPackageResponse.parse(await response.json());
-    const versions = Object.keys(pkgInfo.releases).toSorted(reverseSemverSort);
-    // Add latest, limit to 100 versions
-    return ["latest", ...versions.slice(0, 100)];
-  }, [packageName]);
+  const { error, loading, data: pkgMeta } = usePackageMetadata(packageName);
 
   if (error) {
     return (
@@ -639,7 +598,7 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
       {loading ? (
         <option value="latest">latest</option>
       ) : (
-        data.map((version) => (
+        ["latest", ...pkgMeta.versions.slice(0, 100)].map((version) => (
           <option value={version} key={version}>
             {version}
           </option>
