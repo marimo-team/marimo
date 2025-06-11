@@ -4,19 +4,19 @@ import { useAsyncData } from "./useAsyncData";
 import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 import * as z from "zod";
 
-type PackageMetadata = z.infer<typeof PackageMetadataSchema>;
+interface PackageMetadata {
+  versions: string[];
+  extras: string[];
+}
 
-const PackageMetadataSchema = z
-  .object({
-    info: z.object({
-      provides_extra: z.string().array().nullable(),
-    }),
-    releases: z.record(z.string(), z.unknown()),
-  })
-  .transform((meta) => ({
-    versions: Object.keys(meta.releases).toSorted(reverseSemverSort),
-    extras: meta.info.provides_extra ?? [],
-  }));
+export type PyPiPackageResponse = z.infer<typeof PyPiPackageResponse>;
+
+const PyPiPackageResponse = z.object({
+  info: z.object({
+    provides_extra: z.string().array().nullable(),
+  }),
+  releases: z.record(z.string(), z.unknown()),
+});
 
 const packageCache = new Map<
   string,
@@ -97,10 +97,16 @@ export function usePackageMetadata(
 
     const response = await fetch(`https://pypi.org/pypi/${cleanedName}/json`, {
       method: "GET",
-      signal: AbortSignal.timeout(5000),
     });
 
-    const pkgMeta = PackageMetadataSchema.parse(await response.json());
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const pkgMeta = PyPiPackageResponse.transform((meta) => ({
+      versions: Object.keys(meta.releases).toSorted(reverseSemverSort),
+      extras: meta.info.provides_extra ?? [],
+    })).parse(await response.json());
 
     setCachedData(cleanedName, pkgMeta);
     return pkgMeta;
