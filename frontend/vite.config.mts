@@ -184,7 +184,7 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
 };
 
 const ReactCompilerConfig = {
-  target: "18",
+  target: "19",
 };
 
 // https://vitejs.dev/config/

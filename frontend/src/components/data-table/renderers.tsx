@@ -39,7 +39,9 @@ export function renderTableHeader<TData>(
               className,
             )}
             style={style}
-            ref={(thead) => columnSizingHandler(thead, table, header.column)}
+            ref={(thead) => {
+              columnSizingHandler(thead, table, header.column);
+            }}
           >
             {header.isPlaceholder
               ? null

@@ -14,7 +14,7 @@ export function useInterval(
   },
 ) {
   const { delayMs, whenVisible, disabled = false } = opts;
-  const savedCallback = useRef<() => void>();
+  const savedCallback = useRef<() => void>(undefined);
 
   // Store the callback
   useEffect(() => {

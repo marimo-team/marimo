@@ -26,5 +26,7 @@ export function invariant(
   expression: unknown,
   msg: string,
 ): asserts expression {
-  if (!expression) throw new Error(msg);
+  if (!expression) {
+    throw new Error(msg);
+  }
 }

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { SELECT_COLUMN_ID } from "../types";
-import { renderHook, act } from "@testing-library/react-hooks";
+import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { useColumnPinning } from "../hooks/use-column-pinning";
 
