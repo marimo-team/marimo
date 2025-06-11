@@ -56,9 +56,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       (response) => {
         if (response.success) {
           // Update the last saved value
-          setData((prev) =>
-            prev ? { ...prev, contents: internalValue } : undefined,
-          );
+          setData((prev) => ({ ...prev, contents: internalValue }));
           setInternalValue(internalValue);
         }
       },

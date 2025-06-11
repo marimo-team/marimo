@@ -1,30 +1,90 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { SetStateAction } from "jotai";
-import { type DependencyList, useState, useEffect, type Dispatch } from "react";
+import { invariant } from "@/utils/invariant";
+import {
+  type DependencyList,
+  type Dispatch,
+  type SetStateAction,
+  useState,
+  useEffect,
+} from "react";
 import useEvent from "react-use-event-hook";
 
-interface AsyncDataResponse<T> {
-  data: T | undefined;
-  loading: boolean;
-  error: Error | undefined;
-  setData: Dispatch<SetStateAction<T | undefined>>;
-  reload: () => void;
+interface LoadingResponse {
+  loading: true;
+  data: undefined;
+  error: undefined;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function combineAsyncData<T extends any[]>(
-  ...responses: { [K in keyof T]: AsyncDataResponse<T[K]> }
-): Omit<AsyncDataResponse<T>, "setData"> {
+interface ErrorResponse {
+  loading: false;
+  data: undefined;
+  error: Error;
+}
+
+interface SuccessResponse<T> {
+  loading: false;
+  data: T;
+  error: undefined;
+}
+
+function isSuccess<T>(
+  x: LoadingResponse | ErrorResponse | SuccessResponse<T>,
+): x is SuccessResponse<T> {
+  return !x.loading && x.error === undefined;
+}
+
+function isError(
+  x: LoadingResponse | ErrorResponse | SuccessResponse<unknown>,
+): x is ErrorResponse {
+  return !x.loading && x.data === undefined;
+}
+
+export type AsyncDataResponse<T> =
+  | LoadingResponse
+  | ErrorResponse
+  | SuccessResponse<T>;
+
+export function combineAsyncData<T extends unknown[]>(
+  ...responses: {
+    [K in keyof T]: AsyncDataResponse<T[K]> & { reload: () => void };
+  }
+): AsyncDataResponse<T> & { reload: () => void } {
+  invariant(
+    responses.length > 0,
+    "combineAsyncData requires at least one response",
+  );
+
+  const reload = () => {
+    responses.forEach((response) => response.reload());
+  };
+
+  // short circuit if any response has an error
+  const maybeErrorResponse = responses.find(isError);
+  if (maybeErrorResponse?.error) {
+    return {
+      loading: false,
+      data: undefined,
+      error: maybeErrorResponse.error,
+      reload,
+    };
+  }
+
+  // Combine response data when all are successful
+  if (responses.every(isSuccess)) {
+    return {
+      loading: false,
+      data: responses.map((response) => response.data) as T,
+      error: undefined,
+      reload,
+    };
+  }
+
+  // otherwise, we are still "loading"
   return {
-    data: responses.every((response) => response.data !== undefined)
-      ? (responses.map((response) => response.data) as T)
-      : undefined,
-    loading: responses.some((response) => response.loading),
-    error:
-      responses.find((response) => response.error !== null)?.error || undefined,
-    reload: () => {
-      responses.forEach((response) => response.reload());
-    },
+    loading: true,
+    data: undefined,
+    error: undefined,
+    reload,
   };
 }
 
@@ -45,11 +105,14 @@ type Props<T> =
 export function useAsyncData<T>(
   loaderOrProps: Props<T>,
   deps: DependencyList,
-): AsyncDataResponse<T> {
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | undefined>(undefined);
+): AsyncDataResponse<T> & {
+  setData: Dispatch<SetStateAction<T>>;
+  reload: () => void;
+} {
   const [nonce, setNonce] = useState(0);
+  const [result, setResult] = useState<
+    LoadingResponse | ErrorResponse | SuccessResponse<T>
+  >({ loading: true, data: undefined, error: undefined });
 
   const asProps =
     typeof loaderOrProps === "function"
@@ -59,48 +122,49 @@ export function useAsyncData<T>(
   const fetchStable = useEvent(asProps.fetch);
 
   useEffect(() => {
-    let isCancelled = false;
+    const controller = new AbortController();
     let keepPrevious = false;
     const context = {
       previous: () => {
         keepPrevious = true;
       },
     };
-    setLoading(true);
+    setResult({ loading: true, data: undefined, error: undefined });
     fetchStable(context)
       .then((data) => {
-        if (isCancelled) {
+        if (controller.signal.aborted) {
           return;
         }
         if (keepPrevious) {
           return;
         }
-        setData(data);
-        setError(undefined);
+        setResult({ data, error: undefined, loading: false });
       })
-      .catch((error_) => {
-        if (isCancelled) {
+      .catch((error) => {
+        if (controller.signal.aborted) {
           return;
         }
-        setError(error_);
-      })
-      .finally(() => {
-        if (isCancelled) {
-          return;
-        }
-        setLoading(false);
+        setResult({ data: undefined, error, loading: false });
       });
 
     return () => {
-      isCancelled = true;
+      controller.abort();
     };
   }, [...deps, nonce, fetchStable]);
 
   return {
-    data,
-    loading,
-    error,
-    setData,
+    ...result,
+    setData: (update) => {
+      let data: T;
+      if (typeof update === "function") {
+        invariant(isSuccess(result), "No previous state value.");
+        // @ts-expect-error - TS can't narrow the type correctly
+        data = update(result.data);
+      } else {
+        data = update;
+      }
+      setResult({ data, error: undefined, loading: false });
+    },
     reload: () => setNonce(nonce + 1),
   };
 }
