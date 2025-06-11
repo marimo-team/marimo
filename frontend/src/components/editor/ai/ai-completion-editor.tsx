@@ -111,7 +111,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
       requestAnimationFrame(() => {
         input.view?.focus();
       });
-      selectAllText(inputRef.current.view);
+      selectAllText(inputRef.current?.view);
     }
   }, [enabled]);
 
