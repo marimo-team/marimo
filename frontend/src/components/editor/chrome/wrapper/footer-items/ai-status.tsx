@@ -18,6 +18,7 @@ export const AIStatusIcon: React.FC = () => {
         tooltip="Assist is disabled"
         selected={false}
         onClick={() => handleClick("ai")}
+        data-testid="footer-ai-disabled"
       >
         <SparklesIcon className="h-4 w-4 opacity-60" />
       </FooterItem>
@@ -33,6 +34,7 @@ export const AIStatusIcon: React.FC = () => {
       }
       onClick={() => handleClick("ai")}
       selected={false}
+      data-testid="footer-ai-enabled"
     >
       <SparklesIcon className="h-4 w-4" />
     </FooterItem>

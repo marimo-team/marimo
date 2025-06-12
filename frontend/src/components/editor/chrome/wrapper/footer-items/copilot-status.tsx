@@ -108,6 +108,7 @@ const GitHubCopilotStatus: React.FC = () => {
       }
       selected={false}
       onClick={openSettings}
+      data-testid="footer-copilot-status"
     >
       <span>
         {isLoading ? (

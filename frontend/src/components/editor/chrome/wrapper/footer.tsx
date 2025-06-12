@@ -57,6 +57,7 @@ export const Footer: React.FC = () => {
         tooltip={errorPanel.tooltip}
         selected={selectedPanel === errorPanel.type}
         onClick={() => toggleApplication(errorPanel.type)}
+        data-testid="footer-errors"
       >
         {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
@@ -67,6 +68,7 @@ export const Footer: React.FC = () => {
           tooltip="Open terminal"
           selected={isTerminalOpen}
           onClick={() => toggleTerminal()}
+          data-testid="footer-terminal"
         >
           <TerminalSquareIcon className="h-5 w-5" />
         </FooterItem>
@@ -91,6 +93,7 @@ export const Footer: React.FC = () => {
             setConfig(newConfig),
           );
         }}
+        data-testid="footer-autorun-startup"
       >
         <div className="font-prose text-sm flex items-center gap-1">
           <span>on startup: </span>
@@ -127,6 +130,7 @@ export const Footer: React.FC = () => {
             setConfig(newConfig),
           );
         }}
+        data-testid="footer-autorun-cell-change"
       >
         <div className="font-prose text-sm flex items-center gap-1">
           <span>on cell change: </span>
@@ -142,7 +146,11 @@ export const Footer: React.FC = () => {
       <div className="border-r border-border h-6 mx-1" />
 
       {!isWasm() && (
-        <FooterItem tooltip={null} selected={false}>
+        <FooterItem
+          tooltip={null}
+          selected={false}
+          data-testid="footer-module-reload"
+        >
           <DropdownMenu>
             <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1">
               <span>on module change: </span>

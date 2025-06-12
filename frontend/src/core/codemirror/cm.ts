@@ -69,6 +69,8 @@ import { getFeatureFlag } from "../config/feature-flag";
 import type { CodemirrorCellActions } from "./cells/state";
 import { cellConfigExtension } from "./config/extension";
 import { completionKeymap } from "./completion/keymap";
+import { createDynamicReadonlyExtension } from "./readonly/extension";
+import { store } from "../state/jotai";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -138,6 +140,8 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
           },
         })
       : [],
+    // Readonly extension
+    createDynamicReadonlyExtension(store),
   ];
 };
 
