@@ -167,8 +167,8 @@ export const DataTableBody = <TData,>({
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
             "px-1.5 py-[0.18rem]",
-            isCellSelected(cell) && "bg-[var(--green-3)]",
-            isCellCopied(cell) &&
+            isCellSelected(cell.id) && "bg-[var(--green-3)]",
+            isCellCopied(cell.id) &&
               "bg-[var(--green-4)] transition-colors duration-150",
             className,
           )}

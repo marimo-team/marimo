@@ -37,25 +37,28 @@ export const useCellSelection = <TData>({
 
   const [isSelecting, setIsSelecting] = useState(false);
 
-  const getSelectedCell = useCallback(
-    (cell: Cell<TData, unknown>): SelectedCell => {
-      return {
-        rowId: cell.row.id,
-        columnId: cell.column.id,
-        cellId: cell.id,
-      };
+  const isCellSelected = useCallback(
+    (cellId: string) => {
+      return selectedCells.has(cellId);
     },
-    [],
+    [selectedCells],
   );
 
-  const handleCopy = () => {
+  const isCellCopied = useCallback(
+    (cellId: string) => {
+      return copiedCells.has(cellId);
+    },
+    [copiedCells],
+  );
+
+  const handleCopy = useEvent(() => {
     const text = getCellValues(table, selectedCells);
     copyToClipboard(text);
     setCopiedCells(selectedCells);
     setTimeout(() => {
       setCopiedCells(new Map());
     }, 500);
-  };
+  });
 
   const updateSelection = (newCell: SelectedCell, isShiftKey: boolean) => {
     if (isShiftKey && selectedStartCell) {
@@ -63,8 +66,7 @@ export const useCellSelection = <TData>({
       // Do not update selectedStartCell
       setFocusedCell(newCell);
     } else {
-      const uniqueId = newCell.cellId;
-      setSelectedCells(new Map([[uniqueId, newCell]]));
+      setSelectedCells(new Map([[newCell.cellId, newCell]]));
       setSelectedStartCell(newCell);
       setFocusedCell(newCell);
     }
@@ -123,7 +125,14 @@ export const useCellSelection = <TData>({
     if (!nextCell) {
       return;
     }
-    updateSelection(getSelectedCell(nextCell), e.shiftKey);
+    updateSelection(
+      {
+        rowId: nextCell.row.id,
+        columnId: nextCell.column.id,
+        cellId: nextCell.id,
+      },
+      e.shiftKey,
+    );
   };
 
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
@@ -157,10 +166,16 @@ export const useCellSelection = <TData>({
       return;
     }
 
+    const selectedCell = {
+      rowId: cell.row.id,
+      columnId: cell.column.id,
+      cellId: cell.id,
+    };
+
     const selectedCellsInRange = getCellsBetween(
       table,
       selectedStartCell,
-      getSelectedCell(cell),
+      selectedCell,
     );
 
     setSelectedCells(selectedCellsInRange);
@@ -168,32 +183,34 @@ export const useCellSelection = <TData>({
 
   const handleCellMouseDown = useEvent(
     (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
-      const selectedCell = getSelectedCell(cell);
-      const uniqueId = selectedCell.cellId;
+      const selectedCell = {
+        rowId: cell.row.id,
+        columnId: cell.column.id,
+        cellId: cell.id,
+      };
 
-      if (!e.ctrlKey && !e.shiftKey) {
-        const deselectCell =
-          selectedCells.size === 1 && selectedCells.has(uniqueId);
-        // Deselect the cell if it's already selected
-        if (deselectCell) {
-          setSelectedCells(new Map());
-          setSelectedStartCell(null);
-          setFocusedCell(null);
-          setIsSelecting(true);
-          return;
-        }
-
-        setSelectedCells(new Map([[uniqueId, selectedCell]]));
-        if (!isSelecting) {
-          setSelectedStartCell(selectedCell);
-          setFocusedCell(selectedCell);
-        }
+      // Handle shift key selection
+      if (e.shiftKey) {
+        updateRangeSelection(cell);
         setIsSelecting(true);
         return;
       }
 
-      if (e.shiftKey) {
-        updateRangeSelection(cell);
+      // Handle normal selection
+      if (!e.ctrlKey) {
+        const isDeselecting =
+          selectedCells.size === 1 && selectedCells.has(selectedCell.cellId);
+
+        if (isDeselecting) {
+          setSelectedCells(new Map());
+          setSelectedStartCell(null);
+          setFocusedCell(null);
+          return;
+        }
+
+        setSelectedCells(new Map([[selectedCell.cellId, selectedCell]]));
+        setSelectedStartCell(selectedCell);
+        setFocusedCell(selectedCell);
         setIsSelecting(true);
       }
     },
@@ -212,24 +229,6 @@ export const useCellSelection = <TData>({
         updateRangeSelection(cell);
       }
     },
-  );
-
-  const isCellSelected = useCallback(
-    (cell: Cell<TData, unknown>) => {
-      const cellToCheck = getSelectedCell(cell);
-      const uniqueId = cellToCheck.cellId;
-      return selectedCells.has(uniqueId);
-    },
-    [getSelectedCell, selectedCells],
-  );
-
-  const isCellCopied = useCallback(
-    (cell: Cell<TData, unknown>) => {
-      const cellToCheck = getSelectedCell(cell);
-      const uniqueId = cellToCheck.cellId;
-      return copiedCells.has(uniqueId);
-    },
-    [getSelectedCell, copiedCells],
   );
 
   return {
