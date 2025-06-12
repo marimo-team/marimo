@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { Suspense, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { Spinner } from "@/components/icons/spinner";
 import { Logger } from "@/utils/Logger";
 import { waitForConnectionOpen } from "@/core/network/connection";
 
@@ -102,17 +101,7 @@ const TerminalComponent: React.FC<{
 
   return (
     <div className="relative w-full h-[calc(100%-4px)] dark bg-[var(--slate-1)]">
-      <Suspense fallback={<Loading />}>
-        <div className="w-full h-full" ref={terminalRef} />
-      </Suspense>
-    </div>
-  );
-};
-
-const Loading = () => {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-white">
-      <Spinner />
+      <div className="w-full h-full" ref={terminalRef} />
     </div>
   );
 };
