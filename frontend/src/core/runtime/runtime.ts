@@ -93,6 +93,10 @@ export class RuntimeManager {
   async isHealthy(): Promise<boolean> {
     try {
       const response = await fetch(this.healthURL().toString());
+      // If there is a redirect, update the URL in the config
+      if (response.redirected) {
+        this.config.url = response.url;
+      }
       return response.ok;
     } catch (error) {
       Logger.error("Failed to check health", error);
