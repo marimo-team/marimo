@@ -276,7 +276,7 @@ export function useMarimoWebSocket(opts: {
     /**
      * Unique URL for this session.
      */
-    url: runtimeManager.getWsURL(sessionId).toString(),
+    url: () => runtimeManager.getWsURL(sessionId).toString(),
 
     /**
      * Open callback. Set the connection status to open.

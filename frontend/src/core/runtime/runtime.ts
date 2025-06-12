@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { invariant } from "@/utils/invariant";
+
 import type { RuntimeConfig } from "./types";
 import { Logger } from "@/utils/Logger";
 import { getSessionId, type SessionId } from "../kernel/session";
@@ -174,7 +174,12 @@ export class RuntimeManager {
 }
 
 function asWsUrl(url: string): URL {
-  invariant(url.startsWith("http"), "URL must start with http");
+  if (!url.startsWith("http")) {
+    Logger.warn(`URL must start with http: ${url}`);
+    const newUrl = new URL(url);
+    newUrl.protocol = "ws";
+    return newUrl;
+  }
   // Replace the protocol http with ws
   return new URL(url.replace(/^http/, "ws"));
 }

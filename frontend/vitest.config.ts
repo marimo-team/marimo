@@ -10,6 +10,7 @@ export default defineConfig({
     sequence: {
       hooks: "parallel", // Maintain parallel hook execution from Vitest 1.x
     },
+    watch: false,
   },
   plugins: [tsconfigPaths()],
 });
