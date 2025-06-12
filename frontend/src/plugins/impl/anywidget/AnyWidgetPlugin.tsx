@@ -19,6 +19,7 @@ import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { updateBufferPaths } from "@/utils/data-views";
 import { Model, MODEL_MANAGER } from "./model";
 import { isEqual } from "lodash-es";
+import { asRemoteURL } from "@/core/runtime/config";
 
 interface Data {
   jsUrl: string;
@@ -62,8 +63,7 @@ const AnyWidgetSlot = (props: Props) => {
   // export function render({ model, el }) {
   //   ...
   const { data: module, error } = useAsyncData(async () => {
-    const baseUrl = document.baseURI;
-    const url = new URL(jsUrl, baseUrl).toString();
+    const url = asRemoteURL(jsUrl).toString();
     return await import(/* @vite-ignore */ url);
     // Re-render on jsHash change instead of url change (since URLs may change)
   }, [jsHash]);
