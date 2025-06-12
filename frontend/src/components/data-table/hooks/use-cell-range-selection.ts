@@ -35,7 +35,7 @@ export const useCellSelection = <TData>({
   // The cell that is currently focused. This is used for navigation when shift key is pressed.
   const [focusedCell, setFocusedCell] = useState<SelectedCell | null>(null);
 
-  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   const getSelectedCell = useCallback(
     (cell: Cell<TData, unknown>): SelectedCell => {
@@ -179,28 +179,28 @@ export const useCellSelection = <TData>({
           setSelectedCells(new Map());
           setSelectedStartCell(null);
           setFocusedCell(null);
-          setIsMouseDown(true);
+          setIsSelecting(true);
           return;
         }
 
         setSelectedCells(new Map([[uniqueId, selectedCell]]));
-        if (!isMouseDown) {
+        if (!isSelecting) {
           setSelectedStartCell(selectedCell);
           setFocusedCell(selectedCell);
         }
-        setIsMouseDown(true);
+        setIsSelecting(true);
         return;
       }
 
       if (e.shiftKey) {
         updateRangeSelection(cell);
-        setIsMouseDown(true);
+        setIsSelecting(true);
       }
     },
   );
 
   const handleCellMouseUp = useEvent(() => {
-    setIsMouseDown(false);
+    setIsSelecting(false);
   });
 
   const handleCellMouseOver = useEvent(
@@ -208,7 +208,7 @@ export const useCellSelection = <TData>({
       if (e.buttons !== 1) {
         return;
       }
-      if (isMouseDown) {
+      if (isSelecting) {
         updateRangeSelection(cell);
       }
     },
