@@ -424,7 +424,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
   onExtrasChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { loading, error, data: pkgMeta } = usePackageMetadata(packageName);
+  const { isPending, error, data: pkgMeta } = usePackageMetadata(packageName);
 
   const handleExtraToggle = (extra: string, checked: boolean) => {
     if (checked) {
@@ -434,7 +434,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
     }
   };
 
-  const canSelectExtras = !loading && !error;
+  const canSelectExtras = !isPending && !error;
   const availableExtras = (pkgMeta?.extras ?? []).filter(
     // Filter out common development-only extras like "dev" and "test".
     (extra) => !/^(dev|test|testing)$/i.test(extra),
@@ -559,7 +559,7 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
   onChange,
   packageName,
 }) => {
-  const { error, loading, data: pkgMeta } = usePackageMetadata(packageName);
+  const { error, isPending, data: pkgMeta } = usePackageMetadata(packageName);
 
   if (error) {
     return (
@@ -580,10 +580,10 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
     <NativeSelect
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      disabled={loading}
+      disabled={isPending}
       className="inline-flex ml-2 w-24 text-ellipsis"
     >
-      {loading ? (
+      {isPending ? (
         <option value="latest">latest</option>
       ) : (
         ["latest", ...pkgMeta.versions.slice(0, 100)].map((version) => (

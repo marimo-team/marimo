@@ -412,7 +412,7 @@ export const LoadingDataTableComponent = memo(
     }, [props.pageSize]);
 
     // Data loading
-    const { data, loading, error } = useAsyncData<{
+    const { data, error, isPending, isFetching } = useAsyncData<{
       rows: T[];
       totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
@@ -556,7 +556,7 @@ export const LoadingDataTableComponent = memo(
       }
     }, [columnSummariesError]);
 
-    if (loading && !data) {
+    if (isPending) {
       return (
         <DelayMount milliseconds={200}>
           <LoadingTable
@@ -601,7 +601,7 @@ export const LoadingDataTableComponent = memo(
         setSearchQuery={setSearchQuery}
         filters={filters}
         setFilters={setFilters}
-        reloading={loading}
+        reloading={isFetching && !isPending}
         totalRows={data?.totalRows ?? props.totalRows}
         paginationState={paginationState}
         setPaginationState={setPaginationState}

@@ -101,12 +101,12 @@ if (!isWasm()) {
 export const OptionalFeatures: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { data, loading, error, reload } = useAsyncData(
+  const { data, error, refetch, isPending } = useAsyncData(
     () => getPackageList(),
     [packageManager],
   );
 
-  if (loading && !data) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 
@@ -168,7 +168,7 @@ export const OptionalFeatures: React.FC = () => {
                           ...dep.additionalPackageInstalls,
                         ]}
                         packageManager={packageManager}
-                        onSuccess={reload}
+                        onSuccess={refetch}
                       />
                     </div>
                   )}

@@ -24,28 +24,28 @@ import { sortProviders, WriteSecretModal } from "./write-secret-modal";
 export const SecretsPanel: React.FC = () => {
   const { openModal, closeModal } = useImperativeModal();
   const {
-    data: secretKeyProviders = [],
-    loading,
+    data: secretKeyProviders,
+    isPending,
     error,
-    reload,
+    refetch,
   } = useAsyncData(async () => {
     const result = await SECRETS_REGISTRY.request({});
     return sortProviders(result.secrets);
   }, []);
 
-  // Provider names without 'env' provider
-  const providerNames = secretKeyProviders
-    .filter((provider) => provider.provider !== "env")
-    .map((provider) => provider.name);
-
   // Only show on the first load
-  if (loading && secretKeyProviders.length === 0) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 
   if (error) {
     return <ErrorBanner error={error} />;
   }
+
+  // Provider names without 'env' provider
+  const providerNames = secretKeyProviders
+    .filter((provider) => provider.provider !== "env")
+    .map((provider) => provider.name);
 
   if (secretKeyProviders.length === 0) {
     return (
@@ -68,7 +68,7 @@ export const SecretsPanel: React.FC = () => {
               <WriteSecretModal
                 providerNames={providerNames}
                 onSuccess={() => {
-                  reload();
+                  refetch();
                   closeModal();
                 }}
                 onClose={closeModal}

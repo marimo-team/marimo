@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { invariant } from "@/utils/invariant";
 import {
   type DependencyList,
   type Dispatch,
@@ -8,121 +7,129 @@ import {
   useEffect,
 } from "react";
 import useEvent from "react-use-event-hook";
+import { invariant } from "@/utils/invariant";
 
-interface LoadingResponse {
-  loading: true;
-  reloading: false;
+interface PendingResult {
+  status: "pending";
   data: undefined;
   error: undefined;
+  isPending: true;
+  isFetching: true;
 }
 
-interface ReloadingResponse<T> {
-  loading: true;
-  reloading: true;
+interface LoadingResult<T> {
+  status: "loading";
   data: T;
   error: undefined;
+  isPending: false;
+  isFetching: true;
 }
 
-interface ErrorResponse {
-  loading: false;
-  reloading: false;
+interface ErrorResult {
+  status: "error";
   data: undefined;
   error: Error;
+  isPending: false;
+  isFetching: false;
 }
 
-interface SuccessResponse<T> {
-  loading: false;
-  reloading: false;
+interface SuccessResult<T> {
+  status: "success";
   data: T;
   error: undefined;
+  isPending: false;
+  isFetching: false;
 }
 
-function isSuccess<T>(
-  x:
-    | LoadingResponse
-    | ReloadingResponse<T>
-    | ErrorResponse
-    | SuccessResponse<T>,
-): x is SuccessResponse<T> {
-  return !x.loading && x.error === undefined;
-}
+const Result = {
+  error(e: Error): ErrorResult {
+    return {
+      status: "error",
+      data: undefined,
+      error: e,
+      isPending: false,
+      isFetching: false,
+    };
+  },
+  success<T>(data: T): SuccessResult<T> {
+    return {
+      status: "success",
+      data,
+      error: undefined,
+      isPending: false,
+      isFetching: false,
+    };
+  },
+  loading<T>(data: T): LoadingResult<T> {
+    return {
+      status: "loading",
+      data,
+      error: undefined,
+      isPending: false,
+      isFetching: true,
+    };
+  },
+  pending(): PendingResult {
+    return {
+      status: "pending",
+      data: undefined,
+      error: undefined,
+      isPending: true,
+      isFetching: true,
+    };
+  },
+};
 
-function isError(
-  x:
-    | LoadingResponse
-    | ReloadingResponse<unknown>
-    | ErrorResponse
-    | SuccessResponse<unknown>,
-): x is ErrorResponse {
-  return !x.loading && x.data === undefined;
-}
-
-export type AsyncDataResponse<T> =
-  | LoadingResponse
-  | ReloadingResponse<T>
-  | ErrorResponse
-  | SuccessResponse<T>;
+export type AsyncDataResult<T> =
+  | PendingResult
+  | LoadingResult<T>
+  | ErrorResult
+  | SuccessResult<T>;
 
 export function combineAsyncData<T extends unknown[]>(
   ...responses: {
-    [K in keyof T]: AsyncDataResponse<T[K]> & { reload: () => void };
+    [K in keyof T]: AsyncDataResult<T[K]> & { refetch: () => void };
   }
-): AsyncDataResponse<T> & { reload: () => void } {
+): AsyncDataResult<T> & { refetch: () => void } {
   invariant(
     responses.length > 0,
     "combineAsyncData requires at least one response",
   );
 
-  const reload = () => {
-    responses.forEach((response) => response.reload());
+  const refetch = () => {
+    responses.forEach((response) => response.refetch());
   };
 
   // short circuit if any response has an error
-  const maybeErrorResponse = responses.find(isError);
+  const maybeErrorResponse = responses.find((x) => x.status === "error");
   if (maybeErrorResponse?.error) {
-    return {
-      loading: false,
-      reloading: false,
-      data: undefined,
-      error: maybeErrorResponse.error,
-      reload,
-    };
+    return { ...Result.error(maybeErrorResponse.error), refetch };
   }
 
   // Combine response data when all are successful
-  if (responses.every(isSuccess)) {
+  if (responses.every((x) => x.status === "success")) {
     return {
-      loading: false,
-      reloading: false,
-      data: responses.map((response) => response.data) as T,
-      error: undefined,
-      reload,
+      ...Result.success(responses.map((response) => response.data) as T),
+      refetch,
     };
   }
 
-  const hasReloadingResponse = responses.some((response) => response.reloading);
+  const hasLoadingResponse = responses.some(
+    (response) => response.status === "loading",
+  );
   const allHaveData = responses.every(
     (response) => response.data !== undefined,
   );
 
-  if (hasReloadingResponse && allHaveData) {
+  if (hasLoadingResponse && allHaveData) {
     return {
-      loading: true,
-      reloading: true,
-      data: responses.map((response) => response.data) as T,
-      error: undefined,
-      reload,
+      ...Result.loading(responses.map((response) => response.data) as T),
+      refetch,
     };
   }
 
-  // Otherwise, we are still "loading" (initial load)
-  return {
-    loading: true,
-    reloading: false,
-    data: undefined,
-    error: undefined,
-    reload,
-  };
+  // Otherwise, we are still "pending" (initial load)
+  return { ...Result.pending(), refetch };
 }
 
 interface Context {
@@ -142,14 +149,14 @@ type Props<T> =
 export function useAsyncData<T>(
   loaderOrProps: Props<T>,
   deps: DependencyList,
-): AsyncDataResponse<T> & {
+): AsyncDataResult<T> & {
   setData: Dispatch<SetStateAction<T>>;
-  reload: () => void;
+  refetch: () => void;
 } {
   const [nonce, setNonce] = useState(0);
   const [result, setResult] = useState<
-    LoadingResponse | ReloadingResponse<T> | ErrorResponse | SuccessResponse<T>
-  >({ loading: true, reloading: false, data: undefined, error: undefined });
+    PendingResult | LoadingResult<T> | ErrorResult | SuccessResult<T>
+  >(Result.pending());
 
   const asProps =
     typeof loaderOrProps === "function"
@@ -168,21 +175,11 @@ export function useAsyncData<T>(
     };
     setResult((prevResult) => {
       // If we have previous data, show reloading state
-      if (isSuccess(prevResult)) {
-        return {
-          loading: true,
-          reloading: true,
-          data: prevResult.data,
-          error: undefined,
-        };
+      if (prevResult.status === "success") {
+        return Result.loading(prevResult.data);
       }
       // Otherwise, show initial loading state
-      return {
-        loading: true,
-        reloading: false,
-        data: undefined,
-        error: undefined,
-      };
+      return Result.pending();
     });
     fetchStable(context)
       .then((data) => {
@@ -192,13 +189,13 @@ export function useAsyncData<T>(
         if (keepPrevious) {
           return;
         }
-        setResult({ data, error: undefined, loading: false, reloading: false });
+        setResult(Result.success(data));
       })
       .catch((error) => {
         if (controller.signal.aborted) {
           return;
         }
-        setResult({ data: undefined, error, loading: false, reloading: false });
+        setResult(Result.error(error));
       });
 
     return () => {
@@ -212,7 +209,7 @@ export function useAsyncData<T>(
       let data: T;
       if (typeof update === "function") {
         invariant(
-          isSuccess(result) || result.reloading,
+          result.status === "success" || result.status === "loading",
           "No previous state value.",
         );
         // @ts-expect-error - TS can't narrow the type correctly
@@ -220,10 +217,9 @@ export function useAsyncData<T>(
       } else {
         data = update;
       }
-
       // Always transition to success state - manual updates complete the loading
-      setResult({ data, error: undefined, loading: false, reloading: false });
+      setResult(Result.success(data));
     },
-    reload: () => setNonce(nonce + 1),
+    refetch: () => setNonce(nonce + 1),
   };
 }

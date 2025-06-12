@@ -244,7 +244,7 @@ export const ChartPanel: React.FC<{
   const [selectedChartType, setSelectedChartType] =
     useState<ChartType>(chartType);
 
-  const { data, loading, error } = useAsyncData(async () => {
+  const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl) {
       return [];
     }
@@ -285,7 +285,7 @@ export const ChartPanel: React.FC<{
 
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {
-    if (loading) {
+    if (isPending) {
       return <ChartLoadingState />;
     }
     if (error) {
@@ -294,7 +294,7 @@ export const ChartPanel: React.FC<{
     return (
       <LazyChart baseSpec={specWithoutData} data={data} height={CHART_HEIGHT} />
     );
-  }, [loading, error, specWithoutData, data]);
+  }, [isPending, error, specWithoutData, data]);
 
   const developmentMode = import.meta.env.DEV;
 

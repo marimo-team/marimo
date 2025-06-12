@@ -170,7 +170,7 @@ const ColumnPreview = ({
 }) => {
   const { theme } = useTheme();
 
-  const { data, error, loading } = useAsyncData(async () => {
+  const { data, error, isPending } = useAsyncData(async () => {
     const response = await previewColumn({ column: columnName });
     return response;
   }, []);
@@ -179,7 +179,7 @@ const ColumnPreview = ({
     return <ErrorState error={error} />;
   }
 
-  if (loading) {
+  if (isPending) {
     return <LoadingState message="Loading..." />;
   }
 

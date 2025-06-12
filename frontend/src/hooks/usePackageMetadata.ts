@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAsyncData, type AsyncDataResponse } from "./useAsyncData";
+import { useAsyncData, type AsyncDataResult } from "./useAsyncData";
 import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
 import { TimedCache } from "@/utils/timed-cache";
 import * as z from "zod";
@@ -25,7 +25,7 @@ const PyPiPackageResponse = z.object({
 
 export function usePackageMetadata(
   packageName: string,
-): AsyncDataResponse<PackageMetadata> {
+): AsyncDataResult<PackageMetadata> {
   const cleanedName = cleanPythonModuleName(packageName);
   return useAsyncData(async () => {
     const cached = PACKAGE_CACHE.get(cleanedName);

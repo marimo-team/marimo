@@ -434,7 +434,7 @@ const TableList: React.FC<{
   // useAsyncData's loading state may return false before data has propagated
   const [tablesLoading, setTablesLoading] = React.useState(false);
 
-  const { loading, error } = useAsyncData(async () => {
+  const { isPending, error } = useAsyncData(async () => {
     if (tables.length === 0 && sqlTableContext && !tablesRequested) {
       setTablesRequested(true);
       setTablesLoading(true);
@@ -459,7 +459,7 @@ const TableList: React.FC<{
     }
   }, [tables.length, sqlTableContext, tablesRequested]);
 
-  if (loading || tablesLoading) {
+  if (isPending || tablesLoading) {
     return <LoadingState message="Loading tables..." className="pl-12" />;
   }
 
@@ -504,7 +504,7 @@ const DatasetTableItem: React.FC<{
     React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
-  const { loading, error } = useAsyncData(async () => {
+  const { isPending, error } = useAsyncData(async () => {
     if (
       isExpanded &&
       !tableDetailsExist &&
@@ -591,7 +591,7 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    if (loading) {
+    if (isPending) {
       return <LoadingState message="Loading columns..." className="pl-12" />;
     }
 

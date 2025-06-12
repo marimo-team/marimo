@@ -73,7 +73,7 @@ export const FilenameInput = ({
     Paths.basename(suggestion.path).startsWith(basename),
   );
 
-  const { loading } = useAsyncData(async () => {
+  const { isPending } = useAsyncData(async () => {
     if (!focused) {
       setSuggestions([]);
       return;
@@ -97,7 +97,7 @@ export const FilenameInput = ({
   const shouldShowList = suggestedNamed || filteredSuggestions.length > 0;
   const suggestionsList = shouldShowList && (
     <CommandList className="font-mono">
-      {!loading && <CommandEmpty>No files</CommandEmpty>}
+      {!isPending && <CommandEmpty>No files</CommandEmpty>}
 
       {suggestedNamed && (
         <CommandItem

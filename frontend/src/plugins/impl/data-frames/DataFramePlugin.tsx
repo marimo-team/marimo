@@ -160,7 +160,7 @@ export const DataFrameComponent = memo(
     search,
     host,
   }: DataTableProps): JSX.Element => {
-    const { data, error, loading } = useAsyncData(
+    const { data, error, isPending } = useAsyncData(
       () => get_dataframe({}),
       [value?.transforms],
     );
@@ -210,7 +210,7 @@ export const DataFrameComponent = memo(
               )}
               <div className="flex-grow" />
             </TabsList>
-            {loading && <Spinner size="small" />}
+            {isPending && <Spinner size="small" />}
           </div>
           <TabsContent
             value="transform"

@@ -76,7 +76,7 @@ export const FileExplorer: React.FC<{
   // when this component is unmounted
   const [openState, setOpenState] = useAtom(openStateAtom);
 
-  const { loading, error } = useAsyncData(() => tree.initialize(setData), []);
+  const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
 
   const handleRefresh = useEvent(() => {
     tree.refreshAll(Object.keys(openState).filter((id) => openState[id]));
@@ -105,7 +105,7 @@ export const FileExplorer: React.FC<{
     setOpenState({});
   });
 
-  if (loading) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 

@@ -17,7 +17,7 @@ export const BackendConnection: React.FC = () => {
   const connection = useAtomValue(connectionAtom).state;
   const runtime = useRuntimeManager();
 
-  const { loading, error, data, reload } = useAsyncData(async () => {
+  const { isFetching, error, data, refetch } = useAsyncData(async () => {
     if (connection !== WebSocketState.OPEN) {
       return;
     }
@@ -38,7 +38,7 @@ export const BackendConnection: React.FC = () => {
     }
   }, [runtime, connection]);
 
-  useInterval(reload, {
+  useInterval(refetch, {
     delayMs:
       connection === WebSocketState.OPEN ? CHECK_HEALTH_INTERVAL_MS : null,
     whenVisible: true,
@@ -58,7 +58,7 @@ export const BackendConnection: React.FC = () => {
   };
 
   const getStatusIcon = () => {
-    if (loading || connection === WebSocketState.CONNECTING) {
+    if (isFetching || connection === WebSocketState.CONNECTING) {
       return <Spinner size="small" />;
     }
 
@@ -92,7 +92,7 @@ export const BackendConnection: React.FC = () => {
         </div>
       }
       selected={false}
-      onClick={reload}
+      onClick={refetch}
     >
       {getStatusIcon()}
     </FooterItem>
