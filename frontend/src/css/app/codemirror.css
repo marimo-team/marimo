@@ -75,6 +75,18 @@
   @apply text-xs;
 }
 
+/* -- Linting -- */
+
+.cm-tooltip-lint {
+  code {
+    @apply bg-muted border border-border rounded-md px-1;
+  }
+
+  .cm-diagnosticText > div {
+    display: inline-flex;
+  }
+}
+
 /* -- Ghost Text -- */
 
 .cm-ghostText,
