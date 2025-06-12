@@ -215,10 +215,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     >
       {terminalResizeHandle}
       <LazyMount isOpen={isTerminalOpen}>
-        <LazyTerminal
-          visible={isTerminalOpen}
-          onClose={() => setIsTerminalOpen(false)}
-        />
+        <Suspense fallback={<div />}>
+          <LazyTerminal
+            visible={isTerminalOpen}
+            onClose={() => setIsTerminalOpen(false)}
+          />
+        </Suspense>
       </LazyMount>
     </Panel>
   );
