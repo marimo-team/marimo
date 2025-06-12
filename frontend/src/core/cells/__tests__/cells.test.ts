@@ -2154,11 +2154,13 @@ describe("cell reducer", () => {
 
     // Manually set output for the cells
     state.cellRuntime[cell1Id].output = {
+      channel: "output",
       mimetype: "text/plain",
       data: "output1",
       timestamp: 0 as Seconds,
     };
     state.cellRuntime[cell2Id].output = {
+      channel: "output",
       mimetype: "text/plain",
       data: "output2",
       timestamp: 0 as Seconds,
