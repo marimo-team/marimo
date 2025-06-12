@@ -251,7 +251,7 @@ export function getCellValues<TData>(
   const rowValues = new Map<string, string[]>();
 
   for (const cellId of selectedCellIds) {
-    const [rowId, columnId] = cellId.split("_");
+    const [rowId] = cellId.split("_"); // CellId is rowId_columnId
     const row = table.getRow(rowId);
     const tableCell = row.getAllCells().find((c) => c.id === cellId);
     if (!tableCell) {

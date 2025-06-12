@@ -20,7 +20,6 @@ import {
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
 import type { JSX } from "react";
-import { useRangeSelection } from "./hooks/use-range-selection";
 import { useCellSelection } from "./hooks/use-cell-range-selection";
 
 export function renderTableHeader<TData>(
@@ -79,65 +78,6 @@ export const DataTableBody = <TData,>({
   getRowIndex,
   viewedRowIdx,
 }: DataTableBodyProps<TData>) => {
-  // const {
-  //   selectedCell,
-  //   selection: selectedRange,
-  //   getCellRef,
-  //   isCellSelected,
-  //   isCellInRange,
-  //   handleClick,
-  //   handleKeyDown,
-  //   handleMouseDown,
-  //   handleMouseEnter,
-  // } = useRangeSelection(
-  //   table.getRowModel().rows,
-  //   table.getVisibleFlatColumns(),
-  // );
-
-  // const renderCells = (cells: Array<Cell<TData, unknown>>) => {
-  //   return cells.map((cell) => {
-  //     const cellRef = getCellRef(cell.row.id, cell.column.id);
-  //     const isSelected = isCellSelected(cell.row.id, cell.column.id);
-  //     const isInRange = isCellInRange(cell.row.id, cell.column.id);
-
-  //     const { className, style: pinningstyle } = getPinningStyles(cell.column);
-  //     const style = Object.assign(
-  //       {},
-  //       cell.getUserStyling?.() || {},
-  //       pinningstyle,
-  //     );
-  //     return (
-  //       <TableCell
-  //         key={cell.id}
-  //         className={cn(
-  //           "whitespace-pre truncate max-w-[300px] select-none outline-none",
-  //           cell.column.getColumnWrapping &&
-  //             cell.column.getColumnWrapping() === "wrap" &&
-  //             "whitespace-pre-wrap min-w-[200px]",
-  //           "px-1.5 py-[0.18rem]",
-  //           isSelected &&
-  //             "bg-[var(--blue-3)] hover:bg-[var(--blue-3)] data-[state=selected]:bg-[var(--blue-4)]",
-  //           isInRange &&
-  //             "bg-[var(--blue-1)] hover:bg-[var(--blue-1)] data-[range=in-range]:bg-[var(--blue-2)]",
-  //           className,
-  //         )}
-  //         style={style}
-  //         title={String(cell.getValue())}
-  //         onClick={() => handleClick(cell.row.id, cell.column.id)}
-  //         onKeyDown={(e) => handleKeyDown(e, cell.row.id, cell.column.id)}
-  //         onMouseDown={() => handleMouseDown(cell.row.id, cell.column.id)}
-  //         onMouseEnter={() => handleMouseEnter(cell.row.id, cell.column.id)}
-  //         ref={cellRef}
-  //         data-state={isSelected && "selected"}
-  //         data-range={isInRange && "in-range"}
-  //       >
-  //         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-  //       </TableCell>
-  //     );
-  //   });
-  // };
-
-  // Diff approach
   const {
     handleCellMouseDown,
     handleCellMouseUp,
