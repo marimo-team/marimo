@@ -10,7 +10,7 @@ import type {
 } from "@/core/kernel/messages";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
-import React from "react";
+import React, { Suspense } from "react";
 import { previewDatasetColumn } from "@/core/network/requests";
 import { Button } from "../ui/button";
 import { convertStatsName, sqlCode } from "./utils";
@@ -26,6 +26,7 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import { prettyNumber } from "@/utils/numbers";
 import { useAtomValue } from "jotai";
+import { Spinner } from "../icons/spinner";
 
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
@@ -181,6 +182,12 @@ export function renderStats(
   );
 }
 
+const LoadingChart = (
+  <div className="flex justify-center">
+    <Spinner className="size-4" />
+  </div>
+);
+
 export function renderChart(chartSpec: string, theme: Theme) {
   const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
     return {
@@ -190,13 +197,15 @@ export function renderChart(chartSpec: string, theme: Theme) {
   };
 
   return (
-    <LazyVegaLite
-      spec={updateSpec(JSON.parse(chartSpec) as TopLevelFacetedUnitSpec)}
-      width={"container" as unknown as number}
-      height={100}
-      actions={false}
-      theme={theme === "dark" ? "dark" : "vox"}
-    />
+    <Suspense fallback={LoadingChart}>
+      <LazyVegaLite
+        spec={updateSpec(JSON.parse(chartSpec) as TopLevelFacetedUnitSpec)}
+        width={"container" as unknown as number}
+        height={100}
+        actions={false}
+        theme={theme === "dark" ? "dark" : "vox"}
+      />
+    </Suspense>
   );
 }
 
