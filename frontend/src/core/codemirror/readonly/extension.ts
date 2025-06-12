@@ -1,9 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Compartment, EditorState, StateEffect } from "@codemirror/state";
-import { type EditorView, ViewPlugin } from "@codemirror/view";
+import { ViewPlugin } from "@codemirror/view";
 import { WebSocketState } from "../../websocket/types";
 import { connectionAtom } from "../../network/connection";
 import type { createStore } from "jotai";
+import {
+  isAppConnected,
+  isAppConnecting,
+} from "@/core/websocket/connection-utils";
 
 /**
  * State effect for updating readonly status based on connection
@@ -62,8 +66,10 @@ let hideIndicatorTimeout: number | null = null;
  * When connected, the editor becomes editable.
  */
 export function dynamicReadonly(store: ReturnType<typeof createStore>) {
+  const getConnectionState = () => store.get(connectionAtom).state;
+
   // Initial readonly state - start as readonly until connected
-  let isReadonly = true;
+  let isReadonly = !isAppConnected(getConnectionState());
 
   const connectingIndicatorPlugin = ViewPlugin.define((view) => {
     let listenersAttached = false;
@@ -114,7 +120,7 @@ export function dynamicReadonly(store: ReturnType<typeof createStore>) {
     });
 
     // On init, check if we should attach
-    if (store.get(connectionAtom).state === WebSocketState.CONNECTING) {
+    if (isAppConnecting(getConnectionState())) {
       attachListeners();
     }
 
@@ -153,7 +159,7 @@ export function dynamicReadonly(store: ReturnType<typeof createStore>) {
     ViewPlugin.define((view) => {
       const unsubscribe = store.sub(connectionAtom, () => {
         const connection = store.get(connectionAtom);
-        const shouldBeReadonly = connection.state !== WebSocketState.OPEN;
+        const shouldBeReadonly = !isAppConnected(connection.state);
 
         // Dispatch effect to update readonly state
         view.dispatch({
@@ -171,15 +177,6 @@ export function dynamicReadonly(store: ReturnType<typeof createStore>) {
     // Floating indicator plugin
     connectingIndicatorPlugin,
   ];
-}
-
-/**
- * Manually update readonly state for a specific view
- */
-export function updateReadonlyState(view: EditorView, readonly: boolean) {
-  view.dispatch({
-    effects: updateReadonlyEffect.of(readonly),
-  });
 }
 
 /**
