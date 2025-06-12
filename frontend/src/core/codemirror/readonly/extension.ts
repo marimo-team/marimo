@@ -61,9 +61,7 @@ let hideIndicatorTimeout: number | null = null;
  * When disconnected or connecting, the editor becomes readonly.
  * When connected, the editor becomes editable.
  */
-export function createDynamicReadonlyExtension(
-  store: ReturnType<typeof createStore>,
-) {
+export function dynamicReadonly(store: ReturnType<typeof createStore>) {
   // Initial readonly state - start as readonly until connected
   let isReadonly = true;
 
