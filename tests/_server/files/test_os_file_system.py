@@ -274,7 +274,7 @@ def test_get_details_non_utf8_encoding_and_contents(
 ) -> None:
     test_file_name = "latin1.txt"
     file_path = test_dir / test_file_name
-    content = "calf\xe9".encode("latin-1")
+    content = "caf\xe9".encode("latin-1")
     file_path.write_bytes(content)
     result = fs.get_details(str(file_path), encoding="latin-1")
     assert result.contents == "café"
