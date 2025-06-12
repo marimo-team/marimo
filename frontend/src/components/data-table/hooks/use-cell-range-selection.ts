@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useCallback, useState } from "react";
-import type { Cell, Table } from "@tanstack/react-table";
+import type { Cell, Row, Table } from "@tanstack/react-table";
 import { renderUnknownValue } from "../renderers";
 import { copyToClipboard } from "@/utils/copy";
 import useEvent from "react-use-event-hook";
@@ -16,7 +16,7 @@ export interface UseCellSelectionProps<TData> {
   table: Table<TData>;
 }
 
-export type SelectedCells = Map<string, SelectedCell>;
+export type SelectedCells = Set<string>;
 
 /*
  * This hook is used to handle selecting multiple cells at once.
@@ -24,9 +24,8 @@ export type SelectedCells = Map<string, SelectedCell>;
 export const useCellSelection = <TData>({
   table,
 }: UseCellSelectionProps<TData>) => {
-  // Map of unique id to selected cell. So that we can use the unique id to check if a cell is selected.
-  const [selectedCells, setSelectedCells] = useState<SelectedCells>(new Map());
-  const [copiedCells, setCopiedCells] = useState<SelectedCells>(new Map());
+  const [selectedCells, setSelectedCells] = useState<SelectedCells>(new Set());
+  const [copiedCells, setCopiedCells] = useState<SelectedCells>(new Set());
 
   // The cell that is currently selected. This is used for navigation.
   const [selectedStartCell, setSelectedStartCell] =
@@ -37,17 +36,15 @@ export const useCellSelection = <TData>({
 
   const [isSelecting, setIsSelecting] = useState(false);
 
+  const rows = table.getRowModel().rows;
+
   const isCellSelected = useCallback(
-    (cellId: string) => {
-      return selectedCells.has(cellId);
-    },
+    (cellId: string) => selectedCells.has(cellId),
     [selectedCells],
   );
 
   const isCellCopied = useCallback(
-    (cellId: string) => {
-      return copiedCells.has(cellId);
-    },
+    (cellId: string) => copiedCells.has(cellId),
     [copiedCells],
   );
 
@@ -56,17 +53,22 @@ export const useCellSelection = <TData>({
     copyToClipboard(text);
     setCopiedCells(selectedCells);
     setTimeout(() => {
-      setCopiedCells(new Map());
+      setCopiedCells(new Set());
     }, 500);
   });
 
   const updateSelection = (newCell: SelectedCell, isShiftKey: boolean) => {
     if (isShiftKey && selectedStartCell) {
-      setSelectedCells(getCellsBetween(table, selectedStartCell, newCell));
-      // Do not update selectedStartCell
+      const cellsInRange = getCellsBetween(
+        table,
+        rows,
+        selectedStartCell,
+        newCell,
+      );
+      setSelectedCells(new Set(cellsInRange));
       setFocusedCell(newCell);
     } else {
-      setSelectedCells(new Map([[newCell.cellId, newCell]]));
+      setSelectedCells(new Set([newCell.cellId]));
       setSelectedStartCell(newCell);
       setFocusedCell(newCell);
     }
@@ -172,13 +174,13 @@ export const useCellSelection = <TData>({
       cellId: cell.id,
     };
 
-    const selectedCellsInRange = getCellsBetween(
+    const cellsInRange = getCellsBetween(
       table,
+      rows,
       selectedStartCell,
       selectedCell,
     );
-
-    setSelectedCells(selectedCellsInRange);
+    setSelectedCells(new Set(cellsInRange));
   };
 
   const handleCellMouseDown = useEvent(
@@ -202,13 +204,13 @@ export const useCellSelection = <TData>({
           selectedCells.size === 1 && selectedCells.has(selectedCell.cellId);
 
         if (isDeselecting) {
-          setSelectedCells(new Map());
+          setSelectedCells(new Set());
           setSelectedStartCell(null);
           setFocusedCell(null);
           return;
         }
 
-        setSelectedCells(new Map([[selectedCell.cellId, selectedCell]]));
+        setSelectedCells(new Set([selectedCell.cellId]));
         setSelectedStartCell(selectedCell);
         setFocusedCell(selectedCell);
         setIsSelecting(true);
@@ -244,36 +246,38 @@ export const useCellSelection = <TData>({
 // Helper functions
 export function getCellValues<TData>(
   table: Table<TData>,
-  cells: SelectedCells,
+  selectedCellIds: Set<string>,
 ): string {
   const rowValues = new Map<string, string[]>();
 
-  for (const cell of cells.values()) {
-    const row = table.getRow(cell.rowId);
-    const tableCell = row.getAllCells().find((c) => c.id === cell.cellId);
+  for (const cellId of selectedCellIds) {
+    const [rowId, columnId] = cellId.split("_");
+    const row = table.getRow(rowId);
+    const tableCell = row.getAllCells().find((c) => c.id === cellId);
     if (!tableCell) {
       continue;
     }
 
-    const values = rowValues.get(cell.rowId) ?? [];
+    const values = rowValues.get(rowId) ?? [];
     values.push(renderUnknownValue({ value: tableCell.getValue() }));
-    rowValues.set(cell.rowId, values);
+    rowValues.set(rowId, values);
   }
 
   return [...rowValues.values()].map((values) => values.join("\t")).join("\n");
 }
 
+// Returns the cell ids between two cells.
 export function getCellsBetween<TData>(
   table: Table<TData>,
+  rows: Array<Row<TData>>,
   cellStart: SelectedCell,
   cellEnd: SelectedCell,
-): SelectedCells {
-  const rows = table.getRowModel().rows;
+): string[] {
   const startRow = table.getRow(cellStart.rowId);
   const endRow = table.getRow(cellEnd.rowId);
 
   if (!startRow || !endRow) {
-    return new Map();
+    return [];
   }
 
   const startCell = startRow
@@ -282,11 +286,11 @@ export function getCellsBetween<TData>(
   const endCell = endRow.getAllCells().find((c) => c.id === cellEnd.cellId);
 
   if (!startCell || !endCell) {
-    return new Map();
+    return [];
   }
 
-  const startRowIdx = rows.findIndex(({ id }) => id === startCell.row.id);
-  const endRowIdx = rows.findIndex(({ id }) => id === endCell.row.id);
+  const startRowIdx = startRow.index;
+  const endRowIdx = endRow.index;
   const startColumnIdx = startCell.column.getIndex();
   const endColumnIdx = endCell.column.getIndex();
 
@@ -295,7 +299,11 @@ export function getCellsBetween<TData>(
   const minCol = Math.min(startColumnIdx, endColumnIdx);
   const maxCol = Math.max(startColumnIdx, endColumnIdx);
 
-  const result = new Map<string, SelectedCell>();
+  // Pre-allocate array with known size
+  const result: string[] = [];
+  const totalCells = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+  result.length = totalCells;
+  let resultIndex = 0;
 
   for (let i = minRow; i <= maxRow; i++) {
     const row = rows[i];
@@ -303,17 +311,11 @@ export function getCellsBetween<TData>(
 
     for (let j = minCol; j <= maxCol; j++) {
       const cell = cells[j];
-      if (cell) {
-        const uniqueId = cell.id;
-        const selectedCell = {
-          rowId: cell.row.id,
-          columnId: cell.column.id,
-          cellId: cell.id,
-        };
-        result.set(uniqueId, selectedCell);
-      }
+      result[resultIndex++] = cell.id;
     }
   }
 
+  // Trim any unused slots
+  result.length = resultIndex;
   return result;
 }
