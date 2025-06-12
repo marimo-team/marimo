@@ -881,9 +881,13 @@ const {
     const column = state.cellIds.findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
+
+    const isPastLastCell = nextCellIndex === column.length;
+    const isBeforeFirstCell = nextCellIndex === -1;
+
     // Create a new cell at the end; no need to update scrollKey,
     // because cell will be created with autoScrollIntoView
-    if (nextCellIndex === column.length && !noCreate) {
+    if (isPastLastCell && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -905,7 +909,7 @@ const {
       // scrollKey
     }
 
-    if (nextCellIndex === -1 && !noCreate) {
+    if (isBeforeFirstCell && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -925,8 +929,14 @@ const {
       };
     }
 
-    if (nextCellIndex !== -1) {
-      // Don't wrap around from top to bottom
+    if ((isPastLastCell || isBeforeFirstCell) && noCreate) {
+      // Trying to move past the last cell or before the first cell
+      // with noCreate=true - do nothing
+      return state;
+    }
+
+    if (nextCellIndex >= 0 && nextCellIndex < column.length) {
+      // Move to valid cell within bounds
       const nextCellId = column.atOrThrow(nextCellIndex);
       // Just focus, no state change
       focusAndScrollCellIntoView({
@@ -937,6 +947,7 @@ const {
         variableName: undefined,
       });
     }
+
     return state;
   },
   scrollToTarget: (state) => {
