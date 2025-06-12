@@ -516,6 +516,8 @@ class AutoExporter:
 
     def _write_file_sync(self, filepath: Path, content: str) -> None:
         """Synchronous file write (runs in thread pool)"""
+        if content == "":
+            return
         filepath.write_text(content, encoding="utf-8")
 
     async def _ensure_export_dir_async(self, directory: Path) -> None:
