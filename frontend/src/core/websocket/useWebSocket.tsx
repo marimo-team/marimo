@@ -9,7 +9,7 @@ import { Logger } from "@/utils/Logger";
 import { isStaticNotebook } from "../static/static-state";
 
 interface UseWebSocketOptions {
-  url: string;
+  url: () => string;
   static: boolean;
   waitToConnect?: () => Promise<void>;
   onOpen?: (event: WebSocketEventMap["open"]) => void;
@@ -33,7 +33,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
         ? new StaticWebsocket()
-        : new ReconnectingWebSocket(rest.url, undefined, {
+        : new ReconnectingWebSocket(rest.url(), undefined, {
             // We don't want Infinity retries
             maxRetries: 10,
             debug: false,

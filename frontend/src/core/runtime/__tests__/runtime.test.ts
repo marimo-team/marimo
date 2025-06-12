@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { RuntimeManager } from "../runtime";
 import type { RuntimeConfig } from "../types";
 import type { SessionId } from "@/core/kernel/session";
+import { Logger } from "@/utils/Logger";
 
 // Mock the session module
 vi.mock("@/core/kernel/session", () => ({
@@ -14,6 +15,7 @@ vi.mock("@/core/kernel/session", () => ({
 vi.mock("@/utils/Logger", () => ({
   Logger: {
     error: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -293,6 +295,170 @@ describe("RuntimeManager", () => {
 
       expect(httpRuntime.getWsURL("test" as SessionId).protocol).toBe("ws:");
       expect(httpsRuntime.getWsURL("test" as SessionId).protocol).toBe("wss:");
+    });
+
+    it("should handle blob URLs", () => {
+      const runtime = new RuntimeManager({
+        url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
+      });
+
+      expect(runtime.httpURL.toString()).toBe(
+        "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
+      );
+    });
+
+    it("should throw when creating WebSocket URLs from blob URLs", () => {
+      const runtime = new RuntimeManager({
+        url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
+      });
+      const sessionId = "test" as SessionId;
+
+      expect(runtime.getWsURL(sessionId).toString()).toMatchInlineSnapshot(
+        `"blob:https://example.com/12345678-1234-1234-1234-123456789abc?session_id=test"`,
+      );
+      expect(Logger.warn).toHaveBeenCalledOnce();
+    });
+
+    it("should handle blob URLs in AI URLs", () => {
+      const runtime = new RuntimeManager({
+        url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
+      });
+      const aiUrl = runtime.getAiURL("completion");
+
+      expect(aiUrl.protocol).toBe("blob:");
+      expect(aiUrl.pathname).toBe(
+        "https://example.com/12345678-1234-1234-1234-123456789abc",
+      );
+    });
+
+    it("should handle blob URLs in health check URLs", () => {
+      const runtime = new RuntimeManager({
+        url: "blob:https://example.com/12345678-1234-1234-1234-123456789abc",
+      });
+      const healthUrl = runtime.healthURL();
+
+      expect(healthUrl.protocol).toBe("blob:");
+      expect(healthUrl.pathname).toBe(
+        "https://example.com/12345678-1234-1234-1234-123456789abc",
+      );
+    });
+
+    it("should handle URLs with userinfo", () => {
+      const runtime = new RuntimeManager({
+        url: "https://user:pass@example.com",
+      });
+      const wsUrl = runtime.getWsURL("test" as SessionId);
+
+      expect(wsUrl.protocol).toBe("wss:");
+      expect(wsUrl.username).toBe("user");
+      expect(wsUrl.password).toBe("pass");
+      expect(wsUrl.hostname).toBe("example.com");
+    });
+
+    it("should handle IPv6 addresses", () => {
+      const runtime = new RuntimeManager({
+        url: "http://[::1]:8080",
+      });
+      const wsUrl = runtime.getWsURL("test" as SessionId);
+
+      expect(wsUrl.protocol).toBe("ws:");
+      expect(wsUrl.hostname).toBe("[::1]");
+      expect(wsUrl.port).toBe("8080");
+    });
+
+    it("should handle URLs with encoded characters", () => {
+      const runtime = new RuntimeManager({
+        url: "https://example.com/path%20with%20spaces",
+      });
+      const aiUrl = runtime.getAiURL("completion");
+
+      expect(aiUrl.pathname).toBe("/path%20with%20spaces/api/ai/completion");
+    });
+
+    it("should handle URLs with multiple trailing slashes", () => {
+      const runtime = new RuntimeManager({
+        url: "https://example.com/path///",
+      });
+      const aiUrl = runtime.getAiURL("completion");
+
+      expect(aiUrl.pathname).toBe("/path///api/ai/completion");
+    });
+
+    it("should handle URLs with port numbers", () => {
+      const runtime = new RuntimeManager({
+        url: "https://example.com:9443/app",
+      });
+      const wsUrl = runtime.getWsURL("test" as SessionId);
+
+      expect(wsUrl.protocol).toBe("wss:");
+      expect(wsUrl.hostname).toBe("example.com");
+      expect(wsUrl.port).toBe("9443");
+      expect(wsUrl.pathname).toBe("/app/ws");
+    });
+
+    it("should handle localhost variations", () => {
+      const variants = [
+        "http://127.0.0.1:8080",
+        "http://localhost:8080",
+        "http://[::1]:8080",
+      ];
+
+      variants.forEach((url) => {
+        const runtime = new RuntimeManager({ url });
+        const wsUrl = runtime.getWsURL("test" as SessionId);
+        expect(wsUrl.protocol).toBe("ws:");
+      });
+    });
+
+    it("should handle URLs with complex query parameters", () => {
+      const runtime = new RuntimeManager({
+        url: "https://example.com?param1=value1&param2=value%20encoded&empty=",
+      });
+      const wsUrl = runtime.getWsURL("test" as SessionId);
+
+      expect(wsUrl.searchParams.get("param1")).toBe("value1");
+      expect(wsUrl.searchParams.get("param2")).toBe("value encoded");
+      expect(wsUrl.searchParams.get("empty")).toBe("");
+      expect(wsUrl.searchParams.get("session_id")).toBe("test");
+    });
+
+    it("should accept data URLs (valid URL format)", () => {
+      const runtime = new RuntimeManager({
+        url: "data:text/plain;base64,SGVsbG8gV29ybGQ=",
+      });
+      expect(runtime.httpURL.protocol).toBe("data:");
+    });
+
+    it("should accept file URLs (valid URL format)", () => {
+      const runtime = new RuntimeManager({ url: "file:///path/to/file" });
+      expect(runtime.httpURL.protocol).toBe("file:");
+    });
+
+    it("should accept custom protocol URLs (valid URL format)", () => {
+      const runtime = new RuntimeManager({ url: "custom://example.com" });
+      expect(runtime.httpURL.protocol).toBe("custom:");
+    });
+
+    it("should handle empty string URL", () => {
+      expect(() => {
+        new RuntimeManager({ url: "" });
+      }).toThrow("Invalid runtime URL");
+    });
+
+    it("should handle malformed URLs", () => {
+      const malformedUrls = [
+        "http://",
+        "https://",
+        "not-a-url",
+        "http://[invalid-ipv6",
+        "https://exam ple.com", // space in hostname
+      ];
+
+      malformedUrls.forEach((url) => {
+        expect(() => {
+          new RuntimeManager({ url });
+        }).toThrow("Invalid runtime URL");
+      });
     });
   });
 });
