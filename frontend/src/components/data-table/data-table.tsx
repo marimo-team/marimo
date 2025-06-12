@@ -24,7 +24,7 @@ import type { DownloadActionProps } from "./download-actions";
 import { cn } from "@/utils/cn";
 import { FilterPills } from "./filter-pills";
 import { useColumnPinning } from "./hooks/use-column-pinning";
-import { renderTableHeader, renderTableBody } from "./renderers";
+import { renderTableHeader, DataTableBody } from "./renderers";
 import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
 import { ColumnFormattingFeature } from "./column-formatting/feature";
@@ -231,13 +231,13 @@ const DataTableInternal = <TData,>({
         )}
         <Table>
           {renderTableHeader(table)}
-          {renderTableBody(
-            table,
-            columns,
-            rowViewerPanelOpen,
-            getPaginatedRowIndex,
-            viewedRowIdx,
-          )}
+          <DataTableBody
+            table={table}
+            columns={columns}
+            rowViewerPanelOpen={rowViewerPanelOpen}
+            getRowIndex={getPaginatedRowIndex}
+            viewedRowIdx={viewedRowIdx}
+          />
         </Table>
       </div>
       <TableActions

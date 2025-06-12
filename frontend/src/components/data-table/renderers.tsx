@@ -20,6 +20,8 @@ import {
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
 import type { JSX } from "react";
+import { useRangeSelection } from "./hooks/use-range-selection";
+import { useCellSelection } from "./hooks/use-cell-range-selection";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -62,14 +64,92 @@ export function renderTableHeader<TData>(
   );
 }
 
-export function renderTableBody<TData>(
-  table: Table<TData>,
-  columns: Array<ColumnDef<TData>>,
-  rowViewerPanelOpen: boolean,
-  getRowIndex?: (row: TData, idx: number) => number,
-  viewedRowIdx?: number,
-): JSX.Element {
-  const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
+interface DataTableBodyProps<TData> {
+  table: Table<TData>;
+  columns: Array<ColumnDef<TData>>;
+  rowViewerPanelOpen: boolean;
+  getRowIndex?: (row: TData, idx: number) => number;
+  viewedRowIdx?: number;
+}
+
+export const DataTableBody = <TData,>({
+  table,
+  columns,
+  rowViewerPanelOpen,
+  getRowIndex,
+  viewedRowIdx,
+}: DataTableBodyProps<TData>) => {
+  // const {
+  //   selectedCell,
+  //   selection: selectedRange,
+  //   getCellRef,
+  //   isCellSelected,
+  //   isCellInRange,
+  //   handleClick,
+  //   handleKeyDown,
+  //   handleMouseDown,
+  //   handleMouseEnter,
+  // } = useRangeSelection(
+  //   table.getRowModel().rows,
+  //   table.getVisibleFlatColumns(),
+  // );
+
+  // const renderCells = (cells: Array<Cell<TData, unknown>>) => {
+  //   return cells.map((cell) => {
+  //     const cellRef = getCellRef(cell.row.id, cell.column.id);
+  //     const isSelected = isCellSelected(cell.row.id, cell.column.id);
+  //     const isInRange = isCellInRange(cell.row.id, cell.column.id);
+
+  //     const { className, style: pinningstyle } = getPinningStyles(cell.column);
+  //     const style = Object.assign(
+  //       {},
+  //       cell.getUserStyling?.() || {},
+  //       pinningstyle,
+  //     );
+  //     return (
+  //       <TableCell
+  //         key={cell.id}
+  //         className={cn(
+  //           "whitespace-pre truncate max-w-[300px] select-none outline-none",
+  //           cell.column.getColumnWrapping &&
+  //             cell.column.getColumnWrapping() === "wrap" &&
+  //             "whitespace-pre-wrap min-w-[200px]",
+  //           "px-1.5 py-[0.18rem]",
+  //           isSelected &&
+  //             "bg-[var(--blue-3)] hover:bg-[var(--blue-3)] data-[state=selected]:bg-[var(--blue-4)]",
+  //           isInRange &&
+  //             "bg-[var(--blue-1)] hover:bg-[var(--blue-1)] data-[range=in-range]:bg-[var(--blue-2)]",
+  //           className,
+  //         )}
+  //         style={style}
+  //         title={String(cell.getValue())}
+  //         onClick={() => handleClick(cell.row.id, cell.column.id)}
+  //         onKeyDown={(e) => handleKeyDown(e, cell.row.id, cell.column.id)}
+  //         onMouseDown={() => handleMouseDown(cell.row.id, cell.column.id)}
+  //         onMouseEnter={() => handleMouseEnter(cell.row.id, cell.column.id)}
+  //         ref={cellRef}
+  //         data-state={isSelected && "selected"}
+  //         data-range={isInRange && "in-range"}
+  //       >
+  //         {flexRender(cell.column.columnDef.cell, cell.getContext())}
+  //       </TableCell>
+  //     );
+  //   });
+  // };
+
+  // Diff approach
+  const {
+    handleCellMouseDown,
+    handleCellMouseUp,
+    handleCellMouseOver,
+    handleCellsKeyDown,
+    isCellSelected,
+    isCellCopied,
+  } = useCellSelection({
+    table,
+  });
+
+  const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
       const style = Object.assign(
@@ -79,17 +159,24 @@ export function renderTableBody<TData>(
       );
       return (
         <TableCell
+          tabIndex={0}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px]",
+            "whitespace-pre truncate max-w-[300px] select-none outline-none",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
             "px-1.5 py-[0.18rem]",
+            isCellSelected(cell) && "bg-[var(--green-3)]",
+            isCellCopied(cell) &&
+              "bg-[var(--green-4)] transition-colors duration-150",
             className,
           )}
           style={style}
           title={String(cell.getValue())}
+          onMouseDown={(e) => handleCellMouseDown(e, cell)}
+          onMouseUp={handleCellMouseUp}
+          onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
@@ -103,7 +190,7 @@ export function renderTableBody<TData>(
   };
 
   return (
-    <TableBody>
+    <TableBody onKeyDown={handleCellsKeyDown}>
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => {
           // Only find the row index if the row viewer panel is open
@@ -126,9 +213,9 @@ export function renderTableBody<TData>(
               )}
               onClick={() => handleRowClick(row)}
             >
-              {renderCells(row, row.getLeftVisibleCells())}
-              {renderCells(row, row.getCenterVisibleCells())}
-              {renderCells(row, row.getRightVisibleCells())}
+              {renderCells(row.getLeftVisibleCells())}
+              {renderCells(row.getCenterVisibleCells())}
+              {renderCells(row.getRightVisibleCells())}
             </TableRow>
           );
         })
@@ -141,7 +228,7 @@ export function renderTableBody<TData>(
       )}
     </TableBody>
   );
-}
+};
 
 function getPinningStyles<TData>(
   column: Column<TData>,
