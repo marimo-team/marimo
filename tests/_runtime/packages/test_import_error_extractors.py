@@ -65,11 +65,29 @@ def test_extract_missing_module_from_cause_chain_no_module():
             ["requests", "pandas[all]"],
         ),
         ("Execute 'pip install -U numpy matplotlib'", ["numpy", "matplotlib"]),
+        # Additional quoted edge cases
+        ("Try: `pip install pandas`.", ["pandas"]),  # trailing punctuation
+        ('Try running `"pip install seaborn"`', ["seaborn"]),  # nested quotes
+        (
+            "Use: 'pip install   scipy   matplotlib'",
+            ["scipy", "matplotlib"],
+        ),  # extra spaces
+        (
+            "Here's the command: `pip install jupyterlab` for notebooks",
+            ["jupyterlab"],
+        ),
         # Unquoted with surrounding text (conservative parsing)
         ("Try: pip install polars if you want to do something", ["polars"]),
         ("You can pip install requests pandas but maybe not", ["requests"]),
         # No match
         ("Some other error message", None),
+        # Harder, https://github.com/flekschas/jupyter-scatter/blob/ecfd8c4e19a1ad202372c09939682e5fbe9e70ba/jscatter/dependencies.py#L33-L37
+        (
+            """Please install it with: pip install "jupyter-scatter[blah]" or pip install "jupyter-scatter[all]".""",
+            ["jupyter-scatter[blah]"],
+        ),
+        ('Try: `pip install foo bar "baz[all]"`.', ["foo", "bar", "baz[all]"]),
+        ("Try: `pip install foo bar 'baz[all]'`.", ["foo", "bar", "baz[all]"]),
     ],
 )
 def test_extract_packages_from_pip_install_suggestion(message, expected):

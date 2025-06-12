@@ -24,6 +24,12 @@ def extract_missing_module_from_cause_chain(
     return None
 
 
+def strip_quotes(s: str) -> str:
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in {"'", '"'}:
+        return s[1:-1]
+    return s
+
+
 def extract_packages_from_pip_install_suggestion(
     message: str,
 ) -> list[str] | None:
@@ -45,6 +51,8 @@ def extract_packages_from_pip_install_suggestion(
             seen = set()
 
             for arg in args:
+                # Could be `pip install "foo[extra1,extra2]"`
+                arg = strip_quotes(arg)
                 # Skip flags and duplicates
                 if not arg.startswith("-") and arg not in seen:
                     packages.append(arg)
@@ -53,10 +61,17 @@ def extract_packages_from_pip_install_suggestion(
             if packages:
                 return packages
 
+    # Look for pip install with quoted individual packages
+    individual_quoted_pattern = r'pip install\s+"([^"]+)"'
+    match = re.search(individual_quoted_pattern, message, re.IGNORECASE)
+    if match:
+        return [match.group(1)]
+
     # If no quoted command found, look for unquoted and take only first positional arg
     unquoted_pattern = (
-        r"pip install\s+([a-zA-Z0-9_-]+(?:\[[a-zA-Z0-9_,-]+\])?)"
+        r"pip install\s+([a-zA-Z0-9_.-]+(?:\[[a-zA-Z0-9_,.-]+\])?)"
     )
+
     match = re.search(unquoted_pattern, message, re.IGNORECASE)
 
     if match:
