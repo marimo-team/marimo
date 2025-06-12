@@ -25,9 +25,9 @@ interface LoadingResult<T> {
   isFetching: true;
 }
 
-interface ErrorResult {
+interface ErrorResult<T> {
   status: "error";
-  data: undefined;
+  data: undefined | T;
   error: Error;
   isPending: false;
   isFetching: false;
@@ -42,10 +42,10 @@ interface SuccessResult<T> {
 }
 
 const Result = {
-  error(e: Error): ErrorResult {
+  error<T>(e: Error, staleData?: T): ErrorResult<T> {
     return {
       status: "error",
-      data: undefined,
+      data: staleData,
       error: e,
       isPending: false,
       isFetching: false,
@@ -83,7 +83,7 @@ const Result = {
 export type AsyncDataResult<T> =
   | PendingResult
   | LoadingResult<T>
-  | ErrorResult
+  | ErrorResult<T>
   | SuccessResult<T>;
 
 export function combineAsyncData<T extends unknown[]>(
@@ -155,7 +155,7 @@ export function useAsyncData<T>(
 } {
   const [nonce, setNonce] = useState(0);
   const [result, setResult] = useState<
-    PendingResult | LoadingResult<T> | ErrorResult | SuccessResult<T>
+    PendingResult | LoadingResult<T> | ErrorResult<T> | SuccessResult<T>
   >(Result.pending());
 
   const asProps =
@@ -195,7 +195,8 @@ export function useAsyncData<T>(
         if (controller.signal.aborted) {
           return;
         }
-        setResult(Result.error(error));
+        // Carry over the previous data (if any)
+        setResult((prev) => Result.error(error, prev.data));
       });
 
     return () => {
