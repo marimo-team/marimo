@@ -170,16 +170,6 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                 return;
               }
               onEdit(index, newValue);
-              if (chatState.activeChatId) {
-                setChatState((prev: ChatState) =>
-                  addMessageToChat(
-                    prev,
-                    chatState.activeChatId,
-                    "user",
-                    newValue,
-                  ),
-                );
-              }
             }}
             onClose={() => {
               // noop
@@ -409,11 +399,33 @@ const ChatPanelBody = () => {
   };
 
   const handleMessageEdit = (index: number, newValue: string) => {
+    // Truncate both local messages and storage
     setMessages((messages) => messages.slice(0, index));
+    if (chatState.activeChatId) {
+      setChatState((prev) => ({
+        ...prev,
+        chats: prev.chats.map((chat) =>
+          chat.id === chatState.activeChatId
+            ? {
+                ...chat,
+                messages: chat.messages.slice(0, index),
+                updatedAt: Date.now(),
+              }
+            : chat,
+        ),
+      }));
+    }
+
+    // Add user message to useChat and storage
     append({
       role: "user",
       content: newValue,
     });
+    if (chatState.activeChatId) {
+      setChatState((prev) =>
+        addMessageToChat(prev, chatState.activeChatId, "user", newValue),
+      );
+    }
   };
 
   const handleChatInputSubmit = (
