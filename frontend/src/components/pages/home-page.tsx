@@ -144,24 +144,28 @@ const HomePage: React.FC = () => {
 const WorkspaceNotebooks: React.FC = () => {
   const [includeMarkdown, setIncludeMarkdown] = useAtom(includeMarkdownAtom);
   const [searchText, setSearchText] = useState("");
-  const workspaceResponse = useAsyncData(
+  const {
+    isPending,
+    data: workspace,
+    error,
+    isFetching,
+    refetch,
+  } = useAsyncData(
     () => getWorkspaceFiles({ includeMarkdown }),
     [includeMarkdown],
   );
 
-  if (workspaceResponse.error) {
-    return (
-      <Banner kind="danger" className="rounded p-4">
-        {prettyError(workspaceResponse.error)}
-      </Banner>
-    );
-  }
-
-  if (workspaceResponse.loading || !workspaceResponse.data) {
+  if (isPending) {
     return <Spinner centered={true} size="xlarge" className="mt-6" />;
   }
 
-  const workspace = workspaceResponse.data;
+  if (error) {
+    return (
+      <Banner kind="danger" className="rounded p-4">
+        {prettyError(error)}
+      </Banner>
+    );
+  }
 
   return (
     <WorkspaceRootContext value={workspace.root}>
@@ -194,9 +198,9 @@ const WorkspaceNotebooks: React.FC = () => {
           Workspace
           <RefreshCcwIcon
             className="w-4 h-4 ml-1 cursor-pointer opacity-70 hover:opacity-100"
-            onClick={() => workspaceResponse.reload()}
+            onClick={() => refetch()}
           />
-          {workspaceResponse.loading && <Spinner size="small" />}
+          {isFetching && <Spinner size="small" />}
         </Header>
         <div className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden max-h-[48rem] overflow-y-auto shadow-sm bg-background">
           <NotebookFileTree searchText={searchText} files={workspace.files} />
@@ -463,7 +467,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
             variant: "destructive",
             confirmAction: (
               <AlertDialogDestructiveAction
-                onClick={(e) => {
+                onClick={() => {
                   const ids = runningNotebooks.get(filePath);
                   assertExists(ids?.sessionId);
                   shutdownSession({

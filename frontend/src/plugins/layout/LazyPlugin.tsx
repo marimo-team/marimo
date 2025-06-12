@@ -71,7 +71,7 @@ const LazyComponent = ({
   // We could improve performance if the BE was able to know if the same
   // mo.lazy has already been loaded, and when re-rendering it would
   // include the 'lazy' content by default (unlazily)
-  const { data, loading, error } = useAsyncData(
+  const { data, error, isPending } = useAsyncData(
     (ctx) => {
       if (!value) {
         ctx.previous();
@@ -88,7 +88,7 @@ const LazyComponent = ({
 
   return (
     <div ref={ref} className="min-h-4">
-      {loading && !data && showLoadingIndicator ? (
+      {isPending && showLoadingIndicator ? (
         <Loader2Icon className="w-12 h-12 animate-spin text-primary my-4 mx-4" />
       ) : (
         data && renderHTML({ html: data.html })

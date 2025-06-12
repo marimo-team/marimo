@@ -40,7 +40,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");
 
-  const { data, loading, error, setData } = useAsyncData(async () => {
+  const { data, isPending, error, setData } = useAsyncData(async () => {
     const details = await sendFileDetails({ path: file.path });
     const contents = details.contents || "";
     setInternalValue(unsavedContentsForFile.get(file.path) || contents);
@@ -56,9 +56,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       (response) => {
         if (response.success) {
           // Update the last saved value
-          setData((prev) =>
-            prev ? { ...prev, contents: internalValue } : undefined,
-          );
+          setData((prev) => ({ ...prev, contents: internalValue }));
           setInternalValue(internalValue);
         }
       },
@@ -87,7 +85,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     return <ErrorBanner error={error} />;
   }
 
-  if (loading || !data) {
+  if (isPending || !data) {
     return null;
   }
 

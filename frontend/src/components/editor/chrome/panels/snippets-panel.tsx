@@ -36,7 +36,7 @@ export const SnippetsPanel: React.FC = () => {
   const {
     data: snippets,
     error,
-    loading,
+    isPending,
   } = useAsyncData(() => {
     return readSnippets();
   }, []);
@@ -45,7 +45,7 @@ export const SnippetsPanel: React.FC = () => {
     return <ErrorBanner error={error} />;
   }
 
-  if (loading || !snippets) {
+  if (isPending || !snippets) {
     return <Spinner size="medium" centered={true} />;
   }
 

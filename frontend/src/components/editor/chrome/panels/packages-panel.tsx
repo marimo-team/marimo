@@ -139,13 +139,13 @@ const PackageActionButton: React.FC<{
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { data, loading, error, reload } = useAsyncData(
+  const { data, error, refetch, isPending } = useAsyncData(
     () => getPackageList(),
     [packageManager],
   );
 
   // Only show on the first load
-  if (loading && !data) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 
@@ -157,8 +157,8 @@ export const PackagesPanel: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <InstallPackageForm packageManager={packageManager} onSuccess={reload} />
-      <PackagesList packages={packages} onSuccess={reload} />
+      <InstallPackageForm packageManager={packageManager} onSuccess={refetch} />
+      <PackagesList packages={packages} onSuccess={refetch} />
     </div>
   );
 };

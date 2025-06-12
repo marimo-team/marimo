@@ -377,7 +377,7 @@ const PopoverFilterByValues = <TData, TValue>({
   const [chosenValues, setChosenValues] = useState<Set<unknown>>(new Set());
   const [query, setQuery] = useState<string>("");
 
-  const { data, loading, error } = useAsyncData(async () => {
+  const { data, isPending, error } = useAsyncData(async () => {
     if (!calculateTopKRows) {
       return null;
     }
@@ -406,7 +406,7 @@ const PopoverFilterByValues = <TData, TValue>({
 
   let dataTable: React.ReactNode;
 
-  if (loading) {
+  if (isPending) {
     dataTable = <Spinner size="medium" className="mx-auto mt-12 mb-10" />;
   }
 

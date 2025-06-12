@@ -84,7 +84,7 @@ export const DataExplorerComponent = ({
   data: dataUrl,
 }: DataTableProps): JSX.Element => {
   const actions = useChartSpecActions();
-  const { data, loading, error } = useAsyncData(async () => {
+  const { data, isPending, error } = useAsyncData(async () => {
     if (!dataUrl) {
       return {};
     }
@@ -114,7 +114,7 @@ export const DataExplorerComponent = ({
     return <div />;
   }
   const { chartData, schema } = data;
-  if (loading || !schema) {
+  if (isPending || !schema) {
     return <div />;
   }
 

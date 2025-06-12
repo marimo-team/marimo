@@ -60,7 +60,12 @@ interface SecretsProviderProps {
 }
 
 export const SecretsProvider = ({ children }: SecretsProviderProps) => {
-  const { data, loading, error, reload } = useAsyncData(async () => {
+  const {
+    data,
+    isPending,
+    error,
+    refetch: reload,
+  } = useAsyncData(async () => {
     const result = await SECRETS_REGISTRY.request({});
     // Provider names without 'env' provider
     const providerNames = sortProviders(result.secrets)
@@ -78,7 +83,7 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
       value={{
         secretKeys: data?.secretKeys || [],
         providerNames: data?.providerNames || [],
-        loading,
+        loading: isPending,
         error,
         refreshSecrets: reload,
       }}

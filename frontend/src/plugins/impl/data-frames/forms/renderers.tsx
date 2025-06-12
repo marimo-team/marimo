@@ -221,14 +221,14 @@ export const columnValuesRenderer = <T extends FieldValues>(): FormRenderer<
     );
     const column = React.use(ColumnNameContext);
     const fetchValues = React.use(ColumnFetchValuesContext);
-    const { data, loading } = useAsyncData(
+    const { data, isPending } = useAsyncData(
       () => fetchValues({ column }),
       [column],
     );
 
     const options = data?.values || [];
 
-    if (options.length === 0 && !loading) {
+    if (options.length === 0 && !isPending) {
       return (
         <FormField
           control={form.control}
@@ -298,14 +298,14 @@ export const multiColumnValuesRenderer = <
   Component: ({ schema, form, path }) => {
     const column = React.use(ColumnNameContext);
     const fetchValues = React.use(ColumnFetchValuesContext);
-    const { data, loading } = useAsyncData(
+    const { data, isPending } = useAsyncData(
       () => fetchValues({ column }),
       [column],
     );
 
     const options = data?.values || [];
 
-    if (options.length === 0 && !loading) {
+    if (options.length === 0 && !isPending) {
       return (
         <FormField
           control={form.control}

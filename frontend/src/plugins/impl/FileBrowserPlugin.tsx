@@ -138,7 +138,7 @@ export const FileBrowser = ({
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
 
-  const { data, loading, error } = useAsyncData(
+  const { data, error, isPending } = useAsyncData(
     () =>
       list_directory({
         path: path,
@@ -155,7 +155,7 @@ export const FileBrowser = ({
     });
   }
 
-  if (loading && !data) {
+  if (isPending) {
     return null;
   }
 
