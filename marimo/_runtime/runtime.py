@@ -105,6 +105,10 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
+from marimo._runtime.packages.import_error_extractors import (
+    extract_missing_module_from_cause_chain,
+    try_extract_packages_from_import_error_message,
+)
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
@@ -2416,7 +2420,7 @@ class PackagesCallbacks:
         module_not_found_errors = [
             e
             for e in runner.exceptions.values()
-            if isinstance(e, (ModuleNotFoundError, ManyModulesNotFoundError))
+            if isinstance(e, (ImportError, ManyModulesNotFoundError))
         ]
 
         if len(module_not_found_errors) == 0:
@@ -2428,23 +2432,36 @@ class PackagesCallbacks:
         missing_modules: set[str] = set()
         missing_packages: set[str] = set()
 
-        # Populate missing_modules and missing_packages
-        # from the errors
+        # Populate missing_modules and missing_packages from the errors
         for e in module_not_found_errors:
             if isinstance(e, ManyModulesNotFoundError):
                 # filter out packages that we already attempted to install
                 # to prevent an infinite loop
                 missing_packages.update(
                     {
-                        package
-                        for package in e.package_names
-                        if not self.package_manager.attempted_to_install(
-                            package
-                        )
+                        pkg
+                        for pkg in e.package_names
+                        if not self.package_manager.attempted_to_install(pkg)
                     }
                 )
-            elif e.name is not None:
-                missing_modules.add(e.name)
+                continue
+
+            maybe_missing_module = extract_missing_module_from_cause_chain(e)
+            if maybe_missing_module:
+                missing_modules.add(maybe_missing_module)
+                continue
+
+            maybe_missing_packages = (
+                try_extract_packages_from_import_error_message(str(e))
+            )
+            if maybe_missing_packages:
+                missing_packages.update(
+                    {
+                        pkg
+                        for pkg in maybe_missing_packages
+                        if not self.package_manager.attempted_to_install(pkg)
+                    }
+                )
 
         # Grab missing modules from module registry and from module not found errors
         missing_modules = (
