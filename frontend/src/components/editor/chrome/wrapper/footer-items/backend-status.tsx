@@ -93,6 +93,7 @@ export const BackendConnection: React.FC = () => {
       }
       selected={false}
       onClick={refetch}
+      data-testid="footer-backend-status"
     >
       {getStatusIcon()}
     </FooterItem>

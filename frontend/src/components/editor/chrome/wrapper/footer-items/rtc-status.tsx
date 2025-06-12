@@ -34,7 +34,11 @@ export const RTCStatus: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild={true}>
-        <FooterItem tooltip={tooltip} selected={false}>
+        <FooterItem
+          tooltip={tooltip}
+          selected={false}
+          data-testid="footer-rtc-status"
+        >
           <UsersIcon className="w-4 h-4" />
         </FooterItem>
       </PopoverTrigger>

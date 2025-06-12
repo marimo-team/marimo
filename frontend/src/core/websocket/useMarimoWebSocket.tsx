@@ -281,9 +281,14 @@ export function useMarimoWebSocket(opts: {
     /**
      * Open callback. Set the connection status to open.
      */
-    onOpen: () => {
+    onOpen: async () => {
       // If we are open, we can reset our reconnecting flag.
       shouldTryReconnecting.current = true;
+
+      // DO NOT COMMIT THIS UNCOMMENTED
+      // Uncomment to emulate a slow connection
+      // await new Promise((resolve) => setTimeout(resolve, 10_000));
+
       setConnection({ state: WebSocketState.OPEN });
     },
 

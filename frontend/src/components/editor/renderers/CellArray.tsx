@@ -49,7 +49,8 @@ import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Column } from "../columns/cell-column";
 import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
 import type { CellId } from "@/core/cells/ids";
-import { StdinBlockingAlert } from "../stdin-blocking-alert";
+import { StdinBlockingAlert } from "../alerts/stdin-blocking-alert";
+import { ConnectingAlert } from "../alerts/connecting-alert";
 
 interface CellArrayProps {
   mode: AppMode;
@@ -125,6 +126,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
     >
       <PackageAlert />
       <StdinBlockingAlert />
+      <ConnectingAlert />
       <NotebookBanner width={appConfig.width} />
       <div
         className={cn(

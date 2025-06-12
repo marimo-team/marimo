@@ -16,3 +16,8 @@ export function waitForConnectionOpen() {
     return value.state === WebSocketState.OPEN;
   });
 }
+
+export const isConnectingAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return connection.state === WebSocketState.CONNECTING;
+});
