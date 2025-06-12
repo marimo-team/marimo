@@ -399,7 +399,7 @@ const ChatPanelBody = () => {
   };
 
   const handleMessageEdit = (index: number, newValue: string) => {
-    // Truncate both local messages and storage
+    // Truncate both useChat and storage
     setMessages((messages) => messages.slice(0, index));
     if (chatState.activeChatId) {
       setChatState((prev) => ({
