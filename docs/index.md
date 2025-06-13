@@ -119,7 +119,7 @@ specialized for working with data, with context about your variables in memory;
 [zero-shot entire notebooks](https://docs.marimo.io/guides/generate_with_ai/text_to_notebook/).
 Customize the system prompt, bring your own API keys, or use local models.
 
-<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+<video autoplay muted loop playsinline width="700px" align="center">
   <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
 </video>
 
