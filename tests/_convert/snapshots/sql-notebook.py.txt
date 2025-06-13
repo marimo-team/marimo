@@ -21,7 +21,7 @@ def _(fn_that_creates_engine):
 
 
 @app.cell
-def _(mem_engine, mo, my_table):
+def _(mem_engine, mo):
     export = mo.sql(
         f"""
         SELECT * FROM my_table;
@@ -29,11 +29,11 @@ def _(mem_engine, mo, my_table):
         output=False,
         engine=mem_engine
     )
-    return (export,)
+    return
 
 
 @app.cell
-def _(export, mo):
+def _(mo):
     _df = mo.sql("SELECT * FROM export;")
     return
 
