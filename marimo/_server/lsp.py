@@ -220,13 +220,20 @@ class PyLspServer(BaseLspServer):
 class TyServer(BaseLspServer):
     id = "ty"
 
+    def start(self) -> Optional[Alert]:
+        # ty is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.ty.has():
+            LOGGER.debug("ty is not installed. Skipping LSP server.")
+            return None
+        return super().start()
+
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if DependencyManager.ty.has():
             return True
         return "ty is missing. Install it with `pip install ty`."
 
     def get_command(self) -> list[str]:
-        from ty.__main__ import find_ty_bin
+        from ty.__main__ import find_ty_bin  # type: ignore
 
         return [
             find_ty_bin(),
