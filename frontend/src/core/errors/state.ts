@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { createReducerAndAtoms } from "@/utils/createReducer";
 import { useAtomValue } from "jotai";
-import type { Banner } from "../kernel/messages";
-import { generateUUID } from "@/utils/uuid";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { Identified } from "@/utils/typed";
+import { generateUUID } from "@/utils/uuid";
+import type { Banner } from "../kernel/messages";
 
 interface BannerState {
   banners: Array<Identified<Banner>>;

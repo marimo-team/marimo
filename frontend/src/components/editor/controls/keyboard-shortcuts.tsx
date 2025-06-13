@@ -1,28 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { atom, useAtom, useAtomValue } from "jotai";
+import { EditIcon, XIcon } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
+import type { UserConfig } from "@/core/config/config-schema";
+import {
+  getDefaultHotkey,
+  type HotkeyAction,
+  type HotkeyGroup,
+} from "@/core/hotkeys/hotkeys";
+import { isPlatformMac } from "@/core/hotkeys/shortcuts";
+import { saveUserConfig } from "@/core/network/requests";
 import { useHotkey } from "../../../hooks/useHotkey";
+import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import {
   Dialog,
   DialogContent,
-  DialogPortal,
-  DialogOverlay,
   DialogHeader,
+  DialogOverlay,
+  DialogPortal,
   DialogTitle,
 } from "../../ui/dialog";
-import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
-import {
-  type HotkeyAction,
-  type HotkeyGroup,
-  getDefaultHotkey,
-} from "@/core/hotkeys/hotkeys";
-import { atom, useAtom, useAtomValue } from "jotai";
-import { useState } from "react";
-import { EditIcon, XIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
-import { saveUserConfig } from "@/core/network/requests";
-import { isPlatformMac } from "@/core/hotkeys/shortcuts";
-import { Button } from "@/components/ui/button";
-import type { UserConfig } from "@/core/config/config-schema";
 
 export const keyboardShortcutsAtom = atom(false);
 

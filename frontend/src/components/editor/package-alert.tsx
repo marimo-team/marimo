@@ -1,6 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  BoxIcon,
+  CheckIcon,
+  DownloadCloudIcon,
+  PackageCheckIcon,
+  PackageXIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
+import type React from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Form,
@@ -9,51 +20,40 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { saveUserConfig } from "@/core/network/requests";
 import {
-  type UserConfig,
-  UserConfigSchema,
-} from "../../core/config/config-schema";
-import { NativeSelect } from "../ui/native-select";
-import { cn } from "@/utils/cn";
-import { sendInstallMissingPackages } from "@/core/network/requests";
-import {
-  useAlerts,
-  useAlertActions,
-  isMissingPackageAlert,
   isInstallingPackageAlert,
+  isMissingPackageAlert,
+  useAlertActions,
+  useAlerts,
 } from "@/core/alerts/state";
-import { Banner } from "@/plugins/impl/common/error-banner";
-import {
-  PackageXIcon,
-  BoxIcon,
-  CheckIcon,
-  DownloadCloudIcon,
-  PackageCheckIcon,
-  XIcon,
-  PlusIcon,
-} from "lucide-react";
-import type React from "react";
-import { Button } from "../ui/button";
-import type { PackageInstallationStatus } from "@/core/kernel/messages";
-import { logNever } from "@/utils/assertNever";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import type { PackageInstallationStatus } from "@/core/kernel/messages";
+import {
+  saveUserConfig,
+  sendInstallMissingPackages,
+} from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
+import { usePackageMetadata } from "@/hooks/usePackageMetadata";
+import { Banner } from "@/plugins/impl/common/error-banner";
+import { logNever } from "@/utils/assertNever";
+import { cn } from "@/utils/cn";
+import { Logger } from "@/utils/Logger";
 import {
   type PackageManagerName,
   PackageManagerNames,
+  type UserConfig,
+  UserConfigSchema,
 } from "../../core/config/config-schema";
-import { Logger } from "@/utils/Logger";
-import { usePackageMetadata } from "@/hooks/usePackageMetadata";
-import { Tooltip } from "../ui/tooltip";
-import { useState } from "react";
-import { ExternalLink } from "../ui/links";
+import { Button } from "../ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuContent,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { ExternalLink } from "../ui/links";
+import { NativeSelect } from "../ui/native-select";
+import { Tooltip } from "../ui/tooltip";
 
 function parsePackageSpecifier(spec: string): {
   name: string;

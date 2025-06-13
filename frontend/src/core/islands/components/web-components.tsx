@@ -1,17 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { Provider } from "jotai";
+import { isValidElement, type JSX } from "react";
+import ReactDOM, { type Root } from "react-dom/client";
+import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { notebookAtom } from "@/core/cells/cells";
+import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
+import { renderHTML } from "@/plugins/core/RenderHTML";
 import { invariant } from "@/utils/invariant";
 import type { CellId } from "../../cells/ids";
 import { store } from "../../state/jotai";
-import ReactDOM, { type Root } from "react-dom/client";
-import { isValidElement, type JSX } from "react";
 import { extractIslandCodeFromEmbed } from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
-import { Provider } from "jotai";
-import { renderHTML } from "@/plugins/core/RenderHTML";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
-import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
-import { notebookAtom } from "@/core/cells/cells";
 
 /**
  * A custom element that renders the output of a marimo cell

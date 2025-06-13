@@ -1,13 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  createWorkerTransport,
   createRPC,
-  type RPCSchema,
+  createWorkerTransport,
   type RPCOptions,
+  type RPCSchema,
 } from "rpc-anywhere";
-
-import { TRANSPORT_ID } from "./worker/constants";
 import { Logger } from "@/utils/Logger";
+import { TRANSPORT_ID } from "./worker/constants";
 
 export type ParentSchema = RPCSchema<{
   messages: {

@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
+import { defaultUserConfig } from "@/core/config/config-schema";
+import { WebSocketState } from "@/core/websocket/types";
+import { Logger } from "@/utils/Logger";
+import type { Milliseconds, Seconds } from "@/utils/time";
 import { Cell, type CellProps } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 import type { CellId } from "../core/cells/ids";
-import { Logger } from "@/utils/Logger";
-import type { Milliseconds, Seconds } from "@/utils/time";
-import { defaultUserConfig } from "@/core/config/config-schema";
-import { WebSocketState } from "@/core/websocket/types";
 
 const meta: Meta<typeof Cell> = {
   title: "Cell",

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  isValueQuery,
   isAutoCountQuery,
+  isValueQuery,
 } from "compassql/build/src/query/encoding";
 import type { SpecQuery } from "compassql/build/src/query/spec";
 import { isWildcard } from "compassql/build/src/wildcard";

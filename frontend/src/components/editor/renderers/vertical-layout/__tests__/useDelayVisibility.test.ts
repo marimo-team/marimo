@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useDelayVisibility } from "../useDelayVisibility";
+
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as cellsModule from "@/core/cells/cells";
+import { useDelayVisibility } from "../useDelayVisibility";
 
 describe("useDelayVisibility", () => {
   beforeEach(() => {

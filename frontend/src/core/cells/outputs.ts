@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useState } from "react";
-import type { CellId } from "./ids";
 import type { OutputMessage } from "../kernel/messages";
+import type { CellId } from "./ids";
 
 // This does not need to be overcomplicated. We can just store the expanded
 // state in a global map instead of Jotai since state is not shared between cells.

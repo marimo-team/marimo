@@ -1,17 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
-import { BoxIcon, HelpCircleIcon } from "lucide-react";
-import { PanelEmptyState } from "./empty-state";
 
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { useResolvedMarimoConfig } from "@/core/config/config";
-import {
-  addPackage,
-  getPackageList,
-  removePackage,
-} from "@/core/network/requests";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { useAtomValue, useSetAtom } from "jotai";
+import { BoxIcon, HelpCircleIcon } from "lucide-react";
+import React from "react";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Spinner } from "@/components/icons/spinner";
+import { SearchInput } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Table,
   TableBody,
@@ -20,18 +15,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SearchInput } from "@/components/ui/input";
-import { toast } from "@/components/ui/use-toast";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/utils/cn";
-import { Kbd } from "@/components/ui/kbd";
-import { Events } from "@/utils/events";
-import { copyToClipboard } from "@/utils/copy";
-import { PACKAGES_INPUT_ID } from "./constants";
-import { useOpenSettingsToTab } from "@/components/app-config/state";
-import { packagesToInstallAtom } from "./packages-state";
-import { useAtomValue, useSetAtom } from "jotai";
+import { toast } from "@/components/ui/use-toast";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import {
+  addPackage,
+  getPackageList,
+  removePackage,
+} from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { Events } from "@/utils/events";
+import { PACKAGES_INPUT_ID } from "./constants";
+import { PanelEmptyState } from "./empty-state";
+import { packagesToInstallAtom } from "./packages-state";
 
 const showAddPackageToast = (packageName: string, error?: string | null) => {
   if (error) {

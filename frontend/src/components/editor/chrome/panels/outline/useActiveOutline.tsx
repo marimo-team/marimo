@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useEffect, useRef, useState } from "react";
 import type { OutlineItem } from "@/core/cells/outline";
 import { headingToIdentifier } from "@/core/dom/outline";
 import { getInitialAppMode } from "@/core/mode";
 import { Logger } from "@/utils/Logger";
-import { useEffect, useRef, useState } from "react";
 
 function getRootScrollableElement() {
   // HACK: this is a bit leaky

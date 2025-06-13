@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useMemo } from "react";
-import { notebookOutline } from "../../../../core/cells/cells";
+
 import { useAtomValue } from "jotai";
 import { ScrollTextIcon } from "lucide-react";
+import React, { useMemo } from "react";
+import { notebookOutline } from "../../../../core/cells/cells";
 import { PanelEmptyState } from "./empty-state";
 
 import "./outline-panel.css";
+import { OutlineList } from "./outline/floating-outline";
 import {
   findOutlineElements,
   useActiveOutline,
 } from "./outline/useActiveOutline";
-import { OutlineList } from "./outline/floating-outline";
 
 export const OutlinePanel: React.FC = () => {
   const { items } = useAtomValue(notebookOutline);

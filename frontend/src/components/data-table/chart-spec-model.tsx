@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+
 import { mint, orange, slate } from "@radix-ui/colors";
-import type { ColumnHeaderStats, FieldTypes, ColumnName } from "./types";
-import { parseCsvData } from "@/plugins/impl/vega/loader";
-import { logNever } from "@/utils/assertNever";
 import type { TopLevelSpec } from "vega-lite";
 import { asRemoteURL } from "@/core/runtime/config";
+import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import { parseCsvData } from "@/plugins/impl/vega/loader";
+import { logNever } from "@/utils/assertNever";
+import type { ColumnHeaderStats, ColumnName, FieldTypes } from "./types";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px

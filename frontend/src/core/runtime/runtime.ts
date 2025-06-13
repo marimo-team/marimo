@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { RuntimeConfig } from "./types";
-import { Logger } from "@/utils/Logger";
-import { getSessionId, type SessionId } from "../kernel/session";
-import { KnownQueryParams } from "../constants";
 import { Deferred } from "@/utils/Deferred";
+import { Logger } from "@/utils/Logger";
+import { KnownQueryParams } from "../constants";
+import { getSessionId, type SessionId } from "../kernel/session";
+import type { RuntimeConfig } from "./types";
 
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
@@ -131,9 +131,7 @@ export class RuntimeManager {
     }
   }
 
-  async init(options?: {
-    disableRetryDelay?: boolean;
-  }) {
+  async init(options?: { disableRetryDelay?: boolean }) {
     let retries = 0;
     const maxRetries = 6;
     const baseDelay = 1000;

@@ -1,29 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-base-to-string */
 import * as cql from "compassql/build/src";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import React, { useMemo, type JSX } from "react";
-import { Tooltip } from "@/components/ui/tooltip";
-import { vegaLoadData } from "../vega/loader";
-import { VegaLite } from "react-vega";
+import { createStore, Provider, useAtomValue } from "jotai";
 import { ListFilterIcon } from "lucide-react";
+import React, { type JSX, useMemo } from "react";
+import { VegaLite } from "react-vega";
+import type { VegaLiteProps } from "react-vega/lib/VegaLite";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useOnMount } from "@/hooks/useLifecycle";
+import { useTheme } from "@/theme/useTheme";
+import { Objects } from "@/utils/objects";
+import { ErrorBanner } from "../common/error-banner";
+import { vegaLoadData } from "../vega/loader";
+import { ColumnSummary } from "./components/column-summary";
 import { QueryForm } from "./components/query-form";
+import type { SpecificEncoding } from "./encoding";
 import {
   chartSpecAtom,
   relatedChartSpecsAtom,
   useChartSpecActions,
 } from "./state/reducer";
-import { Provider, createStore, useAtomValue } from "jotai";
-import { Button } from "@/components/ui/button";
-import type { SpecificEncoding } from "./encoding";
-import { Objects } from "@/utils/objects";
-import { Badge } from "@/components/ui/badge";
-import { ErrorBanner } from "../common/error-banner";
-import { ColumnSummary } from "./components/column-summary";
-import type { VegaLiteProps } from "react-vega/lib/VegaLite";
-import { useOnMount } from "@/hooks/useLifecycle";
 import type { ChartSpec } from "./state/types";
-import { useTheme } from "@/theme/useTheme";
 
 /**
  * @param label - a label of the table

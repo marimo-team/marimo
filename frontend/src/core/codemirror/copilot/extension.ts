@@ -1,37 +1,37 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   Compartment,
-  Prec,
   type EditorState,
   type Extension,
+  Prec,
   type Text,
 } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import { keymap } from "@codemirror/view";
-import { COPILOT_FILENAME, copilotServer, getCopilotClient } from "./client";
 import {
   inlineCompletion,
   rejectInlineCompletion,
 } from "@marimo-team/codemirror-ai";
 import {
   copilotPlugin as codeiumCopilotPlugin,
-  Language,
   codeiumOtherDocumentsConfig,
+  Language,
 } from "@valtown/codemirror-codeium";
-import { isCopilotEnabled } from "./state";
-import { getCodes } from "./getCodes";
-import type { CompletionConfig } from "@/core/config/config-schema";
-import { Logger } from "@/utils/Logger";
-import { languageAdapterState } from "../language/extension";
-import { API } from "@/core/network/api";
-import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
-import type { EditorView } from "@codemirror/view";
-import { isInVimMode } from "../utils";
 import {
-  InlineCompletionTriggerKind,
   type InlineCompletionItem,
   type InlineCompletionList,
   type InlineCompletionParams,
+  InlineCompletionTriggerKind,
 } from "vscode-languageserver-protocol";
+import type { CompletionConfig } from "@/core/config/config-schema";
+import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
+import { API } from "@/core/network/api";
+import { Logger } from "@/utils/Logger";
+import { languageAdapterState } from "../language/extension";
+import { isInVimMode } from "../utils";
+import { COPILOT_FILENAME, copilotServer, getCopilotClient } from "./client";
+import { getCodes } from "./getCodes";
+import { isCopilotEnabled } from "./state";
 
 const copilotCompartment = new Compartment();
 

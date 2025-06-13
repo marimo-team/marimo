@@ -6,9 +6,9 @@
 // - filter diffs by path
 
 import type { Extension } from "@codemirror/state";
-import { ViewPlugin } from "@codemirror/view";
 import { Annotation, type ChangeSpec } from "@codemirror/state";
 import type { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
+import { ViewPlugin } from "@codemirror/view";
 import type {
   LoroDoc,
   LoroEventBatch,

@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, type JSX } from "react";
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps } from "../types";
-import { Checkbox } from "../../components/ui/checkbox";
 import type { CheckedState } from "@radix-ui/react-checkbox";
+import { type JSX, useId } from "react";
+import { z } from "zod";
+import { Checkbox } from "../../components/ui/checkbox";
+import type { IPlugin, IPluginProps } from "../types";
 import { Labeled } from "./common/labeled";
 
 type T = boolean;

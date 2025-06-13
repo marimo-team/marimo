@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { beforeEach, expect, describe, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createStorage } from "../storage";
 
 describe("createStorage", () => {

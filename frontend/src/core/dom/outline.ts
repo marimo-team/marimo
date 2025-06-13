@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { Logger } from "@/utils/Logger";
-import type { OutputMessage } from "../kernel/messages";
-import type { Outline, OutlineItem } from "../cells/outline";
 import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
+import type { Outline, OutlineItem } from "../cells/outline";
+import type { OutputMessage } from "../kernel/messages";
 
 // Tags that we don't want to include in the outline
 const excludedTags = ["marimo-carousel", "marimo-tabs", "marimo-accordion"];

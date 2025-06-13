@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from "@/components/ui/use-toast";
-import type { EditRequests, RequestKey, RunRequests } from "./types";
-import { Logger } from "@/utils/Logger";
 import { prettyError } from "@/utils/errors";
+import { Logger } from "@/utils/Logger";
+import type { EditRequests, RequestKey, RunRequests } from "./types";
 
 export function createErrorToastingRequests(
   delegate: EditRequests & RunRequests,

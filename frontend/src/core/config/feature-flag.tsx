@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { repl } from "@/utils/repl";
 import type { UserConfig } from "vite";
+import { repl } from "@/utils/repl";
 import { saveUserConfig } from "../network/requests";
 import { getResolvedMarimoConfig } from "./config";
 

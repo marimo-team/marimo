@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { exportedForTesting } from "../extension";
+
 import { EditorView } from "@codemirror/view";
+import { describe, expect, it } from "vitest";
 import type { InlineCompletionList } from "vscode-languageserver-protocol";
+import { exportedForTesting } from "../extension";
 
 const { getCopilotRequest, getSuggestion } = exportedForTesting;
 

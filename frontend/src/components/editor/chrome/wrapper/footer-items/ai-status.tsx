@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { useAtomValue } from "jotai";
-import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { SparklesIcon } from "lucide-react";
-import { FooterItem } from "../footer-item";
+import React from "react";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
+import { aiAtom, aiEnabledAtom } from "@/core/config/config";
+import { FooterItem } from "../footer-item";
 
 export const AIStatusIcon: React.FC = () => {
   const ai = useAtomValue(aiAtom);

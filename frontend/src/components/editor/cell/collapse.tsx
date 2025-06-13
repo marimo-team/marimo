@@ -1,11 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Toolbar } from "@/components/layout/toolbar";
-import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
-import { useNotebook } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
-import { getDescendantsStatus } from "@/core/cells/utils";
-import { cn } from "@/utils/cn";
+
 import {
   AlertOctagonIcon,
   ChevronDownIcon,
@@ -16,6 +10,13 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
+import { Toolbar } from "@/components/layout/toolbar";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useNotebook } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { getDescendantsStatus } from "@/core/cells/utils";
+import { cn } from "@/utils/cn";
 
 interface Props {
   isCollapsed: boolean;

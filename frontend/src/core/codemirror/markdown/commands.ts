@@ -1,9 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { toast } from "@/components/ui/use-toast";
-import { sendCreateFileOrFolder } from "@/core/network/requests";
-import { filenameAtom } from "@/core/saving/file-state";
-import { store } from "@/core/state/jotai";
-import { Paths, type FilePath } from "@/utils/paths";
+
 import {
   EditorSelection,
   type SelectionRange,
@@ -11,6 +7,11 @@ import {
   Transaction,
 } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { toast } from "@/components/ui/use-toast";
+import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/file-state";
+import { store } from "@/core/state/jotai";
+import { type FilePath, Paths } from "@/utils/paths";
 
 function hasSelection(view: EditorView) {
   return !view.state.selection.main.empty;

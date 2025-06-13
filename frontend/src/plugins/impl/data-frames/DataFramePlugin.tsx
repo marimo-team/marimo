@@ -1,29 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
+import { isEqual } from "lodash-es";
+import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
+import { type JSX, memo, useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import type { FieldTypesWithExternalType } from "@/components/data-table/types";
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+import { Spinner } from "@/components/icons/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DATA_TYPES } from "@/core/kernel/messages";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { createPlugin } from "@/plugins/core/builder";
+import { rpc } from "@/plugins/core/rpc";
+import { Arrays } from "@/utils/arrays";
+import { Functions } from "@/utils/functions";
+import { ErrorBanner } from "../common/error-banner";
+import { LoadingDataTableComponent, TableProviders } from "../DataTablePlugin";
+import type { DataType } from "../vega/vega-loader";
+import { TransformPanel } from "./panel";
 import {
   ConditionSchema,
   type ConditionType,
   type Transformations,
 } from "./schema";
-import { TransformPanel } from "./panel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
 import type { ColumnDataTypes, ColumnId } from "./types";
-import { createPlugin } from "@/plugins/core/builder";
-import { rpc } from "@/plugins/core/rpc";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { LoadingDataTableComponent, TableProviders } from "../DataTablePlugin";
-import { Functions } from "@/utils/functions";
-import { Arrays } from "@/utils/arrays";
-import { memo, useEffect, useRef, useState, type JSX } from "react";
-import { ErrorBanner } from "../common/error-banner";
-import type { DataType } from "../vega/vega-loader";
-import type { FieldTypesWithExternalType } from "@/components/data-table/types";
-import { Spinner } from "@/components/icons/spinner";
-import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
-import { isEqual } from "lodash-es";
-import { DATA_TYPES } from "@/core/kernel/messages";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;

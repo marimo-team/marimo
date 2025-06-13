@@ -1,15 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { notebookStateFromSession } from "../session";
-import { Logger } from "@/utils/Logger";
-import { parseOutline } from "@/core/dom/outline";
-import { MultiColumn } from "@/utils/id-tree";
 import type * as api from "@marimo-team/marimo-api";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { parseOutline } from "@/core/dom/outline";
+import { MultiColumn, visibleForTesting } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
 import type { CellId } from "../ids";
-import { visibleForTesting } from "@/utils/id-tree";
+import { notebookStateFromSession } from "../session";
 
 // Mock dependencies
 vi.mock("@/utils/Logger", () => ({

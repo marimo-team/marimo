@@ -1,20 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useTheme } from "@/theme/useTheme";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
-import { useCellActions } from "@/core/cells/cells";
-import { Button, type ButtonProps } from "@/components/ui/button";
-import { BetweenHorizontalStartIcon } from "lucide-react";
+
 import { EditorView } from "@codemirror/view";
-import Markdown, { type Components } from "react-markdown";
-import { useEffect, useState, memo, useMemo } from "react";
-import { useLastFocusedCellId } from "@/core/cells/focus";
-import { copyToClipboard } from "@/utils/copy";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
-import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useAtomValue } from "jotai";
-import { autoInstantiateAtom } from "@/core/config/config";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { BetweenHorizontalStartIcon } from "lucide-react";
 import { marked } from "marked";
+import { memo, useEffect, useMemo, useState } from "react";
+import Markdown, { type Components } from "react-markdown";
+import { Button, type ButtonProps } from "@/components/ui/button";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { autoInstantiateAtom } from "@/core/config/config";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import { useTheme } from "@/theme/useTheme";
+import { copyToClipboard } from "@/utils/copy";
 
 const extensions = [EditorView.lineWrapping];
 

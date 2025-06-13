@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  type SQLTableContext,
   DUCKDB_ENGINE,
+  type SQLTableContext,
 } from "@/core/datasets/data-source-connections";
 import type { DataTable, DataType } from "@/core/kernel/messages";
 import type { ColumnHeaderStatsKey } from "../data-table/types";

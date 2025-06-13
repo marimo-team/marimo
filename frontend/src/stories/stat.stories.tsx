@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { StatComponent } from "@/plugins/layout/StatPlugin";
+
 import type { Meta, StoryFn } from "@storybook/react";
+import { StatComponent } from "@/plugins/layout/StatPlugin";
 
 const meta: Meta<typeof StatComponent> = {
   title: "Stat",

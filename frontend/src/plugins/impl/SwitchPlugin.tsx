@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, type JSX } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
 
 import { Switch } from "@/components/ui/switch";

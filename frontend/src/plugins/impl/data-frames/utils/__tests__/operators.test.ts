@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { expect, describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  BOOLEAN_OPERATORS,
+  DATE_OPERATORS,
+  DATETIME_OPERATORS,
   getOperatorForDtype,
   getSchemaForOperator,
   isConditionValueValid,
-  BOOLEAN_OPERATORS,
-  DATE_OPERATORS,
   NUMERIC_OPERATORS,
   STRING_OPERATORS,
-  DATETIME_OPERATORS,
 } from "../operators";
 
 describe("getOperatorForDtype", () => {

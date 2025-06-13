@@ -2,10 +2,10 @@
 import { CheckIcon, Copy } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { Tooltip } from "../ui/tooltip";
 import { cn } from "@/utils/cn";
-import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
+import { Events } from "@/utils/events";
+import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 
 interface Props {

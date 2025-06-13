@@ -1,12 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  type NodeApi,
-  type NodeRendererProps,
-  Tree,
-  type TreeApi,
-} from "react-arborist";
 
-import React, { Suspense, use, useEffect, useRef, useState } from "react";
+import { useAtom } from "jotai";
 import {
   ArrowLeftIcon,
   BracesIcon,
@@ -14,6 +8,7 @@ import {
   ChevronRightIcon,
   CopyIcon,
   CopyMinusIcon,
+  DownloadIcon,
   Edit3Icon,
   ExternalLinkIcon,
   FilePlus2Icon,
@@ -24,21 +19,19 @@ import {
   Trash2Icon,
   UploadIcon,
   ViewIcon,
-  DownloadIcon,
 } from "lucide-react";
-import type { FileInfo } from "@/core/network/types";
+import React, { Suspense, use, useEffect, useRef, useState } from "react";
 import {
-  FILE_TYPE_ICONS,
-  type FileType,
-  PYTHON_CODE_FOR_FILE_TYPE,
-  guessFileType,
-} from "./types";
-import { toast } from "@/components/ui/use-toast";
+  type NodeApi,
+  type NodeRendererProps,
+  Tree,
+  type TreeApi,
+} from "react-arborist";
+import useEvent from "react-use-event-hook";
+import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
-import { useAtom } from "jotai";
 import { Button, buttonVariants } from "@/components/ui/button";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,20 +40,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/utils/cn";
-import { FileViewer } from "./file-viewer";
-import { treeAtom, openStateAtom } from "./state";
-import { useFileExplorerUpload } from "./upload";
+import { toast } from "@/components/ui/use-toast";
+import { openFile, sendFileDetails } from "@/core/network/requests";
+import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { Spinner } from "@/components/icons/spinner";
-import type { RequestingTree } from "./requesting-tree";
-import type { FilePath } from "@/utils/paths";
-import useEvent from "react-use-event-hook";
+import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
-import { openFile, sendFileDetails } from "@/core/network/requests";
 import { downloadBlob } from "@/utils/download";
+import type { FilePath } from "@/utils/paths";
+import { FileViewer } from "./file-viewer";
+import type { RequestingTree } from "./requesting-tree";
+import { openStateAtom, treeAtom } from "./state";
+import {
+  FILE_TYPE_ICONS,
+  type FileType,
+  guessFileType,
+  PYTHON_CODE_FOR_FILE_TYPE,
+} from "./types";
+import { useFileExplorerUpload } from "./upload";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 

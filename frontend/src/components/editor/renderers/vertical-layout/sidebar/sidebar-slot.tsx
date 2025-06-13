@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo } from "react";
+
 import { Slot } from "@marimo-team/react-slotz";
+import React, { memo } from "react";
 import { SlotNames } from "@/core/slots/slots";
 
 export const SidebarSlot: React.FC = memo(() => {

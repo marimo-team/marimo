@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { ImgComparisonSlider } from "@img-comparison-slider/react";
+import React from "react";
 
 export interface ImageComparisonData {
   beforeSrc: string;

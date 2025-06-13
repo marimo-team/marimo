@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { IPlugin, IPluginProps } from "@/plugins/types";
 import type { VegaLiteSpec } from "./types";
 
-import type { VegaComponentState, Data } from "./vega-component";
+import type { Data, VegaComponentState } from "./vega-component";
 
 import "./vega.css";
 import React, { type JSX } from "react";

@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Meta, StoryObj } from "@storybook/react";
-import { useEffect, useRef } from "react";
+
+import { python } from "@codemirror/lang-python";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import type { Meta, StoryObj } from "@storybook/react";
 import CodeMirror from "@uiw/react-codemirror";
-import { type CodeMirrorSetupOpts, basicBundle } from "../core/codemirror/cm";
-import { python } from "@codemirror/lang-python";
+import { useEffect, useRef } from "react";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { copilotBundle } from "@/core/codemirror/copilot/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { basicBundle, type CodeMirrorSetupOpts } from "../core/codemirror/cm";
 
 const meta: Meta = {
   title: "Editor",

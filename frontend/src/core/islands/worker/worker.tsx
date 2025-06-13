@@ -1,24 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { PyodideInterface } from "pyodide";
-import { Deferred } from "../../../utils/Deferred";
-import { prettyError } from "../../../utils/errors";
 import {
-  createWorkerParentTransport,
   createRPC,
   createRPCRequestHandler,
+  createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import { invariant } from "../../../utils/invariant";
+import type { OperationMessage } from "@/core/kernel/messages";
 import type { ParentSchema } from "@/core/wasm/rpc";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
+import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
 import { MessageBuffer } from "@/core/wasm/worker/message-buffer";
-import type { SerializedBridge, RawBridge } from "@/core/wasm/worker/types";
-import { ReadonlyWasmController } from "./controller";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { RawBridge, SerializedBridge } from "@/core/wasm/worker/types";
 import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
-import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
+import { Deferred } from "../../../utils/Deferred";
+import { prettyError } from "../../../utils/errors";
+import { invariant } from "../../../utils/invariant";
+import { ReadonlyWasmController } from "./controller";
 
 declare const self: Window & {
   pyodide: PyodideInterface;

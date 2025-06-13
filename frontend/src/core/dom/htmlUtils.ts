@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { assertExists } from "@/utils/assertExists";
-import type { UIElementRegistry } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
-import { isWasm } from "../wasm/utils";
 import { PyodideRouter } from "../wasm/router";
+import { isWasm } from "../wasm/utils";
+import type { UIElementRegistry } from "./uiregistry";
 
 /**
  * Parse an attribute value as JSON.

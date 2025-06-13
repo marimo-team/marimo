@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
-  match,
   type Match,
   type MatchFunction,
+  match,
   type ParamData,
 } from "path-to-regexp";
 

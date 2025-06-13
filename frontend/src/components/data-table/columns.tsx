@@ -1,33 +1,33 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
+import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { DataTableColumnHeader } from "./column-header";
-import { Checkbox } from "../ui/checkbox";
-import { getMimeValues, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import { cn } from "@/utils/cn";
+import { exactDateTime } from "@/utils/dates";
+import { Maps } from "@/utils/maps";
+import { Objects } from "@/utils/objects";
+import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
+import { JsonOutput } from "../editor/output/JsonOutput";
+import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import type { ColumnChartSpecModel } from "./chart-spec-model";
+import { DataTableColumnHeader } from "./column-header";
 import { TableColumnSummary } from "./column-summary";
+import { DatePopover } from "./date-popover";
 import type { FilterType } from "./filters";
+import { getMimeValues, MimeCell } from "./mime-cell";
 import {
   type DataTableSelection,
-  INDEX_COLUMN_NAME,
-  type FieldTypesWithExternalType,
   extractTimezone,
+  type FieldTypesWithExternalType,
+  INDEX_COLUMN_NAME,
 } from "./types";
-import { parseContent, UrlDetector } from "./url-detector";
-import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
-import { DatePopover } from "./date-popover";
-import { Objects } from "@/utils/objects";
-import { Maps } from "@/utils/maps";
-import { exactDateTime } from "@/utils/dates";
-import { JsonOutput } from "../editor/output/JsonOutput";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
-import { PopoverClose } from "@radix-ui/react-popover";
-import { Button } from "../ui/button";
-import type { ColumnChartSpecModel } from "./chart-spec-model";
-import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import { parseContent, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;

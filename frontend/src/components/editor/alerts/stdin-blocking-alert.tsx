@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { Button } from "../../ui/button";
-import { notebookAtom } from "@/core/cells/cells";
 import { atom, useAtomValue } from "jotai";
+import { notebookAtom } from "@/core/cells/cells";
 import { Logger } from "@/utils/Logger";
+import { Button } from "../../ui/button";
 import { Kbd } from "../../ui/kbd";
 import { FloatingAlert } from "./floating-alert";
 

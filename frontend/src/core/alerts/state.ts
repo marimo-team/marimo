@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import type { PackageInstallationStatus } from "@/core/kernel/messages";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { generateUUID } from "@/utils/uuid";
-import { useAtomValue } from "jotai";
 
 type Identified<T> = { id: string } & T;
 

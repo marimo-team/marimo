@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Prec, type Extension } from "@codemirror/state";
+
 import {
   closeCompletion,
   completionKeymap as defaultCompletionKeymap,
 } from "@codemirror/autocomplete";
-import { keymap } from "@codemirror/view";
+import { type Extension, Prec } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { keymap } from "@codemirror/view";
 import { isInVimMode } from "../utils";
 
 export function completionKeymap(): Extension {

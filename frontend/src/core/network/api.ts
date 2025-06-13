@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "../../utils/Logger";
+
 import { createMarimoClient } from "@marimo-team/marimo-api";
+import { Logger } from "../../utils/Logger";
 import { getRuntimeManager } from "../runtime/config";
 import type { RuntimeManager } from "../runtime/runtime";
 

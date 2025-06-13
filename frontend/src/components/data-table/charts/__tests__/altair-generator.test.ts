@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 import {
   generateAltairChart,
   generateAltairChartSnippet,
 } from "../chart-spec/altair-generator";
-import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 
 function createSpec(spec: {
   mark: string | Record<string, unknown>;

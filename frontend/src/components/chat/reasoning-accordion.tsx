@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { BotMessageSquareIcon } from "lucide-react";
+import React from "react";
 import {
   Accordion,
   AccordionContent,

@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { describe, it, expect } from "vitest";
+import type { TopLevelSpec } from "vega-lite/build/src/spec";
+import { describe, expect, it } from "vitest";
 import {
-  createSpecWithoutData,
   augmentSpecWithData,
+  createSpecWithoutData,
   X_AXIS_REQUIRED,
   Y_AXIS_REQUIRED,
 } from "../chart-spec/spec";
 import type { ChartSchemaType } from "../schemas";
-import { NONE_AGGREGATION, ChartType } from "../types";
-import type { TopLevelSpec } from "vega-lite/build/src/spec";
+import { ChartType, NONE_AGGREGATION } from "../types";
 
 describe("create vega spec", () => {
   // Sample data for testing

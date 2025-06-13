@@ -2,24 +2,23 @@
 "use no memo";
 
 import {
-  type Table,
   type Cell,
-  type TableFeature,
-  type InitialTableState,
-  type RowData,
-  makeStateUpdater,
   type Column,
+  type InitialTableState,
+  makeStateUpdater,
   type Row,
+  type RowData,
+  type Table,
+  type TableFeature,
 } from "@tanstack/react-table";
 
 import { Functions } from "@/utils/functions";
-
+import { getStableRowId } from "../utils";
 import type {
   CellSelectionOptions,
   CellSelectionState,
   CellSelectionTableState,
 } from "./types";
-import { getStableRowId } from "../utils";
 
 function getRowId<TData>(row: Row<TData>): string {
   return getStableRowId(row) ?? row.id;

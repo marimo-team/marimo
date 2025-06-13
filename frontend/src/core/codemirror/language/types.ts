@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import type { Extension } from "@codemirror/state";
+import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { Extension } from "@codemirror/state";
 import type { PlaceholderType } from "../config/types";
-import type { CellId } from "@/core/cells/ids";
 
 /**
  * A language adapter is a class that can transform code from one language to

@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useSetAtom } from "jotai";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { connectionAtom } from "@/core/network/connection";
 import { sendRestart } from "@/core/network/requests";
 import { WebSocketState } from "@/core/websocket/types";
 import { reloadSafe } from "@/utils/reload-safe";
-import { useSetAtom } from "jotai";
 
 export function useRestartKernel() {
   const { openConfirm } = useImperativeModal();

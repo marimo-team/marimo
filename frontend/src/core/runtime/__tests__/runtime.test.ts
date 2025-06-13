@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it, vi } from "vitest";
-import { RuntimeManager } from "../runtime";
-import type { RuntimeConfig } from "../types";
 import type { SessionId } from "@/core/kernel/session";
 import { Logger } from "@/utils/Logger";
+import { RuntimeManager } from "../runtime";
+import type { RuntimeConfig } from "../types";
 
 // Mock the session module
 vi.mock("@/core/kernel/session", () => ({

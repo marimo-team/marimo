@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { SELECT_COLUMN_ID } from "../types";
-import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { useColumnPinning } from "../hooks/use-column-pinning";
+import { SELECT_COLUMN_ID } from "../types";
 
 describe("useColumnPinning", () => {
   it("should initialize with correct default values", () => {

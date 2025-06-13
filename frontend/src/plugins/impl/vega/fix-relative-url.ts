@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { VegaLiteSpec } from "./types";
+
 import { asRemoteURL } from "@/core/runtime/config";
+import type { VegaLiteSpec } from "./types";
 
 /**
  * If the URL in the data-spec if relative, we need to fix it to be absolute,

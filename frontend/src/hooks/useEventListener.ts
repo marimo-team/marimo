@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useRef, useEffect, type RefObject } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
 /**
  * A type that makes it clear that an `HTMLElement` is not derived from a `RefObject`.

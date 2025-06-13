@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { closeCompletion } from "@codemirror/autocomplete";
 import type { EditorState } from "@codemirror/state";
 import { closeHoverTooltips, type EditorView } from "@codemirror/view";
-import { getPositionAtWordBounds } from "../completion/hints";
-import type { VariableName, Variables } from "../../variables/types";
-import { store } from "../../state/jotai";
-import { notebookAtom } from "../../cells/cells";
-import { variablesAtom } from "../../variables/state";
 import type { CellId } from "@/core/cells/ids";
-import { goToVariableDefinition, goToLine } from "./commands";
-import { closeCompletion } from "@codemirror/autocomplete";
+import { notebookAtom } from "../../cells/cells";
+import { store } from "../../state/jotai";
+import { variablesAtom } from "../../variables/state";
+import type { VariableName, Variables } from "../../variables/types";
+import { getPositionAtWordBounds } from "../completion/hints";
+import { goToLine, goToVariableDefinition } from "./commands";
 
 /**
  * Get the word under the cursor.

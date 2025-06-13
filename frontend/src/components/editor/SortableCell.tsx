@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, use } from "react";
+
+import type { DraggableAttributes } from "@dnd-kit/core";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS, type Transform } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
+import React, { memo, use } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { mergeRefs } from "@/utils/mergeRefs";
-import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import type { DraggableAttributes } from "@dnd-kit/core";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;

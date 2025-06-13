@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { SimpleTree } from "react-arborist";
 import { toast } from "@/components/ui/use-toast";
 import type {
-  sendListFiles,
   sendCreateFileOrFolder,
   sendDeleteFileOrFolder,
+  sendListFiles,
   sendRenameFileOrFolder,
 } from "@/core/network/requests";
 import type { FileInfo, FileUpdateResponse } from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { type FilePath, PathBuilder } from "@/utils/paths";
-import { SimpleTree } from "react-arborist";
 
 export class RequestingTree {
   private delegate = new SimpleTree<FileInfo>([]);

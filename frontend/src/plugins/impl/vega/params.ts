@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { TopLevelSpec } from "vega-lite";
+import type { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
 import { Marks } from "./marks";
 import {
   type Field,
@@ -8,7 +9,6 @@ import {
   type SingleDefUnitChannel,
   type VegaLiteUnitSpec,
 } from "./types";
-import type { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
 
 export const ParamNames = {
   point(layerNum: number | undefined) {

@@ -2,18 +2,18 @@
 import {
   BanIcon,
   MoreHorizontalIcon,
-  WorkflowIcon,
   RefreshCwIcon,
+  WorkflowIcon,
 } from "lucide-react";
-import { Tooltip } from "../../ui/tooltip";
+import { MultiIcon } from "@/components/icons/multi-icon";
+import { Logger } from "@/utils/Logger";
 import type { CellRuntimeState } from "../../../core/cells/types";
 import { useElapsedTime } from "../../../hooks/useElapsedTime";
-import { Logger } from "@/utils/Logger";
-import { MultiIcon } from "@/components/icons/multi-icon";
+import { Tooltip } from "../../ui/tooltip";
 
 import "./cell-status.css";
-import { Time } from "@/utils/time";
 import { formatDistanceToNow } from "date-fns";
+import { Time } from "@/utils/time";
 
 export interface CellStatusComponentProps
   extends Pick<

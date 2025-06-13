@@ -1,22 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
-import { cn } from "@/utils/cn";
-import { Spinner } from "@/components/icons/spinner";
-import {
-  isGitHubCopilotSignedInState,
-  githubCopilotLoadingVersion,
-  copilotSignedInState,
-} from "@/core/codemirror/copilot/state";
+
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { resolvedMarimoConfigAtom } from "@/core/config/config";
+import React from "react";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { GitHubCopilotIcon } from "@/components/icons/github-copilot";
-import { FooterItem } from "../footer-item";
+import { Spinner } from "@/components/icons/spinner";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { getCopilotClient } from "@/core/codemirror/copilot/client";
-import { Logger } from "@/utils/Logger";
-import { Button } from "@/components/ui/button";
+import {
+  copilotSignedInState,
+  githubCopilotLoadingVersion,
+  isGitHubCopilotSignedInState,
+} from "@/core/codemirror/copilot/state";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { useOpenSettingsToTab } from "@/components/app-config/state";
+import { cn } from "@/utils/cn";
+import { Logger } from "@/utils/Logger";
+import { FooterItem } from "../footer-item";
 
 const copilotAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).completion.copilot;

@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  CollapsibleTree,
-  MultiColumn,
   type CellColumnId,
   type CellIndex,
+  CollapsibleTree,
+  MultiColumn,
 } from "../id-tree";
-import { beforeEach } from "vitest";
 
 let tree: CollapsibleTree<string>;
 

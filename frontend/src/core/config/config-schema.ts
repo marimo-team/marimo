@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
+import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import type { MarimoConfig } from "../network/types";
-import { invariant } from "@/utils/invariant";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [

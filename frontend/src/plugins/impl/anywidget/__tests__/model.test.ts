@@ -1,20 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  describe,
-  beforeEach,
-  it,
-  expect,
-  vi,
   afterAll,
   beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
 } from "vitest";
+import type { Base64String } from "@/utils/json/base64";
 import {
-  Model,
-  handleWidgetMessage,
   type AnyWidgetMessage,
+  handleWidgetMessage,
+  Model,
   visibleForTesting,
 } from "../model";
-import type { Base64String } from "@/utils/json/base64";
 
 const { ModelManager } = visibleForTesting;
 

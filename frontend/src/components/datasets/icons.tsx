@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { DataType } from "@/core/kernel/messages";
 import {
-  ToggleLeftIcon,
-  CalendarIcon,
-  HashIcon,
-  TypeIcon,
-  type LucideIcon,
   CalendarClockIcon,
+  CalendarIcon,
   ClockIcon,
   CurlyBracesIcon,
+  HashIcon,
+  type LucideIcon,
+  ToggleLeftIcon,
+  TypeIcon,
 } from "lucide-react";
+import type { DataType } from "@/core/kernel/messages";
 import type { SelectableDataType } from "../data-table/charts/types";
 
 /**

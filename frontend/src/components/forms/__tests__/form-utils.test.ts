@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { getDefaults } from "@/components/forms/form-utils";
 import { z } from "zod";
+import { getDefaults } from "@/components/forms/form-utils";
 
 describe("getDefaults", () => {
   it("should return default value for ZodLiteral", () => {

@@ -1,13 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import {
-  EditorView,
-  type PluginValue,
-  type ViewUpdate,
-  layer,
-  type LayerMarker,
-  type Rect,
+  Annotation,
+  EditorSelection,
+  type Extension,
+  type SelectionRange,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
+import {
   Direction,
+  EditorView,
+  type LayerMarker,
+  layer,
+  type PluginValue,
+  type Rect,
   RectangleMarker,
+  type ViewUpdate,
 } from "@codemirror/view";
 import {
   type Awareness,
@@ -18,14 +27,6 @@ import {
   type PeerID,
   type Subscription,
 } from "loro-crdt";
-import {
-  Annotation,
-  EditorSelection,
-  type Extension,
-  type SelectionRange,
-  StateEffect,
-  StateField,
-} from "@codemirror/state";
 import type { TypedString } from "@/utils/typed";
 
 export type ScopeId = TypedString<"loro:scope">;
@@ -478,7 +479,7 @@ const getCursorState = (
   if (!anchorCursor) {
     throw new Error("cursor head not found");
   }
-  let headCursor = undefined;
+  let headCursor: Uint8Array | undefined;
   if (head !== undefined) {
     headCursor = getTextFromDoc(doc).getCursor(head)?.encode();
   }

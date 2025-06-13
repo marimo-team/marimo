@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ReactFlowProvider } from "reactflow";
 
-import React from "react";
-import type { Variables } from "@/core/variables/types";
-import type { CellId } from "@/core/cells/ids";
-import type { CellData } from "@/core/cells/types";
 import { type Atom, atom, useAtom } from "jotai";
 
-import type { GraphLayoutView, GraphSettings } from "./types";
+import React from "react";
+import { ReactFlowProvider } from "reactflow";
+import type { CellId } from "@/core/cells/ids";
+import type { CellData } from "@/core/cells/types";
+import type { Variables } from "@/core/variables/types";
 import { DependencyGraphMinimap } from "./dependency-graph-minimap";
-import { GraphToolbar } from "./panels";
 import { DependencyGraphTree } from "./dependency-graph-tree";
+import { GraphToolbar } from "./panels";
+import type { GraphLayoutView, GraphSettings } from "./types";
 
 import "reactflow/dist/style.css";
 import "./dependency-graph.css";

@@ -2,8 +2,8 @@
 
 import { describe, expect, it } from "vitest";
 import { KnownQueryParams } from "@/core/constants";
-import { RuntimeManager } from "../runtime";
 import type { SessionId } from "@/core/kernel/session";
+import { RuntimeManager } from "../runtime";
 
 describe("RuntimeManager.getWsURL", () => {
   it("should return a URL with the wss protocol when the baseURI uses https", () => {

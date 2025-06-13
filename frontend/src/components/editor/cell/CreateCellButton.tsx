@@ -1,23 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { DatabaseIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/editor/inputs/Inputs";
-import { Tooltip } from "../../ui/tooltip";
 import {
   ContextMenu,
-  ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { MarkdownIcon, PythonIcon } from "./code/icons";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import type { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
-import type { WebSocketState } from "@/core/websocket/types";
-import {
-  isAppInteractionDisabled,
-  getConnectionTooltip,
-} from "@/core/websocket/connection-utils";
+import { Tooltip } from "../../ui/tooltip";
+import { MarkdownIcon, PythonIcon } from "./code/icons";
 
 export const CreateCellButton = ({
   connectionState,

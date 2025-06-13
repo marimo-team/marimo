@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+
+import type { Match, ParamData } from "path-to-regexp";
+import { describe, expect, it } from "vitest";
 import { TinyRouter } from "../routes";
-import type { ParamData, Match } from "path-to-regexp";
 
 describe("TinyRouter.match", () => {
   it("should return the correct match and template for a given location", () => {

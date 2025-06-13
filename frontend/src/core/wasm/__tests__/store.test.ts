@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/unbound-method */
-import { expect, describe, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  localStorageFileStore,
-  domElementFileStore,
   CompositeFileStore,
+  domElementFileStore,
+  localStorageFileStore,
 } from "../store";
 
 describe("localStorageFileStore", () => {

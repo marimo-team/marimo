@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TypedLocalStorage } from "@/utils/localStorage";
+
 import {
-  decompressFromEncodedURIComponent,
   compressToEncodedURIComponent,
+  decompressFromEncodedURIComponent,
 } from "lz-string";
+import { TypedLocalStorage } from "@/utils/localStorage";
 import { PyodideRouter } from "./router";
 
 export interface FileStore {

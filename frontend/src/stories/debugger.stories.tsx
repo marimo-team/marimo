@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Debugger } from "@/components/debugger/debugger-code";
+
 import type { Meta, StoryFn } from "@storybook/react";
 import { useState } from "react";
+import { Debugger } from "@/components/debugger/debugger-code";
 
 const meta: Meta<typeof Debugger> = {
   title: "Debugger",

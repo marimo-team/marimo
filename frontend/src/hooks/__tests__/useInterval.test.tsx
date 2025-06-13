@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it, vi, beforeEach, afterEach } from "vitest";
+
 import { renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useInterval } from "../useInterval";
 
 describe("useInterval", () => {

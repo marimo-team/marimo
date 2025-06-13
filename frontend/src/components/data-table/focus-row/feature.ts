@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
-  type Table,
-  type RowData,
-  type TableFeature,
   makeStateUpdater,
   type Row,
+  type RowData,
+  type Table,
+  type TableFeature,
 } from "@tanstack/react-table";
 import type { FocusRowOptions, FocusRowTableState } from "./types";
 

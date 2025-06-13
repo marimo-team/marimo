@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { getDefaultStore } from "jotai";
-import { tabsStorageAtom, KEY } from "../storage";
-import { ChartSchema } from "../schemas";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
+import { ChartSchema } from "../schemas";
 import type { TabName } from "../storage";
+import { KEY, tabsStorageAtom } from "../storage";
 import { ChartType } from "../types";
 
 // Mock localStorage

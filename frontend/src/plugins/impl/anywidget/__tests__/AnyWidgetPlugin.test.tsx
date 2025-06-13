@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { act, render, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { UIElementId } from "@/core/cells/ids";
+import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { getDirtyFields, visibleForTesting } from "../AnyWidgetPlugin";
 import { Model } from "../model";
-import { vi, describe, it, expect, beforeEach } from "vitest";
-import { render, act, waitFor } from "@testing-library/react";
-import { MarimoIncomingMessageEvent } from "@/core/dom/events";
-import type { UIElementId } from "@/core/cells/ids";
 
 const { LoadedSlot } = visibleForTesting;
 

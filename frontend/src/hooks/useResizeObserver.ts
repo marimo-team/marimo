@@ -4,9 +4,8 @@
  * Use this when you want to attach a resize observer conditionally using the `skip` option.
  */
 
-import { useEffect, useRef } from "react";
-
 import type { RefObject } from "react";
+import { useEffect, useRef } from "react";
 
 interface Size {
   width: number | undefined;

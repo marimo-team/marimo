@@ -1,15 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import useEvent from "react-use-event-hook";
 import { UndoButton } from "@/components/buttons/undo-button";
 import { toast } from "@/components/ui/use-toast";
 import {
-  notebookAtom,
   hasOnlyOneCellAtom,
+  notebookAtom,
   useCellActions,
 } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { sendDeleteCell } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
-import useEvent from "react-use-event-hook";
 
 export function useDeleteCellCallback() {
   const { deleteCell, undoDeleteCell } = useCellActions();

@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, beforeAll, afterEach, afterAll, expect } from "vitest";
+
+import { renderHook, waitFor } from "@testing-library/react";
 import * as msw from "msw";
 import { setupServer } from "msw/node";
-import { renderHook, waitFor } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
-  usePackageMetadata,
   type PyPiPackageResponse,
+  usePackageMetadata,
 } from "../usePackageMetadata";
 
 function createPackageMock(options: {

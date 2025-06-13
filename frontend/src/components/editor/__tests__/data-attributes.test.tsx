@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { render } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import type { CellId } from "@/core/cells/ids";
+import type { UserConfig } from "@/core/config/config-schema";
+import type { OutputMessage } from "@/core/kernel/messages";
+import type { AppMode } from "@/core/mode";
+import { WebSocketState } from "@/core/websocket/types";
+import { Functions } from "@/utils/functions";
 import { Cell, type CellComponentActions } from "../Cell";
 import { OutputArea } from "../Output";
-import type { CellId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
-import type { UserConfig } from "@/core/config/config-schema";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import type { AppMode } from "@/core/mode";
-import { Functions } from "@/utils/functions";
-import { WebSocketState } from "@/core/websocket/types";
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {

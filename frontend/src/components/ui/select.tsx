@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
 import * as SelectPrimitive from "@radix-ui/react-select";
+import type { VariantProps } from "class-variance-authority";
 import {
   CheckIcon,
   ChevronDown,
@@ -8,13 +9,12 @@ import {
   ChevronUpIcon,
   XIcon,
 } from "lucide-react";
-
+import * as React from "react";
+import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";
-import { selectStyles } from "./native-select";
-import type { VariantProps } from "class-variance-authority";
 import { withFullScreenAsRoot } from "./fullscreen";
 import { MENU_ITEM_DISABLED } from "./menu-items";
-import { StyleNamespace } from "@/theme/namespace";
+import { selectStyles } from "./native-select";
 
 const Select = SelectPrimitive.Root;
 

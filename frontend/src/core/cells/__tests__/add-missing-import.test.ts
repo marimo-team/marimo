@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { variablesAtom } from "@/core/variables/state";
+
 import { createStore } from "jotai";
-import { it, describe, expect, vi } from "vitest";
-import { maybeAddMissingImport } from "../add-missing-import";
+import { describe, expect, it, vi } from "vitest";
+import { variablesAtom } from "@/core/variables/state";
 import type { Variables } from "@/core/variables/types";
+import { CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import { maybeAddMissingImport } from "../add-missing-import";
 import { type NotebookState, notebookAtom } from "../cells";
 import type { CellId } from "../ids";
 import type { CellData } from "../types";
-import { CollapsibleTree, MultiColumn } from "@/utils/id-tree";
 
 const CELL_IDS = new MultiColumn([CollapsibleTree.from(["1" as CellId])]);
 

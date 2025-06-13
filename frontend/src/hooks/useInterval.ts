@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEventListener } from "./useEventListener";
 
 /**

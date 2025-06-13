@@ -1,23 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { EditorView } from "@codemirror/view";
+import { Slot } from "@radix-ui/react-slot";
+import React, { type PropsWithChildren, useState } from "react";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { Button } from "@/components/ui/button";
 import {
-  DialogFooter,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { Slot } from "@radix-ui/react-slot";
-import React, { type PropsWithChildren } from "react";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
-import { Input } from "@/components/ui/input";
-import { EditorView } from "@codemirror/view";
-import { useState } from "react";
-import { useTheme } from "@/theme/useTheme";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import { useTheme } from "@/theme/useTheme";
 
 export const ContributeSnippetButton: React.FC<PropsWithChildren> = ({
   children,

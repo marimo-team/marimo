@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { CheckIcon, CopyIcon, KeyIcon, PlusIcon } from "lucide-react";
-import { useAsyncData } from "@/hooks/useAsyncData";
+import React from "react";
 import { Spinner } from "@/components/icons/spinner";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { PanelEmptyState } from "./empty-state";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -14,11 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import { copyToClipboard } from "@/utils/copy";
-import { cn } from "@/utils/cn";
 import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
-import { Badge } from "@/components/ui/badge";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { PanelEmptyState } from "./empty-state";
 import { sortProviders, WriteSecretModal } from "./write-secret-modal";
 
 export const SecretsPanel: React.FC = () => {

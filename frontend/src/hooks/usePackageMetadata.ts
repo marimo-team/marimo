@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAsyncData, type AsyncDataResult } from "./useAsyncData";
-import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
-import { TimedCache } from "@/utils/timed-cache";
 import * as z from "zod";
+import { TimedCache } from "@/utils/timed-cache";
+import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
+import { type AsyncDataResult, useAsyncData } from "./useAsyncData";
 
 interface PackageMetadata {
   versions: string[];

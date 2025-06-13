@@ -1,8 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ChevronDownIcon, Check, XCircle } from "lucide-react";
+
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { Check, ChevronDownIcon, XCircle } from "lucide-react";
 import React, { createContext } from "react";
 import { cn } from "../../utils/cn";
-import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { Functions } from "../../utils/functions";
+import { Badge } from "./badge";
 import {
   Command,
   CommandEmpty,
@@ -11,8 +14,6 @@ import {
   CommandList,
 } from "./command";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
-import { Functions } from "../../utils/functions";
-import { Badge } from "./badge";
 
 interface ComboboxContextValue {
   isSelected: (value: unknown) => boolean;

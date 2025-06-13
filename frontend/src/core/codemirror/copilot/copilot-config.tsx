@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useAtom } from "jotai";
-import { copilotSignedInState, isGitHubCopilotSignedInState } from "./state";
-import { memo, useState } from "react";
-import { getCopilotClient } from "./client";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
-import { ExternalLink } from "@/components/ui/links";
+import { memo, useState } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { ExternalLink } from "@/components/ui/links";
 import { toast } from "@/components/ui/use-toast";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
+import { getCopilotClient } from "./client";
+import { copilotSignedInState, isGitHubCopilotSignedInState } from "./state";
 import type { GitHubCopilotStatus } from "./types";
 
 export const CopilotConfig = memo(() => {

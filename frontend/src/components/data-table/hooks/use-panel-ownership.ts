@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useAtom, useAtomValue } from "jotai";
-import { Logger } from "@/utils/Logger";
-import type { CellId } from "@/core/cells/ids";
 import {
   contextAwarePanelOpen,
   contextAwarePanelOwner,
   contextAwarePanelType,
   isCellAwareAtom,
 } from "@/components/editor/chrome/panels/context-aware-panel/atoms";
-import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import type { PanelType } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import type { CellId } from "@/core/cells/ids";
+import { Logger } from "@/utils/Logger";
 
 interface PanelOwnershipResult {
   isPanelOpen: (panelType: PanelType) => boolean;

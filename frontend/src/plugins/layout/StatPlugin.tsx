@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { TriangleIcon } from "lucide-react";
+import type { JSX } from "react";
 import { z } from "zod";
+import { cn } from "@/utils/cn";
+import { prettyNumber } from "@/utils/numbers";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import { TriangleIcon } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { prettyNumber } from "@/utils/numbers";
-import type { JSX } from "react";
 
 interface Data {
   value?: string | number | boolean | null;

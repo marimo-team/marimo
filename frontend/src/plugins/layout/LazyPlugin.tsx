@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
-import { createPlugin } from "@/plugins/core/builder";
-import { rpc } from "@/plugins/core/rpc";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { ErrorBanner } from "../impl/common/error-banner";
-import { renderHTML } from "../core/RenderHTML";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { Loader2Icon } from "lucide-react";
 import type { JSX } from "react";
+import { z } from "zod";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { createPlugin } from "@/plugins/core/builder";
+import { rpc } from "@/plugins/core/rpc";
+import { renderHTML } from "../core/RenderHTML";
+import { ErrorBanner } from "../impl/common/error-banner";
 
 interface Data {
   showLoadingIndicator: boolean;

@@ -1,15 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { once } from "@/utils/once";
+
 import { languageServerWithClient } from "@marimo-team/codemirror-languageserver";
-import { CopilotLanguageServerClient } from "./language-server";
 import { WebSocketTransport } from "@open-rpc/client-js";
-import { Transport } from "@open-rpc/client-js/build/transports/Transport";
 import type { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
-import { waitForEnabledCopilot } from "./state";
-import { Logger } from "@/utils/Logger";
+import { Transport } from "@open-rpc/client-js/build/transports/Transport";
 import { toast } from "@/components/ui/use-toast";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import { getRuntimeManager } from "@/core/runtime/config";
+import { Logger } from "@/utils/Logger";
+import { once } from "@/utils/once";
+import { CopilotLanguageServerClient } from "./language-server";
+import { waitForEnabledCopilot } from "./state";
 
 // Dummy file for the copilot language server
 export const COPILOT_FILENAME = "/__marimo_copilot__.py";

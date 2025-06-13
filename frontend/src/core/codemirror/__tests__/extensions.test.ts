@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EditorView } from "@codemirror/view";
+
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as scrollUtils from "../../../utils/scroll";
 import { scrollActiveLineIntoView } from "../extensions";
 import { formattingChangeEffect } from "../format";

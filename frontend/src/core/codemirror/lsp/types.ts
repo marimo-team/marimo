@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
+import type { DocumentUri } from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
 import { invariant } from "@/utils/invariant";
 import type { TypedString } from "@/utils/typed";
-import type { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
-import type { DocumentUri } from "vscode-languageserver-protocol";
 
 export type ILanguageServerClient = {
   [key in keyof LanguageServerClient]: LanguageServerClient[key];

@@ -1,17 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
-import * as SliderPrimitive from "@radix-ui/react-slider";
 
+import * as SliderPrimitive from "@radix-ui/react-slider";
+import { TooltipPortal } from "@radix-ui/react-tooltip";
+import * as React from "react";
 import { cn } from "@/utils/cn";
+import { prettyScientificNumber } from "@/utils/numbers";
+import { useBoolean } from "../../hooks/useBoolean";
 import {
   TooltipContent,
   TooltipProvider,
   TooltipRoot,
   TooltipTrigger,
 } from "./tooltip";
-import { useBoolean } from "../../hooks/useBoolean";
-import { TooltipPortal } from "@radix-ui/react-tooltip";
-import { prettyScientificNumber } from "@/utils/numbers";
 
 const RangeSlider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,

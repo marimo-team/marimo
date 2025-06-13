@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { TimeUnit } from "vega";
+import type { TopLevelSpec } from "vega-lite";
 import type { CellId } from "@/core/cells/ids";
 import type { CellRun } from "@/core/cells/runs";
 import type { ResolvedTheme } from "@/theme/useTheme";
-import type { TimeUnit } from "vega";
-import type { TopLevelSpec } from "vega-lite";
 
 export const REACT_HOVERED_CELLID = "hoveredCellId";
 export const VEGA_HOVER_SIGNAL = "cellHover";
