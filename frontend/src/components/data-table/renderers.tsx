@@ -20,7 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
-import { useCellSelection } from "./hooks/use-cell-range-selection";
+import { CellRangeSelectionIndicator } from "./range-focus/CellSelectionIndicator";
+import { useCellSelectionActions } from "./range-focus/use-cell-range-selection";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -83,9 +84,7 @@ export const DataTableBody = <TData,>({
     handleCellMouseUp,
     handleCellMouseOver,
     handleCellsKeyDown,
-    isCellSelected,
-    isCellCopied,
-  } = useCellSelection({
+  } = useCellSelectionActions({
     table,
   });
 
@@ -107,9 +106,6 @@ export const DataTableBody = <TData,>({
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
             "px-1.5 py-[0.18rem]",
-            isCellSelected(cell.id) && "bg-[var(--green-3)]",
-            isCellCopied(cell.id) &&
-              "bg-[var(--green-4)] transition-colors duration-150",
             className,
           )}
           style={style}
@@ -118,7 +114,10 @@ export const DataTableBody = <TData,>({
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          <CellRangeSelectionIndicator cellId={cell.id} />
+          <div className="relative">
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </div>
         </TableCell>
       );
     });
