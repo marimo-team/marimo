@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
 import { CellRangeSelectionIndicator } from "./range-focus/CellSelectionIndicator";
-import { useCellSelectionActions } from "./range-focus/use-cell-range-selection";
+import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -84,9 +84,7 @@ export const DataTableBody = <TData,>({
     handleCellMouseUp,
     handleCellMouseOver,
     handleCellsKeyDown,
-  } = useCellSelectionActions({
-    table,
-  });
+  } = useCellRangeSelection({ table });
 
   const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
