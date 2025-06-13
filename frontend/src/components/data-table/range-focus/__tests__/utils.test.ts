@@ -2,7 +2,7 @@
 
 import type { Cell, Column, Row, Table } from "@tanstack/react-table";
 import { describe, expect, it, vi } from "vitest";
-import type { SelectedCell } from "../cell-selection-atoms";
+import type { SelectedCell } from "../atoms";
 import { getCellsBetween, getCellValues } from "../utils";
 
 // Mock the renderUnknownValue function

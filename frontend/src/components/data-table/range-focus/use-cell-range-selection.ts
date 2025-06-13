@@ -7,7 +7,7 @@ import {
   type SelectedCell,
   type SelectedCells,
   useCellSelectionReducerActions,
-} from "./cell-selection-atoms";
+} from "./atoms";
 
 export interface UseCellRangeSelectionProps<TData> {
   table: Table<TData>;

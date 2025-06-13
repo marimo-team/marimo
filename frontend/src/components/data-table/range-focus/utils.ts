@@ -2,9 +2,8 @@
 
 import type { Row, Table } from "@tanstack/react-table";
 import { renderUnknownValue } from "../renderers";
-import type { SelectedCell } from "./cell-selection-atoms";
+import type { SelectedCell } from "./atoms";
 
-/* Copyright 2024 Marimo. All rights reserved. */
 export function getCellValues<TData>(
   table: Table<TData>,
   selectedCellIds: Set<string>,
@@ -41,6 +40,8 @@ export function getCellsBetween<TData>(
     return [];
   }
 
+  // TODO: this can be O(1) instead of O(n)
+  // but tanstack does not expose an API
   const startCell = startRow
     .getAllCells()
     .find((c) => c.id === cellStart.cellId);

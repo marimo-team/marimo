@@ -2,7 +2,7 @@
 
 import type { Cell, Row, Table } from "@tanstack/react-table";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { visibleForTesting } from "../cell-selection-atoms";
+import { visibleForTesting } from "../atoms";
 
 // Mock dependencies
 vi.mock("@/utils/copy", () => ({
@@ -19,12 +19,12 @@ vi.mock("../utils", async (importOriginal) => {
 });
 
 import { copyToClipboard } from "@/utils/copy";
-import type { CellSelectionState, SelectedCell } from "../cell-selection-atoms";
+import type { CellSelectionState, SelectedCell } from "../atoms";
 import {
   createCellCopiedAtom,
   createCellSelectedAtom,
   createCellStateAtom,
-} from "../cell-selection-atoms";
+} from "../atoms";
 import { getCellsBetween, getCellValues } from "../utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai";
 import { memo, useMemo } from "react";
 import { cn } from "@/utils/cn";
-import { createCellStateAtom } from "./cell-selection-atoms";
+import { createCellStateAtom } from "./atoms";
 
 interface CellSelectionIndicatorProps {
   cellId: string;
