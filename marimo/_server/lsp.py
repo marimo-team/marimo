@@ -217,6 +217,37 @@ class PyLspServer(BaseLspServer):
         )
 
 
+class TyServer(BaseLspServer):
+    id = "ty"
+
+    def start(self) -> Optional[Alert]:
+        # ty is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.ty.has():
+            LOGGER.debug("ty is not installed. Skipping LSP server.")
+            return None
+        return super().start()
+
+    def validate_requirements(self) -> Union[str, Literal[True]]:
+        if DependencyManager.ty.has():
+            return True
+        return "ty is missing. Install it with `pip install ty`."
+
+    def get_command(self) -> list[str]:
+        from ty.__main__ import find_ty_bin  # type: ignore
+
+        return [
+            find_ty_bin(),
+            "server",
+        ]
+
+    def missing_binary_alert(self) -> Alert:
+        return Alert(
+            title="Ty: Connection Error",
+            description="<span><a class='hyperlink' href='https://github.com/astral-sh/ty'>Install ty</a> for type checking support.</span>",
+            variant="danger",
+        )
+
+
 class NoopLspServer(LspServer):
     def start(self) -> None:
         pass
@@ -231,6 +262,7 @@ class NoopLspServer(LspServer):
 class CompositeLspServer(LspServer):
     LANGUAGE_SERVERS = {
         "pylsp": PyLspServer,
+        "ty": TyServer,
         "copilot": CopilotLspServer,
     }
 
