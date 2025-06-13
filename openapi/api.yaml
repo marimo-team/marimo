@@ -1269,6 +1269,8 @@ components:
       required:
       - packages
       type: object
+    DependencyTreeResponse:
+      type: object
     ListSecretKeysRequest:
       properties:
         requestId:
@@ -2578,7 +2580,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.13.15
+  version: 0.14.0
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3315,6 +3317,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/packages/tree:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DependencyTreeResponse'
+          description: List dependency tree
   /api/secrets/create:
     post:
       requestBody:

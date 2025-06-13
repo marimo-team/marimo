@@ -9,10 +9,12 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import split_packages
+from marimo._server.api.dependency_tree import get_dependency_tree
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.packages import (
     AddPackageRequest,
+    DependencyTreeResponse,
     ListPackagesResponse,
     PackageOperationResponse,
     RemovePackageRequest,
@@ -92,6 +94,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
                     schema:
                         $ref: "#/components/schemas/PackageOperationResponse"
     """
+    # TODO: Use `uv remove` instead of package manager uninstall for better dependency management
     body = await parse_request(request, cls=RemovePackageRequest)
 
     package_manager = _get_package_manager(request)
@@ -141,6 +144,24 @@ async def list_packages(request: Request) -> ListPackagesResponse:
     packages = package_manager.list_packages()
 
     return ListPackagesResponse(packages=packages)
+
+
+@router.get("/tree")
+@requires("edit")
+async def dependency_tree(request: Request) -> DependencyTreeResponse:
+    """
+    responses:
+        200:
+            description: List dependency tree
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/DependencyTreeResponse"
+    """
+    filename = _get_filename(request)
+    assert filename, "`uv tree` only supported for --sandbox"
+
+    return DependencyTreeResponse(tree=get_dependency_tree(filename))
 
 
 def _get_package_manager(request: Request) -> PackageManager:

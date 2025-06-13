@@ -1,7 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { BoxIcon, HelpCircleIcon } from "lucide-react";
+import {
+  BoxIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  GitBranchIcon,
+  HelpCircleIcon,
+  MinusIcon,
+} from "lucide-react";
 import React from "react";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Spinner } from "@/components/icons/spinner";
@@ -20,6 +27,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import {
   addPackage,
+  getDependencyTree,
   getPackageList,
   removePackage,
 } from "@/core/network/requests";
@@ -144,6 +152,19 @@ export const PackagesPanel: React.FC = () => {
     [packageManager],
   );
 
+  const {
+    data: treeData,
+    error: treeError,
+    refetch: refetchTree,
+  } = useAsyncData(() => getDependencyTree(), [packageManager]);
+
+  const [viewMode, setViewMode] = React.useState<"list" | "tree">("list");
+
+  const handleRefetch = () => {
+    refetch();
+    refetchTree();
+  };
+
   // Only show on the first load
   if (isPending) {
     return <Spinner size="medium" centered={true} />;
@@ -157,8 +178,47 @@ export const PackagesPanel: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <InstallPackageForm packageManager={packageManager} onSuccess={refetch} />
-      <PackagesList packages={packages} onSuccess={refetch} />
+      <InstallPackageForm
+        packageManager={packageManager}
+        onSuccess={handleRefetch}
+      />
+      <div className="flex items-center justify-between px-4 py-2 border-b">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={cn(
+              "px-3 py-1 text-sm rounded",
+              viewMode === "list"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setViewMode("list")}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "px-3 py-1 text-sm rounded",
+              viewMode === "tree"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setViewMode("tree")}
+          >
+            Tree
+          </button>
+        </div>
+      </div>
+      {viewMode === "list" ? (
+        <PackagesList packages={packages} onSuccess={handleRefetch} />
+      ) : (
+        <DependencyTree
+          tree={treeData?.tree}
+          error={treeError}
+          onSuccess={handleRefetch}
+        />
+      )}
     </div>
   );
 };
@@ -417,5 +477,180 @@ const RemoveButton: React.FC<{
     <PackageActionButton onClick={handleRemovePackage} loading={loading}>
       Remove
     </PackageActionButton>
+  );
+};
+
+interface DependencyNode {
+  name: string;
+  version?: string;
+  tags: Array<{ kind: string; value: string }>;
+  duplicate: boolean;
+  dependencies: DependencyNode[];
+}
+
+const DependencyTree: React.FC<{
+  tree?: DependencyNode;
+  error?: Error | null;
+  onSuccess: () => void;
+}> = ({ tree, error, onSuccess }) => {
+  const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(
+    new Set(),
+  );
+
+  if (error) {
+    return <ErrorBanner error={error} />;
+  }
+
+  if (!tree) {
+    return <Spinner size="medium" centered={true} />;
+  }
+
+  if (tree.dependencies.length === 0) {
+    return (
+      <PanelEmptyState
+        title="No dependencies"
+        description="No package dependencies found in this environment."
+        icon={<BoxIcon />}
+      />
+    );
+  }
+
+  const toggleNode = (nodeId: string) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(nodeId)) {
+      newExpanded.delete(nodeId);
+    } else {
+      newExpanded.add(nodeId);
+    }
+    setExpandedNodes(newExpanded);
+  };
+
+  const collapseAll = () => {
+    setExpandedNodes(new Set());
+  };
+
+  return (
+    <div className="flex-1 overflow-auto p-4">
+      <div className="flex items-center justify-between mb-4">
+        {tree.name !== "<root>" && (
+          <div className="text-sm font-medium">
+            Environment: {tree.name} {tree.version && `v${tree.version}`}
+          </div>
+        )}
+        <div className="flex-1" />
+        <button
+          type="button"
+          className="p-1 text-muted-foreground hover:text-foreground rounded"
+          onClick={collapseAll}
+          title="Collapse All"
+        >
+          <MinusIcon className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="space-y-1">
+        {tree.dependencies.map((dep, index) => (
+          <DependencyTreeNode
+            key={`${dep.name}-${index}`}
+            nodeId={`0-${index}`}
+            node={dep}
+            level={0}
+            isTopLevel={true}
+            expandedNodes={expandedNodes}
+            onToggle={toggleNode}
+            onSuccess={onSuccess}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const DependencyTreeNode: React.FC<{
+  nodeId: string;
+  node: DependencyNode;
+  level: number;
+  isTopLevel?: boolean;
+  expandedNodes: Set<string>;
+  onToggle: (nodeId: string) => void;
+  onSuccess: () => void;
+}> = ({
+  nodeId,
+  node,
+  level,
+  isTopLevel = false,
+  expandedNodes,
+  onToggle,
+  onSuccess,
+}) => {
+  const hasChildren = node.dependencies.length > 0;
+  const isExpanded = expandedNodes.has(nodeId);
+
+  return (
+    <div className="group">
+      <div
+        className="flex items-center gap-2 py-1 px-2 rounded hover:bg-accent/50 text-sm"
+        style={{ paddingLeft: `${8 + level * 16}px` }}
+      >
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={() => onToggle(nodeId)}
+            className="p-0 w-4 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground"
+          >
+            {isExpanded ? (
+              <ChevronDownIcon className="w-3 h-3" />
+            ) : (
+              <ChevronRightIcon className="w-3 h-3" />
+            )}
+          </button>
+        ) : (
+          <div className="w-4" />
+        )}
+
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          <span className="font-medium truncate">{node.name}</span>
+          {node.version && (
+            <span className="text-muted-foreground text-xs">
+              v{node.version}
+            </span>
+          )}
+          {node.duplicate && (
+            <GitBranchIcon className="w-3 h-3 text-orange-500" />
+          )}
+          {node.tags.map((tag, index) => (
+            <span
+              key={index}
+              className="text-xs px-1 py-0.5 bg-muted rounded text-muted-foreground"
+            >
+              {tag.kind}:{tag.value}
+            </span>
+          ))}
+        </div>
+
+        {isTopLevel && (
+          <div className="flex gap-1 invisible group-hover:visible">
+            <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
+            <RemoveButton packageName={node.name} onSuccess={onSuccess} />
+          </div>
+        )}
+      </div>
+
+      {hasChildren && isExpanded && (
+        <div>
+          {node.dependencies.map((child, index) => (
+            <DependencyTreeNode
+              key={`${child.name}-${index}`}
+              nodeId={`${nodeId}-${index}`}
+              node={child}
+              level={level + 1}
+              isTopLevel={false}
+              expandedNodes={expandedNodes}
+              onToggle={onToggle}
+              onSuccess={onSuccess}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

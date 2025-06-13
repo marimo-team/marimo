@@ -37,6 +37,22 @@ class ListPackagesResponse:
 
 
 @dataclass
+class DependencyTreeNode:
+    name: str
+    version: Optional[str]
+    tags: list[
+        dict[str, str]
+    ]  # List of {"kind": "extra"|"group", "value": str}
+    duplicate: bool
+    dependencies: list[DependencyTreeNode]
+
+
+@dataclass
+class DependencyTreeResponse:
+    tree: DependencyTreeNode
+
+
+@dataclass
 class PackageOperationResponse:
     success: bool
     error: Optional[str] = None
