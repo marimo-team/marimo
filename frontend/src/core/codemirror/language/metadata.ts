@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { StateField, StateEffect, type EditorState } from "@codemirror/state";
+import { type EditorState, StateEffect, StateField } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 /**

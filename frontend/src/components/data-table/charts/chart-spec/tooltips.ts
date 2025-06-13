@@ -5,8 +5,8 @@ import type {
   PositionDef,
   StringFieldDef,
 } from "vega-lite/build/src/channeldef";
-import type { ChartSchemaType } from "../schemas";
 import type { DataType } from "@/core/kernel/messages";
+import type { ChartSchemaType } from "../schemas";
 import { isFieldSet } from "./spec";
 
 function getTooltipFormat(dataType: DataType): string | undefined {

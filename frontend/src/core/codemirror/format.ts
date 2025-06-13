@@ -1,22 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { getIndentUnit } from "@codemirror/language";
+import { StateEffect } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import type { CellId } from "../cells/ids";
+import { Logger } from "@/utils/Logger";
 import { Objects } from "../../utils/objects";
-import { sendFormat } from "../network/requests";
 import { getNotebook } from "../cells/cells";
+import type { CellId } from "../cells/ids";
 import { notebookCellEditorViews } from "../cells/utils";
+import { getResolvedMarimoConfig } from "../config/config";
+import { sendFormat } from "../network/requests";
+import { cellActionsState } from "./cells/state";
+import { cellIdState } from "./config/extension";
+import { languageAdapterState } from "./language/extension";
 import {
   getEditorCodeAsPython,
   updateEditorCodeFromPython,
 } from "./language/utils";
-import { StateEffect } from "@codemirror/state";
-import { getResolvedMarimoConfig } from "../config/config";
-import { cellActionsState } from "./cells/state";
-import { languageAdapterState } from "./language/extension";
-import { Logger } from "@/utils/Logger";
-import { cellIdState } from "./config/extension";
-import { getIndentUnit } from "@codemirror/language";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 

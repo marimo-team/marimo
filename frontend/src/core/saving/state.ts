@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
+import { isEqual } from "lodash-es";
+import { arrayShallowEquals } from "@/utils/arrays";
+import { type NotebookState, notebookAtom } from "../cells/cells";
 import { type LayoutState, layoutStateAtom } from "../layout/layout";
 import type { CellConfig } from "../network/types";
-import { arrayShallowEquals } from "@/utils/arrays";
-import { isEqual } from "lodash-es";
-import { notebookAtom, type NotebookState } from "../cells/cells";
 
 export interface LastSavedNotebook {
   codes: string[];

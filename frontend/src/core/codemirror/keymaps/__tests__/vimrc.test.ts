@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, it, vi } from "vitest";
-import { parseVimrc } from "../vimrc";
+
 // @ts-expect-error: no declaration file
 import dedent from "string-dedent";
+import { describe, expect, it, vi } from "vitest";
+import { parseVimrc } from "../vimrc";
 
 describe("parseVimrc", () => {
   it("should parse mappings with no mode", () => {

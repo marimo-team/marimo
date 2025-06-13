@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { type Milliseconds, Time, type Seconds } from "../time";
+import { describe, expect, it } from "vitest";
+import { type Milliseconds, type Seconds, Time } from "../time";
 
 describe("Time class", () => {
   describe("fromMilliseconds", () => {

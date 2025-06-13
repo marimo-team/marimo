@@ -1,17 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
-import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { FormDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { writeSecret } from "@/core/network/requests";
+import { ExternalLink } from "@/components/ui/links";
 import {
   Select,
   SelectContent,
@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FormDescription } from "@/components/ui/field";
-import { ExternalLink } from "@/components/ui/links";
+import { toast } from "@/components/ui/use-toast";
+import { writeSecret } from "@/core/network/requests";
 import type { ListSecretKeysResponse } from "@/core/network/types";
 
 // dotenv providers should be at the top

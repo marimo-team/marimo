@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-import type { IPlugin, IPluginProps, Setter } from "../types";
 
+import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
+import { type JSX, useState } from "react";
+import { z } from "zod";
 import {
   DebouncedInput,
   Input,
   OnBlurredInput,
 } from "../../components/ui/input";
 import { cn } from "../../utils/cn";
-import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
-import { useState, type JSX } from "react";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 
 type T = string;

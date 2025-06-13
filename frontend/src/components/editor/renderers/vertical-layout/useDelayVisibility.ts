@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { AppMode } from "@/core/mode";
-import { getNotebook } from "@/core/cells/cells";
+
 import { useState } from "react";
-import { Logger } from "@/utils/Logger";
+import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import type { AppMode } from "@/core/mode";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { extractCellNameFromHash } from "@/utils/cell-urls";
+import { Logger } from "@/utils/Logger";
 
 export function useDelayVisibility(numCells: number, mode: AppMode) {
   // Start the app as invisible and delay proportional to the number of cells,

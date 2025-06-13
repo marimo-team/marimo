@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { getUpdatedColumnTypes } from "../getUpdatedColumnTypes";
+import { describe, expect, it } from "vitest";
 import type { TransformType } from "../../schema";
 import type { ColumnId } from "../../types";
+import { getUpdatedColumnTypes } from "../getUpdatedColumnTypes";
 
 const INITIAL_COLUMN_TYPES = new Map<ColumnId, string>([
   ["col1" as ColumnId, "str"],

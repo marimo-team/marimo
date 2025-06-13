@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useState, useRef } from "react";
-import { useTimer } from "./useTimer";
+import { useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
 import { useOnUnmount } from "./useLifecycle";
+import { useTimer } from "./useTimer";
 
 export type RecordingStatus = "recording" | "paused" | "stopped";
 

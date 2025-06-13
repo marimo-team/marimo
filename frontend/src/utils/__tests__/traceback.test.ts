@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, test } from "vitest";
-import { extractAllTracebackInfo } from "../traceback";
 import { Tracebacks } from "@/__mocks__/tracebacks";
+import { extractAllTracebackInfo } from "../traceback";
 
 describe("traceback", () => {
   test("extracts cell-link", () => {

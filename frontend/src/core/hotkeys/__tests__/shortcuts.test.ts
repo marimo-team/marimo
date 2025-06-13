@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parseShortcut } from "../shortcuts";
 
 describe("parseShortcut", () => {

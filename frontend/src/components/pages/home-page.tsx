@@ -1,14 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  getWorkspaceFiles,
-  getRecentFiles,
-  getRunningNotebooks,
-  shutdownSession,
-} from "@/core/network/requests";
-import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
-import type React from "react";
-import { Suspense, use, useEffect, useRef, useState } from "react";
-import { Spinner } from "../icons/spinner";
+
+import { useAtom, useSetAtom } from "jotai";
 import {
   BookTextIcon,
   ChevronDownIcon,
@@ -21,53 +13,62 @@ import {
   RefreshCcwIcon,
   SearchIcon,
 } from "lucide-react";
-import { ShutdownButton } from "../editor/controls/shutdown-button";
-import { getSessionId, isSessionId } from "@/core/kernel/session";
-import { useInterval } from "@/hooks/useInterval";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
-import { assertExists } from "@/utils/assertExists";
-import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
-import { toast } from "@/components/ui/use-toast";
-import type { FileInfo, MarimoFile } from "@/core/network/types";
-import { ConfigButton } from "../app-config/app-config-button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { MarkdownIcon } from "@/components/editor/cell/code/icons";
-import { asURL } from "@/utils/url";
-import { timeAgo } from "@/utils/dates";
+import type React from "react";
+import { Suspense, use, useEffect, useRef, useState } from "react";
 import {
   type NodeApi,
   type NodeRendererProps,
   Tree,
   type TreeApi,
 } from "react-arborist";
-import { cn } from "@/utils/cn";
+import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Tooltip } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/use-toast";
+import { getSessionId, isSessionId } from "@/core/kernel/session";
 import {
+  getRecentFiles,
+  getRunningNotebooks,
+  getWorkspaceFiles,
+  shutdownSession,
+} from "@/core/network/requests";
+import type { FileInfo, MarimoFile } from "@/core/network/types";
+import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
+import { useInterval } from "@/hooks/useInterval";
+import { Banner } from "@/plugins/impl/common/error-banner";
+import { assertExists } from "@/utils/assertExists";
+import { cn } from "@/utils/cn";
+import { timeAgo } from "@/utils/dates";
+import { prettyError } from "@/utils/errors";
+import { Maps } from "@/utils/maps";
+import { Paths } from "@/utils/paths";
+import { asURL } from "@/utils/url";
+import { newNotebookURL } from "@/utils/urls";
+import { ConfigButton } from "../app-config/app-config-button";
+import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
+import { ShutdownButton } from "../editor/controls/shutdown-button";
+import {
+  FILE_TYPE_ICONS,
   type FileType,
   guessFileType,
-  FILE_TYPE_ICONS,
 } from "../editor/file-tree/types";
-import { useAtom, useSetAtom } from "jotai";
+import {
+  Header,
+  OpenTutorialDropDown,
+  ResourceLinks,
+} from "../home/components";
 import {
   expandedFoldersAtom,
   includeMarkdownAtom,
   RunningNotebooksContext,
   WorkspaceRootContext,
 } from "../home/state";
-import { Maps } from "@/utils/maps";
+import { Spinner } from "../icons/spinner";
 import { Input } from "../ui/input";
-import { Paths } from "@/utils/paths";
-import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
-import { Banner } from "@/plugins/impl/common/error-banner";
-import { prettyError } from "@/utils/errors";
-import { newNotebookURL } from "@/utils/urls";
-import {
-  Header,
-  OpenTutorialDropDown,
-  ResourceLinks,
-} from "../home/components";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -384,11 +385,7 @@ const NotebookList: React.FC<{
   );
 };
 
-const MarimoFileComponent = ({
-  file,
-}: {
-  file: MarimoFile;
-}) => {
+const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
   // If path is a sessionId, then it has not been saved yet
   // We want to keep the sessionId in this case
   const isNewNotebook = isSessionId(file.path);

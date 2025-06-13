@@ -1,13 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren, type JSX } from "react";
-
+import React, { type JSX, type PropsWithChildren } from "react";
+import { z } from "zod";
 import {
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
-  TabsContent,
 } from "../../components/ui/tabs";
-import { z } from "zod";
 import { renderHTML } from "../core/RenderHTML";
 import type { IPlugin, IPluginProps } from "../types";
 

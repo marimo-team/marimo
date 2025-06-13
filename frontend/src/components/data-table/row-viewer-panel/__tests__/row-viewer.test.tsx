@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { RowViewerPanel } from "../row-viewer";
 import { Provider } from "jotai";
+import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
 import type { FieldTypesWithExternalType } from "../../types";
+import { RowViewerPanel } from "../row-viewer";
 
 const renderWithProviders = (component: React.ReactNode) => {
   return render(

@@ -1,11 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import "../vega/vega.css";
 
-import { z } from "zod";
-
-import { createPlugin } from "@/plugins/core/builder";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import React from "react";
+import { z } from "zod";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { createPlugin } from "@/plugins/core/builder";
 import type { DataExplorerState } from "./ConnectedDataExplorerComponent";
 
 const LazyDataExplorerComponent = React.lazy(

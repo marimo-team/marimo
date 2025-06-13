@@ -1,18 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { AgGridReact } from "ag-grid-react";
+
 import type {
+  CellEditingStoppedEvent,
   ColDef,
   GridReadyEvent,
-  CellEditingStoppedEvent,
   RowDataTransaction,
 } from "ag-grid-community";
-import type { FieldTypesWithExternalType } from "@/components/data-table/types";
-import { cn } from "@/utils/cn";
-import { useTheme } from "@/theme/useTheme";
-import type { DataType } from "../vega/vega-loader";
-import { Button } from "@/components/ui/button";
+import { AgGridReact } from "ag-grid-react";
 import { PlusIcon } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import type { FieldTypesWithExternalType } from "@/components/data-table/types";
+import { Button } from "@/components/ui/button";
+import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import type { DataType } from "../vega/vega-loader";
 
 export interface DataEditorProps<T> {
   data: T[];

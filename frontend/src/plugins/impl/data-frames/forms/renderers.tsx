@@ -1,29 +1,32 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import React, { useEffect } from "react";
 import {
+  type FieldValues,
   type Path,
   type UseFormReturn,
-  type FieldValues,
   useWatch,
 } from "react-hook-form";
 import { z } from "zod";
-import { renderZodSchema, type FormRenderer } from "@/components/forms/form";
+import { type FormRenderer, renderZodSchema } from "@/components/forms/form";
 import { FieldOptions } from "@/components/forms/options";
-import React, { useEffect } from "react";
 import {
-  ColumnInfoContext,
-  ColumnNameContext,
-  ColumnFetchValuesContext,
-} from "./context";
+  ensureStringArray,
+  SwitchableMultiSelect,
+  TextAreaMultiSelect,
+} from "@/components/forms/switchable-multi-select";
+import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import {
+  FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormDescription,
-  FormControl,
   FormMessage,
   FormMessageTooltip,
 } from "@/components/ui/form";
+import { DebouncedInput } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,20 +35,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTypeIcon } from "./datatype-icon";
-import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import {
-  SwitchableMultiSelect,
-  TextAreaMultiSelect,
-  ensureStringArray,
-} from "@/components/forms/switchable-multi-select";
-import { DebouncedInput } from "@/components/ui/input";
 import { cn } from "@/utils/cn";
 import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
-import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
 import type { ColumnId } from "../types";
+import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
+import {
+  ColumnFetchValuesContext,
+  ColumnInfoContext,
+  ColumnNameContext,
+} from "./context";
+import { DataTypeIcon } from "./datatype-icon";
 
 export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
   T,

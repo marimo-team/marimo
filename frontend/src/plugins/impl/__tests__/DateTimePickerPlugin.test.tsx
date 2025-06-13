@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { DateTimePickerPlugin } from "../DateTimePickerPlugin";
+
 import { render } from "@testing-library/react";
-import { expect, describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { IPluginProps } from "../../types";
+import { DateTimePickerPlugin } from "../DateTimePickerPlugin";
 
 interface DateTimeData {
   label: string | null;

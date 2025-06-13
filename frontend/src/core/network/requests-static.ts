@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
-import type { EditRequests, RunRequests } from "./types";
 import { Logger } from "@/utils/Logger";
+import type { EditRequests, RunRequests } from "./types";
 
 export function createStaticRequests(): EditRequests & RunRequests {
   const throwNotInEditMode = () => {

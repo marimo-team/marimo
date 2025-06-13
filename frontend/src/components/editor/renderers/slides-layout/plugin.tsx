@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { ICellRendererPlugin } from "../types";
-import type { SlidesLayout } from "./types";
+
 import { z } from "zod";
+import type { ICellRendererPlugin } from "../types";
 import { SlidesLayoutRenderer } from "./slides-layout";
+import type { SlidesLayout } from "./types";
 
 /**
  * Plugin definition for the slides layout.

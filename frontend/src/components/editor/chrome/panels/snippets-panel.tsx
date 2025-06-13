@@ -1,33 +1,34 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
+import { CommandList } from "cmdk";
 import { BetweenHorizontalStartIcon, PlusIcon } from "lucide-react";
-import { PanelEmptyState } from "./empty-state";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import type { Snippet } from "@/core/network/types";
-import { renderHTML } from "@/plugins/core/RenderHTML";
-import { readSnippets } from "@/core/network/requests";
+import React from "react";
 import {
   Command,
   CommandEmpty,
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { CommandList } from "cmdk";
+import { readSnippets } from "@/core/network/requests";
+import type { Snippet } from "@/core/network/types";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { PanelEmptyState } from "./empty-state";
 
 import "./snippets-panel.css";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
-import { useTheme } from "@/theme/useTheme";
 import { EditorView } from "@codemirror/view";
 import { Suspense } from "react";
+import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useLastFocusedCellId } from "@/core/cells/focus";
 import { useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
-import { ContributeSnippetButton } from "../components/contribute-snippet-button";
-import { Spinner } from "@/components/icons/spinner";
 import { HideInKioskMode } from "../../kiosk-mode";
+import { ContributeSnippetButton } from "../components/contribute-snippet-button";
 
 const extensions = [EditorView.lineWrapping];
 

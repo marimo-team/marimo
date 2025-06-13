@@ -1,13 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import ReactFlow, {
-  type Node,
-  type Edge,
-  useEdgesState,
-  useNodesState,
-  PanOnScrollMode,
-  useStore,
-  type CoordinateExtent,
-} from "reactflow";
+
+import type { Atom } from "jotai";
 
 import React, {
   type PropsWithChildren,
@@ -16,15 +9,22 @@ import React, {
   useRef,
   useState,
 } from "react";
+import useEvent from "react-use-event-hook";
+import ReactFlow, {
+  type CoordinateExtent,
+  type Edge,
+  type Node,
+  PanOnScrollMode,
+  useEdgesState,
+  useNodesState,
+  useStore,
+} from "reactflow";
 import { nodeTypes } from "@/components/dependency-graph/custom-node";
-import type { Variables } from "@/core/variables/types";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
-import type { Atom } from "jotai";
-
-import { type NodeData, VerticalElementsBuilder } from "./elements";
-import useEvent from "react-use-event-hook";
+import type { Variables } from "@/core/variables/types";
 import { scrollAndHighlightCell } from "../editor/links/cell-link";
+import { type NodeData, VerticalElementsBuilder } from "./elements";
 import { GraphSelectionPanel } from "./panels";
 import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 

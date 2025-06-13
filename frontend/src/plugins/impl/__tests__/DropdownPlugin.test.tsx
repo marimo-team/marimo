@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, vi, expect, beforeAll } from "vitest";
-import { DropdownPlugin } from "../DropdownPlugin";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { IPluginProps } from "../../types";
+import { DropdownPlugin } from "../DropdownPlugin";
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {

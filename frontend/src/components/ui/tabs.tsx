@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
 import * as TabsPrimitive from "@radix-ui/react-tabs";
+import * as React from "react";
 
 import { cn } from "@/utils/cn";
 

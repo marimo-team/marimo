@@ -1,17 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
 import type React from "react";
 import type { PropsWithChildren } from "react";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { isWasm } from "./utils";
-import { PyodideBridge } from "./bridge";
 import { LargeSpinner } from "@/components/icons/large-spinner";
-import { useAtomValue } from "jotai";
-import { hasAnyOutputAtom, wasmInitializationAtom } from "./state";
-import { getInitialAppMode } from "../mode";
-import { hasQueryParam } from "@/utils/urls";
-import { KnownQueryParams } from "../constants";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { store } from "@/core/state/jotai";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { hasQueryParam } from "@/utils/urls";
+import { KnownQueryParams } from "../constants";
+import { getInitialAppMode } from "../mode";
+import { PyodideBridge } from "./bridge";
+import { hasAnyOutputAtom, wasmInitializationAtom } from "./state";
+import { isWasm } from "./utils";
 
 /**
  * HOC to load Pyodide before rendering children, if necessary.

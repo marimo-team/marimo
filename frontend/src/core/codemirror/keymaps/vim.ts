@@ -1,27 +1,27 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { Extension } from "@codemirror/state";
+import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   type CodeMirror,
   type CodeMirrorV,
   getCM,
   Vim,
 } from "@replit/codemirror-vim";
-import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
+import { sendFileDetails } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
+import { onIdle } from "@/utils/idle";
+import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
+import { once } from "@/utils/once";
+import { cellActionsState, cellIdState } from "../cells/state";
+import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 import {
   isAtEndOfEditor,
   isAtStartOfEditor,
   isInVimNormalMode,
 } from "../utils";
-import { invariant } from "@/utils/invariant";
-import type { Extension } from "@codemirror/state";
-import { Logger } from "@/utils/Logger";
-import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
-import { once } from "@/utils/once";
-import { onIdle } from "@/utils/idle";
-import { cellActionsState, cellIdState } from "../cells/state";
-import { sendFileDetails } from "@/core/network/requests";
-import { store } from "@/core/state/jotai";
-import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { parseVimrc, type VimCommand } from "./vimrc";
 
 export function vimKeymapExtension(): Extension[] {

@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { Message as AIMessage } from "@ai-sdk/react";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import type { CellId } from "../cells/ids";
-import type { Message as AIMessage } from "@ai-sdk/react";
 
 const KEY = "marimo:ai:chatState:v2";
 

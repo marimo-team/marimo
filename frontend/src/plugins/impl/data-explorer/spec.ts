@@ -2,9 +2,9 @@
 import type { EncodingQuery } from "compassql/build/src/query/encoding";
 import type { SpecQuery } from "compassql/build/src/query/spec";
 import {
+  type EncodingChannel,
   type SpecificEncoding,
   toFieldQuery,
-  type EncodingChannel,
 } from "./encoding";
 import type { ChartSpec } from "./state/types";
 

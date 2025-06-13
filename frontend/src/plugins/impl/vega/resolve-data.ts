@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { asRemoteURL } from "@/core/runtime/config";
 import { vegaLoadData } from "./loader";
 import type {
+  FacetedUnitSpec,
   Field,
-  VegaLiteSpec,
+  GenericFacetSpec,
   LayerSpec,
   UnitSpec,
-  GenericFacetSpec,
-  FacetedUnitSpec,
+  VegaLiteSpec,
 } from "./types";
-import { asRemoteURL } from "@/core/runtime/config";
 
 type AnySpec =
   | VegaLiteSpec

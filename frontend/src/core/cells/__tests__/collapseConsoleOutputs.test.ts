@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { expect, describe, it } from "vitest";
-import { collapseConsoleOutputs } from "../collapseConsoleOutputs";
+import { describe, expect, it } from "vitest";
 import type { OutputMessage } from "@/core/kernel/messages";
+import { collapseConsoleOutputs } from "../collapseConsoleOutputs";
 
 describe("collapseConsoleOutputs", () => {
   it("should collapse last two text/plain outputs on the same channel", () => {

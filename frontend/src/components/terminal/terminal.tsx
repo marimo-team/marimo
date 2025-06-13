@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useEffect, useRef, useState } from "react";
-import { Terminal } from "@xterm/xterm";
+
 import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import React, { useEffect, useRef, useState } from "react";
 import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
+import { waitForConnectionOpen } from "@/core/network/connection";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { Logger } from "@/utils/Logger";
-import { waitForConnectionOpen } from "@/core/network/connection";
 
 const TerminalComponent: React.FC<{
   visible: boolean;

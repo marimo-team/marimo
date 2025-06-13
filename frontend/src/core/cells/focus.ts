@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import type { CellId } from "./ids";
-import { type NotebookState, SCRATCH_CELL_ID, notebookAtom } from "./cells";
+
 import type { EditorView } from "@codemirror/view";
+import { atom, useAtomValue, useSetAtom } from "jotai";
 import type { CellConfig, RuntimeState } from "../network/types";
+import { type NotebookState, notebookAtom, SCRATCH_CELL_ID } from "./cells";
+import type { CellId } from "./ids";
 
 /**
  * Holds state for the last focused cell.

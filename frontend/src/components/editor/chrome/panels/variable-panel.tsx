@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { FunctionSquareIcon } from "lucide-react";
+import type React from "react";
 import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
 import { useVariables } from "@/core/variables/state";
-import type React from "react";
 import { PanelEmptyState } from "./empty-state";
-import { FunctionSquareIcon } from "lucide-react";
 
 export const VariablePanel: React.FC = () => {
   const variables = useVariables();

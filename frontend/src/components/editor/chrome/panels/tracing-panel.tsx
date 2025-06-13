@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Spinner } from "@/components/icons/spinner";
+
 import React from "react";
+import { Spinner } from "@/components/icons/spinner";
 
 const LazyTracing = React.lazy(() =>
   import("@/components/tracing/tracing").then((module) => {

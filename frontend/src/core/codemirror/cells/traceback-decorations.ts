@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { EditorState, Extension } from "@codemirror/state";
+import { RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
@@ -7,8 +10,6 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import type { Extension, EditorState } from "@codemirror/state";
-import { RangeSetBuilder } from "@codemirror/state";
 import type { Observable } from "@/core/state/observable";
 import type { TracebackInfo } from "@/utils/traceback";
 import { cellIdState } from "./state";

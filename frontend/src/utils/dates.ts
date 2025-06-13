@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { formatDate } from "date-fns";
+
 import { TZDate } from "@date-fns/tz";
+import { formatDate } from "date-fns";
 import { Logger } from "./Logger";
 
 export function prettyDate(

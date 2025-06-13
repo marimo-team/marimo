@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";
-import { cn } from "@/utils/cn";
+
 import type React from "react";
 import type { PropsWithChildren } from "react";
-import { StatusOverlay } from "./header/status";
 import type { AppConfig } from "@/core/config/config-schema";
-import { WrappedWithSidebar } from "./renderers/vertical-layout/sidebar/wrapped-with-sidebar";
 import { PyodideLoader } from "@/core/wasm/PyodideLoader";
+import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";
+import { cn } from "@/utils/cn";
 import { DynamicFavicon } from "./dynamic-favicon";
+import { StatusOverlay } from "./header/status";
+import { WrappedWithSidebar } from "./renderers/vertical-layout/sidebar/wrapped-with-sidebar";
 
 interface Props {
   connection: ConnectionStatus;

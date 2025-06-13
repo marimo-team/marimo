@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { dequal } from "dequal";
+import React from "react";
 
 /**
  * Deep compare memoize hook

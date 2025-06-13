@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Compartment, EditorState, StateEffect } from "@codemirror/state";
 import { ViewPlugin } from "@codemirror/view";
-import { WebSocketState } from "../../websocket/types";
-import { connectionAtom } from "../../network/connection";
 import type { createStore } from "jotai";
 import {
   isAppConnected,
   isAppConnecting,
 } from "@/core/websocket/connection-utils";
+import { connectionAtom } from "../../network/connection";
+import { WebSocketState } from "../../websocket/types";
 
 /**
  * State effect for updating readonly status based on connection

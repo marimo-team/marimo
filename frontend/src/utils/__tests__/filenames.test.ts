@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Filenames } from "../filenames";
+
 import { describe, expect, it } from "vitest";
+import { Filenames } from "../filenames";
 
 describe("Filenames", () => {
   it("should convert filename to markdown", () => {

@@ -1,40 +1,39 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { SaveIcon } from "lucide-react";
 import { useState } from "react";
-
-import { sendSave } from "@/core/network/requests";
-
 import { FilenameInput } from "@/components/editor/header/filename-input";
-import { WebSocketState } from "../websocket/types";
-import { useNotebook, getCellConfigs, getNotebook } from "../cells/cells";
-import { notebookCells } from "../cells/utils";
+import { Button as ControlButton } from "@/components/editor/inputs/Inputs";
+import { RecoveryButton } from "@/components/editor/RecoveryButton";
+import { renderShortcut } from "@/components/shortcuts/renderShortcut";
+import { Tooltip } from "@/components/ui/tooltip";
+import { sendSave } from "@/core/network/requests";
+import { useEventListener } from "@/hooks/useEventListener";
+import { useHotkey } from "@/hooks/useHotkey";
 import { useImperativeModal } from "../../components/modal/ImperativeModal";
+import { Button } from "../../components/ui/button";
 import {
   DialogContent,
   DialogFooter,
   DialogTitle,
 } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
-import { Button } from "../../components/ui/button";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
-import { useAutoSave } from "./useAutoSave";
-import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
-import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
+import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
-import { useFilename, useUpdateFilename } from "./filename";
-import { filenameAtom } from "./file-state";
-import { connectionAtom } from "../network/connection";
 import { autoSaveConfigAtom } from "../config/config";
-import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
-import { Tooltip } from "@/components/ui/tooltip";
-import { RecoveryButton } from "@/components/editor/RecoveryButton";
-import { renderShortcut } from "@/components/shortcuts/renderShortcut";
-import { SaveIcon } from "lucide-react";
-import { useHotkey } from "@/hooks/useHotkey";
-import { Button as ControlButton } from "@/components/editor/inputs/Inputs";
 import { useAutoExport } from "../export/hooks";
-import { useEventListener } from "@/hooks/useEventListener";
+import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
+import { connectionAtom } from "../network/connection";
+import { WebSocketState } from "../websocket/types";
+import { filenameAtom } from "./file-state";
+import { useFilename, useUpdateFilename } from "./filename";
+import { lastSavedNotebookAtom, needsSaveAtom } from "./state";
+import { useAutoSave } from "./useAutoSave";
 
 interface SaveNotebookProps {
   kioskMode: boolean;

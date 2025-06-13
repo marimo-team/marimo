@@ -1,36 +1,35 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
 import {
-  LayoutTemplateIcon,
   EditIcon,
+  LayoutTemplateIcon,
   PlayIcon,
   SquareIcon,
   Undo2Icon,
 } from "lucide-react";
-
-import { Button } from "@/components/editor/inputs/Inputs";
+import type { JSX } from "react";
 import { KeyboardShortcuts } from "@/components/editor/controls/keyboard-shortcuts";
+import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
 import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
-
-import { Tooltip } from "../../ui/tooltip";
-import { renderShortcut } from "../../shortcuts/renderShortcut";
+import { Button } from "@/components/editor/inputs/Inputs";
+import { FindReplace } from "@/components/find-replace/find-replace";
+import type { AppConfig } from "@/core/config/config-schema";
+import { SaveComponent } from "@/core/saving/save-component";
+import { cn } from "@/utils/cn";
+import { Functions } from "@/utils/functions";
 import {
   canUndoDeletesAtom,
   needsRunAtom,
   useCellActions,
 } from "../../../core/cells/cells";
 import { ConfigButton } from "../../app-config/app-config-button";
-import { LayoutSelect } from "../renderers/layout-select";
-import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
-import { FindReplace } from "@/components/find-replace/find-replace";
-import type { AppConfig } from "@/core/config/config-schema";
+import { renderShortcut } from "../../shortcuts/renderShortcut";
+import { Tooltip } from "../../ui/tooltip";
 import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
-import { CommandPaletteButton } from "./command-palette-button";
-import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../kiosk-mode";
-import { Functions } from "@/utils/functions";
-import { SaveComponent } from "@/core/saving/save-component";
-import { useAtomValue } from "jotai";
-import type { JSX } from "react";
+import { LayoutSelect } from "../renderers/layout-select";
+import { CommandPaletteButton } from "./command-palette-button";
 
 interface ControlsProps {
   presenting: boolean;

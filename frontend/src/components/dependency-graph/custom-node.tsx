@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TinyCode } from "@/components/editor/cell/TinyCode";
-import { cn } from "@/utils/cn";
+
 import { useAtomValue } from "jotai";
 import React, { memo, use } from "react";
 import { Handle, Position, useStore } from "reactflow";
-import { type CustomNodeProps, getNodeHeight } from "./elements";
-import { displayCellName } from "@/core/cells/names";
+import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { useCellIds } from "@/core/cells/cells";
+import { displayCellName } from "@/core/cells/names";
+import { cn } from "@/utils/cn";
+import { type CustomNodeProps, getNodeHeight } from "./elements";
 import type { LayoutDirection } from "./types";
 
 function getWidth(canvasWidth: number) {

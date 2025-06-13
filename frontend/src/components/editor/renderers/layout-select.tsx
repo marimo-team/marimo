@@ -1,4 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { startCase } from "lodash-es";
+import {
+  Grid3x3Icon,
+  ListIcon,
+  PresentationIcon,
+  SquareIcon,
+} from "lucide-react";
 import type React from "react";
 import {
   Select,
@@ -9,18 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LAYOUT_TYPES, type LayoutType } from "./types";
-import {
-  SquareIcon,
-  Grid3x3Icon,
-  ListIcon,
-  PresentationIcon,
-} from "lucide-react";
-import { isWasm } from "@/core/wasm/utils";
-import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
-import { logNever } from "@/utils/assertNever";
-import { startCase } from "lodash-es";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { isWasm } from "@/core/wasm/utils";
+import { logNever } from "@/utils/assertNever";
+import { LAYOUT_TYPES, type LayoutType } from "./types";
 
 export const LayoutSelect: React.FC = () => {
   const { selectedLayout } = useLayoutState();

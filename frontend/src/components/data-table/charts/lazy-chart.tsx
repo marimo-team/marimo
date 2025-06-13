@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React from "react";
-import { useTheme } from "@/theme/useTheme";
-import type { TopLevelSpec } from "vega-lite";
-import type { ErrorMessage } from "./chart-spec/spec";
 import { ChartPieIcon } from "lucide-react";
+import React from "react";
+import type { TopLevelSpec } from "vega-lite";
+import { useTheme } from "@/theme/useTheme";
+import type { ErrorMessage } from "./chart-spec/spec";
 import { augmentSpecWithData } from "./chart-spec/spec";
 
 const LazyVega = React.lazy(() =>

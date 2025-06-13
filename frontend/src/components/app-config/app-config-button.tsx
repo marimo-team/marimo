@@ -1,18 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtom } from "jotai";
+import { SettingsIcon } from "lucide-react";
+import { AppConfigForm } from "@/components/app-config/app-config-form";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button as EditorButton } from "../editor/inputs/Inputs";
-import { SettingsIcon } from "lucide-react";
-import { UserConfigForm } from "./user-config-form";
-import { Tooltip } from "../ui/tooltip";
-import { Dialog, DialogTrigger, DialogContent } from "../ui/dialog";
-import { AppConfigForm } from "@/components/app-config/app-config-form";
-import { useAtom } from "jotai";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
+import { Tooltip } from "../ui/tooltip";
 import { settingDialogAtom } from "./state";
+import { UserConfigForm } from "./user-config-form";
 
 interface Props {
   showAppConfig?: boolean;

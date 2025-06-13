@@ -2,17 +2,15 @@
 "use no memo";
 
 import type { Table } from "@tanstack/react-table";
+import { range } from "lodash-es";
 import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { PluralWord } from "@/utils/pluralize";
-import { range } from "lodash-es";
-import type { DataTableSelection } from "./types";
 import {
   Select,
   SelectContent,
@@ -22,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import type { DataTableSelection } from "./types";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;

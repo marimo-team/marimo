@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { DATA_TYPE_COLOR, DATA_TYPE_ICON } from "../datasets/icons";
-import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
 
 export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
   isExpanded,

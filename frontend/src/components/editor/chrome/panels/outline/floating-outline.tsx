@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { notebookOutline } from "@/core/cells/cells";
-import { cn } from "@/utils/cn";
+
 import { useAtomValue } from "jotai";
 import React from "react";
-import {
-  useActiveOutline,
-  scrollToOutlineItem,
-  findOutlineElements,
-} from "./useActiveOutline";
+import { notebookOutline } from "@/core/cells/cells";
 import type { OutlineItem } from "@/core/cells/outline";
+import { cn } from "@/utils/cn";
+import {
+  findOutlineElements,
+  scrollToOutlineItem,
+  useActiveOutline,
+} from "./useActiveOutline";
 
 export const FloatingOutline: React.FC = () => {
   const { items } = useAtomValue(notebookOutline);

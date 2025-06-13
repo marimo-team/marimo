@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, it, describe, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { DataTable } from "@/core/kernel/messages";
+import type { VariableName } from "@/core/variables/types";
 import {
   type ConnectionName,
   type DataSourceConnection,
@@ -8,8 +10,6 @@ import {
   INTERNAL_SQL_ENGINES,
   type SQLTableContext,
 } from "../data-source-connections";
-import type { VariableName } from "@/core/variables/types";
-import type { DataTable } from "@/core/kernel/messages";
 
 const { reducer, initialState } = exportedForTesting;
 

@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppChrome } from "@/components/editor/chrome/wrapper/app-chrome";
+
 import type { Meta, StoryObj } from "@storybook/react";
+import { AppChrome } from "@/components/editor/chrome/wrapper/app-chrome";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta: Meta<typeof AppChrome> = {
   title: "AppChrome",

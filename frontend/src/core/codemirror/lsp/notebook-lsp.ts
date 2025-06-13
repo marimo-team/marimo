@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { EditorView } from "@codemirror/view";
 import type * as LSP from "vscode-languageserver-protocol";
-import { getTopologicalCodes } from "../copilot/getCodes";
-import { createNotebookLens } from "./lens";
-import { CellDocumentUri, type ILanguageServerClient } from "./types";
+import type { CellId } from "@/core/cells/ids";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
-import type { CellId } from "@/core/cells/ids";
-import type { EditorView } from "@codemirror/view";
+import { getTopologicalCodes } from "../copilot/getCodes";
+import { createNotebookLens } from "./lens";
+import { CellDocumentUri, type ILanguageServerClient } from "./types";
 import { getLSPDocument } from "./utils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {

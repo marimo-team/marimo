@@ -1,21 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useRef, useState, type JSX } from "react";
-import { z } from "zod";
 
-import { getUIElementObjectId, isUIElement } from "../../core/dom/ui-element";
+import { Loader2Icon } from "lucide-react";
+import { type JSX, useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import {
   MarimoValueInputEvent,
   type MarimoValueInputEventType,
 } from "@/core/dom/events";
-import type { Setter } from "../types";
-import { Button } from "../../components/ui/button";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
+import { Button } from "../../components/ui/button";
+import { getUIElementObjectId, isUIElement } from "../../core/dom/ui-element";
 import { cn } from "../../utils/cn";
-import { renderHTML } from "../core/RenderHTML";
-import { Loader2Icon } from "lucide-react";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "../core/builder";
+import { renderHTML } from "../core/RenderHTML";
 import { rpc } from "../core/rpc";
+import type { Setter } from "../types";
 import { Banner } from "./common/error-banner";
 
 type T = unknown;

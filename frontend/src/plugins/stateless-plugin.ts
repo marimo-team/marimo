@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { IPlugin } from "./types";
 
 import type { JSX } from "react";
+import type { IPlugin } from "./types";
 
 export interface IStatelessPluginProps<D> {
   /**

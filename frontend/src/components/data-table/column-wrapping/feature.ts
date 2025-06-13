@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  type TableFeature,
-  type RowData,
-  makeStateUpdater,
-  type Table,
   type Column,
+  makeStateUpdater,
+  type RowData,
+  type Table,
+  type TableFeature,
   type Updater,
 } from "@tanstack/react-table";
 import type {
-  ColumnWrappingTableState,
   ColumnWrappingOptions,
   ColumnWrappingState,
+  ColumnWrappingTableState,
 } from "./types";
 
 export const ColumnWrappingFeature: TableFeature = {

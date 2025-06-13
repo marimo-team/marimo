@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
-import type { CellMessage, OutputMessage } from "../kernel/messages";
-import type { CellRuntimeState } from "./types";
-import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
-import { parseOutline } from "../dom/outline";
-import { type Seconds, Time } from "@/utils/time";
 import { invariant } from "@/utils/invariant";
-import type { RuntimeState } from "../network/types";
+import { type Seconds, Time } from "@/utils/time";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
+import { parseOutline } from "../dom/outline";
+import type { CellMessage, OutputMessage } from "../kernel/messages";
+import type { RuntimeState } from "../network/types";
+import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
+import type { CellRuntimeState } from "./types";
 
 export function transitionCell(
   cell: CellRuntimeState,

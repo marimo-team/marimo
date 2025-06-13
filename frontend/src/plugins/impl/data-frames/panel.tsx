@@ -1,11 +1,38 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren, useEffect, useMemo } from "react";
+
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  type TransformType,
-  TransformTypeSchema,
-  type Transformations,
-  TransformationsSchema,
-} from "./schema";
+  ArrowUpDownIcon,
+  BracketsIcon,
+  ColumnsIcon,
+  CombineIcon,
+  CopySlashIcon,
+  FileJsonIcon,
+  FilterIcon,
+  FunctionSquareIcon,
+  GroupIcon,
+  MousePointerSquareDashedIcon,
+  PencilIcon,
+  PlusIcon,
+  ShuffleIcon,
+  SquareMousePointerIcon,
+  Trash2Icon,
+} from "lucide-react";
+import React, { type PropsWithChildren, useEffect, useMemo } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import useEvent from "react-use-event-hook";
+import type { z } from "zod";
+import {
+  ColumnFetchValuesContext,
+  ColumnInfoContext,
+} from "@/plugins/impl/data-frames/forms/context";
+import { Strings } from "@/utils/strings";
+import { ZodForm } from "../../../components/forms/form";
+import {
+  getDefaults,
+  getUnionLiteral,
+} from "../../../components/forms/form-utils";
+import { Button } from "../../../components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,42 +42,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../../components/ui/dropdown-menu";
-import { Button } from "../../../components/ui/button";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm } from "react-hook-form";
-import type { z } from "zod";
-import { ZodForm } from "../../../components/forms/form";
-import {
-  getDefaults,
-  getUnionLiteral,
-} from "../../../components/forms/form-utils";
-import {
-  ArrowUpDownIcon,
-  ColumnsIcon,
-  CombineIcon,
-  FilterIcon,
-  FunctionSquareIcon,
-  GroupIcon,
-  MousePointerSquareDashedIcon,
-  SquareMousePointerIcon,
-  PencilIcon,
-  PlusIcon,
-  ShuffleIcon,
-  Trash2Icon,
-  BracketsIcon,
-  FileJsonIcon,
-  CopySlashIcon,
-} from "lucide-react";
 import { cn } from "../../../utils/cn";
+import { DATAFRAME_FORM_RENDERERS } from "./forms/renderers";
 import {
-  ColumnFetchValuesContext,
-  ColumnInfoContext,
-} from "@/plugins/impl/data-frames/forms/context";
-import useEvent from "react-use-event-hook";
+  type Transformations,
+  TransformationsSchema,
+  type TransformType,
+  TransformTypeSchema,
+} from "./schema";
 import type { ColumnDataTypes } from "./types";
 import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
-import { Strings } from "@/utils/strings";
-import { DATAFRAME_FORM_RENDERERS } from "./forms/renderers";
 
 interface Props {
   columns: ColumnDataTypes;

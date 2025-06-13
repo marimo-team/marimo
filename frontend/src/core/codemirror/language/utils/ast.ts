@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "@/utils/Logger";
+
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
+import { Logger } from "@/utils/Logger";
 
 const SYNTAX_TOKENS = new Set(["(", "[", "{", ",", ")", "]", "}"]);
 

@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi, beforeEach, type Mocked } from "vitest";
-import { createNotebookLens } from "../lens";
-import * as LSP from "vscode-languageserver-protocol";
-import { NotebookLanguageServerClient } from "../notebook-lsp";
-import { CellDocumentUri, type ILanguageServerClient } from "../types";
-import type { CellId } from "@/core/cells/ids";
+
 import { EditorView } from "@codemirror/view";
 import {
   type LanguageServerClient,
   languageServerWithClient,
 } from "@marimo-team/codemirror-languageserver";
+import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
+import * as LSP from "vscode-languageserver-protocol";
+import type { CellId } from "@/core/cells/ids";
+import { createNotebookLens } from "../lens";
+import { NotebookLanguageServerClient } from "../notebook-lsp";
+import { CellDocumentUri, type ILanguageServerClient } from "../types";
 
 const Cells = {
   cell1: "cell1" as CellId,

@@ -1,25 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Button as EditorButton } from "@/components/editor/inputs/Inputs";
+
+import type { Notebook } from "@marimo-team/marimo-api";
 import { Button } from "components/ui/button";
-import { useHotkey } from "../../hooks/useHotkey";
 import { SaveIcon } from "lucide-react";
-import { Tooltip } from "../ui/tooltip";
-import { renderShortcut } from "../shortcuts/renderShortcut";
+import type { JSX } from "react";
+import { Button as EditorButton } from "@/components/editor/inputs/Inputs";
+import { getNotebook } from "@/core/cells/cells";
+import { notebookCells } from "@/core/cells/utils";
+import { getMarimoVersion } from "@/core/meta/globals";
+import { useEvent } from "@/hooks/useEvent";
+import { downloadBlob } from "@/utils/download";
+import { Paths } from "@/utils/paths";
+import { useHotkey } from "../../hooks/useHotkey";
 import { useImperativeModal } from "../modal/ImperativeModal";
+import { renderShortcut } from "../shortcuts/renderShortcut";
 import {
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "../ui/dialog";
-import { downloadBlob } from "@/utils/download";
-import { useEvent } from "@/hooks/useEvent";
-import { getNotebook } from "@/core/cells/cells";
-import { notebookCells } from "@/core/cells/utils";
-import type { Notebook } from "@marimo-team/marimo-api";
-import { getMarimoVersion } from "@/core/meta/globals";
-import { Paths } from "@/utils/paths";
-import type { JSX } from "react";
+import { Tooltip } from "../ui/tooltip";
 
 const RecoveryModal = (props: {
   proposedName: string;

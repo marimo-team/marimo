@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { ZodType, ZodTypeDef } from "zod";
-import type { PluginFunctions, FunctionSchemas } from "./core/rpc";
+
 import type { JSX } from "react";
+import type { ZodType, ZodTypeDef } from "zod";
+import type { FunctionSchemas, PluginFunctions } from "./core/rpc";
 
 /**
  * State setter. Either a value or a function that takes the previous value and

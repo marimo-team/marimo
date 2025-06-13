@@ -2,11 +2,11 @@
 
 import { useFormContext, useWatch } from "react-hook-form";
 import { isFieldSet } from "../chart-spec/spec";
-import { NumberField } from "../components/form-fields";
 import { ColorByAxis, XAxis, YAxis } from "../components/chart-items";
-import { OtherOptions } from "./common-chart";
+import { NumberField } from "../components/form-fields";
 import { FormSectionHorizontalRule } from "../components/layouts";
 import type { ChartSchemaType } from "../schemas";
+import { OtherOptions } from "./common-chart";
 
 export const HeatmapForm: React.FC = () => {
   const form = useFormContext<ChartSchemaType>();

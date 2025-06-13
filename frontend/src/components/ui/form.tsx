@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
 import type * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
+import { AlertCircleIcon } from "lucide-react";
+import * as React from "react";
 import {
   Controller,
   type ControllerProps,
@@ -10,11 +12,9 @@ import {
   FormProvider,
   useFormContext,
 } from "react-hook-form";
-
-import { cn } from "@/utils/cn";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
-import { AlertCircleIcon } from "lucide-react";
+import { cn } from "@/utils/cn";
 
 const Form = FormProvider;
 

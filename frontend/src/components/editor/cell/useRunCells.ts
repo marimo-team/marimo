@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CellId } from "@/core/cells/ids";
-import { sendRun } from "@/core/network/requests";
-import { getNotebook, useCellActions } from "@/core/cells/cells";
+
+import { closeCompletion } from "@codemirror/autocomplete";
 import useEvent from "react-use-event-hook";
-import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
-import { Logger } from "@/utils/Logger";
+import { getNotebook, useCellActions } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
 import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
-import { closeCompletion } from "@codemirror/autocomplete";
+import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
+import { sendRun } from "@/core/network/requests";
+import { Logger } from "@/utils/Logger";
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.

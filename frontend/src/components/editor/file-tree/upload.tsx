@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
-import type { FilePath } from "@/utils/paths";
 import { serializeBlob } from "@/utils/blob";
-import { type DropzoneOptions, useDropzone } from "react-dropzone";
-import { refreshRoot } from "./state";
 import { Logger } from "@/utils/Logger";
+import type { FilePath } from "@/utils/paths";
+import { refreshRoot } from "./state";
 
 const MAX_SIZE = 1024 * 1024 * 100; // 100MB
 

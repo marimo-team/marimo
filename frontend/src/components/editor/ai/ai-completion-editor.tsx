@@ -1,29 +1,30 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useEffect, useState } from "react";
-import CodeMirrorMerge from "react-codemirror-merge";
+
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
-import { Button } from "@/components/ui/button";
 import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import CodeMirrorMerge from "react-codemirror-merge";
+import { Button } from "@/components/ui/button";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 
 import "./merge-editor.css";
-import { cn } from "@/utils/cn";
-import { toast } from "@/components/ui/use-toast";
-import { prettyError } from "@/utils/errors";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { useAtom } from "jotai";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useAtom } from "jotai";
+import { toast } from "@/components/ui/use-toast";
 import { includeOtherCellsAtom } from "@/core/ai/state";
-import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { useTheme } from "@/theme/useTheme";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { PromptInput } from "./add-cell-with-ai";
-import { getAICompletionBody } from "./completion-utils";
-import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { selectAllText } from "@/core/codemirror/utils";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { prettyError } from "@/utils/errors";
+import { PromptInput } from "./add-cell-with-ai";
+import { getAICompletionBody } from "./completion-utils";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;

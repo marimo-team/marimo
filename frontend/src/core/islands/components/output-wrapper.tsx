@@ -1,4 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
+import { selectAtom } from "jotai/utils";
+import { CopyIcon, Loader2Icon, PlayIcon } from "lucide-react";
+import React, {
+  type JSX,
+  type PropsWithChildren,
+  useCallback,
+  useState,
+} from "react";
 import { OutputRenderer } from "@/components/editor/Output";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -10,15 +20,6 @@ import { sendRun } from "@/core/network/requests";
 import { useEventListener } from "@/hooks/useEventListener";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
-import { useAtomValue } from "jotai";
-import { selectAtom } from "jotai/utils";
-import { CopyIcon, Loader2Icon, PlayIcon } from "lucide-react";
-import React, {
-  type PropsWithChildren,
-  useCallback,
-  useState,
-  type JSX,
-} from "react";
 
 interface Props {
   cellId: CellId;

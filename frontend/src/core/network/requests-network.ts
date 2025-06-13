@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { once } from "lodash-es";
 import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
 import { waitForConnectionOpen } from "./connection";
-import type { RunRequests, EditRequests } from "./types";
-import { once } from "lodash-es";
+import type { EditRequests, RunRequests } from "./types";
 
 const { handleResponse, handleResponseReturnNull } = API;
 

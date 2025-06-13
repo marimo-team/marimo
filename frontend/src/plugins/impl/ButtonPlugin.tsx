@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps } from "../types";
+import type { JSX } from "react";
+import { z } from "zod";
+import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/utils/cn";
 import { Button } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";
+import type { IPlugin, IPluginProps } from "../types";
 import { type Intent, zodIntent } from "./common/intent";
-import { cn } from "@/utils/cn";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
-import type { JSX } from "react";
 
 interface Data {
   label: string;

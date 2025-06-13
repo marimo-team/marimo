@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { FloatingAlert } from "./floating-alert";
-import { isConnectingAtom } from "@/core/network/connection";
 import { Spinner } from "@/components/icons/spinner";
+import { isConnectingAtom } from "@/core/network/connection";
+import { FloatingAlert } from "./floating-alert";
 
 const DELAY_MS = 1000; // 1 second
 

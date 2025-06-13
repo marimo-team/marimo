@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { syntaxTree } from "@codemirror/language";
+import { StateEffect, StateField } from "@codemirror/state";
 import {
-  EditorView,
   Decoration,
   type DecorationSet,
+  EditorView,
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { StateField, StateEffect } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
 import type { TreeCursor } from "@lezer/common";
 
 // Decoration

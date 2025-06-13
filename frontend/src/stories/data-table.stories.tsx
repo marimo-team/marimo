@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { DataTable } from "@/components/data-table/data-table";
+
 import {
   generateColumns,
   inferFieldTypes,
 } from "@/components/data-table/columns";
+import { DataTable } from "@/components/data-table/data-table";
 import { Functions } from "@/utils/functions";
 
 export default {

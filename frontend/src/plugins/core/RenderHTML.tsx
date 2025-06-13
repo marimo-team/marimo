@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+
 import parse, {
+  type DOMNode,
   Element,
   type HTMLReactParserOptions,
-  type DOMNode,
 } from "html-react-parser";
-import React, { useId, type ReactNode, type JSX } from "react";
+import React, { type JSX, type ReactNode, useId } from "react";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
 type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;

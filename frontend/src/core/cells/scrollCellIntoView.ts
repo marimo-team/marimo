@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { RefObject } from "react";
-import { Logger } from "../../utils/Logger";
-import { type CellId, HTMLCellId } from "./ids";
 import type { CellHandle } from "@/components/editor/Cell";
+import { Logger } from "../../utils/Logger";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
 import type { CellConfig } from "../network/types";
+import { type CellId, HTMLCellId } from "./ids";
 
 export function focusAndScrollCellIntoView({
   cellId,

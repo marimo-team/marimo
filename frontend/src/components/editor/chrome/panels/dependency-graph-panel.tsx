@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type React from "react";
 import { useCellDataAtoms, useCellIds } from "@/core/cells/cells";
 import { useVariables } from "@/core/variables/state";
-import type React from "react";
-import { DependencyGraph } from "../../../dependency-graph/dependency-graph";
 import { cn } from "@/utils/cn";
+import { DependencyGraph } from "../../../dependency-graph/dependency-graph";
 
 export const DependencyGraphPanel: React.FC = () => {
   const variables = useVariables();

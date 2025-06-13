@@ -1,11 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
 import { render } from "@testing-library/react";
-import { DataTable } from "../data-table";
-import { describe, expect, it } from "vitest";
-import { vi } from "vitest";
-import type { ColumnDef } from "@tanstack/react-table";
-import type { RowSelectionState } from "@tanstack/react-table";
+import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DataTable } from "../data-table";
 
 interface TestData {
   id: number;

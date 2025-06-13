@@ -1,60 +1,61 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { WebSocketClosedReason, WebSocketState } from "./types";
+
 import { useAtom, useSetAtom } from "jotai";
-import { connectionAtom } from "../network/connection";
-import { useWebSocket } from "@/core/websocket/useWebSocket";
-import { logNever } from "@/utils/assertNever";
+import { useRef } from "react";
+import { useErrorBoundary } from "react-error-boundary";
+import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import type { OperationMessage } from "@/core/kernel/messages";
-import type { CellData } from "../cells/types";
-import { useErrorBoundary } from "react-error-boundary";
-import { Logger } from "@/utils/Logger";
-import { type LayoutState, useLayoutActions } from "../layout/layout";
-import { useVariablesActions } from "../variables/state";
-import { toast } from "@/components/ui/use-toast";
+import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import {
+  handleWidgetMessage,
+  isMessageWidgetState,
+  MODEL_MANAGER,
+} from "@/plugins/impl/anywidget/model";
+import { logNever } from "@/utils/assertNever";
+import { prettyError } from "@/utils/errors";
+import type { Base64String, JsonString } from "@/utils/json/base64";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { Logger } from "@/utils/Logger";
+import { reloadSafe } from "@/utils/reload-safe";
+import { useAlertActions } from "../alerts/state";
+import type { CellId, UIElementId } from "../cells/ids";
+import { useRunsActions } from "../cells/runs";
+import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
+import type { CellData } from "../cells/types";
+import { capabilitiesAtom } from "../config/capabilities";
+import { useSetAppConfig } from "../config/config";
+import {
+  type ConnectionName,
+  useDataSourceActions,
+} from "../datasets/data-source-connections";
 import {
   PreviewSQLTable,
   PreviewSQLTableList,
 } from "../datasets/request-registry";
-import { prettyError } from "@/utils/errors";
-import { isStaticNotebook } from "../static/static-state";
-import { useRef } from "react";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
-import type { SessionId } from "../kernel/session";
+import { useDatasetsActions } from "../datasets/state";
+import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { useBannersActions } from "../errors/state";
-import { useAlertActions } from "../alerts/state";
-import { useSetAppConfig } from "../config/config";
+import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
   handleCellOperation,
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
-import type { Base64String, JsonString } from "@/utils/json/base64";
-import { useDatasetsActions } from "../datasets/state";
-import type { RequestId } from "../network/DeferredRequestRegistry";
-import type { VariableName } from "../variables/types";
-import type { CellId, UIElementId } from "../cells/ids";
+import type { SessionId } from "../kernel/session";
+import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
-import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
-import { capabilitiesAtom } from "../config/capabilities";
-import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
-import { reloadSafe } from "@/utils/reload-safe";
-import { useRunsActions } from "../cells/runs";
-import {
-  type ConnectionName,
-  useDataSourceActions,
-} from "../datasets/data-source-connections";
-import { SECRETS_REGISTRY } from "../secrets/request-registry";
-import {
-  handleWidgetMessage,
-  isMessageWidgetState,
-  MODEL_MANAGER,
-} from "@/plugins/impl/anywidget/model";
+import { connectionAtom } from "../network/connection";
+import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
+import { SECRETS_REGISTRY } from "../secrets/request-registry";
+import { isStaticNotebook } from "../static/static-state";
+import { useVariablesActions } from "../variables/state";
+import type { VariableName } from "../variables/types";
+import { WebSocketClosedReason, WebSocketState } from "./types";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.

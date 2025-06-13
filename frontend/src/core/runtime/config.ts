@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtomValue } from "jotai";
-import type { RuntimeConfig } from "./types";
-import { RuntimeManager } from "./runtime";
 import { store } from "../state/jotai";
+import { RuntimeManager } from "./runtime";
+import type { RuntimeConfig } from "./types";
 
 function getBaseURI(): string {
   const url = new URL(document.baseURI);

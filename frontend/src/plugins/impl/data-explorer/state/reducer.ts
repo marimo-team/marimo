@@ -1,21 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { SpecificEncoding } from "../encoding";
-import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { ChartSpec } from "./types";
+
+import type { Schema } from "compassql/build/src/schema";
 import { SHORT_WILDCARD } from "compassql/build/src/wildcard";
 import { atom } from "jotai";
+import { createReducerAndAtoms } from "@/utils/createReducer";
+import type { SpecificEncoding } from "../encoding";
+import type { SpecMark } from "../marks";
+import { histograms } from "../queries/histograms";
 import {
-  mainViewResult,
   allRelatedViewResults,
+  mainViewResult,
   relatedViewResult,
   toQuery,
 } from "../queries/queries";
-import { isQueryEmpty, isQueryFull, isQuerySpecific } from "../queries/utils";
 import { removeUndefined } from "../queries/removeUndefined";
-import { histograms } from "../queries/histograms";
-import type { Schema } from "compassql/build/src/schema";
-import type { SpecMark } from "../marks";
 import type { ResultingCharts } from "../queries/types";
+import { isQueryEmpty, isQueryFull, isQuerySpecific } from "../queries/utils";
+import type { ChartSpec } from "./types";
 
 function initialState(): ChartSpec {
   return {

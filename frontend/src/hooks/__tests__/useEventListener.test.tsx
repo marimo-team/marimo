@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it, beforeEach, vi } from "vitest";
+
 import { renderHook } from "@testing-library/react";
 import { useRef } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type HTMLElementNotDerivedFromRef,
   isRefObject,
