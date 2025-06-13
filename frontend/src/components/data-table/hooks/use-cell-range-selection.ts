@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useCallback, useState } from "react";
 import type { Cell, Row, Table } from "@tanstack/react-table";
-import { renderUnknownValue } from "../renderers";
-import { copyToClipboard } from "@/utils/copy";
+import { useCallback, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { copyToClipboard } from "@/utils/copy";
+import { renderUnknownValue } from "../renderers";
 
 export interface SelectedCell {
   rowId: string;
