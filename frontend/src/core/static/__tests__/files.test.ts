@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
-import { patchFetch, patchVegaLoader } from "../files";
-import type { DataURLString } from "@/utils/json/base64";
-import { createLoader } from "@/plugins/impl/vega/vega-loader";
+
 import http from "node:http";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createLoader } from "@/plugins/impl/vega/vega-loader";
+import type { DataURLString } from "@/utils/json/base64";
+import { patchFetch, patchVegaLoader } from "../files";
 
 // Start a tiny server to serve virtual files
 const server = http.createServer((request, response) => {

@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "@/utils/Logger";
-import type { CellId, UIElementId } from "../cells/ids";
-import {
-  type ValueType,
-  MarimoIncomingMessageEvent,
-  MarimoValueReadyEvent,
-  MarimoValueUpdateEvent,
-} from "./events";
-import { parseInitialValue } from "./htmlUtils";
+
 import { byteStringToDataView } from "@/utils/data-views";
 import type { Base64String } from "@/utils/json/base64";
 import { typedAtob } from "@/utils/json/base64";
+import { Logger } from "@/utils/Logger";
+import type { CellId, UIElementId } from "../cells/ids";
+import {
+  MarimoIncomingMessageEvent,
+  MarimoValueReadyEvent,
+  MarimoValueUpdateEvent,
+  type ValueType,
+} from "./events";
+import { parseInitialValue } from "./htmlUtils";
 
 interface UIElementEntry {
   objectId: string;

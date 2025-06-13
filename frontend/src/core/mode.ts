@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
+import { isIslands } from "@/core/islands/utils";
+import { assertExists } from "@/utils/assertExists";
+import { invariant } from "@/utils/invariant";
 import type { CellId } from "./cells/ids";
 import { store } from "./state/jotai";
-import { assertExists } from "@/utils/assertExists";
-import { isIslands } from "@/core/islands/utils";
-import { invariant } from "@/utils/invariant";
 
 /**
  * This is the internal mode.

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { createTheme } from "thememirror";
+
 import { tags as t } from "@lezer/highlight";
+import { createTheme } from "thememirror";
 
 export const darkTheme = createTheme({
   variant: "dark",

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, test, expect } from "vitest";
+import { describe, expect, test } from "vitest";
 import { LRUCache } from "../utils/lru";
 
 describe("LRUCache", () => {

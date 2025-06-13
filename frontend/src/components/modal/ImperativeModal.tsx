@@ -1,18 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { type PropsWithChildren } from "react";
-import { Dialog } from "../ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogFooter,
   AlertDialogCancel,
+  AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { Dialog } from "../ui/dialog";
+import { Input } from "../ui/input";
 
 interface ModalContextType {
   modal: React.ReactNode | null;

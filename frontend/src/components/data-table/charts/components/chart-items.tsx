@@ -1,46 +1,44 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { ChevronDown, Loader2 } from "lucide-react";
-import { capitalize } from "lodash-es";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { capitalize } from "lodash-es";
+import { ChevronDown, Loader2 } from "lucide-react";
+import React from "react";
+import { useFormContext, useWatch } from "react-hook-form";
+import type { z } from "zod";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { CHART_TYPE_ICON, COUNT_FIELD, type EMPTY_VALUE } from "../constants";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { buttonVariants } from "@/components/ui/button";
-import { useFormContext, useWatch } from "react-hook-form";
-import type { z } from "zod";
-import type { ChartSchema } from "../schemas";
-import { isFieldSet } from "../chart-spec/spec";
-import {
-  ColumnSelector,
-  AggregationSelect,
-  DataTypeSelect,
-  TimeUnitSelect,
-  BooleanField,
-  SortField,
-  NumberField,
-  BinFields,
-  type FieldName,
-} from "./form-fields";
-import { CHART_TYPES, type ChartType, type SelectableDataType } from "../types";
-import React from "react";
-import { FieldSection, Title } from "./layouts";
-import { useChartFormContext } from "../context";
-import { convertDataTypeToSelectable } from "../chart-spec/types";
 import type { DataType } from "@/core/kernel/messages";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { isFieldSet } from "../chart-spec/spec";
+import { convertDataTypeToSelectable } from "../chart-spec/types";
+import { CHART_TYPE_ICON, COUNT_FIELD, type EMPTY_VALUE } from "../constants";
+import { useChartFormContext } from "../context";
+import type { ChartSchema } from "../schemas";
+import { CHART_TYPES, type ChartType, type SelectableDataType } from "../types";
+import {
+  AggregationSelect,
+  BinFields,
+  BooleanField,
+  ColumnSelector,
+  DataTypeSelect,
+  type FieldName,
+  NumberField,
+  SortField,
+  TimeUnitSelect,
+} from "./form-fields";
+import { FieldSection, Title } from "./layouts";
 
 type SelectedDataType = SelectableDataType | typeof EMPTY_VALUE;
 type FieldDataType = DataType | typeof EMPTY_VALUE;
 
 // Utility functions for field type checking
-function isNonCountField(field?: {
-  field?: string;
-}) {
+function isNonCountField(field?: { field?: string }) {
   return isFieldSet(field?.field) && field?.field !== COUNT_FIELD;
 }
 

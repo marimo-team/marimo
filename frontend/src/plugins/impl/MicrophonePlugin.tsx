@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps } from "@/plugins/types";
-import { Labeled } from "./common/labeled";
-import { useAudioRecorder } from "@/hooks/useAudioRecorder";
-import { AudioRecorder } from "@/components/audio/audio-recorder";
-import { blobToBase64 } from "@/utils/fileToBase64";
 import type { JSX } from "react";
+import { z } from "zod";
+import { AudioRecorder } from "@/components/audio/audio-recorder";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
+import { blobToBase64 } from "@/utils/fileToBase64";
+import { Labeled } from "./common/labeled";
 
 /**
  * Base64 encoded audio file.

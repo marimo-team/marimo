@@ -1,29 +1,30 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { sendFileDetails, sendUpdateFile } from "@/core/network/requests";
-import type { FileInfo } from "@/core/network/types";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { useTheme } from "@/theme/useTheme";
+
 import { EditorView, keymap } from "@codemirror/view";
-import type React from "react";
-import { useEffect, useRef, useState } from "react";
-import { Button } from "../inputs/Inputs";
+import { useAtomValue } from "jotai";
 import {
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
   SaveIcon,
 } from "lucide-react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
+import { hotkeysAtom } from "@/core/config/config";
+import { sendFileDetails, sendUpdateFile } from "@/core/network/requests";
+import type { FileInfo } from "@/core/network/types";
+import { isWasm } from "@/core/wasm/utils";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { useTheme } from "@/theme/useTheme";
+import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob, downloadByURL } from "@/utils/download";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
-import { hotkeysAtom } from "@/core/config/config";
-import { useAtomValue } from "jotai";
-import { ImageViewer, CsvViewer, AudioViewer, VideoViewer } from "./renderers";
-import { isWasm } from "@/core/wasm/utils";
-import { copyToClipboard } from "@/utils/copy";
+import { Button } from "../inputs/Inputs";
+import { AudioViewer, CsvViewer, ImageViewer, VideoViewer } from "./renderers";
 
 interface Props {
   file: FileInfo;
@@ -40,7 +41,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");
 
-  const { data, loading, error, setData } = useAsyncData(async () => {
+  const { data, isPending, error, setData } = useAsyncData(async () => {
     const details = await sendFileDetails({ path: file.path });
     const contents = details.contents || "";
     setInternalValue(unsavedContentsForFile.get(file.path) || contents);
@@ -56,9 +57,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       (response) => {
         if (response.success) {
           // Update the last saved value
-          setData((prev) =>
-            prev ? { ...prev, contents: internalValue } : undefined,
-          );
+          setData((prev) => ({ ...prev, contents: internalValue }));
           setInternalValue(internalValue);
         }
       },
@@ -87,7 +86,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     return <ErrorBanner error={error} />;
   }
 
-  if (loading || !data) {
+  if (isPending || !data) {
     return null;
   }
 

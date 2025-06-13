@@ -1,55 +1,57 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect } from "react";
-import { Cell } from "@/components/editor/Cell";
-import type { ConnectionStatus } from "../../../core/websocket/types";
+
 import {
-  useNotebook,
-  type CellActions,
-  columnIdsAtom,
-  type NotebookState,
-  useCellActions,
-  SETUP_CELL_ID,
-} from "../../../core/cells/cells";
-import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
-import type { AppMode } from "../../../core/mode";
-import { useHotkey } from "../../../hooks/useHotkey";
-import { formatAll } from "../../../core/codemirror/format";
-import { type Theme, useTheme } from "../../../theme/useTheme";
-import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
-import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
-import { useChromeActions } from "../chrome/state";
-import { Functions } from "@/utils/functions";
-import { NotebookBanner } from "../notebook-banner";
-import { PackageAlert } from "@/components/editor/package-alert";
-import { useDeleteCellCallback } from "../cell/useDeleteCell";
-import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/button";
+  horizontalListSortingStrategy,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useAtomValue } from "jotai";
 import {
   DatabaseIcon,
   SparklesIcon,
   SquareCodeIcon,
   SquareMIcon,
 } from "lucide-react";
-import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
-import { useAtomValue } from "jotai";
-import { useBoolean } from "@/hooks/useBoolean";
-import { AddCellWithAI } from "../ai/add-cell-with-ai";
-import type { Milliseconds } from "@/utils/time";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { Tooltip } from "@/components/ui/tooltip";
-import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
-import {
-  horizontalListSortingStrategy,
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { useEffect } from "react";
+import { Cell } from "@/components/editor/Cell";
+import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
-import { Column } from "../columns/cell-column";
-import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellId } from "@/core/cells/ids";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
+import { useBoolean } from "@/hooks/useBoolean";
+import { cn } from "@/utils/cn";
+import { Functions } from "@/utils/functions";
+import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
+import type { Milliseconds } from "@/utils/time";
+import {
+  type CellActions,
+  columnIdsAtom,
+  type NotebookState,
+  SETUP_CELL_ID,
+  useCellActions,
+  useNotebook,
+} from "../../../core/cells/cells";
+import { formatAll } from "../../../core/codemirror/format";
+import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
+import type { AppMode } from "../../../core/mode";
+import type { ConnectionStatus } from "../../../core/websocket/types";
+import { useHotkey } from "../../../hooks/useHotkey";
+import { type Theme, useTheme } from "../../../theme/useTheme";
+import { AddCellWithAI } from "../ai/add-cell-with-ai";
+import { ConnectingAlert } from "../alerts/connecting-alert";
+import { useDeleteCellCallback } from "../cell/useDeleteCell";
+import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
+import { useChromeActions } from "../chrome/state";
+import { Column } from "../columns/cell-column";
+import { NotebookBanner } from "../notebook-banner";
 import { StdinBlockingAlert } from "../stdin-blocking-alert";
+import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
+import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
 
 interface CellArrayProps {
   mode: AppMode;
@@ -125,6 +127,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
     >
       <PackageAlert />
       <StdinBlockingAlert />
+      <ConnectingAlert />
       <NotebookBanner width={appConfig.width} />
       <div
         className={cn(

@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { DatePicker } from "@/components/ui/date-picker";
 import { type CalendarDate, parseDate } from "@internationalized/date";
-import { Labeled } from "./common/labeled";
 import type { JSX } from "react";
+import { z } from "zod";
+import { DatePicker } from "@/components/ui/date-picker";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { Labeled } from "./common/labeled";
 
 type T = string;
 

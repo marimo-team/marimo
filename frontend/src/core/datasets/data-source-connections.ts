@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { atom } from "jotai";
+import { isSchemaless } from "@/components/datasources/utils";
 import { createReducerAndAtoms } from "@/utils/createReducer";
+import { Logger } from "@/utils/Logger";
+import type { TypedString } from "@/utils/typed";
 import type {
   DataSourceConnection as DataSourceConnectionType,
   DataTable,
 } from "../kernel/messages";
-import type { TypedString } from "@/utils/typed";
-import type { VariableName } from "../variables/types";
-import { atom } from "jotai";
 import { store } from "../state/jotai";
+import type { VariableName } from "../variables/types";
 import { datasetTablesAtom } from "./state";
-import { Logger } from "@/utils/Logger";
-import { isSchemaless } from "@/components/datasources/utils";
 
 export type ConnectionName = TypedString<"ConnectionName">;
 

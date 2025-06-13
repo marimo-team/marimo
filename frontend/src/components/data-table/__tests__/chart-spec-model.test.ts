@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ColumnChartSpecModel } from "../chart-spec-model";
 import type { ColumnHeaderStats, ColumnName, FieldTypes } from "../types";
 

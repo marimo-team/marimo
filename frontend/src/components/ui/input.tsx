@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
 
-import { cn } from "@/utils/cn";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
-import { Events } from "@/utils/events";
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { SearchIcon, XIcon } from "lucide-react";
+import * as React from "react";
 import {
   NumberField,
   type NumberFieldProps,
 } from "@/components/ui/number-field";
-import { SearchIcon, XIcon } from "lucide-react";
-import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   rootClassName?: string;

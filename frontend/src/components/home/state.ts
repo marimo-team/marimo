@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, {} from "react";
-import { Functions } from "@/utils/functions";
+
 import { atomWithStorage } from "jotai/utils";
+import React from "react";
 import type { MarimoFile } from "@/core/network/types";
+import { Functions } from "@/utils/functions";
 
 export type RunningNotebooksMap = Map<string, MarimoFile>;
 

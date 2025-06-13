@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type RefObject, useEffect } from "react";
 
-import { parseShortcut } from "../core/hotkeys/shortcuts";
-import { useEventListener } from "./useEventListener";
-import { useEvent } from "./useEvent";
-import { useSetRegisteredAction } from "../core/hotkeys/actions";
-import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
-import { Objects } from "@/utils/objects";
-import { Logger } from "@/utils/Logger";
-import { Functions } from "@/utils/functions";
-import { hotkeysAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
+import { type RefObject, useEffect } from "react";
+import { hotkeysAtom } from "@/core/config/config";
+import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { Functions } from "@/utils/functions";
+import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
+import { useSetRegisteredAction } from "../core/hotkeys/actions";
+import { parseShortcut } from "../core/hotkeys/shortcuts";
+import { useEvent } from "./useEvent";
+import { useEventListener } from "./useEventListener";
 
 type HotkeyHandler = (
   evt?: KeyboardEvent,

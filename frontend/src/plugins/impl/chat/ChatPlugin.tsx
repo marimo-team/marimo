@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Arrays } from "@/utils/arrays";
 import { Chatbot } from "./chat-ui";
 import type { ChatMessage, SendMessageRequest } from "./types";
-import { Arrays } from "@/utils/arrays";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type PluginFunctions = {

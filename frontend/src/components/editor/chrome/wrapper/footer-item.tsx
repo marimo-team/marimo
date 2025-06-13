@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/utils/cn";
+
 import type React from "react";
 import { forwardRef } from "react";
+import { Tooltip } from "@/components/ui/tooltip";
+import { cn } from "@/utils/cn";
 
 type FooterItemProps = {
   selected: boolean;

@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Button } from "@/components/editor/inputs/Inputs";
+
 import { MenuIcon } from "lucide-react";
 import React from "react";
+import { Button } from "@/components/editor/inputs/Inputs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +14,11 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MinimalShortcut } from "../../shortcuts/renderShortcut";
-import { useNotebookActions } from "../actions/useNotebookActions";
-import type { ActionButton } from "../actions/types";
-import { getMarimoVersion } from "@/core/meta/globals";
 import { Tooltip } from "@/components/ui/tooltip";
+import { getMarimoVersion } from "@/core/meta/globals";
+import { MinimalShortcut } from "../../shortcuts/renderShortcut";
+import type { ActionButton } from "../actions/types";
+import { useNotebookActions } from "../actions/useNotebookActions";
 
 export const NotebookMenuDropdown: React.FC = () => {
   const actions = useNotebookActions();

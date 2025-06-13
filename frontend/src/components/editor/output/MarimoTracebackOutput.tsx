@@ -1,50 +1,46 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { cn } from "../../../utils/cn";
-
+import { type DOMNode, Element, Text } from "html-react-parser";
+import { useAtomValue } from "jotai";
+import {
+  BugIcon,
+  BugPlayIcon,
+  ChevronDown,
+  CopyIcon,
+  ExternalLinkIcon,
+  MessageCircleIcon,
+  SearchIcon,
+} from "lucide-react";
+import { type JSX, useState } from "react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { renderHTML } from "@/plugins/core/RenderHTML";
-
-import {
-  BugIcon,
-  ChevronDown,
-  ExternalLinkIcon,
-  SearchIcon,
-  MessageCircleIcon,
-  CopyIcon,
-  BugPlayIcon,
-} from "lucide-react";
-import { useState, type JSX } from "react";
-import { useAtomValue } from "jotai";
-import { aiEnabledAtom } from "@/core/config/config";
-import { Element, Text, type DOMNode } from "html-react-parser";
-import { isWasm } from "@/core/wasm/utils";
-
-import { CellLinkTraceback } from "../links/cell-link";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
+import { Tooltip } from "@/components/ui/tooltip";
+import { getCellEditorView } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
+import { aiEnabledAtom } from "@/core/config/config";
+import { sendPdb } from "@/core/network/requests";
+import { isWasm } from "@/core/wasm/utils";
+import { renderHTML } from "@/plugins/core/RenderHTML";
 import { copyToClipboard } from "@/utils/copy";
 import {
   elementContainsMarimoCellFile,
   extractAllTracebackInfo,
   getTracebackInfo,
 } from "@/utils/traceback";
-import type { CellId } from "@/core/cells/ids";
-import { Tooltip } from "@/components/ui/tooltip";
-import { Kbd } from "@/components/ui/kbd";
-import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
-import { getCellEditorView } from "@/core/cells/cells";
-
-import { sendPdb } from "@/core/network/requests";
+import { cn } from "../../../utils/cn";
+import { CellLinkTraceback } from "../links/cell-link";
 
 interface Props {
   cellId: CellId | undefined;
@@ -147,7 +143,11 @@ export const MarimoTracebackOutput = ({
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild={true}>
-              <a target="_blank" href="https://marimo.io/discord?ref=notebook">
+              <a
+                target="_blank"
+                href="https://marimo.io/discord?ref=notebook"
+                rel="noopener"
+              >
                 <MessageCircleIcon className="h-4 w-4 mr-2" />
                 Ask in Discord
                 <ExternalLinkIcon className="h-3 w-3 ml-auto" />

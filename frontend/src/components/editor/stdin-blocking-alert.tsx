@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { Banner } from "@/plugins/impl/common/error-banner";
-import { Button } from "../ui/button";
-import { notebookAtom } from "@/core/cells/cells";
 import { atom, useAtomValue } from "jotai";
+import { notebookAtom } from "@/core/cells/cells";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import { Logger } from "@/utils/Logger";
+import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
 import { DelayMount } from "../utils/delay-mount";
 

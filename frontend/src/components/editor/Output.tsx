@@ -1,40 +1,37 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
-
+import { cn } from "@/utils/cn";
 import { logNever } from "../../utils/assertNever";
-import { JsonOutput } from "./output/JsonOutput";
+import { ErrorBoundary } from "./boundary/ErrorBoundary";
 import { HtmlOutput } from "./output/HtmlOutput";
 import { ImageOutput } from "./output/ImageOutput";
+import { JsonOutput } from "./output/JsonOutput";
 import { MarimoErrorOutput } from "./output/MarimoErrorOutput";
 import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
-import { CellOutputId, type CellId } from "@/core/cells/ids";
-import { cn } from "@/utils/cn";
-import { ErrorBoundary } from "./boundary/ErrorBoundary";
 
 import "./output/Outputs.css";
-import { Button } from "../ui/button";
 import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   ExpandIcon,
 } from "lucide-react";
-import { Tooltip } from "../ui/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
-import { invariant } from "@/utils/invariant";
-import { CsvViewer } from "./file-tree/renderers";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
-import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
-import { useTheme } from "@/theme/useTheme";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Objects } from "@/utils/objects";
-import { renderMimeIcon } from "./renderMimeIcon";
+import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
+import { invariant } from "@/utils/invariant";
+import { Objects } from "@/utils/objects";
+import { Button } from "../ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Tooltip } from "../ui/tooltip";
+import { CsvViewer } from "./file-tree/renderers";
+import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
+import { renderMimeIcon } from "./renderMimeIcon";
 
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),

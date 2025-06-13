@@ -1,74 +1,74 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
-import {
-  memo,
-  type FocusEvent,
-  type KeyboardEvent,
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
-import { saveCellConfig, sendStdin } from "@/core/network/requests";
-import { autocompletionKeymap } from "@/core/codemirror/cm";
-import type { UserConfig } from "../../core/config/config-schema";
-import type { CellData, CellRuntimeState } from "../../core/cells/types";
-import { SETUP_CELL_ID, type CellActions } from "../../core/cells/cells";
-import { isUninstantiated } from "../../core/cells/utils";
-import { derefNotNull } from "../../utils/dereference";
-import { OutputArea } from "./Output";
-import { ConsoleOutput } from "./output/ConsoleOutput";
-import { CreateCellButton } from "./cell/CreateCellButton";
-import { RunButton } from "./cell/RunButton";
-import { DeleteButton } from "./cell/DeleteButton";
-import { CellStatusComponent } from "./cell/CellStatus";
 import clsx from "clsx";
-import { renderShortcut } from "../shortcuts/renderShortcut";
-import { useCellRenderCount } from "../../hooks/useCellRenderCount";
-import { Functions } from "../../utils/functions";
-import { Logger } from "../../utils/Logger";
-import { CellDragHandle, SortableCell } from "./SortableCell";
-import { type CellId, HTMLCellId } from "../../core/cells/ids";
-import type { Theme } from "../../theme/useTheme";
-import {
-  CellActionsDropdown,
-  type CellActionsDropdownHandle,
-} from "./cell/cell-actions";
-import { CellActionsContextMenu } from "./cell/cell-context-menu";
-import type { AppMode } from "@/core/mode";
-import useEvent from "react-use-event-hook";
-import { CellEditor } from "./cell/code/cell-editor";
-import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
-import { isOutputEmpty } from "@/core/cells/outputs";
-import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
 import { useSetAtom } from "jotai";
-import { aiCompletionCellAtom } from "@/core/ai/state";
-import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
-import { canCollapseOutline } from "@/core/dom/outline";
-import { StopButton } from "@/components/editor/cell/StopButton";
-import type { CellConfig, RuntimeState } from "@/core/network/types";
 import {
   HelpCircleIcon,
   MoreHorizontalIcon,
   SquareFunctionIcon,
 } from "lucide-react";
+import {
+  type FocusEvent,
+  forwardRef,
+  type KeyboardEvent,
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import useEvent from "react-use-event-hook";
+import { StopButton } from "@/components/editor/cell/StopButton";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
-import { cn } from "@/utils/cn";
-import { isErrorMime } from "@/core/mime";
-import { HideCodeButton } from "./code/readonly-python-code";
-import { useResizeObserver } from "@/hooks/useResizeObserver";
-import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { Events } from "@/utils/events";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { useRunCell } from "./cell/useRunCells";
+import { aiCompletionCellAtom } from "@/core/ai/state";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
+import { isOutputEmpty } from "@/core/cells/outputs";
+import { autocompletionKeymap } from "@/core/codemirror/cm";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { canCollapseOutline } from "@/core/dom/outline";
+import { isErrorMime } from "@/core/mime";
+import type { AppMode } from "@/core/mode";
+import { saveCellConfig, sendStdin } from "@/core/network/requests";
+import type { CellConfig, RuntimeState } from "@/core/network/types";
+import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
+import { useResizeObserver } from "@/hooks/useResizeObserver";
+import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 import type { Milliseconds, Seconds } from "@/utils/time";
+import { type CellActions, SETUP_CELL_ID } from "../../core/cells/cells";
+import { type CellId, HTMLCellId } from "../../core/cells/ids";
+import type { CellData, CellRuntimeState } from "../../core/cells/types";
+import { isUninstantiated } from "../../core/cells/utils";
+import type { UserConfig } from "../../core/config/config-schema";
 import {
   isAppConnected,
   isAppInteractionDisabled,
 } from "../../core/websocket/connection-utils";
 import type { WebSocketState } from "../../core/websocket/types";
+import { useCellRenderCount } from "../../hooks/useCellRenderCount";
+import type { Theme } from "../../theme/useTheme";
+import { derefNotNull } from "../../utils/dereference";
+import { Functions } from "../../utils/functions";
+import { Logger } from "../../utils/Logger";
+import { renderShortcut } from "../shortcuts/renderShortcut";
+import { CellStatusComponent } from "./cell/CellStatus";
+import { CreateCellButton } from "./cell/CreateCellButton";
+import {
+  CellActionsDropdown,
+  type CellActionsDropdownHandle,
+} from "./cell/cell-actions";
+import { CellActionsContextMenu } from "./cell/cell-context-menu";
+import { CellEditor } from "./cell/code/cell-editor";
+import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
+import { DeleteButton } from "./cell/DeleteButton";
+import { RunButton } from "./cell/RunButton";
+import { useRunCell } from "./cell/useRunCells";
+import { HideCodeButton } from "./code/readonly-python-code";
+import { OutputArea } from "./Output";
+import { ConsoleOutput } from "./output/ConsoleOutput";
+import { CellDragHandle, SortableCell } from "./SortableCell";
 
 /**
  * Hook for handling cell completion logic
@@ -871,6 +871,7 @@ const EditableCellComponent = ({
                 href="https://links.marimo.app/reusable-definitions"
                 target="_blank"
                 className="hover:underline py-1 px-2 flex items-center justify-end gap-2 last:rounded-b"
+                rel="noopener"
               >
                 {isToplevel && (
                   <span className="text-muted-foreground text-xs font-bold">

@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, beforeEach, it, expect, vi, type Mock } from "vitest";
-import { getAICompletionBody } from "../completion-utils";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { datasetsAtom } from "@/core/datasets/state";
-import { store } from "@/core/state/jotai";
-import type { DatasetsState } from "@/core/datasets/types";
 import {
-  dataSourceConnectionsAtom,
   DUCKDB_ENGINE,
+  dataSourceConnectionsAtom,
 } from "@/core/datasets/data-source-connections";
+import { datasetsAtom } from "@/core/datasets/state";
+import type { DatasetsState } from "@/core/datasets/types";
+import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variable, VariableName } from "@/core/variables/types";
+import { getAICompletionBody } from "../completion-utils";
 
 // Mock getCodes function
 vi.mock("@/core/codemirror/copilot/getCodes", () => ({

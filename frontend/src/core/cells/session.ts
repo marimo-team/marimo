@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { MultiColumn } from "@/utils/id-tree";
+
 import type * as api from "@marimo-team/marimo-api";
+import { MultiColumn } from "@/utils/id-tree";
+import { Logger } from "@/utils/Logger";
+import { Sets } from "@/utils/sets";
 import { parseOutline } from "../dom/outline";
 import { CellId } from "./ids";
 import {
@@ -8,8 +11,6 @@ import {
   type CellRuntimeState,
   createCellRuntimeState,
 } from "./types";
-import { Logger } from "@/utils/Logger";
-import { Sets } from "@/utils/sets";
 
 // Constants
 const DEFAULT_TIMESTAMP = 0;

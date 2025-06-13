@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { tableFromIPC } from "@uwdata/flechette";
 import { batch } from "@/utils/batch-requests";
 import { createLoader, type Loader } from "./vega-loader";
-import { tableFromIPC } from "@uwdata/flechette";
 
 export function createBatchedLoader(): Loader {
   const loader = withArrowSupport(createLoader());

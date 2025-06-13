@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { once } from "lodash-es";
 import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
 import { waitForConnectionOpen } from "./connection";
-import type { RunRequests, EditRequests } from "./types";
-import { once } from "lodash-es";
+import type { EditRequests, RunRequests } from "./types";
 
 const { handleResponse, handleResponseReturnNull } = API;
 
@@ -159,10 +159,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    readCode: () => {
+    readCode: async () => {
+      await waitForConnectionOpen();
       return getClient().POST("/api/kernel/read_code").then(handleResponse);
     },
-    readSnippets: () => {
+    readSnippets: async () => {
+      await waitForConnectionOpen();
       return getClient()
         .GET("/api/documentation/snippets")
         .then(handleResponse);
@@ -196,6 +198,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponseReturnNull);
     },
     openFile: async (request) => {
+      await waitForConnectionOpen();
       await getClient()
         .POST("/api/files/open", {
           body: request,
@@ -203,7 +206,8 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponseReturnNull);
       return null;
     },
-    getUsageStats: () => {
+    getUsageStats: async () => {
+      await waitForConnectionOpen();
       return getClient().GET("/api/usage").then(handleResponse);
     },
     sendPdb: (request) => {
@@ -213,42 +217,48 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendListFiles: (request) => {
+    sendListFiles: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/list_files", {
           body: request,
         })
         .then(handleResponse);
     },
-    sendCreateFileOrFolder: (request) => {
+    sendCreateFileOrFolder: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/create", {
           body: request,
         })
         .then(handleResponse);
     },
-    sendDeleteFileOrFolder: (request) => {
+    sendDeleteFileOrFolder: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/delete", {
           body: request,
         })
         .then(handleResponse);
     },
-    sendRenameFileOrFolder: (request) => {
+    sendRenameFileOrFolder: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/move", {
           body: request,
         })
         .then(handleResponse);
     },
-    sendUpdateFile: (request) => {
+    sendUpdateFile: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/update", {
           body: request,
         })
         .then(handleResponse);
     },
-    sendFileDetails: (request) => {
+    sendFileDetails: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/files/file_details", {
           body: request,

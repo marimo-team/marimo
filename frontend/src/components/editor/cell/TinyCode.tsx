@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo } from "react";
-import CodeMirror, { minimalSetup } from "@uiw/react-codemirror";
+
 import { python } from "@codemirror/lang-python";
+import CodeMirror, { minimalSetup } from "@uiw/react-codemirror";
+import React, { memo } from "react";
 
 import "./TinyCode.css";
 import { useTheme } from "@/theme/useTheme";

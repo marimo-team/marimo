@@ -1,12 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-base-to-string */
+
+import { ExpandedType } from "compassql/build/src/query/expandedtype";
 import { PrimitiveType, type Schema } from "compassql/build/src/schema";
+import { SHORT_WILDCARD } from "compassql/build/src/wildcard";
+import { useAtomValue } from "jotai";
+import { startCase } from "lodash-es";
+import { FunctionSquareIcon } from "lucide-react";
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { PRIMITIVE_TYPE_ICON } from "./icons";
-import { useAtomValue } from "jotai";
-import { chartSpecAtom, useChartSpecActions } from "../state/reducer";
-import type { EncodingChannel, FieldDefinition } from "../encoding";
 import {
   Select,
   SelectContent,
@@ -17,17 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { EncodingChannel, FieldDefinition } from "../encoding";
 import {
   MULTI_TEMPORAL_FUNCTIONS,
   QUANTITATIVE_FUNCTIONS,
   SINGLE_TEMPORAL_FUNCTIONS,
 } from "../functions/function";
 import type { FieldFunction } from "../functions/types";
-import { FunctionSquareIcon } from "lucide-react";
-import { startCase } from "lodash-es";
-import { ExpandedType } from "compassql/build/src/query/expandedtype";
 import { MARKS, type SpecMark } from "../marks";
-import { SHORT_WILDCARD } from "compassql/build/src/wildcard";
+import { chartSpecAtom, useChartSpecActions } from "../state/reducer";
+import { PRIMITIVE_TYPE_ICON } from "./icons";
 
 interface Props {
   schema: Schema;

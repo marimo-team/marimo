@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
-import { useRef, useEffect, useMemo } from "react";
+
 import { dequal } from "dequal";
+import { useEffect, useMemo, useRef } from "react";
 import { Logger } from "@/utils/Logger";
 
 /**

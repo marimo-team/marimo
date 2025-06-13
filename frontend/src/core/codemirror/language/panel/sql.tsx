@@ -1,12 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  type ConnectionName,
-  dataConnectionsMapAtom,
-  INTERNAL_SQL_ENGINES,
-  setLatestEngineSelected,
-} from "@/core/datasets/data-source-connections";
+
 import { useAtomValue } from "jotai";
 import { AlertCircle, CircleHelpIcon } from "lucide-react";
+import { transformDisplayName } from "@/components/databases/display";
+import { DatabaseLogo } from "@/components/databases/icon";
 import {
   Select,
   SelectContent,
@@ -17,10 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DatabaseLogo } from "@/components/databases/icon";
-import { transformDisplayName } from "@/components/databases/display";
-import { useNonce } from "@/hooks/useNonce";
+import {
+  type ConnectionName,
+  dataConnectionsMapAtom,
+  INTERNAL_SQL_ENGINES,
+  setLatestEngineSelected,
+} from "@/core/datasets/data-source-connections";
 import type { DataSourceConnection } from "@/core/kernel/messages";
+import { useNonce } from "@/hooks/useNonce";
 
 interface SelectProps {
   selectedEngine: ConnectionName;

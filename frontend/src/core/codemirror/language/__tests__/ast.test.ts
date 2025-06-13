@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { parseArgsKwargs } from "../utils/ast";
-import { parser } from "@lezer/python";
+
 import type { TreeCursor } from "@lezer/common";
+import { parser } from "@lezer/python";
+import { describe, expect, it } from "vitest";
+import { parseArgsKwargs } from "../utils/ast";
 
 function moveToArgList(cursor: TreeCursor) {
   cursor.next();

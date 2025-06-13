@@ -1,38 +1,38 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import React, { memo, useMemo } from "react";
 import {
-  TableHeader,
-  TableRow,
-  TableHead,
+  type ColumnDef,
+  type ColumnSort,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
+import { sortBy } from "lodash-es";
+import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
+import React, { memo, useMemo } from "react";
+import { CellLink } from "@/components/editor/links/cell-link";
+import { getCellEditorView, useCellNames } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { isInternalCellName } from "@/core/cells/names";
+import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
+import type { Variable, Variables } from "@/core/variables/types";
+import { cn } from "@/utils/cn";
+import { DataTableColumnHeader } from "../data-table/column-header";
+import { CellLinkList } from "../editor/links/cell-link-list";
+import { SearchInput } from "../ui/input";
+import {
+  Table,
   TableBody,
   TableCell,
-  Table,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "../ui/table";
-import type { Variable, Variables } from "@/core/variables/types";
-import type { CellId } from "@/core/cells/ids";
-import { CellLink } from "@/components/editor/links/cell-link";
-import { cn } from "@/utils/cn";
-import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-  getSortedRowModel,
-  type ColumnSort,
-  getFilteredRowModel,
-} from "@tanstack/react-table";
-import { DataTableColumnHeader } from "../data-table/column-header";
-import { sortBy } from "lodash-es";
-import { getCellEditorView, useCellNames } from "@/core/cells/cells";
-import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
-import { SearchInput } from "../ui/input";
-import { CellLinkList } from "../editor/links/cell-link-list";
 import { VariableName } from "./common";
-import { isInternalCellName } from "@/core/cells/names";
 
 interface Props {
   className?: string;

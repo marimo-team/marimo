@@ -1,47 +1,52 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { kioskModeAtom, viewStateAtom } from "@/core/mode";
-import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
+
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { startCase } from "lodash-es";
 import {
-  ImageIcon,
-  CommandIcon,
-  ZapIcon,
-  ZapOffIcon,
   BookMarkedIcon,
-  FolderDownIcon,
-  ClipboardCopyIcon,
-  Share2Icon,
-  PowerSquareIcon,
-  GlobeIcon,
-  LinkIcon,
-  DownloadIcon,
-  CodeIcon,
-  PanelLeftIcon,
   CheckIcon,
-  KeyboardIcon,
-  Undo2Icon,
-  FileIcon,
-  Home,
-  PresentationIcon,
-  EditIcon,
-  LayoutTemplateIcon,
-  Files,
-  SettingsIcon,
-  XCircleIcon,
-  FilePlus2Icon,
-  FastForwardIcon,
-  DatabaseIcon,
-  EyeOffIcon,
-  ExternalLinkIcon,
-  FileTextIcon,
-  GithubIcon,
-  MessagesSquareIcon,
-  YoutubeIcon,
-  DiamondPlusIcon,
   ChevronDownCircleIcon,
   ChevronRightCircleIcon,
+  ClipboardCopyIcon,
+  CodeIcon,
+  CommandIcon,
+  DatabaseIcon,
+  DiamondPlusIcon,
+  DownloadIcon,
+  EditIcon,
+  ExternalLinkIcon,
+  EyeOffIcon,
+  FastForwardIcon,
+  FileIcon,
+  FilePlus2Icon,
+  Files,
+  FileTextIcon,
+  FolderDownIcon,
+  GithubIcon,
+  GlobeIcon,
+  Home,
+  ImageIcon,
+  KeyboardIcon,
+  LayoutTemplateIcon,
+  LinkIcon,
+  MessagesSquareIcon,
+  PanelLeftIcon,
+  PowerSquareIcon,
+  PresentationIcon,
+  SettingsIcon,
+  Share2Icon,
+  Undo2Icon,
+  XCircleIcon,
+  YoutubeIcon,
+  ZapIcon,
+  ZapOffIcon,
 } from "lucide-react";
-import { commandPaletteAtom } from "../controls/command-palette";
+import { settingDialogAtom } from "@/components/app-config/state";
+import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { renderShortcut } from "@/components/shortcuts/renderShortcut";
+import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
+import { toast } from "@/components/ui/use-toast";
 import {
   canUndoDeletesAtom,
   getNotebook,
@@ -50,40 +55,36 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import { disabledCellIds, enabledCellIds } from "@/core/cells/utils";
+import { Constants } from "@/core/constants";
+import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
+import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import {
   exportAsMarkdown,
   readCode,
   saveCellConfig,
 } from "@/core/network/requests";
-import { Objects } from "@/utils/objects";
-import type { ActionButton } from "./types";
-import { downloadAsHTML } from "@/core/static/download-html";
-import { toast } from "@/components/ui/use-toast";
 import { useFilename } from "@/core/saving/filename";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
-import { useRestartKernel } from "./useRestartKernel";
+import { downloadAsHTML } from "@/core/static/download-html";
 import { createShareableLink } from "@/core/wasm/share";
-import { useChromeActions, useChromeState } from "../chrome/state";
-import { PANELS } from "../chrome/types";
-import { startCase } from "lodash-es";
-import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
-import { MarkdownIcon } from "@/components/editor/cell/code/icons";
-import { Filenames } from "@/utils/filenames";
-import { LAYOUT_TYPES } from "../renderers/types";
-import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
-import { useLayoutState, useLayoutActions } from "@/core/layout/layout";
-import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
-import { useCopyNotebook } from "./useCopyNotebook";
 import { isWasm } from "@/core/wasm/utils";
-import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { copyToClipboard } from "@/utils/copy";
+import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
+import { Filenames } from "@/utils/filenames";
+import { Objects } from "@/utils/objects";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
-import { settingDialogAtom } from "@/components/app-config/state";
+import { useChromeActions, useChromeState } from "../chrome/state";
+import { PANELS } from "../chrome/types";
+import { commandPaletteAtom } from "../controls/command-palette";
+import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { AddDatabaseDialogContent } from "../database/add-database-form";
+import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
+import { LAYOUT_TYPES } from "../renderers/types";
+import type { ActionButton } from "./types";
+import { useCopyNotebook } from "./useCopyNotebook";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
-import { Constants } from "@/core/constants";
+import { useRestartKernel } from "./useRestartKernel";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();

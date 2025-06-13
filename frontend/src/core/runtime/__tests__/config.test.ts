@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
-import { asRemoteURL, getRuntimeManager } from "../config";
 import { store } from "@/core/state/jotai";
+import { asRemoteURL, getRuntimeManager } from "../config";
 import type { RuntimeManager } from "../runtime";
 
 // Mock the store

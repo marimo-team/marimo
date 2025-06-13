@@ -1,25 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { ColorScheme } from "vega";
+import type { Aggregate } from "vega-lite/build/src/aggregate";
+import type { BinParams } from "vega-lite/build/src/bin";
+import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
+import type { Scale } from "vega-lite/build/src/scale";
 import type { z } from "zod";
+import { COUNT_FIELD, DEFAULT_COLOR_SCHEME } from "../constants";
 import type { BinSchema, ChartSchemaType } from "../schemas";
-
 import {
   type AggregationFn,
   BIN_AGGREGATION,
   ChartType,
   NONE_AGGREGATION,
-  STRING_AGGREGATION_FNS,
   type SelectableDataType,
+  STRING_AGGREGATION_FNS,
 } from "../types";
-
 import { isFieldSet } from "./spec";
-import { COUNT_FIELD, DEFAULT_COLOR_SCHEME } from "../constants";
-import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
 import { convertDataTypeToVega } from "./types";
-import type { ColorScheme } from "vega";
-import type { Aggregate } from "vega-lite/build/src/aggregate";
-import type { BinParams } from "vega-lite/build/src/bin";
-import type { Scale } from "vega-lite/build/src/scale";
 
 export function getBinEncoding(
   chartType: ChartType,

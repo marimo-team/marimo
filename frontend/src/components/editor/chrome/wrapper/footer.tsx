@@ -1,37 +1,38 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type React from "react";
-import { cn } from "@/utils/cn";
-import { useChromeActions, useChromeState } from "../state";
-import { Tooltip } from "@/components/ui/tooltip";
+
 import { useAtomValue } from "jotai";
-import { cellErrorCount } from "@/core/cells/cells";
-import { type PanelDescriptor, PANELS } from "../types";
-import { MachineStats } from "./footer-items/machine-stats";
-import { useResolvedMarimoConfig } from "@/core/config/config";
 import {
+  ChevronDownIcon,
   PowerOffIcon,
   TerminalSquareIcon,
   ZapIcon,
   ZapOffIcon,
 } from "lucide-react";
-import { saveUserConfig } from "@/core/network/requests";
-import type { UserConfig } from "@/core/config/config-schema";
-import { ShowInKioskMode } from "../../kiosk-mode";
-import { invariant } from "@/utils/invariant";
-import { IfCapability } from "@/core/config/if-capability";
+import type React from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon } from "lucide-react";
-import { FooterItem } from "./footer-item";
-import { useHotkey } from "@/hooks/useHotkey";
+import { Tooltip } from "@/components/ui/tooltip";
+import { cellErrorCount } from "@/core/cells/cells";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import type { UserConfig } from "@/core/config/config-schema";
+import { IfCapability } from "@/core/config/if-capability";
+import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
+import { useHotkey } from "@/hooks/useHotkey";
+import { cn } from "@/utils/cn";
+import { invariant } from "@/utils/invariant";
+import { ShowInKioskMode } from "../../kiosk-mode";
+import { useChromeActions, useChromeState } from "../state";
+import { PANELS, type PanelDescriptor } from "../types";
+import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
 import { BackendConnection } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
+import { MachineStats } from "./footer-items/machine-stats";
 import { RTCStatus } from "./footer-items/rtc-status";
 
 export const Footer: React.FC = () => {
@@ -57,6 +58,7 @@ export const Footer: React.FC = () => {
         tooltip={errorPanel.tooltip}
         selected={selectedPanel === errorPanel.type}
         onClick={() => toggleApplication(errorPanel.type)}
+        data-testid="footer-errors"
       >
         {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
@@ -67,6 +69,7 @@ export const Footer: React.FC = () => {
           tooltip="Open terminal"
           selected={isTerminalOpen}
           onClick={() => toggleTerminal()}
+          data-testid="footer-terminal"
         >
           <TerminalSquareIcon className="h-5 w-5" />
         </FooterItem>
@@ -91,6 +94,7 @@ export const Footer: React.FC = () => {
             setConfig(newConfig),
           );
         }}
+        data-testid="footer-autorun-startup"
       >
         <div className="font-prose text-sm flex items-center gap-1">
           <span>on startup: </span>
@@ -127,6 +131,7 @@ export const Footer: React.FC = () => {
             setConfig(newConfig),
           );
         }}
+        data-testid="footer-autorun-cell-change"
       >
         <div className="font-prose text-sm flex items-center gap-1">
           <span>on cell change: </span>
@@ -142,7 +147,11 @@ export const Footer: React.FC = () => {
       <div className="border-r border-border h-6 mx-1" />
 
       {!isWasm() && (
-        <FooterItem tooltip={null} selected={false}>
+        <FooterItem
+          tooltip={null}
+          selected={false}
+          data-testid="footer-module-reload"
+        >
           <DropdownMenu>
             <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1">
               <span>on module change: </span>

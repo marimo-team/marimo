@@ -1,17 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
+
+import { useAtomValue } from "jotai";
 import type React from "react";
-import { type PropsWithChildren, memo } from "react";
-import { cellRendererPlugins } from "./plugins";
+import { memo, type PropsWithChildren } from "react";
+import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
-import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { KnownQueryParams } from "@/core/constants";
 import {
   type LayoutData,
   useLayoutActions,
   useLayoutState,
 } from "@/core/layout/layout";
-import { useAtomValue } from "jotai";
-import { KnownQueryParams } from "@/core/constants";
+import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { cellRendererPlugins } from "./plugins";
 import {
   type ICellRendererPlugin,
   type LayoutType,

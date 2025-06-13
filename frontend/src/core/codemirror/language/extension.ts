@@ -1,18 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { history } from "@codemirror/commands";
 import {
   Compartment,
   EditorSelection,
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import type { LanguageAdapter } from "./types";
 import { type EditorView, keymap, showPanel } from "@codemirror/view";
-import { clamp } from "@/utils/math";
+import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { clamp } from "@/utils/math";
 import {
   cellIdState,
   completionConfigState,
@@ -22,16 +25,14 @@ import {
 } from "../config/extension";
 import type { PlaceholderType } from "../config/types";
 import { historyCompartment } from "../editing/extensions";
-import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
-import { getEditorCodeAsPython } from "./utils";
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
-import { LanguagePanelComponent } from "./panel/panel";
-import type { CellId } from "@/core/cells/ids";
+import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import type { LanguageMetadata } from "./metadata";
 import { languageMetadataField, setLanguageMetadata } from "./metadata";
+import { LanguagePanelComponent } from "./panel/panel";
+import type { LanguageAdapter } from "./types";
+import { getEditorCodeAsPython } from "./utils";
 
 /**
  * Compartment to keep track of the current language and extension.

@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { z } from "zod";
 import { arrayMove } from "@/utils/arrays";
 import { NotebookScopedLocalStorage } from "@/utils/localStorage";
-import { z } from "zod";
 
 const BASE_KEY = "marimo:notebook-col-sizes";
 

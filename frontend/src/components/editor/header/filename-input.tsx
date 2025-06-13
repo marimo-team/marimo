@@ -1,11 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useEffect, useRef, useState, type JSX } from "react";
-
-import { cn } from "../../../utils/cn";
+import { PopoverAnchor } from "@radix-ui/react-popover";
+import { FilePenIcon } from "lucide-react";
+import { type JSX, useEffect, useRef, useState } from "react";
 import { sendListFiles } from "@/core/network/requests";
-import { Paths } from "@/utils/paths";
+import type { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { Paths } from "@/utils/paths";
+import { cn } from "../../../utils/cn";
 import {
   Command,
   CommandEmpty,
@@ -13,15 +15,12 @@ import {
   CommandItem,
   CommandList,
 } from "../../ui/command";
-import { FilePenIcon } from "lucide-react";
-import { FILE_TYPE_ICONS, guessFileType } from "../file-tree/types";
 import { Popover, PopoverContent } from "../../ui/popover";
-import { PopoverAnchor } from "@radix-ui/react-popover";
-import type { FileInfo } from "@/core/network/types";
+import { FILE_TYPE_ICONS, guessFileType } from "../file-tree/types";
 
 import "./filename-input.css";
-import { ErrorBoundary } from "../boundary/ErrorBoundary";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import { ErrorBoundary } from "../boundary/ErrorBoundary";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;
@@ -73,7 +72,7 @@ export const FilenameInput = ({
     Paths.basename(suggestion.path).startsWith(basename),
   );
 
-  const { loading } = useAsyncData(async () => {
+  const { isPending } = useAsyncData(async () => {
     if (!focused) {
       setSuggestions([]);
       return;
@@ -97,7 +96,7 @@ export const FilenameInput = ({
   const shouldShowList = suggestedNamed || filteredSuggestions.length > 0;
   const suggestionsList = shouldShowList && (
     <CommandList className="font-mono">
-      {!loading && <CommandEmpty>No files</CommandEmpty>}
+      {!isPending && <CommandEmpty>No files</CommandEmpty>}
 
       {suggestedNamed && (
         <CommandItem

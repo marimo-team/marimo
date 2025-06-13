@@ -1,13 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { PositionDef } from "vega-lite/build/src/channeldef";
 import { describe, expect, it } from "vitest";
 import { getAxisEncoding } from "../chart-spec/spec";
-import { AGGREGATION_FNS, ChartType, STRING_AGGREGATION_FNS } from "../types";
-import { COUNT_FIELD } from "../constants";
-import { NONE_AGGREGATION } from "../types";
 import { getTooltips } from "../chart-spec/tooltips";
+import { COUNT_FIELD } from "../constants";
 import type { ChartSchemaType } from "../schemas";
-import type { PositionDef } from "vega-lite/build/src/channeldef";
+import {
+  AGGREGATION_FNS,
+  ChartType,
+  NONE_AGGREGATION,
+  STRING_AGGREGATION_FNS,
+} from "../types";
 
 describe("getAxisEncoding", () => {
   it("should return correct encoding for COUNT_FIELD", () => {

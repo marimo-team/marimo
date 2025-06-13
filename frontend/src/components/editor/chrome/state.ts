@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { createReducerAndAtoms } from "@/utils/createReducer";
+
 import { useAtomValue } from "jotai";
-import type { PanelType } from "./types";
-import { ZodLocalStorage } from "@/utils/localStorage";
 import { z } from "zod";
+import { createReducerAndAtoms } from "@/utils/createReducer";
+import { ZodLocalStorage } from "@/utils/localStorage";
+import type { PanelType } from "./types";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;

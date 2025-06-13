@@ -1,31 +1,32 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
+import { PlusSquareIcon } from "lucide-react";
+import React, { Suspense } from "react";
+import { maybeAddAltairImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import { autoInstantiateAtom } from "@/core/config/config";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
-import { useOnMount } from "@/hooks/useLifecycle";
 import type {
   DataColumnPreview,
   DataTable,
   DataTableColumn,
   DataType,
 } from "@/core/kernel/messages";
+import { previewDatasetColumn } from "@/core/network/requests";
+import { useOnMount } from "@/hooks/useLifecycle";
+import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
-import React from "react";
-import { previewDatasetColumn } from "@/core/network/requests";
+import { prettyNumber } from "@/utils/numbers";
+import { CopyClipboardIcon } from "../icons/copy-icon";
+import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
-import { convertStatsName, sqlCode } from "./utils";
-import { PlusSquareIcon } from "lucide-react";
-import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { Tooltip } from "../ui/tooltip";
 import { ColumnPreviewContainer } from "./components";
 import { InstallPackageButton } from "./install-package-button";
-import { CopyClipboardIcon } from "../icons/copy-icon";
-import { maybeAddAltairImport } from "@/core/cells/add-missing-import";
-import { useCellActions } from "@/core/cells/cells";
-import { useLastFocusedCellId } from "@/core/cells/focus";
-import { autoInstantiateAtom } from "@/core/config/config";
-import { prettyNumber } from "@/utils/numbers";
-import { useAtomValue } from "jotai";
+import { convertStatsName, sqlCode } from "./utils";
 
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
@@ -181,6 +182,12 @@ export function renderStats(
   );
 }
 
+const LoadingChart = (
+  <div className="flex justify-center">
+    <Spinner className="size-4" />
+  </div>
+);
+
 export function renderChart(chartSpec: string, theme: Theme) {
   const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
     return {
@@ -190,13 +197,15 @@ export function renderChart(chartSpec: string, theme: Theme) {
   };
 
   return (
-    <LazyVegaLite
-      spec={updateSpec(JSON.parse(chartSpec) as TopLevelFacetedUnitSpec)}
-      width={"container" as unknown as number}
-      height={100}
-      actions={false}
-      theme={theme === "dark" ? "dark" : "vox"}
-    />
+    <Suspense fallback={LoadingChart}>
+      <LazyVegaLite
+        spec={updateSpec(JSON.parse(chartSpec) as TopLevelFacetedUnitSpec)}
+        width={"container" as unknown as number}
+        height={100}
+        actions={false}
+        theme={theme === "dark" ? "dark" : "vox"}
+      />
+    </Suspense>
   );
 }
 

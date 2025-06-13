@@ -1,15 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useState } from "react";
+
 import ReconnectingWebSocket from "partysocket/ws";
-import type { IReconnectingWebSocket } from "./types";
-import { StaticWebsocket } from "./StaticWebsocket";
-import { isWasm } from "../wasm/utils";
-import { PyodideBridge, PyodideWebsocket } from "../wasm/bridge";
+import { useEffect, useState } from "react";
 import { Logger } from "@/utils/Logger";
 import { isStaticNotebook } from "../static/static-state";
+import { PyodideBridge, PyodideWebsocket } from "../wasm/bridge";
+import { isWasm } from "../wasm/utils";
+import { StaticWebsocket } from "./StaticWebsocket";
+import type { IReconnectingWebSocket } from "./types";
 
 interface UseWebSocketOptions {
-  url: string;
+  url: () => string;
   static: boolean;
   waitToConnect?: () => Promise<void>;
   onOpen?: (event: WebSocketEventMap["open"]) => void;
@@ -33,7 +34,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
         ? new StaticWebsocket()
-        : new ReconnectingWebSocket(rest.url, undefined, {
+        : new ReconnectingWebSocket(rest.url(), undefined, {
             // We don't want Infinity retries
             maxRetries: 10,
             debug: false,

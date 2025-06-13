@@ -1,4 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
+import { CpuIcon, MemoryStickIcon, MicrochipIcon } from "lucide-react";
+import type React from "react";
+import { useState } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
 import { getUsageStats } from "@/core/network/requests";
@@ -7,10 +12,6 @@ import { isWasm } from "@/core/wasm/utils";
 import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
-import { useAtomValue } from "jotai";
-import { CpuIcon, MemoryStickIcon, MicrochipIcon } from "lucide-react";
-import type React from "react";
-import { useState } from "react";
 import { cn } from "@/utils/cn";
 
 export const MachineStats: React.FC = (props) => {

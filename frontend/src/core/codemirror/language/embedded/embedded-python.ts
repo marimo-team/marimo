@@ -1,15 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { parseMixed, type Parser } from "@lezer/common";
-import { tags } from "@lezer/highlight";
-import type { InlineContext, MarkdownConfig } from "@lezer/markdown";
-import { python } from "@codemirror/lang-python";
-
-import { store } from "@/core/state/jotai";
 import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
+import { python } from "@codemirror/lang-python";
+import { type Parser, parseMixed } from "@lezer/common";
+import { tags } from "@lezer/highlight";
+import type { InlineContext, MarkdownConfig } from "@lezer/markdown";
+import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import { getVariableCompletions } from "../../completion/variable-completions";
 

@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { render } from "@testing-library/react";
 import { describe, expect, it, test } from "vitest";
+import { generateColumns, inferFieldTypes } from "../columns";
+import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
+import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
 import { parseContent, UrlDetector } from "../url-detector";
-import { render } from "@testing-library/react";
-import { generateColumns, inferFieldTypes } from "../columns";
-import type { FieldTypesWithExternalType } from "../types";
-import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 
 test("uniformSample", () => {
   const items = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];

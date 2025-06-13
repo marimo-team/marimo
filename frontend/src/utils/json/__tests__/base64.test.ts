@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
-  deserializeBase64,
   type Base64String,
+  deserializeBase64,
   type JsonString,
 } from "../base64";
 

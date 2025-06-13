@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import React from "react";
 import {
   NumberField as AriaNumberField,
   type NumberFieldProps as AriaNumberFieldProps,
@@ -7,7 +8,6 @@ import {
   type ButtonProps,
   Input as RACInput,
 } from "react-aria-components";
-import React from "react";
 import { cn } from "@/utils/cn";
 
 export interface NumberFieldProps extends AriaNumberFieldProps {

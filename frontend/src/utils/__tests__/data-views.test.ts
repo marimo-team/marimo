@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { updateBufferPaths, byteStringToDataView } from "../data-views";
-import type { ByteString, Base64String } from "../json/base64";
+import { describe, expect, it } from "vitest";
+import { byteStringToDataView, updateBufferPaths } from "../data-views";
+import type { Base64String, ByteString } from "../json/base64";
 
 describe("updateBufferPaths", () => {
   it("should return the original object if bufferPaths is null", () => {

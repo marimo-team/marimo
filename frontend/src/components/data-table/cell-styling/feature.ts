@@ -2,17 +2,16 @@
 "use no memo";
 
 import type {
-  Table,
   Cell,
   Column,
+  InitialTableState,
   Row,
   RowData,
+  Table,
   TableFeature,
-  InitialTableState,
 } from "@tanstack/react-table";
-
-import type { CellStyleState, CellStylingTableState } from "./types";
 import { getStableRowId } from "../utils";
+import type { CellStyleState, CellStylingTableState } from "./types";
 
 function getRowId<TData>(row: Row<TData>): string {
   return getStableRowId(row) ?? row.id;

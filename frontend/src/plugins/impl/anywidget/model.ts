@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { sendModelValue } from "@/core/network/requests";
-import { assertNever } from "@/utils/assertNever";
-import { updateBufferPaths } from "@/utils/data-views";
-import { Deferred } from "@/utils/Deferred";
-import { throwNotImplemented } from "@/utils/functions";
-import type { Base64String } from "@/utils/json/base64";
-import { Logger } from "@/utils/Logger";
+
 import type { AnyModel } from "@anywidget/types";
 import { dequal } from "dequal";
 import { debounce } from "lodash-es";
 import { z } from "zod";
+import { sendModelValue } from "@/core/network/requests";
+import { assertNever } from "@/utils/assertNever";
+import { Deferred } from "@/utils/Deferred";
+import { updateBufferPaths } from "@/utils/data-views";
+import { throwNotImplemented } from "@/utils/functions";
+import type { Base64String } from "@/utils/json/base64";
+import { Logger } from "@/utils/Logger";
 
 export type EventHandler = (...args: any[]) => void;
 

@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { invariant } from "@/utils/invariant";
-import type { RuntimeConfig } from "./types";
-import { Logger } from "@/utils/Logger";
-import { getSessionId, type SessionId } from "../kernel/session";
-import { KnownQueryParams } from "../constants";
+
 import { Deferred } from "@/utils/Deferred";
+import { Logger } from "@/utils/Logger";
+import { KnownQueryParams } from "../constants";
+import { getSessionId, type SessionId } from "../kernel/session";
+import type { RuntimeConfig } from "./types";
 
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
@@ -121,15 +121,17 @@ export class RuntimeManager {
   async isHealthy(): Promise<boolean> {
     try {
       const response = await fetch(this.healthURL().toString());
+      // If there is a redirect, update the URL in the config
+      if (response.redirected) {
+        this.config.url = response.url;
+      }
       return response.ok;
     } catch {
       return false;
     }
   }
 
-  async init(options?: {
-    disableRetryDelay?: boolean;
-  }) {
+  async init(options?: { disableRetryDelay?: boolean }) {
     let retries = 0;
     const maxRetries = 6;
     const baseDelay = 1000;
@@ -174,7 +176,12 @@ export class RuntimeManager {
 }
 
 function asWsUrl(url: string): URL {
-  invariant(url.startsWith("http"), "URL must start with http");
+  if (!url.startsWith("http")) {
+    Logger.warn(`URL must start with http: ${url}`);
+    const newUrl = new URL(url);
+    newUrl.protocol = "ws";
+    return newUrl;
+  }
   // Replace the protocol http with ws
   return new URL(url.replace(/^http/, "ws"));
 }

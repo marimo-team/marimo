@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { renderShortcut } from "@/components/shortcuts/renderShortcut";
-import { Tooltip } from "@/components/ui/tooltip";
+
+import { useSetAtom } from "jotai";
 import { CommandIcon } from "lucide-react";
 import React from "react";
+import { renderShortcut } from "@/components/shortcuts/renderShortcut";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Button } from "../inputs/Inputs";
-import { useSetAtom } from "jotai";
 import { commandPaletteAtom } from "./command-palette";
 
 export const CommandPaletteButton: React.FC = () => {

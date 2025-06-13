@@ -1,15 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { SquareIcon } from "lucide-react";
-import { renderShortcut } from "../../shortcuts/renderShortcut";
-import { sendInterrupt } from "@/core/network/requests";
-import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
-import type { RuntimeState } from "@/core/network/types";
-import { Functions } from "@/utils/functions";
-import { ToolbarItem } from "./toolbar";
-import type { WebSocketState } from "@/core/websocket/types";
-import { isAppInteractionDisabled } from "@/core/websocket/connection-utils";
-
 import type { JSX } from "react";
+import { sendInterrupt } from "@/core/network/requests";
+import type { RuntimeState } from "@/core/network/types";
+import { isAppInteractionDisabled } from "@/core/websocket/connection-utils";
+import type { WebSocketState } from "@/core/websocket/types";
+import { Functions } from "@/utils/functions";
+import { renderShortcut } from "../../shortcuts/renderShortcut";
+import { ToolbarItem } from "./toolbar";
+import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
 
 export const StopButton = (props: {
   status: RuntimeState;

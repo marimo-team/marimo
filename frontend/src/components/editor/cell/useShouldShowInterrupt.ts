@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const DELAY_MS = 200;
 

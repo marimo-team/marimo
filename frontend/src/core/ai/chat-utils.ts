@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { Message as AIMessage } from "@ai-sdk/react";
 import { Logger } from "@/utils/Logger";
 import type { ChatState } from "./state";
-import type { Message as AIMessage } from "@ai-sdk/react";
 
 export const addMessageToChat = (
   chatState: ChatState,

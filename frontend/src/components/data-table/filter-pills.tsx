@@ -6,10 +6,10 @@ import type {
   ColumnFiltersState,
   Table,
 } from "@tanstack/react-table";
+import { XIcon } from "lucide-react";
+import { logNever } from "@/utils/assertNever";
 import { Badge } from "../ui/badge";
 import type { ColumnFilterValue } from "./filters";
-import { logNever } from "@/utils/assertNever";
-import { XIcon } from "lucide-react";
 import { renderUnknownValue } from "./renderers";
 
 interface Props<TData> {

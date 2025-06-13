@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "@/utils/Logger";
+
 import { EditorView } from "@codemirror/view";
+import { Logger } from "@/utils/Logger";
 
 export function insertDebuggerAtLine(view: EditorView, line: number): boolean {
   // Get the document

@@ -1,15 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Spinner } from "@/components/icons/spinner";
-import { connectionAtom } from "@/core/network/connection";
-import { WebSocketState } from "@/core/websocket/types";
-import { useRuntimeManager } from "@/core/runtime/config";
+
 import { useAtomValue } from "jotai";
 import { startCase } from "lodash-es";
-import { CheckCircle2Icon, PowerOffIcon, AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, CheckCircle2Icon, PowerOffIcon } from "lucide-react";
 import type React from "react";
+import { Spinner } from "@/components/icons/spinner";
+import { connectionAtom } from "@/core/network/connection";
+import { useRuntimeManager } from "@/core/runtime/config";
+import { WebSocketState } from "@/core/websocket/types";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { FooterItem } from "../footer-item";
-import { useAsyncData } from "@/hooks/useAsyncData";
 
 const CHECK_HEALTH_INTERVAL_MS = 30_000;
 
@@ -17,7 +18,7 @@ export const BackendConnection: React.FC = () => {
   const connection = useAtomValue(connectionAtom).state;
   const runtime = useRuntimeManager();
 
-  const { loading, error, data, reload } = useAsyncData(async () => {
+  const { isFetching, error, data, refetch } = useAsyncData(async () => {
     if (connection !== WebSocketState.OPEN) {
       return;
     }
@@ -38,7 +39,7 @@ export const BackendConnection: React.FC = () => {
     }
   }, [runtime, connection]);
 
-  useInterval(reload, {
+  useInterval(refetch, {
     delayMs:
       connection === WebSocketState.OPEN ? CHECK_HEALTH_INTERVAL_MS : null,
     whenVisible: true,
@@ -58,7 +59,7 @@ export const BackendConnection: React.FC = () => {
   };
 
   const getStatusIcon = () => {
-    if (loading || connection === WebSocketState.CONNECTING) {
+    if (isFetching || connection === WebSocketState.CONNECTING) {
       return <Spinner size="small" />;
     }
 
@@ -92,7 +93,8 @@ export const BackendConnection: React.FC = () => {
         </div>
       }
       selected={false}
-      onClick={reload}
+      onClick={refetch}
+      data-testid="footer-backend-status"
     >
       {getStatusIcon()}
     </FooterItem>

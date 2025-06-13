@@ -1,49 +1,50 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useCellActions } from "../../../core/cells/cells";
-import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/button";
-import { ChevronsUpDown, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
-import { prettyError } from "@/utils/errors";
-import { useCompletion } from "ai/react";
-import ReactCodeMirror, {
-  EditorView,
-  keymap,
-  minimalSetup,
-  type ReactCodeMirrorRef,
-} from "@uiw/react-codemirror";
-import { Prec } from "@codemirror/state";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
-import { useMemo, useState } from "react";
-import { useAtom, useAtomValue } from "jotai";
+
 import {
   autocompletion,
   type Completion,
   type CompletionContext,
   type CompletionSource,
 } from "@codemirror/autocomplete";
+import { sql } from "@codemirror/lang-sql";
+import { Prec } from "@codemirror/state";
+import ReactCodeMirror, {
+  EditorView,
+  keymap,
+  minimalSetup,
+  type ReactCodeMirrorRef,
+} from "@uiw/react-codemirror";
+import { useCompletion } from "ai/react";
+import { useAtom, useAtomValue } from "jotai";
+import { atomWithStorage } from "jotai/utils";
+import { ChevronsUpDown, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import useEvent from "react-use-event-hook";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { sql } from "@codemirror/lang-sql";
+import { toast } from "@/components/ui/use-toast";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
-import { atomWithStorage } from "jotai/utils";
+import { allTablesAtom } from "@/core/datasets/data-source-connections";
+import { useRuntimeManager } from "@/core/runtime/config";
+import { variablesAtom } from "@/core/variables/state";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { prettyError } from "@/utils/errors";
+import { useCellActions } from "../../../core/cells/cells";
 import {
   getAICompletionBody,
   mentionsCompletionSource,
 } from "./completion-utils";
-import { allTablesAtom } from "@/core/datasets/data-source-connections";
-import { variablesAtom } from "@/core/variables/state";
 import {
   getTableMentionCompletions,
   getVariableMentionCompletions,
 } from "./completions";
-import useEvent from "react-use-event-hook";
-import { useRuntimeManager } from "@/core/runtime/config";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),

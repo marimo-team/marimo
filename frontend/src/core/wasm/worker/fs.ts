@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
-import { getFS } from "./getFS";
 import { decodeUtf8 } from "@/utils/strings";
+import { getFS } from "./getFS";
 
 const NOTEBOOK_FILENAME = "notebook.py";
 const HOME_DIR = "/marimo";

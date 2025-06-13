@@ -1,18 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { partition } from "lodash-es";
+import { KeyIcon, PlusCircleIcon } from "lucide-react";
+import { createContext, type ReactNode, use } from "react";
+import { z } from "zod";
 import type { FormRenderer } from "@/components/forms/form";
 import { FieldOptions } from "@/components/forms/options";
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormDescription,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
-import { KeyIcon, PlusCircleIcon } from "lucide-react";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,21 +16,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/utils/cn";
-import { z } from "zod";
-import { useAsyncData } from "@/hooks/useAsyncData";
-
-import { createContext, use, type ReactNode } from "react";
-import { Functions } from "@/utils/functions";
+import {
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { NumberField } from "@/components/ui/number-field";
-import { displaySecret, isSecret, prefixSecret } from "./secrets";
-import { partition } from "lodash-es";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { cn } from "@/utils/cn";
+import { Functions } from "@/utils/functions";
 import {
   sortProviders,
   WriteSecretModal,
 } from "../chrome/panels/write-secret-modal";
+import { displaySecret, isSecret, prefixSecret } from "./secrets";
 
 interface SecretsContextType {
   providerNames: string[];
@@ -60,7 +59,12 @@ interface SecretsProviderProps {
 }
 
 export const SecretsProvider = ({ children }: SecretsProviderProps) => {
-  const { data, loading, error, reload } = useAsyncData(async () => {
+  const {
+    data,
+    isPending,
+    error,
+    refetch: reload,
+  } = useAsyncData(async () => {
     const result = await SECRETS_REGISTRY.request({});
     // Provider names without 'env' provider
     const providerNames = sortProviders(result.secrets)
@@ -78,7 +82,7 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
       value={{
         secretKeys: data?.secretKeys || [],
         providerNames: data?.providerNames || [],
-        loading,
+        loading: isPending,
         error,
         refreshSecrets: reload,
       }}

@@ -1,18 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren, type JSX } from "react";
-
+import React, { type JSX, type PropsWithChildren } from "react";
+import { z } from "zod";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { z } from "zod";
+import { renderHTML } from "../core/RenderHTML";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import { renderHTML } from "../core/RenderHTML";
 
 interface Data {
   /**

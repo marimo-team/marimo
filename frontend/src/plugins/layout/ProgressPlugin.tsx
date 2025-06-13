@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren, type JSX } from "react";
 
+import humanizeDuration from "humanize-duration";
+import { Loader2Icon } from "lucide-react";
+import React, { type JSX, type PropsWithChildren } from "react";
 import { z } from "zod";
+import { Progress } from "@/components/ui/progress";
+import { clamp } from "@/utils/math";
+import { renderHTML } from "../core/RenderHTML";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import { renderHTML } from "../core/RenderHTML";
-import { Progress } from "@/components/ui/progress";
-import { Loader2Icon } from "lucide-react";
-import { clamp } from "@/utils/math";
-import humanizeDuration from "humanize-duration";
 
 interface Data {
   /**

@@ -2,26 +2,26 @@
 /* eslint-disable react/jsx-no-comment-textnodes */
 /* eslint-disable react/jsx-no-target-blank */
 
-import { isStaticNotebook } from "@/core/static/static-state";
+import { useAtomValue } from "jotai";
+import { CopyIcon, DownloadIcon } from "lucide-react";
 import type React from "react";
-import { Button } from "../ui/button";
-import { toast } from "../ui/use-toast";
+import { Constants } from "@/core/constants";
+import { codeAtom } from "@/core/saving/file-state";
+import { useFilename } from "@/core/saving/filename";
+import { isStaticNotebook } from "@/core/static/static-state";
+import { createShareableLink } from "@/core/wasm/share";
+import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob } from "@/utils/download";
+import { Button } from "../ui/button";
 import {
-  DialogHeader,
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { CopyIcon, DownloadIcon } from "lucide-react";
-import { createShareableLink } from "@/core/wasm/share";
-import { copyToClipboard } from "@/utils/copy";
-import { Constants } from "@/core/constants";
-import { useFilename } from "@/core/saving/filename";
-import { useAtomValue } from "jotai";
-import { codeAtom } from "@/core/saving/file-state";
+import { toast } from "../ui/use-toast";
 
 export const StaticBanner: React.FC = () => {
   const code = useAtomValue(codeAtom);

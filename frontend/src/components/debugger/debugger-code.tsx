@@ -2,12 +2,10 @@
 import { langs } from "@uiw/codemirror-extensions-langs";
 import ReactCodeMirror, {
   EditorView,
+  keymap,
   Prec,
   type ReactCodeMirrorRef,
-  keymap,
 } from "@uiw/react-codemirror";
-import React, { memo } from "react";
-import { Tooltip } from "../ui/tooltip";
 import {
   HelpCircleIcon,
   LayersIcon,
@@ -15,8 +13,10 @@ import {
   SkipForwardIcon,
   TrashIcon,
 } from "lucide-react";
-import { Button } from "../ui/button";
+import React, { memo } from "react";
 import { cn } from "@/utils/cn";
+import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
 import "./debugger-code.css";
 import { useKeydownOnElement } from "@/hooks/useHotkey";
 import { Functions } from "@/utils/functions";

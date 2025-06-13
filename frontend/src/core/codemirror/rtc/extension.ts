@@ -1,43 +1,45 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { Awareness, LoroDoc, LoroMap, LoroText } from "loro-crdt";
-import type { CellId } from "@/core/cells/ids";
-import { isWasm } from "@/core/wasm/utils";
 import type { Extension } from "@codemirror/state";
-import ReconnectingWebSocket from "partysocket/ws";
-import { getSessionId } from "@/core/kernel/session";
-import { once } from "@/utils/once";
-import { loroSyncAnnotation, loroSyncPlugin } from "./loro/sync";
 import { EditorView, ViewPlugin } from "@codemirror/view";
+import { atom } from "jotai";
+import { isEqual } from "lodash-es";
+import { Awareness, LoroDoc, LoroMap, LoroText } from "loro-crdt";
+import ReconnectingWebSocket from "partysocket/ws";
+import type { CellId } from "@/core/cells/ids";
+import { getSessionId } from "@/core/kernel/session";
+import { getInitialAppMode } from "@/core/mode";
+import { waitForConnectionOpen } from "@/core/network/connection";
+import { isRtcEnabled, usernameAtom } from "@/core/rtc/state";
+import { getRuntimeManager } from "@/core/runtime/config";
+import { store } from "@/core/state/jotai";
+import { isWasm } from "@/core/wasm/utils";
+import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
+import { once } from "@/utils/once";
 import {
   getInitialLanguageAdapter,
   languageAdapterState,
   setLanguageAdapter,
   switchLanguage,
 } from "../language/extension";
-import type { LanguageAdapterType } from "../language/types";
-import { atom } from "jotai";
-import { waitForConnectionOpen } from "@/core/network/connection";
-import { store } from "@/core/state/jotai";
-import { Logger } from "@/utils/Logger";
-import { loroCursorTheme, RemoteAwarenessPlugin } from "./loro/awareness";
-import type { AwarenessState, ScopeId, Uid } from "./loro/awareness";
-import { AwarenessPlugin } from "./loro/awareness";
-import { createSelectionLayer } from "./loro/awareness";
-import { createCursorLayer } from "./loro/awareness";
-import { remoteAwarenessStateField } from "./loro/awareness";
-import type { UserState } from "./loro/awareness";
-import { isRtcEnabled, usernameAtom } from "@/core/rtc/state";
-import { getColor } from "./loro/colors";
 import {
   languageMetadataField,
   setLanguageMetadata,
   updateLanguageMetadata,
 } from "../language/metadata";
-import { invariant } from "@/utils/invariant";
-import { isEqual } from "lodash-es";
-import { getInitialAppMode } from "@/core/mode";
-import { getRuntimeManager } from "@/core/runtime/config";
+import type { LanguageAdapterType } from "../language/types";
+import type { AwarenessState, ScopeId, Uid, UserState } from "./loro/awareness";
+import {
+  AwarenessPlugin,
+  createCursorLayer,
+  createSelectionLayer,
+  loroCursorTheme,
+  RemoteAwarenessPlugin,
+  remoteAwarenessStateField,
+} from "./loro/awareness";
+import { getColor } from "./loro/colors";
+import { loroSyncAnnotation, loroSyncPlugin } from "./loro/sync";
 
 const logger = Logger.get("rtc");
 const awarenessLogger = logger.get("awareness").disabled();

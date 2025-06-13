@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
+
 import type { HTMLProps, PropsWithChildren } from "react";
 import type { SqlOutputType } from "@/core/config/config-schema";
+import { cn } from "@/utils/cn";
 
 export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   return (

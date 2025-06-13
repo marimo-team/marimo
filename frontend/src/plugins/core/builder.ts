@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { ZodType, ZodTypeDef } from "zod";
-import type { IPluginProps, IPlugin } from "../types";
-import type { FunctionSchemas, PluginFunctions } from "./rpc";
+
 import type { JSX } from "react";
+import type { ZodType, ZodTypeDef } from "zod";
+import type { IPlugin, IPluginProps } from "../types";
+import type { FunctionSchemas, PluginFunctions } from "./rpc";
 
 type Renderer<S, D, F> = (props: IPluginProps<S, D, F>) => JSX.Element;
 // If this simple builder pattern becomes unwieldy, we can switch to a more

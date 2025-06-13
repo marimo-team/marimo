@@ -1,27 +1,28 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type {
-  TopLevelUnitSpec,
-  GenericUnitSpec,
-} from "vega-lite/build/src/spec/unit";
-import type { Encoding } from "vega-lite/build/src/encoding";
-import type { Field } from "vega-lite/build/src/channeldef";
 
+import type { Field } from "vega-lite/build/src/channeldef";
+import type { Encoding } from "vega-lite/build/src/encoding";
+import type {
+  GenericUnitSpec,
+  TopLevelUnitSpec,
+} from "vega-lite/build/src/spec/unit";
+
+export type { TopLevelSpec as VegaLiteSpec } from "vega-lite";
+export type { SingleDefUnitChannel } from "vega-lite/build/src/channel";
+export type { Field } from "vega-lite/build/src/channeldef";
 export type { SharedCompositeEncoding } from "vega-lite/build/src/compositemark";
+export type { DataFormat } from "vega-lite/build/src/data";
 export type { AnyMark, MarkDef } from "vega-lite/build/src/mark";
 export { Mark } from "vega-lite/build/src/mark";
-export type { TopLevelSpec as VegaLiteSpec } from "vega-lite";
-export type { Field } from "vega-lite/build/src/channeldef";
-export type { SingleDefUnitChannel } from "vega-lite/build/src/channel";
 export type {
   SelectionParameter,
   SelectionType,
 } from "vega-lite/build/src/selection";
-export type { DataFormat } from "vega-lite/build/src/data";
 export type {
+  FacetedUnitSpec,
+  GenericFacetSpec,
   LayerSpec,
   UnitSpec,
-  GenericFacetSpec,
-  FacetedUnitSpec,
 } from "vega-lite/build/src/spec";
 
 export type VegaLiteUnitSpec = TopLevelUnitSpec<Field>;

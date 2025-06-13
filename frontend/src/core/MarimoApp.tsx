@@ -3,19 +3,19 @@ import "../css/index.css";
 import "../css/app/App.css";
 import "iconify-icon";
 
-import type React from "react";
-import { type PropsWithChildren, Suspense, memo } from "react";
-import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
-import { TooltipProvider } from "../components/ui/tooltip";
-import { Toaster } from "../components/ui/toaster";
-import { ModalProvider } from "../components/modal/ImperativeModal";
-import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
-import { CssVariables } from "@/theme/ThemeProvider";
-import { TailwindIndicator } from "@/components/debug/indicator";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
-import { slotsController } from "./slots/slots";
-import { reactLazyWithPreload } from "@/utils/lazy";
+import type React from "react";
+import { memo, type PropsWithChildren, Suspense } from "react";
+import { TailwindIndicator } from "@/components/debug/indicator";
+import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import { getInitialAppMode } from "@/core/mode";
+import { CssVariables } from "@/theme/ThemeProvider";
+import { reactLazyWithPreload } from "@/utils/lazy";
+import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
+import { ModalProvider } from "../components/modal/ImperativeModal";
+import { Toaster } from "../components/ui/toaster";
+import { TooltipProvider } from "../components/ui/tooltip";
+import { slotsController } from "./slots/slots";
 
 // Force tailwind classnames
 // tailwind only creates css for classnames that exist the FE files

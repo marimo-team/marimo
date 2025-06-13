@@ -1,17 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import { useEffect } from "react";
-
+import { AppContainer } from "@/components/editor/app-container";
+import { AppHeader } from "@/components/editor/header/app-header";
+import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { notebookIsRunningAtom, useCellActions } from "./cells/cells";
 import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
-import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
-import { useAtomValue } from "jotai";
-import { AppContainer } from "@/components/editor/app-container";
-import { AppHeader } from "@/components/editor/header/app-header";
 import { getSessionId } from "./kernel/session";
-import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import { sendComponentValues } from "./network/requests";
+import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 
 interface AppProps {
   appConfig: AppConfig;

@@ -1,44 +1,48 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "./theme/ThemeProvider";
-import { ErrorBoundary } from "./components/editor/boundary/ErrorBoundary";
-import { MarimoApp, preloadPage } from "./core/MarimoApp";
-import { reportVitals } from "./utils/vitals";
+
+import type * as api from "@marimo-team/marimo-api";
 import { Provider } from "jotai";
-import { store } from "./core/state/jotai";
-import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
-import { patchFetch, patchVegaLoader } from "./core/static/files";
-import { isStaticNotebook } from "./core/static/static-state";
-import { vegaLoader } from "./plugins/impl/vega/loader";
-import { initializePlugins } from "./plugins/plugins";
-import { cleanupAuthQueryParams } from "./core/network/auth";
+import { createRoot } from "react-dom/client";
+import { z } from "zod";
+import {
+  appConfigAtom,
+  configOverridesAtom,
+  userConfigAtom,
+} from "@/core/config/config";
+import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
+import { getMarimoCode } from "@/core/meta/globals";
+import {
+  marimoVersionAtom,
+  serverTokenAtom,
+  showCodeInRunModeAtom,
+} from "@/core/meta/state";
+import { Logger } from "@/utils/Logger";
+import { ErrorBoundary } from "./components/editor/boundary/ErrorBoundary";
+import { notebookAtom } from "./core/cells/cells";
+import { notebookStateFromSession } from "./core/cells/session";
 import {
   parseAppConfig,
   parseConfigOverrides,
   parseUserConfig,
 } from "./core/config/config-schema";
+import { MarimoApp, preloadPage } from "./core/MarimoApp";
 import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
-import { codeAtom, filenameAtom } from "./core/saving/file-state";
-import { Logger } from "@/utils/Logger";
-import { z } from "zod";
-import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
-import {
-  showCodeInRunModeAtom,
-  marimoVersionAtom,
-  serverTokenAtom,
-} from "@/core/meta/state";
-import { appConfigAtom, userConfigAtom } from "@/core/config/config";
-import { configOverridesAtom } from "@/core/config/config";
+import { cleanupAuthQueryParams } from "./core/network/auth";
 import {
   DEFAULT_RUNTIME_CONFIG,
   runtimeConfigAtom,
 } from "./core/runtime/config";
-import { getMarimoCode } from "@/core/meta/globals";
-import type * as api from "@marimo-team/marimo-api";
-import { notebookAtom } from "./core/cells/cells";
-import { notebookStateFromSession } from "./core/cells/session";
+import { codeAtom, filenameAtom } from "./core/saving/file-state";
+import { store } from "./core/state/jotai";
+import { patchFetch, patchVegaLoader } from "./core/static/files";
+import { isStaticNotebook } from "./core/static/static-state";
+import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
+import { vegaLoader } from "./plugins/impl/vega/loader";
+import { initializePlugins } from "./plugins/plugins";
+import { ThemeProvider } from "./theme/ThemeProvider";
+import { reportVitals } from "./utils/vitals";
 
 let hasMounted = false;
 

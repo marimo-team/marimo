@@ -4,8 +4,9 @@
  * Zod schema validation for marimo chart configuration.
  */
 
-import { DATA_TYPES } from "@/core/kernel/messages";
 import { z } from "zod";
+import { DATA_TYPES } from "@/core/kernel/messages";
+import { DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
 import {
   AGGREGATION_FNS,
   NONE_AGGREGATION,
@@ -13,7 +14,6 @@ import {
   SORT_TYPES,
   TIME_UNITS,
 } from "./types";
-import { DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
 
 export const BinSchema = z.object({
   binned: z.boolean().optional(),

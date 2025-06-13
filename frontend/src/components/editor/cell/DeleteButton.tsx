@@ -1,18 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
-
+import type { JSX } from "react";
 import type { RuntimeState } from "@/core/network/types";
-import { Tooltip } from "../../ui/tooltip";
-import { Button } from "../../ui/button";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import type { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
-import type { WebSocketState } from "@/core/websocket/types";
-import {
-  isAppInteractionDisabled,
-  getConnectionTooltip,
-} from "@/core/websocket/connection-utils";
-
-import type { JSX } from "react";
+import { Button } from "../../ui/button";
+import { Tooltip } from "../../ui/tooltip";
 
 export const DeleteButton = (props: {
   status: RuntimeState;

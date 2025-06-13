@@ -1,21 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 // @vitest-environment jsdom
-import { mount, visibleForTesting } from "../mount";
-import { store } from "../core/state/jotai";
-import { type AppMode, viewStateAtom } from "../core/mode";
-import { codeAtom, filenameAtom } from "../core/saving/file-state";
-import { showCodeInRunModeAtom, marimoVersionAtom } from "../core/meta/state";
-import {
-  appConfigAtom,
-  userConfigAtom,
-  configOverridesAtom,
-} from "../core/config/config";
-import { describe, beforeEach, it, expect, vi } from "vitest";
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type AppConfig,
   parseAppConfig,
   parseUserConfig,
 } from "@/core/config/config-schema";
+import {
+  appConfigAtom,
+  configOverridesAtom,
+  userConfigAtom,
+} from "../core/config/config";
+import { marimoVersionAtom, showCodeInRunModeAtom } from "../core/meta/state";
+import { type AppMode, viewStateAtom } from "../core/mode";
+import { codeAtom, filenameAtom } from "../core/saving/file-state";
+import { store } from "../core/state/jotai";
+import { mount, visibleForTesting } from "../mount";
 
 vi.mock("../utils/vitals", () => ({
   reportVitals: vi.fn(),

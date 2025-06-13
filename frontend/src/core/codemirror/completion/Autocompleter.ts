@@ -1,14 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CompletionResult } from "@codemirror/autocomplete";
-
+import type { Tooltip } from "@codemirror/view";
+import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";
+import { sendCodeCompletionRequest } from "@/core/network/requests";
+import type { CodeCompletionRequest } from "@/core/network/types";
 import type {
   CompletionOption,
   CompletionResultMessage,
 } from "../../kernel/messages";
-import { sendCodeCompletionRequest } from "@/core/network/requests";
-import type { Tooltip } from "@codemirror/view";
-import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";
-import type { CodeCompletionRequest } from "@/core/network/types";
 import "../../../components/editor/documentation.css";
 
 function constructCompletionInfoNode(

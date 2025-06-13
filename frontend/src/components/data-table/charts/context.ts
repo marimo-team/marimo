@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { createContext, use } from "react";
-import type { Field } from "./components/form-fields";
 import { Functions } from "@/utils/functions";
+import type { Field } from "./components/form-fields";
 
 export const ChartFormContext = createContext<{
   fields: Field[];

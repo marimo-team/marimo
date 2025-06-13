@@ -1,28 +1,26 @@
 {
   "$schema": "frontend/node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": ["frontend/src/**/*", "!*.json"]
+  },
   "formatter": {
+    "indentStyle": "space",
     "enabled": true,
     "formatWithErrors": false,
-    "indentStyle": "space",
     "indentWidth": 2,
     "lineEnding": "lf",
     "lineWidth": 80,
-    "attributePosition": "auto",
-    "ignore": ["pnpm-lock.yaml", "storybook-static", "package.json"]
-  },
-  "organizeImports": {
-    "ignore": ["pnpm-lock.yaml", "storybook-static", "package.json"],
-    "enabled": false
+    "attributePosition": "auto"
   },
   "linter": {
-    "ignore": ["pnpm-lock.yaml", "storybook-static", "package.json"],
     "enabled": true,
     "rules": {
       "recommended": true,
       "a11y": {
         "noAutofocus": "off",
+        "noStaticElementInteractions": "off",
+        "useAriaPropsSupportedByRole": "off",
         "noSvgWithoutTitle": "info",
-        "noBlankTarget": "off",
         "useButtonType": "info",
         "useIframeTitle": "info",
         "useKeyWithClickEvents": "off",
@@ -38,14 +36,18 @@
       "correctness": {
         "noInnerDeclarations": "error",
         "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "warn",
         "useExhaustiveDependencies": "off",
         "useHookAtTopLevel": "info"
+      },
+      "nursery": {
+        "useUniqueElementIds": "warn",
+        "noNestedComponentDefinitions": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
       },
       "style": {
-        "noCommaOperator": "error",
         "noNonNullAssertion": "off",
         "noParameterAssign": "off",
         "noUnusedTemplateLiteral": "error",
@@ -89,7 +91,7 @@
       "suspicious": {
         "noArrayIndexKey": "off",
         "noAssignInExpressions": "info",
-        "noConsoleLog": "off",
+        "noConsole": "off",
         "noDoubleEquals": "error",
         "noEmptyBlockStatements": "info",
         "noExplicitAny": "off",

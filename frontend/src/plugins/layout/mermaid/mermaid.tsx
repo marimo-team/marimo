@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useState } from "react";
-import mermaid from "mermaid";
+
 import type { MermaidConfig } from "mermaid";
+import mermaid from "mermaid";
+import React, { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { Logger } from "@/utils/Logger";
 import { useTheme } from "@/theme/useTheme";
+import { Logger } from "@/utils/Logger";
 
 interface Props {
   diagram: string;

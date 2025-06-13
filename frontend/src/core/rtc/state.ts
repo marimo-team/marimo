@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atomWithStorage } from "jotai/utils";
-import { getFeatureFlag } from "../config/feature-flag";
 import { once } from "lodash-es";
+import { getFeatureFlag } from "../config/feature-flag";
 
 /**
  * The username for the current user when using real-time collaboration.

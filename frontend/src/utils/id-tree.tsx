@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { arrayDelete, arrayInsert, arrayInsertMany, arrayMove } from "./arrays";
 import { Memoize } from "typescript-memoize";
-import { Logger } from "./Logger";
 import { reorderColumnSizes } from "@/components/editor/columns/storage";
+import { arrayDelete, arrayInsert, arrayInsertMany, arrayMove } from "./arrays";
+import { Logger } from "./Logger";
 
 /**
  * Branded number to help with type safety

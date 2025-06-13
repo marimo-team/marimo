@@ -1,27 +1,27 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useState } from "react";
+
 import {
+  booleanType,
   type DataItemProps,
   type DataType,
-  JsonViewer,
-  booleanType,
   defineDataType,
-  intType,
   floatType,
+  intType,
+  JsonViewer,
   nullType,
   objectType,
   stringType,
 } from "@textea/json-viewer";
-
+import { CheckIcon, CopyIcon } from "lucide-react";
+import { memo, useState } from "react";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { isUrl } from "@/utils/urls";
+import { useTheme } from "../../../theme/useTheme";
+import { logNever } from "../../../utils/assertNever";
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";
 import { VideoOutput } from "./VideoOutput";
-import { logNever } from "../../../utils/assertNever";
-import { useTheme } from "../../../theme/useTheme";
-import { isUrl } from "@/utils/urls";
-import { copyToClipboard } from "@/utils/copy";
-import { CheckIcon, CopyIcon } from "lucide-react";
-import { cn } from "@/utils/cn";
 
 interface Props {
   /**

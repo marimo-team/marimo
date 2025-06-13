@@ -1,48 +1,48 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React, { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtom } from "jotai";
 import {
-  TableIcon,
-  XIcon,
+  ChartColumnIcon,
+  CodeIcon,
   DatabaseIcon,
   PaintRollerIcon,
-  CodeIcon,
-  ChartColumnIcon,
+  TableIcon,
+  XIcon,
 } from "lucide-react";
-import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
-import { useForm, type UseFormReturn } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ChartSchema, type ChartSchemaType } from "./schemas";
-import { Form } from "@/components/ui/form";
-import { getDefaults } from "@/components/forms/form-utils";
-import { useAtom } from "jotai";
-import type { CellId } from "@/core/cells/ids";
-import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
-import type { FieldTypesWithExternalType } from "../types";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { vegaLoadData } from "@/plugins/impl/vega/loader";
-import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
-import type { Field } from "./components/form-fields";
-import { useDebouncedCallback } from "@/hooks/useDebounce";
-import { inferFieldTypes } from "../columns";
-import { LazyChart } from "./lazy-chart";
-import {
-  ChartLoadingState,
-  ChartErrorState,
-  ChartTypeSelect,
-} from "./components/chart-items";
-import { ChartType } from "./types";
-import { HeatmapForm } from "./forms/heatmap";
-import { PieForm } from "./forms/pie";
-import { CommonChartForm, StyleForm } from "./forms/common-chart";
-import { CodeSnippet, TabContainer } from "./components/layouts";
-import { ChartFormContext } from "./context";
+import type { JSX } from "react";
+import React, { useMemo, useState } from "react";
+import { type UseFormReturn, useForm } from "react-hook-form";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
+import { getDefaults } from "@/components/forms/form-utils";
+import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { CellId } from "@/core/cells/ids";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
+import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
+import { vegaLoadData } from "@/plugins/impl/vega/loader";
+import { useTheme } from "@/theme/useTheme";
+import { inferFieldTypes } from "../columns";
+import type { FieldTypesWithExternalType } from "../types";
 import { generateAltairChartSnippet } from "./chart-spec/altair-generator";
 import { createSpecWithoutData } from "./chart-spec/spec";
-import { useTheme } from "@/theme/useTheme";
-import type { JSX } from "react";
+import {
+  ChartErrorState,
+  ChartLoadingState,
+  ChartTypeSelect,
+} from "./components/chart-items";
+import type { Field } from "./components/form-fields";
+import { CodeSnippet, TabContainer } from "./components/layouts";
+import { ChartFormContext } from "./context";
+import { CommonChartForm, StyleForm } from "./forms/common-chart";
+import { HeatmapForm } from "./forms/heatmap";
+import { PieForm } from "./forms/pie";
+import { LazyChart } from "./lazy-chart";
+import { ChartSchema, type ChartSchemaType } from "./schemas";
+import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
+import { ChartType } from "./types";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
@@ -244,7 +244,7 @@ export const ChartPanel: React.FC<{
   const [selectedChartType, setSelectedChartType] =
     useState<ChartType>(chartType);
 
-  const { data, loading, error } = useAsyncData(async () => {
+  const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl) {
       return [];
     }
@@ -285,7 +285,7 @@ export const ChartPanel: React.FC<{
 
   // Prevent unnecessary re-renders of the chart
   const memoizedChart = useMemo(() => {
-    if (loading) {
+    if (isPending) {
       return <ChartLoadingState />;
     }
     if (error) {
@@ -294,7 +294,7 @@ export const ChartPanel: React.FC<{
     return (
       <LazyChart baseSpec={specWithoutData} data={data} height={CHART_HEIGHT} />
     );
-  }, [loading, error, specWithoutData, data]);
+  }, [isPending, error, specWithoutData, data]);
 
   const developmentMode = import.meta.env.DEV;
 

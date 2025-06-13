@@ -1,24 +1,27 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React from "react";
 import { capitalize } from "lodash-es";
 import {
-  XIcon,
+  ArrowDownWideNarrowIcon,
+  ArrowUpWideNarrowIcon,
   PlusIcon,
   SquareFunctionIcon,
-  ArrowUpWideNarrowIcon,
-  ArrowDownWideNarrowIcon,
+  XIcon,
 } from "lucide-react";
+import React from "react";
 import { type Path, useFormContext, useWatch } from "react-hook-form";
-
-import type { DataType } from "@/core/kernel/messages";
-
+import type { z } from "zod";
+import { DATA_TYPE_ICON } from "@/components/datasets/icons";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
 } from "@/components/ui/form";
+import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
+import type { NumberFieldProps } from "@/components/ui/number-field";
 import {
   Select,
   SelectContent,
@@ -29,25 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
-import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/utils/cn";
+import { Slider } from "@/components/ui/slider";
+import type { DataType } from "@/core/kernel/messages";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
-
-import {
-  AGGREGATION_FNS,
-  COMBINED_TIME_UNITS,
-  NONE_AGGREGATION,
-  SELECTABLE_DATA_TYPES,
-  type SelectableDataType,
-  SINGLE_TIME_UNITS,
-  SORT_TYPES,
-  STRING_AGGREGATION_FNS,
-  BIN_AGGREGATION,
-  type TimeUnit,
-} from "../types";
+import { cn } from "@/utils/cn";
+import { convertDataTypeToSelectable } from "../chart-spec/types";
 import {
   AGGREGATION_TYPE_DESCRIPTIONS,
   AGGREGATION_TYPE_ICON,
@@ -56,13 +45,21 @@ import {
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
 } from "../constants";
-import { Slider } from "@/components/ui/slider";
-import { IconWithText } from "./layouts";
 import { useChartFormContext } from "../context";
-import type { NumberFieldProps } from "@/components/ui/number-field";
-import { convertDataTypeToSelectable } from "../chart-spec/types";
 import type { BinSchema, ChartSchema, ChartSchemaType } from "../schemas";
-import type { z } from "zod";
+import {
+  AGGREGATION_FNS,
+  BIN_AGGREGATION,
+  COMBINED_TIME_UNITS,
+  NONE_AGGREGATION,
+  SELECTABLE_DATA_TYPES,
+  type SelectableDataType,
+  SINGLE_TIME_UNITS,
+  SORT_TYPES,
+  STRING_AGGREGATION_FNS,
+  type TimeUnit,
+} from "../types";
+import { IconWithText } from "./layouts";
 
 const CLEAR_VALUE = "__clear__";
 

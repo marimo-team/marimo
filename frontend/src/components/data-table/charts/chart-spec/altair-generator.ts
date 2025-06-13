@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 import {
   FunctionCall,
   Literal,
@@ -6,8 +8,6 @@ import {
   Variable,
   VariableDeclaration,
 } from "@/utils/python-poet/poet";
-
-import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 
 /**
  * Generates Python code for an Altair chart.

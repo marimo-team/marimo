@@ -1,19 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { getTopologicalCellIds } from "../getCodes";
-import { notebookAtom } from "@/core/cells/cells";
-import { variablesAtom } from "@/core/variables/state";
-import { store } from "@/core/state/jotai";
-import { MultiColumn } from "@/utils/id-tree";
-import type { CellId } from "@/core/cells/ids";
-import type { VariableName, Variables } from "@/core/variables/types";
-import { getCodes } from "../getCodes";
+
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-
+import { describe, expect, it } from "vitest";
+import { notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { store } from "@/core/state/jotai";
+import { variablesAtom } from "@/core/variables/state";
+import type { VariableName, Variables } from "@/core/variables/types";
+import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration } from "../../language/extension";
+import { getCodes, getTopologicalCellIds } from "../getCodes";
+
 const Cells = {
   cell1: "cell1" as CellId,
   cell2: "cell2" as CellId,

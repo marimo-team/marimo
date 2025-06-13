@@ -1,18 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useLayoutEffect } from "react";
-import type { OutputMessage } from "@/core/kernel/messages";
-import { OutputRenderer } from "../Output";
-import { cn } from "@/utils/cn";
-import { isInternalCellName } from "@/core/cells/names";
-import { NameCellContentEditable } from "../actions/name-cell-input";
-import type { CellId } from "@/core/cells/ids";
-import { Input } from "@/components/ui/input";
+
 import { AnsiUp } from "ansi_up";
-import type { WithResponse } from "@/core/cells/types";
-import { invariant } from "@/utils/invariant";
-import { ErrorBoundary } from "../boundary/ErrorBoundary";
-import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { ChevronRightIcon } from "lucide-react";
+import React, { useLayoutEffect } from "react";
+import { DebuggerControls } from "@/components/debugger/debugger-code";
+import { Input } from "@/components/ui/input";
+import type { CellId } from "@/core/cells/ids";
+import { isInternalCellName } from "@/core/cells/names";
+import type { WithResponse } from "@/core/cells/types";
+import type { OutputMessage } from "@/core/kernel/messages";
+import { cn } from "@/utils/cn";
+import { invariant } from "@/utils/invariant";
+import { NameCellContentEditable } from "../actions/name-cell-input";
+import { ErrorBoundary } from "../boundary/ErrorBoundary";
+import { OutputRenderer } from "../Output";
 
 const ansiUp = new AnsiUp();
 
@@ -207,10 +208,7 @@ const StdInput = (props: {
   );
 };
 
-const StdInputWithResponse = (props: {
-  output: string;
-  response?: string;
-}) => {
+const StdInputWithResponse = (props: { output: string; response?: string }) => {
   return (
     <div className="flex gap-2 items-center">
       {renderText(props.output)}

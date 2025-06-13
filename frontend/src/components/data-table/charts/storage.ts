@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { CellId } from "@/core/cells/ids";
-import type { TypedString } from "@/utils/typed";
 import { atomWithStorage } from "jotai/utils";
-import { z } from "zod";
-import { ChartSchema, type ChartSchemaType } from "./schemas";
-import { Logger } from "@/utils/Logger";
-import type { ChartType } from "./types";
-import { NotebookScopedLocalStorage } from "@/utils/localStorage";
 import { capitalize } from "lodash-es";
+import { z } from "zod";
+import type { CellId } from "@/core/cells/ids";
+import { Logger } from "@/utils/Logger";
+import { NotebookScopedLocalStorage } from "@/utils/localStorage";
+import type { TypedString } from "@/utils/typed";
+import { ChartSchema, type ChartSchemaType } from "./schemas";
+import type { ChartType } from "./types";
 
 export type TabName = TypedString<"TabName">;
 export const KEY = "marimo:charts:v2";

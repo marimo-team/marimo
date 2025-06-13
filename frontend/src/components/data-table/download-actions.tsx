@@ -1,18 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
-import { Button } from "../ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { toast } from "../ui/use-toast";
-import { downloadByURL } from "@/utils/download";
+
 import {
   BracesIcon,
   BrickWallIcon,
@@ -20,9 +7,23 @@ import {
   ClipboardListIcon,
   TableIcon,
 } from "lucide-react";
-import { jsonToTSV } from "@/utils/json/json-parser";
-import { copyToClipboard } from "@/utils/copy";
+import React from "react";
 import { logNever } from "@/utils/assertNever";
+import { copyToClipboard } from "@/utils/copy";
+import { downloadByURL } from "@/utils/download";
+import { jsonToTSV } from "@/utils/json/json-parser";
+import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { toast } from "../ui/use-toast";
 
 type DownloadFormat = "csv" | "json" | "parquet";
 

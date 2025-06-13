@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, type JSX } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
 
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { IPlugin, IPluginProps } from "@/plugins/types";
-import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
+import { Labeled } from "./common/labeled";
 
 /**
  * Arguments for a radio group

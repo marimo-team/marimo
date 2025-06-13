@@ -1,31 +1,47 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { historyField } from "@codemirror/commands";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
-import { type ReducerWithoutAction, createRef } from "react";
-import type { CellMessage } from "../kernel/messages";
+import { selectAtom, splitAtom } from "jotai/utils";
+import { isEqual, zip } from "lodash-es";
+import { createRef, type ReducerWithoutAction } from "react";
+import type { CellHandle } from "@/components/editor/Cell";
 import {
-  type CellRuntimeState,
+  type CellColumnId,
+  type CellIndex,
+  MultiColumn,
+} from "@/utils/id-tree";
+import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
+import { clamp } from "@/utils/math";
+import { Objects } from "@/utils/objects";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
+import { createReducerAndAtoms } from "../../utils/createReducer";
+import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
+import {
+  splitEditor,
+  updateEditorCodeFromPython,
+} from "../codemirror/language/utils";
+import { findCollapseRange, mergeOutlines } from "../dom/outline";
+import type { CellMessage } from "../kernel/messages";
+import { isErrorMime } from "../mime";
+import type { CellConfig } from "../network/types";
+import { isRtcEnabled } from "../rtc/state";
+import { createDeepEqualAtom, store } from "../state/jotai";
+import { prepareCellForExecution, transitionCell } from "./cell";
+import { CellId } from "./ids";
+import { type CellLog, getCellLogsForMessage } from "./logs";
+import {
+  focusAndScrollCellIntoView,
+  scrollToBottom,
+  scrollToTop,
+} from "./scrollCellIntoView";
+import {
   type CellData,
+  type CellRuntimeState,
   createCell,
   createCellRuntimeState,
 } from "./types";
-import {
-  scrollToBottom,
-  scrollToTop,
-  focusAndScrollCellIntoView,
-} from "./scrollCellIntoView";
-import { CellId } from "./ids";
-import { prepareCellForExecution, transitionCell } from "./cell";
-import { createDeepEqualAtom, store } from "../state/jotai";
-import { createReducerAndAtoms } from "../../utils/createReducer";
-import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
-import { findCollapseRange, mergeOutlines } from "../dom/outline";
-import type { CellHandle } from "@/components/editor/Cell";
-import { Logger } from "@/utils/Logger";
-import { Objects } from "@/utils/objects";
-import { splitAtom, selectAtom } from "jotai/utils";
-import { type CellLog, getCellLogsForMessage } from "./logs";
-import { historyField } from "@codemirror/commands";
-import { clamp } from "@/utils/math";
 import {
   canUndoDeletes,
   disabledCellIds,
@@ -34,21 +50,6 @@ import {
   notebookNeedsRun,
   notebookQueueOrRunningCount,
 } from "./utils";
-import {
-  splitEditor,
-  updateEditorCodeFromPython,
-} from "../codemirror/language/utils";
-import { invariant } from "@/utils/invariant";
-import type { CellConfig } from "../network/types";
-import {
-  type CellColumnId,
-  type CellIndex,
-  MultiColumn,
-} from "@/utils/id-tree";
-import { isEqual, zip } from "lodash-es";
-import { isErrorMime } from "../mime";
-import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
-import { isRtcEnabled } from "../rtc/state";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;

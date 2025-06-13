@@ -1,35 +1,36 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { ExprRef, SignalRef } from "vega";
 import type { TopLevelSpec } from "vega-lite";
-import type { ResolvedTheme } from "@/theme/useTheme";
-import type {
-  AxisSchema,
-  RowFacet,
-  ColumnFacet,
-  ChartSchemaType,
-  BinSchema,
-} from "../schemas";
-import { ChartType } from "../types";
-import type { z } from "zod";
 import type {
   ColorDef,
   Field,
   PolarDef,
   PositionDef,
 } from "vega-lite/build/src/channeldef";
-import type { ExprRef, SignalRef } from "vega";
+import type { Resolve } from "vega-lite/build/src/resolve";
+import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
+import type { z } from "zod";
+import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
 import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
-import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
+import type {
+  AxisSchema,
+  BinSchema,
+  ChartSchemaType,
+  ColumnFacet,
+  RowFacet,
+} from "../schemas";
+import { ChartType } from "../types";
 import {
+  getAggregate,
   getBinEncoding,
   getColorEncoding,
   getColorInScale,
   getOffsetEncoding,
-  getAggregate,
 } from "./encodings";
-import { convertChartTypeToMark, convertDataTypeToVega } from "./types";
 import { getTooltips } from "./tooltips";
-import type { Resolve } from "vega-lite/build/src/resolve";
+import { convertChartTypeToMark, convertDataTypeToVega } from "./types";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.

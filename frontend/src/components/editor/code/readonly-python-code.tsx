@@ -1,19 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useState } from "react";
+
+import { sql } from "@codemirror/lang-sql";
 import CodeMirror, {
   EditorView,
   type ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import { CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { memo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Events } from "@/utils/events";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
-import { sql } from "@codemirror/lang-sql";
 import { copyToClipboard } from "@/utils/copy";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Events } from "@/utils/events";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),

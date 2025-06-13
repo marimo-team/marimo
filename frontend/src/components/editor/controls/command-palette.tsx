@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { atom, useAtom, useAtomValue } from "jotai";
 import {
   CommandDialog,
   CommandEmpty,
@@ -9,24 +11,23 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
+import { lastFocusedCellAtom } from "@/core/cells/focus";
+import { hotkeysAtom } from "@/core/config/config";
+import { type HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
+import { parseShortcut } from "@/core/hotkeys/shortcuts";
+import { useEventListener } from "@/hooks/useEventListener";
+import { Objects } from "@/utils/objects";
 import { useRegisteredActions } from "../../../core/hotkeys/actions";
 import { useRecentCommands } from "../../../hooks/useRecentCommands";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
-import { type HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
-import { atom, useAtom, useAtomValue } from "jotai";
-import { useNotebookActions } from "../actions/useNotebookActions";
-import { Objects } from "@/utils/objects";
-import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import {
-  isParentAction,
-  flattenActions,
   type ActionButton,
+  flattenActions,
+  isParentAction,
 } from "../actions/types";
 import { useCellActionButtons } from "../actions/useCellActionButton";
-import { lastFocusedCellAtom } from "@/core/cells/focus";
 import { useConfigActions } from "../actions/useConfigActions";
-import { hotkeysAtom } from "@/core/config/config";
-import { useEventListener } from "@/hooks/useEventListener";
+import { useNotebookActions } from "../actions/useNotebookActions";
 
 export const commandPaletteAtom = atom(false);
 

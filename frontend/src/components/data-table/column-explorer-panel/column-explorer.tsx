@@ -1,26 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  Command,
-  CommandEmpty,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import type { PreviewColumn } from "@/plugins/impl/DataTablePlugin";
-import {
-  INDEX_COLUMN_NAME,
-  SELECT_COLUMN_ID,
-  type FieldTypesWithExternalType,
-} from "../types";
-import { NAMELESS_COLUMN_PREFIX } from "../columns";
-import { prettifyRowColumnCount } from "../pagination";
-import type { DataType } from "@/core/kernel/messages";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
-import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   AddDataframeChart,
   renderChart,
@@ -28,14 +8,34 @@ import {
   renderStats,
 } from "@/components/datasources/column-preview";
 import {
+  ColumnName,
   ColumnPreviewContainer,
   EmptyState,
   ErrorState,
   LoadingState,
 } from "@/components/datasources/components";
-import { useTheme } from "@/theme/useTheme";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
-import { ColumnName } from "@/components/datasources/components";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Tooltip } from "@/components/ui/tooltip";
+import type { DataType } from "@/core/kernel/messages";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import type { PreviewColumn } from "@/plugins/impl/DataTablePlugin";
+import { useTheme } from "@/theme/useTheme";
+import { NAMELESS_COLUMN_PREFIX } from "../columns";
+import { prettifyRowColumnCount } from "../pagination";
+import {
+  type FieldTypesWithExternalType,
+  INDEX_COLUMN_NAME,
+  SELECT_COLUMN_ID,
+} from "../types";
 
 interface ColumnExplorerPanelProps {
   previewColumn: PreviewColumn;
@@ -170,7 +170,7 @@ const ColumnPreview = ({
 }) => {
   const { theme } = useTheme();
 
-  const { data, error, loading } = useAsyncData(async () => {
+  const { data, error, isPending } = useAsyncData(async () => {
     const response = await previewColumn({ column: columnName });
     return response;
   }, []);
@@ -179,7 +179,7 @@ const ColumnPreview = ({
     return <ErrorState error={error} />;
   }
 
-  if (loading) {
+  if (isPending) {
     return <LoadingState message="Loading..." />;
   }
 

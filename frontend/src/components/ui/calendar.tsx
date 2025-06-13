@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import * as React from "react";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import * as React from "react";
 import {
   Button as AriaButton,
   Calendar as AriaCalendar,

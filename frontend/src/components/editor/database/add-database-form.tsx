@@ -1,28 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { z } from "zod";
+
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
+import type { z } from "zod";
+import { DatabaseLogo, type DBLogoName } from "@/components/databases/icon";
 import { type FormRenderer, ZodForm } from "@/components/forms/form";
-import {
-  PostgresConnectionSchema,
-  MySQLConnectionSchema,
-  SQLiteConnectionSchema,
-  DuckDBConnectionSchema,
-  SnowflakeConnectionSchema,
-  BigQueryConnectionSchema,
-  type DatabaseConnection,
-  ClickhouseConnectionSchema,
-  TimeplusConnectionSchema,
-  ChdbConnectionSchema,
-  TrinoConnectionSchema,
-  IcebergConnectionSchema,
-  DataFusionConnectionSchema,
-  PySparkConnectionSchema,
-  MotherDuckConnectionSchema,
-  RedshiftConnectionSchema,
-} from "./schemas";
+import { getDefaults } from "@/components/forms/form-utils";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -31,16 +16,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { DatabaseLogo, type DBLogoName } from "@/components/databases/icon";
-import { useCellActions } from "@/core/cells/cells";
-import { useLastFocusedCellId } from "@/core/cells/focus";
-import {
-  ConnectionDisplayNames,
-  type ConnectionLibrary,
-  generateDatabaseCode,
-} from "./as-code";
 import { FormErrorsBanner } from "@/components/ui/form";
-import { getDefaults } from "@/components/forms/form-utils";
+import { ExternalLink } from "@/components/ui/links";
 import {
   Select,
   SelectContent,
@@ -49,8 +26,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import {
+  ConnectionDisplayNames,
+  type ConnectionLibrary,
+  generateDatabaseCode,
+} from "./as-code";
 import { ENV_RENDERER, SecretsProvider } from "./form-renderers";
-import { ExternalLink } from "@/components/ui/links";
+import {
+  BigQueryConnectionSchema,
+  ChdbConnectionSchema,
+  ClickhouseConnectionSchema,
+  type DatabaseConnection,
+  DataFusionConnectionSchema,
+  DuckDBConnectionSchema,
+  IcebergConnectionSchema,
+  MotherDuckConnectionSchema,
+  MySQLConnectionSchema,
+  PostgresConnectionSchema,
+  PySparkConnectionSchema,
+  RedshiftConnectionSchema,
+  SnowflakeConnectionSchema,
+  SQLiteConnectionSchema,
+  TimeplusConnectionSchema,
+  TrinoConnectionSchema,
+} from "./schemas";
 
 interface Props {
   onSubmit: () => void;

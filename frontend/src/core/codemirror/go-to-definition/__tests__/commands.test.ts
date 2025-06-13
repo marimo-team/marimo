@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { describe, afterEach, test, expect } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import { goToVariableDefinition } from "../commands";
-import { python } from "@codemirror/lang-python";
 
 function createEditor(content: string) {
   const state = EditorState.create({

@@ -1,10 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 
-import React, { useRef } from "react";
-import { type FieldPath, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { get } from "lodash-es";
+import {
+  BrainIcon,
+  CpuIcon,
+  EditIcon,
+  FlaskConicalIcon,
+  FolderCog2,
+  MonitorIcon,
+  PackageIcon,
+} from "lucide-react";
+import React, { useRef } from "react";
+import { type FieldPath, useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -15,45 +26,34 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { NumberField } from "@/components/ui/number-field";
-import { Kbd } from "@/components/ui/kbd";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 import { configOverridesAtom, useUserConfig } from "@/core/config/config";
 import {
-  UserConfigSchema,
   PackageManagerNames,
   type UserConfig,
+  UserConfigSchema,
 } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
+import { marimoVersionAtom } from "@/core/meta/state";
 import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
-import { THEMES } from "@/theme/useTheme";
-import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  EditIcon,
-  MonitorIcon,
-  PackageIcon,
-  CpuIcon,
-  BrainIcon,
-  FlaskConicalIcon,
-  FolderCog2,
-} from "lucide-react";
-import { ExternalLink } from "../ui/links";
-import { cn } from "@/utils/cn";
-import { KNOWN_AI_MODELS, AWS_REGIONS } from "./constants";
-import { Textarea } from "../ui/textarea";
-import { get } from "lodash-es";
-import { Tooltip } from "../ui/tooltip";
-import { Badge } from "../ui/badge";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Banner } from "@/plugins/impl/common/error-banner";
+import { THEMES } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
+import { Badge } from "../ui/badge";
+import { ExternalLink } from "../ui/links";
+import { Textarea } from "../ui/textarea";
+import { Tooltip } from "../ui/tooltip";
+import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
+import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
 import { OptionalFeatures } from "./optional-features";
-import { marimoVersionAtom } from "@/core/meta/state";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -1529,7 +1529,10 @@ export const UserConfigForm: React.FC = () => {
 const SettingGroup = ({
   title,
   children,
-}: { title: string; children: React.ReactNode }) => {
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
   return (
     <div className="flex flex-col gap-4 pb-4">
       <SettingSubtitle>{title}</SettingSubtitle>

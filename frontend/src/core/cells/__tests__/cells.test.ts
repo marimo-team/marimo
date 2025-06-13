@@ -1,4 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import {
   afterAll,
   beforeAll,
@@ -8,28 +12,25 @@ import {
   it,
   vi,
 } from "vitest";
-import {
-  type NotebookState,
-  SETUP_CELL_ID,
-  exportedForTesting,
-  flattenTopLevelNotebookCells,
-} from "../cells";
-import { CellId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
-import type { Seconds } from "@/utils/time";
-import { EditorView } from "@codemirror/view";
-import { python } from "@codemirror/lang-python";
-import { EditorState } from "@codemirror/state";
 import type { CellHandle } from "@/components/editor/Cell";
+import { CellId } from "@/core/cells/ids";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { OutputMessage } from "@/core/kernel/messages";
+import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import type { Seconds } from "@/utils/time";
+import {
+  exportedForTesting,
+  flattenTopLevelNotebookCells,
+  type NotebookState,
+  SETUP_CELL_ID,
+} from "../cells";
 import {
   focusAndScrollCellIntoView,
-  scrollToTop,
   scrollToBottom,
+  scrollToTop,
 } from "../scrollCellIntoView";
-import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
 import type { CellData } from "../types";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
@@ -2154,11 +2155,13 @@ describe("cell reducer", () => {
 
     // Manually set output for the cells
     state.cellRuntime[cell1Id].output = {
+      channel: "output",
       mimetype: "text/plain",
       data: "output1",
       timestamp: 0 as Seconds,
     };
     state.cellRuntime[cell2Id].output = {
+      channel: "output",
       mimetype: "text/plain",
       data: "output2",
       timestamp: 0 as Seconds,

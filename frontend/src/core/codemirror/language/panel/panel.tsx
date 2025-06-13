@@ -1,23 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
-import { SQLLanguageAdapter } from "../languages/sql";
+import { InfoIcon, PaintRollerIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
-import { InfoIcon, PaintRollerIcon } from "lucide-react";
-
 import { formatSQL } from "../../format";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { languageAdapterState } from "../extension";
 import { MarkdownLanguageAdapter } from "../languages/markdown";
-import type { QuotePrefixKind } from "../utils/quotes";
-import { Checkbox } from "@/components/ui/checkbox";
+import { SQLLanguageAdapter } from "../languages/sql";
 import {
   type LanguageMetadata,
   languageMetadataField,
   updateLanguageMetadata,
 } from "../metadata";
 import type { LanguageMetadataOf } from "../types";
-import { languageAdapterState } from "../extension";
+import type { QuotePrefixKind } from "../utils/quotes";
 import { getQuotePrefix, MarkdownQuotePrefixTooltip } from "./markdown";
 import { SQLEngineSelect } from "./sql";
 

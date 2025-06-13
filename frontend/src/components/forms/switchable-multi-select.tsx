@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useState } from "react";
-import { Textarea } from "../ui/textarea";
-import { Combobox, ComboboxItem } from "../ui/combobox";
-import { Tooltip } from "../ui/tooltip";
+
 import { EditIcon } from "lucide-react";
-import { Toggle } from "../ui/toggle";
+import React, { useState } from "react";
 import { cn } from "@/utils/cn";
+import { Combobox, ComboboxItem } from "../ui/combobox";
+import { Textarea } from "../ui/textarea";
+import { Toggle } from "../ui/toggle";
+import { Tooltip } from "../ui/tooltip";
 
 interface Props {
   options: string[];

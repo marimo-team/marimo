@@ -1,47 +1,48 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type Extension, Prec } from "@codemirror/state";
-import type { LanguageAdapter } from "../types";
+
+import { autocompletion } from "@codemirror/autocomplete";
 import {
-  pythonLanguage,
-  localCompletionSource,
   globalCompletion,
+  localCompletionSource,
+  pythonLanguage,
 } from "@codemirror/lang-python";
 import {
-  foldNodeProp,
   foldInside,
+  foldNodeProp,
   LanguageSupport,
 } from "@codemirror/language";
+import { type Extension, Prec } from "@codemirror/state";
+import {
+  documentUri,
+  LanguageServerClient,
+  languageServerWithClient,
+} from "@marimo-team/codemirror-languageserver";
+import { WebSocketTransport } from "@open-rpc/client-js";
+import type { CellId } from "@/core/cells/ids";
+import { hasCapability } from "@/core/config/capabilities";
 import type {
   CompletionConfig,
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { PlaceholderType } from "../../config/types";
-import {
-  smartPlaceholderExtension,
-  clickablePlaceholderExtension,
-} from "../../placeholder/extensions";
-import {
-  LanguageServerClient,
-  languageServerWithClient,
-  documentUri,
-} from "@marimo-team/codemirror-languageserver";
-import { WebSocketTransport } from "@open-rpc/client-js";
-import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
-import { once } from "@/utils/once";
-import { autocompletion } from "@codemirror/autocomplete";
-import { pythonCompletionSource } from "../../completion/completer";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
-import { Paths } from "@/utils/paths";
-import type { CellId } from "@/core/cells/ids";
-import { cellActionsState } from "../../cells/state";
-import { openFile } from "@/core/network/requests";
-import { Logger } from "@/utils/Logger";
-import { CellDocumentUri } from "../../lsp/types";
-import { hasCapability } from "@/core/config/capabilities";
-import { getRuntimeManager } from "@/core/runtime/config";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { waitForConnectionOpen } from "@/core/network/connection";
+import { openFile } from "@/core/network/requests";
+import { getRuntimeManager } from "@/core/runtime/config";
+import { Logger } from "@/utils/Logger";
+import { once } from "@/utils/once";
+import { Paths } from "@/utils/paths";
+import { cellActionsState } from "../../cells/state";
+import { pythonCompletionSource } from "../../completion/completer";
+import type { PlaceholderType } from "../../config/types";
+import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
+import { CellDocumentUri } from "../../lsp/types";
+import {
+  clickablePlaceholderExtension,
+  smartPlaceholderExtension,
+} from "../../placeholder/extensions";
+import type { LanguageAdapter } from "../types";
 
 const pylspTransport = once(() => {
   const runtimeManager = getRuntimeManager();

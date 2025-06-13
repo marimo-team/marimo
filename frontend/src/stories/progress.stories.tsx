@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Progress } from "@/components/ui/progress";
+
 import type { Meta, StoryFn } from "@storybook/react";
+import { Progress } from "@/components/ui/progress";
 
 const meta: Meta<typeof Progress> = {
   title: "Progress",

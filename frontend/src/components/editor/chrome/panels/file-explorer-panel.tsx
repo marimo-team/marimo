@@ -2,8 +2,8 @@
 
 import React from "react";
 import useResizeObserver from "use-resize-observer";
-import { FileExplorer } from "../../file-tree/file-explorer";
 import { cn } from "@/utils/cn";
+import { FileExplorer } from "../../file-tree/file-explorer";
 import { useFileExplorerUpload } from "../../file-tree/upload";
 
 export const FileExplorerPanel: React.FC = () => {

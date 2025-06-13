@@ -1,23 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import React from "react";
-import { Tooltip } from "../ui/tooltip";
-import { Button } from "../ui/button";
+import type { RowSelectionState, Table } from "@tanstack/react-table";
 import {
-  SearchIcon,
   ChartBarIcon,
-  PanelRightIcon,
   ChartColumnStacked,
+  PanelRightIcon,
+  SearchIcon,
 } from "lucide-react";
-import { DataTablePagination } from "./pagination";
-import { DownloadAs, type DownloadActionProps } from "./download-actions";
-import type { Table, RowSelectionState } from "@tanstack/react-table";
-import type { DataTableSelection } from "./types";
+import React from "react";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
-import { toast } from "../ui/use-toast";
 import { cn } from "@/utils/cn";
 import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
+import { toast } from "../ui/use-toast";
+import { type DownloadActionProps, DownloadAs } from "./download-actions";
+import { DataTablePagination } from "./pagination";
+import type { DataTableSelection } from "./types";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
