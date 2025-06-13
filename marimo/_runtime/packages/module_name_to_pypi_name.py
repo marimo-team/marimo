@@ -7,7 +7,7 @@ from __future__ import annotations
 def module_name_to_pypi_name() -> dict[str, str]:
     return {
         "fasthtml": "python-fasthtml",
-        "hulearn": "human-learn", 
+        "hulearn": "human-learn",
         "agents": "openai-agents",
         "whisper": "openai-whisper",
         "cv2": "opencv-python",
