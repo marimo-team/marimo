@@ -17,7 +17,8 @@ marimo is a reactive Python notebook: run a cell or interact with a UI
 element, and marimo automatically runs dependent cells (or [marks them as
 stale](guides/reactivity.md#configuring-how-marimo-runs-cells)), keeping code and outputs
 consistent and preventing bugs before they happen. Every marimo notebook is
-stored as pure Python (Git-friendly), executable as a script, and deployable as an app.
+stored as pure Python (Git-friendly), executable as a script, and deployable as an app;
+while stored as Python, marimo notebooks also have native support for SQL.
 
 /// admonition | Built from the ground up
     type: tip
@@ -59,12 +60,13 @@ reproducibility, maintainability, composability, and shareability.
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](guides/interactivity.md) to Python — no callbacks required
 - 🐍 **git-friendly:** stored as `.py` files
 - 🛢️ **designed for data**: query dataframes, databases, warehouses, and lakehouses [with SQL](guides/working_with_data/sql.md); filter and search [dataframes](guides/working_with_data/dataframes.md)
+- 🤖 **AI-native**: [generate cells with AI](https://docs.marimo.io/guides/generate_with_ai/) tailored for data work
 - 🔬 **reproducible:** [no hidden state](guides/reactivity.md), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
 - 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
 - 🧩 **reusable:** [import functions and classes](guides/reusing_functions.md) from one notebook to another
 - 🧪 **testable:** [run pytest](guides/testing/index.md) on notebooks
-- ⌨️ **a modern editor**: [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), [AI assistants](guides/editor_features/ai_completion.md#using-ollama), vim keybindings, variable explorer, and [more](guides/editor_features/index.md)
+- ⌨️ **a modern editor**: [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), [AI assistants](guides/editor_features/ai_completion.md), vim keybindings, variable explorer, and [more](guides/editor_features/index.md)
 
 ## A reactive programming environment
 
@@ -111,22 +113,27 @@ millions of rows blazingly fast, no code required.
   <source src="/_static/docs-df.webm" type="video/webm">
 </video>
 
-**Performant runtime.** marimo runs only those cells that need to be run by
-statically analyzing your code.
+**Generate cells with data-aware AI.** [Generate code with an AI
+assistant](https://docs.marimo.io/guides/editor_features/ai_completion/) that is highly
+specialized for working with data, with context about your variables in memory;
+[zero-shot entire notebooks](https://docs.marimo.io/guides/generate_with_ai/text_to_notebook/).
+Customize the system prompt, bring your own API keys, or use local models.
 
-**Dynamic markdown and SQL.** Use markdown to tell dynamic stories that depend on
-Python data. Or build [SQL](guides/working_with_data/sql.md) queries
-that depend on Python values and execute them against dataframes, databases,
+<video autoplay muted loop playsinline width="700px" align="center">
+  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
+</video>
+
+**Query data with SQL.** Build [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) queries
+that depend on Python values and execute them against dataframes, databases, lakehouses,
 CSVs, Google Sheets, or anything else using our built-in SQL engine, which
 returns the result as a Python dataframe.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-sql-cell.png" width="700px" />
 
-Your notebooks are still pure Python, even if they use markdown or SQL.
+Your notebooks are still pure Python, even if they use SQL.
 
-**Deterministic execution order.** Notebooks are executed in a deterministic
-order, based on variable references instead of cells' positions on the page.
-Organize your notebooks to best fit the stories you'd like to tell.
+**Dynamic markdown.** Use markdown parametrized by Python variables to tell
+dynamic stories that depend on Python data.
 
 **Built-in package management.** marimo has built-in support for all major
 package managers, letting you [install packages on import](guides/editor_features/package_management.md). marimo can even
@@ -134,6 +141,13 @@ package managers, letting you [install packages on import](guides/editor_feature
 requirements](guides/package_management/inlining_dependencies.md)
 in notebook files, and auto install them in
 isolated venv sandboxes.
+
+**Deterministic execution order.** Notebooks are executed in a deterministic
+order, based on variable references instead of cells' positions on the page.
+Organize your notebooks to best fit the stories you'd like to tell.
+
+**Performant runtime.** marimo runs only those cells that need to be run by
+statically analyzing your code.
 
 **Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code

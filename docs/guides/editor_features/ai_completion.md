@@ -8,6 +8,11 @@ marimo is an AI-native editor, with support for full-cell AI code generation:
 
 as well as inline copilots (like GitHub Copilot).
 
+marimo's AI assistant is specialized for working with data: unlike traditional
+assistants that only have access to the text of your program, marimo's assistant
+has access to the values of variables in memory, letting it code against
+your dataframe and database schemas.
+
 This guide provides an overview of these features and how to configure them.
 
 !!! tip "Locating your marimo.toml config file"
@@ -16,6 +21,10 @@ This guide provides an overview of these features and how to configure them.
     file. Locate this file with `marimo config show | head`.
 
 ## Generating cells with AI
+
+<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
+</video>
 
 marimo has built-in support for generating and refactoring code with LLMs.
 marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google,
