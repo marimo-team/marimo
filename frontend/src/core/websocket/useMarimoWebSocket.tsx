@@ -50,7 +50,7 @@ import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
-import { getRuntimeManager } from "../runtime/config";
+import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
 import { useVariablesActions } from "../variables/state";
@@ -84,6 +84,7 @@ export function useMarimoWebSocket(opts: {
   const { addPackageAlert } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
+  const runtimeManager = useRuntimeManager();
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -276,7 +277,7 @@ export function useMarimoWebSocket(opts: {
     /**
      * Unique URL for this session.
      */
-    url: () => getRuntimeManager().getWsURL(sessionId).toString(),
+    url: () => runtimeManager.getWsURL(sessionId).toString(),
 
     /**
      * Open callback. Set the connection status to open.
