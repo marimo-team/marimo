@@ -509,6 +509,7 @@ wheres = "wheres"
 Ue = "Ue"         # Used in one of the cell IDs
 Nd = "Nd"         # Confused with And
 pn = "pn"         # Panel
+caf = "caf"       # cafe
 
 [tool.typos.files]
 extend-exclude = [
