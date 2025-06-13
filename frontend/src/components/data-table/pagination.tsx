@@ -119,7 +119,7 @@ export const DataTablePagination = <TData,>({
     <div className="flex flex-1 items-center justify-between px-2">
       <div className="flex items-center gap-2">
         <div className="text-sm text-muted-foreground">{renderTotal()}</div>
-        <div className="flex items-center gap-1 text-xs whitespace-nowrap">
+        <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1">
           <Select
             value={pageSize.toString()}
             onValueChange={(value) => table.setPageSize(Number(value))}
