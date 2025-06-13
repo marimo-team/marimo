@@ -60,7 +60,23 @@ const pylspTransport = once(() => {
   return transport;
 });
 
-const lspClient = once((lspConfig: LSPConfig) => {
+const tyTransport = once(() => {
+  const runtimeManager = getRuntimeManager();
+  const transport = new WebSocketTransport(
+    runtimeManager.getLSPURL("ty").toString(),
+  );
+
+  // Override connect to ensure runtime is healthy
+  const originalConnect = transport.connect.bind(transport);
+  transport.connect = async () => {
+    await waitForConnectionOpen();
+    return originalConnect();
+  };
+
+  return transport;
+});
+
+const pylspClient = once((lspConfig: LSPConfig) => {
   const lspClientOpts = {
     transport: pylspTransport(),
     rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
@@ -148,6 +164,25 @@ const lspClient = once((lspConfig: LSPConfig) => {
   );
 });
 
+const tyLspClient = once((_: LSPConfig) => {
+  const lspClientOpts = {
+    transport: tyTransport(),
+    rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
+    workspaceFolders: [],
+  };
+
+  // We wrap the client in a NotebookLanguageServerClient to add some
+  // additional functionality to handle multiple cells
+  return new NotebookLanguageServerClient(
+    new LanguageServerClient({
+      ...lspClientOpts,
+      autoClose: false,
+      getWorkspaceConfiguration: (_) => [{ disableLanguageServices: true }],
+    }),
+    {},
+  );
+});
+
 /**
  * Language adapter for Python.
  */
@@ -196,7 +231,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
       };
 
       if (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) {
-        const client = lspClient(lspConfig);
+        const client = pylspClient(lspConfig);
         return [
           languageServerWithClient({
             client: client as unknown as LanguageServerClient,
@@ -228,6 +263,20 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
                 path: result.uri.replace("file://", ""),
               });
             },
+          }),
+          documentUri.of(CellDocumentUri.of(cellId)),
+        ];
+      }
+
+      if (lspConfig?.ty?.enabled && hasCapability("ty")) {
+        const client = tyLspClient(lspConfig);
+        return [
+          languageServerWithClient({
+            client: client as unknown as LanguageServerClient,
+            languageId: "python",
+            allowHTMLContent: true,
+            hoverConfig: hoverOptions,
+            diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
           }),
           documentUri.of(CellDocumentUri.of(cellId)),
         ];
