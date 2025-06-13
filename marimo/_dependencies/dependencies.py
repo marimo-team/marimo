@@ -196,6 +196,7 @@ class DependencyManager:
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
     pylsp = Dependency("pylsp")
+    ty = Dependency("ty")
     pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
