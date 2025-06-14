@@ -312,6 +312,9 @@ importers:
       jotai:
         specifier: ^2.12.3
         version: 2.12.3(@types/react@19.1.7)(react@19.1.0)
+      jotai-scope:
+        specifier: ^0.7.3
+        version: 0.7.3(jotai@2.12.3(@types/react@19.1.7)(react@19.1.0))
       js-cookie:
         specifier: ^3.0.5
         version: 3.0.5
@@ -6273,6 +6276,12 @@ packages:
   jiti@1.21.7:
     resolution: {integrity: sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==}
     hasBin: true
+
+  jotai-scope@0.7.3:
+    resolution: {integrity: sha512-8MSlj62XwWE/AHXU0MKpNjvrl7ZBx38B4p/3474uayljrYIQEHgZDTTjTRZqvPeG/1H+4Owod7l0OTA4ztvA+g==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      jotai: '>=2.9.3'
 
   jotai@2.12.3:
     resolution: {integrity: sha512-DpoddSkmPGXMFtdfnoIHfueFeGP643nqYUWC6REjUcME+PG2UkAtYnLbffRDw3OURI9ZUTcRWkRGLsOvxuWMCg==}
@@ -16181,6 +16190,10 @@ snapshots:
       supports-color: 8.1.1
 
   jiti@1.21.7: {}
+
+  jotai-scope@0.7.3(jotai@2.12.3(@types/react@19.1.7)(react@19.1.0)):
+    dependencies:
+      jotai: 2.12.3(@types/react@19.1.7)(react@19.1.0)
 
   jotai@2.12.3(@types/react@19.1.7)(react@19.1.0):
     optionalDependencies:
