@@ -16,6 +16,10 @@ export function getCellValues<TData>(
   for (const cellId of selectedCellIds) {
     const [rowId] = cellId.split("_"); // CellId is rowId_columnId
     const row = table.getRow(rowId);
+    if (!row) {
+      continue;
+    }
+
     const tableCell = row.getAllCells().find((c) => c.id === cellId);
     if (!tableCell) {
       continue;
@@ -34,18 +38,22 @@ export function getCellValues<TData>(
  */
 export function getCellsBetween<TData>(
   table: Table<TData>,
-  cellStart: SelectedCell,
-  cellEnd: SelectedCell,
+  startCell: SelectedCell,
+  endCell: SelectedCell,
 ): string[] {
-  const startRow = table.getRow(cellStart.rowId);
-  const endRow = table.getRow(cellEnd.rowId);
+  const startRow = table.getRow(startCell.rowId);
+  const endRow = table.getRow(endCell.rowId);
+
+  if (!startRow || !endRow) {
+    return [];
+  }
 
   const startRowIdx = startRow.index;
   const endRowIdx = endRow.index;
-  const startColumnIdx = table.getColumn(cellStart.columnId)?.getIndex();
-  const endColumnIdx = table.getColumn(cellEnd.columnId)?.getIndex();
+  const startColumnIdx = table.getColumn(startCell.columnId)?.getIndex();
+  const endColumnIdx = table.getColumn(endCell.columnId)?.getIndex();
 
-  if (!startColumnIdx || !endColumnIdx) {
+  if (startColumnIdx === undefined || endColumnIdx === undefined) {
     return [];
   }
 

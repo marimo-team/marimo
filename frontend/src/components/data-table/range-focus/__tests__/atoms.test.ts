@@ -10,6 +10,7 @@ vi.mock("@/utils/copy", () => ({
 }));
 
 vi.mock("../utils", async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const original = (await importOriginal()) as any;
   return {
     ...original,
@@ -240,7 +241,6 @@ describe("cell selection atoms", () => {
 
       expect(getCellsBetween).toHaveBeenCalledWith(
         mockTable,
-        mockTable.getRowModel().rows,
         startCell,
         newCell,
       );
@@ -330,7 +330,7 @@ describe("cell selection atoms", () => {
 
       expect(getCellValues).toHaveBeenCalledWith(mockTable, selectedCells);
       expect(copyToClipboard).toHaveBeenCalledWith("mocked cell values");
-      expect(onCopyComplete).toHaveBeenCalledWith(selectedCells);
+      expect(onCopyComplete).toHaveBeenCalledWith();
       expect(state.copiedCells).toEqual(selectedCells);
     });
   });
@@ -722,7 +722,7 @@ describe("cell selection atoms", () => {
       });
 
       expect(copyToClipboard).toHaveBeenCalled();
-      expect(onCopyComplete).toHaveBeenCalledWith(selectedCells);
+      expect(onCopyComplete).toHaveBeenCalledWith();
       expect(state.copiedCells).toEqual(selectedCells);
     });
 
