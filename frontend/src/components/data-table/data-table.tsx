@@ -35,6 +35,7 @@ import type { DownloadActionProps } from "./download-actions";
 import { FilterPills } from "./filter-pills";
 import { FocusRowFeature } from "./focus-row/feature";
 import { useColumnPinning } from "./hooks/use-column-pinning";
+import { CellSelectionProvider } from "./range-focus/provider";
 import { DataTableBody, renderTableHeader } from "./renderers";
 import { SearchBar } from "./SearchBar";
 import { TableActions } from "./TableActions";
@@ -232,13 +233,15 @@ const DataTableInternal = <TData,>({
         )}
         <Table>
           {renderTableHeader(table)}
-          <DataTableBody
-            table={table}
-            columns={columns}
-            rowViewerPanelOpen={rowViewerPanelOpen}
-            getRowIndex={getPaginatedRowIndex}
-            viewedRowIdx={viewedRowIdx}
-          />
+          <CellSelectionProvider>
+            <DataTableBody
+              table={table}
+              columns={columns}
+              rowViewerPanelOpen={rowViewerPanelOpen}
+              getRowIndex={getPaginatedRowIndex}
+              viewedRowIdx={viewedRowIdx}
+            />
+          </CellSelectionProvider>
         </Table>
       </div>
       <TableActions
