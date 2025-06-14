@@ -14,7 +14,7 @@ export const ConnectingAlert: React.FC = () => {
     <FloatingAlert title="Connecting" show={isConnecting} delayMs={DELAY_MS}>
       <div className="flex items-center gap-2">
         <Spinner className="h-4 w-4" />
-        <p>Establishing a connection to a marimo runtime...</p>
+        <p>Connecting to a marimo runtime ...</p>
       </div>
     </FloatingAlert>
   );
