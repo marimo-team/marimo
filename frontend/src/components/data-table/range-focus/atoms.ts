@@ -79,10 +79,8 @@ const {
     },
   ) => {
     if (isShiftKey && state.selectedStartCell) {
-      const rows = table.getRowModel().rows;
       const cellsInRange = getCellsBetween(
         table,
-        rows,
         state.selectedStartCell,
         newCell,
       );
@@ -120,10 +118,8 @@ const {
       cellId: cell.id,
     };
 
-    const rows = table.getRowModel().rows;
     const cellsInRange = getCellsBetween(
       table,
-      rows,
       state.selectedStartCell,
       selectedCell,
     );
@@ -140,12 +136,12 @@ const {
       onCopyComplete,
     }: {
       table: AnyTable;
-      onCopyComplete: (cells: SelectedCells) => void;
+      onCopyComplete: () => void;
     },
   ) => {
     const text = getCellValues(table, state.selectedCells);
     copyToClipboard(text);
-    onCopyComplete(state.selectedCells);
+    onCopyComplete();
 
     return {
       ...state,
@@ -221,10 +217,8 @@ const {
     };
 
     if (isShiftKey && state.selectedStartCell) {
-      const rows = table.getRowModel().rows;
       const cellsInRange = getCellsBetween(
         table,
-        rows,
         state.selectedStartCell,
         newCell,
       );
@@ -263,10 +257,8 @@ const {
     };
 
     if (isShiftKey && state.selectedStartCell) {
-      const rows = table.getRowModel().rows;
       const cellsInRange = getCellsBetween(
         table,
-        rows,
         state.selectedStartCell,
         selectedCell,
       );

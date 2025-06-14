@@ -1,9 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Row, Table } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import { renderUnknownValue } from "../renderers";
 import type { SelectedCell } from "./atoms";
 
+/**
+ * Get the values of the selected cells.
+ */
 export function getCellValues<TData>(
   table: Table<TData>,
   selectedCellIds: Set<string>,
@@ -26,35 +29,25 @@ export function getCellValues<TData>(
   return [...rowValues.values()].map((values) => values.join("\t")).join("\n");
 }
 
-// Returns the cell ids between two cells.
+/**
+ * Get the cell ids between two cells.
+ */
 export function getCellsBetween<TData>(
   table: Table<TData>,
-  rows: Array<Row<TData>>,
   cellStart: SelectedCell,
   cellEnd: SelectedCell,
 ): string[] {
   const startRow = table.getRow(cellStart.rowId);
   const endRow = table.getRow(cellEnd.rowId);
 
-  if (!startRow || !endRow) {
-    return [];
-  }
-
-  // TODO: this can be O(1) instead of O(n)
-  // but tanstack does not expose an API
-  const startCell = startRow
-    .getAllCells()
-    .find((c) => c.id === cellStart.cellId);
-  const endCell = endRow.getAllCells().find((c) => c.id === cellEnd.cellId);
-
-  if (!startCell || !endCell) {
-    return [];
-  }
-
   const startRowIdx = startRow.index;
   const endRowIdx = endRow.index;
-  const startColumnIdx = startCell.column.getIndex();
-  const endColumnIdx = endCell.column.getIndex();
+  const startColumnIdx = table.getColumn(cellStart.columnId)?.getIndex();
+  const endColumnIdx = table.getColumn(cellEnd.columnId)?.getIndex();
+
+  if (!startColumnIdx || !endColumnIdx) {
+    return [];
+  }
 
   const minRow = Math.min(startRowIdx, endRowIdx);
   const maxRow = Math.max(startRowIdx, endRowIdx);
@@ -67,17 +60,28 @@ export function getCellsBetween<TData>(
   result.length = totalCells;
   let resultIndex = 0;
 
+  const columnIds = table.getAllColumns().map((col) => col.id);
+  const rows = table.getRowModel().rows;
+
   for (let i = minRow; i <= maxRow; i++) {
     const row = rows[i];
-    const cells = row.getAllCells();
+    const rowId = row.id;
 
     for (let j = minCol; j <= maxCol; j++) {
-      const cell = cells[j];
-      result[resultIndex++] = cell.id;
+      const columnId = columnIds[j];
+      result[resultIndex++] = getCellId(rowId, columnId);
     }
   }
 
   // Trim any unused slots
   result.length = resultIndex;
   return result;
+}
+
+/**
+ * By default, the cell id is the row id and the column id separated by an underscore.
+ * https://tanstack.com/table/latest/docs/guide/cells#cell-ids
+ */
+function getCellId(rowId: string, columnId: string) {
+  return `${rowId}_${columnId}`;
 }

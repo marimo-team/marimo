@@ -2,12 +2,7 @@
 
 import type { Cell, Table } from "@tanstack/react-table";
 import useEvent from "react-use-event-hook";
-import { Logger } from "@/utils/Logger";
-import {
-  type SelectedCell,
-  type SelectedCells,
-  useCellSelectionReducerActions,
-} from "./atoms";
+import { type SelectedCell, useCellSelectionReducerActions } from "./atoms";
 
 export interface UseCellRangeSelectionProps<TData> {
   table: Table<TData>;
@@ -25,7 +20,7 @@ export const useCellRangeSelection = <TData>({
   const handleCopy = useEvent(() => {
     actions.handleCopy({
       table,
-      onCopyComplete: (cells: SelectedCells) => {
+      onCopyComplete: () => {
         // Auto-clear after 500ms
         setTimeout(() => {
           actions.setCopiedCells(new Set());
@@ -97,8 +92,6 @@ export const useCellRangeSelection = <TData>({
       }
     },
   );
-
-  Logger.debug("[table] Rendering cell selection actions");
 
   return {
     handleCellMouseDown,
