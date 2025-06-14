@@ -95,15 +95,15 @@ export function dynamicReadonly(store: ReturnType<typeof createStore>) {
 
     function attachListeners() {
       if (!listenersAttached) {
-        dom.addEventListener("keydown", onUserInput, true);
-        dom.addEventListener("paste", onUserInput, true);
+        dom.addEventListener("keydown", onUserInput, { capture: true });
+        dom.addEventListener("paste", onUserInput, { capture: true });
         listenersAttached = true;
       }
     }
     function detachListeners() {
       if (listenersAttached) {
-        dom.removeEventListener("keydown", onUserInput, true);
-        dom.removeEventListener("paste", onUserInput, true);
+        dom.removeEventListener("keydown", onUserInput, { capture: true });
+        dom.removeEventListener("paste", onUserInput, { capture: true });
         listenersAttached = false;
       }
     }
