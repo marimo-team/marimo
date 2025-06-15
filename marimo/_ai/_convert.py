@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING, Any, Literal
 
 from marimo._ai._types import ChatMessage
+from marimo._server.ai.tools import Tool
 
 if TYPE_CHECKING:
     from google.genai.types import (  # type: ignore[import-not-found]
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     )
 
 
+# Message conversions
 def convert_to_openai_messages(
     messages: list[ChatMessage],
 ) -> list[dict[Any, Any]]:
@@ -188,3 +190,44 @@ def convert_to_ai_sdk_messages(
     else:
         # Default to text for unknown types
         return f"{TEXT_PREFIX}{json.dumps(content_text)}\n"
+
+
+# Tool conversions
+def convert_to_openai_tools(tools: list[Tool]) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": tool.parameters,
+            },
+        }
+        for tool in tools
+    ]
+
+
+def convert_to_anthropic_tools(tools: list[Tool]) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": tool.name,
+            "description": tool.description,
+            "input_schema": tool.parameters,
+        }
+        for tool in tools
+    ]
+
+
+def convert_to_google_tools(tools: list[Tool]) -> list[dict[str, Any]]:
+    return [
+        {
+            "function_declarations": [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.parameters,
+                }
+            ]
+        }
+        for tool in tools
+    ]
