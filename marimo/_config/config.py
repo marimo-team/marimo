@@ -230,7 +230,7 @@ class AiConfig(TypedDict, total=False):
 
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
-    - `mode`: the mode to use for AI completions. Can be one of: <MODES>
+    - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
@@ -244,12 +244,6 @@ class AiConfig(TypedDict, total=False):
     anthropic: AnthropicConfig
     google: GoogleAiConfig
     bedrock: BedrockConfig
-
-
-# Assign dynamic docstring for AiConfig
-AiConfig.__doc__ = AiConfig.__doc__.replace(
-    "<MODES>", ", ".join(CopilotMode.__args__)
-)
 
 
 @dataclass
