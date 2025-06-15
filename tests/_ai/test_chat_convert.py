@@ -5,16 +5,21 @@ import base64
 import pytest
 
 from marimo._ai._convert import (
+    convert_to_ai_sdk_messages,
     convert_to_anthropic_messages,
+    convert_to_anthropic_tools,
     convert_to_google_messages,
+    convert_to_google_tools,
     convert_to_groq_messages,
     convert_to_openai_messages,
+    convert_to_openai_tools,
 )
 from marimo._ai._types import (
     ChatAttachment,
     ChatMessage,
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
+from marimo._server.ai.tools import Tool
 
 
 @pytest.fixture
@@ -238,3 +243,74 @@ def test_from_chat_message_dict():
     result_existing = from_chat_message_dict(existing_chat_message)
 
     assert result_existing is existing_chat_message
+
+
+@pytest.fixture
+def sample_tools():
+    return [
+        Tool(
+            name="test_tool",
+            description="A test tool",
+            parameters={
+                "type": "object",
+                "properties": {"x": {"type": "integer"}},
+            },
+            source="mcp",
+            mode=["manual"],
+        )
+    ]
+
+
+def test_convert_to_openai_tools(sample_tools):
+    result = convert_to_openai_tools(sample_tools)
+    assert len(result) == 1
+    assert result[0]["type"] == "function"
+    assert result[0]["function"]["name"] == "test_tool"
+    assert result[0]["function"]["description"] == "A test tool"
+    assert result[0]["function"]["parameters"] == {
+        "type": "object",
+        "properties": {"x": {"type": "integer"}},
+    }
+
+
+def test_convert_to_anthropic_tools(sample_tools):
+    result = convert_to_anthropic_tools(sample_tools)
+    assert len(result) == 1
+    assert result[0]["name"] == "test_tool"
+    assert result[0]["description"] == "A test tool"
+    assert result[0]["input_schema"] == {
+        "type": "object",
+        "properties": {"x": {"type": "integer"}},
+    }
+
+
+def test_convert_to_google_tools(sample_tools):
+    result = convert_to_google_tools(sample_tools)
+    assert len(result) == 1
+    assert "function_declarations" in result[0]
+    assert result[0]["function_declarations"][0]["name"] == "test_tool"
+    assert (
+        result[0]["function_declarations"][0]["description"] == "A test tool"
+    )
+    assert result[0]["function_declarations"][0]["parameters"] == {
+        "type": "object",
+        "properties": {"x": {"type": "integer"}},
+    }
+
+
+def test_convert_to_ai_sdk_messages():
+    import json
+
+    # Test text type
+    text = "hello world"
+    result = convert_to_ai_sdk_messages(text, "text")
+    assert result == f"0:{json.dumps(text)}\n"
+
+    # Test reasoning type
+    reasoning = "step by step"
+    result = convert_to_ai_sdk_messages(reasoning, "reasoning")
+    assert result == f"g:{json.dumps(reasoning)}\n"
+
+    # Test unknown type defaults to text
+    result = convert_to_ai_sdk_messages("fallback", "unknown")
+    assert result == f"0:{json.dumps('fallback')}\n"
