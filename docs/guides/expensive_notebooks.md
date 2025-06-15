@@ -62,6 +62,16 @@ helpful when you want to edit one part of a notebook without triggering
 execution of other parts. See the
 [reactivity guide](../guides/reactivity.md#disabling-cells) for more info.
 
+## Automatic snapshotting as HTML or ipynb
+
+To keep a record of your cell outputs while working on your
+notebook, you can configure notebooks to automatically save as HTML or ipynb
+through the notebook menu (these files are saved in addition to the
+notebook's `.py` file). Snapshots are saved to a folder called
+`__marimo__` in the notebook directory.
+
+Learn more about exporting notebooks in our [exporting guide](../guides/exporting.md).
+
 ## Caching
 
 marimo provides two caching utilities to help you manage expensive computations:
