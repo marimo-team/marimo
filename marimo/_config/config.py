@@ -219,6 +219,9 @@ class PackageManagementConfig(TypedDict):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
+CopilotMode = Literal["ask", "manual"]
+
+
 @dataclass
 class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
@@ -227,6 +230,7 @@ class AiConfig(TypedDict, total=False):
 
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
+    - `mode`: the mode to use for AI completions. Can be one of: <MODES>
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
@@ -235,10 +239,17 @@ class AiConfig(TypedDict, total=False):
 
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
+    mode: NotRequired[CopilotMode]
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig
     bedrock: BedrockConfig
+
+
+# Assign dynamic docstring for AiConfig
+AiConfig.__doc__ = AiConfig.__doc__.replace(
+    "<MODES>", ", ".join(CopilotMode.__args__)
+)
 
 
 @dataclass

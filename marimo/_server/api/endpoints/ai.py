@@ -149,6 +149,7 @@ async def ai_chat(
         custom_rules=custom_rules,
         context=body.context,
         include_other_code=body.include_other_code,
+        mode=ai_config.get("mode", "manual"),
     )
 
     max_tokens = get_max_tokens(config)
