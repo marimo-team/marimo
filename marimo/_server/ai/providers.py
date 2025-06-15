@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -21,11 +21,19 @@ from marimo import _loggers
 from marimo._ai._convert import (
     convert_to_ai_sdk_messages,
     convert_to_anthropic_messages,
+    convert_to_anthropic_tools,
     convert_to_google_messages,
+    convert_to_google_tools,
     convert_to_openai_messages,
+    convert_to_openai_tools,
 )
 from marimo._ai._types import ChatMessage
-from marimo._config.config import AiConfig, CompletionConfig, MarimoConfig
+from marimo._config.config import (
+    AiConfig,
+    CompletionConfig,
+    CopilotMode,
+    MarimoConfig,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.status import HTTPStatus
 
@@ -60,6 +68,8 @@ if TYPE_CHECKING:
         ChatCompletionChunk,
     )
 
+    from marimo._server.ai.tools import Tool
+
 
 ResponseT = TypeVar("ResponseT")
 StreamT = TypeVar("StreamT")
@@ -84,6 +94,7 @@ class AnyProviderConfig:
     ssl_verify: Optional[bool] = None
     ca_bundle_path: Optional[str] = None
     client_pem: Optional[str] = None
+    tools: list[Tool] = field(default_factory=list)
 
     @staticmethod
     def for_openai(config: AiConfig) -> AnyProviderConfig:
@@ -99,6 +110,7 @@ class AnyProviderConfig:
             ssl_verify=config["open_ai"].get("ssl_verify", True),
             ca_bundle_path=config["open_ai"].get("ca_bundle_path", None),
             client_pem=config["open_ai"].get("client_pem", None),
+            tools=_get_tools(config.get("mode", "manual")),
         )
 
     @staticmethod
@@ -112,6 +124,7 @@ class AnyProviderConfig:
         return AnyProviderConfig(
             base_url=_get_base_url(config["anthropic"]),
             api_key=key,
+            tools=_get_tools(config.get("mode", "manual")),
         )
 
     @staticmethod
@@ -125,6 +138,7 @@ class AnyProviderConfig:
         return AnyProviderConfig(
             base_url=_get_base_url(config["google"]),
             api_key=key,
+            tools=_get_tools(config.get("mode", "manual")),
         )
 
     @staticmethod
@@ -138,6 +152,7 @@ class AnyProviderConfig:
         return AnyProviderConfig(
             base_url=_get_base_url(config["bedrock"], "Bedrock"),
             api_key=key,
+            tools=_get_tools(config.get("mode", "manual")),
         )
 
     @staticmethod
@@ -146,6 +161,7 @@ class AnyProviderConfig:
         return AnyProviderConfig(
             base_url=_get_base_url(config),
             api_key=key,
+            tools=[],  # Inline completion never uses tools
         )
 
     @staticmethod
@@ -190,6 +206,14 @@ def _get_base_url(config: Any, name: str = "") -> Optional[str]:
     elif "base_url" in config:
         return cast(str, config["base_url"])
     return None
+
+
+def _get_tools(mode: CopilotMode) -> list[Tool]:
+    if mode == "ask":
+        # TODO: add tools
+        return []
+    else:  # manual mode = no tools
+        return []
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
@@ -380,6 +404,7 @@ class OpenAIProvider(
             "max_completion_tokens": max_tokens,
             "stream": True,
             "timeout": 15,
+            "tools": convert_to_openai_tools(self.config.tools),
         }
         if self.is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
@@ -474,6 +499,7 @@ class AnthropicProvider(
                 Any,
                 convert_to_anthropic_messages(messages),
             ),
+            "tools": convert_to_anthropic_tools(self.config.tools),
             "system": system_prompt,
             "stream": True,
             "temperature": self.get_temperature(),
@@ -535,6 +561,7 @@ class GoogleProvider(
             "system_instruction": system_prompt,
             "temperature": 0,
             "max_output_tokens": max_tokens,
+            "tools": convert_to_google_tools(self.config.tools),
         }
         if self.is_thinking_model(self.model):
             config["thinking_config"] = {
@@ -633,6 +660,7 @@ class BedrockProvider(
             max_completion_tokens=max_tokens,
             stream=True,
             timeout=15,
+            tools=convert_to_openai_tools(self.config.tools),
         )
 
     def extract_content(
