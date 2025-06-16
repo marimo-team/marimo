@@ -68,7 +68,7 @@ function useRunCells() {
         // Prefer code from editor
         code = getEditorCodeAsPython(ev);
       } else {
-        code = cellData[cellId].code || "";
+        code = cellData[cellId]?.code || "";
       }
 
       codes.push(code);
