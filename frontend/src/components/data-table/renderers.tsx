@@ -20,6 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
+import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
+import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -62,14 +64,29 @@ export function renderTableHeader<TData>(
   );
 }
 
-export function renderTableBody<TData>(
-  table: Table<TData>,
-  columns: Array<ColumnDef<TData>>,
-  rowViewerPanelOpen: boolean,
-  getRowIndex?: (row: TData, idx: number) => number,
-  viewedRowIdx?: number,
-): JSX.Element {
-  const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
+interface DataTableBodyProps<TData> {
+  table: Table<TData>;
+  columns: Array<ColumnDef<TData>>;
+  rowViewerPanelOpen: boolean;
+  getRowIndex?: (row: TData, idx: number) => number;
+  viewedRowIdx?: number;
+}
+
+export const DataTableBody = <TData,>({
+  table,
+  columns,
+  rowViewerPanelOpen,
+  getRowIndex,
+  viewedRowIdx,
+}: DataTableBodyProps<TData>) => {
+  const {
+    handleCellMouseDown,
+    handleCellMouseUp,
+    handleCellMouseOver,
+    handleCellsKeyDown,
+  } = useCellRangeSelection({ table });
+
+  const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
       const style = Object.assign(
@@ -79,9 +96,10 @@ export function renderTableBody<TData>(
       );
       return (
         <TableCell
+          tabIndex={0}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px]",
+            "whitespace-pre truncate max-w-[300px] select-none outline-none",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
@@ -90,8 +108,14 @@ export function renderTableBody<TData>(
           )}
           style={style}
           title={String(cell.getValue())}
+          onMouseDown={(e) => handleCellMouseDown(e, cell)}
+          onMouseUp={handleCellMouseUp}
+          onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          <CellRangeSelectionIndicator cellId={cell.id} />
+          <div className="relative">
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </div>
         </TableCell>
       );
     });
@@ -103,7 +127,7 @@ export function renderTableBody<TData>(
   };
 
   return (
-    <TableBody>
+    <TableBody onKeyDown={handleCellsKeyDown}>
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => {
           // Only find the row index if the row viewer panel is open
@@ -126,9 +150,9 @@ export function renderTableBody<TData>(
               )}
               onClick={() => handleRowClick(row)}
             >
-              {renderCells(row, row.getLeftVisibleCells())}
-              {renderCells(row, row.getCenterVisibleCells())}
-              {renderCells(row, row.getRightVisibleCells())}
+              {renderCells(row.getLeftVisibleCells())}
+              {renderCells(row.getCenterVisibleCells())}
+              {renderCells(row.getRightVisibleCells())}
             </TableRow>
           );
         })
@@ -141,7 +165,7 @@ export function renderTableBody<TData>(
       )}
     </TableBody>
   );
-}
+};
 
 function getPinningStyles<TData>(
   column: Column<TData>,
