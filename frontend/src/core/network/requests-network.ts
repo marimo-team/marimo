@@ -82,14 +82,16 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/shutdown")
         .then(handleResponseReturnNull);
     },
-    sendRun: (request) => {
+    sendRun: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/run", {
           body: request,
         })
         .then(handleResponseReturnNull);
     },
-    sendRunScratchpad: (request) => {
+    sendRunScratchpad: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/scratchpad/run", {
           body: request,

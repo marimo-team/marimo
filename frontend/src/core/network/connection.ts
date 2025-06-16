@@ -21,3 +21,8 @@ export const isConnectingAtom = atom((get) => {
   const connection = get(connectionAtom);
   return connection.state === WebSocketState.CONNECTING;
 });
+
+export const isConnectedAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return connection.state === WebSocketState.OPEN;
+});
