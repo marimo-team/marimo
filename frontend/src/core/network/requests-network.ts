@@ -34,7 +34,8 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/restart_session")
         .then(handleResponseReturnNull);
     },
-    syncCellIds: (request) => {
+    syncCellIds: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/sync/cell_ids", {
           body: request,
@@ -95,7 +96,8 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendInstantiate: (request) => {
+    sendInstantiate: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/instantiate", {
           body: request,
@@ -109,7 +111,8 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
-    sendCodeCompletionRequest: (request) => {
+    sendCodeCompletionRequest: async (request) => {
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/code_autocomplete", {
           body: request,
