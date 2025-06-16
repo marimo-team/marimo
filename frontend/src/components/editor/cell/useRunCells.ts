@@ -55,7 +55,7 @@ function useRunCells() {
     const codes: string[] = [];
     for (const cellId of cellIds) {
       const ref = cellHandles[cellId];
-      const ev = ref.current?.editorView;
+      const ev = ref?.current?.editorView;
       let code: string;
       // Performs side-effects that must run whenever the cell is run, but doesn't
       // actually run the cell.
@@ -68,7 +68,7 @@ function useRunCells() {
         // Prefer code from editor
         code = getEditorCodeAsPython(ev);
       } else {
-        code = cellData[cellId].code;
+        code = cellData[cellId]?.code || "";
       }
 
       codes.push(code);
