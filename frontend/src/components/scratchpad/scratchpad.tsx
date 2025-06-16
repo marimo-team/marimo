@@ -67,7 +67,7 @@ export const ScratchPad: React.FC = () => {
   const history = useAtomValue(scratchpadHistoryAtom);
 
   const handleRun = useEvent(() => {
-    sendRunScratchpad({ code });
+    void sendRunScratchpad({ code });
     addToHistory(code);
   });
 
@@ -88,7 +88,7 @@ export const ScratchPad: React.FC = () => {
       code: "",
       formattingChange: false,
     });
-    sendRunScratchpad({ code: "" });
+    void sendRunScratchpad({ code: "" });
     const ev = ref.current;
     if (ev) {
       ev.dispatch({

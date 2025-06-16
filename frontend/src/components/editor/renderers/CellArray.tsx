@@ -23,6 +23,7 @@ import type { CellId } from "@/core/cells/ids";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
+import { isConnectedAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
@@ -295,6 +296,7 @@ const AddCellButtons: React.FC<{
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
+  const isConnected = useAtomValue(isConnectedAtom);
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
@@ -312,6 +314,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
+          disabled={!isConnected}
           onClick={() =>
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -326,6 +329,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
+          disabled={!isConnected}
           onClick={() => {
             maybeAddMarimoImport(autoInstantiate, createNewCell);
 
@@ -343,6 +347,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
+          disabled={!isConnected}
           onClick={() => {
             maybeAddMarimoImport(autoInstantiate, createNewCell);
 
@@ -367,7 +372,7 @@ const AddCellButtons: React.FC<{
             className={buttonClass}
             variant="text"
             size="sm"
-            disabled={!aiEnabled}
+            disabled={!aiEnabled || !isConnected}
             onClick={isAiButtonOpenActions.toggle}
           >
             <SparklesIcon className="mr-2 size-4 flex-shrink-0" />
