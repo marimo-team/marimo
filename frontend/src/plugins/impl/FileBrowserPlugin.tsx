@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useQuery } from "@tanstack/react-query";
 import { CornerLeftUp } from "lucide-react";
 import { type JSX, useState } from "react";
 import { z } from "zod";
@@ -14,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
@@ -139,13 +139,11 @@ export const FileBrowser = ({
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
 
-  const { data, error, isPending } = useAsyncData(
-    () =>
-      list_directory({
-        path: path,
-      }),
-    [path],
-  );
+  const { data: files, error, isPending } = useQuery({
+    queryKey: ["list_directory", path],
+    queryFn: () => list_directory({ path }),
+    select: ({ files }) => files,
+  });
 
   if (error) {
     Logger.error(error);
@@ -158,11 +156,6 @@ export const FileBrowser = ({
 
   if (isPending) {
     return null;
-  }
-
-  let { files } = data || {};
-  if (files === undefined) {
-    files = [];
   }
 
   const pathBuilder = PathBuilder.guessDeliminator(initialPath);
