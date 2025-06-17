@@ -1,8 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Cell, Table } from "@tanstack/react-table";
+import { useAtomValue } from "jotai";
 import useEvent from "react-use-event-hook";
-import { type SelectedCell, useCellSelectionReducerActions } from "./atoms";
+import {
+  cellSelectionStateAtom,
+  type SelectedCell,
+  useCellSelectionReducerActions,
+} from "./atoms";
 
 export interface UseCellRangeSelectionProps<TData> {
   table: Table<TData>;
@@ -16,6 +21,7 @@ export const useCellRangeSelection = <TData>({
   table,
 }: UseCellRangeSelectionProps<TData>) => {
   const actions = useCellSelectionReducerActions();
+  const cellSelectionState = useAtomValue(cellSelectionStateAtom);
 
   const handleCopy = useEvent(() => {
     actions.handleCopy({
@@ -66,6 +72,23 @@ export const useCellRangeSelection = <TData>({
       case "ArrowRight":
         e.preventDefault();
         navigate(e, "right");
+        break;
+      case "Enter": {
+        const currentCell = cellSelectionState.focusedCell;
+        if (currentCell?.rowId) {
+          const row = table.getRow(currentCell.rowId);
+          row?.toggleSelected?.();
+        }
+        break;
+      }
+      case "Escape":
+        actions.clearSelection();
+        break;
+      case "a":
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          actions.selectAllCells(table);
+        }
         break;
     }
   });

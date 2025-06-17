@@ -66,6 +66,15 @@ const {
       focusedCell: null,
     };
   },
+  selectAllCells: (state, table: AnyTable) => {
+    const allCells = table
+      .getRowModel()
+      .rows.flatMap((row) => row.getAllCells().map((cell) => cell.id));
+    return {
+      ...state,
+      selectedCells: new Set(allCells),
+    };
+  },
   updateSelection: (
     state,
     {
