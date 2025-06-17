@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import * as msw from "msw";
 import { setupServer } from "msw/node";
@@ -20,6 +21,20 @@ function createPackageMock(options: {
     },
     releases: Object.fromEntries(options.versions.map((v) => [v, []])),
   };
+}
+
+function createWrapper(): React.FC<{ children: React.ReactNode }> {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  // eslint-disable-next-line react/display-name
+  return ({ children }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 }
 
 describe("usePackageMetadata", () => {
@@ -52,10 +67,12 @@ describe("usePackageMetadata", () => {
         );
       }),
     );
-    const { result } = renderHook(() => usePackageMetadata("numpy"));
+    const { result } = renderHook(() => usePackageMetadata("numpy"), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.isPending).toBe(true);
     expect(result.current.data).toBeUndefined();
-    expect(result.current.error).toBeUndefined();
+    expect(result.current.error).toBeNull();
   });
 
   it("should fetch and return package metadata successfully", async () => {
@@ -70,14 +87,16 @@ describe("usePackageMetadata", () => {
       }),
     );
 
-    const { result } = renderHook(() => usePackageMetadata("pandas"));
+    const { result } = renderHook(() => usePackageMetadata("pandas"), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(result.current.data).toEqual({
       versions: ["2.0.0", "1.5.3", "1.4.0"],
       extras: ["test", "performance", "plotting"],
     });
-    expect(result.current.error).toBeUndefined();
+    expect(result.current.error).toBeNull();
   });
 
   it("should handle packages with no extras", async () => {
@@ -92,13 +111,15 @@ describe("usePackageMetadata", () => {
       ),
     );
 
-    const { result } = renderHook(() => usePackageMetadata("requests"));
+    const { result } = renderHook(() => usePackageMetadata("requests"), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(result.current.data).toEqual({
       versions: ["2.28.0", "2.27.1"],
       extras: [],
     });
-    expect(result.current.error).toBeUndefined();
+    expect(result.current.error).toBeNull();
   });
 
   it("should handle network errors", async () => {
@@ -108,7 +129,9 @@ describe("usePackageMetadata", () => {
       ),
     );
 
-    const { result } = renderHook(() => usePackageMetadata("nonexistent"));
+    const { result } = renderHook(() => usePackageMetadata("nonexistent"), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(result.current.data).toBeUndefined();
     expect(result.current.error).toBeInstanceOf(Error);
@@ -126,8 +149,9 @@ describe("usePackageMetadata", () => {
       ),
     );
 
-    const { result } = renderHook(() =>
-      usePackageMetadata("package-name[extra1,extra2]"),
+    const { result } = renderHook(
+      () => usePackageMetadata("package-name[extra1,extra2]"),
+      { wrapper: createWrapper() },
     );
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(result.current.data).toEqual({
@@ -148,7 +172,9 @@ describe("usePackageMetadata", () => {
       ),
     );
 
-    const { result } = renderHook(() => usePackageMetadata("scipy"));
+    const { result } = renderHook(() => usePackageMetadata("scipy"), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(result.current.data).toMatchInlineSnapshot(`
       {
@@ -171,8 +197,9 @@ describe("usePackageMetadata", () => {
       ),
     );
 
-    const { result } = renderHook(() =>
-      usePackageMetadata("package-not-found"),
+    const { result } = renderHook(
+      () => usePackageMetadata("package-not-found"),
+      { wrapper: createWrapper() },
     );
     await waitFor(() => expect(result.current.isPending).toBe(false));
     expect(result.current.data).toBeUndefined();
@@ -193,9 +220,12 @@ describe("usePackageMetadata", () => {
       }),
     );
 
+    const wrapper = createWrapper();
+
     // First
-    const { result: result1 } = renderHook(() =>
-      usePackageMetadata("cached-package"),
+    const { result: result1 } = renderHook(
+      () => usePackageMetadata("cached-package"),
+      { wrapper },
     );
 
     await waitFor(() => expect(result1.current.isPending).toBe(false));
@@ -206,8 +236,9 @@ describe("usePackageMetadata", () => {
     expect(callCount).toBe(1);
 
     // Second
-    const { result: result2 } = renderHook(() =>
-      usePackageMetadata("cached-package"),
+    const { result: result2 } = renderHook(
+      () => usePackageMetadata("cached-package"),
+      { wrapper },
     );
     await waitFor(() => expect(result2.current.isPending).toBe(false));
     expect(result2.current.data).toEqual({
