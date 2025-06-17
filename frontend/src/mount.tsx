@@ -275,14 +275,14 @@ function initStore(options: unknown) {
   store.set(marimoVersionAtom, parsedOptions.data.version);
   store.set(showCodeInRunModeAtom, parsedOptions.data.view.showAppCode);
 
-  // Check for app-view parameter to start in present mode
-  const shouldStartInAppView = (() => {
+  // Check for view-as parameter to start in present mode
+  const shouldStartInPresentMode = (() => {
     const url = new URL(window.location.href);
-    return url.searchParams.get(KnownQueryParams.appView) === "true";
+    return url.searchParams.get(KnownQueryParams.viewAs) === "present";
   })();
 
   const initialViewMode =
-    mode === "edit" && shouldStartInAppView ? "present" : mode;
+    mode === "edit" && shouldStartInPresentMode ? "present" : mode;
   store.set(viewStateAtom, { mode: initialViewMode, cellAnchor: null });
   store.set(serverTokenAtom, parsedOptions.data.serverToken);
 

@@ -40,7 +40,7 @@ export const KnownQueryParams = {
   accessToken: "access_token",
   /**
    * Layout view-as. If the editor is in run-mode, this overrides the current
-   * layout view.
+   * layout view. In edit-mode, can be used to start in present mode.
    */
   viewAs: "view-as",
   /**
@@ -49,10 +49,4 @@ export const KnownQueryParams = {
    * If false, the chrome will be hidden.
    */
   showChrome: "show-chrome",
-  /**
-   * Start in app view mode.
-   * If true, the notebook will start in app view (present mode).
-   * If false, the notebook will start in edit mode.
-   */
-  appView: "app-view",
 };
