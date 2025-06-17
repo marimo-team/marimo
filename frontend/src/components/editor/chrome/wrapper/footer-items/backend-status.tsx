@@ -7,6 +7,7 @@ import type React from "react";
 import { Spinner } from "@/components/icons/spinner";
 import { connectionAtom } from "@/core/network/connection";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { isWasm } from "@/core/wasm/utils";
 import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
@@ -21,6 +22,14 @@ export const BackendConnection: React.FC = () => {
   const { isFetching, error, data, refetch } = useAsyncData(async () => {
     if (connection !== WebSocketState.OPEN) {
       return;
+    }
+
+    if (isWasm()) {
+      return {
+        isHealthy: true,
+        lastChecked: new Date(),
+        error: undefined,
+      };
     }
 
     try {
