@@ -193,18 +193,10 @@ describe("cell selection atoms", () => {
 
     it("can select all cells", () => {
       actions.selectAllCells(mockTable);
-      const allCells = new Set([
-        "row1_col1",
-        "row1_col2",
-        "row1_col3",
-        "row2_col1",
-        "row2_col2",
-        "row2_col3",
-        "row3_col1",
-        "row3_col2",
-        "row3_col3",
-      ]);
-      expect(state.selectedCells).toEqual(allCells);
+      const allCells = mockTable
+        .getRowModel()
+        .rows.flatMap((row) => row.getAllCells().map((cell) => cell.id));
+      expect(state.selectedCells).toEqual(new Set(allCells));
     });
   });
 
