@@ -35,7 +35,7 @@ export function getDataTypeColor(
 ): string {
   switch (dataType) {
     case "boolean":
-      return "bg-[var(--orange-4)] dark:bg-[var(--orange-5)]";
+      return "bg-[var(--orange-4)]";
     case "date":
     case "time":
     case "datetime":
@@ -43,9 +43,9 @@ export function getDataTypeColor(
       return "bg-[var(--grass-4)] dark:bg-[var(--grass-5)]";
     case "number":
     case "integer":
-      return "bg-[var(--purple-4)] dark:bg-[var(--purple-5)]";
+      return "bg-[var(--purple-4)]";
     case "string":
-      return "bg-[var(--blue-4)] dark:bg-[var(--blue-5)]";
+      return "bg-[var(--blue-4)]";
     case "unknown":
       return "bg-[var(--slate-4)] dark:bg-[var(--slate-6)]";
     default:
