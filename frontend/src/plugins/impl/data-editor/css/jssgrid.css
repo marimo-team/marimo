@@ -1,0 +1,55 @@
+.jss-theme-marimo .jss_worksheet {
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  box-shadow: none;
+}
+
+.jss-theme-marimo.dark {
+  --header_color: var(--muted-foreground);
+  --header_color_highlighted: var(--foreground);
+  --header_background: var(--background);
+  --header_background_highlighted: var(--secondary-foreground);
+  --content_color: var(--foreground);
+  --content_background: var(--background);
+  --content_background_highlighted: var(--accent);
+  --menu_background: var(--background);
+  --menu_background_highlighted: var(--secondary-foreground);
+  --menu_color: var(--foreground);
+  --menu_color_highlighted: var(--foreground);
+  --menu_box_shadow: unset;
+  --border_color: var(--border);
+  --border_color_highlighted: var(--muted-foreground);
+  --cursor: var(--secondary-foreground);
+  --selection: var(--secondary-foreground);
+}
+
+.jss-theme-marimo.dark {
+  --header_background: var(--background);
+  --header_background_highlighted: var(--secondary-foreground);
+}
+
+.jss-theme-marimo.dark table td {
+  box-shadow: none !important;
+}
+
+.jss-theme-marimo.dark .jss_toolbar .jtoolbar-item {
+  --content_background_highlighted: var(--gray-6);
+}
+
+.jss-theme-marimo.dark .jss_toolbar .jtoolbar-item .jpicker-content {
+  background-color: var(--secondary-foreground);
+}
+
+.jss-theme-marimo.dark .jss_toolbar .jtoolbar-item .jpicker-header {
+  color: var(--foreground);
+}
+
+.jss-theme-marimo.dark .jss_toolbar .jtoolbar-item:hover {
+  --content_color: var(--secondary);
+  color: var(--secondary);
+}
+
+.jss-theme-marimo.dark .jpicker-content > div:hover {
+  background-color: var(--gray-6) !important;
+}

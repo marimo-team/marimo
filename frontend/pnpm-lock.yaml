@@ -93,6 +93,9 @@ importers:
       '@internationalized/date':
         specifier: ^3.8.0
         version: 3.8.1
+      '@jspreadsheet-ce/react':
+        specifier: '5'
+        version: 5.0.2
       '@lezer/common':
         specifier: ^1.2.3
         version: 1.2.3
@@ -318,6 +321,9 @@ importers:
       js-cookie:
         specifier: ^3.0.5
         version: 3.0.5
+      jspreadsheet-ce:
+        specifier: ^5.0.2
+        version: 5.0.2
       katex:
         specifier: ^0.16.22
         version: 0.16.22
@@ -1534,6 +1540,12 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
+
+  '@jspreadsheet-ce/react@5.0.2':
+    resolution: {integrity: sha512-KKUXQ+NkuDAe0QQ1ob7ivjxcE9Eu3Vrn41l4s1ZdZhdZDr+yohzEBwdduBzeTfwR2+aUTAYAbE4gNceDFdy8QQ==}
+
+  '@jspreadsheet/formula@2.0.2':
+    resolution: {integrity: sha512-PDQYf9REQA53I7tVYkvkeyQxrd5jcjUeHgItYnRpjN2QiIQwawSqBDtGGEVQTSboTG+JwgGCuhvOpj7FxeKwew==}
 
   '@juggle/resize-observer@3.4.0':
     resolution: {integrity: sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA==}
@@ -6379,9 +6391,15 @@ packages:
   jsonify@0.0.1:
     resolution: {integrity: sha512-2/Ki0GcmuqSrgFyelQq9M05y7PS0mEwuIzrf3f1fPqkVDVRvZrPZtVSMHxdgo8Aq0sxAOb/cr2aqqA3LeWHVPg==}
 
+  jspreadsheet-ce@5.0.2:
+    resolution: {integrity: sha512-Xhz/6PNe3LnxS/sp02pWN6DTn8ARW2nka6Hwe1aOpvvXXilzGYGlrMUWWjjC5ktVbbBEGl3moUQfCxBsE0scrg==}
+
   jsprim@1.4.2:
     resolution: {integrity: sha512-P2bSOMAc/ciLz6DzgjVlGJP9+BrJWu5UDGK70C2iweC5QBIeFf0ZXRvGjEj2uYgrY2MkAAhsSWHDWlFtEroZWw==}
     engines: {node: '>=0.6.0'}
+
+  jsuites@5.10.0:
+    resolution: {integrity: sha512-s5GCJkl+LVtuPPOBUgqEA6zJf39+hGorsaw07UTkLjTFs3CmrfRTdUfN82izP266lB81hGQKRvLysIRKw+gggQ==}
 
   jsx-ast-utils@3.3.5:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
@@ -10346,6 +10364,12 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
+
+  '@jspreadsheet-ce/react@5.0.2':
+    dependencies:
+      jspreadsheet-ce: 5.0.2
+
+  '@jspreadsheet/formula@2.0.2': {}
 
   '@juggle/resize-observer@3.4.0': {}
 
@@ -16281,12 +16305,19 @@ snapshots:
 
   jsonify@0.0.1: {}
 
+  jspreadsheet-ce@5.0.2:
+    dependencies:
+      '@jspreadsheet/formula': 2.0.2
+      jsuites: 5.10.0
+
   jsprim@1.4.2:
     dependencies:
       assert-plus: 1.0.0
       extsprintf: 1.3.0
       json-schema: 0.4.0
       verror: 1.10.0
+
+  jsuites@5.10.0: {}
 
   jsx-ast-utils@3.3.5:
     dependencies:
