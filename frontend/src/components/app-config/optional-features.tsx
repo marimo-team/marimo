@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useQuery } from "@tanstack/react-query";
 import { BoxIcon, CheckCircleIcon, XCircleIcon } from "lucide-react";
 import React from "react";
 import { Spinner } from "@/components/icons/spinner";
@@ -17,7 +18,6 @@ import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { addPackage, getPackageList } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { SettingSubtitle } from "./common";
@@ -102,10 +102,11 @@ if (!isWasm()) {
 export const OptionalFeatures: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { data, error, refetch, isPending } = useAsyncData(
-    () => getPackageList(),
-    [packageManager],
-  );
+  const { data: installedPackageNames, error, refetch, isPending } = useQuery({
+    queryKey: ["getPackageList"],
+    queryFn: getPackageList,
+    select: ({ packages }) => new Set(packages.map(pkg => pkg.name)),
+  });
 
   if (isPending) {
     return <Spinner size="medium" centered={true} />;
