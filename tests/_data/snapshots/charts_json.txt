@@ -1060,7 +1060,7 @@
       },
       "mark": {
         "align": "left",
-        "color": "white",
+        "color": "black",
         "dx": 3,
         "type": "text"
       },
@@ -1261,7 +1261,7 @@
       },
       "mark": {
         "align": "left",
-        "color": "white",
+        "color": "black",
         "dx": 3,
         "type": "text"
       },
