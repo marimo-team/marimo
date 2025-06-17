@@ -49,4 +49,10 @@ export const KnownQueryParams = {
    * If false, the chrome will be hidden.
    */
   showChrome: "show-chrome",
+  /**
+   * Start in app view mode.
+   * If true, the notebook will start in app view (present mode).
+   * If false, the notebook will start in edit mode.
+   */
+  appView: "app-view",
 };
