@@ -67,7 +67,6 @@ def test_subpackage_cache_invalidation() -> None:
 
 def test_regular_package_no_cache_invalidation() -> None:
     """Test that regular packages (no dot) don't trigger cache invalidation."""
-    from unittest.mock import patch
 
     # Create a dependency for a missing regular package
     missing_package = Dependency("missing_regular_package")
