@@ -8,6 +8,7 @@ import {
   type FieldTypesWithExternalType,
   toFieldTypes,
 } from "@/components/data-table/types";
+import { uniformSample } from "@/components/data-table/uniformSample";
 import type { DataType } from "@/core/kernel/messages";
 import { useTheme } from "@/theme/useTheme";
 import { logNever } from "@/utils/assertNever";
@@ -62,6 +63,11 @@ const SpreadsheetEditor = <T,>({
     ([key, value]) => ({
       title: key,
       type: getColumnType(value),
+      width: getColumnWidth(
+        value,
+        uniformSample(data, 10).map((row: T) => row[key as keyof T]),
+        key,
+      ),
     }),
   );
 
@@ -156,6 +162,40 @@ function getColumnType(fieldType: DataType): JSpreadsheetColumnType {
       logNever(fieldType);
       return "text";
   }
+}
+
+const MIN_WIDTHS: Record<DataType, number> = {
+  boolean: 40,
+  string: 80,
+  number: 70,
+  integer: 70,
+  date: 100,
+  datetime: 140,
+  time: 80,
+  unknown: 80,
+};
+
+function getColumnWidth<T>(
+  fieldType: DataType,
+  values: T[],
+  columnTitle: string,
+): number {
+  if (fieldType === "boolean") {
+    return MIN_WIDTHS[fieldType];
+  }
+
+  const minWidth = MIN_WIDTHS[fieldType];
+
+  const lengths = [
+    columnTitle.length,
+    ...values.map((value) => String(value).length),
+  ];
+
+  // 6.5px per character
+  const calculatedWidth = Math.max(...lengths) * 6.5;
+
+  // Return the larger of minimum width or calculated width, capped at 600px
+  return Math.min(Math.max(calculatedWidth, minWidth), 600);
 }
 
 export default SpreadsheetEditor;
