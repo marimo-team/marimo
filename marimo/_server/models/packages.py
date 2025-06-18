@@ -43,7 +43,6 @@ class DependencyTreeNode:
     tags: list[
         dict[str, str]
     ]  # List of {"kind": "extra"|"group", "value": str}
-    duplicate: bool
     dependencies: list[DependencyTreeNode]
 
 

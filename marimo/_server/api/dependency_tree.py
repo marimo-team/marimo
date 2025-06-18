@@ -20,13 +20,17 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
 
     # Create a virtual root to hold all top-level dependencies
     tree = DependencyTreeNode(
-        name="<root>", version=None, tags=[], duplicate=False, dependencies=[]
+        name="<root>", version=None, tags=[], dependencies=[]
     )
     stack = [(tree, -1)]  # (node, level)
 
     for line in lines:
         line = line.rstrip()
-        if not line or "Package tree already displayed" in line:
+        if (
+            not line
+            or "Package tree already displayed" in line
+            or "Package tree is a cycle" in line
+        ):
             continue
 
         # Calculate indentation level
@@ -45,9 +49,9 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
         # content after tree symbols
         content = line.lstrip("│ ├└─").strip()
 
-        # duplicate marker
-        duplicate = content.endswith("(*)")
-        if duplicate:
+        # Check for cycle indicator
+        is_cycle = content.endswith("(*)")
+        if is_cycle:
             content = content[:-3].strip()
 
         # tags (extras/groups)
@@ -70,11 +74,15 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
             content = content[:start].strip()
 
         name, version = parse_name_version(content)
+
+        # Add cycle indicator as a special tag
+        if is_cycle:
+            tags.append({"kind": "cycle", "value": "true"})
+
         node = DependencyTreeNode(
             name=name,
             version=version,
             tags=tags,
-            duplicate=duplicate,
             dependencies=[],
         )
 
@@ -91,7 +99,7 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
 
 def get_dependency_tree(filename: str) -> DependencyTreeNode:
     result = subprocess.run(
-        [find_uv_bin(), "tree", "--script", filename],
+        [find_uv_bin(), "tree", "--no-dedupe", "--script", filename],
         capture_output=True,
         text=True,
         check=True,

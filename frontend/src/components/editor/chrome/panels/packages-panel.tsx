@@ -1,13 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-
 import { useAtomValue, useSetAtom } from "jotai";
 import {
   BoxIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  GitBranchIcon,
   HelpCircleIcon,
-  MinusIcon,
 } from "lucide-react";
 import React from "react";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
@@ -484,7 +481,6 @@ interface DependencyNode {
   name: string;
   version?: string;
   tags: Array<{ kind: string; value: string }>;
-  duplicate: boolean;
   dependencies: DependencyNode[];
 }
 
@@ -516,42 +512,32 @@ const DependencyTree: React.FC<{
   }
 
   const toggleNode = (nodeId: string) => {
-    const newExpanded = new Set(expandedNodes);
-    if (newExpanded.has(nodeId)) {
-      newExpanded.delete(nodeId);
-    } else {
-      newExpanded.add(nodeId);
-    }
-    setExpandedNodes(newExpanded);
-  };
-
-  const collapseAll = () => {
-    setExpandedNodes(new Set());
+    setExpandedNodes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
   };
 
   return (
-    <div className="flex-1 overflow-auto p-4">
-      <div className="flex items-center justify-between mb-4">
-        {tree.name !== "<root>" && (
+    <div className="flex-1 overflow-auto">
+      {tree.name !== "<root>" && (
+        <div className="px-3 py-2 border-b">
           <div className="text-sm font-medium">
-            Environment: {tree.name} {tree.version && `v${tree.version}`}
+            {tree.name} {tree.version && `v${tree.version}`}
           </div>
-        )}
-        <div className="flex-1" />
-        <button
-          type="button"
-          className="p-1 text-muted-foreground hover:text-foreground rounded"
-          onClick={collapseAll}
-          title="Collapse All"
-        >
-          <MinusIcon className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="space-y-1">
+        </div>
+      )}
+
+      <div className="p-1">
         {tree.dependencies.map((dep, index) => (
           <DependencyTreeNode
             key={`${dep.name}-${index}`}
-            nodeId={`0-${index}`}
+            nodeId={`root-${index}`}
             node={dep}
             level={0}
             isTopLevel={true}
@@ -584,59 +570,110 @@ const DependencyTreeNode: React.FC<{
 }) => {
   const hasChildren = node.dependencies.length > 0;
   const isExpanded = expandedNodes.has(nodeId);
+  const indent = 12 + level * 16; // Start with base padding, then add 16px per level
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (hasChildren) {
+        onToggle(nodeId);
+      }
+    }
+    // Allow arrow keys to bubble up for tree navigation
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasChildren) {
+      onToggle(nodeId);
+    }
+  };
 
   return (
-    <div className="group">
+    <div>
       <div
-        className="flex items-center gap-2 py-1 px-2 rounded hover:bg-accent/50 text-sm"
-        style={{ paddingLeft: `${8 + level * 16}px` }}
+        className={cn(
+          "flex items-center group cursor-pointer text-sm whitespace-nowrap",
+          "hover:bg-accent/50 focus:bg-accent/50 focus:outline-none",
+          hasChildren && "select-none",
+        )}
+        style={{ paddingLeft: `${indent}px` }}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="treeitem"
+        aria-expanded={hasChildren ? isExpanded : undefined}
       >
+        {/* Expand/collapse arrow */}
         {hasChildren ? (
-          <button
-            type="button"
-            onClick={() => onToggle(nodeId)}
-            className="p-0 w-4 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground"
-          >
-            {isExpanded ? (
-              <ChevronDownIcon className="w-3 h-3" />
-            ) : (
-              <ChevronRightIcon className="w-3 h-3" />
-            )}
-          </button>
+          isExpanded ? (
+            <ChevronDownIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+          ) : (
+            <ChevronRightIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+          )
         ) : (
-          <div className="w-4" />
+          <div className="w-4 mr-2 flex-shrink-0" />
         )}
 
-        <div className="flex-1 flex items-center gap-2 min-w-0">
+        {/* Package info */}
+        <div className="flex items-center gap-2 flex-1 min-w-0 py-1">
           <span className="font-medium truncate">{node.name}</span>
           {node.version && (
             <span className="text-muted-foreground text-xs">
               v{node.version}
             </span>
           )}
-          {node.duplicate && (
-            <GitBranchIcon className="w-3 h-3 text-orange-500" />
-          )}
-          {node.tags.map((tag, index) => (
-            <span
-              key={index}
-              className="text-xs px-1 py-0.5 bg-muted rounded text-muted-foreground"
-            >
-              {tag.kind}:{tag.value}
-            </span>
-          ))}
         </div>
 
+        {/* Tags - right aligned */}
+        <div className="flex items-center gap-1 ml-2">
+          {node.tags.map((tag, index) => {
+            if (tag.kind === "cycle") {
+              return (
+                <span
+                  key={index}
+                  className="text-xs px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-full"
+                >
+                  cycle
+                </span>
+              );
+            }
+            if (tag.kind === "extra") {
+              return (
+                <span
+                  key={index}
+                  className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full"
+                >
+                  {tag.value}
+                </span>
+              );
+            }
+            if (tag.kind === "group") {
+              return (
+                <span
+                  key={index}
+                  className="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full"
+                >
+                  {tag.value}
+                </span>
+              );
+            }
+            return null;
+          })}
+        </div>
+
+        {/* Actions for top-level packages */}
         {isTopLevel && (
-          <div className="flex gap-1 invisible group-hover:visible">
+          <div className="flex gap-1 invisible group-hover:visible mr-2">
             <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
             <RemoveButton packageName={node.name} onSuccess={onSuccess} />
           </div>
         )}
       </div>
 
+      {/* Children */}
       {hasChildren && isExpanded && (
-        <div>
+        <div role="group">
           {node.dependencies.map((child, index) => (
             <DependencyTreeNode
               key={`${child.name}-${index}`}
