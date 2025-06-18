@@ -384,6 +384,11 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
+    if os.environ.get("MARIMO_TIME_IO") == "1":
+        from marimo._utils.file_io_tracker import enable_file_io_tracking
+
+        enable_file_io_tracking()
+
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
     if name is None and (stdin_contents := _get_stdin_contents()) is not None:
         temp_dir = tempfile.TemporaryDirectory()
