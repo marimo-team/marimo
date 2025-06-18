@@ -76,10 +76,18 @@ if TYPE_CHECKING:
 
 ResponseT = TypeVar("ResponseT")
 StreamT = TypeVar("StreamT")
-DictContent = tuple[dict[str, Any], Literal["tool_call_start"]]
+FinishReason = Literal["tool_calls", "stop"]
+
+# Types for extract_content method return
+DictContent = tuple[
+    dict[str, Any], Literal["tool_call_start", "tool_call_end"]
+]
 TextContent = tuple[str, Literal["text", "reasoning", "tool_call_delta"]]
 ExtractedContent = Union[TextContent, DictContent]
-FinishReason = Literal["tool_calls", "stop"]
+
+# Types for format_stream method parameter (includes finish_reason)
+FinishContent = tuple[FinishReason, Literal["finish_reason"]]
+StreamContent = Union[TextContent, DictContent, FinishContent]
 
 LOGGER = _loggers.marimo_logger()
 
@@ -241,17 +249,17 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
 
     @abstractmethod
     def extract_content(
-        self, response: ResponseT, tool_call_id: str | None = None
-    ) -> ExtractedContent | None:
+        self, response: ResponseT, tool_call_id: Optional[str] = None
+    ) -> Optional[ExtractedContent]:
         """Extract content from a response chunk."""
         pass
 
     @abstractmethod
-    def get_finish_reason(self, response: ResponseT) -> FinishReason | None:
+    def get_finish_reason(self, response: ResponseT) -> Optional[FinishReason]:
         """Get the stop reason for a response."""
         pass
 
-    def format_stream(self, content: ExtractedContent) -> str:
+    def format_stream(self, content: StreamContent) -> str:
         """Format a response into stream protocol string."""
         content_text, content_type = content
         if content_type in [
@@ -269,18 +277,51 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         """Collect a stream into a single string."""
         return "".join(self.as_stream_response(response))
 
+    def _content_to_string(
+        self, content_data: Union[str, dict[str, Any]]
+    ) -> str:
+        """Convert content data to string for buffer operations."""
+        return (
+            json.dumps(content_data)
+            if isinstance(content_data, dict)
+            else str(content_data)
+        )
+
+    def _create_stream_content(
+        self, content_data: Union[str, dict[str, Any]], content_type: str
+    ) -> StreamContent:
+        """Create type-safe StreamContent tuple."""
+        # String content types
+        if content_type in [
+            "text",
+            "reasoning",
+            "tool_call_delta",
+        ] and isinstance(content_data, str):
+            return (content_data, content_type)  # type: ignore
+
+        # Dict content types
+        if content_type in ["tool_call_start", "tool_call_end"] and isinstance(
+            content_data, dict
+        ):
+            return (content_data, content_type)  # type: ignore
+
+        # Fallback - convert to string content
+        content_str = self._content_to_string(content_data)
+        return (content_str, "text")
+
     def validate_tool_call_args(
         self, tool_call_args: str
-    ) -> dict[str, Any] | None:
+    ) -> Optional[dict[str, Any]]:
         """Validate tool call arguments."""
         if not tool_call_args:
             return None
         try:
-            return (
+            result = (
                 json.loads(tool_call_args)
                 if isinstance(tool_call_args, str)
                 else tool_call_args
             )
+            return result if isinstance(result, dict) else None
         except Exception as e:
             LOGGER.error(
                 f"Failed to parse tool call arguments: {tool_call_args} (error: {e})"
@@ -299,12 +340,12 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         options = options or StreamOptions()
 
         # Tool info collected from the first chunk
-        tool_call_id: str | None = None
-        tool_call_name: str | None = None
+        tool_call_id: Optional[str] = None
+        tool_call_name: Optional[str] = None
         # Tool args collected from the tool_call_delta chunks
         tool_call_args: str = ""
         # Finish reason collected from the last chunk
-        finish_reason: str | None = None
+        finish_reason: Optional[FinishReason] = None
 
         for chunk in cast(Generator[ResponseT, None, None], response):
             # Always check for finish reason first, before checking content
@@ -352,11 +393,16 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                     "argsTextDelta": content_data,
                 }
 
-            if options.format_stream:
-                content_data = self.format_stream((content_data, content_type))
+            content_str = self._content_to_string(content_data)
 
-            buffer += content_data
-            original_content += content_data
+            if options.format_stream:
+                stream_content = self._create_stream_content(
+                    content_data, content_type
+                )
+                content_str = self.format_stream(stream_content)
+
+            buffer += content_str
+            original_content += content_str
 
             yield buffer
             buffer = ""
@@ -378,12 +424,10 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
 
         # Add a final finish reason chunk
         if finish_reason and not options.text_only:
-            yield self.format_stream((finish_reason, "finish_reason"))
+            finish_content: FinishContent = (finish_reason, "finish_reason")
+            yield self.format_stream(finish_content)
             # reset finish reason for next stream
             finish_reason = None
-        LOGGER.warning(
-            f"Finish reason formatted: {self.format_stream((finish_reason, 'finish_reason'))}"
-        )
 
         LOGGER.debug(f"Completion content: {original_content}")
 
@@ -523,8 +567,10 @@ class OpenAIProvider(
         )
 
     def extract_content(
-        self, response: ChatCompletionChunk, _tool_call_id: str | None = None
-    ) -> ExtractedContent | None:
+        self,
+        response: ChatCompletionChunk,
+        _tool_call_id: Optional[str] = None,
+    ) -> Optional[ExtractedContent]:
         if (
             hasattr(response, "choices")
             and response.choices
@@ -543,7 +589,11 @@ class OpenAIProvider(
 
                 # Start of tool call
                 # id is only present for the first tool call chunk
-                if tool_calls.id:
+                if (
+                    tool_calls.id
+                    and tool_calls.function
+                    and tool_calls.function.name
+                ):
                     tool_info = {
                         "toolCallId": tool_calls.id,
                         "toolName": tool_calls.function.name,
@@ -559,7 +609,7 @@ class OpenAIProvider(
 
     def get_finish_reason(
         self, response: ChatCompletionChunk
-    ) -> FinishReason | None:
+    ) -> Optional[FinishReason]:
         if (
             hasattr(response, "choices")
             and response.choices
@@ -661,8 +711,10 @@ class AnthropicProvider(
         )
 
     def extract_content(
-        self, response: RawMessageStreamEvent, _tool_call_id: str | None = None
-    ) -> ExtractedContent | None:
+        self,
+        response: RawMessageStreamEvent,
+        _tool_call_id: Optional[str] = None,
+    ) -> Optional[ExtractedContent]:
         from anthropic.types import (
             InputJSONDelta,
             RawContentBlockDeltaEvent,
@@ -702,7 +754,7 @@ class AnthropicProvider(
 
     def get_finish_reason(
         self, response: RawMessageStreamEvent
-    ) -> FinishReason | None:
+    ) -> Optional[FinishReason]:
         from anthropic.types import RawMessageDeltaEvent
 
         # Check for message_delta events which contain the stop_reason
@@ -778,7 +830,7 @@ class GoogleProvider(
             ),
         )
 
-    def _get_tool_call_id(self, tool_call_id: str | None) -> str | None:
+    def _get_tool_call_id(self, tool_call_id: Optional[str]) -> Optional[str]:
         # Custom tools don't have an id, so we have to generate a random uuid
         # https://ai.google.dev/gemini-api/docs/function-calling?example=meeting
         if not tool_call_id:
@@ -789,8 +841,8 @@ class GoogleProvider(
     def extract_content(
         self,
         response: GenerateContentResponse,
-        tool_call_id: str | None = None,
-    ) -> ExtractedContent | None:
+        tool_call_id: Optional[str] = None,
+    ) -> Optional[ExtractedContent]:
         if not response.candidates:
             return None
 
@@ -831,7 +883,7 @@ class GoogleProvider(
 
     def get_finish_reason(
         self, response: GenerateContentResponse
-    ) -> FinishReason | None:
+    ) -> Optional[FinishReason]:
         if response.candidates and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
                 if part.function_call:
@@ -894,8 +946,10 @@ class BedrockProvider(
         )
 
     def extract_content(
-        self, response: LitellmStreamResponse, _tool_call_id: str | None = None
-    ) -> ExtractedContent | None:
+        self,
+        response: LitellmStreamResponse,
+        _tool_call_id: Optional[str] = None,
+    ) -> Optional[ExtractedContent]:
         if (
             hasattr(response, "choices")
             and response.choices
@@ -935,7 +989,7 @@ class BedrockProvider(
 
     def get_finish_reason(
         self, response: LitellmStreamResponse
-    ) -> FinishReason | None:
+    ) -> Optional[FinishReason]:
         if (
             hasattr(response, "choices")
             and response.choices
