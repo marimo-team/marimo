@@ -99,7 +99,9 @@ function mergeSessionAndNotebookCells(
       // Compare session cell code_hash with notebook cell code
       const notebookCode = notebookCell.code ?? "";
       // md5 hash of the notebook code
-      const notebookCodeHash = createHash("md5").update(notebookCode).digest("hex");
+      const notebookCodeHash = createHash("md5")
+        .update(notebookCode)
+        .digest("hex");
 
       console.debug("Hashes", notebookCodeHash, sessionCodeHash);
       return notebookCodeHash === sessionCodeHash;
@@ -113,7 +115,7 @@ function mergeSessionAndNotebookCells(
     } as SessionCell,
   );
   if (edits.distance > 0) {
-      Logger.warn("Session and notebook have different cells, attempted merge.")
+    Logger.warn("Session and notebook have different cells, attempted merge.");
   }
 
   // Create merged cell arrays
