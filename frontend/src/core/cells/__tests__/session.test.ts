@@ -55,6 +55,7 @@ describe("notebookStateFromSession", () => {
   ): NotebookCell => ({
     id,
     code,
+    code_hash: null,
     name,
     config: {
       column: config?.column ?? null,

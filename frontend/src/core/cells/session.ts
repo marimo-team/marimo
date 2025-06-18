@@ -3,7 +3,6 @@
 import type * as api from "@marimo-team/marimo-api";
 import { MultiColumn } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
-import { Sets } from "@/utils/sets";
 import { parseOutline } from "../dom/outline";
 import { CellId } from "./ids";
 import {
@@ -39,40 +38,7 @@ function validateSessionNotebookCompatibility(
     return { isValid: true }; // One is null, which is fine
   }
 
-  const sessionCellIds = new Set(session.cells.map((cell) => cell.id));
-  const notebookCellIds = new Set(notebook.cells.map((cell) => cell.id));
-
-  // Only check they are equal if both are provided
-  if (
-    sessionCellIds.size > 0 &&
-    notebookCellIds.size > 0 &&
-    !Sets.equals(sessionCellIds, notebookCellIds)
-  ) {
-    return {
-      isValid: false,
-      error:
-        "Session and notebook must have the same cells if both are provided",
-    };
-  }
-
   return { isValid: true };
-}
-
-function getCellIds(
-  session: api.Session["NotebookSessionV1"] | null | undefined,
-  notebook: api.Notebook["NotebookV1"] | null | undefined,
-): CellId[] {
-  // Prefer notebook cells (for ordering) over session cells if both are provided
-  const ids = (notebook?.cells.map((cell) => cell.id) ??
-    session?.cells.map((cell) => cell.id) ??
-    []) as CellId[];
-  // Replace nulls with unique ids.
-  return ids.map((id) => {
-    if (id === null) {
-      return CellId.create();
-    }
-    return id;
-  });
 }
 
 function createCellDataFromNotebook(
@@ -163,30 +129,29 @@ export function notebookStateFromSession(
     return null;
   }
 
-  // Get cell IDs
-  const cellIds = getCellIds(session, notebook);
-  if (cellIds.length === 0) {
-    Logger.warn("Session and notebook must have at least one cell");
-    return null;
-  }
-
   // Create lookup maps for efficient access
   // Replacing with the cellIds fallback.
-  const sessionCellData = new Map(
-    cellIds.map((id, idx) => [id, session?.cells[idx]]),
+  const sessionCellDataByHash = new Map(
+    session?.cells.map((cell) => [cell.code_hash ?? cell.id, cell]),
   );
 
-  const notebookCellData = new Map(
-    cellIds.map((id, idx) => [id, notebook?.cells[idx]]),
+  const notebookCellDataByHash = new Map(
+    notebook?.cells.map((cell) => [cell.code_hash ?? cell.id, cell]),
   );
 
   const cellData: Record<CellId, CellData> = {};
   const cellRuntime: Record<CellId, CellRuntimeState> = {};
+  const cellIds: CellId[] = [];
 
   // Process each cell
-  for (const cellId of cellIds) {
-    const sessionCell = sessionCellData.get(cellId);
-    const notebookCell = notebookCellData.get(cellId);
+  for (const [cellHash, notebookCell] of notebookCellDataByHash) {
+    if (!cellHash) {
+      continue;
+    }
+
+    const sessionCell = sessionCellDataByHash.get(cellHash);
+    const cellId = (sessionCell?.id ?? CellId.create()) as CellId;
+    cellIds.push(cellId);
 
     // Create cell data from notebook if available
     if (notebookCell) {
@@ -197,6 +162,11 @@ export function notebookStateFromSession(
     // This needs always be created even if there is no session cell
     // in order to display the cell in the correct state
     cellRuntime[cellId] = createCellRuntimeFromSession(sessionCell);
+  }
+
+  if (cellIds.length === 0) {
+    Logger.warn("Session and notebook must have at least one cell");
+    return null;
   }
 
   return {
