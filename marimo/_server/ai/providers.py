@@ -14,6 +14,7 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
+    Union,
     cast,
 )
 
@@ -77,7 +78,7 @@ ResponseT = TypeVar("ResponseT")
 StreamT = TypeVar("StreamT")
 DictContent = tuple[dict[str, Any], Literal["tool_call_start"]]
 TextContent = tuple[str, Literal["text", "reasoning", "tool_call_delta"]]
-ExtractedContent = TextContent | DictContent
+ExtractedContent = Union[TextContent, DictContent]
 FinishReason = Literal["tool_calls", "stop"]
 
 LOGGER = _loggers.marimo_logger()
