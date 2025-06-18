@@ -361,7 +361,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             buffer = ""
 
         # Handle tool call end after the stream is complete
-        if tool_call_id and tool_call_name:
+        if tool_call_id and tool_call_name and not options.text_only:
             content_data = {
                 "toolCallId": tool_call_id,
                 "toolName": tool_call_name,
@@ -376,7 +376,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
             tool_call_args = ""
 
         # Add a final finish reason chunk
-        if finish_reason:
+        if finish_reason and not options.text_only:
             yield self.format_stream((finish_reason, "finish_reason"))
             # reset finish reason for next stream
             finish_reason = None
