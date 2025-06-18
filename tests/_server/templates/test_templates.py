@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from typing import Literal
 
+from marimo._utils.code import hash_code
+
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import (
     MarimoConfig,
@@ -30,7 +32,6 @@ from marimo._schemas.session import (
 from marimo._server.model import SessionMode
 from marimo._server.templates import templates
 from marimo._server.tokens import SkewProtectionToken
-from marimo._utils.code import hash_code
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
