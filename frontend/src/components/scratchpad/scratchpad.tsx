@@ -9,7 +9,7 @@ import {
   PlayIcon,
 } from "lucide-react";
 import type React from "react";
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import {
   SCRATCH_CELL_ID,
@@ -67,7 +67,7 @@ export const ScratchPad: React.FC = () => {
   const history = useAtomValue(scratchpadHistoryAtom);
 
   const handleRun = useEvent(() => {
-    sendRunScratchpad({ code });
+    void sendRunScratchpad({ code });
     addToHistory(code);
   });
 
@@ -88,7 +88,7 @@ export const ScratchPad: React.FC = () => {
       code: "",
       formattingChange: false,
     });
-    sendRunScratchpad({ code: "" });
+    void sendRunScratchpad({ code: "" });
     const ev = ref.current;
     if (ev) {
       ev.dispatch({
@@ -187,17 +187,19 @@ export const ScratchPad: React.FC = () => {
               className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
               onClick={() => handleSelectHistoryItem(item)}
             >
-              <LazyAnyLanguageCodeMirror
-                language="python"
-                theme={theme}
-                basicSetup={{
-                  highlightActiveLine: false,
-                  highlightActiveLineGutter: false,
-                }}
-                value={item.trim()}
-                editable={false}
-                readOnly={true}
-              />
+              <Suspense>
+                <LazyAnyLanguageCodeMirror
+                  language="python"
+                  theme={theme}
+                  basicSetup={{
+                    highlightActiveLine: false,
+                    highlightActiveLineGutter: false,
+                  }}
+                  value={item.trim()}
+                  editable={false}
+                  readOnly={true}
+                />
+              </Suspense>
             </div>
           ))}
         </div>

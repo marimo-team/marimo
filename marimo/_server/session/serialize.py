@@ -223,6 +223,7 @@ def serialize_notebook(
             NotebookCell(
                 id=cell_id,
                 code=code,
+                code_hash=_hash_code(code),
                 name=name,
                 config=config,
             )

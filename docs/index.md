@@ -13,12 +13,14 @@ hide:
   <img src="_static/marimo-logotype-thick.svg" width="210px">
 </p>
 
-marimo is a reactive Python notebook: run a cell or interact with a UI
-element, and marimo automatically runs dependent cells (or [marks them as
-stale](guides/reactivity.md#configuring-how-marimo-runs-cells)), keeping code and outputs
-consistent and preventing bugs before they happen. Every marimo notebook is
-stored as pure Python (Git-friendly), executable as a script, and deployable as an app;
-while stored as Python, marimo notebooks also have native support for SQL.
+marimo is an [open-source](https://github.com/marimo-team/marimo) reactive
+Python notebook: run a cell or interact with a UI element, and marimo
+automatically runs dependent cells (or [marks them as
+stale](guides/reactivity.md#configuring-how-marimo-runs-cells)), keeping code
+and outputs consistent and preventing bugs before they happen. Every marimo
+notebook is stored as pure Python (Git-friendly), executable as a script, and
+deployable as an app; while stored as Python, marimo notebooks also have native
+support for SQL.
 
 /// admonition | Built from the ground up
     type: tip

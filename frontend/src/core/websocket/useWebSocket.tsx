@@ -34,7 +34,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
         ? new StaticWebsocket()
-        : new ReconnectingWebSocket(rest.url(), undefined, {
+        : new ReconnectingWebSocket(rest.url, undefined, {
             // We don't want Infinity retries
             maxRetries: 10,
             debug: false,

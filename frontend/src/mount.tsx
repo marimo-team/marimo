@@ -9,6 +9,7 @@ import {
   configOverridesAtom,
   userConfigAtom,
 } from "@/core/config/config";
+import { KnownQueryParams } from "@/core/constants";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { getMarimoCode } from "@/core/meta/globals";
 import {
@@ -273,7 +274,16 @@ function initStore(options: unknown) {
   // Meta
   store.set(marimoVersionAtom, parsedOptions.data.version);
   store.set(showCodeInRunModeAtom, parsedOptions.data.view.showAppCode);
-  store.set(viewStateAtom, { mode, cellAnchor: null });
+
+  // Check for view-as parameter to start in present mode
+  const shouldStartInPresentMode = (() => {
+    const url = new URL(window.location.href);
+    return url.searchParams.get(KnownQueryParams.viewAs) === "present";
+  })();
+
+  const initialViewMode =
+    mode === "edit" && shouldStartInPresentMode ? "present" : mode;
+  store.set(viewStateAtom, { mode: initialViewMode, cellAnchor: null });
   store.set(serverTokenAtom, parsedOptions.data.serverToken);
 
   // Config

@@ -192,6 +192,7 @@ export function renderChart(chartSpec: string, theme: Theme) {
   const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
     return {
       ...spec,
+      background: "transparent",
       config: { ...spec.config, background: "transparent" },
     };
   };

@@ -15,6 +15,7 @@ import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { FindReplace } from "@/components/find-replace/find-replace";
 import type { AppConfig } from "@/core/config/config-schema";
+import { isConnectedAtom } from "@/core/network/connection";
 import { SaveComponent } from "@/core/saving/save-component";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
@@ -137,6 +138,8 @@ const RunControlButton = ({
   needsRun: boolean;
   onRun: () => void;
 }) => {
+  const isConnected = useAtomValue(isConnectedAtom);
+
   if (needsRun) {
     return (
       <Tooltip content={renderShortcut("global.runStale")}>
@@ -145,7 +148,8 @@ const RunControlButton = ({
           size="medium"
           color="yellow"
           shape="circle"
-          onClick={onRun}
+          onClick={isConnected ? onRun : undefined}
+          disabled={!isConnected}
         >
           <PlayIcon strokeWidth={1.5} size={16} />
         </Button>
@@ -161,6 +165,7 @@ const RunControlButton = ({
         color="disabled"
         size="medium"
         shape="circle"
+        disabled={!isConnected}
       >
         <PlayIcon strokeWidth={1.5} size={16} />
       </Button>

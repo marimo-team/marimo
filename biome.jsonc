@@ -5,7 +5,7 @@
     "frontend/lint/removeEventListenerObject.grit"
   ],
   "files": {
-    "includes": ["frontend/src/**/*", "!*.json", "!*.jsonc"]
+    "includes": ["frontend/src/**/*", "openapi/**/*", "lsp/**/*", "!*.json", "!*.jsonc"]
   },
   "formatter": {
     "indentStyle": "space",

@@ -11,6 +11,7 @@ import {
   TypeIcon,
 } from "lucide-react";
 import type { DataType } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
 import type { SelectableDataType } from "../data-table/charts/types";
 
 /**
@@ -29,14 +30,26 @@ export const DATA_TYPE_ICON: Record<DataType | SelectableDataType, LucideIcon> =
     unknown: CurlyBracesIcon,
   };
 
-export const DATA_TYPE_COLOR: Record<DataType | SelectableDataType, string> = {
-  boolean: "bg-[var(--orange-4)]",
-  date: "bg-[var(--grass-4)]",
-  time: "bg-[var(--grass-4)]",
-  datetime: "bg-[var(--grass-4)]",
-  temporal: "bg-[var(--grass-4)]",
-  number: "bg-[var(--purple-4)]",
-  string: "bg-[var(--blue-4)]",
-  integer: "bg-[var(--purple-4)]",
-  unknown: "bg-[var(--slate-4)]",
-};
+export function getDataTypeColor(
+  dataType: DataType | SelectableDataType,
+): string {
+  switch (dataType) {
+    case "boolean":
+      return "bg-[var(--orange-4)]";
+    case "date":
+    case "time":
+    case "datetime":
+    case "temporal":
+      return "bg-[var(--grass-4)] dark:bg-[var(--grass-5)]";
+    case "number":
+    case "integer":
+      return "bg-[var(--purple-4)]";
+    case "string":
+      return "bg-[var(--blue-4)]";
+    case "unknown":
+      return "bg-[var(--slate-4)] dark:bg-[var(--slate-6)]";
+    default:
+      logNever(dataType);
+      return "bg-[var(--slate-4)] dark:bg-[var(--slate-6)]";
+  }
+}
