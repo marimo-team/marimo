@@ -102,10 +102,15 @@ if (!isWasm()) {
 export const OptionalFeatures: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { data: installedPackageNames, error, refetch, isPending } = useQuery({
+  const {
+    data: installedPackageNames,
+    error,
+    refetch,
+    isPending,
+  } = useQuery({
     queryKey: ["getPackageList"],
     queryFn: getPackageList,
-    select: ({ packages }) => new Set(packages.map(pkg => pkg.name)),
+    select: ({ packages }) => new Set(packages.map((pkg) => pkg.name)),
   });
 
   if (isPending) {

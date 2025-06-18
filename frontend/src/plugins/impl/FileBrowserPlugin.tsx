@@ -139,7 +139,11 @@ export const FileBrowser = ({
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
 
-  const { data: files, error, isPending } = useQuery({
+  const {
+    data: files,
+    error,
+    isPending,
+  } = useQuery({
     queryKey: ["list_directory", path],
     queryFn: () => list_directory({ path }),
     select: ({ files }) => files,
