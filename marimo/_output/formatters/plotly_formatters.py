@@ -64,12 +64,16 @@ class PlotlyFormatter(FormatterFactory):
         import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         resolved_config: dict[str, Any] = {}
-        if pio.renderers.default:
-            try:
-                default_renderer: Any = pio.renderers[pio.renderers.default]
-                resolved_config = default_renderer.config or {}
-            except AttributeError:
-                pass
+
+        # Ensure valid renderer for marimo environment
+        if not pio.renderers.default or pio.renderers.default not in pio.renderers:
+            pio.renderers.default = "browser" 
+
+        try:
+            default_renderer: Any = pio.renderers[pio.renderers.default]
+            resolved_config = default_renderer.config or {}
+        except (AttributeError, KeyError):
+            pass
 
         return Html(
             build_stateless_plugin(
