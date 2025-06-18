@@ -1,6 +1,4 @@
 # Copyright 2025 Marimo. All rights reserved.
-from marimo._utils.code import hash_code
-
 from marimo import __version__
 from marimo._schemas.notebook import (
     NotebookCell,
@@ -14,6 +12,7 @@ from marimo._schemas.serialization import (
     NotebookSerialization,
     NotebookSerializationV1,
 )
+from marimo._utils.code import hash_code
 
 
 def convert_from_ir_to_notebook_v1(
