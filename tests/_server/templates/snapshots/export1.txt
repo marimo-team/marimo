@@ -63,7 +63,7 @@
             "configOverrides": {"formatting": {"line_length": 100}},
             "appConfig": {"sql_output": "auto", "width": "compact"},
             "view": {"showAppCode": true},
-            "notebook": {"cells": [{"code": "print('Hello, Cell 1')", "config": {}, "id": "cell1", "name": "Cell 1"}, {"code": "print('Hello, Cell 2')", "config": {}, "id": "cell2", "name": "Cell 2"}], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
+            "notebook": {"cells": [{"code": "print('Hello, Cell 1')", "code_hash": "dd79c4410b5ac8e7ed32b54c7ebd1cda575d9a41770f739b9b8ed19a2a50ff87", "config": {}, "id": "cell1", "name": "Cell 1"}, {"code": "print('Hello, Cell 2')", "code_hash": "9f00c511e0ed7fe6413b8f4d19876bf064117d56109d22d4f8d7f7b1d426c1f9", "config": {}, "id": "cell2", "name": "Cell 2"}], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
             "session": {"cells": [{"code_hash": "abc123", "console": [{"name": "stdout", "text": "Hello, Cell 1", "type": "stream"}, {"name": "stderr", "text": "Error in Cell 1", "type": "stream"}], "id": "cell1", "outputs": [{"data": {"text/plain": "Hello, Cell 1"}, "type": "data"}]}, {"code_hash": "def456", "console": [], "id": "cell2", "outputs": []}], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
             "runtimeConfig": null,
         };

@@ -52,6 +52,7 @@ from marimo._server.templates.templates import (
 )
 from marimo._server.tokens import SkewProtectionToken
 from marimo._types.ids import CellId_t
+from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path
@@ -539,12 +540,6 @@ class AutoExporter:
     def cleanup(self) -> None:
         """Cleanup resources"""
         self._executor.shutdown(wait=False)
-
-
-def hash_code(code: str) -> str:
-    import hashlib
-
-    return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
 
 def _create_notebook_cell(

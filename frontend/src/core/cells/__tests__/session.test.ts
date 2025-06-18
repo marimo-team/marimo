@@ -53,9 +53,11 @@ describe("notebookStateFromSession", () => {
     code: string | null = null,
     name: string | null = null,
     config: NotebookCell["config"] | null = null,
+    code_hash: string | null = null,
   ): NotebookCell => ({
     id,
     code,
+    code_hash: code_hash,
     name,
     config: {
       column: config?.column ?? null,
@@ -576,12 +578,12 @@ describe("notebookStateFromSession", () => {
       };
       // Create notebook cells with code values 'a' through 'f'
       const notebookCells = [
-        createNotebookCell("cell-a", "a"),
-        createNotebookCell("cell-b", "b"),
-        createNotebookCell("cell-c", "c"),
-        createNotebookCell("cell-d", "d"),
-        createNotebookCell("cell-e", "e"),
-        createNotebookCell("cell-f", "f"),
+        createNotebookCell("cell-a", "a", null, null, hashes.a),
+        createNotebookCell("cell-b", "b", null, null, hashes.b),
+        createNotebookCell("cell-c", "c", null, null, hashes.c),
+        createNotebookCell("cell-d", "d", null, null, hashes.d),
+        createNotebookCell("cell-e", "e", null, null, hashes.e),
+        createNotebookCell("cell-f", "f", null, null, hashes.f),
       ];
       // Create session cells with matching code_hashes
       const sessionCells = [
@@ -694,11 +696,11 @@ describe("notebookStateFromSession", () => {
 
       // Notebook has cells with code 'a', 'c', 'z', 'e', 'g'
       const notebookCells = [
-        createNotebookCell("cell-a", "a"),
-        createNotebookCell("cell-c", "c"),
-        createNotebookCell("cell-z", "z"),
-        createNotebookCell("cell-e", "e"),
-        createNotebookCell("cell-g", "g"),
+        createNotebookCell("cell-a", "a", null, null, hashes.a),
+        createNotebookCell("cell-c", "c", null, null, hashes.c),
+        createNotebookCell("cell-z", "z", null, null, hashes.z),
+        createNotebookCell("cell-e", "e", null, null, hashes.e),
+        createNotebookCell("cell-g", "g", null, null, hashes.g),
       ];
 
       const session = createSession(sessionCells);

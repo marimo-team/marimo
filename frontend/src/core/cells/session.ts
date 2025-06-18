@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { createHash } from "node:crypto";
 import type * as api from "@marimo-team/marimo-api";
 import { mergeArray } from "@/utils/edit-distance";
 import { MultiColumn } from "@/utils/id-tree";
@@ -96,12 +95,7 @@ function mergeSessionAndNotebookCells(
         return sessionCell.id === notebookCell.id;
       }
       // Compare session cell code_hash with notebook cell code
-      const notebookCode = notebookCell.code ?? "";
-      // md5 hash of the notebook code
-      const notebookCodeHash = createHash("md5")
-        .update(notebookCode)
-        .digest("hex");
-
+      const notebookCodeHash = notebookCell.code_hash;
       return notebookCodeHash === sessionCodeHash;
     },
     // stub cell is empty session cell
