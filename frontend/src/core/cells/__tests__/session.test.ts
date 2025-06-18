@@ -91,10 +91,13 @@ describe("notebookStateFromSession", () => {
 
       const result = notebookStateFromSession(session, notebook);
 
-      expect(Logger.error).toHaveBeenCalledWith(
-        "Session and notebook must have the same cells if both are provided",
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "Session and notebook have different cells, attempted merge.",
       );
-      expect(result).toBeNull();
+      // Should have the same cell structure as notebook
+      expect(result.cellIds.inOrderIds).toEqual(
+        MultiColumn.from([["cell-2"]]).inOrderIds,
+      );
     });
   });
 
@@ -125,7 +128,7 @@ describe("notebookStateFromSession", () => {
       expect(result.cellIds.inOrderIds).toEqual(
         MultiColumn.from([[CELL_1]]).inOrderIds,
       );
-      expect(result.cellData[CELL_1]).toBeUndefined();
+      expect(result.cellData[CELL_1].code).toBe("");
       expect(result.cellRuntime[CELL_1]).toBeDefined();
     });
 
@@ -141,7 +144,7 @@ describe("notebookStateFromSession", () => {
       expect(result.cellIds.inOrderIds).toEqual(
         MultiColumn.from([["cell-1", "cell-2"]]).inOrderIds,
       );
-      expect(Object.keys((result as any).cellData)).toEqual([]);
+      expect(Object.keys((result as any).cellData)).toEqual(["cell-1", "cell-2"]);
       expect(Object.keys((result as any).cellRuntime)).toEqual([
         "cell-1",
         "cell-2",
