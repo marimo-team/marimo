@@ -249,7 +249,7 @@ def test_ibis_sql_types() -> None:
         str(dt.String()): "string",
         str(dt.Date()): "date",
         str(dt.Time()): "time",
-        str(dt.Timestamp()): "timestamp",  # duckdb sets default precision
+        str(dt.Timestamp()): "timestamp(6)",  # duckdb sets default precision
         str(dt.Interval(unit="D")): "interval('us')",
         str(dt.Array(value_type=dt.Int32())): "array<int32>",
         str(
