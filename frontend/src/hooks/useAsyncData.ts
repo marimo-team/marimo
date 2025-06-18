@@ -1,4 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+/**
+ * @deprecated Consider using @tanstack/react-query's useQuery instead for new code.
+ * React Query provides better caching, background updates, and mutation management.
+ */
 import {
   type DependencyList,
   type Dispatch,

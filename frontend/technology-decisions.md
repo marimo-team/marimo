@@ -11,3 +11,4 @@ Quick-hit list of technologies used and why, for the frontend.
 - [MSW](https://mswjs.io/) - Mocking library for API calls. Great for testing and development.
 - [Playwright](https://playwright.dev/) - E2E testing library. Great for testing and development. It's faster than Cypress and has a better API.
 - [jotai](https://jotai.org/) - State management library to avoid re-renders. Great for simple state management. It's a lot simpler than Redux and has a better API.
+- [@tanstack/react-query](https://tanstack.com/query) - Data fetching library for managing server state. Provides caching, background updates, optimistic updates, and mutation management for complex backend interactions.
