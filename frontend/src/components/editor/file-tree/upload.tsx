@@ -5,7 +5,7 @@ import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
 import { serializeBlob } from "@/utils/blob";
 import { Logger } from "@/utils/Logger";
-import type { FilePath } from "@/utils/paths";
+import { type FilePath, PathBuilder } from "@/utils/paths";
 import { refreshRoot } from "./state";
 
 const MAX_SIZE = 1024 * 1024 * 100; // 100MB
@@ -40,6 +40,16 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
     },
     onDrop: async (acceptedFiles) => {
       for (const file of acceptedFiles) {
+        // We strip the leading slash since File.path can return
+        // `/path/to/file`.
+        const filePath = stripLeadingSlash(getPath(file));
+        let directoryPath = "" as FilePath;
+        if (filePath) {
+          directoryPath = PathBuilder.guessDeliminator(filePath).dirname(
+            filePath as FilePath,
+          );
+        }
+
         // File contents are sent base64-encoded to support arbitrary
         // bytes data
         //
@@ -47,7 +57,7 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
         // data:*/*;base64,
         const base64 = (await serializeBlob(file)).split(",")[1];
         await sendCreateFileOrFolder({
-          path: "" as FilePath, // add to root
+          path: directoryPath,
           type: "file",
           name: file.name,
           contents: base64,
@@ -57,4 +67,35 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
     },
     ...options,
   });
+}
+
+/**
+ * Get the path of a file.
+ *
+ * Types only have `webkitRelativePath`, but File objects in the browser
+ * can have `path` and `relativePath`.
+ */
+function getPath(file: File): string | undefined {
+  if (file.webkitRelativePath) {
+    return file.webkitRelativePath;
+  }
+  if ("path" in file && typeof file.path === "string") {
+    return file.path;
+  }
+  if ("relativePath" in file && typeof file.relativePath === "string") {
+    return file.relativePath;
+  }
+  return undefined;
+}
+
+/**
+ * Strip leading slashes from a path.
+ *
+ * TODO: this may not support windows paths.
+ */
+function stripLeadingSlash(path: string | undefined): string | undefined {
+  if (!path) {
+    return undefined;
+  }
+  return path.replace(/^\/+/, "");
 }

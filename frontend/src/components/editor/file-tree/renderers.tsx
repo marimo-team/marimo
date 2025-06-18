@@ -70,3 +70,16 @@ export const VideoViewer: React.FC<{ base64: Base64String; mime: string }> = ({
   // eslint-disable-next-line jsx-a11y/media-has-caption
   return <video controls={true} src={base64ToDataURL(base64, mime)} />;
 };
+
+export const PdfViewer: React.FC<{ base64: Base64String; mime: string }> = ({
+  mime,
+  base64,
+}) => {
+  return (
+    <iframe
+      src={base64ToDataURL(base64, mime)}
+      title="PDF Viewer"
+      className="w-full h-full"
+    />
+  );
+};
