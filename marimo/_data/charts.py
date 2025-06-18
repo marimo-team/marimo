@@ -12,6 +12,7 @@ import narwhals.stable.v1 as nw
 from marimo._data.models import DataType
 from marimo._utils import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify
+from marimo._utils.theme import get_current_theme
 
 if TYPE_CHECKING:
     import altair as alt
@@ -136,6 +137,7 @@ class NumberChartBuilder(ChartBuilder):
 class StringChartBuilder(ChartBuilder):
     def __init__(self, should_limit_to_10_items: bool) -> None:
         self.should_limit_to_10_items = should_limit_to_10_items
+        self.theme = get_current_theme()
         super().__init__()
 
     def altair(self, data: Any, column: str) -> Any:
@@ -172,8 +174,11 @@ class StringChartBuilder(ChartBuilder):
         )
 
         def add_encodings(chart: alt.Chart) -> alt.Chart:
+            text_color = "white" if self.theme == "dark" else "black"
             _bar_chart = chart.mark_bar(color=STRING_COLOR)
-            _text_chart = chart.mark_text(align="left", dx=3).encode(
+            _text_chart = chart.mark_text(
+                align="left", dx=3, color=text_color
+            ).encode(
                 text=alt.Text("percentage:Q", format=TOOLTIP_PERCENTAGE_FORMAT)
             )
             return _bar_chart + _text_chart  # type: ignore
@@ -238,6 +243,7 @@ class StringChartBuilder(ChartBuilder):
         """
 
     def complex_altair_code(self, data: str, column: str) -> str:
+        text_color = "white" if self.theme == "dark" else "black"
         base_chart_code = dedent(f"""
         _base_chart = (
             alt.Chart({data})
@@ -269,7 +275,7 @@ class StringChartBuilder(ChartBuilder):
         )
 
         _bar_chart = _base_chart.mark_bar(color="{STRING_COLOR}")
-        _text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+        _text_chart = _base_chart.mark_text(align="left", dx=3, color="{text_color}").encode(
             text=alt.Text("percentage:Q", format="{TOOLTIP_PERCENTAGE_FORMAT}")
         )
         """)
@@ -434,7 +440,9 @@ class DateChartBuilder(ChartBuilder):
             opacity=alt.condition(nearest, alt.value(1), alt.value(0)),
         )
 
-        chart = add_common_config(alt.layer(area, points, rule))
+        chart = add_common_config(
+            alt.layer(area, points, rule)
+        ).configure_axis(grid=False)
         return chart
 
     def altair_code(self, data: str, column: str, simple: bool = True) -> str:

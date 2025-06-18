@@ -9,7 +9,7 @@ import {
   SaveIcon,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { hotkeysAtom } from "@/core/config/config";
@@ -207,30 +207,32 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     <>
       {header}
       <div className="flex-1 overflow-auto">
-        <LazyAnyLanguageCodeMirror
-          theme={theme === "dark" ? "dark" : "light"}
-          language={mimeToLanguage[mimeType] || mimeToLanguage.default}
-          className="border-b"
-          extensions={[
-            EditorView.lineWrapping,
-            // Command S for save
-            keymap.of([
-              {
-                key: hotkeys.getHotkey("global.save").key,
-                stopPropagation: true,
-                run: () => {
-                  if (internalValue !== data.contents) {
-                    handleSaveFile();
-                    return true;
-                  }
-                  return false;
+        <Suspense>
+          <LazyAnyLanguageCodeMirror
+            theme={theme === "dark" ? "dark" : "light"}
+            language={mimeToLanguage[mimeType] || mimeToLanguage.default}
+            className="border-b"
+            extensions={[
+              EditorView.lineWrapping,
+              // Command S for save
+              keymap.of([
+                {
+                  key: hotkeys.getHotkey("global.save").key,
+                  stopPropagation: true,
+                  run: () => {
+                    if (internalValue !== data.contents) {
+                      handleSaveFile();
+                      return true;
+                    }
+                    return false;
+                  },
                 },
-              },
-            ]),
-          ]}
-          value={internalValue}
-          onChange={setInternalValue}
-        />
+              ]),
+            ]}
+            value={internalValue}
+            onChange={setInternalValue}
+          />
+        </Suspense>
       </div>
     </>
   );

@@ -112,6 +112,7 @@
     "humanize-duration": "^3.32.1",
     "iconify-icon": "^2.3.0",
     "jotai": "^2.12.3",
+    "jotai-scope": "^0.7.3",
     "js-cookie": "^3.0.5",
     "katex": "^0.16.22",
     "lodash-es": "^4.17.21",

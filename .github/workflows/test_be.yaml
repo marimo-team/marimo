@@ -24,7 +24,7 @@ jobs:
               - 'marimo/**'
               - 'tests/**'
               - 'pyproject.toml'
-              - '!{marimo/_smoke_tests,frontend}/**'
+              - '!{marimo/_smoke_tests,frontend,biome.jsonc}/**'
             docs:
               - 'docs/**'
 

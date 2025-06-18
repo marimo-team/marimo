@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 describe("LSP Server", () => {
   it("should start and be killable", async () => {

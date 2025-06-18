@@ -1,7 +1,17 @@
 {
   "$schema": "frontend/node_modules/@biomejs/biome/configuration_schema.json",
+  "plugins": [
+    "frontend/lint/addEventListenerObject.grit",
+    "frontend/lint/removeEventListenerObject.grit"
+  ],
   "files": {
-    "includes": ["frontend/src/**/*", "!*.json"]
+    "includes": [
+      "frontend/src/**/*",
+      "openapi/**/*",
+      "lsp/**/*",
+      "!*.json",
+      "!*.jsonc"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

@@ -40,7 +40,7 @@ export const KnownQueryParams = {
   accessToken: "access_token",
   /**
    * Layout view-as. If the editor is in run-mode, this overrides the current
-   * layout view.
+   * layout view. In edit-mode, can be used to start in present mode.
    */
   viewAs: "view-as",
   /**

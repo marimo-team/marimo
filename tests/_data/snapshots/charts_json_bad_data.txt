@@ -140,6 +140,7 @@
       },
       "mark": {
         "align": "left",
+        "color": "black",
         "dx": 3,
         "type": "text"
       },

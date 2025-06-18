@@ -24,6 +24,7 @@ class NotebookCell(TypedDict):
 
     id: Optional[str]
     code: Optional[str]
+    code_hash: Optional[str]
     name: Optional[str]
     config: NotebookCellConfig
 

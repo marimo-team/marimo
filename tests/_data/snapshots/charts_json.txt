@@ -162,6 +162,9 @@
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
+    "axis": {
+      "grid": false
+    },
     "view": {
       "continuousHeight": 300,
       "continuousWidth": 300,
@@ -371,6 +374,9 @@
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
+    "axis": {
+      "grid": false
+    },
     "view": {
       "continuousHeight": 300,
       "continuousWidth": 300,
@@ -580,6 +586,9 @@
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
   "config": {
+    "axis": {
+      "grid": false
+    },
     "view": {
       "continuousHeight": 300,
       "continuousWidth": 300,
@@ -1051,6 +1060,7 @@
       },
       "mark": {
         "align": "left",
+        "color": "black",
         "dx": 3,
         "type": "text"
       },
@@ -1251,6 +1261,7 @@
       },
       "mark": {
         "align": "left",
+        "color": "black",
         "dx": 3,
         "type": "text"
       },
