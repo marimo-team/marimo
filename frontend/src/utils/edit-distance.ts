@@ -17,8 +17,6 @@ export interface EditDistanceResult {
   operations: EditOperation[];
 }
 
-// Very rote LLM produced edit distance implementation.
-// Sanity checked in tests, and a few lines here saves a dependency.
 export function editDistanceGeneral<T, U>(
   arr1: T[],
   arr2: U[],
@@ -28,7 +26,7 @@ export function editDistanceGeneral<T, U>(
   const n: number = arr2.length;
 
   const dp: number[][] = Array.from({ length: m + 1 }, () =>
-    new Array.from({ length: n + 1 }).fill(0),
+    Array.from<number>({ length: n + 1 }).fill(0),
   );
 
   for (let i = 0; i <= m; i++) {
