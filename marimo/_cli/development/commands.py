@@ -12,6 +12,7 @@ import click
 
 from marimo._cli.print import orange
 from marimo._convert.converters import MarimoConvert
+from marimo._utils.code import hash_code
 
 if TYPE_CHECKING:
     import psutil
@@ -535,7 +536,6 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         NotebookSessionMetadata,
         NotebookSessionV1,
     )
-    from marimo._server.export.exporter import hash_code
     from marimo._server.templates.templates import static_notebook_template
     from marimo._server.tokens import SkewProtectionToken
     from marimo._utils.paths import marimo_package_path
@@ -577,8 +577,8 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
             app_config=_AppConfig(),
             filepath=str(file_path),
             code=code,
-            code_hash=hash_code(code),
             session_snapshot=session_snapshot,
+            code_hash=hash_code(code),
             notebook_snapshot=notebook_snapshot,
             files={},
             asset_url=asset_url,

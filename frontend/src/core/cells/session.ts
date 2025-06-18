@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type * as api from "@marimo-team/marimo-api";
+import { mergeArray } from "@/utils/edit-distance";
 import { MultiColumn } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
-import { Sets } from "@/utils/sets";
 import { parseOutline } from "../dom/outline";
 import { CellId } from "./ids";
 import {
@@ -19,60 +19,133 @@ const EMPTY_STRING = "";
 type SessionCell = api.Session["NotebookSessionV1"]["cells"][0];
 type NotebookCell = api.Notebook["NotebookV1"]["cells"][0];
 
-interface ValidationResult {
-  isValid: boolean;
-  error?: string;
-}
-
-function validateSessionNotebookCompatibility(
+function mergeSessionAndNotebookCells(
   session: api.Session["NotebookSessionV1"] | null | undefined,
   notebook: api.Notebook["NotebookV1"] | null | undefined,
-): ValidationResult {
+): {
+  cellIds: CellId[];
+  sessionCellData: Map<CellId, SessionCell | null>;
+  notebookCellData: Map<CellId, NotebookCell>;
+} {
+  const sessionCellData = new Map<CellId, SessionCell | null>();
+  const notebookCellData = new Map<CellId, NotebookCell>();
+
   if (!session && !notebook) {
+    return { cellIds: [], sessionCellData, notebookCellData };
+  }
+
+  if (!session) {
+    const cellIds = (notebook?.cells.map(
+      (cell) => cell.id ?? CellId.create(),
+    ) || []) as CellId[];
     return {
-      isValid: false,
-      error: "",
+      cellIds,
+      sessionCellData: new Map(
+        cellIds.map((id, idx) => [id, null] as [CellId, SessionCell | null]),
+      ),
+      notebookCellData: new Map(
+        cellIds.map(
+          (id, idx) =>
+            [id, notebook?.cells[idx] || createEmptyNotebookCell()] as [
+              CellId,
+              NotebookCell,
+            ],
+        ),
+      ),
     };
   }
 
-  if (!session || !notebook) {
-    return { isValid: true }; // One is null, which is fine
-  }
-
-  const sessionCellIds = new Set(session.cells.map((cell) => cell.id));
-  const notebookCellIds = new Set(notebook.cells.map((cell) => cell.id));
-
-  // Only check they are equal if both are provided
-  if (
-    sessionCellIds.size > 0 &&
-    notebookCellIds.size > 0 &&
-    !Sets.equals(sessionCellIds, notebookCellIds)
-  ) {
+  if (!notebook) {
+    const cellIds = session.cells.map(
+      (cell) => cell.id ?? CellId.create(),
+    ) as CellId[];
     return {
-      isValid: false,
-      error:
-        "Session and notebook must have the same cells if both are provided",
+      cellIds,
+      sessionCellData: new Map(
+        cellIds.map(
+          (id, idx) => [id, session.cells[idx]] as [CellId, SessionCell | null],
+        ),
+      ),
+      notebookCellData: new Map(
+        cellIds.map(
+          (id) => [id, createEmptyNotebookCell()] as [CellId, NotebookCell],
+        ),
+      ),
     };
   }
 
-  return { isValid: true };
+  // Both session and notebook exist - merge using edit distance on cell content
+  // hash.
+  const { merged: mergedSessionCells, edits } = mergeArray(
+    session.cells,
+    notebook.cells,
+    (sessionCell, notebookCell) => {
+      const sessionCodeHash = sessionCell.code_hash;
+      // If the code hash is null, default to comparing ids
+      if (!sessionCodeHash) {
+        return sessionCell.id === notebookCell.id;
+      }
+      // Compare session cell code_hash with notebook cell code
+      const notebookCodeHash = notebookCell.code_hash;
+      return notebookCodeHash === sessionCodeHash;
+    },
+    // stub cell is empty session cell
+    createEmptySessionCell(),
+  );
+  if (edits.distance > 0) {
+    Logger.warn("Session and notebook have different cells, attempted merge.");
+  }
+
+  // Create merged cell arrays
+  const mergedCellIdsTyped: CellId[] = [];
+
+  // Defer to the notebook cells for the correct ordering.
+  for (let i = 0; i < notebook.cells.length; i++) {
+    const notebookCell = notebook.cells[i];
+    if (notebookCell) {
+      const id = (notebookCell.id ?? CellId.create()) as CellId;
+      mergedCellIdsTyped.push(id);
+
+      // Should always be set, but good typing fallback too.
+      const sessionItem = mergedSessionCells[i] || createEmptySessionCell();
+      sessionItem.id = id; // Ensure session cell has the correct ID
+
+      sessionCellData.set(id, sessionItem);
+      notebookCellData.set(id, notebookCell);
+    } else {
+      // This shouldn't happen since notebook cells are canonical
+      Logger.warn("Merged notebook cell is null at index", i);
+    }
+  }
+
+  return {
+    cellIds: mergedCellIdsTyped,
+    sessionCellData,
+    notebookCellData,
+  };
 }
 
-function getCellIds(
-  session: api.Session["NotebookSessionV1"] | null | undefined,
-  notebook: api.Notebook["NotebookV1"] | null | undefined,
-): CellId[] {
-  // Prefer notebook cells (for ordering) over session cells if both are provided
-  const ids = (notebook?.cells.map((cell) => cell.id) ??
-    session?.cells.map((cell) => cell.id) ??
-    []) as CellId[];
-  // Replace nulls with unique ids.
-  return ids.map((id) => {
-    if (id === null) {
-      return CellId.create();
-    }
-    return id;
-  });
+function createEmptyNotebookCell(): NotebookCell {
+  return {
+    id: CellId.create(),
+    name: EMPTY_STRING,
+    code: EMPTY_STRING,
+    code_hash: null,
+    config: {
+      column: null,
+      disabled: false,
+      hide_code: false,
+    },
+  };
+}
+
+function createEmptySessionCell(): SessionCell {
+  return {
+    id: CellId.create(),
+    code_hash: null,
+    console: [],
+    outputs: [],
+  };
 }
 
 function createCellDataFromNotebook(
@@ -154,31 +227,14 @@ export function notebookStateFromSession(
   session: api.Session["NotebookSessionV1"] | null | undefined,
   notebook: api.Notebook["NotebookV1"] | null | undefined,
 ) {
-  // Validate compatibility
-  const validation = validateSessionNotebookCompatibility(session, notebook);
-  if (!validation.isValid) {
-    if (validation.error) {
-      Logger.error(validation.error);
-    }
-    return null;
-  }
+  // Merge session and notebook cells using edit distance
+  const { cellIds, sessionCellData, notebookCellData } =
+    mergeSessionAndNotebookCells(session, notebook);
 
-  // Get cell IDs
-  const cellIds = getCellIds(session, notebook);
   if (cellIds.length === 0) {
     Logger.warn("Session and notebook must have at least one cell");
     return null;
   }
-
-  // Create lookup maps for efficient access
-  // Replacing with the cellIds fallback.
-  const sessionCellData = new Map(
-    cellIds.map((id, idx) => [id, session?.cells[idx]]),
-  );
-
-  const notebookCellData = new Map(
-    cellIds.map((id, idx) => [id, notebook?.cells[idx]]),
-  );
 
   const cellData: Record<CellId, CellData> = {};
   const cellRuntime: Record<CellId, CellRuntimeState> = {};

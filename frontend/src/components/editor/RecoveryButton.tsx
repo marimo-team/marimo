@@ -46,6 +46,7 @@ const RecoveryModal = (props: {
           id: cell.id,
           name: cell.name,
           code: cell.code,
+          code_hash: null,
           config: {
             column: 0,
             ...cell.config,
