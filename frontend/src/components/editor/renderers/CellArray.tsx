@@ -51,7 +51,7 @@ import { useChromeActions } from "../chrome/state";
 import { Column } from "../columns/cell-column";
 import { NotebookBanner } from "../notebook-banner";
 import { StdinBlockingAlert } from "../stdin-blocking-alert";
-import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
+import { useFocusFirstEditor } from "./vertical-layout/useFocusFirstEditor";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
 
 interface CellArrayProps {
@@ -88,7 +88,9 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   const actions = useCellActions();
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
-  const { invisible } = useDelayVisibility(notebook.cellIds.idLength, mode);
+
+  // Side-effects
+  useFocusFirstEditor();
 
   // HOTKEYS
   useHotkey("global.focusTop", actions.focusTopCell);
@@ -122,7 +124,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
     <VerticalLayoutWrapper
       // 'pb' allows the user to put the cell in the middle of the screen
       className="pb-[40vh]"
-      invisible={invisible}
+      invisible={false}
       appConfig={appConfig}
       innerClassName="pr-4" // For the floating actions
     >

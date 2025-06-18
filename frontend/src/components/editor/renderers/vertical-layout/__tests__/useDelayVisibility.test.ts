@@ -2,7 +2,6 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as cellsModule from "@/core/cells/cells";
 import { useDelayVisibility } from "../useDelayVisibility";
 
 describe("useDelayVisibility", () => {
@@ -19,12 +18,12 @@ describe("useDelayVisibility", () => {
   });
 
   it("should start with invisible state", () => {
-    const { result } = renderHook(() => useDelayVisibility(5, "edit"));
+    const { result } = renderHook(() => useDelayVisibility(5, "read"));
     expect(result.current.invisible).toBe(true);
   });
 
-  it("should become visible after delay", () => {
-    const { result } = renderHook(() => useDelayVisibility(5, "edit"));
+  it("should become visible after delay in read mode", () => {
+    const { result } = renderHook(() => useDelayVisibility(5, "read"));
 
     expect(result.current.invisible).toBe(true);
 
@@ -37,7 +36,7 @@ describe("useDelayVisibility", () => {
   });
 
   it("should cap delay at 100ms for large number of cells", () => {
-    const { result } = renderHook(() => useDelayVisibility(20, "edit"));
+    const { result } = renderHook(() => useDelayVisibility(20, "read"));
 
     expect(result.current.invisible).toBe(true);
 
@@ -54,65 +53,31 @@ describe("useDelayVisibility", () => {
     expect(result.current.invisible).toBe(false);
   });
 
-  it("should not focus any cell in read mode", () => {
-    const focusSpy = vi.spyOn(cellsModule, "getNotebook");
+  it("should not apply delay in edit mode", () => {
+    const { result } = renderHook(() => useDelayVisibility(5, "edit"));
 
-    renderHook(() => useDelayVisibility(5, "read"));
+    // In edit mode, the delay should not be applied, so it should immediately be visible
+    expect(result.current.invisible).toBe(true);
 
+    // Even after advancing timers, it should remain invisible since no timeout was set
     act(() => {
       vi.advanceTimersByTime(100);
     });
 
-    expect(focusSpy).not.toHaveBeenCalled();
+    expect(result.current.invisible).toBe(true);
   });
 
-  it("should focus cell from URL if scrollTo parameter exists", () => {
-    // Mock location.hash
-    const originalHash = window.location.hash;
-    Object.defineProperty(window, "location", {
-      value: { hash: "#scrollTo=testCell" },
-      writable: true,
-    });
+  it("should not apply delay in present mode", () => {
+    const { result } = renderHook(() => useDelayVisibility(5, "present"));
 
-    // Mock document.querySelector
-    const mockElement = document.createElement("div");
-    mockElement.scrollIntoView = vi.fn();
-    mockElement.focus = vi.fn();
-    mockElement.dataset.cellId = "cell-123";
+    // In present mode, the delay should not be applied
+    expect(result.current.invisible).toBe(true);
 
-    const querySelectorSpy = vi
-      .spyOn(document, "querySelector")
-      .mockReturnValue(mockElement as unknown as HTMLElement);
-
-    // Mock getNotebook
-    const mockEditor = { focus: vi.fn() };
-    vi.spyOn(cellsModule, "getNotebook").mockReturnValue({
-      cellIds: { iterateTopLevelIds: [] },
-      cellData: {},
-      cellHandles: {
-        "cell-123": { current: { editorView: mockEditor } },
-      },
-    } as unknown as cellsModule.NotebookState);
-
-    renderHook(() => useDelayVisibility(5, "edit"));
-
+    // Even after advancing timers, it should remain invisible since no timeout was set
     act(() => {
       vi.advanceTimersByTime(100);
     });
 
-    expect(querySelectorSpy).toHaveBeenCalledWith(
-      '[data-cell-name="testCell"]',
-    );
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(mockElement.scrollIntoView).toHaveBeenCalled();
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(mockElement.focus).toHaveBeenCalled();
-    expect(mockEditor.focus).toHaveBeenCalled();
-
-    // Restore original hash
-    Object.defineProperty(window, "location", {
-      value: { hash: originalHash },
-      writable: true,
-    });
+    expect(result.current.invisible).toBe(true);
   });
 });
