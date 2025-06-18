@@ -1,49 +1,39 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { CpuIcon, MemoryStickIcon, MicrochipIcon } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
 import { getUsageStats } from "@/core/network/requests";
 import type { UsageResponse } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { WebSocketState } from "@/core/websocket/types";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
 
 export const MachineStats: React.FC = (props) => {
-  const [nonce, setNonce] = useState(0);
   const connection = useAtomValue(connectionAtom);
-  useInterval(
-    () => setNonce((nonce) => nonce + 1),
-    // Refresh every 10 seconds, or when the document becomes visible
-    { delayMs: 10_000, whenVisible: true },
-  );
 
-  const { data } = useAsyncData(async () => {
-    if (isWasm()) {
-      return null;
-    }
-    if (connection.state !== WebSocketState.OPEN) {
-      return null;
-    }
-    return getUsageStats();
-  }, [nonce, connection.state]);
+  const { data: stats } = useQuery({
+    queryKey: ["machineStats"],
+    queryFn: getUsageStats,
+    enabled: !isWasm() && connection.state === WebSocketState.OPEN,
+    refetchInterval: 10_000, // refresh every 10 seconds
+    refetchIntervalInBackground: false, // but when tab is visible
+  });
 
   return (
     <div className="flex gap-2 items-center px-1">
-      {data?.gpu && data.gpu.length > 0 && <GPUBar gpus={data.gpu} />}
-      {data && (
+      {stats?.gpu && stats.gpu.length > 0 && <GPUBar gpus={stats.gpu} />}
+      {stats && (
         <MemoryUsageBar
-          memory={data.memory}
-          kernel={data.kernel}
-          server={data.server}
+          memory={stats.memory}
+          kernel={stats.kernel}
+          server={stats.server}
         />
       )}
-      {data && <CPUBar cpu={data.cpu} />}
+      {stats && <CPUBar cpu={stats.cpu} />}
     </div>
   );
 };
