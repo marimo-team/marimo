@@ -311,6 +311,40 @@ def test_convert_to_ai_sdk_messages():
     result = convert_to_ai_sdk_messages(reasoning, "reasoning")
     assert result == f"g:{json.dumps(reasoning)}\n"
 
+    # Test tool_call_start type
+    tool_call_start = {"toolCallId": "123", "toolName": "test_tool"}
+    result = convert_to_ai_sdk_messages(tool_call_start, "tool_call_start")
+    assert result == f"b:{json.dumps(tool_call_start)}\n"
+
+    # Test tool_call_delta type
+    tool_call_delta = {"toolCallId": "123", "argsTextDelta": "partial args"}
+    result = convert_to_ai_sdk_messages(tool_call_delta, "tool_call_delta")
+    assert result == f"c:{json.dumps(tool_call_delta)}\n"
+
+    # Test tool_call_end type
+    tool_call_end = {
+        "toolCallId": "123",
+        "toolName": "test_tool",
+        "args": {"param": "value"},
+    }
+    result = convert_to_ai_sdk_messages(tool_call_end, "tool_call_end")
+    assert result == f"9:{json.dumps(tool_call_end)}\n"
+
+    # Test tool_result type
+    tool_result = {"toolCallId": "123", "result": "success"}
+    result = convert_to_ai_sdk_messages(tool_result, "tool_result")
+    assert result == f"a:{json.dumps(tool_result)}\n"
+
+    # Test finish_reason type with "tool_calls"
+    result = convert_to_ai_sdk_messages("tool_calls", "finish_reason")
+    expected = 'd:{"finishReason": "tool_calls", "usage": {"promptTokens": 0, "completionTokens": 0}}\n'
+    assert result == expected
+
+    # Test finish_reason type with "stop"
+    result = convert_to_ai_sdk_messages("stop", "finish_reason")
+    expected = 'd:{"finishReason": "stop", "usage": {"promptTokens": 0, "completionTokens": 0}}\n'
+    assert result == expected
+
     # Test unknown type defaults to text
     result = convert_to_ai_sdk_messages("fallback", "unknown")
     assert result == f"0:{json.dumps('fallback')}\n"
