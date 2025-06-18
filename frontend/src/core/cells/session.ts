@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { createHash } from "node:crypto";
 import type * as api from "@marimo-team/marimo-api";
+import { mergeArray } from "@/utils/edit-distance";
 import { MultiColumn } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
-import { mergeArray } from "@/utils/edit-distance";
 import { parseOutline } from "../dom/outline";
 import { CellId } from "./ids";
 import {
@@ -11,7 +12,6 @@ import {
   type CellRuntimeState,
   createCellRuntimeState,
 } from "./types";
-import { createHash } from "node:crypto";
 
 // Constants
 const DEFAULT_TIMESTAMP = 0;
