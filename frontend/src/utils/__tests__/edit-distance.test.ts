@@ -5,6 +5,7 @@ import {
   applyOperationsWithStub,
   type EditOperation,
   editDistance,
+  editDistanceGeneral,
   mergeArray,
   OperationType,
 } from "../edit-distance";
@@ -73,7 +74,7 @@ describe("editDistance", () => {
       { id: 3, name: "c" },
     ];
 
-    const result = editDistance(arr1, arr2, (a, b) => a.id === b.id);
+    const result = editDistanceGeneral(arr1, arr2, (a, b) => a.id === b.id);
 
     expect(result.distance).toBe(1);
     expect(result.operations).toHaveLength(2);
@@ -103,10 +104,10 @@ describe("editDistance", () => {
 describe("applyOperationsWithStub", () => {
   it("should apply match operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.MATCH, position: 0, element: "a" },
-      { type: OperationType.MATCH, position: 1, element: "b" },
-      { type: OperationType.MATCH, position: 2, element: "c" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.MATCH, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -115,10 +116,10 @@ describe("applyOperationsWithStub", () => {
 
   it("should apply delete operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.MATCH, position: 0, element: "a" },
-      { type: OperationType.DELETE, position: 1, originalElement: "b" },
-      { type: OperationType.MATCH, position: 2, element: "c" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.DELETE, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -127,10 +128,10 @@ describe("applyOperationsWithStub", () => {
 
   it("should apply insert operations correctly", () => {
     const original = ["a", "c"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.MATCH, position: 0, element: "a" },
-      { type: OperationType.INSERT, position: 1, element: "b" },
-      { type: OperationType.MATCH, position: 1, element: "c" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.INSERT, position: 1 },
+      { type: OperationType.MATCH, position: 1 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -139,15 +140,13 @@ describe("applyOperationsWithStub", () => {
 
   it("should apply substitute operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.MATCH, position: 0, element: "a" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.MATCH, position: 0 },
       {
         type: OperationType.SUBSTITUTE,
         position: 1,
-        element: "x",
-        originalElement: "b",
       },
-      { type: OperationType.MATCH, position: 2, element: "c" },
+      { type: OperationType.MATCH, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -156,12 +155,12 @@ describe("applyOperationsWithStub", () => {
 
   it("should handle complex operations with position offsets", () => {
     const original = ["a", "b", "c", "d"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.MATCH, position: 0, element: "a" },
-      { type: OperationType.DELETE, position: 1, originalElement: "b" },
-      { type: OperationType.INSERT, position: 1, element: "x" },
-      { type: OperationType.MATCH, position: 2, element: "c" },
-      { type: OperationType.DELETE, position: 3, originalElement: "d" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.DELETE, position: 1 },
+      { type: OperationType.INSERT, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
+      { type: OperationType.DELETE, position: 3 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -171,18 +170,16 @@ describe("applyOperationsWithStub", () => {
   // Test the specific example mentioned by the user
   it("should handle the specific example: abcde -> ac_e_ (with stub)", () => {
     const original = ["a", "b", "c", "d", "e"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.MATCH, position: 0, element: "a" },
-      { type: OperationType.DELETE, position: 1, originalElement: "b" },
-      { type: OperationType.MATCH, position: 2, element: "c" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.MATCH, position: 0 },
+      { type: OperationType.DELETE, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
       {
         type: OperationType.SUBSTITUTE,
         position: 3,
-        element: "z",
-        originalElement: "d",
       },
-      { type: OperationType.MATCH, position: 4, element: "e" },
-      { type: OperationType.INSERT, position: 5, element: "g" },
+      { type: OperationType.MATCH, position: 4 },
+      { type: OperationType.INSERT, position: 5 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "_");
@@ -191,16 +188,14 @@ describe("applyOperationsWithStub", () => {
 
   it("should handle multiple consecutive operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.DELETE, position: 0, originalElement: "a" },
-      { type: OperationType.INSERT, position: 0, element: "x" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.DELETE, position: 0 },
+      { type: OperationType.INSERT, position: 0 },
       {
         type: OperationType.SUBSTITUTE,
         position: 1,
-        element: "y",
-        originalElement: "b",
       },
-      { type: OperationType.DELETE, position: 2, originalElement: "c" },
+      { type: OperationType.DELETE, position: 2 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");
@@ -213,12 +208,12 @@ describe("applyOperationsWithStub", () => {
 
   it("should handle operations that affect array length", () => {
     const original = ["a", "b"];
-    const operations: Array<EditOperation<string>> = [
-      { type: OperationType.INSERT, position: 0, element: "x" },
-      { type: OperationType.INSERT, position: 1, element: "y" },
-      { type: OperationType.MATCH, position: 2, element: "a" },
-      { type: OperationType.MATCH, position: 3, element: "b" },
-      { type: OperationType.INSERT, position: 4, element: "z" },
+    const operations: Array<EditOperation> = [
+      { type: OperationType.INSERT, position: 0 },
+      { type: OperationType.INSERT, position: 1 },
+      { type: OperationType.MATCH, position: 2 },
+      { type: OperationType.MATCH, position: 3 },
+      { type: OperationType.INSERT, position: 4 },
     ];
 
     const result = applyOperationsWithStub(original, operations, "stub");

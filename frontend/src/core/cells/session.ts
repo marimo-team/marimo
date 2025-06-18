@@ -35,9 +35,9 @@ function mergeSessionAndNotebookCells(
   }
 
   if (!session) {
-    const cellIds =
-      notebook?.cells.map((cell) => cell.id ?? CellId.create()) ||
-      ([] as CellId[]);
+    const cellIds = (notebook?.cells.map(
+      (cell) => cell.id ?? CellId.create(),
+    ) || []) as CellId[];
     return {
       cellIds,
       sessionCellData: new Map(
@@ -45,7 +45,11 @@ function mergeSessionAndNotebookCells(
       ),
       notebookCellData: new Map(
         cellIds.map(
-          (id, idx) => [id, notebook.cells[idx]] as [CellId, NotebookCell],
+          (id, idx) =>
+            [id, notebook?.cells[idx] || createEmptyNotebookCell()] as [
+              CellId,
+              NotebookCell,
+            ],
         ),
       ),
     };
@@ -99,10 +103,14 @@ function mergeSessionAndNotebookCells(
   for (let i = 0; i < notebook.cells.length; i++) {
     const notebookCell = notebook.cells[i];
     if (notebookCell) {
-      const id = notebookCell.id ?? CellId.create();
-      mergedCellIdsTyped.push(id as CellId);
-      mergedSessionCells[i].id = id; // Ensure session cell has the correct ID
-      sessionCellData.set(id, mergedSessionCells[i]);
+      const id = (notebookCell.id ?? CellId.create()) as CellId;
+      mergedCellIdsTyped.push(id);
+
+      // Should always be set, but good typing fallback too.
+      const sessionItem = mergedSessionCells[i] || createEmptySessionCell();
+      sessionItem.id = id as CellId; // Ensure session cell has the correct ID
+
+      sessionCellData.set(id, sessionItem);
       notebookCellData.set(id, notebookCell);
     } else {
       // This shouldn't happen since notebook cells are canonical

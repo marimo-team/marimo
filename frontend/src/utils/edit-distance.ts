@@ -19,19 +19,15 @@ export interface EditDistanceResult {
 
 // Very rote LLM produced edit distance implementation.
 // Sanity checked in tests, and a few lines here saves a dependency.
-export function editDistance<T, U>(
+export function editDistanceGeneral<T, U>(
   arr1: T[],
   arr2: U[],
-  equals: (a: T, b: U) => boolean = (a, b) => a === b,
+  equals: (a: T, b: U) => boolean,
 ): EditDistanceResult {
   const m = arr1.length;
   const n = arr2.length;
-  const m1 = m + 1;
-  const n1 = n + 1;
 
-  const dp: number[][] = Array.from({ m1 })
-    .fill(null)
-    .map(() => Array.from({ n1 }).fill(0));
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
 
   for (let i = 0; i <= m; i++) {
     dp[i][0] = i;
@@ -72,7 +68,6 @@ export function editDistance<T, U>(
       operations.unshift({
         type: OperationType.DELETE,
         position: i - 1,
-        originalElement: arr1[i - 1],
       });
       i--;
     } else if (j > 0 && dp[i][j] === dp[i][j - 1] + 1) {
@@ -85,6 +80,12 @@ export function editDistance<T, U>(
   }
 
   return { distance: dp[m][n], operations };
+}
+
+export function editDistance<T>(arr1: T[], arr2: T[]): EditDistanceResult {
+  // Default equality check for primitive types
+  const equals = (a: T, b: T): boolean => a === b;
+  return editDistanceGeneral(arr1, arr2, equals);
 }
 
 // Function to apply operations with stub for inserts/substitutions
@@ -132,7 +133,7 @@ export function mergeArray<T, U>(
   equals: (a: T, b: U) => boolean,
   stub: T,
 ): { merged: Array<T | null>; edits: EditDistanceResult } {
-  const edits = editDistance(arr1, arr2, equals);
+  const edits = editDistanceGeneral(arr1, arr2, equals);
   return {
     merged: applyOperationsWithStub(arr1, edits.operations, stub),
     edits,

@@ -321,6 +321,7 @@ describe("notebookStateFromSession", () => {
         id: "cell-1",
         code: null,
         name: null,
+        code_hash: null,
         config: {
           hide_code: null,
           disabled: null,
