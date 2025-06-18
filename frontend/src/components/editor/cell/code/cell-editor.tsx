@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { notebookAtom, useCellActions } from "@/core/cells/cells";
+import { useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { setupCodeMirror } from "@/core/codemirror/cm";
@@ -31,7 +31,6 @@ import { connectionAtom } from "@/core/network/connection";
 import { saveCellConfig } from "@/core/network/requests";
 import { isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
-import { store } from "@/core/state/jotai";
 import { WebSocketState } from "@/core/websocket/types";
 import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -51,11 +50,6 @@ export interface CellEditorProps
   showPlaceholder: boolean;
   editorViewRef: React.MutableRefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
-  /**
-   * If true, the cell is allowed to be focus on.
-   * This is false when the app is initially loading.
-   */
-  allowFocus: boolean;
   userConfig: UserConfig;
   /**
    * If true, the cell code is hidden.
@@ -77,7 +71,6 @@ export interface CellEditorProps
 const CellEditorInternal = ({
   theme,
   showPlaceholder,
-  allowFocus,
   id: cellId,
   config: cellConfig,
   code,
@@ -362,31 +355,6 @@ const CellEditorInternal = ({
     // Props to trigger reconfiguration
     extensions,
   ]);
-
-  // Auto-focus. Should focus newly created editors.
-  // We don't focus if RTC is enabled, since other players will be creating editors
-  const shouldFocus =
-    (editorViewRef.current === null || serializedEditorState !== null) &&
-    !isRtcEnabled();
-  useEffect(() => {
-    // Perf:
-    // We don't pass this in from the props since it causes lots of re-renders for unrelated cells
-    const hasNotebookKey = store.get(notebookAtom).scrollKey !== null;
-
-    // Only focus if the notebook does not currently have a scrollKey (which means we are focusing on another cell)
-    if (shouldFocus && allowFocus && !hasNotebookKey) {
-      // Focus and scroll into view; request an animation frame to
-      // avoid a race condition when new editors are created
-      // very rapidly by holding a hotkey
-      requestAnimationFrame(() => {
-        editorViewRef.current?.focus();
-        editorViewRef.current?.dom.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
-      });
-    }
-  }, [shouldFocus, allowFocus, editorViewRef]);
 
   // Destroy the editor when the component is unmounted
   useEffect(() => {

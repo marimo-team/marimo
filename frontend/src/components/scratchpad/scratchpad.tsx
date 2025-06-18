@@ -130,7 +130,6 @@ export const ScratchPad: React.FC = () => {
         <div className="overflow-auto flex-shrink-0 max-h-[40%]">
           <CellEditor
             theme={theme}
-            allowFocus={false}
             showPlaceholder={false}
             id={cellId}
             code={code}

@@ -226,7 +226,6 @@ const CellColumn: React.FC<{
             key={SETUP_CELL_ID}
             theme={theme}
             showPlaceholder={false}
-            allowFocus={!invisible}
             {...notebook.cellData[SETUP_CELL_ID]}
             {...notebook.cellRuntime[SETUP_CELL_ID]}
             {...actions}
@@ -261,7 +260,6 @@ const CellColumn: React.FC<{
               key={cellData.id.toString()}
               theme={theme}
               showPlaceholder={hasOnlyOneCell}
-              allowFocus={!invisible}
               {...cellData}
               {...cellRuntime}
               runElapsedTimeMs={
