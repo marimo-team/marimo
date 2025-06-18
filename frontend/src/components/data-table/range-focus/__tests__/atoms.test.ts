@@ -56,6 +56,19 @@ function createMockCell(
 }
 
 function createMockTable(): Table<T> {
+  const mockToggleSelected = vi.fn().mockImplementation(function (this: {
+    isSelected: boolean;
+  }) {
+    this.isSelected = !this.isSelected;
+    return { isSelected: this.isSelected };
+  });
+
+  const mockGetIsSelected = vi.fn().mockImplementation(function (this: {
+    isSelected: boolean;
+  }) {
+    return this.isSelected;
+  });
+
   const rows = [
     {
       id: "row1",
@@ -65,6 +78,9 @@ function createMockTable(): Table<T> {
         createMockCell("row1", "col2", 0, 1),
         createMockCell("row1", "col3", 0, 2),
       ],
+      toggleSelected: mockToggleSelected,
+      getIsSelected: mockGetIsSelected,
+      isSelected: false,
     },
     {
       id: "row2",
@@ -74,6 +90,9 @@ function createMockTable(): Table<T> {
         createMockCell("row2", "col2", 1, 1),
         createMockCell("row2", "col3", 1, 2),
       ],
+      toggleSelected: mockToggleSelected,
+      getIsSelected: mockGetIsSelected,
+      isSelected: false,
     },
     {
       id: "row3",
@@ -83,6 +102,9 @@ function createMockTable(): Table<T> {
         createMockCell("row3", "col2", 2, 1),
         createMockCell("row3", "col3", 2, 2),
       ],
+      toggleSelected: mockToggleSelected,
+      getIsSelected: mockGetIsSelected,
+      isSelected: false,
     },
   ];
 
@@ -197,6 +219,66 @@ describe("cell selection atoms", () => {
         .getRowModel()
         .rows.flatMap((row) => row.getAllCells().map((cell) => cell.id));
       expect(state.selectedCells).toEqual(new Set(allCells));
+    });
+  });
+
+  describe("toggleSelectionOfCurrentRow", () => {
+    it("can toggle row selection on current cell", () => {
+      const focusedCell: SelectedCell = {
+        rowId: "row1",
+        columnId: "col1",
+        cellId: "row1_col1",
+      };
+      actions.setFocusedCell(focusedCell);
+
+      // Initial state should be unselected
+      const row = mockTable.getRow("row1");
+      expect(row.getIsSelected()).toBe(false);
+
+      // First toggle should select the row
+      actions.toggleCurrentRowSelection(mockTable);
+      expect(row.toggleSelected).toHaveBeenCalled();
+      expect(row.getIsSelected()).toBe(true);
+
+      // Second toggle should unselect the row
+      actions.toggleCurrentRowSelection(mockTable);
+      expect(row.getIsSelected()).toBe(false);
+    });
+
+    it("should not toggle row selection without focused cell", () => {
+      // Clear focused cell
+      actions.setFocusedCell(null);
+
+      const row = mockTable.getRow("row1");
+      const initialState = row.getIsSelected();
+
+      actions.toggleCurrentRowSelection(mockTable);
+
+      // Selection state should not change
+      expect(row.getIsSelected()).toBe(initialState);
+      expect(row.toggleSelected).not.toHaveBeenCalled();
+    });
+
+    it("should toggle selection of different rows", () => {
+      // Toggle row1
+      actions.setFocusedCell({
+        rowId: "row1",
+        columnId: "col1",
+        cellId: "row1_col1",
+      });
+      actions.toggleCurrentRowSelection(mockTable);
+      expect(mockTable.getRow("row1").getIsSelected()).toBe(true);
+
+      // Toggle row2
+      actions.setFocusedCell({
+        rowId: "row2",
+        columnId: "col1",
+        cellId: "row2_col1",
+      });
+      actions.toggleCurrentRowSelection(mockTable);
+      expect(mockTable.getRow("row2").getIsSelected()).toBe(true);
+      // row1 should still be selected
+      expect(mockTable.getRow("row1").getIsSelected()).toBe(true);
     });
   });
 

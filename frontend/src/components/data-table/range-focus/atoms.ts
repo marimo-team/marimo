@@ -75,6 +75,14 @@ const {
       selectedCells: new Set(allCells),
     };
   },
+  toggleCurrentRowSelection: (state, table: AnyTable) => {
+    const currentCell = state.focusedCell;
+    if (currentCell?.rowId) {
+      const row = table.getRow(currentCell?.rowId);
+      row?.toggleSelected?.();
+    }
+    return state;
+  },
   updateSelection: (
     state,
     {
