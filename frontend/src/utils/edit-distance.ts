@@ -7,16 +7,14 @@ export enum OperationType {
   MATCH = "match",
 }
 
-export interface EditOperation<T> {
+export interface EditOperation {
   type: OperationType;
   position: number;
-  element?: T;
-  originalElement?: T;
 }
 
-export interface EditDistanceResult<T> {
+export interface EditDistanceResult {
   distance: number;
-  operations: Array<EditOperation<T>>;
+  operations: Array<EditOperation>;
 }
 
 // Original edit distance function (for comparison)
@@ -24,7 +22,7 @@ export function editDistance<T, U>(
   arr1: T[],
   arr2: U[],
   equals: (a: T, b: U) => boolean = (a, b) => a === b,
-): EditDistanceResult<T> {
+): EditDistanceResult {
   const m = arr1.length;
   const n = arr2.length;
 
@@ -48,7 +46,7 @@ export function editDistance<T, U>(
   }
 
   // Backtrack for operations
-  const operations: Array<EditOperation<T>> = [];
+  const operations: Array<EditOperation> = [];
   let i = m,
     j = n;
 
@@ -57,7 +55,6 @@ export function editDistance<T, U>(
       operations.unshift({
         type: OperationType.MATCH,
         position: i - 1,
-        element: arr1[i - 1],
       });
       i--;
       j--;
@@ -65,8 +62,6 @@ export function editDistance<T, U>(
       operations.unshift({
         type: OperationType.SUBSTITUTE,
         position: i - 1,
-        element: arr2[j - 1],
-        originalElement: arr1[i - 1],
       });
       i--;
       j--;
@@ -81,7 +76,6 @@ export function editDistance<T, U>(
       operations.unshift({
         type: OperationType.INSERT,
         position: i,
-        element: arr2[j - 1],
       });
       j--;
     }
@@ -93,7 +87,7 @@ export function editDistance<T, U>(
 // Function to apply operations with stub for inserts/substitutions
 export function applyOperationsWithStub<T>(
   originalArray: T[],
-  operations: Array<EditOperation<T>>,
+  operations: Array<EditOperation>,
   stub: T,
 ): T[] {
   const result: T[] = [];
@@ -134,11 +128,9 @@ export function mergeArray<T, U>(
   arr2: U[],
   equals: (a: T, b: U) => boolean,
   stub: T,
-): { merged: Array<T | null>; edits: EditDistanceResult<T> } {
+): { merged: Array<T | null>; edits: EditDistanceResult } {
   // Use edit distance on code content - cast arr2 to T for comparison
-  const edits = editDistance(arr1, arr2 as unknown as T[], (a, b) =>
-    equals(a, b as unknown as U),
-  );
+  const edits = editDistance(arr1, arr2, equals);
   // Apply operations to session cells to match notebook structure
   return {
     merged: applyOperationsWithStub(arr1, edits.operations, stub),
