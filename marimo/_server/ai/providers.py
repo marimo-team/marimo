@@ -85,9 +85,9 @@ DictContent = tuple[
 TextContent = tuple[str, Literal["text", "reasoning", "tool_call_delta"]]
 ExtractedContent = Union[TextContent, DictContent]
 
-# Types for format_stream method parameter (includes finish_reason and transformed tool_call_delta)
+# Types for format_stream method parameter
 FinishContent = tuple[FinishReason, Literal["finish_reason"]]
-# StreamContent includes tool_call_delta as dict after transformation in as_stream_response
+# StreamContent
 StreamTextContent = tuple[str, Literal["text", "reasoning"]]
 StreamDictContent = tuple[
     dict[str, Any],
