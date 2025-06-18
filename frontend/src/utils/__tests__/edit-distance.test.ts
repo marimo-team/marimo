@@ -104,7 +104,7 @@ describe("editDistance", () => {
 describe("applyOperationsWithStub", () => {
   it("should apply match operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.MATCH, position: 0 },
       { type: OperationType.MATCH, position: 1 },
       { type: OperationType.MATCH, position: 2 },
@@ -116,7 +116,7 @@ describe("applyOperationsWithStub", () => {
 
   it("should apply delete operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.MATCH, position: 0 },
       { type: OperationType.DELETE, position: 1 },
       { type: OperationType.MATCH, position: 2 },
@@ -128,7 +128,7 @@ describe("applyOperationsWithStub", () => {
 
   it("should apply insert operations correctly", () => {
     const original = ["a", "c"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.MATCH, position: 0 },
       { type: OperationType.INSERT, position: 1 },
       { type: OperationType.MATCH, position: 1 },
@@ -140,7 +140,7 @@ describe("applyOperationsWithStub", () => {
 
   it("should apply substitute operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.MATCH, position: 0 },
       {
         type: OperationType.SUBSTITUTE,
@@ -155,7 +155,7 @@ describe("applyOperationsWithStub", () => {
 
   it("should handle complex operations with position offsets", () => {
     const original = ["a", "b", "c", "d"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.MATCH, position: 0 },
       { type: OperationType.DELETE, position: 1 },
       { type: OperationType.INSERT, position: 1 },
@@ -170,7 +170,7 @@ describe("applyOperationsWithStub", () => {
   // Test the specific example mentioned by the user
   it("should handle the specific example: abcde -> ac_e_ (with stub)", () => {
     const original = ["a", "b", "c", "d", "e"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.MATCH, position: 0 },
       { type: OperationType.DELETE, position: 1 },
       { type: OperationType.MATCH, position: 2 },
@@ -188,7 +188,7 @@ describe("applyOperationsWithStub", () => {
 
   it("should handle multiple consecutive operations correctly", () => {
     const original = ["a", "b", "c"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.DELETE, position: 0 },
       { type: OperationType.INSERT, position: 0 },
       {
@@ -208,7 +208,7 @@ describe("applyOperationsWithStub", () => {
 
   it("should handle operations that affect array length", () => {
     const original = ["a", "b"];
-    const operations: Array<EditOperation> = [
+    const operations: EditOperation[] = [
       { type: OperationType.INSERT, position: 0 },
       { type: OperationType.INSERT, position: 1 },
       { type: OperationType.MATCH, position: 2 },

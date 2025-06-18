@@ -108,7 +108,7 @@ function mergeSessionAndNotebookCells(
 
       // Should always be set, but good typing fallback too.
       const sessionItem = mergedSessionCells[i] || createEmptySessionCell();
-      sessionItem.id = id as CellId; // Ensure session cell has the correct ID
+      sessionItem.id = id; // Ensure session cell has the correct ID
 
       sessionCellData.set(id, sessionItem);
       notebookCellData.set(id, notebookCell);

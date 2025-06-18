@@ -24,10 +24,12 @@ export function editDistanceGeneral<T, U>(
   arr2: U[],
   equals: (a: T, b: U) => boolean,
 ): EditDistanceResult {
-  const m = arr1.length;
-  const n = arr2.length;
+  const m: number = arr1.length;
+  const n: number = arr2.length;
 
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    new Array.from({ length: n + 1 }).fill(0),
+  );
 
   for (let i = 0; i <= m; i++) {
     dp[i][0] = i;
@@ -46,8 +48,8 @@ export function editDistanceGeneral<T, U>(
 
   // Backtrack for operations
   const operations: EditOperation[] = [];
-  let i = m;
-  let j = n;
+  let i: number = m;
+  let j: number = n;
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && equals(arr1[i - 1], arr2[j - 1])) {
