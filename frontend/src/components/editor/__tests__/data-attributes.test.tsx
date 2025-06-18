@@ -107,7 +107,6 @@ describe("Cell data attributes", () => {
             canMoveX={false}
             theme="light"
             showPlaceholder={false}
-            allowFocus={true}
           />
         </TooltipProvider>,
       );

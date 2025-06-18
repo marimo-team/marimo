@@ -380,11 +380,6 @@ export interface CellProps
    * False only when there is only one cell in the notebook.
    */
   canDelete: boolean;
-  /**
-   * If true, the cell is allowed to be focus on.
-   * This is false when the app is initially loading.
-   */
-  allowFocus: boolean;
   userConfig: UserConfig;
   /**
    * If true, the cell is allowed to be moved left and right.
@@ -539,7 +534,6 @@ ReadonlyCellComponent.displayName = "ReadonlyCellComponent";
 const EditableCellComponent = ({
   theme,
   showPlaceholder,
-  allowFocus,
   id: cellId,
   code,
   output,
@@ -816,7 +810,6 @@ const EditableCellComponent = ({
               <CellEditor
                 theme={theme}
                 showPlaceholder={showPlaceholder}
-                allowFocus={allowFocus}
                 id={cellId}
                 code={code}
                 config={cellConfig}
@@ -1118,7 +1111,6 @@ const CellToolbar = ({
 const SetupCellComponent = ({
   theme,
   showPlaceholder,
-  allowFocus,
   id: cellId,
   code,
   output,
@@ -1287,7 +1279,6 @@ const SetupCellComponent = ({
             <CellEditor
               theme={theme}
               showPlaceholder={showPlaceholder}
-              allowFocus={allowFocus}
               id={cellId}
               code={code}
               config={cellConfig}

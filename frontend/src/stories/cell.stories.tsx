@@ -38,7 +38,6 @@ const props: CellProps = {
   name: "cell_1",
   connectionState: WebSocketState.OPEN,
   canDelete: true,
-  allowFocus: false,
   debuggerActive: false,
   isCollapsed: false,
   collapseCount: 0,
