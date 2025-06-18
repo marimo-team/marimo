@@ -85,9 +85,15 @@ DictContent = tuple[
 TextContent = tuple[str, Literal["text", "reasoning", "tool_call_delta"]]
 ExtractedContent = Union[TextContent, DictContent]
 
-# Types for format_stream method parameter (includes finish_reason)
+# Types for format_stream method parameter (includes finish_reason and transformed tool_call_delta)
 FinishContent = tuple[FinishReason, Literal["finish_reason"]]
-StreamContent = Union[TextContent, DictContent, FinishContent]
+# StreamContent includes tool_call_delta as dict after transformation in as_stream_response
+StreamTextContent = tuple[str, Literal["text", "reasoning"]]
+StreamDictContent = tuple[
+    dict[str, Any],
+    Literal["tool_call_start", "tool_call_end", "tool_call_delta"],
+]
+StreamContent = Union[StreamTextContent, StreamDictContent, FinishContent]
 
 LOGGER = _loggers.marimo_logger()
 
