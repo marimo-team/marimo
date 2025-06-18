@@ -1,12 +1,12 @@
+import fsSync from "node:fs";
+import fs from "node:fs/promises";
 import type * as http from "node:http";
+import path from "node:path";
+import type * as rpc from "@sourcegraph/vscode-ws-jsonrpc";
+import * as rpcServer from "@sourcegraph/vscode-ws-jsonrpc/lib/server";
 import parseArgs from "minimist";
 import type ws from "ws";
 import { WebSocketServer } from "ws";
-import type * as rpc from "@sourcegraph/vscode-ws-jsonrpc";
-import * as rpcServer from "@sourcegraph/vscode-ws-jsonrpc/lib/server";
-import path from "node:path";
-import fs from "node:fs/promises";
-import fsSync from "node:fs";
 
 const LOG_FILE = path.join(
   process.env.XDG_CACHE_HOME || path.join(process.env.HOME || "", ".cache"),
