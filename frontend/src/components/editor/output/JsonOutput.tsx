@@ -128,8 +128,9 @@ export const JsonOutput: React.FC<Props> = memo(
             collapseStringsAfterLength={COLLAPSED_TEXT_LENGTH}
             // leave the default valueTypes as it was - 'python', only 'json' is changed
             valueTypes={valueTypesMap[valueTypes]}
-            // disable array grouping (it's misleading) by using a large value
-            groupArraysAfterLength={1_000_000}
+            // When the number of elements exceed 50, we group them in sizes of 50
+            // This improves perf but may look like there are nested arrays
+            groupArraysAfterLength={50}
             // Built-in clipboard shifts content on hover
             // so we provide our own copy button
             enableClipboard={false}

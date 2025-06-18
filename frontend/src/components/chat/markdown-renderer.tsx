@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
 import { marked } from "marked";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, Suspense, useEffect, useMemo, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -110,17 +110,19 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
 
   return (
     <div className="relative">
-      <LazyAnyLanguageCodeMirror
-        theme={theme === "dark" ? "dark" : "light"}
-        // Only show the language if it's supported
-        language={
-          language && SUPPORTED_LANGUAGES.has(language) ? language : undefined
-        }
-        className="cm border rounded overflow-hidden"
-        extensions={extensions}
-        value={value}
-        onChange={setValue}
-      />
+      <Suspense>
+        <LazyAnyLanguageCodeMirror
+          theme={theme === "dark" ? "dark" : "light"}
+          // Only show the language if it's supported
+          language={
+            language && SUPPORTED_LANGUAGES.has(language) ? language : undefined
+          }
+          className="cm border rounded overflow-hidden"
+          extensions={extensions}
+          value={value}
+          onChange={setValue}
+        />
+      </Suspense>
       <div className="flex justify-end mt-2 space-x-2">
         <CopyButton size="xs" variant="outline" onClick={handleCopyCode}>
           Copy

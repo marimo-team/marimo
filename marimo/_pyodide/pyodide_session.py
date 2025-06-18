@@ -12,7 +12,7 @@ from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.config import MarimoConfig, merge_default_config
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
@@ -33,6 +33,7 @@ from marimo._runtime.requests import (
     CodeCompletionRequest,
     ControlRequest,
     SetUIElementValueRequest,
+    SetUserConfigRequest,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.utils.set_ui_element_request_manager import (
@@ -245,7 +246,8 @@ class PyodideBridge:
 
     def save_user_config(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), requests.SetUserConfigRequest)
-        self.session.put_control_request(parsed)
+        config = merge_default_config(parsed.config)
+        self.session.put_control_request(SetUserConfigRequest(config=config))
 
     def rename_file(self, filename: str) -> None:
         self.session.app_manager.rename(filename)

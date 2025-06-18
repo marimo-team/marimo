@@ -10,7 +10,7 @@ import {
   CirclePlayIcon,
   CircleX,
 } from "lucide-react";
-import React, { type JSX, useRef, useState } from "react";
+import React, { type JSX, Suspense, useRef, useState } from "react";
 import type { SignalListeners, VisualizationSpec } from "react-vega";
 import useResizeObserver from "use-resize-observer";
 import { compile } from "vega-lite";
@@ -123,14 +123,16 @@ const Chart: React.FC<ChartProps> = (props: ChartProps) => {
   const { ref, width = 300 } = useResizeObserver<HTMLDivElement>();
   return (
     <div className={props.className} ref={ref}>
-      <LazyVega
-        spec={props.vegaSpec}
-        theme={props.theme === "dark" ? "dark" : undefined}
-        width={width - 50}
-        height={props.height}
-        signalListeners={props.signalListeners}
-        actions={false}
-      />
+      <Suspense>
+        <LazyVega
+          spec={props.vegaSpec}
+          theme={props.theme === "dark" ? "dark" : undefined}
+          width={width - 50}
+          height={props.height}
+          signalListeners={props.signalListeners}
+          actions={false}
+        />
+      </Suspense>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { Suspense } from "react";
 import { createBatchedLoader } from "@/plugins/impl/vega/batched";
 import { useTheme } from "@/theme/useTheme";
 import { logNever } from "@/utils/assertNever";
@@ -34,23 +34,26 @@ export const TableColumnSummary = <TData, TValue>({
   const { spec, type, stats } = chartSpecModel.getHeaderSummary(columnId);
   let chart: React.ReactNode = null;
   if (spec) {
+    const skeleton = <ChartSkeleton seed={columnId} width={80} height={40} />;
     chart = (
       <DelayMount
         milliseconds={200}
         visibility={true}
         rootMargin="200px"
-        fallback={<ChartSkeleton seed={columnId} width={80} height={40} />}
+        fallback={skeleton}
       >
-        <LazyVegaLite
-          spec={spec}
-          width={70}
-          height={30}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          loader={batchedLoader as any}
-          style={{ minWidth: "unset", maxHeight: "40px" }}
-          actions={false}
-          theme={theme === "dark" ? "dark" : "vox"}
-        />
+        <Suspense fallback={skeleton}>
+          <LazyVegaLite
+            spec={spec}
+            width={70}
+            height={30}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            loader={batchedLoader as any}
+            style={{ minWidth: "unset", maxHeight: "40px" }}
+            actions={false}
+            theme={theme === "dark" ? "dark" : "vox"}
+          />
+        </Suspense>
       </DelayMount>
     );
   }

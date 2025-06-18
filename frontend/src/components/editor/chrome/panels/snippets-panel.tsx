@@ -176,15 +176,17 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
                   </Button>
                 </Tooltip>
               </HideInKioskMode>
-              <LazyAnyLanguageCodeMirror
-                key={`${snippet.title}-${id}`}
-                theme={theme === "dark" ? "dark" : "light"}
-                language="python"
-                className="cm border rounded overflow-hidden"
-                extensions={extensions}
-                value={code}
-                readOnly={true}
-              />
+              <Suspense>
+                <LazyAnyLanguageCodeMirror
+                  key={`${snippet.title}-${id}`}
+                  theme={theme === "dark" ? "dark" : "light"}
+                  language="python"
+                  className="cm border rounded overflow-hidden"
+                  extensions={extensions}
+                  value={code}
+                  readOnly={true}
+                />
+              </Suspense>
             </div>
           );
         })}
