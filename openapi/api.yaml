@@ -1348,6 +1348,11 @@ components:
               type: object
             max_tokens:
               type: integer
+            mode:
+              enum:
+              - ask
+              - manual
+              type: string
             open_ai:
               properties:
                 api_key:

@@ -3026,6 +3026,8 @@ export interface components {
           api_key?: string;
         };
         max_tokens?: number;
+        /** @enum {string} */
+        mode?: "ask" | "manual";
         open_ai?: {
           api_key?: string;
           base_url?: string;
