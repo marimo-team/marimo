@@ -14,10 +14,11 @@ export interface EditOperation {
 
 export interface EditDistanceResult {
   distance: number;
-  operations: Array<EditOperation>;
+  operations: EditOperation[];
 }
 
-// Original edit distance function (for comparison)
+// Very rote LLM produced edit distance implementation.
+// Sanity checked in tests, and a few lines here saves a dependency.
 export function editDistance<T, U>(
   arr1: T[],
   arr2: U[],
@@ -25,10 +26,12 @@ export function editDistance<T, U>(
 ): EditDistanceResult {
   const m = arr1.length;
   const n = arr2.length;
+  const m1 = m + 1;
+  const n1 = n + 1;
 
-  const dp: number[][] = new Array(m + 1)
+  const dp: number[][] = Array.from({ m1 })
     .fill(null)
-    .map(() => new Array(n + 1).fill(0));
+    .map(() => Array.from({ n1 }).fill(0));
 
   for (let i = 0; i <= m; i++) {
     dp[i][0] = i;
@@ -46,9 +49,9 @@ export function editDistance<T, U>(
   }
 
   // Backtrack for operations
-  const operations: Array<EditOperation> = [];
-  let i = m,
-    j = n;
+  const operations: EditOperation[] = [];
+  let i = m;
+  let j = n;
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && equals(arr1[i - 1], arr2[j - 1])) {
@@ -87,7 +90,7 @@ export function editDistance<T, U>(
 // Function to apply operations with stub for inserts/substitutions
 export function applyOperationsWithStub<T>(
   originalArray: T[],
-  operations: Array<EditOperation>,
+  operations: EditOperation[],
   stub: T,
 ): T[] {
   const result: T[] = [];
@@ -129,9 +132,7 @@ export function mergeArray<T, U>(
   equals: (a: T, b: U) => boolean,
   stub: T,
 ): { merged: Array<T | null>; edits: EditDistanceResult } {
-  // Use edit distance on code content - cast arr2 to T for comparison
   const edits = editDistance(arr1, arr2, equals);
-  // Apply operations to session cells to match notebook structure
   return {
     merged: applyOperationsWithStub(arr1, edits.operations, stub),
     edits,

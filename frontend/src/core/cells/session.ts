@@ -35,19 +35,18 @@ function mergeSessionAndNotebookCells(
   }
 
   if (!session) {
-    const cellIds = notebook!.cells.map(
-      (cell) => cell.id ?? CellId.create(),
-    ) as CellId[];
+    const cellIds =
+      notebook?.cells.map((cell) => cell.id ?? CellId.create()) ||
+      ([] as CellId[]);
     return {
       cellIds,
       sessionCellData: new Map(
         cellIds.map((id, idx) => [id, null] as [CellId, SessionCell | null]),
       ),
       notebookCellData: new Map(
-        cellIds.map((id, idx) => {
-          const notebookCell = notebook!.cells[idx];
-          return [id, notebookCell] as [CellId, NotebookCell];
-        }),
+        cellIds.map(
+          (id, idx) => [id, notebook.cells[idx]] as [CellId, NotebookCell],
+        ),
       ),
     };
   }
@@ -59,32 +58,20 @@ function mergeSessionAndNotebookCells(
     return {
       cellIds,
       sessionCellData: new Map(
-        cellIds.map((id, idx) => {
-          const sessionCell = session.cells[idx];
-          return [id, sessionCell] as [CellId, SessionCell | null];
-        }),
+        cellIds.map(
+          (id, idx) => [id, session.cells[idx]] as [CellId, SessionCell | null],
+        ),
       ),
       notebookCellData: new Map(
-        cellIds.map((id) => {
-          // Create empty notebook cell data since notebook doesn't exist
-          const emptyNotebookCell: NotebookCell = {
-            id: id as string,
-            name: EMPTY_STRING,
-            code: EMPTY_STRING,
-            config: {
-              column: null,
-              disabled: false,
-              hide_code: false,
-            },
-          };
-          return [id, emptyNotebookCell] as [CellId, NotebookCell];
-        }),
+        cellIds.map(
+          (id) => [id, createEmptyNotebookCell()] as [CellId, NotebookCell],
+        ),
       ),
     };
   }
 
   // Both session and notebook exist - merge using edit distance on cell content
-  // Use notebook cells as canonical (don't filter)
+  // hash.
   const { merged: mergedSessionCells, edits } = mergeArray(
     session.cells,
     notebook.cells,
@@ -99,12 +86,7 @@ function mergeSessionAndNotebookCells(
       return notebookCodeHash === sessionCodeHash;
     },
     // stub cell is empty session cell
-    {
-      id: "",
-      code_hash: null,
-      console: [],
-      outputs: [],
-    } as SessionCell,
+    createEmptySessionCell(),
   );
   if (edits.distance > 0) {
     Logger.warn("Session and notebook have different cells, attempted merge.");
@@ -113,13 +95,13 @@ function mergeSessionAndNotebookCells(
   // Create merged cell arrays
   const mergedCellIdsTyped: CellId[] = [];
 
-  // Notebook cells are canonical - use their IDs
+  // Defer to the notebook cells for the correct ordering.
   for (let i = 0; i < notebook.cells.length; i++) {
     const notebookCell = notebook.cells[i];
     if (notebookCell) {
       const id = notebookCell.id ?? CellId.create();
       mergedCellIdsTyped.push(id as CellId);
-      mergedSessionCells[i].id = id as string; // Ensure session cell has the correct ID
+      mergedSessionCells[i].id = id; // Ensure session cell has the correct ID
       sessionCellData.set(id, mergedSessionCells[i]);
       notebookCellData.set(id, notebookCell);
     } else {
@@ -132,6 +114,29 @@ function mergeSessionAndNotebookCells(
     cellIds: mergedCellIdsTyped,
     sessionCellData,
     notebookCellData,
+  };
+}
+
+function createEmptyNotebookCell(): NotebookCell {
+  return {
+    id: CellId.create(),
+    name: EMPTY_STRING,
+    code: EMPTY_STRING,
+    code_hash: null,
+    config: {
+      column: null,
+      disabled: false,
+      hide_code: false,
+    },
+  };
+}
+
+function createEmptySessionCell(): SessionCell {
+  return {
+    id: CellId.create(),
+    code_hash: null,
+    console: [],
+    outputs: [],
   };
 }
 
