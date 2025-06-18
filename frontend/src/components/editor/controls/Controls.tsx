@@ -148,7 +148,8 @@ const RunControlButton = ({
           size="medium"
           color="yellow"
           shape="circle"
-          onClick={onRun}
+          onClick={isConnected ? onRun : undefined}
+          disabled={!isConnected}
         >
           <PlayIcon strokeWidth={1.5} size={16} />
         </Button>
