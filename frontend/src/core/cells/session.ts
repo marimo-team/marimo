@@ -93,7 +93,6 @@ function mergeSessionAndNotebookCells(
       const sessionCodeHash = sessionCell.code_hash;
       // If the code hash is null, default to comparing ids
       if (!sessionCodeHash) {
-        console.debug("Session cell code hash is null, using ID comparison");
         return sessionCell.id === notebookCell.id;
       }
       // Compare session cell code_hash with notebook cell code
@@ -103,7 +102,6 @@ function mergeSessionAndNotebookCells(
         .update(notebookCode)
         .digest("hex");
 
-      console.debug("Hashes", notebookCodeHash, sessionCodeHash);
       return notebookCodeHash === sessionCodeHash;
     },
     // stub cell is empty session cell
@@ -122,14 +120,11 @@ function mergeSessionAndNotebookCells(
   const mergedCellIdsTyped: CellId[] = [];
 
   // Notebook cells are canonical - use their IDs
-  console.debug(mergedSessionCells);
   for (let i = 0; i < notebook.cells.length; i++) {
     const notebookCell = notebook.cells[i];
     if (notebookCell) {
       const id = notebookCell.id ?? CellId.create();
       mergedCellIdsTyped.push(id as CellId);
-      console.debug("Merging notebook cell at index", i, notebookCell);
-      console.debug("Session cell at index", i, mergedSessionCells[i]);
       mergedSessionCells[i].id = id as string; // Ensure session cell has the correct ID
       sessionCellData.set(id, mergedSessionCells[i]);
       notebookCellData.set(id, notebookCell);
