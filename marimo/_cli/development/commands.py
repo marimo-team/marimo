@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
+from marimo._utils.code import hash_code
 
 from marimo._cli.print import orange
 from marimo._convert.converters import MarimoConvert
-from marimo._utils.code import hash_code
 
 if TYPE_CHECKING:
     import psutil
