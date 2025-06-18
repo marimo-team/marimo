@@ -66,8 +66,11 @@ class PlotlyFormatter(FormatterFactory):
         resolved_config: dict[str, Any] = {}
 
         # Ensure valid renderer for marimo environment
-        if not pio.renderers.default or pio.renderers.default not in pio.renderers:
-            pio.renderers.default = "browser" 
+        if (
+            not pio.renderers.default
+            or pio.renderers.default not in pio.renderers
+        ):
+            pio.renderers.default = "browser"
 
         try:
             default_renderer: Any = pio.renderers[pio.renderers.default]
