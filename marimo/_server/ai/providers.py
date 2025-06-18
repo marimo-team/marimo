@@ -292,18 +292,20 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
     ) -> StreamContent:
         """Create type-safe StreamContent tuple."""
         # String content types
-        if content_type in [
-            "text",
-            "reasoning",
-            "tool_call_delta",
-        ] and isinstance(content_data, str):
-            return (content_data, content_type)  # type: ignore
+        if isinstance(content_data, str):
+            if content_type == "text":
+                return (content_data, "text")
+            elif content_type == "reasoning":
+                return (content_data, "reasoning")
 
         # Dict content types
-        if content_type in ["tool_call_start", "tool_call_end"] and isinstance(
-            content_data, dict
-        ):
-            return (content_data, content_type)  # type: ignore
+        if isinstance(content_data, dict):
+            if content_type == "tool_call_start":
+                return (content_data, "tool_call_start")
+            elif content_type == "tool_call_end":
+                return (content_data, "tool_call_end")
+            elif content_type == "tool_call_delta":
+                return (content_data, "tool_call_delta")
 
         # Fallback - convert to string content
         content_str = self._content_to_string(content_data)
