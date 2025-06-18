@@ -113,7 +113,9 @@ async def ai_completion(
 
     return StreamingResponse(
         content=without_wrapping_backticks(
-            provider.as_stream_response(response)
+            provider.as_stream_response(
+                response, StreamOptions(text_only=True)
+            )
         ),
         media_type="application/json",
     )
@@ -167,7 +169,7 @@ async def ai_chat(
 
     return StreamingResponse(
         content=provider.as_stream_response(
-            response, StreamOptions(include_reasoning=True, format_stream=True)
+            response, StreamOptions(format_stream=True)
         ),
         media_type="application/json",
     )
