@@ -119,7 +119,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                   <button
                     key={chat.id}
                     className={cn(
-                      "p-3 rounded-md cursor-pointer hover:bg-accent",
+                      "w-full p-3 rounded-md cursor-pointer hover:bg-accent text-left",
                       chat.id === activeChatId && "bg-accent",
                     )}
                     onClick={() => {
@@ -529,7 +529,10 @@ const ChatPanelBody = () => {
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
       id: generateUUID(),
-      title: `${initialMessage.slice(0, 30)}...`,
+      title:
+        initialMessage.length > 50
+          ? `${initialMessage.slice(0, 50)}...`
+          : initialMessage,
       messages: [
         {
           role: "user",
@@ -621,7 +624,7 @@ const ChatPanelBody = () => {
           onNewChat={handleNewChat}
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
-          chats={chatState.chats}
+          chats={[...chatState.chats].sort((a, b) => b.updatedAt - a.updatedAt)}
         />
       </TooltipProvider>
 
