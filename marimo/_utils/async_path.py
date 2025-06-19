@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import asyncio
 import os
-from pathlib import Path, PurePath
+import sys
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
 StrPath = Union[str, os.PathLike[str]]
@@ -136,9 +137,14 @@ class AsyncPath(PurePath):
         newline: Optional[str] = None,
     ) -> int:
         """Write text data to the file."""
-        return await asyncio.to_thread(
-            self._path.write_text, data, encoding, errors, newline
-        )
+        if sys.version_info >= (3, 10):
+            return await asyncio.to_thread(
+                self._path.write_text, data, encoding, errors, newline
+            )
+        else:
+            return await asyncio.to_thread(
+                self._path.write_text, data, encoding, errors
+            )
 
     async def write_bytes(self, data: bytes) -> int:
         """Write bytes data to the file."""
@@ -207,13 +213,19 @@ class AsyncPath(PurePath):
         return self._path.open(mode, buffering, encoding, errors, newline)
 
 
-class AsyncPosixPath(AsyncPath, PurePath):
+class AsyncPosixPath(AsyncPath, PurePosixPath):
     """AsyncPath implementation for POSIX systems."""
 
     __slots__ = ()
 
+    def __getattr__(self, name: str) -> Any:
+        return super().__getattr__(name)  # type: ignore
 
-class AsyncWindowsPath(AsyncPath, PurePath):
+
+class AsyncWindowsPath(AsyncPath, PureWindowsPath):
     """AsyncPath implementation for Windows systems."""
 
     __slots__ = ()
+
+    def __getattr__(self, name: str) -> Any:
+        return super().__getattr__(name)  # type: ignore
