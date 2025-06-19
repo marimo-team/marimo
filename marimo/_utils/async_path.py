@@ -9,7 +9,7 @@ import os
 from pathlib import Path, PurePath
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
-StrPath = Union[str, Path]
+StrPath = Union[str, os.PathLike[str]]
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
