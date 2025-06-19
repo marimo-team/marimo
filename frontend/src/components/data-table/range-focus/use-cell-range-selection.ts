@@ -68,6 +68,19 @@ export const useCellRangeSelection = <TData>({
         e.preventDefault();
         navigate(e, "right");
         break;
+      case "Enter":
+        e.preventDefault();
+        actions.toggleCurrentRowSelection(table);
+        break;
+      case "Escape":
+        actions.clearSelection();
+        break;
+      case "a":
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          actions.selectAllCells(table);
+        }
+        break;
     }
   });
 

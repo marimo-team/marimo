@@ -66,6 +66,23 @@ const {
       focusedCell: null,
     };
   },
+  selectAllCells: (state, table: AnyTable) => {
+    const allCells = table
+      .getRowModel()
+      .rows.flatMap((row) => row.getAllCells().map((cell) => cell.id));
+    return {
+      ...state,
+      selectedCells: new Set(allCells),
+    };
+  },
+  toggleCurrentRowSelection: (state, table: AnyTable) => {
+    const currentCell = state.focusedCell;
+    if (currentCell?.rowId) {
+      const row = table.getRow(currentCell?.rowId);
+      row?.toggleSelected?.();
+    }
+    return state;
+  },
   updateSelection: (
     state,
     {

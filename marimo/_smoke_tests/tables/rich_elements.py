@@ -93,6 +93,10 @@ def _(alt, mo, pd):
 
     data = {
         "buttons": [mo.ui.button(kind="warn"), mo.ui.button(kind="invalid")],
+        "checkbox": [
+            mo.ui.checkbox(value=True, label="True"),
+            mo.ui.checkbox(value=False, label="False"),
+        ],
         "mixed": [mo.ui.button(kind="info"), "apples"],
         "arrays": mo.ui.array([text] * 2),
         "dictionary": [dictionary, dictionary],

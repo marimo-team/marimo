@@ -122,8 +122,10 @@ export const DataTableBody = <TData,>({
   };
 
   const handleRowClick = (row: Row<TData>) => {
-    const rowIndex = getRowIndex?.(row.original, row.index) ?? row.index;
-    row.focusRow?.(rowIndex);
+    if (rowViewerPanelOpen) {
+      const rowIndex = getRowIndex?.(row.original, row.index) ?? row.index;
+      row.focusRow?.(rowIndex);
+    }
   };
 
   return (
