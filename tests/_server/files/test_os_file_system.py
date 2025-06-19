@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from marimo._server.files.os_file_system import OSFileSystem, natural_sort
+from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import FileDetailsResponse
+from marimo._utils.files import natural_sort
 
 
 @pytest.fixture
