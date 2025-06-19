@@ -100,9 +100,7 @@ export const DataTableBody = <TData,>({
           style={style}
           title={String(cell.getValue())}
         >
-          <div className="relative">
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </div>
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
       );
     });
