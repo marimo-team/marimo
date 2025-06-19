@@ -46,7 +46,7 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
         let directoryPath = "" as FilePath;
         if (filePath) {
           directoryPath = PathBuilder.guessDeliminator(filePath).dirname(
-            filePath as FilePath,
+            filePath,
           );
         }
 
@@ -75,15 +75,15 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
  * Types only have `webkitRelativePath`, but File objects in the browser
  * can have `path` and `relativePath`.
  */
-function getPath(file: File): string | undefined {
+function getPath(file: File): FilePath | undefined {
   if (file.webkitRelativePath) {
-    return file.webkitRelativePath;
+    return file.webkitRelativePath as FilePath;
   }
   if ("path" in file && typeof file.path === "string") {
-    return file.path;
+    return file.path as FilePath;
   }
   if ("relativePath" in file && typeof file.relativePath === "string") {
-    return file.relativePath;
+    return file.relativePath as FilePath;
   }
   return undefined;
 }
@@ -93,7 +93,7 @@ function getPath(file: File): string | undefined {
  *
  * TODO: this may not support windows paths.
  */
-function stripLeadingSlash(path: string | undefined): string | undefined {
+function stripLeadingSlash(path: FilePath | undefined): FilePath | undefined {
   if (!path) {
     return undefined;
   }
