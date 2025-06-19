@@ -218,7 +218,7 @@ export const PackagesPanel: React.FC = () => {
             >
               {isSandbox ? "sandbox" : "project"}
             </div>
-            {name && (
+            {name && !isSandbox && (
               <span className="text-xs text-muted-foreground">
                 {name}
                 {version && ` v${version}`}
@@ -607,7 +607,7 @@ const DependencyTreeNode: React.FC<{
           "flex items-center group cursor-pointer text-sm whitespace-nowrap",
           "hover:bg-[var(--slate-2)] focus:bg-[var(--slate-2)] focus:outline-none",
           hasChildren && "select-none",
-          isTopLevel ? "px-2 py-1" : "",
+          isTopLevel ? "px-2 py-0.5" : "",
         )}
         style={isTopLevel ? {} : { paddingLeft: `${indent}px` }}
         onClick={handleClick}
@@ -680,7 +680,7 @@ const DependencyTreeNode: React.FC<{
 
         {/* Actions for top-level packages */}
         {isTopLevel && (
-          <div className="flex gap-1 invisible group-hover:visible mr-2">
+          <div className="flex gap-1 invisible group-hover:visible">
             <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
             <RemoveButton packageName={node.name} onSuccess={onSuccess} />
           </div>
