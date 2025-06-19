@@ -9,7 +9,6 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import split_packages
-from marimo._server.api.dependency_tree import get_dependency_tree
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.packages import (
@@ -158,10 +157,19 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
                     schema:
                         $ref: "#/components/schemas/DependencyTreeResponse"
     """
-    filename = _get_filename(request)
-    assert filename, "`uv tree` only supported for --sandbox"
+    package_manager = _get_package_manager(request)
 
-    return DependencyTreeResponse(tree=get_dependency_tree(filename))
+    filename = _get_filename(request)
+    # TODO(manzt): Same as check below when installing packages. If we are
+    # managing script metadata, we are in sandbox mode.
+    is_sandbox = (
+        filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    )
+    if is_sandbox:
+        tree = package_manager.dependency_tree(filename)
+    else:
+        tree = package_manager.dependency_tree()
+    return DependencyTreeResponse(tree=tree)
 
 
 def _get_package_manager(request: Request) -> PackageManager:

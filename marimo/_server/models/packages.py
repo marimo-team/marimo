@@ -40,15 +40,14 @@ class ListPackagesResponse:
 class DependencyTreeNode:
     name: str
     version: Optional[str]
-    tags: list[
-        dict[str, str]
-    ]  # List of {"kind": "extra"|"group", "value": str}
+    # List of {"kind": "extra"|"group", "value": str}
+    tags: list[dict[str, str]]
     dependencies: list[DependencyTreeNode]
 
 
 @dataclass
 class DependencyTreeResponse:
-    tree: DependencyTreeNode
+    tree: Optional[DependencyTreeNode]
 
 
 @dataclass

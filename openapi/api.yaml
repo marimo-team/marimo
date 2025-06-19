@@ -653,6 +653,34 @@ components:
       required:
       - key
       type: object
+    DependencyTreeNode:
+      properties:
+        dependencies:
+          items:
+            $ref: '#/components/schemas/DependencyTreeNode'
+          type: array
+        name:
+          type: string
+        tags:
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
+        version:
+          nullable: true
+          type: string
+      required:
+      - name
+      - tags
+      - dependencies
+      type: object
+    DependencyTreeResponse:
+      properties:
+        tree:
+          $ref: '#/components/schemas/DependencyTreeNode'
+          nullable: true
+      type: object
     Error:
       oneOf:
       - $ref: '#/components/schemas/SetupRootError'
@@ -1268,8 +1296,6 @@ components:
           type: array
       required:
       - packages
-      type: object
-    DependencyTreeResponse:
       type: object
     ListSecretKeysRequest:
       properties:

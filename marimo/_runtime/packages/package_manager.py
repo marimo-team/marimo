@@ -4,12 +4,15 @@ from __future__ import annotations
 import abc
 import subprocess
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
 from marimo._runtime.packages.utils import append_version
+
+if TYPE_CHECKING:
+    from marimo._server.models.packages import DependencyTreeNode
 
 LOGGER = _loggers.marimo_logger()
 
@@ -122,6 +125,20 @@ class PackageManager(abc.ABC):
     def list_packages(self) -> list[PackageDescription]:
         """List installed packages."""
         ...
+
+    def dependency_tree(
+        self,
+        filename: Optional[str] = None,  # noqa: ARG002
+    ) -> Optional[DependencyTreeNode]:
+        """Get dependency tree for the current environment or script.
+
+        Args:
+            filename: Optional path to a script file for script-specific dependencies
+
+        Returns:
+            DependencyTreeNode if supported by this package manager, None otherwise
+        """
+        return None
 
     def alert_not_installed(self) -> None:
         """Alert the user that the package manager is not installed."""

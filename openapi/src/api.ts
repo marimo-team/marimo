@@ -2742,6 +2742,17 @@ export interface components {
     DeleteSecretRequest: {
       key: string;
     };
+    DependencyTreeNode: {
+      dependencies: components["schemas"]["DependencyTreeNode"][];
+      name: string;
+      tags: {
+        [key: string]: string;
+      }[];
+      version?: string | null;
+    };
+    DependencyTreeResponse: {
+      tree?: components["schemas"]["DependencyTreeNode"];
+    };
     Error:
       | components["schemas"]["SetupRootError"]
       | components["schemas"]["CycleError"]
@@ -3026,7 +3037,6 @@ export interface components {
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
     };
-    DependencyTreeResponse: Record<string, never>;
     ListSecretKeysRequest: {
       requestId: string;
     };

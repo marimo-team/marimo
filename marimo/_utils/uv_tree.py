@@ -1,13 +1,11 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import subprocess
-
 from marimo._server.models.packages import DependencyTreeNode
-from marimo._utils.uv import find_uv_bin
 
 
 def parse_name_version(content: str) -> tuple[str, str | None]:
+    """Parse package name and version from uv tree output."""
     if " v" in content:
         name, version = content.split(" v", 1)
         return name.strip(), version.split()[0]  # Take only version part
@@ -15,7 +13,7 @@ def parse_name_version(content: str) -> tuple[str, str | None]:
 
 
 def parse_uv_tree(text: str) -> DependencyTreeNode:
-    """The text output of `uv tree` into a nested data structure."""
+    """Parse the text output of `uv tree` into a nested data structure."""
     lines = text.strip().split("\n")
 
     # Create a virtual root to hold all top-level dependencies
@@ -92,16 +90,4 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
         stack[-1][0].dependencies.append(node)
         stack.append((node, level))
 
-    return tree
-
-
-def get_dependency_tree(filename: str) -> DependencyTreeNode:
-    result = subprocess.run(
-        [find_uv_bin(), "tree", "--no-dedupe", "--script", filename],
-        # [find_uv_bin(), "tree", "--no-dedupe"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    tree = parse_uv_tree(result.stdout)
     return tree

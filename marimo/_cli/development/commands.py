@@ -165,6 +165,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         packages.ListPackagesResponse,
         packages.PackageOperationResponse,
         packages.RemovePackageRequest,
+        packages.DependencyTreeNode,
+        packages.DependencyTreeResponse,
         home.OpenTutorialRequest,
         home.RecentFilesResponse,
         home.RunningNotebooksResponse,
