@@ -1,0 +1,58 @@
+{
+  "name": "<root>",
+  "version": null,
+  "tags": [],
+  "dependencies": [
+    {
+      "name": "bar",
+      "version": "0.1.0",
+      "tags": [],
+      "dependencies": [
+        {
+          "name": "pandas",
+          "version": "2.3.0",
+          "tags": [],
+          "dependencies": [
+            {
+              "name": "numpy",
+              "version": "2.3.0",
+              "tags": [],
+              "dependencies": []
+            },
+            {
+              "name": "python-dateutil",
+              "version": "2.9.0.post0",
+              "tags": [],
+              "dependencies": [
+                {
+                  "name": "six",
+                  "version": "1.17.0",
+                  "tags": [],
+                  "dependencies": []
+                }
+              ]
+            },
+            {
+              "name": "pytz",
+              "version": "2025.2",
+              "tags": [],
+              "dependencies": []
+            },
+            {
+              "name": "tzdata",
+              "version": "2025.2",
+              "tags": [],
+              "dependencies": []
+            }
+          ]
+        },
+        {
+          "name": "polars",
+          "version": "1.31.0",
+          "tags": [],
+          "dependencies": []
+        }
+      ]
+    }
+  ]
+}
