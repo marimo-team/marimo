@@ -132,7 +132,10 @@ def marimo_logger() -> logging.Logger:
     global has_added_handler
     if not has_added_handler:
         has_added_handler = True
-        logger.addHandler(_file_handler())
+        try:
+            logger.addHandler(_file_handler())
+        except Exception as e:
+            logger.debug(f"Failed to add file handler: {e}")
 
     return logger
 
