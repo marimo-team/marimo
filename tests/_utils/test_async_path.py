@@ -135,6 +135,10 @@ class TestAsyncPathFileSystemOperations:
             # Should not raise
             await path.mkdir(exist_ok=True)
 
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="Symlinks require special permissions on Windows",
+    )
     async def test_unlink(self):
         """Test unlink removes file."""
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -318,6 +322,10 @@ class TestAsyncPathUtilityMethods:
         # Should expand to actual home directory
         assert str(expanded) != "~"
 
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="Temp file permissions are different on Windows",
+    )
     def test_open(self):
         """Test open returns file object."""
         with tempfile.NamedTemporaryFile() as tmp:
