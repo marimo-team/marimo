@@ -7,9 +7,9 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path, PurePath
-from typing import IO, TYPE_CHECKING, Any, Union
+from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
-StrPath = str | Path
+StrPath = Union[str, Path]
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
@@ -119,7 +119,7 @@ class AsyncPath(PurePath):
     # File I/O operations
 
     async def read_text(
-        self, encoding: str | None = None, errors: str | None = None
+        self, encoding: Optional[str] = None, errors: Optional[str] = None
     ) -> str:
         """Read and return the file contents as text."""
         return await asyncio.to_thread(self._path.read_text, encoding, errors)
@@ -131,9 +131,9 @@ class AsyncPath(PurePath):
     async def write_text(
         self,
         data: str,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
     ) -> int:
         """Write text data to the file."""
         return await asyncio.to_thread(
@@ -194,9 +194,9 @@ class AsyncPath(PurePath):
         self,
         mode: str = "r",
         buffering: int = -1,
-        encoding: str | None = None,
-        errors: str | None = None,
-        newline: str | None = None,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
     ) -> IO[Any]:
         """
         Open the file.
