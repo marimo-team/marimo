@@ -5,7 +5,6 @@ import base64
 import mimetypes
 import os
 import platform
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -14,6 +13,7 @@ from typing import Literal, Optional, Union
 from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
+from marimo._utils.files import natural_sort
 
 LOGGER = _loggers.marimo_logger()
 
@@ -217,16 +217,6 @@ class OSFileSystem(FileSystem):
 
 def natural_sort_file(file: FileInfo) -> list[Union[int, str]]:
     return natural_sort(file.name)
-
-
-def natural_sort(filename: str) -> list[Union[int, str]]:
-    def convert(text: str) -> Union[int, str]:
-        return int(text) if text.isdigit() else text.lower()
-
-    def alphanum_key(key: str) -> list[Union[int, str]]:
-        return [convert(c) for c in re.split("([0-9]+)", key)]
-
-    return alphanum_key(filename)
 
 
 def _is_terminal_editor(editor: str) -> bool:
