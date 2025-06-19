@@ -2,6 +2,7 @@
 
 import type { Table } from "@tanstack/react-table";
 import { renderUnknownValue } from "../renderers";
+import { SELECT_COLUMN_ID } from "../types";
 import type { SelectedCell } from "./atoms";
 
 /**
@@ -14,6 +15,11 @@ export function getCellValues<TData>(
   const rowValues = new Map<string, string[]>();
 
   for (const cellId of selectedCellIds) {
+    if (cellId.includes(SELECT_COLUMN_ID)) {
+      // Ignore select checkbox in tables
+      continue;
+    }
+
     const [rowId] = cellId.split("_"); // CellId is rowId_columnId
     const row = table.getRow(rowId);
     if (!row) {

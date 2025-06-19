@@ -31,6 +31,7 @@ import { parseContent, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
+const SELECT_ID = "__select__";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -245,7 +246,7 @@ export function generateColumns<T>({
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
-      id: "__select__",
+      id: SELECT_ID,
       maxSize: 40,
       header: ({ table }) =>
         selection === "multi" ? (
@@ -266,6 +267,10 @@ export function generateColumns<T>({
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
           className="mx-2"
+          onMouseDown={(e) => {
+            // Prevent cell underneath from being selected
+            e.stopPropagation();
+          }}
         />
       ),
       enableSorting: false,
@@ -294,7 +299,14 @@ const PopoutColumn = ({
   return (
     <EmotionCacheProvider container={null}>
       <Popover>
-        <PopoverTrigger className={cellStyles} onClick={selectCell}>
+        <PopoverTrigger
+          className={cn(cellStyles, "w-fit outline-none")}
+          onClick={selectCell}
+          onMouseDown={(e) => {
+            // Prevent cell underneath from being selected
+            e.stopPropagation();
+          }}
+        >
           <span
             className="cursor-pointer hover:text-link"
             title={rawStringValue}
