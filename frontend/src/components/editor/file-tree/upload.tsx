@@ -96,5 +96,5 @@ function stripLeadingSlash(path: FilePath | undefined): FilePath | undefined {
   if (!path) {
     return undefined;
   }
-  return path.replace(/^\/+/, "");
+  return path.replace(/^\/+/, "") as FilePath;
 }
