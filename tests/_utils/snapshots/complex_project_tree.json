@@ -4,7 +4,7 @@
   "tags": [],
   "dependencies": [
     {
-      "name": "bar",
+      "name": "blah",
       "version": "0.1.0",
       "tags": [],
       "dependencies": [
@@ -224,13 +224,13 @@
             },
             {
               "name": "markdown",
-              "version": "3.8.2",
+              "version": "3.8.1",
               "tags": [],
               "dependencies": []
             },
             {
               "name": "narwhals",
-              "version": "1.43.1",
+              "version": "1.42.1",
               "tags": [],
               "dependencies": []
             },
@@ -259,7 +259,7 @@
               "dependencies": [
                 {
                   "name": "markdown",
-                  "version": "3.8.2",
+                  "version": "3.8.1",
                   "tags": [],
                   "dependencies": []
                 },
@@ -342,7 +342,7 @@
           "tags": [
             {
               "kind": "extra",
-              "value": "blah"
+              "value": "bar"
             }
           ],
           "dependencies": [
