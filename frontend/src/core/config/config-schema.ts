@@ -176,6 +176,7 @@ export const UserConfigSchema = z
     server: {},
     ai: {
       rules: "",
+      mode: "manual",
       open_ai: {},
     },
   });

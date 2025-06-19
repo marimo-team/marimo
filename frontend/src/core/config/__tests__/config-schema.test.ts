@@ -44,6 +44,7 @@ test("default UserConfig - empty", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "mode": "manual",
         "rules": "",
       },
       "completion": {
@@ -99,6 +100,7 @@ test("default UserConfig - one level", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "mode": "manual",
         "rules": "",
       },
       "completion": {
