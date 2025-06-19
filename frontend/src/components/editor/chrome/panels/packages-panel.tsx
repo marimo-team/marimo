@@ -28,6 +28,7 @@ import {
   getPackageList,
   removePackage,
 } from "@/core/network/requests";
+import type { DependencyTreeNode } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -155,7 +156,27 @@ export const PackagesPanel: React.FC = () => {
     refetch: refetchTree,
   } = useAsyncData(() => getDependencyTree(), [packageManager]);
 
-  const [viewMode, setViewMode] = React.useState<"list" | "tree">("list");
+  const [viewMode, setViewMode] = React.useState<"list" | "tree">("tree");
+
+  const isTreeSupported = treeData?.tree != null;
+
+  // Set default view mode and handle unsupported cases
+  const [hasInitialized, setHasInitialized] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!hasInitialized && treeData !== undefined) {
+      // On initial load, prefer tree view if supported
+      if (isTreeSupported) {
+        setViewMode("tree");
+      } else {
+        setViewMode("list");
+      }
+      setHasInitialized(true);
+    } else if (hasInitialized && !isTreeSupported && viewMode === "tree") {
+      // If user is on tree view but it becomes unsupported, switch to list
+      setViewMode("list");
+    }
+  }, [isTreeSupported, viewMode, treeData, hasInitialized]);
 
   const handleRefetch = () => {
     refetch();
@@ -179,39 +200,55 @@ export const PackagesPanel: React.FC = () => {
         packageManager={packageManager}
         onSuccess={handleRefetch}
       />
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={cn(
-              "px-3 py-1 text-sm rounded",
-              viewMode === "list"
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:text-foreground",
+      {isTreeSupported && (
+        <div className="flex items-center justify-between px-2 py-1 border-b">
+          <div className="flex gap-1">
+            <button
+              type="button"
+              className={cn(
+                "px-2 py-1 text-xs rounded",
+                viewMode === "list"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setViewMode("list")}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "px-2 py-1 text-xs rounded",
+                viewMode === "tree"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setViewMode("tree")}
+            >
+              Tree
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
+              title={treeData?.tree?.name === "<root>" ? "sandbox" : "project"}
+            >
+              {treeData?.tree?.name === "<root>" ? "sandbox" : "project"}
+            </div>
+            {treeData?.tree?.name !== "<root>" && treeData?.tree?.name && (
+              <span className="text-xs text-muted-foreground">
+                {treeData.tree.name}
+                {treeData?.tree?.version && ` v${treeData.tree.version}`}
+              </span>
             )}
-            onClick={() => setViewMode("list")}
-          >
-            List
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "px-3 py-1 text-sm rounded",
-              viewMode === "tree"
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => setViewMode("tree")}
-          >
-            Tree
-          </button>
+          </div>
         </div>
-      </div>
-      {viewMode === "list" ? (
+      )}
+      {viewMode === "list" || !isTreeSupported ? (
         <PackagesList packages={packages} onSuccess={handleRefetch} />
       ) : (
         <DependencyTree
-          tree={treeData?.tree}
+          tree={treeData?.tree ?? undefined}
           error={treeError}
           onSuccess={handleRefetch}
         />
@@ -477,15 +514,8 @@ const RemoveButton: React.FC<{
   );
 };
 
-interface DependencyNode {
-  name: string;
-  version?: string;
-  tags: Array<{ kind: string; value: string }>;
-  dependencies: DependencyNode[];
-}
-
 const DependencyTree: React.FC<{
-  tree?: DependencyNode;
+  tree?: DependencyTreeNode;
   error?: Error | null;
   onSuccess: () => void;
 }> = ({ tree, error, onSuccess }) => {
@@ -493,14 +523,9 @@ const DependencyTree: React.FC<{
     new Set(),
   );
 
-  // Auto-expand top-level nodes when tree first loads
+  // Reset tree to collapsed state when tree data changes (including refetches)
   React.useEffect(() => {
-    if (tree && tree.dependencies.length > 0) {
-      const topLevelNodeIds = tree.dependencies.map(
-        (_, index) => `root-${index}`,
-      );
-      setExpandedNodes(new Set(topLevelNodeIds));
-    }
+    setExpandedNodes(new Set());
   }, [tree]);
 
   if (error) {
@@ -535,26 +560,19 @@ const DependencyTree: React.FC<{
 
   return (
     <div className="flex-1 overflow-auto">
-      {tree.name !== "<root>" && (
-        <div className="px-3 py-2 border-b">
-          <div className="text-sm font-medium">
-            {tree.name} {tree.version && `v${tree.version}`}
-          </div>
-        </div>
-      )}
-
-      <div className="p-1">
+      <div>
         {tree.dependencies.map((dep, index) => (
-          <DependencyTreeNode
-            key={`${dep.name}-${index}`}
-            nodeId={`root-${index}`}
-            node={dep}
-            level={0}
-            isTopLevel={true}
-            expandedNodes={expandedNodes}
-            onToggle={toggleNode}
-            onSuccess={onSuccess}
-          />
+          <div key={`${dep.name}-${index}`} className="border-b">
+            <DependencyTreeNode
+              nodeId={`root-${index}`}
+              node={dep}
+              level={0}
+              isTopLevel={true}
+              expandedNodes={expandedNodes}
+              onToggle={toggleNode}
+              onSuccess={onSuccess}
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -563,7 +581,7 @@ const DependencyTree: React.FC<{
 
 const DependencyTreeNode: React.FC<{
   nodeId: string;
-  node: DependencyNode;
+  node: DependencyTreeNode;
   level: number;
   isTopLevel?: boolean;
   expandedNodes: Set<string>;
@@ -580,7 +598,7 @@ const DependencyTreeNode: React.FC<{
 }) => {
   const hasChildren = node.dependencies.length > 0;
   const isExpanded = expandedNodes.has(nodeId);
-  const indent = 12 + level * 16; // Start with base padding, then add 16px per level
+  const indent = isTopLevel ? 0 : 16 + level * 16; // Top-level uses CSS padding, children use calculated indent
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -606,8 +624,9 @@ const DependencyTreeNode: React.FC<{
           "flex items-center group cursor-pointer text-sm whitespace-nowrap",
           "hover:bg-[var(--slate-2)] focus:bg-[var(--slate-2)] focus:outline-none",
           hasChildren && "select-none",
+          isTopLevel ? "px-2 py-1" : "",
         )}
-        style={{ paddingLeft: `${indent}px` }}
+        style={isTopLevel ? {} : { paddingLeft: `${indent}px` }}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         tabIndex={0}
