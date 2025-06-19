@@ -33,18 +33,16 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
         ):
             continue
 
-        # Calculate indentation level
-        # Count leading tree characters: no prefix=0, "├── "=1, "│   ├── "=2, etc.
-        stripped = line.lstrip()
-        if not stripped.startswith(("├──", "└──", "│")):
+        # Calculate indentation level by counting characters before tree symbols
+        if not any(symbol in line for symbol in ["├──", "└──"]):
             level = 0  # Top-level package
         else:
-            # Count the number of "│   " prefixes + 1 for the final tree symbol
-            prefix_count = line.count("│   ")
-            if "├──" in line or "└──" in line:
-                level = prefix_count + 1
-            else:
-                level = prefix_count
+            # Find the tree symbol position and divide by 4 (standard tree indentation)
+            for symbol in ["├──", "└──"]:
+                pos = line.find(symbol)
+                if pos != -1:
+                    level = (pos // 4) + 1
+                    break
 
         # content after tree symbols
         content = line.lstrip("│ ├└─").strip()

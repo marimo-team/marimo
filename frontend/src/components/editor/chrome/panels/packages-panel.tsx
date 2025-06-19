@@ -493,6 +493,16 @@ const DependencyTree: React.FC<{
     new Set(),
   );
 
+  // Auto-expand top-level nodes when tree first loads
+  React.useEffect(() => {
+    if (tree && tree.dependencies.length > 0) {
+      const topLevelNodeIds = tree.dependencies.map(
+        (_, index) => `root-${index}`,
+      );
+      setExpandedNodes(new Set(topLevelNodeIds));
+    }
+  }, [tree]);
+
   if (error) {
     return <ErrorBanner error={error} />;
   }
@@ -594,7 +604,7 @@ const DependencyTreeNode: React.FC<{
       <div
         className={cn(
           "flex items-center group cursor-pointer text-sm whitespace-nowrap",
-          "hover:bg-accent/50 focus:bg-accent/50 focus:outline-none",
+          "hover:bg-[var(--slate-2)] focus:bg-[var(--slate-2)] focus:outline-none",
           hasChildren && "select-none",
         )}
         style={{ paddingLeft: `${indent}px` }}
@@ -616,7 +626,7 @@ const DependencyTreeNode: React.FC<{
         )}
 
         {/* Package info */}
-        <div className="flex items-center gap-2 flex-1 min-w-0 py-1">
+        <div className="flex items-center gap-2 flex-1 min-w-0 py-1.5">
           <span className="font-medium truncate">{node.name}</span>
           {node.version && (
             <span className="text-muted-foreground text-xs">
@@ -625,37 +635,40 @@ const DependencyTreeNode: React.FC<{
           )}
         </div>
 
-        {/* Tags - right aligned */}
+        {/* Tags */}
         <div className="flex items-center gap-1 ml-2">
           {node.tags.map((tag, index) => {
             if (tag.kind === "cycle") {
               return (
-                <span
+                <div
                   key={index}
-                  className="text-xs px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-full"
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300"
+                  title="cycle"
                 >
                   cycle
-                </span>
+                </div>
               );
             }
             if (tag.kind === "extra") {
               return (
-                <span
+                <div
                   key={index}
-                  className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full"
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300"
+                  title={tag.value}
                 >
                   {tag.value}
-                </span>
+                </div>
               );
             }
             if (tag.kind === "group") {
               return (
-                <span
+                <div
                   key={index}
-                  className="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full"
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-green-300 dark:border-green-700 text-green-700 dark:text-green-300"
+                  title={tag.value}
                 >
                   {tag.value}
-                </span>
+                </div>
               );
             }
             return null;
