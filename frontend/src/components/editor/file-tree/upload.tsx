@@ -45,9 +45,8 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
         const filePath = stripLeadingSlash(getPath(file));
         let directoryPath = "" as FilePath;
         if (filePath) {
-          directoryPath = PathBuilder.guessDeliminator(filePath).dirname(
-            filePath,
-          );
+          directoryPath =
+            PathBuilder.guessDeliminator(filePath).dirname(filePath);
         }
 
         // File contents are sent base64-encoded to support arbitrary
