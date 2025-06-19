@@ -193,6 +193,8 @@ export const PackagesPanel: React.FC = () => {
   }
 
   const packages = data?.packages || [];
+  const name = treeData?.tree?.name;
+  const version = treeData?.tree?.version;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -233,12 +235,12 @@ export const PackagesPanel: React.FC = () => {
               className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
               title={treeData?.tree?.name === "<root>" ? "sandbox" : "project"}
             >
-              {treeData?.tree?.name === "<root>" ? "sandbox" : "project"}
+              {name === "<root>" ? "sandbox" : "project"}
             </div>
-            {treeData?.tree?.name !== "<root>" && treeData?.tree?.name && (
+            {name && name !== "<root>" && (
               <span className="text-xs text-muted-foreground">
-                {treeData.tree.name}
-                {treeData?.tree?.version && ` v${treeData.tree.version}`}
+                {name}
+                {version && ` v${version}`}
               </span>
             )}
           </div>
