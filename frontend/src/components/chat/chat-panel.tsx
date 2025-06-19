@@ -10,8 +10,8 @@ import {
   Loader2,
   PlusIcon,
   SendIcon,
-  Settings,
-  Square,
+  SettingsIcon,
+  SquareIcon,
 } from "lucide-react";
 import {
   type Dispatch,
@@ -94,7 +94,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             className="hover:bg-foreground/10 py-2"
             onClick={() => handleClick("ai")}
           >
-            <Settings className="h-4 w-4" />
+            <SettingsIcon className="h-4 w-4" />
           </Button>
         </Tooltip>
         <Popover>
@@ -287,7 +287,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         <div className="flex items-center gap-2">
           {/* TODO: ADD BACK ONCE THERE ARE TOOLS FOR ASK MODE */}
           {/* <Select value={currentMode} onValueChange={handleModeChange}>
-            <SelectTrigger className="h-6 text-xs border-0 bg-transparent hover:bg-muted/30 focus:ring-0 focus:shadow-none py-0 px-2 gap-1">
+            <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
               <SelectValue placeholder="manual" />
             </SelectTrigger>
             <SelectContent>
@@ -304,7 +304,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             </SelectContent>
           </Select> */}
           <Select value={currentModel} onValueChange={handleModelChange}>
-            <SelectTrigger className="h-6 text-xs border-0 bg-transparent hover:bg-muted/30 focus:ring-0 focus:shadow-none py-0 px-2 gap-1">
+            <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
               <SelectValue placeholder="Model" />
             </SelectTrigger>
             <SelectContent>
@@ -336,7 +336,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           disabled={isLoading ? false : !input.trim()}
         >
           {isLoading ? (
-            <Square className="h-3 w-3 fill-current" />
+            <SquareIcon className="h-3 w-3 fill-current" />
           ) : (
             <SendIcon className="h-3 w-3" />
           )}
