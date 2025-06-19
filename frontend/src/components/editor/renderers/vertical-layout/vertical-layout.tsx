@@ -129,7 +129,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
       );
     }
 
-    if (cells.length === 0) {
+    if (cells.length === 0 && !invisible) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
           <Alert variant="info">
