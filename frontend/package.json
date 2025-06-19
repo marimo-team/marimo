@@ -166,7 +166,7 @@
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "run-s lint:eslint lint:stylelint lint:biome format",
+    "lint": "run-s lint:biome format lint:eslint lint:stylelint",
     "lint:biome": "biome lint --diagnostic-level=warn --write .",
     "lint:eslint": "cross-env TIMING=1 eslint src e2e-tests --fix",
     "lint:stylelint": "stylelint src/**/*.css --fix",

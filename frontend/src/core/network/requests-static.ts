@@ -80,6 +80,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     addPackage: throwNotInEditMode,
     removePackage: throwNotInEditMode,
     getPackageList: throwNotInEditMode,
+    getDependencyTree: throwNotInEditMode,
     listSecretKeys: throwNotInEditMode,
     writeSecret: throwNotInEditMode,
   };

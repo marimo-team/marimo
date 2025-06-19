@@ -58,6 +58,7 @@ export function createErrorToastingRequests(
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
+    getDependencyTree: "Failed to get dependency tree",
     listSecretKeys: "Failed to fetch secrets",
     writeSecret: "Failed to write secret",
   };

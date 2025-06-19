@@ -19,8 +19,10 @@ from marimo._runtime.packages.package_manager import (
     PackageDescription,
 )
 from marimo._runtime.packages.utils import split_packages
+from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.platform import is_pyodide
 from marimo._utils.uv import find_uv_bin
+from marimo._utils.uv_tree import parse_uv_tree
 
 PY_EXE = sys.executable
 
@@ -373,6 +375,39 @@ class UvPackageManager(PypiPackageManager):
         LOGGER.info("Listing packages with 'uv pip list'")
         cmd = [self._uv_bin, "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
+
+    def dependency_tree(
+        self, filename: Optional[str] = None
+    ) -> Optional[DependencyTreeNode]:
+        """Return the project’s dependency tree using the `uv tree` command."""
+
+        # Skip if not a script and not inside a uv-managed project
+        if filename is None and not self.is_in_uv_project:
+            return None
+
+        tree_cmd = [self._uv_bin, "tree", "--no-dedupe"]
+        if filename:
+            tree_cmd += ["--script", filename]
+
+        try:
+            result = subprocess.run(
+                tree_cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            tree = parse_uv_tree(result.stdout)
+
+            # If in a uv project and the only top-level item is the project itself,
+            # return its dependencies directly
+            if filename is None and len(tree.dependencies) == 1:
+                return tree.dependencies[0]
+
+            return tree
+
+        except subprocess.CalledProcessError:
+            LOGGER.error(f"Failed to get dependency tree for {filename}")
+            return None
 
 
 class RyePackageManager(PypiPackageManager):

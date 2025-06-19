@@ -514,6 +514,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
+  getDependencyTree = async () => {
+    // WASM doesn't support dependency trees yet
+    return { tree: undefined };
+  };
+
   listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
     await this.putControlRequest(request);
     return null;

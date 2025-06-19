@@ -13,6 +13,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.packages import (
     AddPackageRequest,
+    DependencyTreeResponse,
     ListPackagesResponse,
     PackageOperationResponse,
     RemovePackageRequest,
@@ -92,6 +93,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
                     schema:
                         $ref: "#/components/schemas/PackageOperationResponse"
     """
+    # TODO: Use `uv remove` instead of package manager uninstall for better dependency management
     body = await parse_request(request, cls=RemovePackageRequest)
 
     package_manager = _get_package_manager(request)
@@ -141,6 +143,33 @@ async def list_packages(request: Request) -> ListPackagesResponse:
     packages = package_manager.list_packages()
 
     return ListPackagesResponse(packages=packages)
+
+
+@router.get("/tree")
+@requires("edit")
+async def dependency_tree(request: Request) -> DependencyTreeResponse:
+    """
+    responses:
+        200:
+            description: List dependency tree
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/DependencyTreeResponse"
+    """
+    package_manager = _get_package_manager(request)
+
+    filename = _get_filename(request)
+    # TODO(manzt): Same as check below when installing packages. If we are
+    # managing script metadata, we are in sandbox mode.
+    is_sandbox = (
+        filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    )
+    if is_sandbox:
+        tree = package_manager.dependency_tree(filename)
+    else:
+        tree = package_manager.dependency_tree()
+    return DependencyTreeResponse(tree=tree)
 
 
 def _get_package_manager(request: Request) -> PackageManager:

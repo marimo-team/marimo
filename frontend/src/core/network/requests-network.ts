@@ -361,6 +361,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       await waitForConnectionOpen();
       return getClient().GET("/api/packages/list").then(handleResponse);
     },
+    getDependencyTree: async () => {
+      // If the sidebar is already open, it may try to load before the session has been initialized
+      await waitForConnectionOpen();
+      return getClient().GET("/api/packages/tree").then(handleResponse);
+    },
     listSecretKeys: async (request) => {
       // If the sidebar is already open, it may try to load before the session has been initialized
       await waitForConnectionOpen();

@@ -45,6 +45,9 @@ export type InstallMissingPackagesRequest =
 export type AddPackageRequest = schemas["AddPackageRequest"];
 export type RemovePackageRequest = schemas["RemovePackageRequest"];
 export type ListPackagesResponse = schemas["ListPackagesResponse"];
+export type DependencyTreeResponse = schemas["DependencyTreeResponse"];
+export type DependencyTreeNode = schemas["DependencyTreeNode"];
+
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateRequest = schemas["InstantiateRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
@@ -168,6 +171,7 @@ export interface EditRequests {
   autoExportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<null>;
   // Package requests
   getPackageList: () => Promise<ListPackagesResponse>;
+  getDependencyTree: () => Promise<DependencyTreeResponse>;
   addPackage: (request: AddPackageRequest) => Promise<PackageOperationResponse>;
   removePackage: (
     request: RemovePackageRequest,
