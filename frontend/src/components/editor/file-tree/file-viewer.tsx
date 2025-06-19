@@ -24,7 +24,13 @@ import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob, downloadByURL } from "@/utils/download";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { Button } from "../inputs/Inputs";
-import { AudioViewer, CsvViewer, ImageViewer, VideoViewer } from "./renderers";
+import {
+  AudioViewer,
+  CsvViewer,
+  ImageViewer,
+  PdfViewer,
+  VideoViewer,
+} from "./renderers";
 
 interface Props {
   file: FileInfo;
@@ -203,6 +209,17 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     );
   }
 
+  if (mimeType.startsWith("application/pdf")) {
+    return (
+      <>
+        {header}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <PdfViewer base64={data.contents as Base64String} mime={mimeType} />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       {header}
@@ -245,7 +262,8 @@ const isMedia = (mime: string) => {
   return (
     mime.startsWith("image/") ||
     mime.startsWith("audio/") ||
-    mime.startsWith("video/")
+    mime.startsWith("video/") ||
+    mime.startsWith("application/pdf")
   );
 };
 
