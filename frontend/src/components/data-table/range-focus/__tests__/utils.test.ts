@@ -2,6 +2,7 @@
 
 import type { Cell, Column, Row, Table } from "@tanstack/react-table";
 import { describe, expect, it, vi } from "vitest";
+import { SELECT_COLUMN_ID } from "../../types";
 import type { SelectedCell } from "../atoms";
 import { getCellsBetween, getCellValues } from "../utils";
 
@@ -65,6 +66,15 @@ describe("getCellValues", () => {
   it("should return empty string for empty selection", () => {
     const mockTable = createMockTable([], []);
     const result = getCellValues(mockTable, new Set());
+    expect(result).toBe("");
+  });
+
+  it("should ignore select checkbox in tables", () => {
+    const cell = createMockCell(`row_${SELECT_COLUMN_ID}`, "test");
+    const row = createMockRow("0", [cell]);
+    const table = createMockTable([row], []);
+
+    const result = getCellValues(table, new Set());
     expect(result).toBe("");
   });
 
