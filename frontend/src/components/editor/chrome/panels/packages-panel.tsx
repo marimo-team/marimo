@@ -39,6 +39,8 @@ import { PACKAGES_INPUT_ID } from "./constants";
 import { PanelEmptyState } from "./empty-state";
 import { packagesToInstallAtom } from "./packages-state";
 
+type ViewMode = "tree" | "list";
+
 const showAddPackageToast = (packageName: string, error?: string | null) => {
   if (error) {
     toast({
@@ -145,43 +147,23 @@ const PackageActionButton: React.FC<{
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { data, error, refetch, isPending } = useAsyncData(
-    () => getPackageList(),
-    [packageManager],
-  );
 
+  const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
   const {
-    data: treeData,
-    error: treeError,
-    refetch: refetchTree,
-  } = useAsyncData(() => getDependencyTree(), [packageManager]);
-
-  const [viewMode, setViewMode] = React.useState<"list" | "tree">("tree");
-
-  const isTreeSupported = treeData?.tree != null;
-
-  // Set default view mode and handle unsupported cases
-  const [hasInitialized, setHasInitialized] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!hasInitialized && treeData !== undefined) {
-      // On initial load, prefer tree view if supported
-      if (isTreeSupported) {
-        setViewMode("tree");
-      } else {
-        setViewMode("list");
-      }
-      setHasInitialized(true);
-    } else if (hasInitialized && !isTreeSupported && viewMode === "tree") {
-      // If user is on tree view but it becomes unsupported, switch to list
-      setViewMode("list");
-    }
-  }, [isTreeSupported, viewMode, treeData, hasInitialized]);
-
-  const handleRefetch = () => {
-    refetch();
-    refetchTree();
-  };
+    data: dependencies,
+    error,
+    refetch,
+    isPending,
+  } = useAsyncData(async () => {
+    const [listPackagesResponse, dependencyTreeResponse] = await Promise.all([
+      getPackageList(),
+      getDependencyTree(),
+    ]);
+    return {
+      list: listPackagesResponse.packages,
+      tree: dependencyTreeResponse.tree,
+    };
+  }, [packageManager]);
 
   // Only show on the first load
   if (isPending) {
@@ -192,16 +174,15 @@ export const PackagesPanel: React.FC = () => {
     return <ErrorBanner error={error} />;
   }
 
-  const packages = data?.packages || [];
-  const name = treeData?.tree?.name;
-  const version = treeData?.tree?.version;
+  const isTreeSupported = dependencies.tree != null;
+  const viewMode = resolveViewMode(userViewMode, isTreeSupported);
+  const name = dependencies.tree?.name;
+  const version = dependencies?.tree?.version;
+  const isSandbox = name === "<root>"; // name is the project name otherwise
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <InstallPackageForm
-        packageManager={packageManager}
-        onSuccess={handleRefetch}
-      />
+      <InstallPackageForm packageManager={packageManager} onSuccess={refetch} />
       {isTreeSupported && (
         <div className="flex items-center justify-between px-2 py-1 border-b">
           <div className="flex gap-1">
@@ -213,7 +194,7 @@ export const PackagesPanel: React.FC = () => {
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
-              onClick={() => setViewMode("list")}
+              onClick={() => setUserViewMode("list")}
             >
               List
             </button>
@@ -225,7 +206,7 @@ export const PackagesPanel: React.FC = () => {
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
-              onClick={() => setViewMode("tree")}
+              onClick={() => setUserViewMode("tree")}
             >
               Tree
             </button>
@@ -233,11 +214,11 @@ export const PackagesPanel: React.FC = () => {
           <div className="flex items-center gap-2">
             <div
               className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
-              title={treeData?.tree?.name === "<root>" ? "sandbox" : "project"}
+              title={isSandbox ? "sandbox" : "project"}
             >
-              {name === "<root>" ? "sandbox" : "project"}
+              {isSandbox ? "sandbox" : "project"}
             </div>
-            {name && name !== "<root>" && (
+            {name && (
               <span className="text-xs text-muted-foreground">
                 {name}
                 {version && ` v${version}`}
@@ -246,13 +227,13 @@ export const PackagesPanel: React.FC = () => {
           </div>
         </div>
       )}
-      {viewMode === "list" || !isTreeSupported ? (
-        <PackagesList packages={packages} onSuccess={handleRefetch} />
+      {viewMode === "list" ? (
+        <PackagesList packages={dependencies.list} onSuccess={refetch} />
       ) : (
         <DependencyTree
-          tree={treeData?.tree ?? undefined}
-          error={treeError}
-          onSuccess={handleRefetch}
+          tree={dependencies.tree}
+          error={error}
+          onSuccess={refetch}
         />
       )}
     </div>
@@ -726,3 +707,16 @@ const DependencyTreeNode: React.FC<{
     </div>
   );
 };
+
+function resolveViewMode(
+  userViewMode: ViewMode | null,
+  isTreeSupported: boolean,
+): ViewMode {
+  if (userViewMode === "list") {
+    return "list";
+  }
+  if (isTreeSupported) {
+    return userViewMode || "tree";
+  }
+  return "list";
+}
