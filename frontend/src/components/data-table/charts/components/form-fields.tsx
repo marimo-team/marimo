@@ -700,10 +700,10 @@ export const AggregationSelect = ({
                     const selectItem = renderSelectItem(agg, Icon, subtitle);
                     if (agg === BIN_AGGREGATION) {
                       return (
-                        <>
+                        <div key={agg}>
                           <SelectSeparator />
                           {selectItem}
-                        </>
+                        </div>
                       );
                     }
                     return selectItem;
