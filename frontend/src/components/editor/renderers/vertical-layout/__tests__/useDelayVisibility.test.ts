@@ -27,26 +27,44 @@ describe("useDelayVisibility", () => {
 
     expect(result.current.invisible).toBe(true);
 
-    // Advance timers by the calculated delay (5-1)*15 = 60ms
+    // Advance timers by the calculated delay (5-1)*30 = 120ms
     act(() => {
-      vi.advanceTimersByTime(60);
+      vi.advanceTimersByTime(120);
     });
 
     expect(result.current.invisible).toBe(false);
   });
 
-  it("should cap delay at 100ms for large number of cells", () => {
-    const { result } = renderHook(() => useDelayVisibility(20, "read"));
+  it("should clamp delay at minimum 100ms for small number of cells", () => {
+    const { result } = renderHook(() => useDelayVisibility(2, "read"));
 
     expect(result.current.invisible).toBe(true);
 
-    // Advance timers by 99ms (not enough)
+    // Advance timers by 99ms (not enough, minimum is 100ms)
     act(() => {
       vi.advanceTimersByTime(99);
     });
     expect(result.current.invisible).toBe(true);
 
-    // Advance remaining 1ms to reach 100ms cap
+    // Advance remaining 1ms to reach 100ms minimum
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.invisible).toBe(false);
+  });
+
+  it("should clamp delay at maximum 2000ms for large number of cells", () => {
+    const { result } = renderHook(() => useDelayVisibility(100, "read"));
+
+    expect(result.current.invisible).toBe(true);
+
+    // Advance timers by 1999ms (not enough)
+    act(() => {
+      vi.advanceTimersByTime(1999);
+    });
+    expect(result.current.invisible).toBe(true);
+
+    // Advance remaining 1ms to reach 2000ms cap
     act(() => {
       vi.advanceTimersByTime(1);
     });
@@ -57,27 +75,13 @@ describe("useDelayVisibility", () => {
     const { result } = renderHook(() => useDelayVisibility(5, "edit"));
 
     // In edit mode, the delay should not be applied, so it should immediately be visible
-    expect(result.current.invisible).toBe(true);
-
-    // Even after advancing timers, it should remain invisible since no timeout was set
-    act(() => {
-      vi.advanceTimersByTime(100);
-    });
-
-    expect(result.current.invisible).toBe(true);
+    expect(result.current.invisible).toBe(false);
   });
 
   it("should not apply delay in present mode", () => {
     const { result } = renderHook(() => useDelayVisibility(5, "present"));
 
     // In present mode, the delay should not be applied
-    expect(result.current.invisible).toBe(true);
-
-    // Even after advancing timers, it should remain invisible since no timeout was set
-    act(() => {
-      vi.advanceTimersByTime(100);
-    });
-
-    expect(result.current.invisible).toBe(true);
+    expect(result.current.invisible).toBe(false);
   });
 });
