@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, Union, cast
@@ -263,13 +264,19 @@ class SessionCacheWriter(AsyncBackgroundTask):
     ) -> None:
         super().__init__()
         self.session_view = session_view
-        self.path = AsyncPath(path)
+        # Windows does not support our async path implementation
+        self.path: AsyncPath | Path = path
+        if os.name != "nt":
+            self.path = AsyncPath(path)
         self.interval = interval
 
     async def startup(self) -> None:
         # Create parent directories if they don't exist
         try:
-            await self.path.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(self.path, AsyncPath):
+                await self.path.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             LOGGER.error(f"Failed to create parent directories: {e}")
             raise
@@ -281,7 +288,10 @@ class SessionCacheWriter(AsyncBackgroundTask):
                     self.session_view.mark_auto_export_session()
                     LOGGER.debug(f"Writing session view to cache {self.path}")
                     data = serialize_session_view(self.session_view)
-                    await self.path.write_text(json.dumps(data, indent=2))
+                    if isinstance(self.path, AsyncPath):
+                        await self.path.write_text(json.dumps(data, indent=2))
+                    else:
+                        self.path.write_text(json.dumps(data, indent=2))
                 await asyncio.sleep(self.interval)
             except asyncio.CancelledError:
                 raise
