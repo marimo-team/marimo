@@ -22,7 +22,8 @@ export function useSelectAllContent<T extends HTMLElement>(
     }
 
     // Check for Ctrl-A (Windows/Linux) or Cmd-A (Mac)
-    const isSelectAll = event.key === "a" && (event.ctrlKey || event.metaKey);
+    const isSelectAll =
+      event.key.toLowerCase() === "a" && (event.ctrlKey || event.metaKey);
 
     if (!isSelectAll) {
       return;
