@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.30"
+__generated_with = "0.13.15"
 app = marimo.App(width="medium")
 
 
@@ -93,6 +93,10 @@ def _(alt, mo, pd):
 
     data = {
         "buttons": [mo.ui.button(kind="warn"), mo.ui.button(kind="invalid")],
+        "checkbox": [
+            mo.ui.checkbox(value=True, label="True"),
+            mo.ui.checkbox(value=False, label="False"),
+        ],
         "mixed": [mo.ui.button(kind="info"), "apples"],
         "arrays": mo.ui.array([text] * 2),
         "dictionary": [dictionary, dictionary],
@@ -124,24 +128,7 @@ def _(alt, mo, pd):
     }
 
     mo.vstack([mo.md("## Dictionary"), data])
-    return (
-        chart,
-        chat,
-        data,
-        dictionary,
-        html_img,
-        img,
-        mermaid,
-        office_characters,
-        password,
-        simple_echo_model,
-        source,
-        table,
-        tabs,
-        text,
-        user_info,
-        warn_btn,
-    )
+    return data, password
 
 
 @app.cell
@@ -176,7 +163,7 @@ def _(data, mo, pl):
 
 @app.cell
 def _(mo, password):
-    mo.md(f"### Password value: {password.value}")
+    mo.md(f"""### Password value: {password.value}""")
     return
 
 
