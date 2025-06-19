@@ -9,6 +9,7 @@ import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
+import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
 import { NameCellContentEditable } from "../actions/name-cell-input";
@@ -63,6 +64,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   const hasOutputs = consoleOutputs.length > 0;
 
+  // Enable Ctrl/Cmd-A to select all content within the console output
+  useSelectAllContent(ref, hasOutputs);
+
   // Keep scroll at the bottom if it is within 120px of the bottom,
   // so when we add new content, it will lock to the bottom
   //
@@ -106,8 +110,10 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
       title={stale ? "This console output is stale" : undefined}
       data-testid="console-output-area"
       ref={ref}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: Needed to capture keypress events
+      tabIndex={0}
       className={cn(
-        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1",
+        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1 focus:outline-none",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3",
         className,
