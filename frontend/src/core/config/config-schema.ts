@@ -123,6 +123,7 @@ export const UserConfigSchema = z
     ai: z
       .object({
         rules: z.string().default(""),
+        mode: z.enum(["manual", "ask"]).default("manual"),
         open_ai: z
           .object({
             api_key: z.string().optional(),
