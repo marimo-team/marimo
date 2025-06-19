@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { getProtocolAndParentDirectories } from "./pathUtils";
+import { fileSplit, getProtocolAndParentDirectories } from "./pathUtils";
 
 describe("getProtocolAndParentDirectories", () => {
   it("should extract protocol and list parent directories correctly", () => {
@@ -97,6 +97,17 @@ describe("getProtocolAndParentDirectories", () => {
       "C:\\folder\\subfolder",
       "C:\\folder",
       "C:\\",
+    ]);
+  });
+});
+
+describe("fileSplit", () => {
+  it("should split a path into a name and extension", () => {
+    expect(fileSplit("path/to/file.txt")).toEqual(["path/to/file", ".txt"]);
+    expect(fileSplit("path/to/file")).toEqual(["path/to/file", ""]);
+    expect(fileSplit("path/to/file.txt.md")).toEqual([
+      "path/to/file.txt",
+      ".md",
     ]);
   });
 });

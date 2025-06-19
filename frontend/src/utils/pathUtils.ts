@@ -62,3 +62,10 @@ export function getProtocolAndParentDirectories(
 
   return { protocol, parentDirectories };
 }
+
+export function fileSplit(path: string): [name: string, extension: string] {
+  const lastDotIndex = path.lastIndexOf(".");
+  const name = lastDotIndex > 0 ? path.slice(0, lastDotIndex) : path;
+  const extension = lastDotIndex > 0 ? path.slice(lastDotIndex) : "";
+  return [name, extension];
+}
