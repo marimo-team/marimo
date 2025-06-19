@@ -633,6 +633,7 @@ const DependencyTreeNode: React.FC<{
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="treeitem"
+        aria-selected={false}
         aria-expanded={hasChildren ? isExpanded : undefined}
       >
         {/* Expand/collapse arrow */}
