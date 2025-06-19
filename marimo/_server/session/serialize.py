@@ -35,6 +35,7 @@ from marimo._schemas.session import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._types.ids import CellId_t
+from marimo._utils.async_path import AsyncPath
 from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
 
@@ -262,13 +263,13 @@ class SessionCacheWriter(AsyncBackgroundTask):
     ) -> None:
         super().__init__()
         self.session_view = session_view
-        self.path = path
+        self.path = AsyncPath(path)
         self.interval = interval
 
     async def startup(self) -> None:
         # Create parent directories if they don't exist
         try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+            await self.path.parent.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             LOGGER.error(f"Failed to create parent directories: {e}")
             raise
@@ -280,7 +281,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
                     self.session_view.mark_auto_export_session()
                     LOGGER.debug(f"Writing session view to cache {self.path}")
                     data = serialize_session_view(self.session_view)
-                    self.path.write_text(json.dumps(data, indent=2))
+                    await self.path.write_text(json.dumps(data, indent=2))
                 await asyncio.sleep(self.interval)
             except asyncio.CancelledError:
                 raise
