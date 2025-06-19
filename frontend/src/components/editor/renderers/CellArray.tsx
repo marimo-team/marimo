@@ -152,7 +152,6 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
             actions={actions}
             theme={theme}
             hasOnlyOneCell={hasOnlyOneCell}
-            invisible={invisible}
             hasSetupCell={hasSetupCell}
             onDeleteCell={onDeleteCell}
           />
@@ -178,7 +177,6 @@ const CellColumn: React.FC<{
   actions: CellActions;
   theme: Theme;
   hasOnlyOneCell: boolean;
-  invisible: boolean;
   hasSetupCell: boolean;
   onDeleteCell: (payload: { cellId: CellId }) => void;
 }> = ({
@@ -193,7 +191,6 @@ const CellColumn: React.FC<{
   actions,
   theme,
   hasOnlyOneCell,
-  invisible,
   hasSetupCell,
   onDeleteCell,
 }) => {

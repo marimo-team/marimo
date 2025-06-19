@@ -3,6 +3,9 @@
 import { useState } from "react";
 import type { AppMode } from "@/core/mode";
 import { useOnMount } from "@/hooks/useLifecycle";
+import { clamp } from "@/utils/math";
+
+const DELAY_PER_CELL = 30; // ms
 
 export function useDelayVisibility(numCells: number, mode: AppMode) {
   // Start the app as invisible and delay proportional to the number of cells,
@@ -12,10 +15,12 @@ export function useDelayVisibility(numCells: number, mode: AppMode) {
   useOnMount(() => {
     // Only do this on read mode
     if (mode !== "read") {
+      setInvisible(false);
       return;
     }
 
-    const delay = Math.max(Math.min((numCells - 1) * 15, 100), 0);
+    // linear with cells, at min 100ms and at most 2s
+    const delay = clamp((numCells - 1) * DELAY_PER_CELL, 100, 2000);
     const timeout = setTimeout(() => {
       setInvisible(false);
     }, delay);
