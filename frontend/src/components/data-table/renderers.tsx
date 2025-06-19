@@ -20,8 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
-import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
-import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -79,13 +77,6 @@ export const DataTableBody = <TData,>({
   getRowIndex,
   viewedRowIdx,
 }: DataTableBodyProps<TData>) => {
-  const {
-    handleCellMouseDown,
-    handleCellMouseUp,
-    handleCellMouseOver,
-    handleCellsKeyDown,
-  } = useCellRangeSelection({ table });
-
   const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
@@ -99,7 +90,7 @@ export const DataTableBody = <TData,>({
           tabIndex={0}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px] select-none outline-none",
+            "whitespace-pre truncate max-w-[300px]",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
@@ -108,11 +99,7 @@ export const DataTableBody = <TData,>({
           )}
           style={style}
           title={String(cell.getValue())}
-          onMouseDown={(e) => handleCellMouseDown(e, cell)}
-          onMouseUp={handleCellMouseUp}
-          onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
-          <CellRangeSelectionIndicator cellId={cell.id} />
           <div className="relative">
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </div>
@@ -129,7 +116,7 @@ export const DataTableBody = <TData,>({
   };
 
   return (
-    <TableBody onKeyDown={handleCellsKeyDown}>
+    <TableBody>
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => {
           // Only find the row index if the row viewer panel is open
