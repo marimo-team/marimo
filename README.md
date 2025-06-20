@@ -137,6 +137,11 @@ quality-of-life features.
 
 ## Quickstart
 
+_The [marimo concepts
+playlist](https://www.youtube.com/watch?v=3N6lInzq5MI&list=PLNJXGo8e1XT9jP7gPbRdm1XwloZVFvLEq)
+on our [YouTube channel](https://www.youtube.com/@marimo-team) gives an
+overview of many features._
+
 **Installation.** In a terminal, run
 
 ```bash
