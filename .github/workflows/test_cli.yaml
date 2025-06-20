@@ -86,6 +86,11 @@ jobs:
             fi
           done
 
+          if unzip -l "$wheel_file" | grep -q "marimo/_lsp/copilot/dist" ]; then
+              echo "Error: marimo/_lsp/copilot should not have a dist/ directory"
+              exit 1
+          fi
+
       - name: Run LSP binary
         run: ./scripts/test-lsp.sh
       - name: Upload wheel
