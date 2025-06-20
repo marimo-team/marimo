@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional, Union
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._schemas.common import BaseDict
 
 # This file contains the schema for the notebook session.
@@ -27,6 +28,13 @@ class StreamOutput(BaseDict):
     text: str
 
 
+class StreamMediaOutput(BaseDict):
+    type: Literal["stream"]
+    name: Literal["media"]
+    data: str
+    mimetype: KnownMimeType
+
+
 class ErrorOutput(BaseDict):
     type: Literal["error"]
     ename: str
@@ -46,6 +54,11 @@ OutputType = Union[
     # Dict[str, Any],  # For future output types, forwards-compatible
 ]
 
+ConsoleType = Union[
+    StreamOutput,
+    StreamMediaOutput,
+]
+
 
 class Cell(BaseDict):
     """Code cell specific structure"""
@@ -53,7 +66,7 @@ class Cell(BaseDict):
     id: str
     code_hash: Optional[str]
     outputs: list[OutputType]
-    console: list[StreamOutput]
+    console: list[ConsoleType]
 
     # We don't need to store code or cell config
     # since that exists in the notebook.py itself
