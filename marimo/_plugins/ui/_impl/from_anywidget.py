@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import weakref
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -189,6 +190,11 @@ class anywidget(UIElement[T, T]):
         )
         self._prev_state = value
         return value
+
+    def __deepcopy__(self, memo):
+        # Overriding UIElement deepcopy implementation
+        widget_deep_copy = deepcopy(self.widget, memo)
+        return from_anywidget(widget_deep_copy)  # reuse caching
 
     # After the widget has been initialized
     # forward all setattr to the widget
