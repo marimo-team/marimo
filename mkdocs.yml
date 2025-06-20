@@ -241,6 +241,7 @@ nav:
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
   - FAQ: faq.md
+  - Readings & Videos: reading.md
   - Community:
       - Community: community.md
       - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md
