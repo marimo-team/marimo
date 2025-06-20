@@ -274,12 +274,12 @@ describe("RuntimeManager", () => {
     it("should preserve all window-level query parameters in URLs", () => {
       // Mock window.location.search with custom query parameters
       const originalLocation = window.location;
-      Object.defineProperty(window, 'location', {
+      Object.defineProperty(window, "location", {
         value: {
           ...originalLocation,
-          search: '?custom_param=value123&user_token=abc&theme=dark'
+          search: "?custom_param=value123&user_token=abc&theme=dark",
         },
-        writable: true
+        writable: true,
       });
 
       const runtime = new RuntimeManager({
@@ -287,7 +287,11 @@ describe("RuntimeManager", () => {
       });
 
       const wsUrl = runtime.getWsURL("test" as SessionId);
-      const httpUrl = runtime.formatHttpURL("api/test");
+      const httpUrl = runtime.formatHttpURL(
+        "api/test",
+        new URLSearchParams(),
+        false,
+      );
 
       // Should preserve base URL query params
       expect(wsUrl.searchParams.get("base_param")).toBe("existing");
@@ -305,9 +309,9 @@ describe("RuntimeManager", () => {
       expect(wsUrl.searchParams.get("session_id")).toBe("test");
 
       // Restore original location
-      Object.defineProperty(window, 'location', {
+      Object.defineProperty(window, "location", {
         value: originalLocation,
-        writable: true
+        writable: true,
       });
     });
 

@@ -38,7 +38,11 @@ export class RuntimeManager {
   /**
    * The base URL of the runtime.
    */
-  formatHttpURL(path?: string, searchParams?: URLSearchParams): URL {
+  formatHttpURL(
+    path?: string,
+    searchParams?: URLSearchParams,
+    restrictToKnownQueryParams: boolean = true,
+  ): URL {
     if (!path) {
       path = "";
     }
@@ -52,9 +56,13 @@ export class RuntimeManager {
       }
     }
 
-    // Move over all window-level parameters to WebSocket URL.
-    // This is needed for user-defined query parameters.
     for (const [key, value] of currentParams.entries()) {
+      if (
+        restrictToKnownQueryParams &&
+        !Object.values(KnownQueryParams).includes(key)
+      ) {
+        continue;
+      }
       baseUrl.searchParams.set(key, value);
     }
 
@@ -65,7 +73,13 @@ export class RuntimeManager {
   }
 
   formatWsURL(path: string, searchParams?: URLSearchParams): URL {
-    const url = this.formatHttpURL(path, searchParams);
+    // We don't restrict to known query parameters, since mo.query_params()
+    // can accept arbitrary parameters.
+    const url = this.formatHttpURL(
+      path,
+      searchParams,
+      /* restrictToKnownQueryParams =*/ false,
+    );
     return asWsUrl(url.toString());
   }
 
