@@ -201,7 +201,7 @@ def serialize_notebook(
     """Convert a SessionView to a Notebook schema."""
     cells: list[NotebookCell] = []
 
-    for cell_id in view.cell_operations.keys():
+    for cell_id in cell_manager.cell_ids():
         # Get the code from last_executed_code, fallback to empty string
         code = view.last_executed_code.get(cell_id, "")
         cell_data = cell_manager.get_cell_data(cell_id)
