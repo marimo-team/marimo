@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
+list_directories() {
+    # List out contents of the directories
+    tree marimo/_lsp
+    tree lsp/dist
+}
+
+
+if [ -d "marimo/_lsp/copilot/dist" ]; then
+    echo "Error: marimo/_lsp/copilot should not have a dist/ directory"
+    list_directories
+    exit 1
+fi
+
+
 node marimo/_lsp/index.cjs --help > /dev/null
 if [ $? -ne 0 ]; then
     echo "LSP binary failed to start"
-    # List out contents of the directory
-    tree marimo/_lsp
-    tree lsp/dist
+    list_directories
     exit 1
 fi
 echo "LSP binary started successfully"
