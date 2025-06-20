@@ -2,8 +2,8 @@
 
 import { useAtomValue } from "jotai";
 import { LoadingEllipsis } from "@/components/icons/loading-ellipsis";
-import { isConnectingAtom } from "@/core/network/connection";
 import { DelayMount } from "@/components/utils/delay-mount";
+import { isConnectingAtom } from "@/core/network/connection";
 import { Tooltip } from "../../ui/tooltip";
 
 const DELAY_MS = 1000; // 1 second

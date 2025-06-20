@@ -1,7 +1,8 @@
 /* Copyright 2025 Marimo. All rights reserved. */
-import React from "react";
-import { Circle } from "lucide-react";
+
 import clsx from "clsx";
+import { Circle } from "lucide-react";
+import React from "react";
 
 interface LoadingEllipsisProps {
   /** Extra Tailwind classes */
