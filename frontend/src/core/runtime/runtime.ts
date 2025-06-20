@@ -52,14 +52,10 @@ export class RuntimeManager {
       }
     }
 
-    // Move over window level parameters to the WebSocket URL
-    // if they are "known" query params.
-    for (const lookup in KnownQueryParams) {
-      const key = KnownQueryParams[lookup as keyof typeof KnownQueryParams];
-      const value = currentParams.get(key);
-      if (value !== null) {
-        baseUrl.searchParams.set(key, value);
-      }
+    // Move over all window-level parameters to WebSocket URL.
+    // This is needed for user-defined query parameters.
+    for (const [key, value] of currentParams.entries()) {
+      baseUrl.searchParams.set(key, value);
     }
 
     const cleanPath = baseUrl.pathname.replace(/\/$/, "");
