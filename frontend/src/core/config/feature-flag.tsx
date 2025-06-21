@@ -12,6 +12,7 @@ export interface ExperimentalFeatures {
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
   table_charts: boolean;
+  spreadsheet_editor: boolean;
   // Add new feature flags here
 }
 
@@ -21,6 +22,7 @@ const defaultValues: ExperimentalFeatures = {
   wasm_layouts: false,
   rtc_v2: false,
   table_charts: false,
+  spreadsheet_editor: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

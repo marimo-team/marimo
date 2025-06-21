@@ -1460,6 +1460,31 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="experimental.spreadsheet_editor"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Spreadsheet Data Editor
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="spreadsheet-editor-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental spreadsheet data editor. This replaces
+                    the default AG Grid data editor.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
