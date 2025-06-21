@@ -271,6 +271,50 @@ describe("RuntimeManager", () => {
       expect(aiUrl.pathname).toBe("/nested/path/api/ai/completion");
     });
 
+    it("should preserve all window-level query parameters in URLs", () => {
+      // Mock window.location.search with custom query parameters
+      const originalLocation = window.location;
+      Object.defineProperty(window, "location", {
+        value: {
+          ...originalLocation,
+          search: "?custom_param=value123&user_token=abc&theme=dark",
+        },
+        writable: true,
+      });
+
+      const runtime = new RuntimeManager({
+        url: "https://example.com/path?base_param=existing",
+      });
+
+      const wsUrl = runtime.getWsURL("test" as SessionId);
+      const httpUrl = runtime.formatHttpURL(
+        "api/test",
+        new URLSearchParams(),
+        false,
+      );
+
+      // Should preserve base URL query params
+      expect(wsUrl.searchParams.get("base_param")).toBe("existing");
+      expect(httpUrl.searchParams.get("base_param")).toBe("existing");
+
+      // Should preserve all window-level query params (including custom ones)
+      expect(wsUrl.searchParams.get("custom_param")).toBe("value123");
+      expect(wsUrl.searchParams.get("user_token")).toBe("abc");
+      expect(wsUrl.searchParams.get("theme")).toBe("dark");
+      expect(httpUrl.searchParams.get("custom_param")).toBe("value123");
+      expect(httpUrl.searchParams.get("user_token")).toBe("abc");
+      expect(httpUrl.searchParams.get("theme")).toBe("dark");
+
+      // Should also include session_id for WebSocket URLs
+      expect(wsUrl.searchParams.get("session_id")).toBe("test");
+
+      // Restore original location
+      Object.defineProperty(window, "location", {
+        value: originalLocation,
+        writable: true,
+      });
+    });
+
     it("should handle URLs with query parameters and fragments", () => {
       const runtime = new RuntimeManager({
         url: "https://example.com/path?existing=param#fragment",
