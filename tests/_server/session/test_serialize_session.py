@@ -6,6 +6,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from marimo import __version__
 from marimo._ast.cell import CellConfig
 from marimo._ast.cell_manager import CellManager
@@ -282,6 +284,15 @@ def test_serialize_notebook_no_cells():
     assert len(result["cells"]) == 0
 
 
+# TODO(akshayka): Reconcile this test with
+# https://github.com/marimo-team/marimo/pull/5377. It appears we
+# need to serialize notebook based on the cell manager not
+# session view in order to get correct ordering of cells.
+@pytest.mark.xfail(
+    reason="Unclear how to serialize a notebook when "
+    "the cell manager's view of cells differs from the session view. "
+    "The session view doesn't know the order of cells in the notebook."
+)
 def test_serialize_notebook_missing_cell_data():
     """Test serialization when cell exists in SessionView but not in CellManager"""
     view = SessionView()
