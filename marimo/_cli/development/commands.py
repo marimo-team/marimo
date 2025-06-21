@@ -568,17 +568,16 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
                 argv=None,
             )
         )
-        session_view.cell_ids = UpdateCellIdsRequest(
-            cell_ids=list(file_manager.app.cell_manager.cell_ids())
-        )
-
         if did_error:
             click.echo(
                 "Warning: Some cells had errors during execution", err=True
             )
 
         # Create session snapshot from the executed session
-        session_snapshot = serialize_session_view(session_view)
+        session_snapshot = serialize_session_view(
+            session_view,
+            cell_ids=list(file_manager.app.cell_manager.cell_ids()),
+        )
 
         # Get notebook snapshot from file manager
         notebook_snapshot = serialize_notebook(
