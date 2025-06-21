@@ -214,12 +214,24 @@ function createCellRuntimeFromSession(
   return {
     ...runtimeState,
     outline: runtimeState.output ? parseOutline(runtimeState.output) : null,
-    consoleOutputs: consoleOutputs.map((consoleOutput) => ({
-      channel: consoleOutput.name === "stderr" ? "stderr" : "stdout",
-      data: consoleOutput.text,
-      mimetype: "text/plain",
-      timestamp: DEFAULT_TIMESTAMP,
-    })),
+    consoleOutputs: consoleOutputs.map((consoleOutput) => {
+      // Handle StreamMediaOutput (type: "streamMedia")
+      if (consoleOutput.type === "streamMedia") {
+        return {
+          channel: "media",
+          data: consoleOutput.data,
+          mimetype: consoleOutput.mimetype,
+          timestamp: DEFAULT_TIMESTAMP,
+        };
+      }
+      // Handle StreamOutput (type: "stream")
+      return {
+        channel: consoleOutput.name === "stderr" ? "stderr" : "stdout",
+        data: consoleOutput.text,
+        mimetype: "text/plain",
+        timestamp: DEFAULT_TIMESTAMP,
+      };
+    }),
   };
 }
 
