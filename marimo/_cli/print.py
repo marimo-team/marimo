@@ -76,13 +76,32 @@ def muted(text: str) -> str:
     return "\033[37;2m" + text + "\033[0m" if _USE_COLOR else text
 
 
-def echo(*args: Any, **kwargs: Any) -> None:
-    if GLOBAL_SETTINGS.QUIET:
-        return
-
+def _echo_or_print(*args: Any, **kwargs: Any) -> None:
     try:
         import click
 
         click.echo(*args, **kwargs)
     except ModuleNotFoundError:
         print(*args, **kwargs)  # noqa: T201
+
+
+def echo(*args: Any, **kwargs: Any) -> None:
+    if GLOBAL_SETTINGS.QUIET:
+        return
+
+    try:
+        _echo_or_print(*args, **kwargs)  # noqa: T201
+    except UnicodeEncodeError:
+        # Handle non-UTF-8 terminals (such as CP-1252, Windows) by replacing
+        # common Unicode characters with ASCII equivalents for non-UTF-8
+        # terminals.
+        safe_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                safe_arg = arg.replace("→", "->").replace("←", "<-")
+                safe_arg = safe_arg.replace("✓", "v").replace("✗", "x")
+                safe_arg = safe_arg.replace("•", "*").replace("…", "...")
+                safe_args.append(safe_arg)
+            else:
+                safe_args.append(arg)
+        _echo_or_print(*args, **kwargs)
