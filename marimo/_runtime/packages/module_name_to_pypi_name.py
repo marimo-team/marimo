@@ -580,6 +580,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "novaclient": "python-novaclient",
         "oauth2_provider": "alauda-django-oauth",
         "oauth2client": "oauth2client",
+        "ocha_stratus": "ocha-stratus",
         "odf": "odfpy",
         "ometa": "Parsley",
         "openid": "python-openid",
