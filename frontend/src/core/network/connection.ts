@@ -2,13 +2,14 @@
 import { atom } from "jotai";
 import { waitFor } from "../state/jotai";
 import { type ConnectionStatus, WebSocketState } from "../websocket/types";
+import { isStaticNotebook } from "../static/static-state";
 
 /**
  * Atom for storing the connection status.
- * Initialized to CONNECTING.
+ * Initialized to CONNECTING for normal mode, OPEN for static mode.
  */
 export const connectionAtom = atom<ConnectionStatus>({
-  state: WebSocketState.CONNECTING,
+  state: isStaticNotebook() ? WebSocketState.OPEN : WebSocketState.CONNECTING,
 });
 
 export function waitForConnectionOpen() {
