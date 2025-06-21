@@ -95,7 +95,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
             if console_out.channel == CellChannel.MEDIA:
                 console.append(
                     StreamMediaOutput(
-                        type="stream",
+                        type="streamMedia",
                         name="media",
                         mimetype=console_out.mimetype,
                         data=str(console_out.data),
