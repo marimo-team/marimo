@@ -146,7 +146,7 @@ const InsertNewCell = (props: { code: string }) => {
   };
 
   return (
-    <Tooltip content="Insert new cell" usePortal={false}>
+    <Tooltip content="Add chart to notebook" usePortal={false}>
       <Button
         onClick={handleClick}
         size="xs"
