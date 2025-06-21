@@ -233,6 +233,23 @@ export async function vegaLoadData<T = object>(
   }
 }
 
+export function parseArrowData(arrowData: string): Uint8Array {
+  let decodedData: string;
+
+  // Handle base64 data URLs
+  if (arrowData.startsWith("data:text/plain;base64,")) {
+    const base64Data = arrowData.split(",")[1];
+    decodedData = atob(base64Data);
+  } else {
+    // Assume it's already decoded Arrow data
+    decodedData = arrowData;
+  }
+
+  const arrowBuffer = Uint8Array.from(decodedData, (c) => c.charCodeAt(0));
+
+  return arrowBuffer;
+}
+
 export function parseCsvData(
   csvData: string,
   handleBigIntAndNumberLike = true,

@@ -1,5 +1,128 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`ColumnChartSpecModel > file URL handling > should handle arrow data 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "format": {
+      "type": "arrow",
+    },
+    "values": Uint8Array [
+      65,
+      82,
+      82,
+      79,
+      87,
+      49,
+      10,
+    ],
+  },
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum["bin_maxbins_10_date_range"] === "null"",
+            "value": "#cc4e00",
+          },
+          "value": "#027864",
+        },
+        "x": {
+          "axis": null,
+          "bin": true,
+          "field": "date",
+          "scale": {
+            "align": 0,
+            "paddingInner": 0,
+            "paddingOuter": {
+              "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
+            },
+          },
+          "type": "temporal",
+        },
+        "y": {
+          "aggregate": "count",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum["bin_maxbins_10_date_range"] === "null"",
+            "value": "#cc4e00",
+          },
+          "value": "#027864",
+        },
+        "tooltip": [
+          {
+            "bin": {
+              "binned": true,
+            },
+            "field": "bin_maxbins_10_date",
+            "format": "%Y-%m-%d",
+            "title": "date (start)",
+            "type": "temporal",
+          },
+          {
+            "bin": {
+              "binned": true,
+            },
+            "field": "bin_maxbins_10_date_end",
+            "format": "%Y-%m-%d",
+            "title": "date (end)",
+            "type": "temporal",
+          },
+          {
+            "aggregate": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "bin": true,
+          "field": "date",
+          "scale": {
+            "align": 0,
+            "paddingInner": 0,
+            "paddingOuter": {
+              "expr": "length(data('data_0')) == 2 ? 1 : length(data('data_0')) == 3 ? 0.5 : length(data('data_0')) == 4 ? 0 : 0",
+            },
+          },
+          "type": "temporal",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+      },
+    },
+  ],
+}
+`;
+
 exports[`ColumnChartSpecModel > snapshot > array 1`] = `
 {
   "background": "transparent",
