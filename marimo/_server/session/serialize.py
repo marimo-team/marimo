@@ -7,7 +7,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import __version__, _loggers
 from marimo._ast.cell_manager import CellManager
@@ -42,6 +42,9 @@ from marimo._utils.async_path import AsyncPath
 from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 LOGGER = _loggers.marimo_logger()
 
 
@@ -67,6 +70,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema."""
     cells: list[Cell] = []
 
+    cell_ids: Iterable[CellId_t]
     if view.cell_ids is not None:
         cell_ids = view.cell_ids.cell_ids
     else:
