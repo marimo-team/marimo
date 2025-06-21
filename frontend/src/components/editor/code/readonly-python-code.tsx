@@ -29,10 +29,9 @@ const sqlExtensions = [sql(), EditorView.lineWrapping];
  * @param props.className - The class name to apply to the component.
  * @param props.code - The code to display.
  * @param props.initiallyHideCode - Whether to initially hide the code.
- * @param props.disableHideCode - Whether to disable the hide code button.
- * @param props.addNewCell - Whether to add a new cell button, when clicked will add a new cell in the next cell / end of file
+ * @param props.showHideCode - Whether to show the hide code button.
+ * @param props.insertNewCell - Whether to add a insert new cell button; when clicked will add a new cell next to the current cell or at the end of the file
  * @param props.language - The language of the code. Default is "python".
- * @param props.rest - The rest of the props to pass to the CodeMirror component.
  */
 export const ReadonlyCode = memo(
   (
@@ -40,8 +39,9 @@ export const ReadonlyCode = memo(
       className?: string;
       code: string;
       initiallyHideCode?: boolean;
-      disableHideCode?: boolean;
-      addNewCell?: boolean;
+      showHideCode?: boolean;
+      showCopyCode?: boolean;
+      insertNewCell?: boolean;
       language?: "python" | "sql";
     } & ReactCodeMirrorProps,
   ) => {
@@ -50,13 +50,14 @@ export const ReadonlyCode = memo(
       code,
       className,
       initiallyHideCode,
-      disableHideCode,
-      addNewCell,
+      showHideCode = true,
+      showCopyCode = true,
+      insertNewCell,
       language = "python",
       ...rest
     } = props;
     const [hideCode, setHideCode] = useState(initiallyHideCode);
-    const showHideCodeIndicators = !disableHideCode && !hideCode;
+    const showHideCodeIndicators = showHideCode && !hideCode;
 
     return (
       <div
@@ -72,8 +73,8 @@ export const ReadonlyCode = memo(
           />
         )}
         <div className="absolute top-0 right-0 my-1 mx-2 z-10 hover-action flex gap-2">
-          <CopyButton text={code} />
-          {addNewCell && <AddNewCellButton code={code} />}
+          {showCopyCode && <CopyButton text={code} />}
+          {insertNewCell && <InsertNewCell code={code} />}
           {showHideCodeIndicators && (
             <EyeCloseButton onClick={() => setHideCode(true)} />
           )}
@@ -138,7 +139,7 @@ export const HideCodeButton = (props: {
   );
 };
 
-const AddNewCellButton = (props: { code: string }) => {
+const InsertNewCell = (props: { code: string }) => {
   const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleClick = () => {
@@ -146,7 +147,7 @@ const AddNewCellButton = (props: { code: string }) => {
   };
 
   return (
-    <Tooltip content="Add new cell" usePortal={false}>
+    <Tooltip content="Insert new cell" usePortal={false}>
       <Button
         onClick={handleClick}
         size="xs"
