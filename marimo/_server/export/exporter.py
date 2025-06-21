@@ -106,7 +106,9 @@ class Exporter:
         config = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
 
-        session_snapshot = serialize_session_view(session_view)
+        session_snapshot = serialize_session_view(
+            session_view, cell_ids=file_manager.app.cell_manager.cell_ids()
+        )
         notebook_snapshot = serialize_notebook(
             session_view, file_manager.app.cell_manager
         )

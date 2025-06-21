@@ -15,7 +15,7 @@ from marimo._config.manager import (
 )
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error, is_unexpected_error
-from marimo._messaging.ops import MessageOperation, UpdateCellIdsRequest
+from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
@@ -355,9 +355,4 @@ async def run_app_until_completion(
     # captured by the session view.
     session.close()
 
-    # Patch the session view to include cell ids in notebook-order, needed
-    # for downstream export.
-    session.session_view.cell_ids = UpdateCellIdsRequest(
-        cell_ids=list(file_manager.app.cell_manager.cell_ids())
-    )
     return session.session_view, session_consumer.did_error
