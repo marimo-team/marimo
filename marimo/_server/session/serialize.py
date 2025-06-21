@@ -67,15 +67,22 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema."""
     cells: list[Cell] = []
 
-    # Attempt Top-Bottom sorting
-    cell_ids = view.cell_ids if view.cell_ids else view.cell_operations.keys()
+    if view.cell_ids is not None:
+        cell_ids = view.cell_ids.cell_ids
+    else:
+        LOGGER.warning(
+            "When serializing session view, the notebook-order of cells was not known"
+            "This may cause issues when attempting to reconstruct the "
+            "notebook state from the serialized session view."
+        )
+        cell_ids = view.cell_operations.keys()
+
     for cell_id in cell_ids:
         cell_op = view.cell_operations.get(cell_id)
         if cell_op is None:
+            # We haven't seen any outputs or operations for this cell.
             cells.append(
-                Cell(
-                    id=cell_id,
-                )
+                Cell(id=cell_id, code_hash=None, outputs=[], console=[])
             )
             continue
         outputs: list[OutputType] = []
