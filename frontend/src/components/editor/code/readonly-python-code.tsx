@@ -57,7 +57,6 @@ export const ReadonlyCode = memo(
       ...rest
     } = props;
     const [hideCode, setHideCode] = useState(initiallyHideCode);
-    const showHideCodeIndicators = showHideCode && !hideCode;
 
     return (
       <div
@@ -66,7 +65,7 @@ export const ReadonlyCode = memo(
           className,
         )}
       >
-        {showHideCodeIndicators && (
+        {showHideCode && hideCode && (
           <HideCodeButton
             tooltip="Show code"
             onClick={() => setHideCode(false)}
@@ -75,7 +74,7 @@ export const ReadonlyCode = memo(
         <div className="absolute top-0 right-0 my-1 mx-2 z-10 hover-action flex gap-2">
           {showCopyCode && <CopyButton text={code} />}
           {insertNewCell && <InsertNewCell code={code} />}
-          {showHideCodeIndicators && (
+          {showHideCode && !hideCode && (
             <EyeCloseButton onClick={() => setHideCode(true)} />
           )}
         </div>
