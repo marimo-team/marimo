@@ -67,7 +67,17 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
     """Convert a SessionView to a NotebookSession schema."""
     cells: list[Cell] = []
 
-    for cell_id, cell_op in view.cell_operations.items():
+    # Attempt Top-Bottom sorting
+    cell_ids = view.cell_ids if view.cell_ids else view.cell_operations.keys()
+    for cell_id in cell_ids:
+        cell_op = view.cell_operations.get(cell_id)
+        if cell_op is None:
+            cells.append(
+                Cell(
+                    id=cell_id,
+                )
+            )
+            continue
         outputs: list[OutputType] = []
         console: list[ConsoleType] = []
 
