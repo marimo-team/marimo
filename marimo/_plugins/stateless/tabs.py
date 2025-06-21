@@ -23,20 +23,17 @@ def tabs(tabs: dict[str, object]) -> Html:
 
     Example:
         ```python
-        tab1 = mo.vstack([
-            mo.ui.slider(1, 10),
-            mo.ui.text(),
-            mo.ui.date()
-        ]);
-        tab2 = mo.vstack([{
-            "slider": mo.ui.slider(1, 10),
-            "text": mo.ui.text(),
-            "date": mo.ui.date()
-        ]);
-        tabs = mo.tabs({
-            "Tab 1": tab1,
-            "Tab 2": tab2
-        })
+        tab1 = mo.vstack([mo.ui.slider(1, 10), mo.ui.text(), mo.ui.date()])
+        tab2 = mo.vstack(
+            [
+                {
+                    "slider": mo.ui.slider(1, 10),
+                    "text": mo.ui.text(),
+                    "date": mo.ui.date(),
+                }
+            ]
+        )
+        tabs = mo.tabs({"Tab 1": tab1, "Tab 2": tab2})
         ```
     """
     return tabs_impl(tabs)
