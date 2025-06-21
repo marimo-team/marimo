@@ -9,9 +9,15 @@ export interface components {
   schemas: {
     Cell: {
       code_hash: string | null;
-      console: (components["schemas"]["StreamOutput"] | components["schemas"]["StreamMediaOutput"])[];
+      console: (
+        | components["schemas"]["StreamOutput"]
+        | components["schemas"]["StreamMediaOutput"]
+      )[];
       id: string;
-      outputs: (components["schemas"]["ErrorOutput"] | components["schemas"]["DataOutput"])[];
+      outputs: (
+        | components["schemas"]["ErrorOutput"]
+        | components["schemas"]["DataOutput"]
+      )[];
     };
     DataOutput: {
       data: {
@@ -38,7 +44,27 @@ export interface components {
     StreamMediaOutput: {
       data: string;
       /** @enum {string} */
-      mimetype: "application/json" | "application/vnd.marimo+error" | "application/vnd.marimo+traceback" | "application/vnd.marimo+mimebundle" | "application/vnd.vega.v5+json" | "application/vnd.vegalite.v5+json" | "image/png" | "image/svg+xml" | "image/tiff" | "image/avif" | "image/bmp" | "image/gif" | "image/jpeg" | "video/mp4" | "video/mpeg" | "text/html" | "text/plain" | "text/markdown" | "text/latex" | "text/csv";
+      mimetype:
+        | "application/json"
+        | "application/vnd.marimo+error"
+        | "application/vnd.marimo+traceback"
+        | "application/vnd.marimo+mimebundle"
+        | "application/vnd.vega.v5+json"
+        | "application/vnd.vegalite.v5+json"
+        | "image/png"
+        | "image/svg+xml"
+        | "image/tiff"
+        | "image/avif"
+        | "image/bmp"
+        | "image/gif"
+        | "image/jpeg"
+        | "video/mp4"
+        | "video/mpeg"
+        | "text/html"
+        | "text/plain"
+        | "text/markdown"
+        | "text/latex"
+        | "text/csv";
       /** @enum {string} */
       name: "media";
       /** @enum {string} */
