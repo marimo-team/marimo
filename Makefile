@@ -35,7 +35,7 @@ check-prereqs:
 # 🐍 Install Python dependencies in editable mode
 py:
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required. See https://docs.astral.sh/uv/getting-started/installation/"; exit 1; }
-	uv pip install -e ".[dev]"
+	uv sync
 
 ######################
 # Development Tasks #
@@ -72,7 +72,7 @@ test: fe-test py-test e2e
 
 .PHONY: check
 # 🧹 Run all checks
-check: fe-check py-check
+check: typos fe-check py-check
 
 .PHONY: fe-check
 # 🧹 Check frontend (lint, typecheck)
@@ -119,12 +119,12 @@ typos:
 # 🧪 Test python
 py-test:
 	@command -v hatch >/dev/null 2>&1 || { echo "hatch is required. See https://hatch.pypa.io/dev/install/"; exit 1; }
-	hatch run typos && hatch run +py=3.12 test-optional:test $(ARGS)
+	hatch test -i py=3.12
 
 .PHONY: py-snapshots
 # 📸 Update snapshots
 py-snapshots:
-	hatch run +py=3.12 test:test \
+	hatch test py=3.12 \
 		tests/_server/templates/test_templates.py \
 		tests/_server/api/endpoints/test_export.py \
 		tests/test_api.py
