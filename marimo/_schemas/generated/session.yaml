@@ -8,7 +8,9 @@ components:
           type: string
         console:
           items:
-            $ref: '#/components/schemas/StreamOutput'
+            oneOf:
+            - $ref: '#/components/schemas/StreamOutput'
+            - $ref: '#/components/schemas/StreamMediaOutput'
           type: array
         id:
           type: string
@@ -79,6 +81,47 @@ components:
       - version
       - metadata
       - cells
+      type: object
+    StreamMediaOutput:
+      properties:
+        data:
+          type: string
+        mimetype:
+          enum:
+          - application/json
+          - application/vnd.marimo+error
+          - application/vnd.marimo+traceback
+          - application/vnd.marimo+mimebundle
+          - application/vnd.vega.v5+json
+          - application/vnd.vegalite.v5+json
+          - image/png
+          - image/svg+xml
+          - image/tiff
+          - image/avif
+          - image/bmp
+          - image/gif
+          - image/jpeg
+          - video/mp4
+          - video/mpeg
+          - text/html
+          - text/plain
+          - text/markdown
+          - text/latex
+          - text/csv
+          type: string
+        name:
+          enum:
+          - media
+          type: string
+        type:
+          enum:
+          - stream
+          type: string
+      required:
+      - type
+      - name
+      - data
+      - mimetype
       type: object
     StreamOutput:
       properties:
