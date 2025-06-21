@@ -354,4 +354,5 @@ async def run_app_until_completion(
     # Stop distributor, terminate kernel process, etc -- all information is
     # captured by the session view.
     session.close()
+
     return session.session_view, session_consumer.did_error

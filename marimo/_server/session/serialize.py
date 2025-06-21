@@ -6,7 +6,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import __version__, _loggers
 from marimo._ast.cell_manager import CellManager
@@ -40,6 +40,9 @@ from marimo._types.ids import CellId_t
 from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 LOGGER = _loggers.marimo_logger()
 
 
@@ -61,11 +64,38 @@ def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
         )
 
 
-def serialize_session_view(view: SessionView) -> NotebookSessionV1:
-    """Convert a SessionView to a NotebookSession schema."""
+def serialize_session_view(
+    view: SessionView, cell_ids: Iterable[CellId_t] | None = None
+) -> NotebookSessionV1:
+    """Convert a SessionView to a NotebookSession schema.
+
+    When `cell_ids` is provided, it determines the order of the cells in
+    the NotebookSession schema (and only these cells will be saved to the
+    schema). When not provided, this method attempts to recover the notebook
+    order from the SessionView object, but this is not always possible.
+    """
     cells: list[Cell] = []
 
-    for cell_id, cell_op in view.cell_operations.items():
+    if cell_ids is None:
+        if view.cell_ids is not None:
+            cell_ids = view.cell_ids.cell_ids
+        else:
+            LOGGER.warning(
+                "When serializing session view, the notebook-order of cells was "
+                "not known. This may cause issues when attempting to "
+                "reconstruct the notebook state from the serialized session "
+                "view."
+            )
+            cell_ids = view.cell_operations.keys()
+
+    for cell_id in cell_ids:
+        cell_op = view.cell_operations.get(cell_id)
+        if cell_op is None:
+            # We haven't seen any outputs or operations for this cell.
+            cells.append(
+                Cell(id=cell_id, code_hash=None, outputs=[], console=[])
+            )
+            continue
         outputs: list[OutputType] = []
         console: list[ConsoleType] = []
 
