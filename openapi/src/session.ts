@@ -68,7 +68,7 @@ export interface components {
       /** @enum {string} */
       name: "media";
       /** @enum {string} */
-      type: "stream";
+      type: "streamMedia";
     };
     StreamOutput: {
       /** @enum {string} */
