@@ -95,13 +95,13 @@ def echo(*args: Any, **kwargs: Any) -> None:
         # Handle non-UTF-8 terminals (such as CP-1252, Windows) by replacing
         # common Unicode characters with ASCII equivalents for non-UTF-8
         # terminals.
-        safe_args = []
+        ascii_args = []
         for arg in args:
             if isinstance(arg, str):
-                safe_arg = arg.replace("→", "->").replace("←", "<-")
-                safe_arg = safe_arg.replace("✓", "v").replace("✗", "x")
-                safe_arg = safe_arg.replace("•", "*").replace("…", "...")
-                safe_args.append(safe_arg)
+                ascii_arg = arg.replace("→", "->").replace("←", "<-")
+                ascii_arg = ascii_arg.replace("✓", "v").replace("✗", "x")
+                ascii_arg = ascii_arg.replace("•", "*").replace("…", "...")
+                ascii_args.append(ascii_arg)
             else:
-                safe_args.append(arg)
-        _echo_or_print(*args, **kwargs)
+                ascii_args.append(arg)
+        _echo_or_print(*ascii_args, **kwargs)
