@@ -111,7 +111,10 @@ export function generateAltairChart(
   const propertiesKeys = ["title", "height", "width"];
   for (const key of propertiesKeys) {
     if (key in spec) {
-      propertiesArgs[key] = new Literal(spec[key as keyof VegaLiteSpec]);
+      const value = spec[key as keyof VegaLiteSpec];
+      if (value !== undefined) {
+        propertiesArgs[key] = new Literal(value);
+      }
     }
   }
 

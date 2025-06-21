@@ -96,6 +96,9 @@ export const CodeSnippet: React.FC<{
       maxHeight="330px"
       code={code}
       language={language}
+      showHideCode={false}
+      showCopyCode={false}
+      insertNewCell={true}
     />
   );
 };

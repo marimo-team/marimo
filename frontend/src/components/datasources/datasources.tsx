@@ -21,10 +21,7 @@ import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Button } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  maybeAddAltairImport,
-  maybeAddMarimoImport,
-} from "@/core/cells/add-missing-import";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
@@ -61,6 +58,7 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { PythonIcon } from "../editor/cell/code/icons";
+import { useAddCodeToNewCell } from "../editor/cell/useAddCell";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { AddDatabaseDialog } from "../editor/database/add-database-form";
 import { DatasetColumnPreview } from "./column-preview";
@@ -534,6 +532,7 @@ const DatasetTableItem: React.FC<{
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
+  const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
     maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
@@ -561,11 +560,7 @@ const DatasetTableItem: React.FC<{
       }
     };
 
-    createNewCell({
-      code: getCode(),
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    addCodeToNewCell(getCode());
   };
 
   const renderRowsByColumns = () => {
@@ -694,23 +689,14 @@ const DatasetColumnItem: React.FC<{
     });
   }
 
-  const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell } = useCellActions();
+  const addCodeToNewCell = useAddCodeToNewCell();
 
   const { columnsPreviews } = useDatasets();
   const isPrimaryKey = table.primary_keys?.includes(column.name) || false;
   const isIndexed = table.indexes?.includes(column.name) || false;
 
   const handleAddColumn = (chartCode: string) => {
-    if (chartCode.includes("alt")) {
-      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    }
-    createNewCell({
-      code: chartCode,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    addCodeToNewCell(chartCode);
   };
 
   const renderItemSubtext = ({
