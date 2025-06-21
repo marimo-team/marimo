@@ -115,7 +115,7 @@ components:
           type: string
         type:
           enum:
-          - stream
+          - streamMedia
           type: string
       required:
       - type

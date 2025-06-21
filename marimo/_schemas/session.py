@@ -29,7 +29,7 @@ class StreamOutput(BaseDict):
 
 
 class StreamMediaOutput(BaseDict):
-    type: Literal["stream"]
+    type: Literal["streamMedia"]
     name: Literal["media"]
     data: str
     mimetype: KnownMimeType
