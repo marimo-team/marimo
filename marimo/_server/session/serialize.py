@@ -75,7 +75,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
         cell_ids = view.cell_ids.cell_ids
     else:
         LOGGER.warning(
-            "When serializing session view, the notebook-order of cells was not known"
+            "When serializing session view, the notebook-order of cells was not known. "
             "This may cause issues when attempting to reconstruct the "
             "notebook state from the serialized session view."
         )
