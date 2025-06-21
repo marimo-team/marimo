@@ -592,6 +592,8 @@ export const DataTypeSelect = ({
                 <SelectGroup>
                   {SELECTABLE_DATA_TYPES.map((type) => {
                     const Icon = DATA_TYPE_ICON[type];
+                    // Categorical is a clearer name for how we will aggregate this
+                    const name = type === "string" ? "categorical" : type;
                     return (
                       <SelectItem
                         key={type}
@@ -605,7 +607,7 @@ export const DataTypeSelect = ({
                           )
                         }
                       >
-                        <IconWithText Icon={Icon} text={capitalize(type)} />
+                        <IconWithText Icon={Icon} text={capitalize(name)} />
                       </SelectItem>
                     );
                   })}
