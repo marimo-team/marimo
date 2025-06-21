@@ -1,15 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { mint, orange, slate } from "@radix-ui/colors";
+// @ts-expect-error vega-typings does not include formats
+import { formats } from "vega";
 import type { TopLevelSpec } from "vega-lite";
 import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import { arrow } from "@/plugins/impl/vega/formats";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
 import type { ColumnHeaderStats, ColumnName, FieldTypes } from "./types";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
+
+// Arrow formats have a magic number at the beginning of the file.
+const ARROW_MAGIC_NUMBER = "ARROW1";
+
+// register arrow reader under type 'arrow'
+formats("arrow", arrow);
 
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, ColumnHeaderStats>();
@@ -54,11 +63,24 @@ export class ColumnChartSpecModel<T> {
           values: parseCsvData(decoded) as T[],
         };
         this.sourceName = "data_0";
+      } else if (this.data.startsWith("data:text/plain;base64,")) {
+        const decoded = atob(this.data.split(",")[1]);
+        if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
+          const arrowBuffer = Uint8Array.from(decoded, (c) => c.charCodeAt(0));
+          this.dataSpec = {
+            values: arrowBuffer,
+            // @ts-expect-error vega-typings does not include arrow format
+            format: { type: "arrow" },
+          };
+          this.sourceName = "data_0";
+        } else {
+          // Assume it's a CSV string
+          this.parseCsv(decoded);
+          this.sourceName = "data_0";
+        }
       } else {
         // Assume it's a CSV string
-        this.dataSpec = {
-          values: parseCsvData(this.data) as T[],
-        };
+        this.parseCsv(this.data);
         this.sourceName = "data_0";
       }
     } else {
@@ -80,6 +102,12 @@ export class ColumnChartSpecModel<T> {
       stats: this.columnStats.get(column),
       type: this.fieldTypes[column],
       spec: this.opts.includeCharts ? this.getVegaSpec(column) : undefined,
+    };
+  }
+
+  private parseCsv(data: string) {
+    this.dataSpec = {
+      values: parseCsvData(data) as T[],
     };
   }
 
