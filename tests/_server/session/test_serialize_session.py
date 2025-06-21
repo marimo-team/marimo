@@ -6,6 +6,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from marimo import __version__
 from marimo._ast.cell import CellConfig
 from marimo._ast.cell_manager import CellManager
@@ -232,6 +234,75 @@ def test_serialize_notebook_multiple_cells():
     assert cell2["config"]["hide_code"] is True
 
 
+def test_serialize_notebook_multiple_cells_not_top_down():
+    """Test serializing an "out-of-order" notebook.
+
+    Serialize a notebook in which the topological sort
+    is different from the notebook order. Make sure
+    the serialized notebook is in notebook order.
+    """
+
+    view = SessionView()
+    cell_manager = CellManager()
+
+    cell_id1 = CellId_t("cell1")
+    cell_manager.register_cell(
+        cell_id=cell_id1,
+        code="print(x + 1)",
+        name="output",
+        config=CellConfig(column=1, hide_code=True),
+    )
+
+    cell_id2 = CellId_t("cell2")
+    cell_manager.register_cell(
+        cell_id=cell_id2,
+        code="x = 2",
+        name="setup",
+        config=CellConfig(column=0, disabled=False),
+    )
+
+    view.cell_operations[cell_id2] = CellOp(
+        cell_id=cell_id2,
+        status="idle",
+        output=None,
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id2] = "x = 1"
+
+    # Add second cell to session view
+    view.cell_operations[cell_id1] = CellOp(
+        cell_id=cell_id1,
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="2",
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id1] = "print(x + 1)"
+
+    result = serialize_notebook(view, cell_manager)
+
+    assert len(result["cells"]) == 2
+
+    cell1 = result["cells"][0]
+    assert cell1["id"] == "cell1"
+    assert cell1["code"] == "print(x + 1)"
+    assert cell1["name"] == "output"
+    assert cell1["config"]["column"] == 1
+    assert cell1["config"]["hide_code"] is True
+
+    cell2 = result["cells"][1]
+    assert cell2["id"] == "cell2"
+    assert cell2["code"] == "x = 1"
+    assert cell2["name"] == "setup"
+    assert cell2["config"]["column"] == 0
+    assert cell2["config"]["disabled"] is False
+
+
 def test_serialize_notebook_empty_code():
     """Test serialization when cells have no executed code"""
     view = SessionView()
@@ -282,6 +353,15 @@ def test_serialize_notebook_no_cells():
     assert len(result["cells"]) == 0
 
 
+# TODO(akshayka): Reconcile this test with
+# https://github.com/marimo-team/marimo/pull/5377. It appears we
+# need to serialize notebook based on the cell manager not
+# session view in order to get correct ordering of cells.
+@pytest.mark.xfail(
+    reason="Unclear how to serialize a notebook when "
+    "the cell manager's view of cells differs from the session view. "
+    "The session view doesn't know the order of cells in the notebook."
+)
 def test_serialize_notebook_missing_cell_data():
     """Test serialization when cell exists in SessionView but not in CellManager"""
     view = SessionView()

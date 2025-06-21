@@ -26,11 +26,13 @@ from marimo._schemas.notebook import (
 from marimo._schemas.session import (
     VERSION,
     Cell,
+    ConsoleType,
     DataOutput,
     ErrorOutput,
     NotebookSessionMetadata,
     NotebookSessionV1,
     OutputType,
+    StreamMediaOutput,
     StreamOutput,
 )
 from marimo._server.session.session_view import SessionView
@@ -65,7 +67,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
 
     for cell_id, cell_op in view.cell_operations.items():
         outputs: list[OutputType] = []
-        console: list[StreamOutput] = []
+        console: list[ConsoleType] = []
 
         # Convert output
         if cell_op.output:
@@ -88,7 +90,17 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
         # Convert console outputs
         for console_out in as_list(cell_op.console):
             assert isinstance(console_out, CellOutput)
-            if console_out:
+            if console_out.channel == CellChannel.MEDIA:
+                console.append(
+                    StreamMediaOutput(
+                        type="stream",
+                        name="media",
+                        mimetype=console_out.mimetype,
+                        data=str(console_out.data),
+                    )
+                )
+            else:
+                # catch all for everything else
                 console.append(
                     StreamOutput(
                         type="stream",
@@ -170,15 +182,24 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
         # Convert console
         console_outputs: list[CellOutput] = []
         for console in cell["console"]:
-            console_outputs.append(
-                CellOutput(
-                    channel=CellChannel.STDERR
-                    if console["name"] == "stderr"
-                    else CellChannel.STDOUT,
-                    data=console["text"],
-                    mimetype="text/plain",
+            if console["name"] == "media":
+                console_outputs.append(
+                    CellOutput(
+                        channel=CellChannel.MEDIA,
+                        data=console["data"],
+                        mimetype=console["mimetype"],
+                    )
                 )
-            )
+            else:
+                console_outputs.append(
+                    CellOutput(
+                        channel=CellChannel.STDERR
+                        if console["name"] == "stderr"
+                        else CellChannel.STDOUT,
+                        data=console["text"],
+                        mimetype="text/plain",
+                    )
+                )
 
         cell_id = CellId_t(cell["id"])
 
@@ -199,7 +220,9 @@ def serialize_notebook(
     """Convert a SessionView to a Notebook schema."""
     cells: list[NotebookCell] = []
 
-    for cell_id in view.cell_operations.keys():
+    # Use document order from cell_manager instead of execution order from session_view
+    # to ensure cells appear in the correct sequence in HTML export
+    for cell_id in cell_manager.cell_ids():
         # Get the code from last_executed_code, fallback to empty string
         code = view.last_executed_code.get(cell_id, "")
         cell_data = cell_manager.get_cell_data(cell_id)
