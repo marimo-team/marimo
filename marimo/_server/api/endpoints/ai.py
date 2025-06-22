@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -12,10 +13,7 @@ from starlette.responses import (
 )
 
 from marimo import _loggers
-from marimo._ai._types import (
-    ChatMessage,
-    InvokeAiToolRequest,
-)
+from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.prompts import (
     FILL_ME_TAG,
@@ -40,6 +38,10 @@ from marimo._server.models.completion import (
     AiCompletionRequest,
     AiInlineCompletionRequest,
     ChatRequest,
+)
+from marimo._server.models.models import (
+    InvokeAiToolRequest,
+    InvokeAiToolResponse,
 )
 from marimo._server.router import APIRouter
 
@@ -272,12 +274,12 @@ async def invoke_tool(
         body.tool_name, body.arguments
     )
 
-    # Return the result as a JSON response
-    # Note: This JSONResponse content follows the InvokeAiToolResponse structure
-    return JSONResponse(
-        content={
-            "tool_name": result.tool_name,
-            "result": result.result,
-            "error": result.error,
-        }
+    # Create and return the response
+    response = InvokeAiToolResponse(
+        success=result.error is None,
+        tool_name=result.tool_name,
+        result=result.result,
+        error=result.error,
     )
+
+    return JSONResponse(content=asdict(response))

@@ -213,14 +213,107 @@ components:
           items:
             properties:
               attachments:
-                items: {}
+                items:
+                  properties:
+                    contentType:
+                      nullable: true
+                      type: string
+                    name:
+                      type: string
+                    url:
+                      type: string
+                  required:
+                  - url
+                  - name
+                  type: object
                 nullable: true
                 type: array
               content:
                 additionalProperties: true
                 type: object
               parts:
-                items: {}
+                items:
+                  oneOf:
+                  - properties:
+                      text:
+                        type: string
+                      type:
+                        enum:
+                        - text
+                        type: string
+                    required:
+                    - type
+                    - text
+                    type: object
+                  - properties:
+                      reasoning:
+                        type: string
+                      type:
+                        enum:
+                        - reasoning
+                        type: string
+                    required:
+                    - type
+                    - reasoning
+                    type: object
+                  - properties:
+                      toolInvocation:
+                        oneOf:
+                        - properties:
+                            args:
+                              additionalProperties: {}
+                              type: object
+                            state:
+                              enum:
+                              - call
+                              - partial-call
+                              type: string
+                            step:
+                              type: integer
+                            toolCallId:
+                              type: string
+                            toolName:
+                              type: string
+                          required:
+                          - state
+                          - toolCallId
+                          - toolName
+                          - step
+                          - args
+                          type: object
+                        - properties:
+                            args:
+                              additionalProperties: {}
+                              type: object
+                            result: {}
+                            state:
+                              enum:
+                              - call
+                              - partial-call
+                              - result
+                              type: string
+                            step:
+                              type: integer
+                            toolCallId:
+                              type: string
+                            toolName:
+                              type: string
+                          required:
+                          - state
+                          - result
+                          - toolCallId
+                          - toolName
+                          - step
+                          - args
+                          type: object
+                      type:
+                        enum:
+                        - tool-invocation
+                        type: string
+                    required:
+                    - type
+                    - toolInvocation
+                    type: object
                 nullable: true
                 type: array
               role:
@@ -1112,6 +1205,32 @@ components:
           type: string
       required:
       - name
+      type: object
+    InvokeAiToolRequest:
+      properties:
+        arguments:
+          additionalProperties: {}
+          type: object
+        toolName:
+          type: string
+      required:
+      - toolName
+      - arguments
+      type: object
+    InvokeAiToolResponse:
+      properties:
+        error:
+          nullable: true
+          type: string
+        result: {}
+        success:
+          type: boolean
+        toolName:
+          type: string
+      required:
+      - success
+      - toolName
+      - result
       type: object
     JSONType:
       oneOf:

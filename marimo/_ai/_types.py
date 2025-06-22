@@ -146,21 +146,3 @@ class ChatModel(abc.ABC):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         pass
-
-
-# AI Tool Request/Response types for API endpoints
-@dataclass
-class InvokeAiToolRequest:
-    """Request to invoke an AI tool."""
-
-    tool_name: str
-    arguments: dict[str, Any]
-
-
-@dataclass
-class InvokeAiToolResponse:
-    """Response from invoking an AI tool."""
-
-    tool_name: str
-    result: Any
-    error: Optional[str] = None
