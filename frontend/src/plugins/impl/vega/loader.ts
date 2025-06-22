@@ -2,13 +2,6 @@
 
 import { tableFromIPC } from "@uwdata/flechette";
 import { isNumber } from "lodash-es";
-import {
-  type ByteString,
-  byteStringToBinary,
-  extractBase64FromDataURL,
-  isDataURLString,
-  typedAtob,
-} from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { batchedArrowLoader, createBatchedLoader } from "./batched";
@@ -238,14 +231,6 @@ export async function vegaLoadData<T = object>(
     // Unsubscribe from middleware
     unsubscribes.forEach((u) => u());
   }
-}
-
-export function parseArrowData(data: string): Uint8Array {
-  const decoded = isDataURLString(data)
-    ? typedAtob(extractBase64FromDataURL(data))
-    : (data as ByteString);
-
-  return byteStringToBinary(decoded);
 }
 
 export function parseCsvData(

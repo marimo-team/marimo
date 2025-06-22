@@ -38,8 +38,8 @@ export function typedBtoa<T>(bytes: ByteString<T>): Base64String<T> {
   return window.btoa(bytes) as Base64String<T>;
 }
 
-export function isDataURLString(str: string): boolean {
-  return str.startsWith("data:");
+export function isDataURLString(str: string): str is DataURLString {
+  return str.startsWith("data:") && str.includes(";base64,");
 }
 
 export function extractBase64FromDataURL(str: string): Base64String {

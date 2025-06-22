@@ -7,9 +7,10 @@ import type { TopLevelSpec } from "vega-lite";
 import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { arrow } from "@/plugins/impl/vega/formats";
-import { parseArrowData, parseCsvData } from "@/plugins/impl/vega/loader";
+import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
 import {
+  byteStringToBinary,
   extractBase64FromDataURL,
   isDataURLString,
   typedAtob,
@@ -67,7 +68,7 @@ export class ColumnChartSpecModel<T> {
 
         if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
           this.dataSpec = {
-            values: parseArrowData(decoded),
+            values: byteStringToBinary(decoded),
             // @ts-expect-error vega-typings does not include arrow format
             format: { type: "arrow" },
           };
