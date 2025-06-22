@@ -78,4 +78,5 @@ export const {
   getDependencyTree,
   listSecretKeys,
   writeSecret,
+  invokeAiTool,
 } = getRequest();
