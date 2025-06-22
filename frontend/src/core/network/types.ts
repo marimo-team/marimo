@@ -94,10 +94,8 @@ export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
 export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
-export type InvokeAiToolRequest =
-  paths["/api/ai/invoke_tool"]["post"]["requestBody"]["content"]["application/json"];
-export type InvokeAiToolResponse =
-  paths["/api/ai/invoke_tool"]["post"]["responses"]["200"]["content"]["application/json"];
+export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
+export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 
 /**
  * Requests sent to the BE during run/edit mode.
