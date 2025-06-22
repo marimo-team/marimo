@@ -46,10 +46,9 @@ export const lightTheme = [
   }),
   EditorView.theme({
     ".cm-reactive-variable": {
-      fontWeight: "bold",
-      textDecoration: "underline",
-      textDecorationColor: "rgba(0, 0, 0, 0.4)",
-      textUnderlineOffset: "2px",
+      fontWeight: "700",
+      color: "#005f87",
+      borderBottom: "2px solid #bad3de",
     },
   }),
 ];

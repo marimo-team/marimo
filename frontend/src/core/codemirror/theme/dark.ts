@@ -37,10 +37,9 @@ export const darkTheme = [
   }),
   EditorView.theme({
     ".cm-reactive-variable": {
-      fontWeight: "bold",
-      textDecoration: "underline",
-      textDecorationColor: "rgba(255, 255, 255, 0.4)",
-      textUnderlineOffset: "2px",
+      fontWeight: "700",
+      color: "#2a7aa5",
+      borderBottom: "2px solid #bad3de",
     },
   }),
 ];
