@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import mimetypes
 from dataclasses import dataclass
-from typing import Literal, Optional, TypedDict
+from typing import Any, Literal, Optional, TypedDict, Union
 
 
 class ChatAttachmentDict(TypedDict):
@@ -50,20 +50,94 @@ class ChatAttachment:
             self.content_type = mimetypes.guess_type(self.url)[0]
 
 
+# AI SDK part type definitions (based on actual frontend structure)
+@dataclass
+class TextPart:
+    """Represents a text content part."""
+
+    type: Literal["text"]
+    text: str
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> TextPart:
+        """Create TextPart from dictionary data."""
+        return cls(**data)
+
+
+@dataclass
+class ReasoningPart:
+    """Represents a reasoning content part."""
+
+    type: Literal["reasoning"]
+    reasoning: str
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ReasoningPart:
+        """Create ReasoningPart from dictionary data."""
+        return cls(**data)
+
+
+@dataclass
+class ToolInvocationCall:
+    """Represents a tool invocation call part from the AI SDK."""
+
+    state: Literal["call", "partial-call"]
+    toolCallId: str
+    toolName: str
+    args: Optional[Any] = None
+    step: Optional[Any] = None
+
+
+@dataclass
+class ToolInvocationResult:
+    """Represents a tool invocation result part from the AI SDK."""
+
+    state: Literal["call", "partial-call", "result"]
+    result: Any
+    toolCallId: str
+    toolName: str
+    args: Optional[Any] = None
+    step: Optional[Any] = None
+
+
+@dataclass
+class ToolInvocationPart:
+    """Represents a tool invocation part from the AI SDK."""
+
+    type: Literal["tool-invocation"]
+    toolInvocation: Union[ToolInvocationCall, ToolInvocationResult]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ToolInvocationPart:
+        """Create ToolInvocationPart from dictionary data."""
+        tool_invocation_data = data["toolInvocation"]
+
+        tool_invocation: Union[ToolInvocationCall, ToolInvocationResult]
+        if tool_invocation_data["state"] == "result":
+            tool_invocation = ToolInvocationResult(**tool_invocation_data)
+        else:  # "call" or "partial-call"
+            tool_invocation = ToolInvocationCall(**tool_invocation_data)
+
+        return cls(type=data["type"], toolInvocation=tool_invocation)
+
+
 @dataclass
 class ChatMessage:
     """
     A message in a chat.
     """
 
-    # The role of the message.
+    # The role of the message
     role: Literal["user", "assistant", "system"]
 
-    # The content of the message.
-    content: object
+    # The content of the message
+    content: str
 
-    # Optional attachments to the message.
-    attachments: Optional[list[ChatAttachment]] = None
+    # Optional attachments to the message
+    attachments: Optional[list[Any]] = None
+
+    # Optional parts from AI SDK (see types above)
+    parts: Optional[list[Any]] = None
 
 
 @dataclass
@@ -93,3 +167,37 @@ class ChatModel(abc.ABC):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         pass
+
+
+# AI Tool Request/Response types for API endpoints
+@dataclass
+class InvokeAiToolRequest:
+    """Request to invoke an AI tool."""
+
+    tool_name: str
+    arguments: dict[str, Any]
+
+
+@dataclass
+class InvokeAiToolResponse:
+    """Response from invoking an AI tool."""
+
+    tool_name: str
+    result: Any
+    error: Optional[str] = None
+
+
+def create_part_from_dict(
+    data: dict[str, Any],
+) -> Union[TextPart, ReasoningPart, ToolInvocationPart]:
+    """Factory function to create the appropriate part type from dictionary data."""
+    part_type = data.get("type")
+
+    if part_type == "text":
+        return TextPart.from_dict(data)
+    elif part_type == "reasoning":
+        return ReasoningPart.from_dict(data)
+    elif part_type == "tool-invocation":
+        return ToolInvocationPart.from_dict(data)
+    else:
+        raise ValueError(f"Unknown part type: {part_type}")
