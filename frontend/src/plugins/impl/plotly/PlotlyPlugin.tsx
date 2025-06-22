@@ -273,15 +273,16 @@ export const PlotlyComponent = memo(
               }
             });
 
-            if (Object.keys(constraints).length > 0) {
-              setValue((prev) => ({
-                ...prev,
-                range: constraints,
-                // For parallel coordinates, we track constraints rather than individual points
-                points: [],
-                indices: [],
-              }));
-            }
+            // For parallel coordinates, we always send the constraint information
+            // The Python backend can use this to filter the original data
+            setValue((prev) => ({
+              ...prev,
+              range: Object.keys(constraints).length > 0 ? constraints : {},
+              // For parallel coordinates, we track constraints rather than individual points
+              // The Python side will filter the data based on constraints
+              points: [],
+              indices: [],
+            }));
           }
         })}
         config={plotlyConfig}
