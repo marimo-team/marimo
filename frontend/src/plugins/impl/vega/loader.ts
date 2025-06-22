@@ -2,6 +2,13 @@
 
 import { tableFromIPC } from "@uwdata/flechette";
 import { isNumber } from "lodash-es";
+import {
+  type ByteString,
+  byteStringToBinary,
+  extractBase64FromDataURL,
+  isDataURLString,
+  typedAtob,
+} from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { batchedArrowLoader, createBatchedLoader } from "./batched";
@@ -233,21 +240,12 @@ export async function vegaLoadData<T = object>(
   }
 }
 
-export function parseArrowData(arrowData: string): Uint8Array {
-  let decodedData: string;
+export function parseArrowData(data: string): Uint8Array {
+  const decoded = isDataURLString(data)
+    ? typedAtob(extractBase64FromDataURL(data))
+    : (data as ByteString);
 
-  // Handle base64 data URLs
-  if (arrowData.startsWith("data:text/plain;base64,")) {
-    const base64Data = arrowData.split(",")[1];
-    decodedData = atob(base64Data);
-  } else {
-    // Assume it's already decoded Arrow data
-    decodedData = arrowData;
-  }
-
-  const arrowBuffer = Uint8Array.from(decodedData, (c) => c.charCodeAt(0));
-
-  return arrowBuffer;
+  return byteStringToBinary(decoded);
 }
 
 export function parseCsvData(

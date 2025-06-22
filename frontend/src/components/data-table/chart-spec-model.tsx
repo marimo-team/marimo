@@ -9,6 +9,11 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { arrow } from "@/plugins/impl/vega/formats";
 import { parseArrowData, parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
+import {
+  extractBase64FromDataURL,
+  isDataURLString,
+  typedAtob,
+} from "@/utils/json/base64";
 import type { ColumnHeaderStats, ColumnName, FieldTypes } from "./types";
 
 // We rely on vega's built-in binning to determine bar widths.
@@ -53,29 +58,22 @@ export class ColumnChartSpecModel<T> {
     // We have a few snapshot tests to ensure that the spec is correct for each case.
     if (typeof this.data === "string") {
       if (this.data.startsWith("./@file") || this.data.startsWith("/@file")) {
-        this.dataSpec = {
-          url: asRemoteURL(this.data).href,
-        };
+        this.dataSpec = { url: asRemoteURL(this.data).href };
         this.sourceName = "source_0";
-      } else if (this.data.startsWith("data:text/csv;base64,")) {
-        const decoded = atob(this.data.split(",")[1]);
-        this.dataSpec = {
-          values: parseCsvData(decoded) as T[],
-        };
+      } else if (isDataURLString(this.data)) {
         this.sourceName = "data_0";
-      } else if (this.data.startsWith("data:text/plain;base64,")) {
-        const decoded = atob(this.data.split(",")[1]);
+        const base64 = extractBase64FromDataURL(this.data);
+        const decoded = typedAtob(base64);
+
         if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
           this.dataSpec = {
             values: parseArrowData(decoded),
             // @ts-expect-error vega-typings does not include arrow format
             format: { type: "arrow" },
           };
-          this.sourceName = "data_0";
         } else {
           // Assume it's a CSV string
           this.parseCsv(decoded);
-          this.sourceName = "data_0";
         }
       } else {
         // Assume it's a CSV string
@@ -83,9 +81,7 @@ export class ColumnChartSpecModel<T> {
         this.sourceName = "data_0";
       }
     } else {
-      this.dataSpec = {
-        values: this.data,
-      };
+      this.dataSpec = { values: this.data };
       this.sourceName = "source_0";
     }
 

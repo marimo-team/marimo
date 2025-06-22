@@ -37,3 +37,15 @@ export function typedAtob<T>(base64: Base64String<T>): ByteString<T> {
 export function typedBtoa<T>(bytes: ByteString<T>): Base64String<T> {
   return window.btoa(bytes) as Base64String<T>;
 }
+
+export function isDataURLString(str: string): boolean {
+  return str.startsWith("data:");
+}
+
+export function extractBase64FromDataURL(str: string): Base64String {
+  return str.split(",")[1] as Base64String;
+}
+
+export function byteStringToBinary(bytes: ByteString): Uint8Array {
+  return Uint8Array.from(bytes, (c) => c.charCodeAt(0));
+}
