@@ -42,7 +42,7 @@ export function isDataURLString(str: string): str is DataURLString {
   return str.startsWith("data:") && str.includes(";base64,");
 }
 
-export function extractBase64FromDataURL(str: string): Base64String {
+export function extractBase64FromDataURL(str: DataURLString): Base64String {
   return str.split(",")[1] as Base64String;
 }
 
