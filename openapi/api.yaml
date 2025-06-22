@@ -213,24 +213,16 @@ components:
           items:
             properties:
               attachments:
-                items:
-                  properties:
-                    contentType:
-                      nullable: true
-                      type: string
-                    name:
-                      type: string
-                    url:
-                      type: string
-                  required:
-                  - url
-                  - name
-                  type: object
+                items: {}
                 nullable: true
                 type: array
               content:
                 additionalProperties: true
                 type: object
+              parts:
+                items: {}
+                nullable: true
+                type: array
               role:
                 enum:
                 - user
@@ -2669,6 +2661,22 @@ paths:
               schema:
                 type: string
           description: Get AI inline completion for code
+  /api/ai/invoke_tool:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvokeAiToolRequest'
+        description: The request body for tool invocation
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvokeAiToolResponse'
+          description: Tool invocation result
   /api/datasources/preview_column:
     post:
       requestBody:

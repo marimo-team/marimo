@@ -161,6 +161,67 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/ai/invoke_tool": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description The request body for tool invocation */
+      requestBody: {
+        content: {
+          "application/json": {
+            /** @description Arguments to pass to the tool */
+            arguments: Record<string, never>;
+            /** @description Name of the tool to invoke */
+            tool_name: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Tool invocation result */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error?: string | null;
+              /** @description The tool result (can be any type) */
+              result?: unknown;
+              tool_name?: string;
+            };
+          };
+        };
+        /** @description Invalid request or tool arguments */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              detail?: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_column": {
     parameters: {
       query?: never;
