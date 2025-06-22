@@ -85,13 +85,15 @@ You can target a cell's styles from the `data-cell-name` attribute. You can also
 
 ## Community Themes
 
-!!! tip "Community Contributions"
+The marimo community maintains a [library of custom themes](https://github.com/Haleshot/marimo-themes) that you can use in your notebooks. The library includes various themes like "coldme", "nord", "mininini", and "wigwam", each supporting both light and dark modes.
 
-    The marimo community creates and shares custom themes. Here's an example to get you started:
-    
-    **Christmas Theme**: [View on GitHub Gist](https://gist.github.com/Light2Dark/7d192d7f78906812682fe499314c4ada)
-    
-    Share your own themes as GitHub Gists, or let us know if you'd like a community-driven theme repository.
+You can:
+
+- Browse and download existing themes
+- Use them in your own notebooks
+- Contribute your own themes to share with the community
+
+Visit the [marimo-themes repository](https://github.com/Haleshot/marimo-themes) to explore available themes and learn how to contribute your own.
 
 ## More customizations
 
