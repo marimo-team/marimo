@@ -177,6 +177,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   shutdownSession = throwNotImplemented;
   listSecretKeys = throwNotImplemented;
   writeSecret = throwNotImplemented;
+  invokeAiTool = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({
