@@ -203,11 +203,16 @@ export class RequestingTree {
   };
 
   public relativeFromRoot = (path: FilePath): FilePath => {
-    const root = withTrailingSlash(this.rootPath);
+    const root = this.withTrailingDelimiter(this.rootPath);
     if (path.startsWith(root)) {
       return path.slice(root.length) as FilePath;
     }
     return path;
+  };
+
+  private withTrailingDelimiter = (path: string): string => {
+    const delimiter = this.path.deliminator;
+    return path.endsWith(delimiter) ? path : `${path}${delimiter}`;
   };
 
   private handleResponse = (
@@ -223,8 +228,4 @@ export class RequestingTree {
 
     return response;
   };
-}
-
-function withTrailingSlash(path: string): string {
-  return path.endsWith("/") ? path : `${path}/`;
 }

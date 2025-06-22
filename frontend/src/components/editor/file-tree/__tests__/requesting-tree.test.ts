@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { toast } from "@/components/ui/use-toast";
+import type { FilePath } from "@/utils/paths";
 import { RequestingTree } from "../requesting-tree";
 
 const sendListFiles = vi.fn();
@@ -259,6 +260,64 @@ describe("RequestingTree", () => {
       expect(sendListFiles).toHaveBeenCalled();
       // Ensure onChange is still called to update UI even if data might not have changed
       expect(mockOnChange).toHaveBeenCalled();
+    });
+  });
+
+  describe("relativeFromRoot", () => {
+    test("should return relative path for Unix paths", async () => {
+      // Unix-style paths
+      const tree = new RequestingTree({
+        listFiles: sendListFiles,
+        createFileOrFolder: sendCreateFileOrFolder,
+        deleteFileOrFolder: sendDeleteFileOrFolder,
+        renameFileOrFolder: sendRenameFileOrFolder,
+      });
+
+      sendListFiles.mockResolvedValue({
+        files: [],
+        root: "/home/user/project",
+      });
+
+      await tree.initialize(vi.fn());
+
+      const relativePath = tree.relativeFromRoot(
+        "/home/user/project/src/file.py" as FilePath,
+      );
+      expect(relativePath).toBe("src/file.py");
+    });
+
+    test("should return relative path for Windows paths", async () => {
+      // Windows-style paths
+      const tree = new RequestingTree({
+        listFiles: sendListFiles,
+        createFileOrFolder: sendCreateFileOrFolder,
+        deleteFileOrFolder: sendDeleteFileOrFolder,
+        renameFileOrFolder: sendRenameFileOrFolder,
+      });
+
+      sendListFiles.mockResolvedValue({
+        files: [],
+        root: "C:\\Users\\test\\project",
+      });
+
+      await tree.initialize(vi.fn());
+
+      const relativePath = tree.relativeFromRoot(
+        "C:\\Users\\test\\project\\src\\file.py" as FilePath,
+      );
+      expect(relativePath).toBe("src\\file.py");
+    });
+
+    test("should return original path when not under root", async () => {
+      const relativePath = requestingTree.relativeFromRoot(
+        "/other/path/file.py" as FilePath,
+      );
+      expect(relativePath).toBe("/other/path/file.py");
+    });
+
+    test("should handle root path exactly", async () => {
+      const relativePath = requestingTree.relativeFromRoot("/root" as FilePath);
+      expect(relativePath).toBe("/root");
     });
   });
 });
