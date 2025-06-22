@@ -94,6 +94,10 @@ export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
 export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
+export type InvokeAiToolRequest =
+  paths["/api/ai/invoke_tool"]["post"]["requestBody"]["content"]["application/json"];
+export type InvokeAiToolResponse =
+  paths["/api/ai/invoke_tool"]["post"]["responses"]["200"]["content"]["application/json"];
 
 /**
  * Requests sent to the BE during run/edit mode.
@@ -179,6 +183,8 @@ export interface EditRequests {
   // Secrets requests
   listSecretKeys: (request: ListSecretKeysRequest) => Promise<null>;
   writeSecret: (request: CreateSecretRequest) => Promise<null>;
+  // AI Tool requests
+  invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);
