@@ -9,6 +9,10 @@ from marimo._config.config import CopilotMode
 
 LOGGER = _loggers.marimo_logger()
 
+# Type aliases for tool system
+FunctionArgs = dict[str, Any]
+ValidationFunction = Callable[[FunctionArgs], tuple[bool, str]]
+
 ToolSource = Literal["mcp", "backend", "frontend"]
 
 
@@ -38,10 +42,8 @@ class ToolManager:
     def __init__(self) -> None:
         """Initialize the tool manager."""
         self._tools: dict[str, Tool] = {}
-        self._backend_handlers: dict[str, Callable[[dict[str, Any]], Any]] = {}
-        self._validation_functions: dict[
-            str, Callable[[dict[str, Any]], tuple[bool, str]]
-        ] = {}
+        self._backend_handlers: dict[str, Callable[[FunctionArgs], Any]] = {}
+        self._validation_functions: dict[str, ValidationFunction] = {}
 
         # Don't register tools in __init__ to avoid circular imports
         # Tools will be registered when get_tool_manager() is first called
@@ -52,10 +54,8 @@ class ToolManager:
     def register_backend_tool(
         self,
         tool: Tool,
-        handler: Callable[[dict[str, Any]], Any],
-        validator: Optional[
-            Callable[[dict[str, Any]], tuple[bool, str]]
-        ] = None,
+        handler: Callable[[FunctionArgs], Any],
+        validator: Optional[ValidationFunction] = None,
     ) -> None:
         """Register a backend tool with its handler function and optional validator."""
         if tool.source != "backend":
@@ -92,7 +92,7 @@ class ToolManager:
         return self._tools.get(name)
 
     def validate_backend_tool_arguments(
-        self, tool_name: str, arguments: dict[str, Any]
+        self, tool_name: str, arguments: FunctionArgs
     ) -> tuple[bool, str]:
         """Validate tool arguments using tool-specific validation function or fallback to basic validation."""
         tool = self.get_tool(tool_name)
@@ -133,7 +133,7 @@ class ToolManager:
         return f"{error_message} Please file a GitHub issue if this problem persists."
 
     async def invoke_tool(
-        self, tool_name: str, arguments: dict[str, Any]
+        self, tool_name: str, arguments: FunctionArgs
     ) -> ToolResult:
         """Invoke a tool by name and return the result."""
         tool = self.get_tool(tool_name)
@@ -214,8 +214,8 @@ class ToolManager:
 
     async def _call_handler(
         self,
-        handler: Callable[[dict[str, Any]], Any],
-        arguments: dict[str, Any],
+        handler: Callable[[FunctionArgs], Any],
+        arguments: FunctionArgs,
     ) -> Any:
         """Call a tool handler, handling both sync and async functions."""
         import asyncio
@@ -230,7 +230,7 @@ class ToolManager:
             )
 
     async def _invoke_mcp_tool(
-        self, tool_name: str, arguments: dict[str, Any]
+        self, tool_name: str, arguments: FunctionArgs
     ) -> Any:
         """Invoke an MCP tool via the MCP client."""
         # TODO: Implement MCP tool invocation
