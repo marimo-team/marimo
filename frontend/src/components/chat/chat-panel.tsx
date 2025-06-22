@@ -212,11 +212,6 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                   />
                 );
 
-              // case "tool-invocation":
-              //   if (part.toolInvocation.state === "result") {
-              //     return <MarkdownRenderer key={i} content={part.toolInvocation.} />;
-              //   }
-
               /* handle other part types … */
               default:
                 return null;
