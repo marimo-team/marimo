@@ -46,7 +46,7 @@ import {
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
-import { saveUserConfig } from "@/core/network/requests";
+import { invokeAiTool, saveUserConfig } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
@@ -179,7 +179,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             onChange={() => {
               // noop
             }}
-            onSubmit={(e, newValue) => {
+            onSubmit={(_e, newValue) => {
               if (!newValue.trim()) {
                 return;
               }
@@ -211,6 +211,11 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                     }
                   />
                 );
+
+              // case "tool-invocation":
+              //   if (part.toolInvocation.state === "result") {
+              //     return <MarkdownRenderer key={i} content={part.toolInvocation.} />;
+              //   }
 
               /* handle other part types … */
               default:
@@ -437,6 +442,7 @@ const ChatPanelBody = () => {
     stop,
   } = useChat({
     id: activeChat?.id,
+    maxSteps: 10,
     initialMessages: useMemo(() => {
       return activeChat
         ? activeChat.messages.map(({ role, content, timestamp, parts }) => ({
@@ -449,7 +455,7 @@ const ChatPanelBody = () => {
     }, [activeChat]),
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
-    experimental_throttle: 100,
+    // experimental_throttle: 100,
     api: runtimeManager.getAiURL("chat").toString(),
     headers: runtimeManager.headers(),
     experimental_prepareRequestBody: (options) => {
@@ -472,9 +478,19 @@ const ChatPanelBody = () => {
         ),
       );
     },
-    onToolCall: (_toolCall) => {
-      // Logger.warn("Tool call:", toolCall);
-      // TODO: Handle tool calls
+    onToolCall: async ({ toolCall }) => {
+      try {
+        const response = await invokeAiTool({
+          tool_name: toolCall.toolName,
+          arguments: toolCall.args as Record<string, never>,
+        });
+
+        // This response triggers the onFinish callback
+        return response.result || response.error;
+      } catch (error) {
+        Logger.error("Tool call failed:", error);
+        return `Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
