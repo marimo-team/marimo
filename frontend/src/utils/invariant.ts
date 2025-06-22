@@ -27,6 +27,11 @@ export function invariant(
   msg: string,
 ): asserts expression {
   if (!expression) {
+    if (import.meta.env.DEV) {
+      // Triggers a breakpoint in development; stripped out in production builds.
+      // biome-ignore lint/suspicious/noDebugger: code block is stripped out in production builds
+      debugger; // eslint-disable-line no-debugger
+    }
     throw new Error(msg);
   }
 }
