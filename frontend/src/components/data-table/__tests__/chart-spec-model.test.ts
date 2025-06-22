@@ -223,9 +223,9 @@ describe("ColumnChartSpecModel", () => {
     });
 
     it("should handle arrow data", () => {
-      const arrowData = "data:text/plain;base64,QVJST1cxCg==";
+      const arrowData = "ARROW1\n";
       const model = new ColumnChartSpecModel(
-        arrowData,
+        `data:text/plain;base64,${btoa(arrowData)}`,
         mockFieldTypes,
         mockStats,
         { includeCharts: true },
