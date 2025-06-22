@@ -265,7 +265,6 @@ describe("RequestingTree", () => {
 
   describe("relativeFromRoot", () => {
     test("should return relative path for Unix paths", async () => {
-      // Unix-style paths
       const tree = new RequestingTree({
         listFiles: sendListFiles,
         createFileOrFolder: sendCreateFileOrFolder,
@@ -287,7 +286,6 @@ describe("RequestingTree", () => {
     });
 
     test("should return relative path for Windows paths", async () => {
-      // Windows-style paths
       const tree = new RequestingTree({
         listFiles: sendListFiles,
         createFileOrFolder: sendCreateFileOrFolder,

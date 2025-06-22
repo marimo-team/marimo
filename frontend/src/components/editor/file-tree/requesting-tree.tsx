@@ -203,16 +203,15 @@ export class RequestingTree {
   };
 
   public relativeFromRoot = (path: FilePath): FilePath => {
-    const root = this.withTrailingDelimiter(this.rootPath);
+    // Add a trailing delimiter to the root path if it doesn't have one
+    const root = this.rootPath.endsWith(this.path.deliminator)
+      ? this.rootPath
+      : `${this.rootPath}${this.path.deliminator}`;
+
     if (path.startsWith(root)) {
       return path.slice(root.length) as FilePath;
     }
     return path;
-  };
-
-  private withTrailingDelimiter = (path: string): string => {
-    const delimiter = this.path.deliminator;
-    return path.endsWith(delimiter) ? path : `${path}${delimiter}`;
   };
 
   private handleResponse = (
