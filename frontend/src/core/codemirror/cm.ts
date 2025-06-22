@@ -65,6 +65,7 @@ import { getCurrentLanguageAdapter } from "./language/commands";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { dndBundle } from "./misc/dnd";
 import { pasteBundle } from "./misc/paste";
+import { reactiveVariablesExtension } from "./reactive-variables/extension";
 import { dynamicReadonly } from "./readonly/extension";
 import { darkTheme } from "./theme/dark";
 import { lightTheme } from "./theme/light";
@@ -139,6 +140,8 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
       : [],
     // Readonly extension
     dynamicReadonly(store),
+    // Reactive variables highlighting
+    reactiveVariablesExtension(cellId),
   ];
 };
 
