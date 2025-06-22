@@ -137,12 +137,12 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
 
         # Store the figure data for parallel coordinates processing
         self._figure_data = json.loads(json_str)
-        
+
         # For parallel coordinates, initialize with all data
         initial_value = {}
         if self._is_parallel_coordinates_data(self._figure_data):
             initial_value = {"range": {}}  # Empty constraints = all data
-        
+
         super().__init__(
             component_name=plotly.name,
             initial_value=initial_value,
@@ -200,69 +200,73 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     def _convert_value(self, value: PlotlySelection) -> Any:
         # Store the selection data
         self._selection_data = value
-        
+
         # For parallel coordinates plots, we need to handle range-based filtering
         if self._is_parallel_coordinates():
             constraints = value.get("range", {}) if value else {}
             return self._filter_parallel_coordinates_data(constraints)
-        
+
         # Default to returning the points
         return self.points
 
     def _is_parallel_coordinates(self) -> bool:
         """Check if this is a parallel coordinates plot."""
-        if not hasattr(self, '_figure_data'):
+        if not hasattr(self, "_figure_data"):
             return False
         return self._is_parallel_coordinates_data(self._figure_data)
-    
+
     @staticmethod
     def _is_parallel_coordinates_data(figure_data: dict) -> bool:
         """Check if figure data contains parallel coordinates traces."""
         # Check if any trace is a parcoords type
-        for trace in figure_data.get('data', []):
-            if trace.get('type') == 'parcoords':
+        for trace in figure_data.get("data", []):
+            if trace.get("type") == "parcoords":
                 return True
         return False
 
-    def _filter_parallel_coordinates_data(self, constraints: dict) -> list[dict[str, Any]]:
+    def _filter_parallel_coordinates_data(
+        self, constraints: dict
+    ) -> list[dict[str, Any]]:
         """Filter parallel coordinates data based on constraints."""
-        if not hasattr(self, '_figure_data'):
+        if not hasattr(self, "_figure_data"):
             return []
-        
+
         # Find the parcoords trace
         parcoords_trace = None
-        for trace in self._figure_data.get('data', []):
-            if trace.get('type') == 'parcoords':
+        for trace in self._figure_data.get("data", []):
+            if trace.get("type") == "parcoords":
                 parcoords_trace = trace
                 break
-        
-        if not parcoords_trace or 'dimensions' not in parcoords_trace:
+
+        if not parcoords_trace or "dimensions" not in parcoords_trace:
             return []
-        
-        dimensions = parcoords_trace['dimensions']
+
+        dimensions = parcoords_trace["dimensions"]
         if not dimensions:
             return []
-        
+
         # Decode dimension values from binary data
         decoded_dimensions = []
         for dimension in dimensions:
-            label = dimension.get('label', '')
-            values_data = dimension.get('values', [])
-            
+            label = dimension.get("label", "")
+            values_data = dimension.get("values", [])
+
             # Handle binary encoded values
-            if isinstance(values_data, dict) and 'bdata' in values_data:
+            if isinstance(values_data, dict) and "bdata" in values_data:
                 try:
                     import base64
                     import struct
-                    
+
                     # Decode base64 data
-                    binary_data = base64.b64decode(values_data['bdata'])
-                    
+                    binary_data = base64.b64decode(values_data["bdata"])
+
                     # Unpack binary data as float64 values
-                    dtype = values_data.get('dtype', 'f8')
-                    if dtype == 'f8':  # float64
+                    dtype = values_data.get("dtype", "f8")
+                    if dtype == "f8":  # float64
                         num_values = len(binary_data) // 8
-                        values = list(struct.unpack(f'{num_values}d', binary_data))
+                        values = list(
+                            struct.unpack(f"{num_values}d", binary_data)
+                        )
                     else:
                         # Fallback for other dtypes
                         values = []
@@ -272,31 +276,28 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 values = values_data
             else:
                 values = []
-                
-            decoded_dimensions.append({
-                'label': label,
-                'values': values
-            })
-        
+
+            decoded_dimensions.append({"label": label, "values": values})
+
         # Extract all data points
         all_points = []
-        if decoded_dimensions and decoded_dimensions[0]['values']:
-            num_points = len(decoded_dimensions[0]['values'])
-            
+        if decoded_dimensions and decoded_dimensions[0]["values"]:
+            num_points = len(decoded_dimensions[0]["values"])
+
             for i in range(num_points):
                 point = {}
                 for dim_idx, dimension in enumerate(decoded_dimensions):
-                    label = dimension['label'] or f'dimension_{dim_idx}'
-                    values = dimension['values']
+                    label = dimension["label"] or f"dimension_{dim_idx}"
+                    values = dimension["values"]
                     if i < len(values):
                         point[label] = values[i]
                 if point:  # Only add if we have data
                     all_points.append(point)
-        
+
         # If no constraints, return all points
         if not constraints:
             return all_points
-        
+
         # Apply constraints to filter points
         filtered_points = []
         for point in all_points:
@@ -304,10 +305,10 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             for constraint_key, constraint_ranges in constraints.items():
                 # constraint_key is like "dimension_0"
                 try:
-                    dim_idx = int(constraint_key.split('_')[1])
+                    dim_idx = int(constraint_key.split("_")[1])
                     if dim_idx < len(decoded_dimensions):
                         dimension = decoded_dimensions[dim_idx]
-                        label = dimension['label'] or f'dimension_{dim_idx}'
+                        label = dimension["label"] or f"dimension_{dim_idx}"
                         if label in point:
                             value = point[label]
                             # Check if value falls within any of the constraint ranges
@@ -322,8 +323,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 except (ValueError, IndexError):
                     # Skip invalid constraint keys
                     continue
-            
+
             if include_point:
                 filtered_points.append(point)
-        
+
         return filtered_points
