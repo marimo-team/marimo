@@ -133,8 +133,8 @@ class ChatMessage:
     # The content of the message
     content: object
 
-    # Optional attachments to the message
-    attachments: Optional[list[Any]] = None
+    # Optional attachments to the message.
+    attachments: Optional[list[ChatAttachment]] = None
 
     # Optional parts from AI SDK (see types above)
     parts: Optional[list[Any]] = None
