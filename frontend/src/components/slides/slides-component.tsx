@@ -14,12 +14,6 @@ import { useEventListener } from "@/hooks/useEventListener";
 import { cn } from "@/utils/cn";
 
 import "./slides.css";
-import "swiper/css";
-import "swiper/css/virtual";
-import "swiper/css/keyboard";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
-import "swiper/css/scrollbar";
 
 interface SlidesComponentProps {
   className?: string;
