@@ -84,8 +84,8 @@ class ToolInvocationCall:
     state: Literal["call", "partial-call"]
     toolCallId: str
     toolName: str
-    args: Optional[Any] = None
-    step: Optional[Any] = None
+    step: int
+    args: dict[str, Any]
 
 
 @dataclass
@@ -96,8 +96,8 @@ class ToolInvocationResult:
     result: Any
     toolCallId: str
     toolName: str
-    args: Optional[Any] = None
-    step: Optional[Any] = None
+    step: int
+    args: dict[str, Any]
 
 
 @dataclass
