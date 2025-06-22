@@ -153,16 +153,7 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({
-    message,
-    index,
-    theme,
-    onEdit,
-    setChatState,
-    chatState,
-    isStreamingReasoning,
-    totalMessages,
-  }) => (
+  ({ message, index, theme, onEdit, isStreamingReasoning, totalMessages }) => (
     <div
       className={cn(
         "flex group relative",
@@ -476,7 +467,7 @@ const ChatPanelBody = () => {
     onToolCall: async ({ toolCall }) => {
       try {
         const response = await invokeAiTool({
-          tool_name: toolCall.toolName,
+          toolName: toolCall.toolName,
           arguments: toolCall.args as Record<string, never>,
         });
 

@@ -180,12 +180,7 @@ export interface paths {
       /** @description The request body for tool invocation */
       requestBody: {
         content: {
-          "application/json": {
-            /** @description Arguments to pass to the tool */
-            arguments: Record<string, never>;
-            /** @description Name of the tool to invoke */
-            tool_name: string;
-          };
+          "application/json": components["schemas"]["InvokeAiToolRequest"];
         };
       };
       responses: {
@@ -195,23 +190,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error?: string | null;
-              /** @description The tool result (can be any type) */
-              result?: unknown;
-              tool_name?: string;
-            };
-          };
-        };
-        /** @description Invalid request or tool arguments */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              detail?: string;
-            };
+            "application/json": components["schemas"]["InvokeAiToolResponse"];
           };
         };
       };
@@ -2656,6 +2635,46 @@ export interface components {
         content: {
           [key: string]: unknown;
         };
+        parts?:
+          | (
+              | {
+                  text: string;
+                  /** @enum {string} */
+                  type: "text";
+                }
+              | {
+                  reasoning: string;
+                  /** @enum {string} */
+                  type: "reasoning";
+                }
+              | {
+                  toolInvocation:
+                    | {
+                        args: {
+                          [key: string]: unknown;
+                        };
+                        /** @enum {string} */
+                        state: "call" | "partial-call";
+                        step: number;
+                        toolCallId: string;
+                        toolName: string;
+                      }
+                    | {
+                        args: {
+                          [key: string]: unknown;
+                        };
+                        result: unknown;
+                        /** @enum {string} */
+                        state: "call" | "partial-call" | "result";
+                        step: number;
+                        toolCallId: string;
+                        toolName: string;
+                      };
+                  /** @enum {string} */
+                  type: "tool-invocation";
+                }
+            )[]
+          | null;
         /** @enum {string} */
         role: "user" | "assistant" | "system";
       }[];
@@ -3004,6 +3023,18 @@ export interface components {
     Interrupted: {
       /** @enum {string} */
       name: "interrupted";
+    };
+    InvokeAiToolRequest: {
+      arguments: {
+        [key: string]: unknown;
+      };
+      toolName: string;
+    };
+    InvokeAiToolResponse: {
+      error?: string | null;
+      result: unknown;
+      success: boolean;
+      toolName: string;
     };
     JSONType:
       | string
