@@ -235,9 +235,184 @@ def test_from_chat_message_dict():
     )
     assert result_no_attachments.attachments is None
 
-    # Test case 3: Input is already a ChatMessage
+    # Test case 3: ChatMessage with parts
+    message_dict_with_parts = {
+        "role": "assistant",
+        "content": "Here's my response with reasoning.",
+        "parts": [
+            {"type": "text", "text": "This is a text part"},
+            {"type": "reasoning", "reasoning": "This is my reasoning process"},
+        ],
+    }
+
+    result_with_parts = from_chat_message_dict(message_dict_with_parts)
+
+    assert isinstance(result_with_parts, ChatMessage)
+    assert result_with_parts.role == "assistant"
+    assert result_with_parts.content == "Here's my response with reasoning."
+    assert len(result_with_parts.parts) == 2
+    assert result_with_parts.parts[0].type == "text"
+    assert result_with_parts.parts[0].text == "This is a text part"
+    assert result_with_parts.parts[1].type == "reasoning"
+    assert (
+        result_with_parts.parts[1].reasoning == "This is my reasoning process"
+    )
+
+    # Test case 4: ChatMessage with both attachments and parts
+    message_dict_full = {
+        "role": "user",
+        "content": "Complex message with everything.",
+        "attachments": [
+            {
+                "name": "doc.pdf",
+                "content_type": "application/pdf",
+                "url": "http://example.com/doc.pdf",
+            }
+        ],
+        "parts": [{"type": "text", "text": "Additional text content"}],
+    }
+
+    result_full = from_chat_message_dict(message_dict_full)
+
+    assert isinstance(result_full, ChatMessage)
+    assert result_full.role == "user"
+    assert result_full.content == "Complex message with everything."
+    assert len(result_full.attachments) == 1
+    assert result_full.attachments[0].name == "doc.pdf"
+    assert len(result_full.parts) == 1
+    assert result_full.parts[0].type == "text"
+    assert result_full.parts[0].text == "Additional text content"
+
+    # Test case 5: ChatMessage with tool invocation part (call state)
+    message_dict_tool_call = {
+        "role": "assistant",
+        "content": "I'll call a tool for you.",
+        "parts": [
+            {
+                "type": "tool-invocation",
+                "tool_invocation": {
+                    "state": "call",
+                    "tool_call_id": "call_123",
+                    "tool_name": "weather_tool",
+                    "step": 1,
+                    "args": {"location": "New York"},
+                },
+            }
+        ],
+    }
+
+    result_tool_call = from_chat_message_dict(message_dict_tool_call)
+
+    assert isinstance(result_tool_call, ChatMessage)
+    assert result_tool_call.role == "assistant"
+    assert result_tool_call.content == "I'll call a tool for you."
+    assert len(result_tool_call.parts) == 1
+    assert result_tool_call.parts[0].type == "tool-invocation"
+    assert result_tool_call.parts[0].tool_invocation.state == "call"
+    assert result_tool_call.parts[0].tool_invocation.tool_call_id == "call_123"
+    assert (
+        result_tool_call.parts[0].tool_invocation.tool_name == "weather_tool"
+    )
+    assert result_tool_call.parts[0].tool_invocation.step == 1
+    assert result_tool_call.parts[0].tool_invocation.args == {
+        "location": "New York"
+    }
+
+    # Test case 6: ChatMessage with tool invocation part (result state)
+    message_dict_tool_result = {
+        "role": "assistant",
+        "content": "Here's the tool result.",
+        "parts": [
+            {
+                "type": "tool-invocation",
+                "tool_invocation": {
+                    "state": "result",
+                    "result": {"temperature": "72°F", "condition": "sunny"},
+                    "tool_call_id": "call_123",
+                    "tool_name": "weather_tool",
+                    "step": 1,
+                    "args": {"location": "New York"},
+                },
+            }
+        ],
+    }
+
+    result_tool_result = from_chat_message_dict(message_dict_tool_result)
+
+    assert isinstance(result_tool_result, ChatMessage)
+    assert result_tool_result.role == "assistant"
+    assert result_tool_result.content == "Here's the tool result."
+    assert len(result_tool_result.parts) == 1
+    assert result_tool_result.parts[0].type == "tool-invocation"
+    assert result_tool_result.parts[0].tool_invocation.state == "result"
+    assert result_tool_result.parts[0].tool_invocation.result == {
+        "temperature": "72°F",
+        "condition": "sunny",
+    }
+    assert (
+        result_tool_result.parts[0].tool_invocation.tool_call_id == "call_123"
+    )
+    assert (
+        result_tool_result.parts[0].tool_invocation.tool_name == "weather_tool"
+    )
+    assert result_tool_result.parts[0].tool_invocation.step == 1
+    assert result_tool_result.parts[0].tool_invocation.args == {
+        "location": "New York"
+    }
+
+    # Test case 7: ChatMessage with mixed parts (text, reasoning, and tool invocation)
+    message_dict_mixed = {
+        "role": "assistant",
+        "content": "Complex response with multiple part types.",
+        "parts": [
+            {"type": "text", "text": "First, let me explain."},
+            {
+                "type": "reasoning",
+                "reasoning": "I need to call a tool because...",
+            },
+            {
+                "type": "tool-invocation",
+                "tool_invocation": {
+                    "state": "partial-call",
+                    "tool_call_id": "call_456",
+                    "tool_name": "calculator",
+                    "step": 2,
+                    "args": {"expression": "2 + 2"},
+                },
+            },
+        ],
+    }
+
+    result_mixed = from_chat_message_dict(message_dict_mixed)
+
+    assert isinstance(result_mixed, ChatMessage)
+    assert result_mixed.role == "assistant"
+    assert result_mixed.content == "Complex response with multiple part types."
+    assert len(result_mixed.parts) == 3
+
+    # Check text part
+    assert result_mixed.parts[0].type == "text"
+    assert result_mixed.parts[0].text == "First, let me explain."
+
+    # Check reasoning part
+    assert result_mixed.parts[1].type == "reasoning"
+    assert (
+        result_mixed.parts[1].reasoning == "I need to call a tool because..."
+    )
+
+    # Check tool invocation part
+    assert result_mixed.parts[2].type == "tool-invocation"
+    assert result_mixed.parts[2].tool_invocation.state == "partial-call"
+    assert result_mixed.parts[2].tool_invocation.tool_call_id == "call_456"
+    assert result_mixed.parts[2].tool_invocation.tool_name == "calculator"
+    assert result_mixed.parts[2].tool_invocation.step == 2
+    assert result_mixed.parts[2].tool_invocation.args == {
+        "expression": "2 + 2"
+    }
+
+    # Test case 8: Input is already a ChatMessage
     existing_chat_message = ChatMessage(
-        role="system", content="System message", attachments=None
+        role="system", content="System message", attachments=None, parts=None
     )
 
     result_existing = from_chat_message_dict(existing_chat_message)

@@ -13,10 +13,45 @@ class ChatAttachmentDict(TypedDict):
     name: Optional[str]
 
 
+class TextPartDict(TypedDict):
+    type: Literal["text"]
+    text: str
+
+
+class ReasoningPartDict(TypedDict):
+    type: Literal["reasoning"]
+    reasoning: str
+
+
+class ToolInvocationCallDict(TypedDict):
+    state: Literal["call", "partial-call"]
+    tool_call_id: str
+    tool_name: str
+    step: int
+    args: dict[str, Any]
+
+
+class ToolInvocationResultDict(TypedDict):
+    state: Literal["call", "partial-call", "result"]
+    result: Any
+    tool_call_id: str
+    tool_name: str
+    step: int
+    args: dict[str, Any]
+
+
+class ToolInvocationPartDict(TypedDict):
+    type: Literal["tool-invocation"]
+    tool_invocation: Union[ToolInvocationCallDict, ToolInvocationResultDict]
+
+
 class ChatMessageDict(TypedDict):
     role: Literal["user", "assistant", "system"]
     content: str
     attachments: Optional[list[ChatAttachmentDict]]
+    parts: Optional[
+        list[Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]]
+    ]
 
 
 class ChatModelConfigDict(TypedDict, total=False):
@@ -104,16 +139,16 @@ class ChatMessage:
     A message in a chat.
     """
 
-    # The role of the message
+    # The role of the message.
     role: Literal["user", "assistant", "system"]
 
-    # The content of the message
+    # The content of the message.
     content: object
 
     # Optional attachments to the message.
     attachments: Optional[list[ChatAttachment]] = None
 
-    # Optional parts from AI SDK (see types above)
+    # Optional parts from AI SDK. (see types above)
     parts: Optional[
         list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
     ] = None
