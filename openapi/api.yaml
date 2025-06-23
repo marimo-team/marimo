@@ -258,54 +258,29 @@ components:
                     type: object
                   - properties:
                       toolInvocation:
-                        oneOf:
-                        - properties:
-                            args:
-                              additionalProperties: {}
-                              type: object
-                            state:
-                              enum:
-                              - call
-                              - partial-call
-                              type: string
-                            step:
-                              type: integer
-                            toolCallId:
-                              type: string
-                            toolName:
-                              type: string
-                          required:
-                          - state
-                          - toolCallId
-                          - toolName
-                          - step
-                          - args
-                          type: object
-                        - properties:
-                            args:
-                              additionalProperties: {}
-                              type: object
-                            result: {}
-                            state:
-                              enum:
-                              - call
-                              - partial-call
-                              - result
-                              type: string
-                            step:
-                              type: integer
-                            toolCallId:
-                              type: string
-                            toolName:
-                              type: string
-                          required:
-                          - state
-                          - result
-                          - toolCallId
-                          - toolName
-                          - step
-                          - args
-                          type: object
+                        properties:
+                          args:
+                            additionalProperties: {}
+                            type: object
+                          result: {}
+                          state:
+                            enum:
+                            - result
+                            type: string
+                          step:
+                            type: integer
+                          toolCallId:
+                            type: string
+                          toolName:
+                            type: string
+                        required:
+                        - state
+                        - result
+                        - toolCallId
+                        - toolName
+                        - step
+                        - args
+                        type: object
                       type:
                         enum:
                         - tool-invocation
@@ -2717,7 +2692,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.0
+  version: 0.14.1
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
