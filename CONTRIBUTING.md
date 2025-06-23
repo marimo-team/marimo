@@ -277,10 +277,6 @@ For the backend, we recommend running without auth (`--no-token`):
   </tr>
 </table>
 
-## Release
-
-To release a new version of marimo, you can edit the version in `marimo/__init__.py`
-
 ### FAQ
 
 - **When to run with hot-reloading?**: When you are developing on the frontend
@@ -339,6 +335,13 @@ MARIMO_BUILD_FRONTEND=true \
 uvx --with git+https://github.com/marimo-team/marimo.git \
 marimo edit
 ```
+
+## Release
+
+To release a new version of marimo
+1. Edit the version in `marimo/__init__.py`
+2. Run `make fe-codegen` to update the OpenAPI specification.
+3. Commit the changes and push to GitHub.
 
 ## Your first PR
 
