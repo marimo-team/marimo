@@ -231,6 +231,91 @@ components:
               content:
                 additionalProperties: true
                 type: object
+              parts:
+                items:
+                  oneOf:
+                  - properties:
+                      text:
+                        type: string
+                      type:
+                        enum:
+                        - text
+                        type: string
+                    required:
+                    - type
+                    - text
+                    type: object
+                  - properties:
+                      reasoning:
+                        type: string
+                      type:
+                        enum:
+                        - reasoning
+                        type: string
+                    required:
+                    - type
+                    - reasoning
+                    type: object
+                  - properties:
+                      toolInvocation:
+                        oneOf:
+                        - properties:
+                            args:
+                              additionalProperties: {}
+                              type: object
+                            state:
+                              enum:
+                              - call
+                              - partial-call
+                              type: string
+                            step:
+                              type: integer
+                            toolCallId:
+                              type: string
+                            toolName:
+                              type: string
+                          required:
+                          - state
+                          - toolCallId
+                          - toolName
+                          - step
+                          - args
+                          type: object
+                        - properties:
+                            args:
+                              additionalProperties: {}
+                              type: object
+                            result: {}
+                            state:
+                              enum:
+                              - call
+                              - partial-call
+                              - result
+                              type: string
+                            step:
+                              type: integer
+                            toolCallId:
+                              type: string
+                            toolName:
+                              type: string
+                          required:
+                          - state
+                          - result
+                          - toolCallId
+                          - toolName
+                          - step
+                          - args
+                          type: object
+                      type:
+                        enum:
+                        - tool-invocation
+                        type: string
+                    required:
+                    - type
+                    - toolInvocation
+                    type: object
+                nullable: true
+                type: array
               role:
                 enum:
                 - user
@@ -1120,6 +1205,32 @@ components:
           type: string
       required:
       - name
+      type: object
+    InvokeAiToolRequest:
+      properties:
+        arguments:
+          additionalProperties: {}
+          type: object
+        toolName:
+          type: string
+      required:
+      - toolName
+      - arguments
+      type: object
+    InvokeAiToolResponse:
+      properties:
+        error:
+          nullable: true
+          type: string
+        result: {}
+        success:
+          type: boolean
+        toolName:
+          type: string
+      required:
+      - success
+      - toolName
+      - result
       type: object
     JSONType:
       oneOf:
@@ -2669,6 +2780,22 @@ paths:
               schema:
                 type: string
           description: Get AI inline completion for code
+  /api/ai/invoke_tool:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvokeAiToolRequest'
+        description: The request body for tool invocation
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvokeAiToolResponse'
+          description: Tool invocation result
   /api/datasources/preview_column:
     post:
       requestBody:

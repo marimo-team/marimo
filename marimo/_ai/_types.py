@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import mimetypes
 from dataclasses import dataclass
-from typing import Literal, Optional, TypedDict
+from typing import Any, Literal, Optional, TypedDict, Union
 
 
 class ChatAttachmentDict(TypedDict):
@@ -13,10 +13,37 @@ class ChatAttachmentDict(TypedDict):
     name: Optional[str]
 
 
+class TextPartDict(TypedDict):
+    type: Literal["text"]
+    text: str
+
+
+class ReasoningPartDict(TypedDict):
+    type: Literal["reasoning"]
+    reasoning: str
+
+
+class ToolInvocationResultDict(TypedDict):
+    state: Literal["result"]
+    result: Any
+    tool_call_id: str
+    tool_name: str
+    step: int
+    args: dict[str, Any]
+
+
+class ToolInvocationPartDict(TypedDict):
+    type: Literal["tool-invocation"]
+    tool_invocation: ToolInvocationResultDict
+
+
 class ChatMessageDict(TypedDict):
     role: Literal["user", "assistant", "system"]
     content: str
     attachments: Optional[list[ChatAttachmentDict]]
+    parts: Optional[
+        list[Union[TextPartDict, ReasoningPartDict, ToolInvocationPartDict]]
+    ]
 
 
 class ChatModelConfigDict(TypedDict, total=False):
@@ -50,6 +77,43 @@ class ChatAttachment:
             self.content_type = mimetypes.guess_type(self.url)[0]
 
 
+# AI SDK part type definitions (based on actual frontend structure)
+@dataclass
+class TextPart:
+    """Represents a text content part."""
+
+    type: Literal["text"]
+    text: str
+
+
+@dataclass
+class ReasoningPart:
+    """Represents a reasoning content part."""
+
+    type: Literal["reasoning"]
+    reasoning: str
+
+
+@dataclass
+class ToolInvocationResult:
+    """Represents a tool invocation result part from the AI SDK."""
+
+    state: Literal["result"]
+    result: Any
+    tool_call_id: str
+    tool_name: str
+    step: int
+    args: dict[str, Any]
+
+
+@dataclass
+class ToolInvocationPart:
+    """Represents a tool invocation part from the AI SDK."""
+
+    type: Literal["tool-invocation"]
+    tool_invocation: ToolInvocationResult
+
+
 @dataclass
 class ChatMessage:
     """
@@ -64,6 +128,11 @@ class ChatMessage:
 
     # Optional attachments to the message.
     attachments: Optional[list[ChatAttachment]] = None
+
+    # Optional parts from AI SDK. (see types above)
+    parts: Optional[
+        list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
+    ] = None
 
 
 @dataclass

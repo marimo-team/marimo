@@ -382,5 +382,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    invokeAiTool: async (request) => {
+      return getClient()
+        .POST("/api/ai/invoke_tool", {
+          body: request,
+        })
+        .then(handleResponse);
+    },
   };
 }

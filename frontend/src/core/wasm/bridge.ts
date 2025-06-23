@@ -529,6 +529,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  invokeAiTool = throwNotImplemented;
+
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",

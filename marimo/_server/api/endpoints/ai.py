@@ -1,11 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
-from starlette.responses import PlainTextResponse, StreamingResponse
+from starlette.responses import (
+    JSONResponse,
+    PlainTextResponse,
+    StreamingResponse,
+)
 
 from marimo import _loggers
 from marimo._ai._types import ChatMessage
@@ -25,6 +30,7 @@ from marimo._server.ai.providers import (
     get_model,
     without_wrapping_backticks,
 )
+from marimo._server.ai.tools import get_tool_manager
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
@@ -32,6 +38,10 @@ from marimo._server.models.completion import (
     AiCompletionRequest,
     AiInlineCompletionRequest,
     ChatRequest,
+)
+from marimo._server.models.models import (
+    InvokeAiToolRequest,
+    InvokeAiToolResponse,
 )
 from marimo._server.router import APIRouter
 
@@ -230,3 +240,46 @@ async def ai_inline_completion(
         content=provider.collect_stream(response),
         media_type="text/plain",
     )
+
+
+@router.post("/invoke_tool")
+@requires("edit")
+async def invoke_tool(
+    *,
+    request: Request,
+) -> JSONResponse:
+    """
+    requestBody:
+        description: The request body for tool invocation
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/InvokeAiToolRequest"
+    responses:
+        200:
+            description: Tool invocation result
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/InvokeAiToolResponse"
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+
+    body = await parse_request(request, cls=InvokeAiToolRequest)
+
+    # Invoke the tool
+    result = await get_tool_manager().invoke_tool(
+        body.tool_name, body.arguments
+    )
+
+    # Create and return the response
+    response = InvokeAiToolResponse(
+        success=result.error is None,
+        tool_name=result.tool_name,
+        result=result.result,
+        error=result.error,
+    )
+
+    return JSONResponse(content=asdict(response))

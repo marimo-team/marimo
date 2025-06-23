@@ -61,6 +61,7 @@ export function createErrorToastingRequests(
     getDependencyTree: "Failed to get dependency tree",
     listSecretKeys: "Failed to fetch secrets",
     writeSecret: "Failed to write secret",
+    invokeAiTool: "Failed to invoke AI tool",
   };
 
   const handlers = {} as EditRequests & RunRequests;

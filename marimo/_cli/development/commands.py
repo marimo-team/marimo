@@ -188,6 +188,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.SuccessResponse,
         models.SuccessResponse,
         models.UpdateComponentValuesRequest,
+        models.InvokeAiToolRequest,
+        models.InvokeAiToolResponse,
         requests.CodeCompletionRequest,
         requests.DeleteCellRequest,
         requests.ExecuteMultipleRequest,
