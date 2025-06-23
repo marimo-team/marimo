@@ -34,14 +34,17 @@ export function findReactiveVariables(options: {
     return [];
   }
 
-  // Get all variable names from other cells that could potentially be highlighted
+  // Collect variable names that are:
+  // - Not from in the current cell
+  // - Not of type "module"
   const allVariableNames = new Set(
-    Object.keys(options.variables).filter(
-      (name) =>
-        !options.variables[name as VariableName].declaredBy.includes(
-          options.cellId,
-        ),
-    ),
+    Object.keys(options.variables).filter((name) => {
+      const variable = options.variables[name as VariableName];
+      return (
+        variable.dataType !== "module" &&
+        !variable.declaredBy.includes(options.cellId)
+      );
+    }),
   );
 
   if (allVariableNames.size === 0) {
