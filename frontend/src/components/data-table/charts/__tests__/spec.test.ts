@@ -9,7 +9,7 @@ import type { ChartSchemaType } from "../schemas";
 import {
   AGGREGATION_FNS,
   ChartType,
-  NONE_AGGREGATION,
+  NONE_VALUE,
   STRING_AGGREGATION_FNS,
 } from "../types";
 
@@ -66,7 +66,7 @@ describe("getAxisEncoding", () => {
       {
         field: "date",
         selectedDataType: "temporal",
-        aggregate: NONE_AGGREGATION,
+        aggregate: NONE_VALUE,
         timeUnit: "yearmonth",
       },
       undefined,
@@ -91,7 +91,7 @@ describe("getAxisEncoding", () => {
       {
         field: "category",
         selectedDataType: "string",
-        aggregate: NONE_AGGREGATION,
+        aggregate: NONE_VALUE,
         timeUnit: undefined,
       },
       undefined,
@@ -162,7 +162,7 @@ describe("getAxisEncoding", () => {
       const expectedAggregate = (result as { aggregate?: string }).aggregate;
 
       // For aggregations that are not valid for string data types, we should return undefined
-      if (agg === NONE_AGGREGATION || !STRING_AGGREGATION_FNS.includes(agg)) {
+      if (agg === NONE_VALUE || !STRING_AGGREGATION_FNS.includes(agg)) {
         expect(expectedAggregate).toBeUndefined();
       } else if (STRING_AGGREGATION_FNS.includes(agg)) {
         expect(expectedAggregate).toEqual(agg);

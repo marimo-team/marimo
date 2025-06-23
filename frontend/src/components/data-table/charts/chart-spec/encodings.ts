@@ -12,7 +12,7 @@ import {
   BIN_AGGREGATION,
   ChartType,
   type ColorScheme,
-  NONE_AGGREGATION,
+  NONE_VALUE,
   type SelectableDataType,
   STRING_AGGREGATION_FNS,
 } from "../types";
@@ -73,14 +73,25 @@ export function getColorEncoding(
   chartType: ChartType,
   formValues: ChartSchemaType,
 ): ColorDef<string> | undefined {
-  if (
-    chartType === ChartType.PIE ||
-    !isFieldSet(formValues.general?.colorByColumn?.field)
-  ) {
+  if (chartType === ChartType.PIE) {
+    return undefined;
+  }
+  const colorColumn = formValues.color?.field;
+  if (!colorColumn || colorColumn === NONE_VALUE) {
     return undefined;
   }
 
-  const colorByColumn = formValues.general.colorByColumn;
+  const columnMap = {
+    X: formValues.general?.xColumn,
+    Y: formValues.general?.yColumn,
+    Color: formValues.general?.colorByColumn,
+  };
+
+  const colorByColumn = columnMap[colorColumn as keyof typeof columnMap];
+  if (!colorByColumn || !isFieldSet(colorByColumn.field)) {
+    return undefined;
+  }
+
   if (colorByColumn.field === COUNT_FIELD) {
     return {
       aggregate: "count",
@@ -90,7 +101,7 @@ export function getColorEncoding(
 
   const colorBin = formValues.color?.bin;
   const selectedDataType = colorByColumn.selectedDataType || "string";
-  const aggregate = formValues.general.colorByColumn.aggregate;
+  const aggregate = formValues.general?.colorByColumn?.aggregate;
 
   return {
     field: colorByColumn.field,
@@ -125,11 +136,7 @@ export function getAggregate(
     return undefined;
   }
 
-  if (
-    aggregate === NONE_AGGREGATION ||
-    aggregate === BIN_AGGREGATION ||
-    !aggregate
-  ) {
+  if (aggregate === NONE_VALUE || aggregate === BIN_AGGREGATION || !aggregate) {
     return undefined;
   }
 

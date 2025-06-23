@@ -68,14 +68,14 @@ export type TimeUnitTooltip = (typeof TIME_UNIT_TOOLTIPS)[number];
 export const SORT_TYPES = ["ascending", "descending"] as const;
 export type SortType = (typeof SORT_TYPES)[number];
 
-export const NONE_AGGREGATION = "none";
+export const NONE_VALUE = "none";
 export const BIN_AGGREGATION = "bin"; // We use this not to aggregate, but to bin
 
 /**
  * Subset of VegaLite's AggregateOp, https://vega.github.io/vega-lite/docs/aggregate.html#op
  */
 export const AGGREGATION_FNS = [
-  NONE_AGGREGATION,
+  NONE_VALUE,
   "count",
   "sum",
   "mean",
@@ -115,3 +115,6 @@ export const ChartType = {
 } as const;
 export type ChartType = (typeof ChartType)[keyof typeof ChartType];
 export const CHART_TYPES = Object.values(ChartType);
+
+export const COLOR_BY_FIELDS = ["X", "Y", "Color", NONE_VALUE] as const;
+export type ColorByField = (typeof COLOR_BY_FIELDS)[number];

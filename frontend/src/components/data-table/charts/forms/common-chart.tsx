@@ -24,6 +24,7 @@ import {
 import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "../constants";
 import { useChartFormContext } from "../context";
 import type { ChartSchemaType } from "../schemas";
+import { COLOR_BY_FIELDS, NONE_VALUE } from "../types";
 
 export const CommonChartForm: React.FC = () => {
   const form = useFormContext<ChartSchemaType>();
@@ -111,6 +112,15 @@ export const StyleForm: React.FC = () => {
           <Title text="Color" />
         </AccordionFormTrigger>
         <AccordionFormContent>
+          <SelectField
+            fieldName="color.field"
+            label="Field"
+            options={COLOR_BY_FIELDS.map((field) => ({
+              display: capitalize(field),
+              value: field,
+            }))}
+            defaultValue={NONE_VALUE}
+          />
           <SelectField
             fieldName="color.scheme"
             label="Color scheme"

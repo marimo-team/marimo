@@ -227,6 +227,9 @@ export const YAxis: React.FC = () => {
   const xColumnExists = isFieldSet(xColumn?.field);
   const { inferredDataType } = getColumnDataTypes(yColumn);
 
+  // Default to sum for performance
+  const defaultAggregation = isNumberField(yColumn) ? "sum" : undefined;
+
   return (
     <FieldSection>
       <Title text="Y-Axis" />
@@ -235,7 +238,7 @@ export const YAxis: React.FC = () => {
         column={yColumn}
         columns={context.fields}
         binFieldName="yAxis.bin.binned"
-        defaultAggregation="sum" // Default to sum for performance
+        defaultAggregation={defaultAggregation}
       />
 
       {isNonCountField(yColumn) && (
