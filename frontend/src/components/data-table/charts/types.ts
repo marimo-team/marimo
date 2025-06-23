@@ -74,8 +74,7 @@ export const BIN_AGGREGATION = "bin"; // We use this not to aggregate, but to bi
 /**
  * Subset of VegaLite's AggregateOp, https://vega.github.io/vega-lite/docs/aggregate.html#op
  */
-export const AGGREGATION_FNS = [
-  NONE_VALUE,
+export const VALID_AGGREGATION_FNS = [
   "count",
   "sum",
   "mean",
@@ -88,14 +87,19 @@ export const AGGREGATION_FNS = [
   "stdevp",
   "variance",
   "variancep",
+];
+export const AGGREGATION_FNS = [
+  NONE_VALUE,
+  ...VALID_AGGREGATION_FNS,
   BIN_AGGREGATION,
 ] as const;
 export type AggregationFn = (typeof AGGREGATION_FNS)[number];
+export type ValidAggregationFn = (typeof VALID_AGGREGATION_FNS)[number];
 
 /*
  * Subset of AGGREGATION_FNS that are valid for string data types
  */
-export const STRING_AGGREGATION_FNS: AggregationFn[] = [
+export const STRING_AGGREGATION_FNS: ValidAggregationFn[] = [
   "none",
   "count",
   "distinct",

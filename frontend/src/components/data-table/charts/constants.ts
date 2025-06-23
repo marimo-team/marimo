@@ -24,6 +24,7 @@ import type {
   ColorScheme,
   SelectableDataType,
   TimeUnit,
+  ValidAggregationFn,
 } from "./types";
 
 export const COUNT_FIELD = "__count__";
@@ -41,6 +42,7 @@ export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   area: AreaChartIcon,
 };
 
+export const DEFAULT_AGGREGATION: ValidAggregationFn = "mean"; // For y-axis, we default to mean
 export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
   none: SquareFunctionIcon,
   count: HashIcon,

@@ -17,7 +17,12 @@ import type { DataType } from "@/core/kernel/messages";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { isFieldSet } from "../chart-spec/spec";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
-import { CHART_TYPE_ICON, COUNT_FIELD, type EMPTY_VALUE } from "../constants";
+import {
+  CHART_TYPE_ICON,
+  COUNT_FIELD,
+  DEFAULT_AGGREGATION,
+  type EMPTY_VALUE,
+} from "../constants";
 import { useChartFormContext } from "../context";
 import type { ChartSchema } from "../schemas";
 import {
@@ -227,8 +232,10 @@ export const YAxis: React.FC = () => {
   const xColumnExists = isFieldSet(xColumn?.field);
   const { inferredDataType } = getColumnDataTypes(yColumn);
 
-  // Default to sum for performance
-  const defaultAggregation = isNumberField(yColumn) ? "sum" : undefined;
+  // Set default for perf reasons
+  const defaultAggregation = isNumberField(yColumn)
+    ? DEFAULT_AGGREGATION
+    : undefined;
 
   return (
     <FieldSection>

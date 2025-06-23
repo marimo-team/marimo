@@ -14,7 +14,7 @@ import type { z } from "zod";
 import type { SelectionParameter, UnitSpec } from "@/plugins/impl/vega/types";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
-import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
+import { COUNT_FIELD, DEFAULT_AGGREGATION, EMPTY_VALUE } from "../constants";
 import type {
   AxisSchema,
   BinSchema,
@@ -22,7 +22,7 @@ import type {
   ColumnFacet,
   RowFacet,
 } from "../schemas";
-import { ChartType } from "../types";
+import { ChartType, type ValidAggregationFn } from "../types";
 import {
   getAggregate,
   getBinEncoding,
@@ -93,6 +93,7 @@ export function createSpecWithoutData(
     getFieldLabel(formValues.yAxis?.label),
     colorByColumn?.field && !horizontal ? stacking : undefined,
     chartType,
+    DEFAULT_AGGREGATION,
   );
 
   const rowFacet = facet?.row.field
@@ -121,10 +122,10 @@ export function createSpecWithoutData(
   const resolve = getResolve(facet?.column, facet?.row);
 
   // For line charts, create a layered chart with rule and points
-  if (chartType === ChartType.LINE) {
-    // TODO: Faceting does not work yet
-    return getLineChartSpec(baseSpec, baseEncoding, xColumn.field, resolve);
-  }
+  // if (chartType === ChartType.LINE) {
+  //   // TODO: Faceting does not work yet
+  //   return getLineChartSpec(baseSpec, baseEncoding, xColumn.field, resolve);
+  // }
 
   // Create the final spec for other chart types
   return {
@@ -151,6 +152,7 @@ export function getAxisEncoding(
   label: string | undefined,
   stack: boolean | undefined,
   chartType: ChartType,
+  defaultAggregate?: ValidAggregationFn,
 ): PositionDef<string> {
   const selectedDataType = column.selectedDataType || "string";
 
@@ -170,7 +172,11 @@ export function getAxisEncoding(
     bin: getBinEncoding(chartType, selectedDataType, binValues),
     title: label,
     stack: stack,
-    aggregate: getAggregate(column.aggregate, selectedDataType),
+    aggregate: getAggregate(
+      column.aggregate,
+      selectedDataType,
+      defaultAggregate,
+    ),
     timeUnit: getTimeUnit(column),
   };
 }

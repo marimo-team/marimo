@@ -15,6 +15,7 @@ import {
   NONE_VALUE,
   type SelectableDataType,
   STRING_AGGREGATION_FNS,
+  type ValidAggregationFn,
 } from "../types";
 import { isFieldSet } from "./spec";
 import { convertDataTypeToVega } from "./types";
@@ -130,14 +131,19 @@ export function getOffsetEncoding(
 export function getAggregate(
   aggregate: AggregationFn | undefined,
   selectedDataType: SelectableDataType,
+  defaultAggregate?: ValidAggregationFn,
 ): Aggregate | undefined {
   // temporal data types don't support aggregation
   if (selectedDataType === "temporal") {
     return undefined;
   }
 
-  if (aggregate === NONE_VALUE || aggregate === BIN_AGGREGATION || !aggregate) {
+  if (aggregate === NONE_VALUE || aggregate === BIN_AGGREGATION) {
     return undefined;
+  }
+
+  if (!aggregate) {
+    return defaultAggregate ? (defaultAggregate as Aggregate) : undefined;
   }
 
   if (selectedDataType === "string") {
