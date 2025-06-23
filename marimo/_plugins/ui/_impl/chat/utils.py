@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 from marimo._ai._types import (
     ChatAttachment,
@@ -9,7 +9,6 @@ from marimo._ai._types import (
     ChatMessageDict,
     ReasoningPart,
     TextPart,
-    ToolInvocationCall,
     ToolInvocationPart,
     ToolInvocationResult,
 )
@@ -35,7 +34,9 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
 
     # Handle parts
     parts_dict = d.get("parts", None)
-    parts = None
+    parts: Optional[
+        list[Union[TextPart, ReasoningPart, ToolInvocationPart]]
+    ] = None
     if parts_dict is not None:
         parts = []
         for part_dict in parts_dict:
@@ -49,28 +50,23 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
                 )
             elif part_dict["type"] == "tool-invocation":
                 tool_inv = part_dict["tool_invocation"]
-                if tool_inv["state"] in ["call", "partial-call"]:
-                    tool_call = ToolInvocationCall(
-                        state=tool_inv["state"],
-                        tool_call_id=tool_inv["tool_call_id"],
-                        tool_name=tool_inv["tool_name"],
-                        step=tool_inv["step"],
-                        args=tool_inv["args"],
-                    )
-                else:  # result
+                if tool_inv["state"] == "result":
                     tool_call = ToolInvocationResult(
                         state=tool_inv["state"],
-                        result=tool_inv["result"],
                         tool_call_id=tool_inv["tool_call_id"],
                         tool_name=tool_inv["tool_name"],
                         step=tool_inv["step"],
                         args=tool_inv["args"],
+                        result=tool_inv["result"],
                     )
-                parts.append(
-                    ToolInvocationPart(
-                        type="tool-invocation", tool_invocation=tool_call
+                    parts.append(
+                        ToolInvocationPart(
+                            type="tool-invocation", tool_invocation=tool_call
+                        )
                     )
-                )
+                else:
+                    # Skip unsupported tool invocation states
+                    continue
 
     return ChatMessage(
         role=d["role"],
