@@ -107,6 +107,8 @@ export function generateAltairChart(
     code = code.chain("resolve_scale", axisArgs);
   }
 
+  // TODO: Add layer support
+
   const propertiesArgs: Record<string, PythonCode> = {};
   const propertiesKeys = ["title", "height", "width", "config"];
   for (const key of propertiesKeys) {
