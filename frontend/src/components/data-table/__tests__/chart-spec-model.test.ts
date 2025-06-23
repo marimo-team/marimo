@@ -222,6 +222,21 @@ describe("ColumnChartSpecModel", () => {
       expect(model.dataSpec?.values).toBeDefined();
     });
 
+    it("should handle arrow data", () => {
+      const arrowData = "ARROW1\n";
+      const model = new ColumnChartSpecModel(
+        `data:text/plain;base64,${btoa(arrowData)}`,
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+      const spec = model.getHeaderSummary("date").spec;
+      expect(spec).toMatchSnapshot();
+      expect(spec?.data?.format?.type).toBe("arrow");
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toBeDefined();
+    });
+
     it("should handle array data", () => {
       const arrayData = [
         { a: 1, b: 2, c: 3 },
