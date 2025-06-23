@@ -108,7 +108,7 @@ export function generateAltairChart(
   }
 
   const propertiesArgs: Record<string, PythonCode> = {};
-  const propertiesKeys = ["title", "height", "width"];
+  const propertiesKeys = ["title", "height", "width", "config"];
   for (const key of propertiesKeys) {
     if (key in spec) {
       const value = spec[key as keyof VegaLiteSpec];

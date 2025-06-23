@@ -7,9 +7,11 @@ import type {
   PolarDef,
   PositionDef,
 } from "vega-lite/build/src/channeldef";
+import type { Encoding } from "vega-lite/build/src/encoding";
 import type { Resolve } from "vega-lite/build/src/resolve";
 import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
 import type { z } from "zod";
+import type { SelectionParameter, UnitSpec } from "@/plugins/impl/vega/types";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
 import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
@@ -29,7 +31,11 @@ import {
   getOffsetEncoding,
 } from "./encodings";
 import { getTooltips } from "./tooltips";
-import { convertChartTypeToMark, convertDataTypeToVega } from "./types";
+import {
+  type BaseSpec,
+  convertChartTypeToMark,
+  convertDataTypeToVega,
+} from "./types";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
@@ -97,26 +103,41 @@ export function createSpecWithoutData(
     : undefined;
 
   const colorByEncoding = getColorEncoding(chartType, formValues);
+  const baseSpec = getBaseSpec([], formValues, theme, width, height, title);
+  const baseEncoding = {
+    [xEncodingKey]: horizontal ? yEncoding : xEncoding,
+    [yEncodingKey]: horizontal ? xEncoding : yEncoding,
+    xOffset: getOffsetEncoding(chartType, formValues),
+    color: colorByEncoding,
+    tooltip: getTooltips({
+      formValues,
+      xEncoding,
+      yEncoding,
+      colorByEncoding,
+    }),
+    row: rowFacet,
+    column: columnFacet,
+  };
+  const resolve = getResolve(facet?.column, facet?.row);
 
-  // Create the final spec
+  // For line charts, create a layered chart with rule and points
+  if (chartType === ChartType.LINE) {
+    return getLineChartSpec(
+      baseSpec,
+      baseEncoding,
+      xColumn.field,
+      facet?.row,
+      facet?.column,
+      resolve,
+    );
+  }
+
+  // Create the final spec for other chart types
   return {
-    ...getBaseSpec([], formValues, theme, width, height, title),
+    ...baseSpec,
     mark: { type: convertChartTypeToMark(chartType) },
-    encoding: {
-      [xEncodingKey]: horizontal ? yEncoding : xEncoding,
-      [yEncodingKey]: horizontal ? xEncoding : yEncoding,
-      xOffset: getOffsetEncoding(chartType, formValues),
-      color: colorByEncoding,
-      tooltip: getTooltips({
-        formValues,
-        xEncoding,
-        yEncoding,
-        colorByEncoding,
-      }),
-      row: rowFacet,
-      column: columnFacet,
-    },
-    ...getResolve(facet?.column, facet?.row),
+    encoding: baseEncoding,
+    ...resolve,
   };
 }
 
@@ -188,7 +209,7 @@ function getPieChartSpec(
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
-) {
+): TopLevelSpec | ErrorMessage {
   const { yColumn, colorByColumn, title } = formValues.general ?? {};
 
   if (!isFieldSet(colorByColumn?.field)) {
@@ -233,6 +254,59 @@ function getPieChartSpec(
   };
 }
 
+function getLineChartSpec(
+  baseSpec: BaseSpec,
+  baseEncoding: Encoding<Field>,
+  xField: string,
+  rowFacet: z.infer<typeof RowFacet> | undefined,
+  columnFacet: z.infer<typeof ColumnFacet> | undefined,
+  resolve: { resolve: Resolve } | undefined,
+): TopLevelSpec {
+  const nearest: SelectionParameter = {
+    name: "nearest",
+    select: {
+      type: "point",
+      fields: [xField],
+      nearest: true,
+      on: "mouseover",
+    },
+  };
+
+  const lineLayer: UnitSpec<Field> = { mark: { type: "line" } };
+
+  const ruleLayer: UnitSpec<Field> = {
+    mark: { type: "rule", color: "seagreen", strokeWidth: 1 },
+    params: [nearest],
+    encoding: {
+      opacity: {
+        condition: { param: "nearest", value: 0.6 },
+        value: 0,
+      },
+    },
+  };
+
+  const pointsLayer: UnitSpec<Field> = {
+    mark: {
+      type: "point",
+      size: 80,
+      filled: true,
+    },
+    encoding: {
+      opacity: {
+        condition: { param: "nearest", value: 1 },
+        value: 0,
+      },
+    },
+  };
+
+  return {
+    ...baseSpec,
+    encoding: baseEncoding,
+    layer: [lineLayer, pointsLayer, ruleLayer],
+    ...resolve,
+  };
+}
+
 function getBaseSpec(
   data: object[],
   formValues: ChartSchemaType,
@@ -240,7 +314,7 @@ function getBaseSpec(
   width: number | "container",
   height: number,
   title?: string,
-) {
+): BaseSpec {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     background: theme === "dark" ? "dark" : "white",
@@ -248,6 +322,11 @@ function getBaseSpec(
     data: { values: data },
     height: formValues.yAxis?.height ?? height,
     width: formValues.xAxis?.width ?? width,
+    config: {
+      axis: {
+        grid: formValues.style?.gridLines ?? false,
+      },
+    },
   };
 }
 
