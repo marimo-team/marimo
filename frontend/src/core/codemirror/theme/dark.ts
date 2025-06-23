@@ -37,7 +37,7 @@ export const darkTheme = [
   }),
   EditorView.theme({
     ".cm-reactive-variable": {
-      fontWeight: "700",
+      fontWeight: "500",
       color: "#2a7aa5",
       borderBottom: "2px solid #bad3de",
     },
