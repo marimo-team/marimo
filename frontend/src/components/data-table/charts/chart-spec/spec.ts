@@ -105,7 +105,7 @@ export function createSpecWithoutData(
 
   const colorByEncoding = getColorEncoding(chartType, formValues);
   const baseSpec = getBaseSpec([], formValues, theme, width, height, title);
-  const baseEncoding = {
+  const baseEncoding: Encoding<Field> = {
     [xEncodingKey]: horizontal ? yEncoding : xEncoding,
     [yEncodingKey]: horizontal ? xEncoding : yEncoding,
     xOffset: getOffsetEncoding(chartType, formValues),
@@ -116,21 +116,15 @@ export function createSpecWithoutData(
       yEncoding,
       colorByEncoding,
     }),
-    row: rowFacet,
-    column: columnFacet,
+    ...(rowFacet && { row: rowFacet }),
+    ...(columnFacet && { column: columnFacet }),
   };
   const resolve = getResolve(facet?.column, facet?.row);
 
   // For line charts, create a layered chart with rule and points
   if (chartType === ChartType.LINE) {
-    return getLineChartSpec(
-      baseSpec,
-      baseEncoding,
-      xColumn.field,
-      facet?.row,
-      facet?.column,
-      resolve,
-    );
+    // TODO: Faceting does not work yet
+    return getLineChartSpec(baseSpec, baseEncoding, xColumn.field, resolve);
   }
 
   // Create the final spec for other chart types
@@ -259,8 +253,6 @@ function getLineChartSpec(
   baseSpec: BaseSpec,
   baseEncoding: Encoding<Field>,
   xField: string,
-  rowFacet: z.infer<typeof RowFacet> | undefined,
-  columnFacet: z.infer<typeof ColumnFacet> | undefined,
   resolve: { resolve: Resolve } | undefined,
 ): TopLevelSpec {
   const nearest: SelectionParameter = {
@@ -289,7 +281,7 @@ function getLineChartSpec(
   const pointsLayer: UnitSpec<Field> = {
     mark: {
       type: "point",
-      size: 80,
+      size: 70,
       filled: true,
     },
     encoding: {
