@@ -23,16 +23,8 @@ class ReasoningPartDict(TypedDict):
     reasoning: str
 
 
-class ToolInvocationCallDict(TypedDict):
-    state: Literal["call", "partial-call"]
-    tool_call_id: str
-    tool_name: str
-    step: int
-    args: dict[str, Any]
-
-
 class ToolInvocationResultDict(TypedDict):
-    state: Literal["call", "partial-call", "result"]
+    state: Literal["result"]
     result: Any
     tool_call_id: str
     tool_name: str
@@ -42,7 +34,7 @@ class ToolInvocationResultDict(TypedDict):
 
 class ToolInvocationPartDict(TypedDict):
     type: Literal["tool-invocation"]
-    tool_invocation: Union[ToolInvocationCallDict, ToolInvocationResultDict]
+    tool_invocation: ToolInvocationResultDict
 
 
 class ChatMessageDict(TypedDict):
@@ -103,21 +95,10 @@ class ReasoningPart:
 
 
 @dataclass
-class ToolInvocationCall:
-    """Represents a tool invocation call part from the AI SDK."""
-
-    state: Literal["call", "partial-call"]
-    tool_call_id: str
-    tool_name: str
-    step: int
-    args: dict[str, Any]
-
-
-@dataclass
 class ToolInvocationResult:
     """Represents a tool invocation result part from the AI SDK."""
 
-    state: Literal["call", "partial-call", "result"]
+    state: Literal["result"]
     result: Any
     tool_call_id: str
     tool_name: str
@@ -130,7 +111,7 @@ class ToolInvocationPart:
     """Represents a tool invocation part from the AI SDK."""
 
     type: Literal["tool-invocation"]
-    tool_invocation: Union[ToolInvocationCall, ToolInvocationResult]
+    tool_invocation: ToolInvocationResult
 
 
 @dataclass
