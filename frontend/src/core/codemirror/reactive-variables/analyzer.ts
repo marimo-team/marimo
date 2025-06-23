@@ -29,7 +29,6 @@ export function findReactiveVariables(options: {
     return [];
   }
 
-  // Don't highlight anything if there are syntax errors
   if (hasSyntaxErrors(tree)) {
     return [];
   }
@@ -314,7 +313,7 @@ export function findReactiveVariables(options: {
         break;
       }
       case "TryStatement": {
-        // Handle exception variable binding - look for 'as' followed by VariableName
+        // Exception variable binding - look for 'as' followed by VariableName
         const subCursor = node.cursor();
         subCursor.firstChild();
         let foundAs = false;
@@ -326,7 +325,6 @@ export function findReactiveVariables(options: {
               subCursor.from,
               subCursor.to,
             );
-            // Add to the current innermost scope
             const currentScope =
               currentScopeStack[currentScopeStack.length - 1] ?? -1;
             if (!allDeclarations.has(currentScope)) {
@@ -340,7 +338,6 @@ export function findReactiveVariables(options: {
         break;
       }
       case "WithStatement": {
-        // Handle with statement variable binding
         const subCursor = node.cursor();
         subCursor.firstChild();
         let foundAs = false;
@@ -352,7 +349,6 @@ export function findReactiveVariables(options: {
               subCursor.from,
               subCursor.to,
             );
-            // Add to the current innermost scope
             const currentScope =
               currentScopeStack[currentScopeStack.length - 1] ?? -1;
             if (!allDeclarations.has(currentScope)) {
@@ -368,7 +364,6 @@ export function findReactiveVariables(options: {
       // No default
     }
 
-    // Recursively process children
     if (cursor.firstChild()) {
       do {
         collectDeclarations(cursor.node, currentScopeStack);
@@ -382,7 +377,6 @@ export function findReactiveVariables(options: {
     const nodeName = cursor.name;
     const nodeStart = cursor.from;
 
-    // Check if this node creates a new scope
     const isNewScope = [
       "FunctionDefinition",
       "LambdaExpression",
@@ -401,9 +395,7 @@ export function findReactiveVariables(options: {
     if (nodeName === "VariableName") {
       const varName = options.state.doc.sliceString(cursor.from, cursor.to);
 
-      // Check if this variable should be highlighted
       if (allVariableNames.has(varName)) {
-        // Check if it's declared in any enclosing scope
         let isDeclaredLocally = false;
         for (const scope of currentScopeStack) {
           if (allDeclarations.get(scope)?.has(varName)) {
@@ -411,7 +403,6 @@ export function findReactiveVariables(options: {
             break;
           }
         }
-        // Also check global scope
         if (allDeclarations.get(-1)?.has(varName)) {
           isDeclaredLocally = true;
         }
@@ -426,7 +417,6 @@ export function findReactiveVariables(options: {
       }
     }
 
-    // Recursively process children
     if (cursor.firstChild()) {
       do {
         findUsages(cursor.node, currentScopeStack);
@@ -434,7 +424,6 @@ export function findReactiveVariables(options: {
     }
   }
 
-  // Execute both passes
   collectDeclarations(tree, []);
   findUsages(tree, []);
 
