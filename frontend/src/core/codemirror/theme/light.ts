@@ -50,5 +50,9 @@ export const lightTheme = [
       color: "#005f87",
       borderBottom: "2px solid #bad3de",
     },
+    ".cm-reactive-variable-hover": {
+      cursor: "pointer",
+      borderBottomWidth: "3px",
+    },
   }),
 ];

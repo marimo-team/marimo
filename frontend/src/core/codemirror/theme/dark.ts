@@ -41,5 +41,9 @@ export const darkTheme = [
       color: "#2a7aa5",
       borderBottom: "2px solid #bad3de",
     },
+    ".cm-reactive-variable-hover": {
+      cursor: "pointer",
+      borderBottomWidth: "3px",
+    },
   }),
 ];

@@ -21,7 +21,20 @@ const reactiveVariableDecoration = Decoration.mark({
   class: "cm-reactive-variable",
 });
 
+export const reactiveHoverDecoration = Decoration.mark({
+  class: "cm-reactive-variable-hover",
+});
+
 const updateReactiveVariables = StateEffect.define<ReactiveVariableRange[]>();
+
+/**
+ * Enhanced state that stores both visual decorations and analysis ranges
+ * for efficient access by other extensions (e.g., goto definition)
+ */
+interface ReactiveVariablesState {
+  decorations: DecorationSet;
+  ranges: ReactiveVariableRange[];
+}
 
 /**
  * Plugin that manages highlighting marimo's reactive variables
@@ -90,28 +103,46 @@ class ReactiveVariablesPlugin {
 /**
  * Creates the reactive variables extension
  */
-export function reactiveVariablesExtension(cellId: CellId) {
-  return [
-    StateField.define<DecorationSet>({
-      create() {
-        return Decoration.none;
-      },
-      update(decorations, tr) {
-        let newDecorations = decorations.map(tr.changes);
-        for (const effect of tr.effects) {
-          if (effect.is(updateReactiveVariables)) {
-            // Replace all decorations with new ones
-            newDecorations = Decoration.set(
+/**
+ * StateField that stores both decorations and analysis ranges
+ */
+export const reactiveVariablesField = StateField.define<ReactiveVariablesState>(
+  {
+    create() {
+      return {
+        decorations: Decoration.none,
+        ranges: [],
+      };
+    },
+    update(state, tr) {
+      let newState = {
+        decorations: state.decorations.map(tr.changes),
+        ranges: state.ranges,
+      };
+
+      for (const effect of tr.effects) {
+        if (effect.is(updateReactiveVariables)) {
+          // Update both decorations and cached ranges
+          newState = {
+            decorations: Decoration.set(
               effect.value.map((range) =>
                 reactiveVariableDecoration.range(range.from, range.to),
               ),
-            );
-          }
+            ),
+            ranges: effect.value,
+          };
         }
-        return newDecorations;
-      },
-      provide: (f) => EditorView.decorations.from(f),
-    }),
+      }
+      return newState;
+    },
+    provide: (f) =>
+      EditorView.decorations.from(f, (state) => state.decorations),
+  },
+);
+
+export function reactiveVariablesExtension(cellId: CellId) {
+  return [
+    reactiveVariablesField,
     ViewPlugin.define((view) => new ReactiveVariablesPlugin(view, cellId)),
   ];
 }

@@ -10,12 +10,17 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import type { TreeCursor } from "@lezer/common";
+import {
+  reactiveHoverDecoration,
+  reactiveVariablesField,
+} from "../reactive-variables/extension";
 
-// Decoration
+// Decorations
 const underlineDecoration = Decoration.mark({ class: "underline" });
 
 // State Effects
 const addUnderline = StateEffect.define<{ from: number; to: number }>();
+const addReactiveHover = StateEffect.define<{ from: number; to: number }>();
 const removeUnderlines = StateEffect.define();
 
 // Underline Field
@@ -29,6 +34,12 @@ export const underlineField = StateField.define<DecorationSet>({
       if (effect.is(addUnderline)) {
         newUnderlines = underlines.update({
           add: [underlineDecoration.range(effect.value.from, effect.value.to)],
+        });
+      } else if (effect.is(addReactiveHover)) {
+        newUnderlines = underlines.update({
+          add: [
+            reactiveHoverDecoration.range(effect.value.from, effect.value.to),
+          ],
         });
       } else if (effect.is(removeUnderlines)) {
         newUnderlines = Decoration.none;
@@ -61,7 +72,7 @@ class MetaUnderlineVariablePlugin {
     window.addEventListener("mouseleave", this.windowBlur);
   }
 
-  update(update: ViewUpdate) {
+  update(_update: ViewUpdate) {
     // We cannot add any transactions here (e.g. clearing underlines),
     // otherwise CM fails with
     // "Calls to EditorView.update are not allowed while an update is in progress"
@@ -129,6 +140,32 @@ class MetaUnderlineVariablePlugin {
       return;
     }
 
+    // First, check if this position is a reactive variable (high-confidence navigable)
+    // Use cached analysis from reactive variables StateField for fast lookup
+    const reactiveState = this.view.state.field(reactiveVariablesField, false);
+    const reactiveRange = reactiveState?.ranges.find(
+      (range) => pos >= range.from && pos <= range.to,
+    );
+
+    if (reactiveRange) {
+      // This is a reactive variable - add subtle hover enhancement
+      const { from, to } = reactiveRange;
+      if (
+        this.hoveredRange &&
+        this.hoveredRange.from === from &&
+        this.hoveredRange.to === to
+      ) {
+        return;
+      }
+      // Clear existing decorations
+      this.clearUnderline();
+      // Add subtle hover enhancement for reactive variables
+      this.hoveredRange = { from, to, position: pos };
+      this.view.dispatch({ effects: addReactiveHover.of(this.hoveredRange) });
+      return;
+    }
+
+    // Fallback: Use existing basic AST check for other variables
     const tree = syntaxTree(this.view.state);
     const cursor: TreeCursor = tree.cursorAt(pos);
 
