@@ -23,12 +23,11 @@ import { parser } from "@lezer/python";
 import dedent from "string-dedent";
 import { isSchemaless } from "@/components/datasources/utils";
 import {
-  type ConnectionName,
-  DUCKDB_ENGINE,
   dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
+import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";

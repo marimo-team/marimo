@@ -15,11 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  type ConnectionName,
   dataConnectionsMapAtom,
-  INTERNAL_SQL_ENGINES,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
+import {
+  type ConnectionName,
+  INTERNAL_SQL_ENGINES,
+} from "@/core/datasets/engines";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { useNonce } from "@/hooks/useNonce";
 
