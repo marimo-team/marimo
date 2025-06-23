@@ -2,7 +2,7 @@
 
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
-
+import type { SyntaxNode, Tree } from "@lezer/common";
 import type { CellId } from "@/core/cells/ids";
 import type { VariableName, Variables } from "@/core/variables/types";
 
@@ -12,22 +12,9 @@ export interface ReactiveVariableRange {
   variableName: string;
 }
 
-interface Scope {
-  type: "function" | "lambda" | "comprehension";
-  start: number;
-  end: number;
-  parameters: Set<string>; // Parameter names that shadow globals in this scope
-  localDeclarations: Set<string>; // Local variable declarations within this scope
-}
-
 /**
  * Analyzes the given editor state to find variable names that represent
  * reactive dependencies from other cells (similar to ObservableHQ's approach).
- *
- * A variable is considered reactive if:
- * - It's used in the current cell
- * - It's declared by a different cell (not the current one)
- * - It's not shadowed by a local parameter in the current scope
  */
 export function findReactiveVariables(options: {
   state: EditorState;
@@ -35,415 +22,462 @@ export function findReactiveVariables(options: {
   variables: Variables;
 }): ReactiveVariableRange[] {
   const tree = syntaxTree(options.state);
-  const ranges: ReactiveVariableRange[] = [];
 
   if (!tree) {
     // No AST available yet - this can happen during initial editor setup
     // or when the language parser hasn't processed the code
-    return ranges;
+    return [];
   }
 
   // Don't highlight anything if there are syntax errors
   if (hasSyntaxErrors(tree)) {
-    return ranges;
+    return [];
   }
 
-  // First pass: build scopes with their parameters
-  const scopes = buildScopes(tree, options.state.doc.toString());
+  // Get all variable names from other cells that could potentially be highlighted
+  const allVariableNames = new Set(
+    Object.keys(options.variables).filter(
+      (name) =>
+        !options.variables[name as VariableName].declaredBy.includes(
+          options.cellId,
+        ),
+    ),
+  );
 
-  // Second pass: find reactive variables, checking for shadowing
-  const cursor = tree.cursor();
+  if (allVariableNames.size === 0) {
+    return [];
+  }
 
-  do {
-    if (cursor.name === "VariableName") {
-      const { from, to } = cursor;
-      const variableName = options.state.doc.sliceString(
-        from,
-        to,
-      ) as VariableName;
+  const ranges: ReactiveVariableRange[] = [];
 
-      // Check if this variable is shadowed by a local parameter
-      const isShadowed = isVariableShadowed(variableName, from, scopes);
+  // Map from node position to declared variables in that scope
+  const allDeclarations = new Map<number, Set<string>>();
+  // Map from node position to scope type
+  const scopeTypes = new Map<number, string>();
 
-      if (!isShadowed && isReactiveVariable(variableName, options)) {
-        ranges.push({ from, to, variableName });
+  // First pass: all variable declarations in their respective scopes
+  function collectDeclarations(node: SyntaxNode | Tree, scopeStack: number[]) {
+    const cursor = node.cursor();
+    const nodeName = cursor.name;
+    const nodeStart = cursor.from;
+
+    const isNewScope = [
+      "FunctionDefinition",
+      "LambdaExpression",
+      "ArrayComprehensionExpression",
+      "SetComprehension",
+      "DictionaryComprehensionExpression",
+      "ComprehensionExpression",
+      "ClassDefinition",
+    ].includes(nodeName);
+
+    let currentScopeStack = scopeStack;
+    if (isNewScope) {
+      currentScopeStack = [...scopeStack, nodeStart];
+      allDeclarations.set(nodeStart, new Set());
+      scopeTypes.set(nodeStart, nodeName);
+    }
+
+    switch (nodeName) {
+      case "FunctionDefinition": {
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        do {
+          if (subCursor.name === "VariableName") {
+            const functionName = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+            // Add function name to the parent scope (not the function's own scope)
+            const parentScope = scopeStack[scopeStack.length - 1] ?? -1;
+            if (!allDeclarations.has(parentScope)) {
+              allDeclarations.set(parentScope, new Set());
+            }
+            allDeclarations.get(parentScope)?.add(functionName);
+            break; // Function name is the first VariableName, so we can break here
+          }
+        } while (subCursor.nextSibling());
+
+        // Function params
+        const paramCursor = node.cursor();
+        paramCursor.firstChild();
+        do {
+          if (paramCursor.name === "ParamList") {
+            const paramListCursor = paramCursor.node.cursor();
+            paramListCursor.firstChild();
+            do {
+              if (paramListCursor.name === "VariableName") {
+                const paramName = options.state.doc.sliceString(
+                  paramListCursor.from,
+                  paramListCursor.to,
+                );
+                allDeclarations.get(nodeStart)?.add(paramName);
+              }
+            } while (paramListCursor.nextSibling());
+          }
+        } while (paramCursor.nextSibling());
+
+        break;
+      }
+      case "LambdaExpression": {
+        // Lambda params
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        do {
+          if (subCursor.name === "ParamList") {
+            const paramCursor = subCursor.node.cursor();
+            paramCursor.firstChild();
+            do {
+              if (paramCursor.name === "VariableName") {
+                const paramName = options.state.doc.sliceString(
+                  paramCursor.from,
+                  paramCursor.to,
+                );
+                allDeclarations.get(nodeStart)?.add(paramName);
+              }
+            } while (paramCursor.nextSibling());
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      case "ArrayComprehensionExpression":
+      case "DictionaryComprehensionExpression":
+      case "SetComprehension":
+      case "ComprehensionExpression": {
+        // Domprehension variables - look for VariableName or TupleExpression after 'for'
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        let foundFor = false;
+        do {
+          if (subCursor.name === "for") {
+            foundFor = true;
+          } else if (foundFor && subCursor.name === "VariableName") {
+            const varName = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+            allDeclarations.get(nodeStart)?.add(varName);
+          } else if (foundFor && subCursor.name === "TupleExpression") {
+            // Handle tuple destructuring like (k, v)
+            const tupleCursor = subCursor.node.cursor();
+            tupleCursor.firstChild();
+            do {
+              if (tupleCursor.name === "VariableName") {
+                const varName = options.state.doc.sliceString(
+                  tupleCursor.from,
+                  tupleCursor.to,
+                );
+                allDeclarations.get(nodeStart)?.add(varName);
+              }
+            } while (tupleCursor.nextSibling());
+          } else if (foundFor && subCursor.name === "in") {
+            foundFor = false; // Stop collecting variables after 'in'
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      case "ClassDefinition": {
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        do {
+          if (subCursor.name === "VariableName") {
+            const className = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+            // Add class name to the parent scope (not the class's own scope)
+            const parentScope = scopeStack[scopeStack.length - 1] ?? -1;
+            if (!allDeclarations.has(parentScope)) {
+              allDeclarations.set(parentScope, new Set());
+            }
+            allDeclarations.get(parentScope)?.add(className);
+            break; // Class name is the first VariableName, so we can break here
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      case "AssignStatement": {
+        // Assignments - capture all variables being assigned to (variables that come before the last AssignOp)
+        const subCursor = node.cursor();
+
+        // First pass: all AssignOp positions to know where assignment targets end
+        const assignOpPositions: number[] = [];
+        subCursor.firstChild();
+        do {
+          if (subCursor.name === "AssignOp") {
+            assignOpPositions.push(subCursor.from);
+          }
+        } while (subCursor.nextSibling());
+
+        // Second pass: all VariableNames and TupleExpressions that come before the last AssignOp
+        const lastAssignOpPosition =
+          assignOpPositions[assignOpPositions.length - 1];
+
+        // Helper function to extract variable names from assignment targets (including tuples)
+        function extractAssignmentTargets(cursor: any, currentScope: number) {
+          if (cursor.name === "VariableName") {
+            const varName = options.state.doc.sliceString(
+              cursor.from,
+              cursor.to,
+            );
+            // Check if we're in a class scope
+            const isInClassScope =
+              currentScope !== -1 &&
+              scopeTypes.get(currentScope) === "ClassDefinition";
+
+            if (!isInClassScope) {
+              if (!allDeclarations.has(currentScope)) {
+                allDeclarations.set(currentScope, new Set());
+              }
+              allDeclarations.get(currentScope)?.add(varName);
+            }
+          } else if (cursor.name === "TupleExpression") {
+            // Handle tuple unpacking like (x, (y, z)) = ...
+            const tupleCursor = cursor.node.cursor();
+            tupleCursor.firstChild();
+            do {
+              extractAssignmentTargets(tupleCursor, currentScope);
+            } while (tupleCursor.nextSibling());
+          } else if (cursor.name === "ArrayExpression") {
+            // Handle list unpacking like [a, b, c] = ...
+            const arrayCursor = cursor.node.cursor();
+            arrayCursor.firstChild();
+            do {
+              extractAssignmentTargets(arrayCursor, currentScope);
+            } while (arrayCursor.nextSibling());
+          }
+        }
+
+        // Create a fresh cursor for the second pass
+        const secondPassCursor = node.cursor();
+        secondPassCursor.firstChild();
+        const currentScope =
+          currentScopeStack[currentScopeStack.length - 1] ?? -1;
+
+        do {
+          if (secondPassCursor.from < lastAssignOpPosition) {
+            extractAssignmentTargets(secondPassCursor, currentScope);
+          }
+        } while (secondPassCursor.nextSibling());
+
+        break;
+      }
+      case "ForStatement": {
+        // For loop variables
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        let foundFor = false;
+        do {
+          if (subCursor.name === "for") {
+            foundFor = true;
+          } else if (foundFor && subCursor.name === "VariableName") {
+            const varName = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+            // Add to the current innermost scope (or global if no scopes)
+            const currentScope =
+              currentScopeStack[currentScopeStack.length - 1] ?? -1;
+            if (!allDeclarations.has(currentScope)) {
+              allDeclarations.set(currentScope, new Set());
+            }
+            allDeclarations.get(currentScope)?.add(varName);
+          } else if (foundFor && subCursor.name === "in") {
+            foundFor = false; // Stop collecting variables after 'in'
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      case "ImportStatement": {
+        // Handle import x
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        do {
+          if (subCursor.name === "VariableName") {
+            const varName = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+
+            const currentScope =
+              currentScopeStack[currentScopeStack.length - 1] ?? -1;
+            if (!allDeclarations.has(currentScope)) {
+              allDeclarations.set(currentScope, new Set());
+            }
+            allDeclarations.get(currentScope)?.add(varName);
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      case "ImportFromStatement": {
+        // Handle from x import y as z
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        let foundImport = false;
+        do {
+          if (subCursor.name === "import") {
+            foundImport = true;
+          } else if (foundImport && subCursor.name === "VariableName") {
+            const varName = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+            // Add to the current innermost scope
+            const currentScope =
+              currentScopeStack[currentScopeStack.length - 1] ?? -1;
+            if (!allDeclarations.has(currentScope)) {
+              allDeclarations.set(currentScope, new Set());
+            }
+            allDeclarations.get(currentScope)?.add(varName);
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      case "TryStatement": {
+        // Handle exception variable binding - look for 'as' followed by VariableName
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        let foundAs = false;
+        do {
+          if (subCursor.name === "as") {
+            foundAs = true;
+          } else if (foundAs && subCursor.name === "VariableName") {
+            const varName = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+            // Add to the current innermost scope
+            const currentScope =
+              currentScopeStack[currentScopeStack.length - 1] ?? -1;
+            if (!allDeclarations.has(currentScope)) {
+              allDeclarations.set(currentScope, new Set());
+            }
+            allDeclarations.get(currentScope)?.add(varName);
+            foundAs = false;
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      case "WithStatement": {
+        // Handle with statement variable binding
+        const subCursor = node.cursor();
+        subCursor.firstChild();
+        let foundAs = false;
+        do {
+          if (subCursor.name === "as") {
+            foundAs = true;
+          } else if (foundAs && subCursor.name === "VariableName") {
+            const varName = options.state.doc.sliceString(
+              subCursor.from,
+              subCursor.to,
+            );
+            // Add to the current innermost scope
+            const currentScope =
+              currentScopeStack[currentScopeStack.length - 1] ?? -1;
+            if (!allDeclarations.has(currentScope)) {
+              allDeclarations.set(currentScope, new Set());
+            }
+            allDeclarations.get(currentScope)?.add(varName);
+            foundAs = false;
+          }
+        } while (subCursor.nextSibling());
+
+        break;
+      }
+      // No default
+    }
+
+    // Recursively process children
+    if (cursor.firstChild()) {
+      do {
+        collectDeclarations(cursor.node, currentScopeStack);
+      } while (cursor.nextSibling());
+    }
+  }
+
+  // Second pass: find variable usages and check if they should be highlighted
+  function findUsages(node: SyntaxNode | Tree, scopeStack: number[]) {
+    const cursor = node.cursor();
+    const nodeName = cursor.name;
+    const nodeStart = cursor.from;
+
+    // Check if this node creates a new scope
+    const isNewScope = [
+      "FunctionDefinition",
+      "LambdaExpression",
+      "ArrayComprehensionExpression",
+      "SetComprehension",
+      "DictionaryComprehensionExpression",
+      "ComprehensionExpression",
+      "ClassDefinition",
+    ].includes(nodeName);
+
+    let currentScopeStack = scopeStack;
+    if (isNewScope) {
+      currentScopeStack = [...scopeStack, nodeStart];
+    }
+
+    if (nodeName === "VariableName") {
+      const varName = options.state.doc.sliceString(cursor.from, cursor.to);
+
+      // Check if this variable should be highlighted
+      if (allVariableNames.has(varName)) {
+        // Check if it's declared in any enclosing scope
+        let isDeclaredLocally = false;
+        for (const scope of currentScopeStack) {
+          if (allDeclarations.get(scope)?.has(varName)) {
+            isDeclaredLocally = true;
+            break;
+          }
+        }
+        // Also check global scope
+        if (allDeclarations.get(-1)?.has(varName)) {
+          isDeclaredLocally = true;
+        }
+
+        if (!isDeclaredLocally) {
+          ranges.push({
+            from: cursor.from,
+            to: cursor.to,
+            variableName: varName,
+          });
+        }
       }
     }
-  } while (cursor.next());
+
+    // Recursively process children
+    if (cursor.firstChild()) {
+      do {
+        findUsages(cursor.node, currentScopeStack);
+      } while (cursor.nextSibling());
+    }
+  }
+
+  // Execute both passes
+  collectDeclarations(tree, []);
+  findUsages(tree, []);
 
   return ranges;
-}
-
-/**
- * Determines if a variable is reactive (declared in other cells and used in current cell).
- */
-function isReactiveVariable(
-  variableName: VariableName,
-  context: { cellId: CellId; variables: Variables },
-): boolean {
-  const variable = context.variables[variableName];
-
-  if (!variable) {
-    // Variable not tracked by marimo yet - happens when cells haven't been run
-    // or when referencing undefined variables
-    return false;
-  }
-
-  // Variable is reactive if:
-  // 1. It's declared by other cells (not the current cell)
-  const declaredByOtherCells =
-    variable.declaredBy.length > 0 &&
-    !variable.declaredBy.includes(context.cellId);
-
-  return declaredByOtherCells;
-}
-
-/**
- * Builds a list of scopes (functions, lambdas, comprehensions) with their parameters.
- */
-function buildScopes(tree: any, sourceCode: string): Scope[] {
-  const scopes: Scope[] = [];
-  const cursor = tree.cursor();
-
-  do {
-    const { name, from, to } = cursor;
-
-    if (name === "FunctionDefinition") {
-      const parameters = extractFunctionParameters(cursor, sourceCode);
-      const localDeclarations = new Set<string>();
-      scopes.push({
-        type: "function",
-        start: from,
-        end: to,
-        parameters,
-        localDeclarations,
-      });
-    } else if (name === "LambdaExpression") {
-      const parameters = extractLambdaParameters(cursor, sourceCode);
-      const localDeclarations = new Set<string>();
-      scopes.push({
-        type: "lambda",
-        start: from,
-        end: to,
-        parameters,
-        localDeclarations,
-      });
-    } else if (isComprehensionNode(name)) {
-      const parameters = extractComprehensionVariables(cursor, sourceCode);
-      const localDeclarations = new Set<string>();
-      scopes.push({
-        type: "comprehension",
-        start: from,
-        end: to,
-        parameters,
-        localDeclarations,
-      });
-    }
-  } while (cursor.next());
-
-  // Second pass: collect local declarations within each scope
-  for (const scope of scopes) {
-    collectLocalDeclarations(tree, scope, sourceCode);
-  }
-
-  return scopes;
-}
-
-/**
- * Checks if a variable at a given position is shadowed by a local parameter or declaration.
- */
-function isVariableShadowed(
-  variableName: string,
-  position: number,
-  scopes: Scope[],
-): boolean {
-  // Find all scopes that contain this position
-  const containingScopes = scopes.filter(
-    (scope) => position >= scope.start && position <= scope.end,
-  );
-
-  // Check if any containing scope has a parameter or local declaration with this name
-  return containingScopes.some(
-    (scope) =>
-      scope.parameters.has(variableName) ||
-      scope.localDeclarations.has(variableName),
-  );
-}
-
-/**
- * Extracts parameter names from a function definition.
- */
-function extractFunctionParameters(
-  cursor: any,
-  sourceCode: string,
-): Set<string> {
-  const parameters = new Set<string>();
-  const functionCursor = cursor.node.cursor();
-
-  do {
-    if (functionCursor.name === "ParamList") {
-      // Create a cursor that only traverses within the ParamList node
-      const paramListNode = functionCursor.node;
-      const paramCursor = paramListNode.cursor();
-
-      // Only traverse within the ParamList boundaries
-      const paramListEnd = functionCursor.to;
-
-      do {
-        if (
-          paramCursor.name === "VariableName" &&
-          paramCursor.to <= paramListEnd
-        ) {
-          const { from, to } = paramCursor;
-          const paramName = sourceCode.slice(from, to);
-          parameters.add(paramName);
-        }
-      } while (paramCursor.next() && paramCursor.from < paramListEnd);
-
-      break; // Found ParamList, we're done
-    }
-  } while (functionCursor.next());
-  return parameters;
-}
-
-/**
- * Extracts parameter names from a lambda expression.
- */
-function extractLambdaParameters(cursor: any, sourceCode: string): Set<string> {
-  const parameters = new Set<string>();
-  const lambdaCursor = cursor.node.cursor();
-
-  do {
-    if (lambdaCursor.name === "ParamList") {
-      // Create a cursor that only traverses within the ParamList node
-      const paramListNode = lambdaCursor.node;
-      const paramCursor = paramListNode.cursor();
-
-      // Only traverse within the ParamList boundaries
-      const paramListEnd = lambdaCursor.to;
-
-      do {
-        if (
-          paramCursor.name === "VariableName" &&
-          paramCursor.to <= paramListEnd
-        ) {
-          const { from, to } = paramCursor;
-          const paramName = sourceCode.slice(from, to);
-          parameters.add(paramName);
-        }
-      } while (paramCursor.next() && paramCursor.from < paramListEnd);
-
-      break; // Found ParamList, we're done
-    }
-  } while (lambdaCursor.next());
-
-  return parameters;
-}
-
-/**
- * Extracts loop variables from comprehension expressions.
- */
-function extractComprehensionVariables(
-  cursor: any,
-  sourceCode: string,
-): Set<string> {
-  const variables = new Set<string>();
-  const compCursor = cursor.node.cursor();
-
-  // Look for pattern: VariableName followed by 'for' keyword
-  // This captures the loop variable in expressions like [x for x in items]
-  let foundFor = false;
-
-  do {
-    if (compCursor.name === "for") {
-      foundFor = true;
-    } else if (foundFor && compCursor.name === "VariableName") {
-      // This is likely the loop variable after 'for'
-      const { from, to } = compCursor;
-      const varName = sourceCode.slice(from, to);
-      variables.add(varName);
-      foundFor = false; // Reset for next iteration
-    }
-  } while (compCursor.next());
-
-  return variables;
-}
-
-/**
- * Checks if a node type represents a comprehension expression.
- */
-function isComprehensionNode(nodeName: string): boolean {
-  return [
-    "ArrayComprehensionExpression", // [x for x in items]
-    "SetComprehensionExpression", // {x for x in items}
-    "DictComprehensionExpression", // {k: v for k, v in items}
-  ].includes(nodeName);
 }
 
 /**
  * Checks if the syntax tree contains any syntax errors.
  * If there are errors, we shouldn't show reactive variable highlighting.
  */
-function hasSyntaxErrors(tree: any): boolean {
+function hasSyntaxErrors(tree: Tree): boolean {
   const cursor = tree.cursor();
-
   do {
     // Lezer uses "⚠" as the error node name for syntax errors
     if (cursor.name === "⚠" || cursor.type.isError) {
       return true;
     }
   } while (cursor.next());
-
   return false;
-}
-
-/**
- * Collects local variable declarations within a specific scope.
- * This includes imports, with statements, exception variables, class/function definitions.
- */
-function collectLocalDeclarations(
-  tree: any,
-  scope: Scope,
-  sourceCode: string,
-): void {
-  const cursor = tree.cursor();
-
-  do {
-    const { name, from, to } = cursor;
-
-    // Skip if this node is outside our scope
-    if (from < scope.start || to > scope.end) {
-      continue;
-    }
-
-    // Import statements: import os, from x import y
-    if (name === "ImportStatement") {
-      collectImportVariables(cursor, scope, sourceCode);
-    }
-
-    // With statements: with open('file') as f
-    else if (name === "WithStatement") {
-      collectWithVariables(cursor, scope, sourceCode);
-    }
-
-    // Exception handling: except Exception as e
-    else if (name === "TryStatement") {
-      collectExceptionVariables(cursor, scope, sourceCode);
-    }
-
-    // Function definitions: def my_func()
-    else if (name === "FunctionDefinition" && from !== scope.start) {
-      // Exclude the scope's own function definition
-      collectFunctionName(cursor, scope, sourceCode);
-    }
-
-    // Class definitions: class MyClass
-    else if (name === "ClassDefinition") {
-      collectClassName(cursor, scope, sourceCode);
-    }
-  } while (cursor.next());
-}
-
-/**
- * Extracts variable names from import statements.
- */
-function collectImportVariables(
-  cursor: any,
-  scope: Scope,
-  sourceCode: string,
-): void {
-  const importCursor = cursor.node.cursor();
-
-  do {
-    // Look for import aliases and imported names
-    if (importCursor.name === "VariableName") {
-      const { from, to } = importCursor;
-      const varName = sourceCode.slice(from, to);
-      scope.localDeclarations.add(varName);
-    }
-  } while (importCursor.next());
-}
-
-/**
- * Extracts variable names from with statements (as variables).
- */
-function collectWithVariables(
-  cursor: any,
-  scope: Scope,
-  sourceCode: string,
-): void {
-  const withCursor = cursor.node.cursor();
-  let foundAs = false;
-
-  do {
-    if (withCursor.name === "as") {
-      foundAs = true;
-    } else if (foundAs && withCursor.name === "VariableName") {
-      const { from, to } = withCursor;
-      const varName = sourceCode.slice(from, to);
-      scope.localDeclarations.add(varName);
-      foundAs = false;
-    }
-  } while (withCursor.next());
-}
-
-/**
- * Extracts exception variable names from try/except blocks.
- */
-function collectExceptionVariables(
-  cursor: any,
-  scope: Scope,
-  sourceCode: string,
-): void {
-  const tryCursor = cursor.node.cursor();
-  let foundAs = false;
-
-  do {
-    if (tryCursor.name === "as") {
-      foundAs = true;
-    } else if (foundAs && tryCursor.name === "VariableName") {
-      const { from, to } = tryCursor;
-      const varName = sourceCode.slice(from, to);
-      scope.localDeclarations.add(varName);
-      foundAs = false;
-    }
-  } while (tryCursor.next());
-}
-
-/**
- * Extracts function name from function definition.
- */
-function collectFunctionName(
-  cursor: any,
-  scope: Scope,
-  sourceCode: string,
-): void {
-  const funcCursor = cursor.node.cursor();
-
-  do {
-    if (funcCursor.name === "VariableName") {
-      // First VariableName after "def" is the function name
-      const { from, to } = funcCursor;
-      const funcName = sourceCode.slice(from, to);
-      scope.localDeclarations.add(funcName);
-      break;
-    }
-  } while (funcCursor.next());
-}
-
-/**
- * Extracts class name from class definition.
- */
-function collectClassName(cursor: any, scope: Scope, sourceCode: string): void {
-  const classCursor = cursor.node.cursor();
-
-  do {
-    if (classCursor.name === "VariableName") {
-      // First VariableName after "class" is the class name
-      const { from, to } = classCursor;
-      const className = sourceCode.slice(from, to);
-      scope.localDeclarations.add(className);
-      break;
-    }
-  } while (classCursor.next());
 }

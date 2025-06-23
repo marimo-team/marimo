@@ -239,7 +239,7 @@ describe("findReactiveVariables - Lexical Scoping", () => {
   });
 
   test("with statement using global", () => {
-    const variables = createVariables(["open", "path"]);
+    const variables = createVariables(["path", "f"]);
     const code = "with open(path) as f:\n  print(f.read())";
     const state = createPythonEditorState(code);
     const ranges = findReactiveVariables({ state, cellId, variables });
@@ -442,7 +442,11 @@ def inner():
     return my_sin(x) + my_func(x)`;
     const state = createPythonEditorState(code);
     const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["my_func", "x"]);
+    expect(ranges.map((r) => r.variableName).sort()).toEqual([
+      "my_func",
+      "x",
+      "x",
+    ]);
   });
 
   test("shadowed global via assignment", () => {
@@ -521,9 +525,182 @@ with open("/test.txt") as f:
 for i in range(10):
   print(i)
 
-print("y")`;
+print(y)`;
     const state = createPythonEditorState(code);
     const ranges = findReactiveVariables({ state, cellId, variables });
     expect(ranges.map((r) => r.variableName).sort()).toEqual(["y"]);
+  });
+
+  test("shadowed global method in inner function", () => {
+    // These variables are redeclared locally, so they should not be highlighted
+    // even though marimo may reject the redeclaration at runtime.
+    const variables = createVariables(["z", "x", "a", "b", "inner"]);
+    const code = `
+def outer2():
+    z = 10
+    x = 20
+
+    def inner():
+        a = 2
+        return a + b + z  # b should be highlighted
+
+    return inner()
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    expect(ranges.map((r) => r.variableName).sort()).toEqual(["b"]);
+  });
+
+  // Pathological test cases for edge cases
+  test("global statement overrides local scoping", () => {
+    const variables = createVariables(["x", "y"]);
+    const code = `
+def outer():
+    x = 1
+    def inner():
+        global x  # This refers to global x, not outer's x
+        return x + y
+    return inner()
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    // Only y should be highlighted since global isn't global in marimo
+    expect(ranges.map((r) => r.variableName).sort()).toEqual(["y"]);
+  });
+
+  test("nonlocal statement accesses enclosing scope", () => {
+    const variables = createVariables(["z", "global_var"]);
+    const code = `
+def outer():
+    z = 10
+    def inner():
+        nonlocal z  # This refers to outer's z, not global z
+        return z + global_var
+    return inner()
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    // Only global_var should be highlighted, z is nonlocal (from outer scope)
+    expect(ranges.map((r) => r.variableName)).toEqual(["global_var"]);
+  });
+
+  test("star unpacking in assignment", () => {
+    const variables = createVariables(["values", "a", "b", "c"]);
+    const code = `
+def func():
+    a, *b, c = values
+    return a + len(b) + c
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    // Only values should be highlighted, a, b, c are assigned locally
+    expect(ranges.map((r) => r.variableName)).toEqual(["values"]);
+  });
+
+  test("nested tuple unpacking", () => {
+    const variables = createVariables(["nested_data", "x", "y", "z"]);
+    const code = `
+def func():
+    (x, (y, z)) = nested_data
+    return x + y + z
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    // Only nested_data should be highlighted
+    expect(ranges.map((r) => r.variableName)).toEqual(["nested_data"]);
+  });
+
+  test("walrus operator in comprehension", () => {
+    const variables = createVariables(["data", "threshold", "process"]);
+    const code = `
+result = [y for x in data if (y := process(x)) > threshold]
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    // data, process, and threshold should be highlighted; y is assigned in walrus operator
+    expect(ranges.map((r) => r.variableName).sort()).toEqual([
+      "data",
+      "process",
+      "threshold",
+    ]);
+  });
+
+  test("exception variable scoping", () => {
+    const variables = createVariables(["e", "logger", "risky_operation"]);
+    const code = `
+def func():
+    try:
+        risky_operation()
+    except Exception as e:  # e is local to except block
+        return str(e) + logger
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    // logger and risky_operation should be highlighted; e is local exception variable
+    expect(ranges.map((r) => r.variableName).sort()).toEqual([
+      "logger",
+      "risky_operation",
+    ]);
+  });
+
+  test("star import potential shadowing", () => {
+    const variables = createVariables(["x", "y", "unknown_func"]);
+    const code = `
+def func():
+    from math import *  # Could import anything, including x
+    return x + y + unknown_func()
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    // All should be highlighted since we can't know what star import brings in
+    expect(ranges.map((r) => r.variableName).sort()).toEqual([
+      "unknown_func",
+      "x",
+      "y",
+    ]);
+  });
+
+  test("class variable vs instance variable", () => {
+    const variables = createVariables(["class_global", "instance_global"]);
+    const code = `
+class MyClass:
+    class_var = class_global  # Should highlight class_global
+
+    def __init__(self):
+        self.instance_var = instance_global  # Should highlight instance_global
+
+    def method(self):
+        return self.class_var + self.instance_var
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    expect(ranges.map((r) => r.variableName).sort()).toEqual([
+      "class_global",
+      "instance_global",
+    ]);
+  });
+
+  test("nested class with outer scope access", () => {
+    const variables = createVariables(["outer_var", "global_var"]);
+    const code = `
+def outer_func():
+    outer_var = 1
+
+    class InnerClass:
+        # Classes can't access enclosing function scope directly
+        value = global_var  # Should highlight global_var, not outer_var
+        value2 = outer_var
+
+        def method(self):
+            return self.value + global_var
+
+    return InnerClass()
+`;
+    const state = createPythonEditorState(code);
+    const ranges = findReactiveVariables({ state, cellId, variables });
+    expect(ranges.map((r) => r.variableName).sort()).toEqual([
+      "global_var",
+      "global_var",
+    ]);
   });
 });
