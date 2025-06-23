@@ -82,7 +82,7 @@ def serialize_session_view(
         if view.cell_ids is not None:
             cell_ids = view.cell_ids.cell_ids
         else:
-            # TODO: Reconcile HTML, and json exports. Something seems a bit off.
+            # TODO: This is a problem for exporting to HTML, but not for caching the session view for replays. Something seems off.
             LOGGER.debug(
                 "When serializing session view, the notebook-order of cells was "
                 "not known. This may cause issues when attempting to "
