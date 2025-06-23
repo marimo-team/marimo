@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any
 import click
 
 from marimo._cli.print import orange
-from marimo._messaging.ops import UpdateCellIdsRequest
 from marimo._server.session.serialize import (
     serialize_notebook,
     serialize_session_view,
