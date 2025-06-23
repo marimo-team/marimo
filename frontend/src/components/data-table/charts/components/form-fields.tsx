@@ -49,6 +49,7 @@ import { useChartFormContext } from "../context";
 import type { BinSchema, ChartSchema, ChartSchemaType } from "../schemas";
 import {
   AGGREGATION_FNS,
+  type AggregationFn,
   BIN_AGGREGATION,
   COMBINED_TIME_UNITS,
   NONE_AGGREGATION,
@@ -625,10 +626,12 @@ export const AggregationSelect = ({
   fieldName,
   selectedDataType,
   binFieldName,
+  defaultAggregation,
 }: {
   fieldName: FieldName;
   selectedDataType: SelectableDataType;
   binFieldName: FieldName;
+  defaultAggregation?: AggregationFn;
 }) => {
   const form = useFormContext();
   const availableAggregations =
@@ -683,7 +686,11 @@ export const AggregationSelect = ({
           <FormControl>
             <Select
               {...field}
-              value={(field.value ?? NONE_AGGREGATION).toString()}
+              value={(
+                field.value ??
+                defaultAggregation ??
+                NONE_AGGREGATION
+              ).toString()}
               onValueChange={(value) => {
                 handleFieldChange(value, field.value, field.onChange);
               }}

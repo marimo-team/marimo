@@ -86,6 +86,7 @@ export const ChartSchema = z.object({
   style: z
     .object({
       innerRadius: z.number().optional(),
+      gridLines: z.boolean().default(false).optional(),
     })
     .optional(),
   tooltips: z

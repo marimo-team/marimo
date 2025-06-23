@@ -20,7 +20,12 @@ import { convertDataTypeToSelectable } from "../chart-spec/types";
 import { CHART_TYPE_ICON, COUNT_FIELD, type EMPTY_VALUE } from "../constants";
 import { useChartFormContext } from "../context";
 import type { ChartSchema } from "../schemas";
-import { CHART_TYPES, type ChartType, type SelectableDataType } from "../types";
+import {
+  type AggregationFn,
+  CHART_TYPES,
+  type ChartType,
+  type SelectableDataType,
+} from "../types";
 import {
   AggregationSelect,
   BinFields,
@@ -85,9 +90,16 @@ const ColumnSelectorWithAggregation: React.FC<{
     type?: FieldDataType;
     selectedDataType?: SelectedDataType;
   };
+  defaultAggregation?: AggregationFn;
   columns: Array<{ name: string; type: DataType }>;
   binFieldName: FieldName;
-}> = ({ columnFieldName, column, columns, binFieldName }) => {
+}> = ({
+  columnFieldName,
+  column,
+  columns,
+  binFieldName,
+  defaultAggregation,
+}) => {
   const { selectedDataType } = getColumnDataTypes(column);
 
   return (
@@ -100,6 +112,7 @@ const ColumnSelectorWithAggregation: React.FC<{
           }
           selectedDataType={selectedDataType}
           binFieldName={binFieldName}
+          defaultAggregation={defaultAggregation}
         />
       )}
     </div>
@@ -222,6 +235,7 @@ export const YAxis: React.FC = () => {
         column={yColumn}
         columns={context.fields}
         binFieldName="yAxis.bin.binned"
+        defaultAggregation="sum" // Default to sum for performance
       />
 
       {isNonCountField(yColumn) && (

@@ -66,6 +66,11 @@ export const StyleForm: React.FC = () => {
         </AccordionFormTrigger>
         <AccordionFormContent>
           <InputField label="Plot title" fieldName="general.title" />
+          <BooleanField
+            fieldName="style.gridLines"
+            label="Show grid lines"
+            defaultValue={false}
+          />
         </AccordionFormContent>
       </AccordionFormItem>
 
