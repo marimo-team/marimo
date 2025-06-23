@@ -529,6 +529,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  // TODO: See if we can implement this
   invokeAiTool = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
