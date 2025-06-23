@@ -10,6 +10,7 @@ import type { LSPConfig } from "@/core/config/config-schema";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
+import { reactiveVariablesField } from "../reactive-variables/extension";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 
 export function hintTooltip(lspConfig: LSPConfig) {
@@ -46,6 +47,12 @@ async function requestDocumentation(
 
   const { startToken, endToken } = getPositionAtWordBounds(view.state.doc, pos);
 
+  // Check if this position is on a reactive variable
+  const isReactiveVariable =
+    view.state
+      .field(reactiveVariablesField, false)
+      ?.ranges.some((range) => pos >= range.from && pos <= range.to) ?? false;
+
   const result = await AUTOCOMPLETER.request({
     document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
     cellId: cellId,
@@ -60,6 +67,7 @@ async function requestDocumentation(
     message: result,
     exactName: fullWord,
     excludeTypes: excludeTypes,
+    showGoToDefinitionHint: isReactiveVariable,
   });
   return tooltip ?? null;
 }
