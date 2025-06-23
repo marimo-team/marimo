@@ -535,13 +535,7 @@ const ChatPanelBody = () => {
         initialMessage.length > 50
           ? `${initialMessage.slice(0, 50)}...`
           : initialMessage,
-      messages: [
-        {
-          role: "user",
-          content: initialMessage,
-          timestamp: Date.now(),
-        },
-      ],
+      messages: [], // Don't pre-populate - let useChat handle it and sync back
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
