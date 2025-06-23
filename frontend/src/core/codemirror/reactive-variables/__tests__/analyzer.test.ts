@@ -5,258 +5,293 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, test } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type { VariableName, Variables } from "@/core/variables/types";
-import { findReactiveVariables } from "../analyzer";
-
-/**
- * Helper function to create an EditorState with Python code
- */
-function createPythonEditorState(code: string): EditorState {
-  return EditorState.create({
-    doc: code,
-    extensions: [python()],
-  });
-}
-
-/**
- * Helper function to create a Variables object for testing
- */
-function createVariables(
-  variableNames: string[],
-  declaredByCellId = "other-cell",
-): Variables {
-  const variables: Variables = {};
-
-  for (const name of variableNames) {
-    variables[name as VariableName] = {
-      name: name as VariableName,
-      declaredBy: [declaredByCellId as CellId],
-      usedBy: [],
-      value: "test-value",
-      dataType: "str",
-    };
-  }
-
-  return variables;
-}
+import { findReactiveVariables, type ReactiveVariableRange } from "../analyzer";
 
 describe("findReactiveVariables - Lexical Scoping", () => {
-  const cellId = "current-cell" as CellId;
-
   test("should highlight global variable but not function parameter", () => {
-    const variables = createVariables(["a", "b"]);
-    const code = `def foo(a):
-    return a + b`;
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // Should only highlight 'b', not 'a' (since 'a' is a function parameter)
-    expect(ranges).toHaveLength(1);
-    expect(ranges[0].variableName).toBe("b");
+    expect(
+      runHighlight(
+        ["a", "b"],
+        `
+def foo(a):
+    return a + b
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def foo(a):
+          return a + b
+                     ^
+      "
+    `);
   });
 
   test("should highlight both variables when no shadowing", () => {
-    const variables = createVariables(["a", "b"]);
-    const code = `def foo(x):
-    return a + b`;
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    // Should highlight both 'a' and 'b' since 'x' doesn't shadow either
-    expect(ranges).toHaveLength(2);
-    const variableNames = ranges.map((r) => r.variableName).sort();
-    expect(variableNames).toEqual(["a", "b"]);
+    expect(
+      runHighlight(
+        ["a", "b"],
+        `
+def foo(x):
+    return a + b
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def foo(x):
+          return a + b
+                 ^   ^
+      "
+    `);
   });
 
   test("should handle lambda parameters", () => {
-    const variables = createVariables(["a", "b"]);
-    const code = "result = lambda a: a + b";
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    // Should only highlight 'b', not 'a' (lambda parameter)
-    expect(ranges).toHaveLength(1);
-    expect(ranges[0].variableName).toBe("b");
+    expect(
+      runHighlight(["a", "b"], "result = lambda a: a + b"),
+    ).toMatchInlineSnapshot(`
+      "
+      result = lambda a: a + b
+                             ^
+      "
+    `);
   });
 
   test("should handle comprehension variables", () => {
-    const variables = createVariables(["a", "data"]);
-    const code = "result = [a for a in data]";
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    // Should only highlight 'data', not 'a' (comprehension variable)
-    expect(ranges).toHaveLength(1);
-    expect(ranges[0].variableName).toBe("data");
+    expect(
+      runHighlight(["a", "data"], "result = [a for a in data]"),
+    ).toMatchInlineSnapshot(`
+      "
+      result = [a for a in data]
+                           ^^^^
+      "
+    `);
   });
 
   test("should handle nested scopes", () => {
-    const variables = createVariables(["a", "b", "c"]);
-    const code = `def outer(a):
+    expect(
+      runHighlight(
+        ["a", "b", "c"],
+        `
+def outer(a):
     def inner(b):
         return a + b + c
-    return inner`;
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    // Should only highlight 'c' since 'a' and 'b' are parameters
-    expect(ranges).toHaveLength(1);
-    expect(ranges[0].variableName).toBe("c");
+    return inner
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def outer(a):
+          def inner(b):
+              return a + b + c
+                             ^
+          return inner
+      "
+    `);
   });
 
-  test("should return empty array for syntax errors", () => {
-    const variables = createVariables(["a", "b"]);
-    const code = `def foo(a:
-    return a + b`; // Missing closing paren
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    // Should return no ranges due to syntax error
-    expect(ranges).toHaveLength(0);
+  test("should return no highlight for syntax errors", () => {
+    expect(
+      runHighlight(
+        ["a", "b"],
+        `
+def foo(a:
+    return a + b
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def foo(a:
+          return a + b
+      "
+    `);
   });
 
   test("should handle multiple parameters", () => {
-    const variables = createVariables(["a", "b", "c", "d"]);
-    const code = `def foo(a, b, c):
-    return a + b + c + d`;
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    // Should only highlight 'd' since a, b, c are parameters
-    expect(ranges).toHaveLength(1);
-    expect(ranges[0].variableName).toBe("d");
+    expect(
+      runHighlight(
+        ["a", "b", "c", "d"],
+        `
+def foo(a, b, c):
+    return a + b + c + d
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def foo(a, b, c):
+          return a + b + c + d
+                             ^
+      "
+    `);
   });
 
   test("should handle recursive function", () => {
-    const variables = createVariables(["n", "base"]);
-    const code = `def factorial(n):
+    expect(
+      runHighlight(
+        ["n", "base"],
+        `
+def factorial(n):
     if n <= 1:
         return base
-    return n * factorial(n - 1)`;
-
-    const state = createPythonEditorState(code);
-
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    // Should only highlight 'base', not 'n' (parameter)
-    expect(ranges).toHaveLength(1);
-    expect(ranges[0].variableName).toBe("base");
+    return n * factorial(n - 1)
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def factorial(n):
+          if n <= 1:
+              return base
+                     ^^^^
+          return n * factorial(n - 1)
+      "
+    `);
   });
 
   test("function param vs global", () => {
-    const variables = createVariables(["a", "b"]);
-    const code = "def foo(a): return a + b";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["b"]);
+    expect(
+      runHighlight(["a", "b"], "def foo(a): return a + b"),
+    ).toMatchInlineSnapshot(`
+      "
+      def foo(a): return a + b
+                             ^
+      "
+    `);
   });
 
   test("lambda param vs global", () => {
-    const variables = createVariables(["x", "b"]);
-    const code = "func = lambda x: x + b";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["b"]);
+    expect(
+      runHighlight(["x", "b"], "func = lambda x: x + b"),
+    ).toMatchInlineSnapshot(`
+      "
+      func = lambda x: x + b
+                           ^
+      "
+    `);
   });
 
   test("lambda with multiple params", () => {
-    const variables = createVariables(["x", "y", "z"]);
-    const code = "f = lambda x, y: x + y + z";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["z"]);
+    expect(
+      runHighlight(["x", "y", "z"], "f = lambda x, y: x + y + z"),
+    ).toMatchInlineSnapshot(`
+      "
+      f = lambda x, y: x + y + z
+                               ^
+      "
+    `);
   });
 
   test("comprehension shadows global", () => {
-    const variables = createVariables(["a"]);
-    const code = "[a for a in range(5)]";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges).toHaveLength(0);
+    expect(runHighlight(["a"], "[a for a in range(5)]")).toMatchInlineSnapshot(`
+      "
+      [a for a in range(5)]
+      "
+    `);
   });
 
   test("nested comprehension", () => {
-    const variables = createVariables(["a", "b"]);
-    const code = "[(a + b) for a, b in [(1,2), (3,4)]]";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges).toHaveLength(0);
+    expect(
+      runHighlight(["a", "b"], "[(a + b) for a, b in [(1,2), (3,4)]]"),
+    ).toMatchInlineSnapshot(`
+      "
+      [(a + b) for a, b in [(1,2), (3,4)]]
+      "
+    `);
   });
 
   test("dict comprehension using global", () => {
-    const variables = createVariables(["k", "v", "offset"]);
-    const code = `{k: v + offset for k, v in [("a", 1), ("b", 2)]}`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["offset"]);
+    expect(
+      runHighlight(
+        ["k", "v", "offset"],
+        `{k: v + offset for k, v in [("a", 1), ("b", 2)]}`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      {k: v + offset for k, v in [("a", 1), ("b", 2)]}
+              ^^^^^^
+      "
+    `);
   });
 
   test("generator expression", () => {
-    const variables = createVariables(["x", "threshold", "global_list"]);
-    const code = "(x + threshold for x in global_list)";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual([
-      "global_list",
-      "threshold",
-    ]);
+    expect(
+      runHighlight(
+        ["x", "threshold", "global_list"],
+        "(x + threshold for x in global_list)",
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      (x + threshold for x in global_list)
+           ^^^^^^^^^          ^^^^^^^^^^^
+      "
+    `);
   });
 
   test("class body using globals", () => {
-    const variables = createVariables(["a", "b"]);
-    const code = "class MyClass:\n  value = a + b";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["a", "b"]);
+    expect(
+      runHighlight(["a", "b"], "class MyClass:\n  value = a + b"),
+    ).toMatchInlineSnapshot(`
+      "
+      class MyClass:
+        value = a + b
+                ^   ^
+      "
+    `);
   });
 
   test("decorator using global", () => {
-    const variables = createVariables(["logger"]);
-    const code = "@logger\ndef decorated(): pass";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["logger"]);
+    expect(
+      runHighlight(["logger"], "@logger\ndef decorated(): pass"),
+    ).toMatchInlineSnapshot(`
+      "
+      @logger
+       ^^^^^^
+      def decorated(): pass
+      "
+    `);
   });
 
   test("try/except block using global", () => {
-    const variables = createVariables(["e", "logger"]);
-    const code = `try:\n  1 / 0\nexcept Exception as e:\n  print("Error", logger)`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["logger"]);
+    expect(
+      runHighlight(
+        ["e", "logger"],
+        `try:\n  1 / 0\nexcept Exception as e:\n  print("Error", logger)`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      try:
+        1 / 0
+      except Exception as e:
+        print("Error", logger)
+                       ^^^^^^
+      "
+    `);
   });
 
   test("with statement using global", () => {
-    const variables = createVariables(["path", "f"]);
-    const code = "with open(path) as f:\n  print(f.read())";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["path"]);
+    expect(
+      runHighlight(["path", "f"], "with open(path) as f:\n  print(f.read())"),
+    ).toMatchInlineSnapshot(`
+      "
+      with open(path) as f:
+                ^^^^
+        print(f.read())
+      "
+    `);
   });
 
   test("function reusing global name as param", () => {
-    const variables = createVariables(["logger"]);
-    const code = "def shadow_logger(logger): return logger + 1";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges).toHaveLength(0);
+    expect(
+      runHighlight(["logger"], "def shadow_logger(logger): return logger + 1"),
+    ).toMatchInlineSnapshot(`
+      "
+      def shadow_logger(logger): return logger + 1
+      "
+    `);
   });
 
   test("shadowed global in inner function", () => {
-    const variables = createVariables(["a", "b", "x", "z"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["a", "b", "x", "z"],
+        `
 def outer():
     z = 10
     x = 20
@@ -264,51 +299,75 @@ def outer():
         a = 2
         return a + b + z  # highlight: b
     return inner()
-  `;
-
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-
-    const highlighted = ranges.map((r) => r.variableName).sort();
-    expect(highlighted).toEqual(["b"]);
+  `,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def outer():
+          z = 10
+          x = 20
+          def inner():
+              a = 2
+              return a + b + z  # highlight: b
+                         ^
+          return inner()
+        
+      "
+    `);
   });
 
   test("multiple assignment", () => {
-    const variables = createVariables(["x", "y", "z", "a"]);
-    const code = "x = y = z + a";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["a", "z"]);
+    expect(
+      runHighlight(["x", "y", "z", "a"], "x = y = z + a"),
+    ).toMatchInlineSnapshot(`
+      "
+      x = y = z + a
+              ^   ^
+      "
+    `);
   });
 
   test("nested lambdas", () => {
-    const variables = createVariables(["x", "y", "b"]);
-    const code = "nested_lambda = lambda x: (lambda y: x + y + b)";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["b"]);
+    expect(
+      runHighlight(
+        ["x", "y", "b"],
+        "nested_lambda = lambda x: (lambda y: x + y + b)",
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      nested_lambda = lambda x: (lambda y: x + y + b)
+                                                   ^
+      "
+    `);
   });
 
   test("function using builtin and global", () => {
-    const variables = createVariables(["offset", "len"]);
-    const code = "def use_len(x): return len(x) + offset";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // Since len is a declared variable, it should be treated as reactive
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["len", "offset"]);
+    expect(
+      runHighlight(["offset", "len"], "def use_len(x): return len(x) + offset"),
+    ).toMatchInlineSnapshot(`
+      "
+      def use_len(x): return len(x) + offset
+                             ^^^      ^^^^^^
+      "
+    `);
   });
 
   test("global in return", () => {
-    const variables = createVariables(["config"]);
-    const code = "def get_config(): return config";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["config"]);
+    expect(
+      runHighlight(["config"], "def get_config(): return config"),
+    ).toMatchInlineSnapshot(`
+      "
+      def get_config(): return config
+                               ^^^^^^
+      "
+    `);
   });
 
   test("shadowed global in inner function 2", () => {
-    const variables = createVariables(["a", "b", "x", "z"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["a", "b", "x", "z"],
+        `
 def outer2():
     z = 10
     x = 20
@@ -316,206 +375,328 @@ def outer2():
         a = 2
         return a + b + z  # b should be highlighted
     return inner()
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["b"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def outer2():
+          z = 10
+          x = 20
+          def inner():
+              a = 2
+              return a + b + z  # b should be highlighted
+                         ^
+          return inner()
+      "
+    `);
   });
 
   test("global used inside class", () => {
-    const variables = createVariables(["config"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["config"],
+        `
 class Configurable:
     value = config
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["config"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      class Configurable:
+          value = config
+                  ^^^^^^
+      "
+    `);
   });
 
   test("comprehension shadows global 2", () => {
-    const variables = createVariables(["i"]);
-    const code = "squares = [i**2 for i in range(10)]";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges).toHaveLength(0);
+    expect(
+      runHighlight(["i"], "squares = [i**2 for i in range(10)]"),
+    ).toMatchInlineSnapshot(`
+      "
+      squares = [i**2 for i in range(10)]
+      "
+    `);
   });
 
   test("comprehension with global in condition", () => {
-    const variables = createVariables(["x", "z"]);
-    const code = "filtered = [x for x in [] if x > z]";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["z"]);
+    expect(
+      runHighlight(["x", "z"], "filtered = [x for x in [] if x > z]"),
+    ).toMatchInlineSnapshot(`
+      "
+      filtered = [x for x in [] if x > z]
+                                       ^
+      "
+    `);
   });
 
   test("dict comprehension with local destructuring", () => {
-    const variables = createVariables(["k", "v"]);
-    const code = `kv_map = {k: v for (k, v) in [("a", "b")]}`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges).toHaveLength(0);
+    expect(
+      runHighlight(["k", "v"], `kv_map = {k: v for (k, v) in [("a", "b")]}`),
+    ).toMatchInlineSnapshot(`
+      "
+      kv_map = {k: v for (k, v) in [("a", "b")]}
+      "
+    `);
   });
 
   test("lambda inside function accessing global", () => {
-    const variables = createVariables(["x", "g"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["x", "g"],
+        `
 def make_adder(x):
     return lambda y: x + y + g
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["g"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def make_adder(x):
+          return lambda y: x + y + g
+                                   ^
+      "
+    `);
   });
 
   test("rebinding in list comprehension", () => {
-    const variables = createVariables(["x"]);
-    const code = "rebinding = [x for x in range(5)]";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges).toHaveLength(0);
+    expect(
+      runHighlight(["x"], "rebinding = [x for x in range(5)]"),
+    ).toMatchInlineSnapshot(`
+      "
+      rebinding = [x for x in range(5)]
+      "
+    `);
   });
 
   test("global used inside nested def in comprehension", () => {
-    const variables = createVariables(["x", "z"]);
-    const code = "nested_comp = [lambda: x + z for x in range(5)]";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["z"]);
+    expect(
+      runHighlight(
+        ["x", "z"],
+        "nested_comp = [lambda: x + z for x in range(5)]",
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      nested_comp = [lambda: x + z for x in range(5)]
+                                 ^
+      "
+    `);
   });
 
   test("async function using global", () => {
-    const variables = createVariables(["client", "x"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["client", "x"],
+        `
 async def fetch():
     return await client.get(x)
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["client", "x"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      async def fetch():
+          return await client.get(x)
+                       ^^^^^^     ^
+      "
+    `);
   });
 
   test("class method using global", () => {
-    const variables = createVariables(["x"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["x"],
+        `
 class Thing:
     def compute(self):
         return self.factor * x
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["x"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      class Thing:
+          def compute(self):
+              return self.factor * x
+                                   ^
+      "
+    `);
   });
 
   test("function with multiple local scopes", () => {
-    const variables = createVariables(["external", "y", "x"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["external", "y", "x"],
+        `
 def complex(x):
     if x > 0:
         y = x * 2
     else:
         y = external
     return y
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName)).toEqual(["external"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def complex(x):
+          if x > 0:
+              y = x * 2
+          else:
+              y = external
+                  ^^^^^^^^
+          return y
+      "
+    `);
   });
 
   test("nested import with alias", () => {
-    const variables = createVariables(["mo", "x", "polars"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["mo", "x", "polars"],
+        `
 def nested_import():
     import marimo as mo
     import polars
-    print(mo, x, polars)`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["x"]);
+    print(mo, x, polars)`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def nested_import():
+          import marimo as mo
+          import polars
+          print(mo, x, polars)
+                    ^
+      "
+    `);
   });
 
   test("from-import with shadowing", () => {
-    const variables = createVariables(["my_sin", "x", "my_func"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["my_sin", "x", "my_func"],
+        `
 def inner():
     from math import sin as my_sin
-    return my_sin(x) + my_func(x)`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual([
-      "my_func",
-      "x",
-      "x",
-    ]);
+    return my_sin(x) + my_func(x)`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def inner():
+          from math import sin as my_sin
+          return my_sin(x) + my_func(x)
+                        ^    ^^^^^^^ ^
+      "
+    `);
   });
 
   test("shadowed global via assignment", () => {
-    const variables = createVariables(["polars", "x"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["polars", "x"],
+        `
 def myfunc():
     polars = "not a module"
-    return x + polars`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["x"]);
+    return x + polars`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def myfunc():
+          polars = "not a module"
+          return x + polars
+                 ^
+      "
+    `);
   });
 
   test("multiple imports and local names", () => {
-    const variables = createVariables(["np", "pd", "x", "y"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["np", "pd", "x", "y"],
+        `
 def analyze():
     import numpy as np
     import pandas as pd
-    result = x + y + np.array([1, 2])`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["x", "y"]);
+    result = x + y + np.array([1, 2])`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def analyze():
+          import numpy as np
+          import pandas as pd
+          result = x + y + np.array([1, 2])
+                   ^   ^
+      "
+    `);
   });
 
   test("import shadowed by parameter", () => {
-    const variables = createVariables(["polars", "x"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["polars", "x"],
+        `
 def run(polars):
-    return polars + x`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["x"]);
+    return polars + x`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def run(polars):
+          return polars + x
+                          ^
+      "
+    `);
   });
 
   test("mixed comprehension and outer globals", () => {
-    const variables = createVariables(["y", "z"]);
-    const code = "values = [y + z for y in range(5)]";
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["z"]);
+    expect(
+      runHighlight(["y", "z"], "values = [y + z for y in range(5)]"),
+    ).toMatchInlineSnapshot(`
+      "
+      values = [y + z for y in range(5)]
+                    ^
+      "
+    `);
   });
 
   test("lambda inside function with outer global", () => {
-    const variables = createVariables(["x", "a", "offset"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["x", "a", "offset"],
+        `
 def wrapper():
-    return lambda x: x + a + offset`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["a", "offset"]);
+    return lambda x: x + a + offset`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def wrapper():
+          return lambda x: x + a + offset
+                               ^   ^^^^^^
+      "
+    `);
   });
 
   test("with statement inside function with global", () => {
-    const variables = createVariables(["path", "a"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["path", "a"],
+        `
 def func():
     with open(path) as a:
-        print(a.read())`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["path"]);
+        print(a.read())`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def func():
+          with open(path) as a:
+                    ^^^^
+              print(a.read())
+      "
+    `);
   });
 
   test("redeclaration at top-level", () => {
     // These variables are redeclared locally, so they should not be highlighted
     // even though marimo may reject the redeclaration at runtime.
-    const variables = createVariables(["a", "b", "f", "i", "y"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["a", "b", "f", "i", "y"],
+        `
 a = 10
 b = 20
 
@@ -525,17 +706,32 @@ with open("/test.txt") as f:
 for i in range(10):
   print(i)
 
-print(y)`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["y"]);
+print(y)`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      a = 10
+      b = 20
+
+      with open("/test.txt") as f:
+        print(f.read())
+
+      for i in range(10):
+        print(i)
+
+      print(y)
+            ^
+      "
+    `);
   });
 
   test("shadowed global method in inner function", () => {
     // These variables are redeclared locally, so they should not be highlighted
     // even though marimo may reject the redeclaration at runtime.
-    const variables = createVariables(["z", "x", "a", "b", "inner"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["z", "x", "a", "b", "inner"],
+        `
 def outer2():
     z = 10
     x = 20
@@ -545,124 +741,183 @@ def outer2():
         return a + b + z  # b should be highlighted
 
     return inner()
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["b"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def outer2():
+          z = 10
+          x = 20
+
+          def inner():
+              a = 2
+              return a + b + z  # b should be highlighted
+                         ^
+
+          return inner()
+      "
+    `);
   });
 
   // Pathological test cases for edge cases
   test("global statement overrides local scoping", () => {
-    const variables = createVariables(["x", "y"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["x", "y"],
+        `
 def outer():
     x = 1
     def inner():
         global x  # This refers to global x, not outer's x
         return x + y
     return inner()
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // Only y should be highlighted since global isn't global in marimo
-    expect(ranges.map((r) => r.variableName).sort()).toEqual(["y"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def outer():
+          x = 1
+          def inner():
+              global x  # This refers to global x, not outer's x
+              return x + y
+                         ^
+          return inner()
+      "
+    `);
   });
 
   test("nonlocal statement accesses enclosing scope", () => {
-    const variables = createVariables(["z", "global_var"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["z", "global_var"],
+        `
 def outer():
     z = 10
     def inner():
         nonlocal z  # This refers to outer's z, not global z
         return z + global_var
     return inner()
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // Only global_var should be highlighted, z is nonlocal (from outer scope)
-    expect(ranges.map((r) => r.variableName)).toEqual(["global_var"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def outer():
+          z = 10
+          def inner():
+              nonlocal z  # This refers to outer's z, not global z
+              return z + global_var
+                         ^^^^^^^^^^
+          return inner()
+      "
+    `);
   });
 
   test("star unpacking in assignment", () => {
-    const variables = createVariables(["values", "a", "b", "c"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["values", "a", "b", "c"],
+        `
 def func():
     a, *b, c = values
     return a + len(b) + c
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // Only values should be highlighted, a, b, c are assigned locally
-    expect(ranges.map((r) => r.variableName)).toEqual(["values"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def func():
+          a, *b, c = values
+                     ^^^^^^
+          return a + len(b) + c
+      "
+    `);
   });
 
   test("nested tuple unpacking", () => {
-    const variables = createVariables(["nested_data", "x", "y", "z"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["nested_data", "x", "y", "z"],
+        `
 def func():
     (x, (y, z)) = nested_data
     return x + y + z
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // Only nested_data should be highlighted
-    expect(ranges.map((r) => r.variableName)).toEqual(["nested_data"]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def func():
+          (x, (y, z)) = nested_data
+                        ^^^^^^^^^^^
+          return x + y + z
+      "
+    `);
   });
 
   test("walrus operator in comprehension", () => {
-    const variables = createVariables(["data", "threshold", "process"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["data", "threshold", "process"],
+        `
 result = [y for x in data if (y := process(x)) > threshold]
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // data, process, and threshold should be highlighted; y is assigned in walrus operator
-    expect(ranges.map((r) => r.variableName).sort()).toEqual([
-      "data",
-      "process",
-      "threshold",
-    ]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      result = [y for x in data if (y := process(x)) > threshold]
+                           ^^^^          ^^^^^^^       ^^^^^^^^^
+      "
+    `);
   });
 
   test("exception variable scoping", () => {
-    const variables = createVariables(["e", "logger", "risky_operation"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["e", "logger", "risky_operation"],
+        `
 def func():
     try:
         risky_operation()
     except Exception as e:  # e is local to except block
         return str(e) + logger
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // logger and risky_operation should be highlighted; e is local exception variable
-    expect(ranges.map((r) => r.variableName).sort()).toEqual([
-      "logger",
-      "risky_operation",
-    ]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def func():
+          try:
+              risky_operation()
+              ^^^^^^^^^^^^^^^
+          except Exception as e:  # e is local to except block
+              return str(e) + logger
+                              ^^^^^^
+      "
+    `);
   });
 
   test("star import potential shadowing", () => {
-    const variables = createVariables(["x", "y", "unknown_func"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["x", "y", "unknown_func"],
+        `
 def func():
     from math import *  # Could import anything, including x
     return x + y + unknown_func()
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    // All should be highlighted since we can't know what star import brings in
-    expect(ranges.map((r) => r.variableName).sort()).toEqual([
-      "unknown_func",
-      "x",
-      "y",
-    ]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def func():
+          from math import *  # Could import anything, including x
+          return x + y + unknown_func()
+                 ^   ^   ^^^^^^^^^^^^
+      "
+    `);
   });
 
   test("class variable vs instance variable", () => {
-    const variables = createVariables(["class_global", "instance_global"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["class_global", "instance_global"],
+        `
 class MyClass:
     class_var = class_global  # Should highlight class_global
 
@@ -671,18 +926,29 @@ class MyClass:
 
     def method(self):
         return self.class_var + self.instance_var
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual([
-      "class_global",
-      "instance_global",
-    ]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      class MyClass:
+          class_var = class_global  # Should highlight class_global
+                      ^^^^^^^^^^^^
+
+          def __init__(self):
+              self.instance_var = instance_global  # Should highlight instance_global
+                                  ^^^^^^^^^^^^^^^
+
+          def method(self):
+              return self.class_var + self.instance_var
+      "
+    `);
   });
 
   test("nested class with outer scope access", () => {
-    const variables = createVariables(["outer_var", "global_var"]);
-    const code = `
+    expect(
+      runHighlight(
+        ["outer_var", "global_var"],
+        `
 def outer_func():
     outer_var = 1
 
@@ -695,12 +961,107 @@ def outer_func():
             return self.value + global_var
 
     return InnerClass()
-`;
-    const state = createPythonEditorState(code);
-    const ranges = findReactiveVariables({ state, cellId, variables });
-    expect(ranges.map((r) => r.variableName).sort()).toEqual([
-      "global_var",
-      "global_var",
-    ]);
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def outer_func():
+          outer_var = 1
+
+          class InnerClass:
+              # Classes can't access enclosing function scope directly
+              value = global_var  # Should highlight global_var, not outer_var
+                      ^^^^^^^^^^
+              value2 = outer_var
+
+              def method(self):
+                  return self.value + global_var
+                                      ^^^^^^^^^^
+
+          return InnerClass()
+      "
+    `);
   });
 });
+
+/**
+ * Convenient helper for testing reactive variable highlighting
+ */
+function runHighlight(variableNames: string[], code: string): string {
+  const variables: Variables = {};
+  for (const name of variableNames) {
+    variables[name as VariableName] = {
+      name: name as VariableName,
+      declaredBy: ["other-cell" as CellId],
+      usedBy: [],
+      value: "test-value",
+      dataType: "str",
+    };
+  }
+  const ranges = findReactiveVariables({
+    cellId: "current-cell" as CellId,
+    state: EditorState.create({
+      doc: code,
+      extensions: [python()],
+    }),
+    variables,
+  });
+  return formatCodeWithHighlights(code, ranges);
+}
+
+/**
+ * Helper function to format code with highlighted ranges for snapshot testing
+ * Simple format with carets pointing to reactive variables
+ */
+function formatCodeWithHighlights(
+  code: string,
+  ranges: ReactiveVariableRange[],
+): string {
+  const lines = code.split("\n");
+  const result: string[] = [];
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
+
+    // Start position of this line in the original code
+    const lineStart =
+      lines.slice(0, lineIndex).join("\n").length + (lineIndex > 0 ? 1 : 0);
+    const lineEnd = lineStart + line.length;
+
+    // Intersecting ranges
+    const lineRanges = ranges.filter(
+      (range) => range.from < lineEnd && range.to > lineStart,
+    );
+
+    result.push(line);
+
+    if (lineRanges.length > 0) {
+      // Create underline
+      const underline = Array.from({ length: line.length }).fill(" ");
+
+      for (const range of lineRanges) {
+        const startInLine = Math.max(0, range.from - lineStart);
+        const endInLine = Math.min(line.length, range.to - lineStart);
+
+        for (let i = startInLine; i < endInLine; i++) {
+          underline[i] = "^";
+        }
+      }
+
+      // Add the underline if it has any markers
+      if (underline.includes("^")) {
+        result.push(underline.join("").trimEnd());
+      }
+    }
+  }
+
+  // Ensure result starts and ends with empty lines for nicer snapshot view
+  const out = [...result];
+  if (out[0] !== "") {
+    out.unshift("");
+  }
+  if (out[out.length - 1] !== "") {
+    out.push("");
+  }
+  return out.join("\n");
+}
