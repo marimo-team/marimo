@@ -277,6 +277,10 @@ For the backend, we recommend running without auth (`--no-token`):
   </tr>
 </table>
 
+## Release
+
+To release a new version of marimo, you can edit the version in `marimo/__init__.py`
+
 ### FAQ
 
 - **When to run with hot-reloading?**: When you are developing on the frontend
