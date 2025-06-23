@@ -36,12 +36,14 @@ export function findReactiveVariables(options: {
 
   // Collect variable names that are:
   // - Not from in the current cell
+  // - Not from a "setup" cell
   // - Not of type "module"
   const allVariableNames = new Set(
     Object.keys(options.variables).filter((name) => {
       const variable = options.variables[name as VariableName];
       return (
         variable.dataType !== "module" &&
+        !variable.declaredBy.includes("setup" as CellId) &&
         !variable.declaredBy.includes(options.cellId)
       );
     }),
