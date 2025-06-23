@@ -9,7 +9,8 @@ import { DATA_TYPES } from "@/core/kernel/messages";
 import { DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
 import {
   AGGREGATION_FNS,
-  NONE_AGGREGATION,
+  COLOR_BY_FIELDS,
+  NONE_VALUE,
   SELECTABLE_DATA_TYPES,
   SORT_TYPES,
   TIME_UNITS,
@@ -30,7 +31,7 @@ const BaseColumnSchema = z.object({
 });
 
 export const AxisSchema = BaseColumnSchema.extend({
-  aggregate: z.enum(AGGREGATION_FNS).default(NONE_AGGREGATION).optional(),
+  aggregate: z.enum(AGGREGATION_FNS).default(NONE_VALUE).optional(),
 });
 
 export const RowFacet = BaseColumnSchema.extend({
@@ -77,6 +78,10 @@ export const ChartSchema = z.object({
     .optional(),
   color: z
     .object({
+      field: z
+        .enum([...COLOR_BY_FIELDS, NONE_VALUE])
+        .default(NONE_VALUE)
+        .optional(),
       scheme: z.string().default(DEFAULT_COLOR_SCHEME).optional(),
       range: z.array(z.string()).optional(),
       domain: z.array(z.string()).optional(),

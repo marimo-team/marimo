@@ -52,7 +52,7 @@ import {
   type AggregationFn,
   BIN_AGGREGATION,
   COMBINED_TIME_UNITS,
-  NONE_AGGREGATION,
+  NONE_VALUE,
   SELECTABLE_DATA_TYPES,
   type SelectableDataType,
   SINGLE_TIME_UNITS,
@@ -689,7 +689,7 @@ export const AggregationSelect = ({
               value={(
                 field.value ??
                 defaultAggregation ??
-                NONE_AGGREGATION
+                NONE_VALUE
               ).toString()}
               onValueChange={(value) => {
                 handleFieldChange(value, field.value, field.onChange);
