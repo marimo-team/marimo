@@ -2,7 +2,7 @@
 
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
-import type { SyntaxNode, Tree } from "@lezer/common";
+import type { SyntaxNode, Tree, TreeCursor } from "@lezer/common";
 import type { CellId } from "@/core/cells/ids";
 import type { VariableName, Variables } from "@/core/variables/types";
 
@@ -221,53 +221,6 @@ export function findReactiveVariables(options: {
         const lastAssignOpPosition =
           assignOpPositions[assignOpPositions.length - 1];
 
-        // Helper function to extract variable names from assignment targets (including tuples)
-        function extractAssignmentTargets(cursor: any, currentScope: number) {
-          switch (cursor.name) {
-            case "VariableName": {
-              const varName = options.state.doc.sliceString(
-                cursor.from,
-                cursor.to,
-              );
-              // Check if we're in a class scope
-              const isInClassScope =
-                currentScope !== -1 &&
-                scopeTypes.get(currentScope) === "ClassDefinition";
-
-              if (!isInClassScope) {
-                if (!allDeclarations.has(currentScope)) {
-                  allDeclarations.set(currentScope, new Set());
-                }
-                allDeclarations.get(currentScope)?.add(varName);
-              }
-
-              break;
-            }
-            case "TupleExpression": {
-              // Handle tuple unpacking like (x, (y, z)) = ...
-              const tupleCursor = cursor.node.cursor();
-              tupleCursor.firstChild();
-              do {
-                extractAssignmentTargets(tupleCursor, currentScope);
-              } while (tupleCursor.nextSibling());
-
-              break;
-            }
-            case "ArrayExpression": {
-              // Handle list unpacking like [a, b, c] = ...
-              const arrayCursor = cursor.node.cursor();
-              arrayCursor.firstChild();
-              do {
-                extractAssignmentTargets(arrayCursor, currentScope);
-              } while (arrayCursor.nextSibling());
-
-              break;
-            }
-            // No default
-          }
-        }
-
-        // Create a fresh cursor for the second pass
         const secondPassCursor = node.cursor();
         secondPassCursor.firstChild();
         const currentScope =
@@ -275,7 +228,12 @@ export function findReactiveVariables(options: {
 
         do {
           if (secondPassCursor.from < lastAssignOpPosition) {
-            extractAssignmentTargets(secondPassCursor, currentScope);
+            extractAssignmentTargets(secondPassCursor, {
+              currentScope,
+              state: options.state,
+              allDeclarations,
+              scopeTypes,
+            });
           }
         } while (secondPassCursor.nextSibling());
 
@@ -496,4 +454,56 @@ function hasSyntaxErrors(tree: Tree): boolean {
     }
   } while (cursor.next());
   return false;
+}
+
+/**
+ * Helper function to extract variable names from assignment targets (including tuples)
+ */
+function extractAssignmentTargets(
+  cursor: TreeCursor,
+  options: {
+    currentScope: number;
+    state: EditorState;
+    allDeclarations: Map<number, Set<string>>;
+    scopeTypes: Map<number, string>;
+  },
+) {
+  switch (cursor.name) {
+    case "VariableName": {
+      const varName = options.state.doc.sliceString(cursor.from, cursor.to);
+      const isInClassScope =
+        options.currentScope !== -1 &&
+        options.scopeTypes.get(options.currentScope) === "ClassDefinition";
+
+      if (!isInClassScope) {
+        if (!options.allDeclarations.has(options.currentScope)) {
+          options.allDeclarations.set(options.currentScope, new Set());
+        }
+        options.allDeclarations.get(options.currentScope)?.add(varName);
+      }
+
+      break;
+    }
+    case "TupleExpression": {
+      // Handle tuple unpacking like (x, (y, z)) = ...
+      const tupleCursor = cursor.node.cursor();
+      tupleCursor.firstChild();
+      do {
+        extractAssignmentTargets(tupleCursor, options);
+      } while (tupleCursor.nextSibling());
+
+      break;
+    }
+    case "ArrayExpression": {
+      // Handle list unpacking like [a, b, c] = ...
+      const arrayCursor = cursor.node.cursor();
+      arrayCursor.firstChild();
+      do {
+        extractAssignmentTargets(arrayCursor, options);
+      } while (arrayCursor.nextSibling());
+
+      break;
+    }
+    // No default
+  }
 }
