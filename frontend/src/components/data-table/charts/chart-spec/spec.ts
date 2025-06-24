@@ -11,7 +11,6 @@ import type { Encoding } from "vega-lite/build/src/encoding";
 import type { Resolve } from "vega-lite/build/src/resolve";
 import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
 import type { z } from "zod";
-import type { SelectionParameter, UnitSpec } from "@/plugins/impl/vega/types";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
 import { COUNT_FIELD, DEFAULT_AGGREGATION, EMPTY_VALUE } from "../constants";
@@ -120,12 +119,6 @@ export function createSpecWithoutData(
     ...(columnFacet && { column: columnFacet }),
   };
   const resolve = getResolve(facet?.column, facet?.row);
-
-  // For line charts, create a layered chart with rule and points
-  // if (chartType === ChartType.LINE) {
-  //   // TODO: Faceting does not work yet
-  //   return getLineChartSpec(baseSpec, baseEncoding, xColumn.field, resolve);
-  // }
 
   // Create the final spec for other chart types
   return {
@@ -251,57 +244,6 @@ function getPieChartSpec(
         colorByEncoding: colorEncoding,
       }),
     },
-  };
-}
-
-function getLineChartSpec(
-  baseSpec: BaseSpec,
-  baseEncoding: Encoding<Field>,
-  xField: string,
-  resolve: { resolve: Resolve } | undefined,
-): TopLevelSpec {
-  const nearest: SelectionParameter = {
-    name: "nearest",
-    select: {
-      type: "point",
-      fields: [xField],
-      nearest: true,
-      on: "mouseover",
-    },
-  };
-
-  const lineLayer: UnitSpec<Field> = { mark: { type: "line" } };
-
-  const ruleLayer: UnitSpec<Field> = {
-    mark: { type: "rule", color: "seagreen", strokeWidth: 1 },
-    params: [nearest],
-    encoding: {
-      opacity: {
-        condition: { param: "nearest", value: 0.6 },
-        value: 0,
-      },
-    },
-  };
-
-  const pointsLayer: UnitSpec<Field> = {
-    mark: {
-      type: "point",
-      size: 70,
-      filled: true,
-    },
-    encoding: {
-      opacity: {
-        condition: { param: "nearest", value: 1 },
-        value: 0,
-      },
-    },
-  };
-
-  return {
-    ...baseSpec,
-    encoding: baseEncoding,
-    layer: [lineLayer, pointsLayer, ruleLayer],
-    ...resolve,
   };
 }
 
