@@ -383,6 +383,19 @@ class DatasourcesConfig(TypedDict):
 
 @mddoc
 @dataclass
+class SharingConfig(TypedDict):
+    """Configuration for sharing features.
+
+    **Keys.**
+
+    - `enabled`: if `False`, sharing options will be hidden from the UI
+    """
+
+    enabled: bool
+
+
+@mddoc
+@dataclass
 class MarimoConfig(TypedDict):
     """Configuration for the marimo editor"""
 
@@ -400,6 +413,7 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
 
 
 @mddoc
@@ -421,6 +435,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -474,6 +489,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "custom_paths": [],
         "include_default_snippets": True,
     },
+    "sharing": {"enabled": True},
 }
 
 
