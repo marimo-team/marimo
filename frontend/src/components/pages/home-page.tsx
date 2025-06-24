@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   BookTextIcon,
   ChevronDownIcon,
@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { getSessionId, isSessionId } from "@/core/kernel/session";
+import { connectionAtom } from "@/core/network/connection";
 import {
   getRecentFiles,
   getRunningNotebooks,
@@ -77,6 +78,7 @@ function tabTarget(path: string) {
 
 const HomePage: React.FC = () => {
   const [nonce, setNonce] = useState(0);
+  const connection = useAtomValue(connectionAtom);
 
   const recentsResponse = useAsyncData(() => getRecentFiles(), []);
 
@@ -116,9 +118,10 @@ const HomePage: React.FC = () => {
       >
         <div className="absolute top-3 right-5 flex gap-3 z-50">
           <OpenTutorialDropDown />
-          <ConfigButton showAppConfig={false} />
+          <ConfigButton showAppConfig={false} connectionState={connection.state} />
           <ShutdownButton
             description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
+            connectionState={connection.state}
           />
         </div>
         <div className="flex flex-col gap-6 max-w-6xl container pt-5 pb-20 z-10">
