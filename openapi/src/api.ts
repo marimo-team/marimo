@@ -2648,28 +2648,17 @@ export interface components {
                   type: "reasoning";
                 }
               | {
-                  toolInvocation:
-                    | {
-                        args: {
-                          [key: string]: unknown;
-                        };
-                        /** @enum {string} */
-                        state: "call" | "partial-call";
-                        step: number;
-                        toolCallId: string;
-                        toolName: string;
-                      }
-                    | {
-                        args: {
-                          [key: string]: unknown;
-                        };
-                        result: unknown;
-                        /** @enum {string} */
-                        state: "call" | "partial-call" | "result";
-                        step: number;
-                        toolCallId: string;
-                        toolName: string;
-                      };
+                  toolInvocation: {
+                    args: {
+                      [key: string]: unknown;
+                    };
+                    result: unknown;
+                    /** @enum {string} */
+                    state: "result";
+                    step: number;
+                    toolCallId: string;
+                    toolName: string;
+                  };
                   /** @enum {string} */
                   type: "tool-invocation";
                 }
