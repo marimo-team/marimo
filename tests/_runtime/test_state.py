@@ -1,5 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.state import StateRegistry, State
 from tests.conftest import ExecReqProvider
 
 
@@ -218,3 +219,17 @@ async def test_set_state_not_strict_copied(
 
     assert id(k.globals["a"]) == id(k.globals["state"])
     assert id(k.globals["b"]) == id(k.globals["set_state"])
+
+
+def test_retain_active_states() -> None:
+    state_registry = StateRegistry()
+    state = State(None)
+    state_registry.register(state, "state")
+
+    assert state_registry.lookup("state")
+    assert state_registry.bound_names(state) == {"state"}
+
+    state_registry.retain_active_states({"state"})
+
+    assert state_registry.lookup("state")
+    assert state_registry.bound_names(state) == {"state"}
