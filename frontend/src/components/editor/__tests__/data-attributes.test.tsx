@@ -43,6 +43,7 @@ describe("Cell data attributes", () => {
           default_table_page_size: 10,
           default_width: "normal",
           theme: "light",
+          reference_highlighting: false,
         },
         keymap: { preset: "default" },
         completion: {

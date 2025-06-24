@@ -10,7 +10,7 @@ import type { LSPConfig } from "@/core/config/config-schema";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
-import { reactiveVariablesField } from "../reactive-variables/extension";
+import { reactiveReferencesField } from "../reactive-references/extension";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 
 export function hintTooltip(lspConfig: LSPConfig) {
@@ -50,7 +50,7 @@ async function requestDocumentation(
   // Check if this position is on a reactive variable
   const isReactiveVariable =
     view.state
-      .field(reactiveVariablesField, false)
+      .field(reactiveReferencesField, false)
       ?.ranges.some((range) => pos >= range.from && pos <= range.to) ?? false;
 
   const result = await AUTOCOMPLETER.request({

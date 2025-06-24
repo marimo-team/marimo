@@ -12,8 +12,8 @@ import {
 import type { TreeCursor } from "@lezer/common";
 import {
   reactiveHoverDecoration,
-  reactiveVariablesField,
-} from "../reactive-variables/extension";
+  reactiveReferencesField,
+} from "../reactive-references/extension";
 
 // Decorations
 const underlineDecoration = Decoration.mark({ class: "underline" });
@@ -142,7 +142,7 @@ class MetaUnderlineVariablePlugin {
 
     // First, check if this position is a reactive variable (high-confidence navigable)
     // Use cached analysis from reactive variables StateField for fast lookup
-    const reactiveState = this.view.state.field(reactiveVariablesField, false);
+    const reactiveState = this.view.state.field(reactiveReferencesField, false);
     const reactiveRange = reactiveState?.ranges.find(
       (range) => pos >= range.from && pos <= range.to,
     );

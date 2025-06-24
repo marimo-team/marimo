@@ -18,11 +18,11 @@ import { Logger } from "@/utils/Logger";
 import { findReactiveVariables, type ReactiveVariableRange } from "./analyzer";
 
 const reactiveVariableDecoration = Decoration.mark({
-  class: "cm-reactive-variable",
+  class: "mo-cm-reactive-reference",
 });
 
 export const reactiveHoverDecoration = Decoration.mark({
-  class: "cm-reactive-variable-hover",
+  class: "mo-cm-reactive-reference-hover",
 });
 
 const updateReactiveVariables = StateEffect.define<ReactiveVariableRange[]>();
@@ -31,7 +31,7 @@ const updateReactiveVariables = StateEffect.define<ReactiveVariableRange[]>();
  * Enhanced state that stores both visual decorations and analysis ranges
  * for efficient access by other extensions (e.g., goto definition)
  */
-interface ReactiveVariablesState {
+interface ReactiveReferencesState {
   decorations: DecorationSet;
   ranges: ReactiveVariableRange[];
 }
@@ -39,7 +39,7 @@ interface ReactiveVariablesState {
 /**
  * Plugin that manages highlighting marimo's reactive variables
  */
-class ReactiveVariablesPlugin {
+class ReactiveReferencesPlugin {
   private view: EditorView;
   private cellId: CellId;
   private variablesUnsubscribe: () => void;
@@ -106,8 +106,8 @@ class ReactiveVariablesPlugin {
 /**
  * StateField that stores both decorations and analysis ranges
  */
-export const reactiveVariablesField = StateField.define<ReactiveVariablesState>(
-  {
+export const reactiveReferencesField =
+  StateField.define<ReactiveReferencesState>({
     create() {
       return {
         decorations: Decoration.none,
@@ -137,12 +137,18 @@ export const reactiveVariablesField = StateField.define<ReactiveVariablesState>(
     },
     provide: (f) =>
       EditorView.decorations.from(f, (state) => state.decorations),
-  },
-);
+  });
 
-export function reactiveVariablesExtension(cellId: CellId) {
+function reactiveReferencesExtension(cellId: CellId) {
   return [
-    reactiveVariablesField,
-    ViewPlugin.define((view) => new ReactiveVariablesPlugin(view, cellId)),
+    reactiveReferencesField,
+    ViewPlugin.define((view) => new ReactiveReferencesPlugin(view, cellId)),
   ];
+}
+
+/**
+ * Bundle function to conditionally include reactive references highlighting
+ */
+export function reactiveReferencesBundle(cellId: CellId, enabled: boolean) {
+  return enabled ? reactiveReferencesExtension(cellId) : [];
 }

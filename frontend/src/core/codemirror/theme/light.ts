@@ -45,12 +45,12 @@ export const lightTheme = [
     ],
   }),
   EditorView.theme({
-    ".cm-reactive-variable": {
+    ".mo-cm-reactive-reference": {
       fontWeight: "400",
       color: "#005f87",
       borderBottom: "2px solid #bad3de",
     },
-    ".cm-reactive-variable-hover": {
+    ".mo-cm-reactive-reference-hover": {
       cursor: "pointer",
       borderBottomWidth: "3px",
     },

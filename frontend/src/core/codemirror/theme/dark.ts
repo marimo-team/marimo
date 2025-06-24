@@ -36,12 +36,12 @@ export const darkTheme = [
     ],
   }),
   EditorView.theme({
-    ".cm-reactive-variable": {
+    ".mo-cm-reactive-reference": {
       fontWeight: "400",
       color: "#2a7aa5",
       borderBottom: "2px solid #bad3de",
     },
-    ".cm-reactive-variable-hover": {
+    ".mo-cm-reactive-reference-hover": {
       cursor: "pointer",
       borderBottomWidth: "3px",
       borderBottomColor: "#4a90a5",

@@ -1592,6 +1592,8 @@ components:
               - full
               - columns
               type: string
+            reference_highlighting:
+              type: boolean
             theme:
               enum:
               - light
@@ -1605,6 +1607,7 @@ components:
           - default_width
           - dataframes
           - default_table_page_size
+          - reference_highlighting
           type: object
         experimental:
           additionalProperties: {}
