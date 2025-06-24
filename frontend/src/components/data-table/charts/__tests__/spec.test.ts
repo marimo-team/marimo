@@ -419,6 +419,41 @@ describe("getTooltips", () => {
       },
     ]);
   });
+
+  it("should handle time unit in tooltips", () => {
+    const result = getTooltips({
+      formValues: {
+        general: {
+          xColumn: { field: "x", type: "string" as const },
+          yColumn: { field: "y", type: "number" as const },
+        },
+        tooltips: {
+          auto: true,
+          fields: [],
+        },
+      },
+      xEncoding: { field: "x", type: "nominal", timeUnit: "year" },
+      yEncoding: { field: "y", type: "quantitative" },
+    });
+
+    expect(result).toEqual([
+      {
+        field: "x",
+        bin: undefined,
+        format: undefined,
+        timeUnit: "year",
+        title: "x", // Should be set to field name
+        aggregate: undefined,
+      },
+      {
+        field: "y",
+        format: ",.2f",
+        timeUnit: undefined,
+        title: undefined,
+        aggregate: undefined,
+      },
+    ]);
+  });
 });
 
 describe("getColorEncoding", () => {
