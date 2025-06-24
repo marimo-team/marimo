@@ -168,7 +168,7 @@ You can also use other tools that work with Jupyter notebooks:
 
 ## Export to WASM-powered HTML
 
-Export your notebook to a self-contained HTML file that runs using [WebAssembly](../wasm):
+Export your notebook to a self-contained HTML file that runs using [WebAssembly](wasm.md):
 
 ```bash
 # export as readonly, with code locked
