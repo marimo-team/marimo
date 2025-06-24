@@ -3,15 +3,15 @@
 import { XIcon } from "lucide-react";
 import { sendShutdown } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
-import { useImperativeModal } from "../../modal/ImperativeModal";
-import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
-import { Tooltip } from "../../ui/tooltip";
-import { Button } from "../inputs/Inputs";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
 } from "@/core/websocket/connection-utils";
-import { WebSocketState } from "@/core/websocket/types";
+import type { WebSocketState } from "@/core/websocket/types";
+import { useImperativeModal } from "../../modal/ImperativeModal";
+import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
+import { Tooltip } from "../../ui/tooltip";
+import { Button } from "../inputs/Inputs";
 
 export const ShutdownButton: React.FC<{
   description: string;
@@ -31,7 +31,9 @@ export const ShutdownButton: React.FC<{
   }
 
   const isDisabled = isAppInteractionDisabled(connectionState);
-  const tooltipContent = isDisabled ? getConnectionTooltip(connectionState) : "Shutdown";
+  const tooltipContent = isDisabled
+    ? getConnectionTooltip(connectionState)
+    : "Shutdown";
 
   return (
     <Tooltip content={tooltipContent}>

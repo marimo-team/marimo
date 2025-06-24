@@ -8,17 +8,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import type { WebSocketState } from "@/core/websocket/types";
 import { Button as EditorButton } from "../editor/inputs/Inputs";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
 import { Tooltip } from "../ui/tooltip";
 import { settingDialogAtom } from "./state";
 import { UserConfigForm } from "./user-config-form";
-import type { WebSocketState } from "@/core/websocket/types";
-import {
-  getConnectionTooltip,
-  isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
 
 interface Props {
   showAppConfig?: boolean;

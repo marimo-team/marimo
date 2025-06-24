@@ -16,14 +16,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getMarimoVersion } from "@/core/meta/globals";
-import { MinimalShortcut } from "../../shortcuts/renderShortcut";
-import type { ActionButton } from "../actions/types";
-import { useNotebookActions } from "../actions/useNotebookActions";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
 } from "@/core/websocket/connection-utils";
 import type { WebSocketState } from "@/core/websocket/types";
+import { MinimalShortcut } from "../../shortcuts/renderShortcut";
+import type { ActionButton } from "../actions/types";
+import { useNotebookActions } from "../actions/useNotebookActions";
 
 interface Props {
   connectionState: WebSocketState;

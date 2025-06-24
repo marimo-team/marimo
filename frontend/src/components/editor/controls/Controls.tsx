@@ -17,6 +17,7 @@ import { FindReplace } from "@/components/find-replace/find-replace";
 import type { AppConfig } from "@/core/config/config-schema";
 import { isConnectedAtom } from "@/core/network/connection";
 import { SaveComponent } from "@/core/saving/save-component";
+import { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import {
@@ -31,7 +32,6 @@ import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
 import { HideInKioskMode } from "../kiosk-mode";
 import { LayoutSelect } from "../renderers/layout-select";
 import { CommandPaletteButton } from "./command-palette-button";
-import { WebSocketState } from "@/core/websocket/types";
 
 interface ControlsProps {
   presenting: boolean;
