@@ -3,9 +3,9 @@ import { assertExists } from "@/utils/assertExists";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
+import { isIslands } from "../islands/utils";
 import { PyodideRouter } from "../wasm/router";
 import { isWasm } from "../wasm/utils";
-import { isIslands } from "../islands/utils";
 import type { UIElementRegistry } from "./uiregistry";
 
 /**
