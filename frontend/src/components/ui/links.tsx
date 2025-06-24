@@ -11,7 +11,8 @@ export const ExternalLink = ({
     | `https://docs.marimo.io/${string}`
     | `https://docs.python.org/${string}`
     | `https://marimo.io/${string}`
-    | `https://links.marimo.app/${string}`;
+    | `https://links.marimo.app/${string}`
+    | `https://learn.microsoft.com/${string}`;
   children: React.ReactNode;
 }) => {
   return (

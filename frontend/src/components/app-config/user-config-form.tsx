@@ -1042,7 +1042,9 @@ export const UserConfigForm: React.FC = () => {
             </FormDescription>
           </SettingGroup>
         );
-      case "ai":
+      case "ai": {
+        const useEntraId = Boolean(form.watch("ai.open_ai.use_entra_id"));
+
         return (
           <>
             <SettingGroup title="AI Code Completion">
@@ -1112,6 +1114,7 @@ export const UserConfigForm: React.FC = () => {
                           data-testid="ai-openai-api-key-input"
                           className="m-0 inline-flex"
                           placeholder="sk-proj..."
+                          disabled={useEntraId}
                           {...field}
                           onChange={(e) => {
                             const value = e.target.value;
@@ -1129,14 +1132,65 @@ export const UserConfigForm: React.FC = () => {
                       />
                     </FormItem>
                     <FormDescription>
-                      Your OpenAI API key from{" "}
-                      <ExternalLink href="https://platform.openai.com/account/api-keys">
-                        platform.openai.com
-                      </ExternalLink>
-                      .
+                      {useEntraId ? (
+                        "API key is not required when using Entra ID authentication."
+                      ) : (
+                        <>
+                          Your OpenAI API key from{" "}
+                          <ExternalLink href="https://platform.openai.com/account/api-keys">
+                            platform.openai.com
+                          </ExternalLink>
+                          .
+                        </>
+                      )}
                     </FormDescription>
                   </div>
                 )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ai.open_ai.use_entra_id"
+                render={({ field }) => {
+                  const checkedValue = Boolean(field.value);
+
+                  return (
+                    <div className="flex flex-col space-y-1">
+                      <FormItem className={formItemClasses}>
+                        <FormLabel className="font-normal">
+                          Use Entra ID Authentication
+                        </FormLabel>
+                        <FormControl>
+                          <Checkbox
+                            data-testid="ai-openai-use-entra-id-checkbox"
+                            checked={checkedValue}
+                            disabled={field.disabled}
+                            onCheckedChange={(checked) => {
+                              field.onChange(Boolean(checked));
+                              // Clear the API key when enabling Entra ID
+                              if (checked) {
+                                form.setValue("ai.open_ai.api_key", "");
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <IsOverridden
+                          userConfig={config}
+                          name="ai.open_ai.use_entra_id"
+                        />
+                      </FormItem>
+                      <FormDescription>
+                        Use Azure Entra ID for authentication instead of API
+                        key. The managed identity client ID can be specified by setting the environment variable AZURE_CLIENT_ID. See{" "}
+                        <ExternalLink href="https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/managed-identity">
+                          Microsoft's documentation
+                        </ExternalLink>{" "}
+                        for more details.
+                      </FormDescription>
+                    </div>
+                  );
+                }}
               />
 
               <FormField
@@ -1408,6 +1462,7 @@ export const UserConfigForm: React.FC = () => {
             </SettingGroup>
           </>
         );
+      }
       case "optionalDeps":
         return <OptionalFeatures />;
       case "labs":

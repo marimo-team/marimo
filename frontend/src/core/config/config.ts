@@ -73,6 +73,7 @@ export const editorFontSizeAtom = atom<number>((get) => {
 export function isAiEnabled(config: UserConfig) {
   return (
     Boolean(config.ai?.open_ai?.api_key) ||
+    Boolean(config.ai?.open_ai?.use_entra_id) ||
     Boolean(config.ai?.anthropic?.api_key) ||
     Boolean(config.ai?.google?.api_key) ||
     Boolean(config.ai?.bedrock?.profile_name)
