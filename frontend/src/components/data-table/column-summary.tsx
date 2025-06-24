@@ -47,8 +47,8 @@ export const TableColumnSummary = <TData, TValue>({
             spec={spec}
             width={70}
             height={30}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            loader={batchedLoader as any}
+            // @ts-expect-error - Our `loader.load` method is broader than VegaLite's typings but is functionally supported.
+            loader={batchedLoader}
             style={{ minWidth: "unset", maxHeight: "40px" }}
             actions={false}
             theme={theme === "dark" ? "dark" : "vox"}

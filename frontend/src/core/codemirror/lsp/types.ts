@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { EditorView } from "@codemirror/view";
 import type { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
 import type { DocumentUri } from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
@@ -30,7 +31,7 @@ export const CellDocumentUri = {
  * Notify is a @protected method on `LanguageServerClient`,
  * hiding public use with TypeScript.
  */
-export function isNotifyingClient(
+export function isClientWithNotify(
   client: ILanguageServerClient,
 ): client is ILanguageServerClient & {
   notify: (
@@ -39,4 +40,16 @@ export function isNotifyingClient(
   ) => void;
 } {
   return "notify" in client;
+}
+
+/**
+ * Plugins are a @private on `LanguageServerClient`,
+ * hiding public use with TypeScript.
+ */
+export function isClientWithPlugins(
+  client: ILanguageServerClient,
+): client is ILanguageServerClient & {
+  plugins: Array<{ documentUri: string; view?: EditorView }>;
+} {
+  return "plugins" in client;
 }

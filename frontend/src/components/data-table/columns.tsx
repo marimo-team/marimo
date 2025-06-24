@@ -68,12 +68,12 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
   // This can be slow for large datasets,
   // so only sample 10 evenly distributed rows
   uniformSample(items, 10).forEach((item) => {
-    if (typeof item !== "object") {
+    if (typeof item !== "object" || item === null) {
       return;
     }
     // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
-    Object.entries(item as object).forEach(([key, value], idx) => {
+    Object.entries(item).forEach(([key, value], idx) => {
       const currentValue = fieldTypes[key];
       if (!currentValue) {
         // Set for the first time
@@ -152,8 +152,7 @@ export function generateColumns<T>({
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
       accessorFn: (row) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (row as any)[key];
+        return row[key as keyof T];
       },
 
       header: ({ column }) => {
