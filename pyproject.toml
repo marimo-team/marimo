@@ -82,23 +82,19 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 marimo_plugin = "marimo._server.lsp"
 
 [project.optional-dependencies]
-sql = [
-    "duckdb>=1.0.0",
-    "polars[pyarrow]>=1.9.0",
-    "sqlglot>=23.4"
-]
+sql = ["duckdb>=1.0.0", "polars[pyarrow]>=1.9.0", "sqlglot>=23.4"]
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
 # This includes the `sql` deps
 recommended = [
-    "duckdb>=1.0.0",            # SQL cells
-    "altair>=5.4.0",            # Plotting in datasource viewer
-    "polars[pyarrow]>=1.9.0",   # SQL output back in Python
-    "sqlglot>=23.4",            # SQL cells parsing
-    "openai>=1.55.3",           # AI features
-    "ruff",                     # Formatting
-    "nbformat>=5.7.0",          # Export as IPYNB
+    "duckdb>=1.0.0",          # SQL cells
+    "altair>=5.4.0",          # Plotting in datasource viewer
+    "polars[pyarrow]>=1.9.0", # SQL output back in Python
+    "sqlglot>=23.4",          # SQL cells parsing
+    "openai>=1.55.3",         # AI features
+    "ruff",                   # Formatting
+    "nbformat>=5.7.0",        # Export as IPYNB
 ]
 
 dev = [
@@ -116,10 +112,7 @@ dev = [
     "openai>=1.55.3",
 ]
 
-lsp = [
-    "python-lsp-server>=1.10.0",
-    "python-lsp-ruff>=2.0.0",
-]
+lsp = ["python-lsp-server>=1.10.0", "python-lsp-ruff>=2.0.0"]
 
 docs = [
     "mkdocs>=1.6.1",
@@ -133,12 +126,17 @@ docs = [
     "mkdocs-macros-plugin>=1.3.7",
     "mkdocs-redirects>=1.2.2",
     "mkdocs-click>=0.8.1",
-    "mike>=2.0.0",  # for versioning
-    "pillow>=10.2.0",  # for social cards
-    "cairosvg>=2.7.1",  # for social cards
+    "mike>=2.0.0",                                      # for versioning
+    "pillow>=10.2.0",                                   # for social cards
+    "cairosvg>=2.7.1",                                  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
 ]
+
+azure-identity = [
+    "azure-identity>=1.12.0", # Azure Identity authentication for OpenAI
+]
+
 
 [tool.hatch]
 installer = "uv"
@@ -151,13 +149,23 @@ path = "marimo/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
+artifacts = [
+    "marimo/_static/",
+    "marimo/_lsp/",
+    "third_party.txt",
+    "third_party_licenses.txt",
+]
 exclude = ["marimo/_smoke_tests"]
 force-include = { "build_hook.py" = "build_hook.py" }
 
 [tool.hatch.build.targets.wheel]
 include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
+artifacts = [
+    "marimo/_static/",
+    "marimo/_lsp/",
+    "third_party.txt",
+    "third_party_licenses.txt",
+]
 exclude = ["marimo/_smoke_tests"]
 force-include = { "build_hook.py" = "build_hook.py" }
 
@@ -206,6 +214,7 @@ dependencies = [
     "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
+    "azure-identity>=1.12.0",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
@@ -291,6 +300,7 @@ extra-dependencies = [
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
+    "azure-identity>=1.12.0",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
@@ -298,9 +308,7 @@ python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 features = ["docs"]
-dependencies = [
-    "marimo_docs @ file://docs",
-]
+dependencies = ["marimo_docs @ file://docs"]
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
@@ -339,17 +347,17 @@ exclude = [
 [tool.ruff.lint]
 preview = true
 ignore = [
-    "G004",   # Logging statement uses f-string
-    "TC001", # Move application import into a type-checking block
-    "TC006", # Add quotes to type expression in typing.cast()
-    "D301",   # Use r""" if any backslashes in a docstring
+    "G004",    # Logging statement uses f-string
+    "TC001",   # Move application import into a type-checking block
+    "TC006",   # Add quotes to type expression in typing.cast()
+    "D301",    # Use r""" if any backslashes in a docstring
     "PERF203", # try-except within a loop incurs performance overhead; not always possible
     "PERF401", # Use {message_str} to create a transformed list; at the cost of readability
     "PERF403", # Use a dictionary comprehension instead of a for-loop; at the cost of readability
     # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
     "E501",  # Line too long, we still trim
-    "D415", # First line should end with a period, question mark, or exclamation point
+    "D415",  # First line should end with a period, question mark, or exclamation point
     "FA102", # Use `from __future__ import annotations`
     "UP007", # Use X | Y for type annotations, not supported in 3.9
     "UP045", # Use X | None for optional type annotations, not supported in 3.9
@@ -402,22 +410,22 @@ extend-select = [
     "PGH004", # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     # "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
-    "B004",   # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
-    "B006",   # Checks for uses of mutable objects as function argument defaults.
-    "B017",   # Checks for pytest.raises context managers that catch Exception or BaseException.
-    "B019",   # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
-    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
-    "T201",   # No print statements
-    "D3",  # pydocstyle Quotes Issues
-    "D4",  # pydocstyle Docstring Content Issues
-    "D207",  # Docstring is under-indented
-    "D208",  # Docstring is over-indented
-    "D210",  # No whitespaces allowed surrounding docstring text
-    "D211",  # No blank lines allowed before class docstring
-    "D214",  # Section is over-indented
-    "D215",  # Section underline is over-indented
+    "B004",    # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
+    "B006",    # Checks for uses of mutable objects as function argument defaults.
+    "B017",    # Checks for pytest.raises context managers that catch Exception or BaseException.
+    "B019",    # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "TRY002",  # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "T201",    # No print statements
+    "D3",      # pydocstyle Quotes Issues
+    "D4",      # pydocstyle Docstring Content Issues
+    "D207",    # Docstring is under-indented
+    "D208",    # Docstring is over-indented
+    "D210",    # No whitespaces allowed surrounding docstring text
+    "D211",    # No blank lines allowed before class docstring
+    "D214",    # Section is over-indented
+    "D215",    # Section underline is over-indented
     "PLW1514", # Unspecified encoding in open()
-    "UP",  # Upgrades
+    "UP",      # Upgrades
 ]
 
 # Never try to fix `F401` (unused imports).
@@ -496,7 +504,7 @@ addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-timeout = 30 # seconds, per test
+timeout = 30                                                                                                       # seconds, per test
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
@@ -519,7 +527,7 @@ extend-exclude = [
     "**/snapshots/*",
     "**/__demo__/*",
     "base64.test.ts",
-    "SECURITY.md", # Contains usernames that trigger typos
+    "SECURITY.md",                 # Contains usernames that trigger typos
 ]
 
 [tool.black]
