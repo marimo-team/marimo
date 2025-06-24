@@ -51,7 +51,7 @@ export function useConfigActions() {
       },
     },
     {
-      label: "Config > Switch keymap to  VIM",
+      label: "Config > Switch keymap to VIM",
       hidden: config.keymap.preset === "vim",
       handle: () => {
         handleUserConfig({
@@ -102,6 +102,32 @@ export function useConfigActions() {
         });
       },
       hidden: config.completion.copilot === "github",
+    },
+    {
+      label: "Config > Disable reference highlighting",
+      hidden: !config.display.reference_highlighting,
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            reference_highlighting: false,
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Enable reference highlighting",
+      hidden: config.display.reference_highlighting,
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            reference_highlighting: true,
+          },
+        });
+      },
     },
   ];
 
