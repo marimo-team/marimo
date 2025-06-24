@@ -13,6 +13,7 @@ const TARGET = `http://${HOST}:${SERVER_PORT}`;
 const isDev = process.env.NODE_ENV === "development";
 const isStorybook = process.env.npm_lifecycle_script?.includes("storybook");
 const isPyodide = process.env.PYODIDE === "true";
+const isIslands = process.env.VITE_MARIMO_ISLANDS === "true";
 
 const htmlDevPlugin = (): Plugin => {
   return {
@@ -252,6 +253,8 @@ export default defineConfig({
       : {},
   },
   define: {
+    // Used when serving local assets in dev mode for islands.
+    "import.meta.env.VITE_MARIMO_ISLANDS": JSON.stringify(isIslands),
     "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
       ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
       : JSON.stringify("latest"),

@@ -172,6 +172,7 @@
     "lint:stylelint": "stylelint src/**/*.css --fix",
     "format": "biome format --write .",
     "preview": "vite preview",
+    "dev:quarto": "VITE_MARIMO_ISLANDS=true vite",
     "dev:islands": "cross-env VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts",
     "build:islands": "cross-env VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",
     "preview:islands": "cross-env VITE_MARIMO_VERSION='0.4.6' VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",

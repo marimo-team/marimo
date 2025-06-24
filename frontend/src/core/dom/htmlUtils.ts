@@ -5,6 +5,7 @@ import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
 import { PyodideRouter } from "../wasm/router";
 import { isWasm } from "../wasm/utils";
+import { isIslands } from "../islands/utils";
 import type { UIElementRegistry } from "./uiregistry";
 
 /**
@@ -50,6 +51,10 @@ export function serializeInitialValue(value: unknown) {
 }
 
 export function getFilenameFromDOM() {
+  // If running in Islands, just return the window title.
+  if (isIslands()) {
+    return document.title || null;
+  }
   // If we are running in WASM, we can get the filename from the URL
   if (isWasm()) {
     const filename = PyodideRouter.getFilename();
