@@ -1481,6 +1481,8 @@ components:
                   type: string
                 ssl_verify:
                   type: boolean
+                use_entra_id:
+                  type: boolean
               type: object
             rules:
               type: string
