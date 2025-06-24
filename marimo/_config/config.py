@@ -177,7 +177,7 @@ class DisplayConfig(TypedDict):
     dataframes: Literal["rich", "plain"]
     custom_css: NotRequired[list[str]]
     default_table_page_size: int
-    reference_highlighting: bool
+    reference_highlighting: NotRequired[bool]
 
 
 @mddoc

@@ -144,7 +144,10 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     // Readonly extension
     dynamicReadonly(store),
     // Reactive references highlighting
-    reactiveReferencesBundle(cellId, displayConfig.reference_highlighting),
+    reactiveReferencesBundle(
+      cellId,
+      displayConfig.reference_highlighting ?? false,
+    ),
   ];
 };
 

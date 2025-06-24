@@ -1607,7 +1607,6 @@ components:
           - default_width
           - dataframes
           - default_table_page_size
-          - reference_highlighting
           type: object
         experimental:
           additionalProperties: {}
