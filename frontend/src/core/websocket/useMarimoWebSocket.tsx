@@ -27,10 +27,8 @@ import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
 import { useSetAppConfig } from "../config/config";
-import {
-  type ConnectionName,
-  useDataSourceActions,
-} from "../datasets/data-source-connections";
+import { useDataSourceActions } from "../datasets/data-source-connections";
+import type { ConnectionName } from "../datasets/engines";
 import {
   PreviewSQLTable,
   PreviewSQLTableList,

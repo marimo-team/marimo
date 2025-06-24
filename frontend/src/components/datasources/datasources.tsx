@@ -29,12 +29,11 @@ import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import {
-  DUCKDB_ENGINE,
   dataConnectionsMapAtom,
-  INTERNAL_SQL_ENGINES,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
+import { DUCKDB_ENGINE, INTERNAL_SQL_ENGINES } from "@/core/datasets/engines";
 import {
   PreviewSQLTable,
   PreviewSQLTableList,

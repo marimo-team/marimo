@@ -3,11 +3,10 @@
 import { PostgreSQL } from "@codemirror/lang-sql";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  type ConnectionName,
-  DUCKDB_ENGINE,
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
+import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import type { DataSourceConnection } from "@/core/kernel/messages";

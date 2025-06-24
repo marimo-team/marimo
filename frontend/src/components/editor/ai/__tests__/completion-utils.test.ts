@@ -1,10 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import {
-  DUCKDB_ENGINE,
-  dataSourceConnectionsAtom,
-} from "@/core/datasets/data-source-connections";
+import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
+import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
