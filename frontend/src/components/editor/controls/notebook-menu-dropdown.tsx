@@ -19,9 +19,22 @@ import { getMarimoVersion } from "@/core/meta/globals";
 import { MinimalShortcut } from "../../shortcuts/renderShortcut";
 import type { ActionButton } from "../actions/types";
 import { useNotebookActions } from "../actions/useNotebookActions";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import type { WebSocketState } from "@/core/websocket/types";
 
-export const NotebookMenuDropdown: React.FC = () => {
+interface Props {
+  connectionState: WebSocketState;
+}
+
+export const NotebookMenuDropdown: React.FC<Props> = ({ connectionState }) => {
   const actions = useNotebookActions();
+  const isDisabled = isAppInteractionDisabled(connectionState);
+  const tooltipContent = isDisabled
+    ? getConnectionTooltip(connectionState)
+    : "Actions";
 
   const button = (
     <Button
@@ -30,9 +43,11 @@ export const NotebookMenuDropdown: React.FC = () => {
       size="small"
       className="h-[27px] w-[27px]"
       data-testid="notebook-menu-dropdown"
-      color="hint-green"
+      color={isDisabled ? "disabled" : "hint-green"}
     >
-      <MenuIcon strokeWidth={1.8} />
+      <Tooltip content={tooltipContent}>
+        <MenuIcon strokeWidth={1.8} />
+      </Tooltip>
     </Button>
   );
 

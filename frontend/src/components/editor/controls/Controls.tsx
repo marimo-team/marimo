@@ -31,13 +31,14 @@ import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
 import { HideInKioskMode } from "../kiosk-mode";
 import { LayoutSelect } from "../renderers/layout-select";
 import { CommandPaletteButton } from "./command-palette-button";
+import { WebSocketState } from "@/core/websocket/types";
 
 interface ControlsProps {
   presenting: boolean;
   onTogglePresenting: () => void;
   onInterrupt: () => void;
   onRun: () => void;
-  closed: boolean;
+  connectionState: WebSocketState;
   running: boolean;
   appConfig: AppConfig;
 }
@@ -47,7 +48,7 @@ export const Controls = ({
   onTogglePresenting,
   onInterrupt,
   onRun,
-  closed,
+  connectionState,
   running,
   appConfig,
 }: ControlsProps): JSX.Element => {
@@ -55,6 +56,7 @@ export const Controls = ({
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
+  const closed = connectionState === WebSocketState.CLOSED;
 
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
@@ -80,9 +82,12 @@ export const Controls = ({
       {!closed && (
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
-          <NotebookMenuDropdown />
-          <ConfigButton />
-          <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
+          <NotebookMenuDropdown connectionState={connectionState} />
+          <ConfigButton connectionState={connectionState} />
+          <ShutdownButton
+            description="This will terminate the Python kernel. You'll lose all data that's in memory."
+            connectionState={connectionState}
+          />
         </div>
       )}
 

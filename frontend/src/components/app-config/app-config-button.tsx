@@ -14,13 +14,27 @@ import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
 import { Tooltip } from "../ui/tooltip";
 import { settingDialogAtom } from "./state";
 import { UserConfigForm } from "./user-config-form";
+import type { WebSocketState } from "@/core/websocket/types";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
 
 interface Props {
   showAppConfig?: boolean;
+  connectionState: WebSocketState;
 }
 
-export const ConfigButton: React.FC<Props> = ({ showAppConfig = true }) => {
+export const ConfigButton: React.FC<Props> = ({
+  showAppConfig = true,
+  connectionState,
+}) => {
   const [settingDialog, setSettingDialog] = useAtom(settingDialogAtom);
+  const isDisabled = isAppInteractionDisabled(connectionState);
+  const tooltipContent = isDisabled
+    ? getConnectionTooltip(connectionState)
+    : "Settings";
+
   const button = (
     <EditorButton
       aria-label="Config"
@@ -28,9 +42,9 @@ export const ConfigButton: React.FC<Props> = ({ showAppConfig = true }) => {
       shape="circle"
       size="small"
       className="h-[27px] w-[27px]"
-      color="hint-green"
+      color={isDisabled ? "disabled" : "hint-green"}
     >
-      <Tooltip content="Settings">
+      <Tooltip content={tooltipContent}>
         <SettingsIcon strokeWidth={1.8} />
       </Tooltip>
     </EditorButton>

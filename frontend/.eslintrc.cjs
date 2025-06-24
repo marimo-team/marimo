@@ -43,7 +43,7 @@ module.exports = {
     "header/header": [
       "error",
       "block",
-      " Copyright 2024 Marimo. All rights reserved. ",
+      " Copyright 2025 Marimo. All rights reserved. ",
     ],
 
     // These rules don't require type information and have autofixes

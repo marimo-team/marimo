@@ -7,8 +7,16 @@ import { useImperativeModal } from "../../modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
 import { Tooltip } from "../../ui/tooltip";
 import { Button } from "../inputs/Inputs";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import { WebSocketState } from "@/core/websocket/types";
 
-export const ShutdownButton: React.FC<{ description: string }> = (props) => {
+export const ShutdownButton: React.FC<{
+  description: string;
+  connectionState: WebSocketState;
+}> = (props) => {
   const { openConfirm, closeModal } = useImperativeModal();
   const handleShutdown = () => {
     sendShutdown();
@@ -22,15 +30,19 @@ export const ShutdownButton: React.FC<{ description: string }> = (props) => {
     return null;
   }
 
+  const isDisabled = isAppInteractionDisabled(connectionState);
+  const tooltipContent = isDisabled ? getConnectionTooltip(connectionState) : "Shutdown";
+
   return (
-    <Tooltip content="Shutdown">
+    <Tooltip content={tooltipContent}>
       <Button
         aria-label="Shutdown"
         data-testid="shutdown-button"
         shape="circle"
         size="small"
-        color="red"
+        color={isDisabled ? "disabled" : "red"}
         className="h-[27px] w-[27px]"
+        disabled={isDisabled}
         onClick={(e) => {
           e.stopPropagation();
           openConfirm({

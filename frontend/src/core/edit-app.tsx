@@ -34,7 +34,6 @@ import { viewStateAtom } from "./mode";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
 import { useJotaiEffect } from "./state/jotai";
-import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 
 interface AppProps {
@@ -177,7 +176,7 @@ export const EditApp: React.FC<AppProps> = ({
             onTogglePresenting={togglePresenting}
             onInterrupt={sendInterrupt}
             onRun={runStaleCells}
-            closed={connection.state === WebSocketState.CLOSED}
+            connectionState={connection.state}
             running={isRunning}
             appConfig={appConfig}
           />
