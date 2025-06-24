@@ -13,6 +13,7 @@
     "@github/copilot-language-server": "^1.322.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.0.5",
     "@sourcegraph/vscode-ws-jsonrpc": "0.0.3-fork",
     "@types/minimist": "^1.2.5",
     "@types/node": "^24.0.0",

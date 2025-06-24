@@ -1,188 +1,101 @@
-import fsSync from "node:fs";
-import fs from "node:fs/promises";
-import type * as http from "node:http";
-import path from "node:path";
-import type * as rpc from "@sourcegraph/vscode-ws-jsonrpc";
-import * as rpcServer from "@sourcegraph/vscode-ws-jsonrpc/lib/server";
+import type { IncomingMessage } from "node:http";
+import type { IWebSocket } from "@sourcegraph/vscode-ws-jsonrpc";
+import { forward } from "@sourcegraph/vscode-ws-jsonrpc/lib/server/connection.js";
+import {
+  createServerProcess,
+  createWebSocketConnection,
+} from "@sourcegraph/vscode-ws-jsonrpc/lib/server/launch.js";
 import parseArgs from "minimist";
-import type ws from "ws";
+import type { WebSocket } from "ws";
 import { WebSocketServer } from "ws";
 
-const LOG_FILE = path.join(
-  process.env.XDG_CACHE_HOME || path.join(process.env.HOME || "", ".cache"),
-  "marimo",
-  "logs",
-  "github-copilot-lsp.log",
-);
+class WebSocketAdapter implements IWebSocket {
+  private webSocket: WebSocket;
 
-let logFileCreated = false;
-
-const appendToFileLog = async (...args: any[]) => {
-  const log = args.join(" ");
-  if (!logFileCreated) {
-    await fs.mkdir(path.dirname(LOG_FILE), { recursive: true });
-    // Clear file on startup
-    await fs.writeFile(LOG_FILE, "");
-    logFileCreated = true;
+  constructor(webSocket: WebSocket) {
+    this.webSocket = webSocket;
   }
-  await fs.appendFile(LOG_FILE, `${log}\n`);
-};
 
-const Logger = {
-  debug: (...args: any[]) => {
-    console.log(...args);
-    void appendToFileLog("[DEBUG]", ...args);
-  },
-  log: (...args: any[]) => {
-    console.log(...args);
-    void appendToFileLog("[INFO]", ...args);
-  },
-  error: (...args: any[]) => {
-    console.error(...args);
-    void appendToFileLog("[ERROR]", ...args);
-  },
-};
+  send(content: string): void {
+    this.webSocket.send(content);
+  }
 
-// Adapted from https://github.com/wylieconlon/jsonrpc-ws-proxy
-const COPILOT_LSP_PATH = path.join(__dirname, "copilot", "language-server.js");
-if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
-  Logger.error("Compilation artifact does not exist. Exiting.");
-  process.exit(1);
-}
+  onMessage(callback: (data: any) => void): void {
+    this.webSocket.onmessage = (event: any) => {
+      callback(event.data);
+    };
+  }
 
-const argv = parseArgs(process.argv.slice(2));
-
-if (argv.help) {
-  Logger.log("Usage: index.js --port 3000");
-  process.exit(0);
-}
-
-const serverPort: number = Number.parseInt(argv.port) || 3000;
-
-const languageServers: Record<string, string[]> = {
-  copilot: ["node", COPILOT_LSP_PATH, "--stdio"],
-};
-
-function toSocket(webSocket: ws): rpc.IWebSocket {
-  return {
-    send: (content) => {
-      try {
-        webSocket.send(content);
-      } catch (error) {
-        Logger.error("Failed to send message:", error);
+  onError(callback: (err: any) => void): void {
+    this.webSocket.onerror = (event: any) => {
+      if ("message" in event) {
+        callback(event.message);
       }
-    },
-    onMessage: (cb) => {
-      webSocket.onmessage = (event) => {
-        try {
-          Logger.debug("Received message:", event.data);
-          cb(event.data);
-        } catch (error) {
-          Logger.error("Error processing message:", error);
-        }
-      };
-    },
-    onError: (cb) => {
-      webSocket.onerror = (event) => {
-        Logger.error("WebSocket error:", event);
-        if ("message" in event) {
-          cb(event.message);
-        }
-      };
-    },
-    onClose: (cb) => {
-      webSocket.onclose = (event) => {
-        Logger.log(
-          `WebSocket closed with code ${event.code}, reason: ${event.reason}`,
-        );
-        cb(event.code, event.reason);
-      };
-    },
-    dispose: () => {
-      try {
-        webSocket.close();
-      } catch (error) {
-        Logger.error("Error closing WebSocket:", error);
-      }
-    },
-  };
-}
+    };
+  }
 
-async function verifyCopilotLSP() {
-  if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
-    Logger.error(
-      `Copilot LSP not found at ${COPILOT_LSP_PATH}. Likely a build error or missing dependencies.`,
-    );
-    process.exit(1);
+  onClose(callback: (code: number, reason: string) => void): void {
+    this.webSocket.onclose = (event: any) => {
+      callback(event.code, event.reason);
+    };
+  }
+
+  dispose(): void {
+    this.webSocket.close();
   }
 }
 
-// Add error handling for WebSocket server creation
-try {
-  const wss = new WebSocketServer(
-    {
-      port: serverPort,
-      perMessageDeflate: false,
-    },
-    () => {
-      Logger.log(`WebSocket server listening on port ${serverPort}`);
-    },
+function handleWebSocketConnection(
+  languageServerCommand: string[],
+  webSocket: WebSocket,
+  _: IncomingMessage,
+) {
+  if (!languageServerCommand) {
+    webSocket.close();
+    return;
+  }
+
+  const jsonRpcConnection = createServerProcess(
+    languageServerCommand.join(" "),
+    languageServerCommand[0],
+    languageServerCommand.slice(1),
   );
 
-  wss.on("error", (error) => {
-    Logger.error("WebSocket server error:", error);
+  const socket = new WebSocketAdapter(webSocket);
+  const connection = createWebSocketConnection(socket);
+  forward(connection, jsonRpcConnection);
+
+  socket.onClose(() => {
+    jsonRpcConnection.dispose();
+    connection.dispose();
   });
 
-  wss.on("connection", (client: ws, request: http.IncomingMessage) => {
-    Logger.log(`New connection from ${request.socket.remoteAddress}`);
-
-    void verifyCopilotLSP();
-
-    let langServer: string[] | undefined;
-
-    Object.keys(languageServers).forEach((key) => {
-      if (request.url === `/${key}`) {
-        langServer = languageServers[key];
-        Logger.log(`Matched language server: ${key}`);
-      }
-    });
-
-    if (!langServer || !langServer.length) {
-      Logger.error(`Invalid language server requested: ${request.url}`);
-      client.close();
-      return;
-    }
-
-    try {
-      const localConnection = rpcServer.createServerProcess(
-        "local",
-        langServer[0],
-        langServer.slice(1),
-      );
-      Logger.log(`Created language server process: ${langServer.join(" ")}`);
-
-      const socket = toSocket(client);
-      const connection = rpcServer.createWebSocketConnection(socket);
-
-      rpcServer.forward(connection, localConnection);
-      Logger.log("Forwarding new client connection");
-
-      socket.onClose((code, reason) => {
-        Logger.log(
-          `Client connection closed - Code: ${code}, Reason: ${reason}`,
-        );
-        try {
-          localConnection.dispose();
-        } catch (error) {
-          Logger.error("Error disposing local connection:", error);
-        }
-      });
-    } catch (error) {
-      Logger.error("Failed to establish language server connection:", error);
-      client.close();
-    }
+  connection.onClose(() => {
+    jsonRpcConnection.dispose();
+    socket.dispose();
   });
-} catch (error) {
-  Logger.error("[FATAL] Failed to start WebSocket server:", error);
-  process.exit(1);
 }
+
+function startWebSocketServer(
+  port: number,
+  languageServerCommand: string[],
+): void {
+  const webSocketServer = new WebSocketServer({
+    port,
+    perMessageDeflate: false,
+  });
+
+  webSocketServer.on("connection", (webSocket, request) =>
+    handleWebSocketConnection(languageServerCommand, webSocket, request),
+  );
+}
+
+async function main(): Promise<void> {
+  const argv = parseArgs(process.argv.slice(2));
+  const serverPort = Number.parseInt(argv.port) || 3000;
+  const languageServerCommand = argv.lsp.split(" ");
+
+  startWebSocketServer(serverPort, languageServerCommand);
+}
+
+void main();

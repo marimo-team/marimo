@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import subprocess
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
@@ -150,22 +151,29 @@ class CopilotLspServer(BaseLspServer):
             "node.js binary is missing. Install node at https://nodejs.org/."
         )
 
-    def _lsp_bin(self) -> str:
-        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
-        return str(lsp_bin)
+    def _lsp_dir(self) -> Path:
+        lsp_dir = marimo_package_path() / "_lsp"
+        return Path(lsp_dir)
 
     def get_command(self) -> list[str]:
-        lsp_bin = self._lsp_bin()
+        lsp_dir = self._lsp_dir()
+        lsp_bin = lsp_dir / "index.cjs"
+        copilot_bin = lsp_dir / "copilot" / "language-server.js"
         # Check if the LSP binary exists
         if not os.path.exists(lsp_bin):
             # Only debug since this may not exist in conda environments
             LOGGER.debug("LSP binary not found at %s", lsp_bin)
             return []
+
         return [
             "node",
             lsp_bin,
             "--port",
             str(self.port),
+            "--lsp",
+            "node",
+            copilot_bin,
+            "--stdio",
         ]
 
     def missing_binary_alert(self) -> Alert:
