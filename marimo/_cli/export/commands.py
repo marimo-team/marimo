@@ -40,7 +40,12 @@ _sandbox_message = (
 )
 
 
-@click.group(help="""Export a notebook to various formats.""")
+@click.group(help="""Export a notebook to various formats.
+
+Use the global -y/--yes flag to automatically confirm file overwrites:
+
+    marimo -y export html notebook.py -o notebook.html
+""")
 def export() -> None:
     pass
 
@@ -107,12 +112,14 @@ def watch_and_export(
 @click.command(
     help="""Run a notebook and export it as an HTML file.
 
-Example:
+Examples:
 
     marimo export html notebook.py -o notebook.html
 
-Optionally pass CLI args to the notebook:
+    # Automatically overwrite existing files (useful for CI/CD):
+    marimo -y export html notebook.py -o notebook.html
 
+    # Pass CLI args to the notebook:
     marimo export html notebook.py -o notebook.html -- -arg1 foo -arg2 bar
 """
 )
@@ -196,12 +203,14 @@ def html(
     help="""
 Export a marimo notebook as a flat script, in topological order.
 
-Example:
+Examples:
 
     marimo export script notebook.py -o notebook.script.py
 
-Watch for changes and regenerate the script on modification:
+    # Automatically overwrite existing files (useful for CI/CD):
+    marimo -y export script notebook.py -o notebook.script.py
 
+    # Watch for changes and regenerate the script on modification:
     marimo export script notebook.py -o notebook.script.py --watch
 """
 )
@@ -268,12 +277,14 @@ def script(
     help="""
 Export a marimo notebook as a code fenced Markdown file.
 
-Example:
+Examples:
 
     marimo export md notebook.py -o notebook.md
 
-Watch for changes and regenerate the script on modification:
+    # Automatically overwrite existing files (useful for CI/CD):
+    marimo -y export md notebook.py -o notebook.md
 
+    # Watch for changes and regenerate the script on modification:
     marimo export md notebook.py -o notebook.md --watch
 """
 )
@@ -340,12 +351,14 @@ def md(
     help="""
 Export a marimo notebook as a Jupyter notebook in topological order.
 
-Example:
+Examples:
 
     marimo export ipynb notebook.py -o notebook.ipynb
 
-Watch for changes and regenerate the script on modification:
+    # Automatically overwrite existing files (useful for CI/CD):
+    marimo -y export ipynb notebook.py -o notebook.ipynb
 
+    # Watch for changes and regenerate the script on modification:
     marimo export ipynb notebook.py -o notebook.ipynb --watch
 
 Requires nbformat to be installed.
@@ -447,9 +460,12 @@ def ipynb(
 @click.command(
     help="""Export a notebook as a WASM-powered standalone HTML file.
 
-Example:
+Examples:
 
     marimo export html-wasm notebook.py -o notebook.wasm.html
+
+    # Automatically overwrite existing files (useful for CI/CD):
+    marimo -y export html-wasm notebook.py -o notebook.wasm.html
 
 The exported HTML file will run the notebook using WebAssembly, making it
 completely self-contained and executable in the browser. This lets you
