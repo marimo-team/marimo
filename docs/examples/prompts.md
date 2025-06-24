@@ -4,7 +4,7 @@ You can add these prompts to your [custom rules](/guides/editor_features/ai_comp
 
 ## Anywidget
 
-If you want to generate [custom UIs or widgets for marimo](/api/inputs/anywidget/?h=anywidget#building-custom-ui-elements) then anywidget is the way to go. Because anywidget is a fairly revent project, LLMs have been known to hallucinate when you try to generate custom widgets from scratch. The following prompt contains an example that helps prevent this behaviour and it also points out common failure scenarios that the LLM shoudl avoid. 
+If you want to generate [custom UIs or widgets for marimo](/api/inputs/anywidget/?h=anywidget#building-custom-ui-elements) then anywidget is the way to go. Because anywidget is a fairly revent project, LLMs have been known to hallucinate when you try to generate custom widgets from scratch. The following prompt contains an example that helps prevent this behaviour and it also points out common failure scenarios that the LLM should avoid. 
 
 ```
 When writing an anywidget use vanilla javascript in `_esm` and do not forget about `_css`. The css should look bespoke in light mode and dark mode. Keep the css small unless explicitly asked to go the extra mile. When you display the widget it must be wrapped via `widget = mo.ui.anywidget(OriginalAnywidget())`. 
