@@ -5,7 +5,7 @@ import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 
 /**
  * Atom for storing the connection status.
- * Initialized to CONNECTING.
+ * Initialized to CONNECTING for normal mode, OPEN for static mode.
  */
 export const connectionAtom = atom<ConnectionStatus>({
   state: WebSocketState.CONNECTING,
