@@ -49,7 +49,7 @@ function handleWebSocketConnection(
   languageServerCommand: string[],
   webSocket: WebSocket,
   _: IncomingMessage,
-) {
+): void {
   if (!languageServerCommand) {
     webSocket.close();
     return;
@@ -90,7 +90,7 @@ function startWebSocketServer(
   );
 }
 
-async function main(): Promise<void> {
+function main(): void {
   const argv = parseArgs(process.argv.slice(2));
   const serverPort = Number.parseInt(argv.port) || 3000;
   const languageServerCommand = argv.lsp.split(" ");
@@ -98,4 +98,4 @@ async function main(): Promise<void> {
   startWebSocketServer(serverPort, languageServerCommand);
 }
 
-void main();
+main();
