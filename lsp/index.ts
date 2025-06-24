@@ -6,7 +6,7 @@ import {
   createWebSocketConnection,
 } from "@sourcegraph/vscode-ws-jsonrpc/lib/server/launch.js";
 import parseArgs from "minimist";
-import type { WebSocket } from "ws";
+import type { CloseEvent, Data, ErrorEvent, MessageEvent, WebSocket } from "ws";
 import { WebSocketServer } from "ws";
 
 class WebSocketAdapter implements IWebSocket {
@@ -20,14 +20,14 @@ class WebSocketAdapter implements IWebSocket {
     this.webSocket.send(content);
   }
 
-  onMessage(callback: (data: any) => void): void {
-    this.webSocket.onmessage = (event: any) => {
+  onMessage(callback: (data: Data) => void): void {
+    this.webSocket.onmessage = (event: MessageEvent) => {
       callback(event.data);
     };
   }
 
-  onError(callback: (err: any) => void): void {
-    this.webSocket.onerror = (event: any) => {
+  onError(callback: (message: string) => void): void {
+    this.webSocket.onerror = (event: ErrorEvent) => {
       if ("message" in event) {
         callback(event.message);
       }
@@ -35,7 +35,7 @@ class WebSocketAdapter implements IWebSocket {
   }
 
   onClose(callback: (code: number, reason: string) => void): void {
-    this.webSocket.onclose = (event: any) => {
+    this.webSocket.onclose = (event: CloseEvent) => {
       callback(event.code, event.reason);
     };
   }
