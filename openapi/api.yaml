@@ -1637,6 +1637,13 @@ components:
           - browser
           - follow_symlink
           type: object
+        sharing:
+          properties:
+            enabled:
+              type: boolean
+          required:
+          - enabled
+          type: object
         snippets:
           properties:
             custom_paths:
