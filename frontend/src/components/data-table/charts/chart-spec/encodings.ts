@@ -42,10 +42,10 @@ export function getBinEncoding(
   }
 
   const binParams: BinParams = {};
-  if (binValues.step) {
+  if (binValues.step !== undefined) {
     binParams.step = binValues.step;
   }
-  if (binValues.maxbins) {
+  if (binValues.maxbins !== undefined) {
     binParams.maxbins = binValues.maxbins;
   }
 

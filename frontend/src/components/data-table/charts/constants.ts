@@ -29,6 +29,7 @@ import type {
 
 export const COUNT_FIELD = "__count__";
 export const DEFAULT_COLOR_SCHEME = "default";
+export const DEFAULT_TIME_UNIT = "yearmonthdate";
 
 // Set a field to this to reflect that it is not set
 export const EMPTY_VALUE = "";

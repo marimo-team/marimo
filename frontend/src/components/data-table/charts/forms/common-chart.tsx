@@ -164,7 +164,10 @@ export const OtherOptions: React.FC = () => {
           <Title text="Tooltips" />
         </AccordionFormTrigger>
         <AccordionFormContent wrapperClassName="flex-row justify-between">
-          <BooleanField fieldName="tooltips.auto" label="Auto" />
+          <BooleanField
+            fieldName="tooltips.auto"
+            label="Include X, Y and Color"
+          />
           {!autoTooltips && (
             <TooltipSelect
               fieldName="tooltips.fields"

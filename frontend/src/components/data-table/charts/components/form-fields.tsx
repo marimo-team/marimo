@@ -41,6 +41,7 @@ import {
   AGGREGATION_TYPE_DESCRIPTIONS,
   AGGREGATION_TYPE_ICON,
   COUNT_FIELD,
+  DEFAULT_TIME_UNIT,
   EMPTY_VALUE,
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
@@ -510,46 +511,48 @@ export const TimeUnitSelect = ({
     <FormField
       control={form.control}
       name={fieldName}
-      render={({ field }) => (
-        <FormItem className="flex flex-row items-center justify-between w-full">
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Select
-              {...field}
-              onValueChange={(value) => {
-                if (value === CLEAR_VALUE) {
-                  clear();
-                } else {
-                  field.onChange(value);
-                }
-              }}
-              value={field.value}
-            >
-              <SelectTrigger onClear={field.value ? clear : undefined}>
-                <SelectValue placeholder="Select unit" />
-              </SelectTrigger>
-              <SelectContent className="w-72">
-                {field.value && (
-                  <>
-                    <SelectItem value={CLEAR_VALUE}>
-                      <div className="flex items-center truncate">
-                        <XIcon className="w-3 h-3 mr-2" />
-                        Clear
-                      </div>
-                    </SelectItem>
+      render={({ field }) => {
+        return (
+          <FormItem className="flex flex-row items-center justify-between w-full">
+            <FormLabel>{label}</FormLabel>
+            <FormControl>
+              <Select
+                {...field}
+                onValueChange={(value) => {
+                  if (value === CLEAR_VALUE) {
+                    clear();
+                  } else {
+                    field.onChange(value);
+                  }
+                }}
+                value={field.value ?? DEFAULT_TIME_UNIT}
+              >
+                <SelectTrigger onClear={field.value ? clear : undefined}>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent className="w-72">
+                  {field.value && (
+                    <>
+                      <SelectItem value={CLEAR_VALUE}>
+                        <div className="flex items-center truncate">
+                          <XIcon className="w-3 h-3 mr-2" />
+                          Clear
+                        </div>
+                      </SelectItem>
+                      <SelectSeparator />
+                    </>
+                  )}
+                  <SelectGroup>
+                    {COMBINED_TIME_UNITS.map(renderTimeUnit)}
                     <SelectSeparator />
-                  </>
-                )}
-                <SelectGroup>
-                  {COMBINED_TIME_UNITS.map(renderTimeUnit)}
-                  <SelectSeparator />
-                  {SINGLE_TIME_UNITS.map(renderTimeUnit)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FormControl>
-        </FormItem>
-      )}
+                    {SINGLE_TIME_UNITS.map(renderTimeUnit)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FormControl>
+          </FormItem>
+        );
+      }}
     />
   );
 };

@@ -13,7 +13,12 @@ import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
 import type { z } from "zod";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
-import { COUNT_FIELD, DEFAULT_AGGREGATION, EMPTY_VALUE } from "../constants";
+import {
+  COUNT_FIELD,
+  DEFAULT_AGGREGATION,
+  DEFAULT_TIME_UNIT,
+  EMPTY_VALUE,
+} from "../constants";
 import type {
   AxisSchema,
   BinSchema,
@@ -170,6 +175,7 @@ export function getAxisEncoding(
       selectedDataType,
       defaultAggregate,
     ),
+    sort: column.sort,
     timeUnit: getTimeUnit(column),
   };
 }
@@ -282,7 +288,7 @@ function getFieldLabel(label?: string): string | undefined {
 
 function getTimeUnit(column: z.infer<typeof AxisSchema>) {
   if (column.selectedDataType === "temporal") {
-    return column.timeUnit;
+    return column.timeUnit ?? DEFAULT_TIME_UNIT;
   }
   return undefined;
 }

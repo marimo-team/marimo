@@ -2,7 +2,11 @@
 
 import type { PositionDef } from "vega-lite/build/src/channeldef";
 import { describe, expect, it } from "vitest";
-import { getColorEncoding } from "../chart-spec/encodings";
+import {
+  getAggregate,
+  getBinEncoding,
+  getColorEncoding,
+} from "../chart-spec/encodings";
 import { getAxisEncoding } from "../chart-spec/spec";
 import { getTooltips } from "../chart-spec/tooltips";
 import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
@@ -188,6 +192,25 @@ describe("getAxisEncoding", () => {
 
       const expectedAggregate = (result as { aggregate?: string }).aggregate;
       expect(expectedAggregate).toBeUndefined();
+    }
+  });
+
+  it("should return correct encoding for sorted data", () => {
+    for (const sort of ["ascending", "descending", undefined]) {
+      const result = getAxisEncoding(
+        {
+          field: "value",
+          selectedDataType: "number",
+          sort: sort as "ascending" | "descending" | undefined,
+        },
+        undefined,
+        "Value",
+        false,
+        ChartType.BAR,
+      );
+
+      const expectedSort = (result as { sort?: string }).sort;
+      expect(expectedSort).toEqual(sort);
     }
   });
 });
@@ -671,5 +694,138 @@ describe("getColorEncoding", () => {
       aggregate: undefined, // sum is not valid for strings
       bin: undefined,
     });
+  });
+});
+
+describe("getAggregate", () => {
+  it("should return undefined for temporal data types", () => {
+    const result = getAggregate("sum", "temporal");
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined for NONE_VALUE", () => {
+    const result = getAggregate("none", "number");
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined for BIN_AGGREGATION", () => {
+    const result = getAggregate("bin", "number");
+    expect(result).toBeUndefined();
+  });
+
+  it("should return defaultAggregate when aggregate is undefined", () => {
+    const result = getAggregate(undefined, "number", "mean");
+    expect(result).toEqual("mean");
+  });
+
+  it("should return undefined when aggregate is undefined and no default", () => {
+    const result = getAggregate(undefined, "number");
+    expect(result).toBeUndefined();
+  });
+
+  it("should return valid string aggregation for string data types", () => {
+    const result = getAggregate("count", "string");
+    expect(result).toEqual("count");
+  });
+
+  it("should return undefined for invalid string aggregation", () => {
+    const result = getAggregate("sum", "string");
+    expect(result).toBeUndefined();
+  });
+
+  it("should return aggregate for numeric data types", () => {
+    const result = getAggregate("sum", "number");
+    expect(result).toEqual("sum");
+  });
+});
+
+describe("getBinEncoding", () => {
+  it("should return maxbins for HEATMAP chart type", () => {
+    const result = getBinEncoding(ChartType.HEATMAP, "number", {
+      binned: false,
+      maxbins: 10,
+    });
+    expect(result).toEqual({ maxbins: 10 });
+  });
+
+  it("should return undefined for HEATMAP without maxbins", () => {
+    const result = getBinEncoding(ChartType.HEATMAP, "number", {
+      binned: false,
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined when not binned", () => {
+    const result = getBinEncoding(ChartType.BAR, "number", {
+      binned: false,
+      step: 5,
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined for non-numeric data types", () => {
+    const result = getBinEncoding(ChartType.BAR, "string", {
+      binned: true,
+      step: 5,
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it("should return true when binned with no parameters", () => {
+    const result = getBinEncoding(ChartType.BAR, "number", {
+      binned: true,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("should return step parameter when provided", () => {
+    const result = getBinEncoding(ChartType.BAR, "number", {
+      binned: true,
+      step: 5,
+    });
+    expect(result).toEqual({ step: 5 });
+  });
+
+  it("should return maxbins parameter when provided", () => {
+    const result = getBinEncoding(ChartType.BAR, "number", {
+      binned: true,
+      maxbins: 20,
+    });
+    expect(result).toEqual({ maxbins: 20 });
+  });
+
+  it("should return both step and maxbins when both provided", () => {
+    const result = getBinEncoding(ChartType.BAR, "number", {
+      binned: true,
+      step: 5,
+      maxbins: 20,
+    });
+    expect(result).toEqual({ step: 5, maxbins: 20 });
+  });
+
+  it("should return undefined when binValues is undefined", () => {
+    const result = getBinEncoding(ChartType.BAR, "number");
+    expect(result).toBeUndefined();
+  });
+
+  it("should handle zero values for step and maxbins", () => {
+    const result = getBinEncoding(ChartType.BAR, "number", {
+      binned: true,
+      step: 0,
+      maxbins: 0,
+    });
+    expect(result).toEqual({ step: 0, maxbins: 0 });
+  });
+
+  it("should work with different chart types", () => {
+    const chartTypes = [ChartType.BAR, ChartType.LINE, ChartType.SCATTER];
+
+    for (const chartType of chartTypes) {
+      const result = getBinEncoding(chartType, "number", {
+        binned: true,
+        step: 10,
+      });
+      expect(result).toEqual({ step: 10 });
+    }
   });
 });
