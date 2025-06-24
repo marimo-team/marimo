@@ -92,6 +92,12 @@ function startWebSocketServer(
 
 function main(): void {
   const argv = parseArgs(process.argv.slice(2));
+
+  if (argv.help) {
+    console.log('Usage: node index.cjs --lsp "<command>" [--port <port>]');
+    return;
+  }
+
   const serverPort = Number.parseInt(argv.port) || 3000;
   const languageServerCommand = argv.lsp.split(" ");
 
