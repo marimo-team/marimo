@@ -187,8 +187,8 @@ Options:
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
 - `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
 
-Note that WebAssembly notebooks have [limitations](../wasm.md#limitations); in particular,
-[many but not all packages work](../wasm.md#packages).
+Note that WebAssembly notebooks have [limitations](../wasm/#limitations); in particular,
+[many but not all packages work](../wasm/#packages).
 
 !!! note "Note"
 
