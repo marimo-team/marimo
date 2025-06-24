@@ -1,6 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from marimo._runtime.runtime import Kernel
-from marimo._runtime.state import StateRegistry, State
+from marimo._runtime.state import State, StateRegistry
 from tests.conftest import ExecReqProvider
 
 
