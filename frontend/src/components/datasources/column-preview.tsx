@@ -139,7 +139,7 @@ export function renderPreviewError(
   missing_packages?: string[] | null,
 ) {
   return (
-    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center justify-between">
+    <div className="text-xs text-muted-foreground p-2 border border-border rounded flex items-center justify-between">
       <span>{error}</span>
       {missing_packages && (
         <InstallPackageButton

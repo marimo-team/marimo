@@ -78,7 +78,7 @@ export const ColumnExplorerPanel = ({
           className="h-3 w-3 ml-1 mt-0.5"
         />
       </span>
-      <Command className="h-5/6" shouldFilter={false}>
+      <Command className="h-5/6 bg-background" shouldFilter={false}>
         <CommandInput
           placeholder="Search columns..."
           value={searchValue}
