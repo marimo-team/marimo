@@ -551,9 +551,11 @@ class Runner:
     ) -> tuple[str, Optional[CellId_t]]:
         ref = e.ref
         blamed_cell = None
-        try:
-            (blamed_cell, *_) = self.graph.get_defining_cells(ref)
-        except KeyError:
+
+        definitions = self.graph.get_defining_cells(ref)
+        if definitions:
+            (blamed_cell, *_) = definitions
+        else:
             # The reference is not found anywhere else in the graph
             # but it might be private
             ref, var_cell_id = unmangle_local(ref)
