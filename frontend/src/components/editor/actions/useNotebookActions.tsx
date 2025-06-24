@@ -56,6 +56,7 @@ import {
 } from "@/core/cells/cells";
 import { disabledCellIds, enabledCellIds } from "@/core/cells/utils";
 import { Constants } from "@/core/constants";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
@@ -99,6 +100,7 @@ export function useNotebookActions() {
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
+  const [resolvedConfig] = useResolvedMarimoConfig();
 
   const {
     updateCellConfig,
@@ -133,6 +135,7 @@ export function useNotebookActions() {
       icon: <Share2Icon size={14} strokeWidth={1.5} />,
       label: "Share",
       handle: NOOP_HANDLER,
+      hidden: !resolvedConfig.sharing?.enabled,
       dropdown: [
         {
           icon: <GlobeIcon size={14} strokeWidth={1.5} />,
