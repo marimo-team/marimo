@@ -1,7 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -160,20 +159,18 @@ class CopilotLspServer(BaseLspServer):
         lsp_bin = lsp_dir / "index.cjs"
         copilot_bin = lsp_dir / "copilot" / "language-server.js"
         # Check if the LSP binary exists
-        if not os.path.exists(lsp_bin):
+        if not lsp_bin.exists():
             # Only debug since this may not exist in conda environments
             LOGGER.debug("LSP binary not found at %s", lsp_bin)
             return []
 
         return [
             "node",
-            lsp_bin,
+            str(lsp_bin),
             "--port",
             str(self.port),
             "--lsp",
-            "node",
-            copilot_bin,
-            "--stdio",
+            f"node {copilot_bin} --stdio",
         ]
 
     def missing_binary_alert(self) -> Alert:
