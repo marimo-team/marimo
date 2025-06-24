@@ -2,9 +2,10 @@
 
 import type { PositionDef } from "vega-lite/build/src/channeldef";
 import { describe, expect, it } from "vitest";
+import { getColorEncoding } from "../chart-spec/encodings";
 import { getAxisEncoding } from "../chart-spec/spec";
 import { getTooltips } from "../chart-spec/tooltips";
-import { COUNT_FIELD } from "../constants";
+import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
 import type { ChartSchemaType } from "../schemas";
 import {
   AGGREGATION_FNS,
@@ -394,5 +395,281 @@ describe("getTooltips", () => {
         aggregate: "count",
       },
     ]);
+  });
+});
+
+describe("getColorEncoding", () => {
+  it("should return undefined for pie charts", () => {
+    const result = getColorEncoding(ChartType.PIE, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: { field: "Color", type: "string" as const },
+      },
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined when no color field is set", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+      },
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined when color field is NONE_VALUE", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: { field: NONE_VALUE, type: "string" as const },
+      },
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined when color field is empty string", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: { field: EMPTY_VALUE, type: "string" as const },
+      },
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should return count encoding for COUNT_FIELD", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: { field: COUNT_FIELD, type: "number" as const },
+      },
+    });
+
+    expect(result).toEqual({
+      aggregate: "count",
+      type: "quantitative",
+    });
+  });
+
+  it("should use colorByColumn when set", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: {
+          field: "category",
+          type: "string" as const,
+          selectedDataType: "string",
+          aggregate: "count" as const,
+        },
+      },
+      color: {
+        field: "Color",
+        scheme: "category10",
+      },
+    });
+
+    expect(result).toEqual({
+      field: "category",
+      type: "nominal",
+      scale: { scheme: "category10" },
+      aggregate: "count",
+      bin: undefined,
+    });
+  });
+
+  it("should use xColumn when color field matches xColumn field", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: {
+          field: "category",
+          type: "string" as const,
+          selectedDataType: "string",
+        },
+        yColumn: { field: "y", type: "number" as const },
+      },
+      color: {
+        field: "X",
+        scheme: "category10",
+      },
+    });
+
+    expect(result).toEqual({
+      field: "category",
+      type: "nominal",
+      scale: { scheme: "category10" },
+      aggregate: undefined,
+      bin: undefined,
+    });
+  });
+
+  it("should use yColumn when color field matches yColumn field", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" },
+        yColumn: {
+          field: "value",
+          type: "number",
+          selectedDataType: "number",
+          aggregate: "sum",
+        },
+      },
+      color: {
+        field: "Y",
+        scheme: "viridis",
+      },
+    });
+
+    expect(result).toEqual({
+      field: "value",
+      type: "quantitative",
+      scale: { scheme: "viridis" },
+      aggregate: "sum",
+      bin: undefined,
+    });
+  });
+
+  it("should return undefined when color field doesn't match any column", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+      },
+      color: {
+        field: "Color",
+        scheme: "category10",
+      },
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should handle bin encoding for numeric data", () => {
+    const result = getColorEncoding(ChartType.HEATMAP, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: {
+          field: "value",
+          type: "number" as const,
+          selectedDataType: "number",
+        },
+      },
+      color: {
+        bin: { maxbins: 10 },
+      },
+    });
+
+    expect(result).toEqual({
+      field: "value",
+      type: "quantitative",
+      scale: undefined,
+      aggregate: undefined,
+      bin: { maxbins: 10 },
+    });
+  });
+
+  it("should handle color range instead of scheme", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: {
+          field: "category",
+          type: "string" as const,
+          selectedDataType: "string",
+        },
+      },
+      color: {
+        range: ["red", "blue", "green"],
+      },
+    });
+
+    expect(result).toEqual({
+      field: "category",
+      type: "nominal",
+      scale: { range: ["red", "blue", "green"] },
+      aggregate: undefined,
+      bin: undefined,
+    });
+  });
+
+  it("should handle temporal data types", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: {
+          field: "date",
+          type: "datetime" as const,
+          selectedDataType: "temporal",
+          aggregate: "sum" as const,
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      field: "date",
+      type: "temporal",
+      scale: undefined,
+      aggregate: undefined, // temporal data types don't support aggregation
+      bin: undefined,
+    });
+  });
+
+  it("should handle string aggregation functions", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: {
+          field: "category",
+          type: "string" as const,
+          selectedDataType: "string",
+          aggregate: "count" as const,
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      field: "category",
+      type: "nominal",
+      scale: undefined,
+      aggregate: "count",
+      bin: undefined,
+    });
+  });
+
+  it("should return undefined for invalid string aggregation", () => {
+    const result = getColorEncoding(ChartType.BAR, {
+      general: {
+        xColumn: { field: "x", type: "string" as const },
+        yColumn: { field: "y", type: "number" as const },
+        colorByColumn: {
+          field: "category",
+          type: "string" as const,
+          selectedDataType: "string",
+          aggregate: "sum" as const, // sum is not valid for strings
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      field: "category",
+      type: "nominal",
+      scale: undefined,
+      aggregate: undefined, // sum is not valid for strings
+      bin: undefined,
+    });
   });
 });

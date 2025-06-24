@@ -6,7 +6,7 @@ import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
 import type { Scale } from "vega-lite/build/src/scale";
 import type { z } from "zod";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME } from "../constants";
-import type { BinSchema, ChartSchemaType } from "../schemas";
+import type { AxisSchema, BinSchema, ChartSchemaType } from "../schemas";
 import {
   type AggregationFn,
   BIN_AGGREGATION,
@@ -77,19 +77,36 @@ export function getColorEncoding(
   if (chartType === ChartType.PIE) {
     return undefined;
   }
-  const colorColumn = formValues.color?.field;
-  if (!colorColumn || colorColumn === NONE_VALUE) {
+
+  // Choose colorByColumn if it's set, otherwise use color.field
+  // Color.field can be used to set colour scheme of the charts
+  let colorByColumn: z.infer<typeof AxisSchema> | undefined;
+  if (isFieldSet(formValues.general?.colorByColumn?.field)) {
+    colorByColumn = formValues.general?.colorByColumn;
+  } else if (isFieldSet(formValues.color?.field)) {
+    const field = formValues.color?.field;
+    switch (field) {
+      case "X":
+        colorByColumn = formValues.general?.xColumn;
+        break;
+      case "Y":
+        colorByColumn = formValues.general?.yColumn;
+        break;
+      case "Color":
+        colorByColumn = formValues.general?.colorByColumn;
+        break;
+      default:
+        return undefined;
+    }
+  } else {
     return undefined;
   }
 
-  const columnMap = {
-    X: formValues.general?.xColumn,
-    Y: formValues.general?.yColumn,
-    Color: formValues.general?.colorByColumn,
-  };
-
-  const colorByColumn = columnMap[colorColumn as keyof typeof columnMap];
-  if (!colorByColumn || !isFieldSet(colorByColumn.field)) {
+  if (
+    !colorByColumn ||
+    !isFieldSet(colorByColumn.field) ||
+    colorByColumn.field === NONE_VALUE
+  ) {
     return undefined;
   }
 
@@ -102,7 +119,7 @@ export function getColorEncoding(
 
   const colorBin = formValues.color?.bin;
   const selectedDataType = colorByColumn.selectedDataType || "string";
-  const aggregate = formValues.general?.colorByColumn?.aggregate;
+  const aggregate = colorByColumn?.aggregate;
 
   return {
     field: colorByColumn.field,
