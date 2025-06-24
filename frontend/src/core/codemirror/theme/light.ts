@@ -46,7 +46,7 @@ export const lightTheme = [
   }),
   EditorView.theme({
     ".cm-reactive-variable": {
-      fontWeight: "500",
+      fontWeight: "400",
       color: "#005f87",
       borderBottom: "2px solid #bad3de",
     },
