@@ -40,7 +40,6 @@ export default defineConfig({
     "process.env": {
       NODE_ENV: JSON.stringify(process.env.NODE_ENV),
     },
-    "import.meta.env.VITE_MARIMO_ISLANDS": JSON.stringify(true),
     // Precedence: VITE_MARIMO_VERSION > package.json version > "latest"
     "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
       ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
