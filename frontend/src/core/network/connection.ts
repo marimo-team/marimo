@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
 import { waitFor } from "../state/jotai";
-import { isStaticNotebook } from "../static/static-state";
 import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 
 /**
@@ -9,7 +8,7 @@ import { type ConnectionStatus, WebSocketState } from "../websocket/types";
  * Initialized to CONNECTING for normal mode, OPEN for static mode.
  */
 export const connectionAtom = atom<ConnectionStatus>({
-  state: isStaticNotebook() ? WebSocketState.OPEN : WebSocketState.CONNECTING,
+  state: WebSocketState.CONNECTING,
 });
 
 export function waitForConnectionOpen() {
