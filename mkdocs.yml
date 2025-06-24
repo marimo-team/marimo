@@ -170,6 +170,7 @@ nav:
   - Examples:
       - Examples: examples/index.md
       - Recipes: recipes.md
+      - Prompts: examples/prompts.md
   - API Reference:
       - API Reference: api/index.md
       - Markdown: api/markdown.md
