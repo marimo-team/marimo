@@ -114,6 +114,7 @@ class AnyProviderConfig:
     ca_bundle_path: Optional[str] = None
     client_pem: Optional[str] = None
     tools: list[Tool] = field(default_factory=list)
+    use_entra_id: bool = False
 
     @staticmethod
     def for_openai(config: AiConfig) -> AnyProviderConfig:
@@ -122,15 +123,18 @@ class AnyProviderConfig:
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="OpenAI config not found",
             )
+
         key = _get_key(config["open_ai"], "OpenAI")
-        return AnyProviderConfig(
+        result = AnyProviderConfig(
             base_url=_get_base_url(config["open_ai"]),
             api_key=key,
             ssl_verify=config["open_ai"].get("ssl_verify", True),
             ca_bundle_path=config["open_ai"].get("ca_bundle_path", None),
             client_pem=config["open_ai"].get("client_pem", None),
             tools=_get_tools(config.get("mode", "manual")),
+            use_entra_id=config["open_ai"].get("use_entra_id", False),
         )
+        return result
 
     @staticmethod
     def for_anthropic(config: AiConfig) -> AnyProviderConfig:
@@ -206,10 +210,15 @@ def _get_key(config: Any, name: str) -> str:
             return f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}"
         else:
             return ""
+
+    if name == "OpenAI" and config.get("use_entra_id", False):
+        return ""  # Empty string for Entra ID
+
     if "api_key" in config:
         key = config["api_key"]
         if key:
             return cast(str, key)
+
     raise HTTPException(
         status_code=HTTPStatus.BAD_REQUEST,
         detail=f"{name} API key not configured",
@@ -453,12 +462,9 @@ class OpenAIProvider(
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
         import ssl
-
-        # library to check if paths exists
         from pathlib import Path
         from urllib.parse import parse_qs, urlparse
 
-        # ssl related libs, httpx is a dependency of openai
         import httpx
         from openai import AzureOpenAI, OpenAI
 
@@ -495,12 +501,36 @@ class OpenAIProvider(
             api_version = parse_qs(cast(str, parsed_url.query))["api-version"][
                 0
             ]
-            return AzureOpenAI(
-                api_key=key,
-                api_version=api_version,
-                azure_deployment=deployment_model,
-                azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
-            )
+
+            if config.use_entra_id:
+                # Use Entra ID authentication
+                DependencyManager.azure_identity.require(
+                    "Entra ID authentication requires azure-identity. `pip install azure-identity`"
+                )
+                from azure.identity import (
+                    DefaultAzureCredential,
+                    get_bearer_token_provider,
+                )
+
+                credential = DefaultAzureCredential()
+                token_provider = get_bearer_token_provider(
+                    credential, "https://cognitiveservices.azure.com/.default"
+                )
+
+                return AzureOpenAI(
+                    azure_ad_token_provider=token_provider,
+                    api_version=api_version,
+                    azure_deployment=deployment_model,
+                    azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+                )
+            else:
+                # Use API key authentication
+                return AzureOpenAI(
+                    api_key=key,
+                    api_version=api_version,
+                    azure_deployment=deployment_model,
+                    azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+                )
         else:
             # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
             if ssl_verify:
