@@ -30,9 +30,9 @@ export const ShutdownButton: React.FC<{
     return null;
   }
 
-  const isDisabled = isAppInteractionDisabled(connectionState);
+  const isDisabled = isAppInteractionDisabled(props.connectionState);
   const tooltipContent = isDisabled
-    ? getConnectionTooltip(connectionState)
+    ? getConnectionTooltip(props.connectionState)
     : "Shutdown";
 
   return (
