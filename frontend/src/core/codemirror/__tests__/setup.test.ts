@@ -66,6 +66,7 @@ function getOpts() {
     diagnosticsConfig: {},
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
+    displayConfig: { reference_highlighting: false },
   } as const;
 }
 

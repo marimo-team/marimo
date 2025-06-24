@@ -3191,6 +3191,7 @@ export interface components {
         default_table_page_size: number;
         /** @enum {string} */
         default_width: "normal" | "compact" | "medium" | "full" | "columns";
+        reference_highlighting?: boolean;
         /** @enum {string} */
         theme: "light" | "dark" | "system";
       };

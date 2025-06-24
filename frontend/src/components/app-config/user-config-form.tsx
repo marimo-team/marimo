@@ -659,6 +659,34 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="display.reference_highlighting"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Reference highlighting</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="reference-highlighting-checkbox"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.reference_highlighting"
+                      />
+                    </FormItem>
+
+                    <FormDescription>
+                      Visually emphasizes variables in a cell that are defined
+                      elsewhere in the notebook.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Outputs">
               <FormField
