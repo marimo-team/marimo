@@ -37,7 +37,7 @@ export function useConfigActions() {
         },
       })),
     {
-      label: "Config > Toggle dark mode",
+      label: "Config > Set dark mode",
       handle: () => {
         handleUserConfig({
           ...config,
@@ -45,7 +45,35 @@ export function useConfigActions() {
             // We don't use the config from the setting since
             // we want to resolve 'system' to it's current value.
             ...config.display,
-            theme: theme === "dark" ? "light" : "dark",
+            theme: "dark",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set light mode",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            // We don't use the config from the setting since
+            // we want to resolve 'system' to it's current value.
+            ...config.display,
+            theme: "light",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set light/dark mode to system setting",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            // We don't use the config from the setting since
+            // we want to resolve 'system' to it's current value.
+            ...config.display,
+            theme: "system",
           },
         });
       },
