@@ -55,8 +55,8 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import { disabledCellIds, enabledCellIds } from "@/core/cells/utils";
-import { Constants } from "@/core/constants";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import { Constants } from "@/core/constants";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
