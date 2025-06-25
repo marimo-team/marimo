@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import {
   BookTextIcon,
   ChevronDownIcon,
@@ -30,7 +30,6 @@ import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { getSessionId, isSessionId } from "@/core/kernel/session";
-import { connectionAtom } from "@/core/network/connection";
 import {
   getRecentFiles,
   getRunningNotebooks,
@@ -78,7 +77,6 @@ function tabTarget(path: string) {
 
 const HomePage: React.FC = () => {
   const [nonce, setNonce] = useState(0);
-  const connection = useAtomValue(connectionAtom);
 
   const recentsResponse = useAsyncData(() => getRecentFiles(), []);
 
