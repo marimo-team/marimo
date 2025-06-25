@@ -133,7 +133,7 @@ const DataTableInternal = <TData,>({
     freezeColumnsRight,
   );
 
-  // Show loading bar only after a reasonable delay
+  // Show loading bar only after a short delay to prevent flickering
   React.useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
