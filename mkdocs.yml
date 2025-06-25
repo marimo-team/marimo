@@ -108,6 +108,7 @@ nav:
           - Generate with AI: guides/generate_with_ai/index.md
           - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
           - AI-assisted coding: guides/editor_features/ai_completion.md
+          - Prompts for the marimo editor: guides/generate_with_ai/prompts.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
@@ -170,7 +171,6 @@ nav:
   - Examples:
       - Examples: examples/index.md
       - Recipes: recipes.md
-      - Prompts: examples/prompts.md
   - API Reference:
       - API Reference: api/index.md
       - Markdown: api/markdown.md
