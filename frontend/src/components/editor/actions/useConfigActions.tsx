@@ -35,7 +35,7 @@ export function useConfigActions() {
         },
       })),
     {
-      label: "Config > Set dark mode",
+      label: "Config > Set theme: dark",
       handle: () => {
         handleUserConfig({
           ...config,
@@ -47,7 +47,7 @@ export function useConfigActions() {
       },
     },
     {
-      label: "Config > Set light mode",
+      label: "Config > Set theme: light",
       handle: () => {
         handleUserConfig({
           ...config,
@@ -59,7 +59,7 @@ export function useConfigActions() {
       },
     },
     {
-      label: "Config > Set light/dark mode to system setting",
+      label: "Config > Set theme: system",
       handle: () => {
         handleUserConfig({
           ...config,
