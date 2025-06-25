@@ -388,10 +388,12 @@ class SharingConfig(TypedDict):
 
     **Keys.**
 
-    - `enabled`: if `False`, sharing options will be hidden from the UI
+    - `html`: if `False`, HTML sharing options will be hidden from the UI
+    - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
     """
 
-    enabled: bool
+    html: bool
+    wasm: bool
 
 
 @mddoc
@@ -489,7 +491,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "custom_paths": [],
         "include_default_snippets": True,
     },
-    "sharing": {"enabled": True},
+    "sharing": {"html": True, "wasm": True},
 }
 
 

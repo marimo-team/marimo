@@ -1639,10 +1639,13 @@ components:
           type: object
         sharing:
           properties:
-            enabled:
+            html:
+              type: boolean
+            wasm:
               type: boolean
           required:
-          - enabled
+          - html
+          - wasm
           type: object
         snippets:
           properties:
