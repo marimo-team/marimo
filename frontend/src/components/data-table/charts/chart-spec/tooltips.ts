@@ -55,6 +55,7 @@ export function getTooltips(
     if (encoding && "field" in encoding && isFieldSet(encoding.field)) {
       if (encoding.timeUnit && !title) {
         // When there is a time unit, we want to show the field name as the title
+        // otherwise the title becomes too verbose
         title = encoding.field;
       }
 

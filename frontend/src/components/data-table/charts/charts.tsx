@@ -13,7 +13,7 @@ import {
   XIcon,
 } from "lucide-react";
 import type { JSX } from "react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
@@ -49,7 +49,7 @@ import { ChartType } from "./types";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
-const CHART_HEIGHT = 300;
+const CHART_HEIGHT = 290;
 
 export interface TablePanelProps {
   cellId: CellId | null;
@@ -248,10 +248,7 @@ export const ChartPanel: React.FC<{
     useState<ChartType>(chartType);
   const [formCollapsed, setFormCollapsed] = useState(false);
 
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  useResizeObserver({
-    ref: chartContainerRef as React.RefObject<Element>,
-  });
+  const { ref: chartContainerRef } = useResizeObserver();
 
   const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl) {
