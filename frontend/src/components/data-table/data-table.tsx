@@ -283,6 +283,7 @@ const DataTableInternal = <TData,>({
         chartsFeatureEnabled={chartsFeatureEnabled}
         togglePanel={togglePanel}
         isPanelOpen={isPanelOpen}
+        tableLoading={reloading}
       />
     </div>
   );
