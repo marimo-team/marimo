@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
 import {
@@ -79,9 +79,9 @@ export const Controls = ({
     );
   }
 
-  const disabled = isAppInteractionDisabled(WebSocketState.CONNECTING);
+  const disabled = isAppInteractionDisabled(connectionState);
   const connectionTooltip = disabled
-    ? getConnectionTooltip(WebSocketState.CONNECTING)
+    ? getConnectionTooltip(connectionState)
     : undefined;
   return (
     <>

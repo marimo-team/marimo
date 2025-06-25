@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { KnownQueryParams } from "@/core/constants";

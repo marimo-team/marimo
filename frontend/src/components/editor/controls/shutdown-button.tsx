@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { XIcon } from "lucide-react";
 import { sendShutdown } from "@/core/network/requests";
