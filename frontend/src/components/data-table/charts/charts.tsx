@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import {
   ChartColumnIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CodeIcon,
   DatabaseIcon,
   PaintRollerIcon,
@@ -11,8 +13,9 @@ import {
   XIcon,
 } from "lucide-react";
 import type { JSX } from "react";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
+import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
 import { getDefaults } from "@/components/forms/form-utils";
 import { Button } from "@/components/ui/button";
@@ -243,6 +246,12 @@ export const ChartPanel: React.FC<{
 
   const [selectedChartType, setSelectedChartType] =
     useState<ChartType>(chartType);
+  const [formCollapsed, setFormCollapsed] = useState(false);
+
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  useResizeObserver({
+    ref: chartContainerRef as React.RefObject<Element>,
+  });
 
   const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl) {
@@ -333,7 +342,9 @@ export const ChartPanel: React.FC<{
           )}
         </TabsList>
 
-        <TabsContent value="chart">{memoizedChart}</TabsContent>
+        <TabsContent value="chart" ref={chartContainerRef}>
+          {memoizedChart}
+        </TabsContent>
         <TabsContent value="code">
           <CodeSnippet code={altairCodeSnippet} language="python" />
         </TabsContent>
@@ -357,23 +368,44 @@ export const ChartPanel: React.FC<{
     );
   };
 
+  const chartForm = (
+    <>
+      <ChartTypeSelect
+        value={selectedChartType}
+        onValueChange={(value) => {
+          setSelectedChartType(value);
+          saveChartType(value);
+        }}
+      />
+
+      <ChartFormContainer
+        form={form}
+        saveChart={saveChart}
+        fieldTypes={fieldTypes}
+        chartType={selectedChartType}
+      />
+    </>
+  );
+
   return (
     <div className="flex flex-row gap-2 h-full rounded-md border pr-2">
-      <div className="flex flex-col gap-2 w-[300px] overflow-auto px-2 py-3 scrollbar-thin">
-        <ChartTypeSelect
-          value={selectedChartType}
-          onValueChange={(value) => {
-            setSelectedChartType(value);
-            saveChartType(value);
-          }}
-        />
-
-        <ChartFormContainer
-          form={form}
-          saveChart={saveChart}
-          fieldTypes={fieldTypes}
-          chartType={selectedChartType}
-        />
+      <div
+        className={`relative flex flex-col gap-2 overflow-auto px-2 py-3 scrollbar-thin transition-width duration-200 ${formCollapsed ? "w-8" : "w-[300px]"}`}
+      >
+        {!formCollapsed && chartForm}
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute bottom-1 right-1 border-border"
+          onClick={() => setFormCollapsed((prev) => !prev)}
+          title={formCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {formCollapsed ? (
+            <ChevronRightIcon className="w-4 h-4" />
+          ) : (
+            <ChevronLeftIcon className="w-4 h-4" />
+          )}
+        </Button>
       </div>
       <div className="flex-1 overflow-auto h-full w-full mt-3">
         {renderChartDisplay()}
