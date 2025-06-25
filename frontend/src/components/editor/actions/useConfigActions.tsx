@@ -4,11 +4,9 @@ import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
-import { useTheme } from "@/theme/useTheme";
 import type { ActionButton } from "./types";
 
 export function useConfigActions() {
-  const { theme } = useTheme();
   const [config, setConfig] = useResolvedMarimoConfig();
   const [appConfig, setAppConfig] = useAppConfig();
 
@@ -42,8 +40,6 @@ export function useConfigActions() {
         handleUserConfig({
           ...config,
           display: {
-            // We don't use the config from the setting since
-            // we want to resolve 'system' to it's current value.
             ...config.display,
             theme: "dark",
           },
@@ -56,8 +52,6 @@ export function useConfigActions() {
         handleUserConfig({
           ...config,
           display: {
-            // We don't use the config from the setting since
-            // we want to resolve 'system' to it's current value.
             ...config.display,
             theme: "light",
           },
@@ -70,8 +64,6 @@ export function useConfigActions() {
         handleUserConfig({
           ...config,
           display: {
-            // We don't use the config from the setting since
-            // we want to resolve 'system' to it's current value.
             ...config.display,
             theme: "system",
           },
