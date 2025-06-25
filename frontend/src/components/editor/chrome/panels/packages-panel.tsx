@@ -10,7 +10,6 @@ import React from "react";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Spinner } from "@/components/icons/spinner";
 import { SearchInput } from "@/components/ui/input";
-import { Kbd } from "@/components/ui/kbd";
 import {
   Table,
   TableBody,
@@ -29,6 +28,11 @@ import {
   removePackage,
 } from "@/core/network/requests";
 import type { DependencyTreeNode } from "@/core/network/types";
+import {
+  showRemovePackageToast,
+  showUpgradePackageToast,
+} from "@/core/packages/toast-components";
+import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -40,84 +44,6 @@ import { PanelEmptyState } from "./empty-state";
 import { packagesToInstallAtom } from "./packages-state";
 
 type ViewMode = "tree" | "list";
-
-const showAddPackageToast = (packageName: string, error?: string | null) => {
-  if (error) {
-    toast({
-      title: "Failed to add package",
-      description: error,
-      variant: "danger",
-    });
-  } else {
-    toast({
-      title: "Package added",
-      description: (
-        <div>
-          <div>
-            The package <Kbd className="inline">{packageName}</Kbd> and its
-            dependencies has been added to your environment.
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Some Python packages may require a kernel restart to see changes.
-          </div>
-        </div>
-      ),
-    });
-  }
-};
-
-const showUpgradePackageToast = (
-  packageName: string,
-  error?: string | null,
-) => {
-  if (error) {
-    toast({
-      title: "Failed to upgrade package",
-      description: error,
-      variant: "danger",
-    });
-  } else {
-    toast({
-      title: "Package upgraded",
-      description: (
-        <div>
-          <div>
-            The package <Kbd className="inline">{packageName}</Kbd> has been
-            upgraded.
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Some Python packages may require a kernel restart to see changes.
-          </div>
-        </div>
-      ),
-    });
-  }
-};
-
-const showRemovePackageToast = (packageName: string, error?: string | null) => {
-  if (error) {
-    toast({
-      title: "Failed to remove package",
-      description: error,
-      variant: "danger",
-    });
-  } else {
-    toast({
-      title: "Package removed",
-      description: (
-        <div>
-          <div>
-            The package <Kbd className="inline">{packageName}</Kbd> has been
-            removed from your environment.
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Some Python packages may require a kernel restart to see changes.
-          </div>
-        </div>
-      ),
-    });
-  }
-};
 
 const PackageActionButton: React.FC<{
   onClick: () => void;
@@ -245,7 +171,6 @@ const InstallPackageForm: React.FC<{
   onSuccess: () => void;
 }> = ({ onSuccess, packageManager }) => {
   const [input, setInput] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
   const { handleClick: openSettings } = useOpenSettingsToTab();
 
   // Get the packages to install from the atom
@@ -261,27 +186,17 @@ const InstallPackageForm: React.FC<{
     }
   }, [packagesToInstall, setPackagesToInstall]);
 
-  const handleAddPackage = async () => {
-    try {
-      setLoading(true);
-      const packages = input.split(",").map((p) => p.trim());
-      for (const [idx, packageName] of packages.entries()) {
-        const response = await addPackage({ package: packageName });
-        if (response.success) {
-          showAddPackageToast(packageName);
-        } else {
-          showAddPackageToast(packageName, response.error);
-        }
-        // Wait 1s if there are more packages to install
-        if (idx < packages.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-      onSuccess();
-    } finally {
-      setInput("");
-      setLoading(false);
-    }
+  const { loading, handleInstallPackages } = useInstallPackages();
+  const onSuccessInstallPackages = () => {
+    onSuccess();
+    setInput("");
+  };
+
+  const installPackages = () => {
+    handleInstallPackages(
+      input.split(",").map((p) => p.trim()),
+      onSuccessInstallPackages,
+    );
   };
 
   return (
@@ -309,7 +224,7 @@ const InstallPackageForm: React.FC<{
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            handleAddPackage();
+            installPackages();
           }
         }}
         onChange={(e) => setInput(e.target.value)}
@@ -376,7 +291,7 @@ const InstallPackageForm: React.FC<{
           input && "bg-accent text-accent-foreground",
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
-        onClick={handleAddPackage}
+        onClick={installPackages}
         disabled={!input}
       >
         Add

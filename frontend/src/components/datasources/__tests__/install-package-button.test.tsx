@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InstallPackageButton } from "../install-package-button";
 
@@ -9,12 +9,6 @@ vi.mock("@/components/editor/chrome/state", () => ({
   useChromeActions: () => ({
     openApplication: mockOpenApplication,
   }),
-}));
-
-const mockSetPackagesToInstall = vi.fn();
-vi.mock("jotai", () => ({
-  atom: () => ({}),
-  useSetAtom: () => mockSetPackagesToInstall,
 }));
 
 vi.mock("@/components/editor/chrome/panels/packages-state", () => ({
@@ -64,15 +58,5 @@ describe("InstallPackageButton", () => {
       />,
     );
     expect(screen.getByText("Install altair")).toBeInTheDocument();
-  });
-
-  it("should open the packages panel when clicked", () => {
-    render(<InstallPackageButton packages={["altair"]} />);
-
-    fireEvent.click(screen.getByText("Install altair"));
-
-    expect(mockSetPackagesToInstall).toHaveBeenCalledWith("altair");
-
-    expect(mockOpenApplication).toHaveBeenCalledWith("packages");
   });
 });
