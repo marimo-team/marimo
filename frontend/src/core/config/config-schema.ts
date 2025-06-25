@@ -111,6 +111,7 @@ export const UserConfigSchema = z
             }
             return width;
           }),
+        reference_highlighting: z.boolean().default(false),
       })
       .passthrough()
       .default({}),
@@ -194,6 +195,7 @@ export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 export type LSPConfig = UserConfig["language_servers"];
 export type DiagnosticsConfig = UserConfig["diagnostics"];
+export type DisplayConfig = UserConfig["display"];
 
 export const AppTitleSchema = z.string();
 export const SqlOutputSchema = z.enum(VALID_SQL_OUTPUT_FORMATS).default("auto");

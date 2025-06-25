@@ -83,5 +83,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     getDependencyTree: throwNotInEditMode,
     listSecretKeys: throwNotInEditMode,
     writeSecret: throwNotInEditMode,
+    invokeAiTool: throwNotInEditMode,
   };
 }

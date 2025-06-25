@@ -11,7 +11,10 @@ from typing import TYPE_CHECKING, Any
 import click
 
 from marimo._cli.print import orange
-from marimo._convert.converters import MarimoConvert
+from marimo._server.session.serialize import (
+    serialize_notebook,
+    serialize_session_view,
+)
 from marimo._utils.code import hash_code
 
 if TYPE_CHECKING:
@@ -188,6 +191,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.SuccessResponse,
         models.SuccessResponse,
         models.UpdateComponentValuesRequest,
+        models.InvokeAiToolRequest,
+        models.InvokeAiToolResponse,
         requests.CodeCompletionRequest,
         requests.DeleteCellRequest,
         requests.ExecuteMultipleRequest,
@@ -531,13 +536,8 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
     from starlette.routing import Route
     from starlette.staticfiles import StaticFiles
 
-    from marimo import __version__
     from marimo._ast.app_config import _AppConfig
     from marimo._config.config import DEFAULT_CONFIG
-    from marimo._schemas.session import (
-        NotebookSessionMetadata,
-        NotebookSessionV1,
-    )
     from marimo._server.templates.templates import static_notebook_template
     from marimo._server.tokens import SkewProtectionToken
     from marimo._utils.paths import marimo_package_path
@@ -546,16 +546,41 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         from starlette.requests import Request
 
     try:
-        # Convert to notebook format
-        notebook_snapshot = MarimoConvert.from_py(
-            file_path.read_text(encoding="utf-8")
-        ).to_notebook_v1()
+        # Run the notebook to get actual outputs
+        click.echo(f"Running notebook {file_path.name}...")
+        from marimo._server.export import run_app_until_completion
+        from marimo._server.file_router import AppFileRouter
+        from marimo._server.utils import asyncio_run
+        from marimo._utils.marimo_path import MarimoPath
 
-        # Create empty session snapshot since we're not running the code
-        session_snapshot = NotebookSessionV1(
-            version="1",
-            metadata=NotebookSessionMetadata(marimo_version=__version__),
-            cells=[],
+        # Create file manager for the notebook
+        file_router = AppFileRouter.from_filename(MarimoPath(file_path))
+        file_key = file_router.get_unique_file_key()
+        assert file_key is not None
+        file_manager = file_router.get_file_manager(file_key)
+
+        # Run the notebook to completion and get session view
+        session_view, did_error = asyncio_run(
+            run_app_until_completion(
+                file_manager,
+                cli_args={},
+                argv=None,
+            )
+        )
+        if did_error:
+            click.echo(
+                "Warning: Some cells had errors during execution", err=True
+            )
+
+        # Create session snapshot from the executed session
+        session_snapshot = serialize_session_view(
+            session_view,
+            cell_ids=list(file_manager.app.cell_manager.cell_ids()),
+        )
+
+        # Get notebook snapshot from file manager
+        notebook_snapshot = serialize_notebook(
+            session_view, file_manager.app.cell_manager
         )
 
         # Get the static assets directory
@@ -605,6 +630,13 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
             "/assets",
             StaticFiles(directory=static_root / "assets"),
             name="assets",
+        )
+
+        # Mount other static files (favicon, icons, manifest, etc.)
+        app.mount(
+            "/",
+            StaticFiles(directory=static_root, html=False),
+            name="static",
         )
 
         url = f"http://{host}:{port}"

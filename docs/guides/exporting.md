@@ -168,7 +168,7 @@ You can also use other tools that work with Jupyter notebooks:
 
 ## Export to WASM-powered HTML
 
-Export your notebook to a self-contained HTML file that runs using WebAssembly:
+Export your notebook to a self-contained HTML file that runs using [WebAssembly](wasm.md):
 
 ```bash
 # export as readonly, with code locked
@@ -186,6 +186,9 @@ Options:
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
 - `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
+
+Note that WebAssembly notebooks have [limitations](wasm.md#limitations); in particular,
+[many but not all packages work](wasm.md#packages).
 
 !!! note "Note"
 

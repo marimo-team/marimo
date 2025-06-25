@@ -1,8 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  DUCKDB_ENGINE,
-  type SQLTableContext,
-} from "@/core/datasets/data-source-connections";
+import type { SQLTableContext } from "@/core/datasets/data-source-connections";
+import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataTable, DataType } from "@/core/kernel/messages";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
 

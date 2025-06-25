@@ -25,3 +25,18 @@ export const CellDocumentUri = {
     return uri.slice(this.PREFIX.length) as CellId;
   },
 };
+
+/**
+ * Notify is a @protected method on `LanguageServerClient`,
+ * hiding public use with TypeScript.
+ */
+export function isNotifyingClient(
+  client: ILanguageServerClient,
+): client is ILanguageServerClient & {
+  notify: (
+    kind: string,
+    options: { settings: Record<string, unknown> },
+  ) => void;
+} {
+  return "notify" in client;
+}

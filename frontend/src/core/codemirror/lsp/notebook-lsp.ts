@@ -8,7 +8,11 @@ import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { getTopologicalCodes } from "../copilot/getCodes";
 import { createNotebookLens } from "./lens";
-import { CellDocumentUri, type ILanguageServerClient } from "./types";
+import {
+  CellDocumentUri,
+  type ILanguageServerClient,
+  isNotifyingClient,
+} from "./types";
 import { getLSPDocument } from "./utils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
@@ -42,12 +46,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     // Handle configuration after initialization
     this.initializePromise.then(() => {
       invariant(
-        "notify" in this.client,
+        isNotifyingClient(this.client),
         "notify is not a method on the client",
       );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.client as any).notify("workspace/didChangeConfiguration", {
+      this.client.notify("workspace/didChangeConfiguration", {
         settings: initialSettings,
       });
     });

@@ -17,6 +17,11 @@ import { FindReplace } from "@/components/find-replace/find-replace";
 import type { AppConfig } from "@/core/config/config-schema";
 import { isConnectedAtom } from "@/core/network/connection";
 import { SaveComponent } from "@/core/saving/save-component";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import {
@@ -37,7 +42,7 @@ interface ControlsProps {
   onTogglePresenting: () => void;
   onInterrupt: () => void;
   onRun: () => void;
-  closed: boolean;
+  connectionState: WebSocketState;
   running: boolean;
   appConfig: AppConfig;
 }
@@ -47,7 +52,7 @@ export const Controls = ({
   onTogglePresenting,
   onInterrupt,
   onRun,
-  closed,
+  connectionState,
   running,
   appConfig,
 }: ControlsProps): JSX.Element => {
@@ -55,6 +60,7 @@ export const Controls = ({
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
+  const closed = connectionState === WebSocketState.CLOSED;
 
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
@@ -73,6 +79,10 @@ export const Controls = ({
     );
   }
 
+  const disabled = isAppInteractionDisabled(connectionState);
+  const connectionTooltip = disabled
+    ? getConnectionTooltip(connectionState)
+    : undefined;
   return (
     <>
       {!presenting && <FindReplace />}
@@ -80,9 +90,16 @@ export const Controls = ({
       {!closed && (
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
-          <NotebookMenuDropdown />
-          <ConfigButton />
-          <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
+          <NotebookMenuDropdown
+            disabled={disabled}
+            tooltip={connectionTooltip}
+          />
+          <ConfigButton disabled={disabled} tooltip={connectionTooltip} />
+          <ShutdownButton
+            description="This will terminate the Python kernel. You'll lose all data that's in memory."
+            disabled={disabled}
+            tooltip={connectionTooltip}
+          />
         </div>
       )}
 

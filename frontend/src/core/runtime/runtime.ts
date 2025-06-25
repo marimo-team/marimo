@@ -41,7 +41,7 @@ export class RuntimeManager {
   formatHttpURL(
     path?: string,
     searchParams?: URLSearchParams,
-    restrictToKnownQueryParams: boolean = true,
+    restrictToKnownQueryParams = true,
   ): URL {
     if (!path) {
       path = "";

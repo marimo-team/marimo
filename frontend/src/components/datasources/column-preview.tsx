@@ -41,6 +41,18 @@ export const DatasetColumnPreview: React.FC<{
 }> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
 
+  const previewColumn = () => {
+    previewDatasetColumn({
+      source: table.source,
+      tableName: table.name,
+      columnName: column.name,
+      sourceType: table.source_type,
+      fullyQualifiedTableName: sqlTableContext
+        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
+        : table.name,
+    });
+  };
+
   useOnMount(() => {
     if (preview) {
       return;
@@ -51,15 +63,7 @@ export const DatasetColumnPreview: React.FC<{
       return;
     }
 
-    previewDatasetColumn({
-      source: table.source,
-      tableName: table.name,
-      columnName: column.name,
-      sourceType: table.source_type,
-      fullyQualifiedTableName: sqlTableContext
-        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
-        : table.name,
-    });
+    previewColumn();
   });
 
   if (table.source_type === "connection") {
@@ -93,7 +97,7 @@ export const DatasetColumnPreview: React.FC<{
 
   const error =
     preview.error &&
-    renderPreviewError(preview.error, preview.missing_packages);
+    renderPreviewError(preview.error, preview.missing_packages, previewColumn);
 
   const stats = preview.stats && renderStats(preview.stats, column.type);
 
@@ -137,15 +141,17 @@ export const DatasetColumnPreview: React.FC<{
 export function renderPreviewError(
   error: string,
   missing_packages?: string[] | null,
+  refetchPreview?: () => void,
 ) {
   return (
-    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center justify-between">
+    <div className="text-xs text-muted-foreground p-2 border border-border rounded flex items-center justify-between">
       <span>{error}</span>
       {missing_packages && (
         <InstallPackageButton
           packages={missing_packages}
           showMaxPackages={1}
           className="w-32"
+          onInstall={refetchPreview}
         />
       )}
     </div>

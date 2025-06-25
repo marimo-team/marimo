@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { store } from "@/core/state/jotai";
 import {
   allTablesAtom,
-  DUCKDB_ENGINE,
   dataSourceConnectionsAtom,
 } from "../data-source-connections";
+import { DUCKDB_ENGINE } from "../engines";
 import { datasetsAtom } from "../state";
 import type { DatasetsState } from "../types";
 

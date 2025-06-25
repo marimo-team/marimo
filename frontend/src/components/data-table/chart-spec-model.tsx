@@ -1,15 +1,30 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { mint, orange, slate } from "@radix-ui/colors";
+// @ts-expect-error vega-typings does not include formats
+import { formats } from "vega";
 import type { TopLevelSpec } from "vega-lite";
 import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
+import { arrow } from "@/plugins/impl/vega/formats";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
 import { logNever } from "@/utils/assertNever";
+import {
+  byteStringToBinary,
+  extractBase64FromDataURL,
+  isDataURLString,
+  typedAtob,
+} from "@/utils/json/base64";
 import type { ColumnHeaderStats, ColumnName, FieldTypes } from "./types";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
+
+// Arrow formats have a magic number at the beginning of the file.
+const ARROW_MAGIC_NUMBER = "ARROW1";
+
+// register arrow reader under type 'arrow'
+formats("arrow", arrow);
 
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, ColumnHeaderStats>();
@@ -44,27 +59,30 @@ export class ColumnChartSpecModel<T> {
     // We have a few snapshot tests to ensure that the spec is correct for each case.
     if (typeof this.data === "string") {
       if (this.data.startsWith("./@file") || this.data.startsWith("/@file")) {
-        this.dataSpec = {
-          url: asRemoteURL(this.data).href,
-        };
+        this.dataSpec = { url: asRemoteURL(this.data).href };
         this.sourceName = "source_0";
-      } else if (this.data.startsWith("data:text/csv;base64,")) {
-        const decoded = atob(this.data.split(",")[1]);
-        this.dataSpec = {
-          values: parseCsvData(decoded) as T[],
-        };
+      } else if (isDataURLString(this.data)) {
         this.sourceName = "data_0";
+        const base64 = extractBase64FromDataURL(this.data);
+        const decoded = typedAtob(base64);
+
+        if (decoded.startsWith(ARROW_MAGIC_NUMBER)) {
+          this.dataSpec = {
+            values: byteStringToBinary(decoded),
+            // @ts-expect-error vega-typings does not include arrow format
+            format: { type: "arrow" },
+          };
+        } else {
+          // Assume it's a CSV string
+          this.parseCsv(decoded);
+        }
       } else {
         // Assume it's a CSV string
-        this.dataSpec = {
-          values: parseCsvData(this.data) as T[],
-        };
+        this.parseCsv(this.data);
         this.sourceName = "data_0";
       }
     } else {
-      this.dataSpec = {
-        values: this.data,
-      };
+      this.dataSpec = { values: this.data };
       this.sourceName = "source_0";
     }
 
@@ -80,6 +98,12 @@ export class ColumnChartSpecModel<T> {
       stats: this.columnStats.get(column),
       type: this.fieldTypes[column],
       spec: this.opts.includeCharts ? this.getVegaSpec(column) : undefined,
+    };
+  }
+
+  private parseCsv(data: string) {
+    this.dataSpec = {
+      values: parseCsvData(data) as T[],
     };
   }
 

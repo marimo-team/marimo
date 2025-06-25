@@ -1,3 +1,10 @@
+@import "swiper/css";
+@import "swiper/css/virtual";
+@import "swiper/css/keyboard";
+@import "swiper/css/navigation";
+@import "swiper/css/pagination";
+@import "swiper/css/scrollbar";
+
 .mo-slides-theme {
   --swiper-theme-color: var(--primary);
   --swiper-pagination-color: var(--swiper-theme-color);

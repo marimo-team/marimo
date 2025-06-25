@@ -4,22 +4,18 @@ import { atom } from "jotai";
 import { isSchemaless } from "@/components/datasources/utils";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
-import type { TypedString } from "@/utils/typed";
 import type {
   DataSourceConnection as DataSourceConnectionType,
   DataTable,
 } from "../kernel/messages";
 import { store } from "../state/jotai";
 import type { VariableName } from "../variables/types";
+import {
+  type ConnectionName,
+  DUCKDB_ENGINE,
+  INTERNAL_SQL_ENGINES,
+} from "./engines";
 import { datasetTablesAtom } from "./state";
-
-export type ConnectionName = TypedString<"ConnectionName">;
-
-// DuckDB engine is treated as the default engine
-// As it doesn't require passing an engine variable to the backend
-// Keep this in sync with the backend name
-export const DUCKDB_ENGINE = "__marimo_duckdb" as ConnectionName;
-export const INTERNAL_SQL_ENGINES = new Set([DUCKDB_ENGINE]);
 
 const initialConnections: ConnectionsMap = new Map([
   [

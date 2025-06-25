@@ -176,6 +176,7 @@ const CellEditorInternal = ({
       theme,
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
       diagnosticsConfig: userConfig.diagnostics,
+      displayConfig: userConfig.display,
     });
 
     extensions.push(
@@ -372,7 +373,8 @@ const CellEditorInternal = ({
   if (isMarkdown && hidden && hasOutput) {
     editorClassName = "h-0 overflow-hidden";
   } else if (hidden) {
-    editorClassName = "opacity-20 h-8 overflow-hidden";
+    editorClassName =
+      "opacity-20 h-8 [&>div.cm-editor]:h-full [&>div.cm-editor]:overflow-hidden";
   }
 
   return (

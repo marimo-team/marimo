@@ -71,8 +71,7 @@ if TYPE_CHECKING:
         ChatCompletionChunk,
     )
 
-    from marimo._server.ai.tools import Tool
-
+from marimo._server.ai.tools import Tool, get_tool_manager
 
 ResponseT = TypeVar("ResponseT")
 StreamT = TypeVar("StreamT")
@@ -229,11 +228,8 @@ def _get_base_url(config: Any, name: str = "") -> Optional[str]:
 
 
 def _get_tools(mode: CopilotMode) -> list[Tool]:
-    if mode == "ask":
-        # TODO: add tools
-        return []
-    else:  # manual mode = no tools
-        return []
+    tool_manager = get_tool_manager()
+    return tool_manager.get_tools_for_mode(mode)
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
@@ -296,7 +292,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
     def _create_stream_content(
         self, content_data: Union[str, dict[str, Any]], content_type: str
     ) -> StreamContent:
-        """Create type-safe StreamContent tuple."""
+        """Create type-safe StreamContent tuple for format_stream method."""
         # String content types
         if isinstance(content_data, str):
             if content_type == "text":
@@ -731,14 +727,6 @@ class AnthropicProvider(
             ThinkingDelta,
             ToolUseBlock,
         )
-
-        # # For content blocks
-        # if isinstance(response, TextDelta):
-        #     return (response.text, "text")
-        # if isinstance(response, ThinkingDelta):
-        #     return (response.thinking, "reasoning")
-        # if isinstance(response, InputJSONDelta):
-        #     return (response.partial_json, "tool_call_delta")
 
         # For streaming content
         if isinstance(response, RawContentBlockDeltaEvent):

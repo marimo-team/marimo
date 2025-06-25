@@ -231,6 +231,66 @@ components:
               content:
                 additionalProperties: true
                 type: object
+              parts:
+                items:
+                  oneOf:
+                  - properties:
+                      text:
+                        type: string
+                      type:
+                        enum:
+                        - text
+                        type: string
+                    required:
+                    - type
+                    - text
+                    type: object
+                  - properties:
+                      reasoning:
+                        type: string
+                      type:
+                        enum:
+                        - reasoning
+                        type: string
+                    required:
+                    - type
+                    - reasoning
+                    type: object
+                  - properties:
+                      toolInvocation:
+                        properties:
+                          args:
+                            additionalProperties: {}
+                            type: object
+                          result: {}
+                          state:
+                            enum:
+                            - result
+                            type: string
+                          step:
+                            type: integer
+                          toolCallId:
+                            type: string
+                          toolName:
+                            type: string
+                        required:
+                        - state
+                        - result
+                        - toolCallId
+                        - toolName
+                        - step
+                        - args
+                        type: object
+                      type:
+                        enum:
+                        - tool-invocation
+                        type: string
+                    required:
+                    - type
+                    - toolInvocation
+                    type: object
+                nullable: true
+                type: array
               role:
                 enum:
                 - user
@@ -1121,6 +1181,32 @@ components:
       required:
       - name
       type: object
+    InvokeAiToolRequest:
+      properties:
+        arguments:
+          additionalProperties: {}
+          type: object
+        toolName:
+          type: string
+      required:
+      - toolName
+      - arguments
+      type: object
+    InvokeAiToolResponse:
+      properties:
+        error:
+          nullable: true
+          type: string
+        result: {}
+        success:
+          type: boolean
+        toolName:
+          type: string
+      required:
+      - success
+      - toolName
+      - result
+      type: object
     JSONType:
       oneOf:
       - type: string
@@ -1481,6 +1567,8 @@ components:
               - full
               - columns
               type: string
+            reference_highlighting:
+              type: boolean
             theme:
               enum:
               - light
@@ -2616,7 +2704,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.0
+  version: 0.14.7
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -2679,6 +2767,22 @@ paths:
               schema:
                 type: string
           description: Get AI inline completion for code
+  /api/ai/invoke_tool:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvokeAiToolRequest'
+        description: The request body for tool invocation
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvokeAiToolResponse'
+          description: Tool invocation result
   /api/datasources/preview_column:
     post:
       requestBody:

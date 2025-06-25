@@ -20,9 +20,16 @@ import { MinimalShortcut } from "../../shortcuts/renderShortcut";
 import type { ActionButton } from "../actions/types";
 import { useNotebookActions } from "../actions/useNotebookActions";
 
-export const NotebookMenuDropdown: React.FC = () => {
-  const actions = useNotebookActions();
+interface Props {
+  disabled?: boolean;
+  tooltip?: string;
+}
 
+export const NotebookMenuDropdown: React.FC<Props> = ({
+  disabled = false,
+  tooltip = "Actions",
+}) => {
+  const actions = useNotebookActions();
   const button = (
     <Button
       aria-label="Config"
@@ -30,9 +37,12 @@ export const NotebookMenuDropdown: React.FC = () => {
       size="small"
       className="h-[27px] w-[27px]"
       data-testid="notebook-menu-dropdown"
-      color="hint-green"
+      disabled={disabled}
+      color={disabled ? "disabled" : "hint-green"}
     >
-      <MenuIcon strokeWidth={1.8} />
+      <Tooltip content={tooltip}>
+        <MenuIcon strokeWidth={1.8} />
+      </Tooltip>
     </Button>
   );
 
@@ -80,7 +90,9 @@ export const NotebookMenuDropdown: React.FC = () => {
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild={true} disabled={disabled}>
+        {button}
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="no-print w-[240px]">
         {actions.map((action) => {
           if (action.hidden) {

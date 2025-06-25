@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Notebook } from "@marimo-team/marimo-api";
-import { Button } from "components/ui/button";
 import { SaveIcon } from "lucide-react";
 import type { JSX } from "react";
 import { Button as EditorButton } from "@/components/editor/inputs/Inputs";
+import { Button } from "@/components/ui/button";
 import { getNotebook } from "@/core/cells/cells";
 import { notebookCells } from "@/core/cells/utils";
 import { getMarimoVersion } from "@/core/meta/globals";
