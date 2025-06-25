@@ -165,11 +165,11 @@ export const UserConfigSchema = z
     server: z.object({}).passthrough().default({}),
     sharing: z
       .object({
-        html: z.boolean().default(true),
-        wasm: z.boolean().default(true),
+        html: z.boolean(),
+        wasm: z.boolean(),
       })
       .passthrough()
-      .default({}),
+      .optional(),
   })
   // Pass through so that we don't remove any extra keys that the user has added
   .passthrough()
@@ -180,7 +180,6 @@ export const UserConfigSchema = z
     keymap: {},
     runtime: {},
     display: {},
-    sharing: {},
     experimental: {},
     server: {},
     ai: {

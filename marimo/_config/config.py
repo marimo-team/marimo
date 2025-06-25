@@ -494,7 +494,6 @@ DEFAULT_CONFIG: MarimoConfig = {
         "custom_paths": [],
         "include_default_snippets": True,
     },
-    "sharing": {"html": True, "wasm": True},
 }
 
 
