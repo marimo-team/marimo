@@ -122,7 +122,7 @@ def test_pylsp_server():
 def test_copilot_server():
     server = CopilotLspServer(port=8000)
     assert isinstance(server.validate_requirements(), (str, bool))
-    if (server._lsp_dir() / "index.cjs").exists():
+    if server._lsp_bin().exists():
         assert "node" in server.get_command()
         assert str(8000) in server.get_command()
     else:

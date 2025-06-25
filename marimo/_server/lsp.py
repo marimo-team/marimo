@@ -154,10 +154,12 @@ class CopilotLspServer(BaseLspServer):
         lsp_dir = marimo_package_path() / "_lsp"
         return Path(lsp_dir)
 
+    def _lsp_bin(self) -> Path:
+        return self._lsp_dir() / "index.cjs"
+
     def get_command(self) -> list[str]:
-        lsp_dir = self._lsp_dir()
-        lsp_bin = lsp_dir / "index.cjs"
-        copilot_bin = lsp_dir / "copilot" / "language-server.js"
+        lsp_bin = self._lsp_bin()
+        copilot_bin = self._lsp_dir() / "copilot" / "language-server.js"
         # Check if the LSP binary exists
         if not lsp_bin.exists():
             # Only debug since this may not exist in conda environments
