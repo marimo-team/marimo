@@ -118,10 +118,9 @@ const HomePage: React.FC = () => {
       >
         <div className="absolute top-3 right-5 flex gap-3 z-50">
           <OpenTutorialDropDown />
-          <ConfigButton showAppConfig={false} connectionState={connection.state} />
+          <ConfigButton showAppConfig={false} />
           <ShutdownButton
             description={`This will shutdown the notebook server and terminate all running notebooks (${running.size}). You'll lose all data that's in memory.`}
-            connectionState={connection.state}
           />
         </div>
         <div className="flex flex-col gap-6 max-w-6xl container pt-5 pb-20 z-10">

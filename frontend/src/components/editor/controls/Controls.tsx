@@ -17,6 +17,10 @@ import { FindReplace } from "@/components/find-replace/find-replace";
 import type { AppConfig } from "@/core/config/config-schema";
 import { isConnectedAtom } from "@/core/network/connection";
 import { SaveComponent } from "@/core/saving/save-component";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
 import { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
@@ -75,6 +79,10 @@ export const Controls = ({
     );
   }
 
+  const disabled = isAppInteractionDisabled(connectionState);
+  const connectionTooltip = disabled
+    ? getConnectionTooltip(connectionState)
+    : undefined;
   return (
     <>
       {!presenting && <FindReplace />}
@@ -83,10 +91,11 @@ export const Controls = ({
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
           <NotebookMenuDropdown connectionState={connectionState} />
-          <ConfigButton connectionState={connectionState} />
+          <ConfigButton disabled={disabled} tooltip={connectionTooltip} />
           <ShutdownButton
             description="This will terminate the Python kernel. You'll lose all data that's in memory."
-            connectionState={connectionState}
+            disabled={disabled}
+            tooltip={connectionTooltip}
           />
         </div>
       )}

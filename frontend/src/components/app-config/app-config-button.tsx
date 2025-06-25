@@ -8,11 +8,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  getConnectionTooltip,
-  isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
 import { Button as EditorButton } from "../editor/inputs/Inputs";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
@@ -22,18 +17,16 @@ import { UserConfigForm } from "./user-config-form";
 
 interface Props {
   showAppConfig?: boolean;
-  connectionState: WebSocketState;
+  disabled?: boolean;
+  tooltip?: string;
 }
 
 export const ConfigButton: React.FC<Props> = ({
   showAppConfig = true,
-  connectionState,
+  disabled = false,
+  tooltip = "Settings",
 }) => {
   const [settingDialog, setSettingDialog] = useAtom(settingDialogAtom);
-  const isDisabled = isAppInteractionDisabled(connectionState);
-  const tooltipContent = isDisabled
-    ? getConnectionTooltip(connectionState)
-    : "Settings";
 
   const button = (
     <EditorButton
@@ -42,9 +35,9 @@ export const ConfigButton: React.FC<Props> = ({
       shape="circle"
       size="small"
       className="h-[27px] w-[27px]"
-      color={isDisabled ? "disabled" : "hint-green"}
+      color={disabled ? "disabled" : "hint-green"}
     >
-      <Tooltip content={tooltipContent}>
+      <Tooltip content={tooltip}>
         <SettingsIcon strokeWidth={1.8} />
       </Tooltip>
     </EditorButton>
