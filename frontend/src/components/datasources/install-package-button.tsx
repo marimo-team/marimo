@@ -9,6 +9,7 @@ interface InstallPackageButtonProps {
   packages: string[] | undefined;
   showMaxPackages?: number;
   className?: string;
+  onInstall?: () => void;
 }
 
 /**
@@ -19,6 +20,7 @@ export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
   packages,
   showMaxPackages,
   className,
+  onInstall,
 }) => {
   const { handleInstallPackages } = useInstallPackages();
 
@@ -31,7 +33,7 @@ export const InstallPackageButton: React.FC<InstallPackageButtonProps> = ({
       variant="outline"
       size="xs"
       onClick={() => {
-        handleInstallPackages(packages);
+        handleInstallPackages(packages, onInstall);
       }}
       className={cn("ml-2", className)}
     >

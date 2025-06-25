@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { addPackage } from "@/core/network/requests";
+import { Logger } from "@/utils/Logger";
 import { showAddPackageToast } from "./toast-components";
 
 export function useInstallPackages(): {
@@ -10,20 +11,13 @@ export function useInstallPackages(): {
     onSuccess?: () => void,
   ) => Promise<void>;
   loading: boolean;
-  error: string | null;
-  success: boolean;
 } {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const handleInstallPackages = async (
     packages: string[],
     onSuccess?: () => void,
   ) => {
-    // Reset previous state
-    setError(null);
-    setSuccess(false);
     setLoading(true);
 
     try {
@@ -40,13 +34,12 @@ export function useInstallPackages(): {
         }
       }
       onSuccess?.();
-      setSuccess(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Unknown error");
+      Logger.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  return { loading, error, success, handleInstallPackages };
+  return { loading, handleInstallPackages };
 }

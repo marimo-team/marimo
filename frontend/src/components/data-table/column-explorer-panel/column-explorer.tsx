@@ -170,7 +170,12 @@ const ColumnPreview = ({
 }) => {
   const { theme } = useTheme();
 
-  const { data, error, isPending } = useAsyncData(async () => {
+  const {
+    data,
+    error,
+    isPending,
+    refetch: refetchPreview,
+  } = useAsyncData(async () => {
     const response = await previewColumn({ column: columnName });
     return response;
   }, []);
@@ -196,7 +201,8 @@ const ColumnPreview = ({
   } = data;
 
   const errorState =
-    previewError && renderPreviewError(previewError, missing_packages);
+    previewError &&
+    renderPreviewError(previewError, missing_packages, refetchPreview);
 
   const previewStats = stats && renderStats(stats, dataType);
 
