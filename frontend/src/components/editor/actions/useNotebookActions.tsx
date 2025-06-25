@@ -541,5 +541,15 @@ export function useNotebookActions() {
     },
   ];
 
-  return actions.filter((a) => !a.hidden);
+  return actions
+    .filter((a) => !a.hidden)
+    .map((action) => {
+      if (action.dropdown) {
+        return {
+          ...action,
+          dropdown: action.dropdown.filter((item) => !item.hidden),
+        };
+      }
+      return action;
+    });
 }
