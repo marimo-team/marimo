@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2025 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
 import {
@@ -79,9 +79,9 @@ export const Controls = ({
     );
   }
 
-  const disabled = isAppInteractionDisabled(connectionState);
+  const disabled = isAppInteractionDisabled(WebSocketState.CONNECTING);
   const connectionTooltip = disabled
-    ? getConnectionTooltip(connectionState)
+    ? getConnectionTooltip(WebSocketState.CONNECTING)
     : undefined;
   return (
     <>
@@ -90,7 +90,10 @@ export const Controls = ({
       {!closed && (
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
-          <NotebookMenuDropdown connectionState={connectionState} />
+          <NotebookMenuDropdown
+            disabled={disabled}
+            tooltip={connectionTooltip}
+          />
           <ConfigButton disabled={disabled} tooltip={connectionTooltip} />
           <ShutdownButton
             description="This will terminate the Python kernel. You'll lose all data that's in memory."

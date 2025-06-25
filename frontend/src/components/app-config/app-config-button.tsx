@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2025 Marimo. All rights reserved. */
 
 import { useAtom } from "jotai";
 import { SettingsIcon } from "lucide-react";
@@ -35,6 +35,7 @@ export const ConfigButton: React.FC<Props> = ({
       shape="circle"
       size="small"
       className="h-[27px] w-[27px]"
+      disabled={disabled}
       color={disabled ? "disabled" : "hint-green"}
     >
       <Tooltip content={tooltip}>

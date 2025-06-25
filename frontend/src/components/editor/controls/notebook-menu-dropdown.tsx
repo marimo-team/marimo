@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2025 Marimo. All rights reserved. */
 
 import { MenuIcon } from "lucide-react";
 import React from "react";
@@ -16,26 +16,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getMarimoVersion } from "@/core/meta/globals";
-import {
-  getConnectionTooltip,
-  isAppInteractionDisabled,
-} from "@/core/websocket/connection-utils";
-import type { WebSocketState } from "@/core/websocket/types";
 import { MinimalShortcut } from "../../shortcuts/renderShortcut";
 import type { ActionButton } from "../actions/types";
 import { useNotebookActions } from "../actions/useNotebookActions";
 
 interface Props {
-  connectionState: WebSocketState;
+  disabled?: boolean;
+  tooltip?: string;
 }
 
-export const NotebookMenuDropdown: React.FC<Props> = ({ connectionState }) => {
+export const NotebookMenuDropdown: React.FC<Props> = ({
+  disabled = false,
+  tooltip = "Actions",
+}) => {
   const actions = useNotebookActions();
-  const isDisabled = isAppInteractionDisabled(connectionState);
-  const tooltipContent = isDisabled
-    ? getConnectionTooltip(connectionState)
-    : "Actions";
-
   const button = (
     <Button
       aria-label="Config"
@@ -43,9 +37,10 @@ export const NotebookMenuDropdown: React.FC<Props> = ({ connectionState }) => {
       size="small"
       className="h-[27px] w-[27px]"
       data-testid="notebook-menu-dropdown"
-      color={isDisabled ? "disabled" : "hint-green"}
+      disabled={disabled}
+      color={disabled ? "disabled" : "hint-green"}
     >
-      <Tooltip content={tooltipContent}>
+      <Tooltip content={tooltip}>
         <MenuIcon strokeWidth={1.8} />
       </Tooltip>
     </Button>
@@ -95,7 +90,9 @@ export const NotebookMenuDropdown: React.FC<Props> = ({ connectionState }) => {
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild={true} disabled={disabled}>
+        {button}
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="no-print w-[240px]">
         {actions.map((action) => {
           if (action.hidden) {
