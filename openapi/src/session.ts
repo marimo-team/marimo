@@ -6,62 +6,88 @@
 export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        Cell: {
-            code_hash: string | null;
-            console: (components["schemas"]["StreamOutput"] | components["schemas"]["StreamMediaOutput"])[];
-            id: string;
-            outputs: (components["schemas"]["ErrorOutput"] | components["schemas"]["DataOutput"])[];
-        };
-        DataOutput: {
-            data: {
-                [key: string]: unknown;
-            };
-            /** @enum {string} */
-            type: "data";
-        };
-        ErrorOutput: {
-            ename: string;
-            evalue: string;
-            traceback: string[];
-            /** @enum {string} */
-            type: "error";
-        };
-        NotebookSessionMetadata: {
-            marimo_version: string | null;
-        };
-        NotebookSessionV1: {
-            cells: components["schemas"]["Cell"][];
-            metadata: components["schemas"]["NotebookSessionMetadata"];
-            version: string;
-        };
-        StreamMediaOutput: {
-            data: string;
-            /** @enum {string} */
-            mimetype: "application/json" | "application/vnd.marimo+error" | "application/vnd.marimo+traceback" | "application/vnd.marimo+mimebundle" | "application/vnd.vega.v5+json" | "application/vnd.vegalite.v5+json" | "image/png" | "image/svg+xml" | "image/tiff" | "image/avif" | "image/bmp" | "image/gif" | "image/jpeg" | "video/mp4" | "video/mpeg" | "text/html" | "text/plain" | "text/markdown" | "text/latex" | "text/csv";
-            /** @enum {string} */
-            name: "media";
-            /** @enum {string} */
-            type: "streamMedia";
-        };
-        StreamOutput: {
-            /** @enum {string} */
-            name: "stdout" | "stderr";
-            text: string;
-            /** @enum {string} */
-            type: "stream";
-        };
-        TimeMetadata: {
-            completed: string | null;
-            duration: number | null;
-            started: string | null;
-        };
+  schemas: {
+    Cell: {
+      code_hash: string | null;
+      console: (
+        | components["schemas"]["StreamOutput"]
+        | components["schemas"]["StreamMediaOutput"]
+      )[];
+      id: string;
+      outputs: (
+        | components["schemas"]["ErrorOutput"]
+        | components["schemas"]["DataOutput"]
+      )[];
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    DataOutput: {
+      data: {
+        [key: string]: unknown;
+      };
+      /** @enum {string} */
+      type: "data";
+    };
+    ErrorOutput: {
+      ename: string;
+      evalue: string;
+      traceback: string[];
+      /** @enum {string} */
+      type: "error";
+    };
+    NotebookSessionMetadata: {
+      marimo_version: string | null;
+    };
+    NotebookSessionV1: {
+      cells: components["schemas"]["Cell"][];
+      metadata: components["schemas"]["NotebookSessionMetadata"];
+      version: string;
+    };
+    StreamMediaOutput: {
+      data: string;
+      /** @enum {string} */
+      mimetype:
+        | "application/json"
+        | "application/vnd.marimo+error"
+        | "application/vnd.marimo+traceback"
+        | "application/vnd.marimo+mimebundle"
+        | "application/vnd.vega.v5+json"
+        | "application/vnd.vegalite.v5+json"
+        | "image/png"
+        | "image/svg+xml"
+        | "image/tiff"
+        | "image/avif"
+        | "image/bmp"
+        | "image/gif"
+        | "image/jpeg"
+        | "video/mp4"
+        | "video/mpeg"
+        | "text/html"
+        | "text/plain"
+        | "text/markdown"
+        | "text/latex"
+        | "text/csv";
+      /** @enum {string} */
+      name: "media";
+      /** @enum {string} */
+      type: "streamMedia";
+    };
+    StreamOutput: {
+      /** @enum {string} */
+      name: "stdout" | "stderr";
+      text: string;
+      /** @enum {string} */
+      type: "stream";
+    };
+    TimeMetadata: {
+      completed: string | null;
+      duration: number | null;
+      started: string | null;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;
