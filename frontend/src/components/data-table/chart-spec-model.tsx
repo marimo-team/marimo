@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { mint, orange, slate } from "@radix-ui/colors";
-// @ts-expect-error vega-typings does not include formats
-import { formats } from "vega";
 import type { TopLevelSpec } from "vega-lite";
+// @ts-expect-error vega-typings does not include formats
+import { formats } from "vega-loader";
 import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { arrow } from "@/plugins/impl/vega/formats";
