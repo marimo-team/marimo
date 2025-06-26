@@ -73,7 +73,7 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
     }
     // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
-    Object.entries(item).forEach(([key, value], idx) => {
+    Object.entries(item).forEach(([key, value], _idx) => {
       const currentValue = fieldTypes[key];
       if (!currentValue) {
         // Set for the first time
