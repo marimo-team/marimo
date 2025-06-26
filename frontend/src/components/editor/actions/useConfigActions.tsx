@@ -4,11 +4,9 @@ import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
-import { useTheme } from "@/theme/useTheme";
 import type { ActionButton } from "./types";
 
 export function useConfigActions() {
-  const { theme } = useTheme();
   const [config, setConfig] = useResolvedMarimoConfig();
   const [appConfig, setAppConfig] = useAppConfig();
 
@@ -37,15 +35,37 @@ export function useConfigActions() {
         },
       })),
     {
-      label: "Config > Toggle dark mode",
+      label: "Config > Set theme: dark",
       handle: () => {
         handleUserConfig({
           ...config,
           display: {
-            // We don't use the config from the setting since
-            // we want to resolve 'system' to it's current value.
             ...config.display,
-            theme: theme === "dark" ? "light" : "dark",
+            theme: "dark",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set theme: light",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            theme: "light",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set theme: system",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            theme: "system",
           },
         });
       },
