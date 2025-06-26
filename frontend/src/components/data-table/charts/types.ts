@@ -1,4 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import type { Scale } from "vega-lite/build/src/scale";
+
+/**
+ * Valid string-based color scheme options from
+ * Vega-Lite `Scale["scheme"]` (aka `vega.ColorScheme`).
+ */
+export type ColorScheme = NonNullable<Scale["scheme"] & string>;
 
 /**
  * Similar to VegaLite's ScaleType, https://vega.github.io/vega-lite/docs/scale.html#type

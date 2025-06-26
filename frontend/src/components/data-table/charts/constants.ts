@@ -18,10 +18,10 @@ import {
   SquareFunctionIcon,
   TableIcon,
 } from "lucide-react";
-import type { ColorScheme } from "vega";
 import type {
   AggregationFn,
   ChartType,
+  ColorScheme,
   SelectableDataType,
   TimeUnit,
 } from "./types";
