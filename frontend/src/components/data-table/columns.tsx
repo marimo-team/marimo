@@ -313,7 +313,11 @@ const PopoutColumn = ({
             {rawStringValue}
           </span>
         </PopoverTrigger>
-        <PopoverContent className={contentClassName}>
+        <PopoverContent
+          className={contentClassName}
+          align="start"
+          alignOffset={10}
+        >
           <PopoverClose className="absolute top-2 right-2">
             <Button variant="link" size="xs">
               {buttonText ?? "Close"}
