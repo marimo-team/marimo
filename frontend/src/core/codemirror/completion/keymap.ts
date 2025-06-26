@@ -1,8 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
+  acceptCompletion,
   closeCompletion,
   completionKeymap as defaultCompletionKeymap,
+  moveCompletionSelection,
 } from "@codemirror/autocomplete";
 import { type Extension, Prec } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
@@ -36,6 +38,34 @@ export function completionKeymap(): Extension {
       {
         key: "Escape",
         run: closeCompletionAndPropagate,
+      },
+      // Vim-specific completion keybindings
+      {
+        key: "Ctrl-y",
+        run: (view) => {
+          if (isInVimMode(view)) {
+            return acceptCompletion(view);
+          }
+          return false;
+        },
+      },
+      {
+        key: "Ctrl-n",
+        run: (view) => {
+          if (isInVimMode(view)) {
+            return moveCompletionSelection(true)(view);
+          }
+          return false;
+        },
+      },
+      {
+        key: "Ctrl-p",
+        run: (view) => {
+          if (isInVimMode(view)) {
+            return moveCompletionSelection(false)(view);
+          }
+          return false;
+        },
       },
     ]),
   );
