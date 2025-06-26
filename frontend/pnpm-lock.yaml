@@ -426,9 +426,6 @@ importers:
       use-resize-observer:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      vega:
-        specifier: ^5.33.0
-        version: 5.33.0
       vega-lite:
         specifier: ^5.23.0
         version: 5.23.0(vega@5.33.0)

@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { ColorScheme } from "vega";
 import type { Aggregate } from "vega-lite/build/src/aggregate";
 import type { BinParams } from "vega-lite/build/src/bin";
 import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
@@ -12,6 +11,7 @@ import {
   type AggregationFn,
   BIN_AGGREGATION,
   ChartType,
+  type ColorScheme,
   NONE_AGGREGATION,
   type SelectableDataType,
   STRING_AGGREGATION_FNS,

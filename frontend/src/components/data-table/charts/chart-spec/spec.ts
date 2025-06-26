@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { ExprRef, SignalRef } from "vega";
 import type { TopLevelSpec } from "vega-lite";
 import type {
   ColorDef,
@@ -164,7 +163,7 @@ export function getAxisEncoding(
 export function getFacetEncoding(
   facet: z.infer<typeof RowFacet> | z.infer<typeof ColumnFacet>,
   chartType: ChartType,
-): FacetFieldDef<Field, ExprRef | SignalRef> {
+): FacetFieldDef<Field> {
   const binValues = getBinEncoding(
     chartType,
     facet.selectedDataType || "string",
