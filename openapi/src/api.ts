@@ -3256,8 +3256,8 @@ export interface components {
         follow_symlink: boolean;
       };
       sharing?: {
-        html: boolean;
-        wasm: boolean;
+        html?: boolean;
+        wasm?: boolean;
       };
       snippets?: {
         custom_paths?: string[];

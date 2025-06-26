@@ -165,8 +165,8 @@ export const UserConfigSchema = z
     server: z.object({}).passthrough().default({}),
     sharing: z
       .object({
-        html: z.boolean(),
-        wasm: z.boolean(),
+        html: z.boolean().optional(),
+        wasm: z.boolean().optional(),
       })
       .passthrough()
       .optional(),
