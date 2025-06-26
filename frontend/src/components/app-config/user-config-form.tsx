@@ -1165,7 +1165,9 @@ export const UserConfigForm: React.FC = () => {
                             data-testid="ai-openai-use-entra-id-checkbox"
                             checked={!!field.value}
                             disabled={field.disabled}
-                            onCheckedChange={(checked) => field.onChange(!!checked)}
+                            onCheckedChange={(checked) =>
+                              field.onChange(!!checked)
+                            }
                           />
                         </FormControl>
                         <FormMessage />
