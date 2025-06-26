@@ -52,7 +52,6 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId } from "@/core/cells/ids";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
@@ -146,6 +145,10 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
+  showPageSizeSelector: boolean;
+  showColumnExplorer: boolean;
+  showChartBuilder: boolean;
+  showRowViewer: boolean;
   rowHeaders: string[];
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
@@ -206,6 +209,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnSummaries: z
         .union([z.boolean(), z.enum(["stats", "chart"])])
         .default(true),
+      showPageSizeSelector: z.boolean().default(true),
+      showColumnExplorer: z.boolean().default(true),
+      showChartBuilder: z.boolean().default(true),
+      showRowViewer: z.boolean().default(true),
       rowHeaders: z.array(z.string()),
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
@@ -312,7 +319,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            experimentalChartsEnabled={true}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -353,9 +359,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
-  experimentalChartsEnabled?: boolean;
   toggleDisplayHeader?: () => void;
-  chartsFeatureEnabled?: boolean;
   host: HTMLElement;
   cellId?: CellId | null;
 }
@@ -398,7 +402,7 @@ export const LoadingDataTableComponent = memo(
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
     const [displayHeader, setDisplayHeader] = useState(() => {
       // Show the header if a single chart is configured
-      if (!getFeatureFlag("table_charts") || !cellId) {
+      if (!props.showChartBuilder || !cellId) {
         return false;
       }
       return hasChart(cellId);
@@ -594,9 +598,6 @@ export const LoadingDataTableComponent = memo(
       setDisplayHeader(!displayHeader);
     };
 
-    const chartsFeatureEnabled =
-      getFeatureFlag("table_charts") && props.experimentalChartsEnabled;
-
     const dataTable = (
       <DataTableComponent
         {...props}
@@ -614,7 +615,6 @@ export const LoadingDataTableComponent = memo(
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
         toggleDisplayHeader={toggleDisplayHeader}
-        chartsFeatureEnabled={chartsFeatureEnabled}
         getRow={getRow}
         cellId={cellId}
       />
@@ -623,7 +623,7 @@ export const LoadingDataTableComponent = memo(
     return (
       <>
         {errorComponent}
-        {chartsFeatureEnabled ? (
+        {props.showChartBuilder ? (
           <TablePanel
             displayHeader={displayHeader}
             dataTable={dataTable}
@@ -650,6 +650,10 @@ const DataTableComponent = ({
   value,
   showFilters,
   showDownload,
+  showPageSizeSelector,
+  showColumnExplorer,
+  showChartBuilder,
+  showRowViewer,
   rowHeaders,
   fieldTypes,
   paginationState,
@@ -674,7 +678,6 @@ const DataTableComponent = ({
   get_row_ids,
   cellStyles,
   toggleDisplayHeader,
-  chartsFeatureEnabled,
   calculate_top_k_rows,
   preview_column,
   getRow,
@@ -790,6 +793,8 @@ const DataTableComponent = ({
   );
 
   const isSelectable = selection === "multi" || selection === "single";
+  const showColExplorer =
+    showColumnExplorer && preview_column && isPanelOpen("column-explorer");
 
   return (
     <>
@@ -816,7 +821,7 @@ const DataTableComponent = ({
         </Banner>
       )}
 
-      {isPanelOpen("row-viewer") && (
+      {showRowViewer && isPanelOpen("row-viewer") && (
         <ContextAwarePanelItem>
           <RowViewerPanel
             getRow={getRow}
@@ -830,7 +835,7 @@ const DataTableComponent = ({
           />
         </ContextAwarePanelItem>
       )}
-      {isPanelOpen("column-explorer") && preview_column && (
+      {showColExplorer && (
         <ContextAwarePanelItem>
           <ColumnExplorerPanel
             previewColumn={preview_column}
@@ -875,7 +880,10 @@ const DataTableComponent = ({
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
-            chartsFeatureEnabled={chartsFeatureEnabled}
+            showChartBuilder={showChartBuilder}
+            showPageSizeSelector={showPageSizeSelector}
+            showRowViewer={showRowViewer}
+            showColumnExplorer={showColumnExplorer}
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
             viewedRowIdx={viewedRowIdx}
