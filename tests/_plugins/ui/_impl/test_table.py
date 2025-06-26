@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import pytest
 
@@ -979,6 +980,7 @@ def test_show_column_summaries_modes():
     assert summaries_default.is_disabled is False
     assert summaries_default.data is not None
     assert len(summaries_default.stats) > 0
+    assert table_default._component_args["show-column-summaries"] is True
 
 
 def test_table_with_frozen_columns() -> None:
@@ -1046,7 +1048,6 @@ def test_show_column_summaries_default():
     # explicitly set to True
     table_true = ui.table(large_data, show_column_summaries=True)
     assert table_true._show_column_summaries is True
-    assert table_true._component_args["show-column-summaries"] is True
 
 
 def test_data_with_rich_components():
@@ -1712,6 +1713,10 @@ def test_lazy_dataframe() -> None:
         assert table._component_args["total-columns"] == 0
         assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
         assert table._component_args["field-types"] is None
+        assert table._component_args["show-page-size-selector"] is False
+        assert table._component_args["show-column-explorer"] is False
+        assert table._component_args["show-chart-builder"] is False
+        assert table._component_args["show-row-viewer"] is True
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
@@ -1952,3 +1957,44 @@ def test_max_columns_not_provided_with_filters():
     response = table._search(search_args)
     result_data = json.loads(response.data)
     assert len(result_data[0].keys()) == 101  # +1 for marimo_row_id
+
+
+def test_show_page_size_selector_property():
+    """Test the show_page_size_selector property behavior."""
+    data = {"a": list(range(20))}  # 20 rows to ensure pagination
+
+    # Test default behavior (True)
+    table_default = ui.table(data)
+    assert table_default._component_args["show-page-size-selector"] is True
+
+    # Test explicit False
+    table_false = ui.table(data, show_page_size_selector=False)
+    assert table_false._component_args["show-page-size-selector"] is False
+
+    # Test with small dataset (should disable automatically)
+    small_data = {"a": [1, 2, 3, 4]}  # Less than 5 rows
+    table_small = ui.table(small_data)
+    assert table_small._component_args["show-page-size-selector"] is False
+
+    # Test with small dataset but explicit True
+    table_small_explicit = ui.table(small_data, show_page_size_selector=True)
+    assert (
+        table_small_explicit._component_args["show-page-size-selector"] is True
+    )
+
+
+def test_show_toggles_app_mode():
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+
+    with patch("marimo._plugins.ui._impl.table.get_mode", return_value="edit"):
+        table_default = ui.table(data)
+        assert table_default._component_args["show-column-explorer"] is True
+        assert table_default._component_args["show-chart-builder"] is True
+        assert table_default._component_args["show-row-viewer"] is True
+
+    with patch("marimo._plugins.ui._impl.table.get_mode", return_value="run"):
+        table_default = ui.table(data)
+        assert table_default._component_args["show-column-explorer"] is False
+        assert table_default._component_args["show-chart-builder"] is False
+        # Row viewer set to true
+        assert table_default._component_args["show-row-viewer"] is True
