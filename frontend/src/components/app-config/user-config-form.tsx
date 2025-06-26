@@ -1163,15 +1163,9 @@ export const UserConfigForm: React.FC = () => {
                         <FormControl>
                           <Checkbox
                             data-testid="ai-openai-use-entra-id-checkbox"
-                            checked={checkedValue}
+                            checked={!!field.value}
                             disabled={field.disabled}
-                            onCheckedChange={(checked) => {
-                              field.onChange(Boolean(checked));
-                              // Clear the API key when enabling Entra ID
-                              if (checked) {
-                                form.setValue("ai.open_ai.api_key", "");
-                              }
-                            }}
+                            onCheckedChange={(checked) => field.onChange(!!checked)}
                           />
                         </FormControl>
                         <FormMessage />

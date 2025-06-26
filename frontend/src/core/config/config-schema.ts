@@ -130,7 +130,7 @@ export const UserConfigSchema = z
             api_key: z.string().optional(),
             base_url: z.string().optional(),
             model: z.string().optional(),
-            use_entra_id: z.boolean().default(false),
+            use_entra_id: z.boolean().optional(),
           })
           .optional(),
         anthropic: z
@@ -179,9 +179,6 @@ export const UserConfigSchema = z
     ai: {
       rules: "",
       mode: "manual",
-      open_ai: {
-        use_entra_id: false,
-      },
     },
   });
 export type UserConfig = MarimoConfig;
