@@ -3255,6 +3255,10 @@ export interface components {
         browser: "default" | string;
         follow_symlink: boolean;
       };
+      sharing?: {
+        html: boolean;
+        wasm: boolean;
+      };
       snippets?: {
         custom_paths?: string[];
         include_default_snippets?: boolean;

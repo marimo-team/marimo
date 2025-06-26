@@ -1725,6 +1725,16 @@ components:
           - browser
           - follow_symlink
           type: object
+        sharing:
+          properties:
+            html:
+              type: boolean
+            wasm:
+              type: boolean
+          required:
+          - html
+          - wasm
+          type: object
         snippets:
           properties:
             custom_paths:
