@@ -179,6 +179,7 @@ export const UserConfigSchema = z
     ai: {
       rules: "",
       mode: "manual",
+      open_ai: {},
     },
   });
 export type UserConfig = MarimoConfig;
