@@ -7,7 +7,7 @@ import { type JSX, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { type SignalListeners, VegaLite, type View } from "react-vega";
 // @ts-expect-error vega-typings does not include formats
-import { formats } from "vega";
+import { formats } from "vega-loader";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
