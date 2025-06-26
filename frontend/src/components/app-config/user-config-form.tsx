@@ -1182,7 +1182,7 @@ export const UserConfigForm: React.FC = () => {
                       </FormItem>
                       <FormDescription>
                         Use Azure Entra ID for authentication instead of API
-                        key. The managed identity client ID can be specified by setting the environment variable AZURE_CLIENT_ID. See{" "}
+                        key. See{" "}
                         <ExternalLink href="https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/managed-identity">
                           Microsoft's documentation
                         </ExternalLink>{" "}
