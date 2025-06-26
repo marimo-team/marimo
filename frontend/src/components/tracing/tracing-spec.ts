@@ -53,12 +53,12 @@ export function createGanttBaseSpec(
         },
       },
     ],
-    height: { step: chartPosition === "above" ? 21 : 26 },
+    height: { step: 23 },
     encoding: {
       y: {
         field: cellNumField,
         scale: { paddingInner: 0.2 },
-        sort: { field: startTimestampField },
+        sort: { field: "sortPriority" },
         title: "cell",
         axis: chartPosition === "sideBySide" ? null : undefined,
       },
@@ -87,7 +87,7 @@ export function createGanttBaseSpec(
       ],
       size: {
         value: {
-          expr: `${REACT_HOVERED_CELLID} == toString(datum.cell) ? 19.5 : 18`,
+          expr: `${REACT_HOVERED_CELLID} == toString(datum.${cellField}) ? 19.5 : 18`,
         },
       },
       color: {
@@ -99,6 +99,13 @@ export function createGanttBaseSpec(
     data: {
       values: chartValues,
     },
+    transform: [
+      {
+        // Sort queued cells to the bottom
+        calculate: `datum.${statusField} === 'queued' ? 9999999999999 : datum.${startTimestampField}`,
+        as: "sortPriority",
+      },
+    ],
     config: {
       view: {
         stroke: "transparent",
