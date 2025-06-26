@@ -290,7 +290,8 @@ class table(
             If "stats", only show stats. If "chart", only show charts.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
-        show_page_size_selector (bool, optional): Whether to show the page size selector. Defaults to True.
+        show_page_size_selector (bool, optional): Whether to show the page size selector.
+            Defaults to True above 5 rows, False otherwise.
         show_column_explorer (bool, optional): Whether to show the column explorer toggle.
             Defaults to True when run in edit mode, False otherwise.
         show_chart_builder (bool, optional): Whether to show the chart builder toggle.
@@ -353,6 +354,10 @@ class table(
             page_size=page_size,
             show_column_summaries=False,
             show_download=False,
+            show_page_size_selector=False,
+            show_chart_builder=False,
+            show_row_viewer=True,
+            show_column_explorer=False,
             format_mapping=None,
             freeze_columns_left=None,
             freeze_columns_right=None,
@@ -398,7 +403,7 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
-        show_page_size_selector: bool = True,
+        show_page_size_selector: Optional[bool] = None,
         show_column_explorer: bool = True,
         show_chart_builder: bool = True,
         show_row_viewer: bool = True,
@@ -489,8 +494,12 @@ class table(
             show_column_explorer = False
             show_chart_builder = False
 
-        if isinstance(total_rows, int) and total_rows < 5:
-            show_page_size_selector = False
+        # We set page_size_selector if not defined by the user
+        if show_page_size_selector is None:
+            if isinstance(total_rows, int) and total_rows <= 5:
+                show_page_size_selector = False
+            else:
+                show_page_size_selector = True
 
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
