@@ -29,10 +29,12 @@ type T =
   | {
       points?: Array<Record<AxisName, AxisDatum>> | Plotly.PlotDatum[];
       indices?: number[];
-      range?: {
-        x?: number[];
-        y?: number[];
-      };
+      range?:
+        | {
+            x?: number[];
+            y?: number[];
+          }
+        | Record<string, [number, number][]>;
       // These are kept in the state to persist selections across re-renders
       // on the frontend, but likely not used in the backend.
       selections?: unknown[];
@@ -244,6 +246,52 @@ export const PlotlyComponent = memo(
             ...prev,
             points: evt.points.map((point) => pick(point, SUNBURST_DATA_KEYS)),
           }));
+        })}
+        onRestyle={useEvent((update: Readonly<any[]>) => {
+          if (!update || !Array.isArray(update) || update.length < 2) {
+            return;
+          }
+
+          const [restyleData, traceIndices] = update;
+
+          // Check if this is a parallel coordinates plot with constraint updates
+          const hasConstraintRange = Object.keys(restyleData).some(
+            (key) =>
+              key.includes("dimensions") && key.includes("constraintrange"),
+          );
+
+          if (hasConstraintRange && Array.isArray(traceIndices)) {
+            // Extract constraint ranges for parallel coordinates
+            const constraints: Record<string, [number, number][]> = {};
+
+            Object.entries(restyleData).forEach(([key, value]) => {
+              // Match keys like "dimensions[0].constraintrange", "dimensions[1].constraintrange", etc.
+              const match = key.match(/dimensions\[(\d+)\]\.constraintrange/);
+              if (match && Array.isArray(value) && value.length > 0) {
+                const dimensionIndex = parseInt(match[1], 10);
+                const constraintRange = value[0];
+                if (
+                  Array.isArray(constraintRange) &&
+                  constraintRange.length === 2
+                ) {
+                  constraints[`dimension_${dimensionIndex}`] = [
+                    constraintRange as [number, number],
+                  ];
+                }
+              }
+            });
+
+            // For parallel coordinates, we always send the constraint information
+            // The Python backend can use this to filter the original data
+            setValue((prev) => ({
+              ...prev,
+              range: Object.keys(constraints).length > 0 ? constraints : {},
+              // For parallel coordinates, we track constraints rather than individual points
+              // The Python side will filter the data based on constraints
+              points: [],
+              indices: [],
+            }));
+          }
         })}
         config={plotlyConfig}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
