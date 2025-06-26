@@ -35,6 +35,7 @@ interface TableActionsProps<TData> {
   chartsFeatureEnabled?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
+  tableLoading?: boolean;
 }
 
 export const TableActions = <TData,>({
@@ -53,6 +54,7 @@ export const TableActions = <TData,>({
   chartsFeatureEnabled,
   togglePanel,
   isPanelOpen,
+  tableLoading,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -163,6 +165,7 @@ export const TableActions = <TData,>({
           selection={selection}
           onSelectAllRowsChange={handleSelectAllRows}
           table={table}
+          tableLoading={tableLoading}
         />
       )}
       <div className="ml-auto">
