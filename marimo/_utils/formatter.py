@@ -25,7 +25,7 @@ def ruff(codes: CellCodes, *cmd: str) -> CellCodes:
         process = subprocess.run([*ruff_cmd, "--help"], capture_output=True)
         if process.returncode != 0:
             raise ModuleNotFoundError(
-                "To enable code formatting, install ruff", name="ruff"
+                "To enable code formatting, please install ruff", name="ruff"
             )
 
     formatted_codes: CellCodes = {}
@@ -76,7 +76,8 @@ class DefaultFormatter(Formatter):
             return BlackFormatter(self.line_length).format(codes)
         else:
             raise ModuleNotFoundError(
-                "To enable code formatting, install ruff or black", name="ruff"
+                "To enable code formatting, please install ruff or black",
+                name="ruff",
             )
 
 
