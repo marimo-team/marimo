@@ -161,6 +161,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+<<<<<<< HEAD
+=======
+    "/api/ai/invoke_tool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The request body for tool invocation */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InvokeAiToolRequest"];
+                };
+            };
+            responses: {
+                /** @description Tool invocation result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvokeAiToolResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+>>>>>>> cf70565f (auto generated and linting)
     "/api/datasources/preview_column": {
         parameters: {
             query?: never;
@@ -2578,6 +2621,32 @@ export interface components {
                 content: {
                     [key: string]: unknown;
                 };
+<<<<<<< HEAD
+=======
+                parts?: ({
+                    text: string;
+                    /** @enum {string} */
+                    type: "text";
+                } | {
+                    reasoning: string;
+                    /** @enum {string} */
+                    type: "reasoning";
+                } | {
+                    toolInvocation: {
+                        args: {
+                            [key: string]: unknown;
+                        };
+                        result: unknown;
+                        /** @enum {string} */
+                        state: "result";
+                        step: number;
+                        toolCallId: string;
+                        toolName: string;
+                    };
+                    /** @enum {string} */
+                    type: "tool-invocation";
+                })[] | null;
+>>>>>>> cf70565f (auto generated and linting)
                 /** @enum {string} */
                 role: "user" | "assistant" | "system";
             }[];
@@ -2900,6 +2969,21 @@ export interface components {
             /** @enum {string} */
             name: "interrupted";
         };
+<<<<<<< HEAD
+=======
+        InvokeAiToolRequest: {
+            arguments: {
+                [key: string]: unknown;
+            };
+            toolName: string;
+        };
+        InvokeAiToolResponse: {
+            error?: string | null;
+            result: unknown;
+            success: boolean;
+            toolName: string;
+        };
+>>>>>>> cf70565f (auto generated and linting)
         JSONType: string | number | Record<string, never> | unknown[] | boolean | null;
         KernelReady: {
             app_config: {
@@ -3030,6 +3114,10 @@ export interface components {
                 default_table_page_size: number;
                 /** @enum {string} */
                 default_width: "normal" | "compact" | "medium" | "full" | "columns";
+<<<<<<< HEAD
+=======
+                reference_highlighting?: boolean;
+>>>>>>> cf70565f (auto generated and linting)
                 /** @enum {string} */
                 theme: "light" | "dark" | "system";
             };
