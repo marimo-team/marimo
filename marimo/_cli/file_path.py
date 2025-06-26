@@ -136,6 +136,10 @@ class StaticNotebookReader(FileReader):
         if any(url.startswith(f"https://{domain}/") for domain in DOMAINS):
             return download(url)
 
+        # TODO: Adjust for other various forms of static marimo notebook URLs.
+        if "notebooks/nb" in url:
+            return download(url)
+
         # Otherwise, not a static marimo notebook
         return False, ""
 
