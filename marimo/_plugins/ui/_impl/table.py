@@ -57,6 +57,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
 from marimo._utils.narwhals_utils import (
@@ -289,6 +290,12 @@ class table(
             If "stats", only show stats. If "chart", only show charts.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
+        show_page_size_selector (bool, optional): Whether to show the page size selector. Defaults to True.
+        show_column_explorer (bool, optional): Whether to show the column explorer toggle.
+            Defaults to True when run in edit mode, False otherwise.
+        show_chart_builder (bool, optional): Whether to show the chart builder toggle.
+            Defaults to True when run in edit mode, False otherwise.
+        show_row_viewer (bool, optional): Whether to show the row viewer toggle. Defaults to True.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
@@ -391,6 +398,10 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
+        show_page_size_selector: bool = True,
+        show_column_explorer: bool = True,
+        show_chart_builder: bool = True,
+        show_row_viewer: bool = True,
         max_columns: Optional[int] = DEFAULT_MAX_COLUMNS,
         *,
         label: str = "",
@@ -472,6 +483,14 @@ class table(
             self._column_summary_row_limit = (
                 TableManager.DEFAULT_SUMMARY_STATS_ROW_LIMIT
             )
+
+        app_mode = get_mode()
+        if app_mode != "edit":
+            show_column_explorer = False
+            show_chart_builder = False
+
+        if isinstance(total_rows, int) and total_rows < 5:
+            show_page_size_selector = False
 
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
@@ -602,6 +621,10 @@ class table(
                 "show-download": show_download
                 and self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
+                "show-page-size-selector": show_page_size_selector,
+                "show-column-explorer": show_column_explorer,
+                "show-chart-builder": show_chart_builder,
+                "show-row-viewer": show_row_viewer,
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,

@@ -79,10 +79,13 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   freezeColumnsRight?: string[];
   toggleDisplayHeader?: () => void;
   // Row viewer panel
+  showRowViewer?: boolean;
   viewedRowIdx?: number;
   onViewedRowChange?: OnChangeFn<number>;
   // Others
-  chartsFeatureEnabled?: boolean;
+  showChartBuilder?: boolean;
+  showPageSizeSelector?: boolean;
+  showColumnExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
 }
@@ -119,7 +122,10 @@ const DataTableInternal = <TData,>({
   freezeColumnsLeft,
   freezeColumnsRight,
   toggleDisplayHeader,
-  chartsFeatureEnabled,
+  showChartBuilder,
+  showPageSizeSelector,
+  showRowViewer,
+  showColumnExplorer,
   togglePanel,
   isPanelOpen,
   viewedRowIdx,
@@ -153,7 +159,7 @@ const DataTableInternal = <TData,>({
   }, [reloading]);
 
   // Returns the row index, accounting for pagination
-  function getPaginatedRowIndex(row: TData, idx: number): number {
+  function getPaginatedRowIndex(_row: TData, idx: number): number {
     if (!paginationState) {
       return idx;
     }
@@ -280,7 +286,10 @@ const DataTableInternal = <TData,>({
         downloadAs={downloadAs}
         getRowIds={getRowIds}
         toggleDisplayHeader={toggleDisplayHeader}
-        chartsFeatureEnabled={chartsFeatureEnabled}
+        showChartBuilder={showChartBuilder}
+        showPageSizeSelector={showPageSizeSelector}
+        showRowViewer={showRowViewer}
+        showColumnExplorer={showColumnExplorer}
         togglePanel={togglePanel}
         isPanelOpen={isPanelOpen}
         tableLoading={reloading}
