@@ -394,8 +394,8 @@ class SharingConfig(TypedDict):
     - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
     """
 
-    html: bool
-    wasm: bool
+    html: NotRequired[bool]
+    wasm: NotRequired[bool]
 
 
 @mddoc

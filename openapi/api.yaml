@@ -1731,9 +1731,6 @@ components:
               type: boolean
             wasm:
               type: boolean
-          required:
-          - html
-          - wasm
           type: object
         snippets:
           properties:
