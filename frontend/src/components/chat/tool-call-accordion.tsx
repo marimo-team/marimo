@@ -30,9 +30,8 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
   index = 0,
   state,
 }) => {
-  // Only show result when complete, otherwise just loading
-  const showResult = state === "result" && (result || error);
-  const status = error ? "error" : showResult ? "success" : "loading";
+  const hasResult = state === "result" && (result || error);
+  const status = error ? "error" : hasResult ? "success" : "loading";
 
   const getStatusIcon = () => {
     switch (status) {
@@ -54,7 +53,7 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
     if (error) {
       return "Failed: ";
     }
-    if (showResult) {
+    if (hasResult) {
       return "Done: ";
     }
     return "Tool call";
@@ -83,7 +82,7 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
         </AccordionTrigger>
         <AccordionContent className="pb-2 px-2">
           {/* Only show content when tool is complete */}
-          {showResult && (
+          {hasResult && (
             <div className="space-y-3">
               {/* Result */}
               {result && (
