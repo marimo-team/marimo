@@ -44,8 +44,8 @@ export const LanguagePanelComponent: React.FC<{
   };
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
-    type Metadata = LanguageMetadataOf<SQLLanguageAdapter>;
-    const metadata = view.state.field(languageMetadataField) as Metadata;
+    type Metadata1 = LanguageMetadataOf<SQLLanguageAdapter>;
+    const metadata = view.state.field(languageMetadataField) as Metadata1;
 
     showDivider = true;
 
@@ -56,7 +56,7 @@ export const LanguagePanelComponent: React.FC<{
       const name = normalizeName(e.currentTarget.value, false);
       e.currentTarget.value = name;
 
-      triggerUpdate<Metadata>({
+      triggerUpdate<Metadata1>({
         dataframeName: name,
       });
     };
@@ -84,7 +84,7 @@ export const LanguagePanelComponent: React.FC<{
         <SQLEngineSelect
           selectedEngine={metadata.engine}
           onChange={(engine) => {
-            triggerUpdate<Metadata>({ engine });
+            triggerUpdate<Metadata1>({ engine });
           }}
         />
         <div className="flex items-center gap-2 ml-auto">
@@ -104,7 +104,7 @@ export const LanguagePanelComponent: React.FC<{
             <input
               type="checkbox"
               onChange={(e) => {
-                triggerUpdate<Metadata>({
+                triggerUpdate<Metadata1>({
                   showOutput: !e.target.checked,
                 });
               }}
@@ -120,14 +120,14 @@ export const LanguagePanelComponent: React.FC<{
   if (languageAdapter instanceof MarkdownLanguageAdapter) {
     showDivider = true;
 
-    type Metadata = LanguageMetadataOf<MarkdownLanguageAdapter>;
-    const metadata = view.state.field(languageMetadataField) as Metadata;
+    type Metadata2 = LanguageMetadataOf<MarkdownLanguageAdapter>;
+    const metadata = view.state.field(languageMetadataField) as Metadata2;
     let { quotePrefix } = metadata;
 
     // Handle the case where the quote prefix is not set
     if (quotePrefix === undefined) {
       quotePrefix = "r";
-      triggerUpdate<Metadata>({ quotePrefix });
+      triggerUpdate<Metadata2>({ quotePrefix });
     }
 
     const togglePrefix = (
@@ -138,7 +138,7 @@ export const LanguagePanelComponent: React.FC<{
         return;
       }
       const newPrefix = getQuotePrefix(quotePrefix, checked, prefix);
-      triggerUpdate<Metadata>({
+      triggerUpdate<Metadata2>({
         quotePrefix: newPrefix,
       });
     };
