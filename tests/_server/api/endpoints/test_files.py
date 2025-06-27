@@ -221,7 +221,9 @@ def test_save_with_invalid_file(client: TestClient) -> None:
         # Race condition with uv (seen in python 3.10)
         if file_contents.startswith("# ///"):
             file_contents = file_contents.split("# ///")[2].lstrip()
-        assert file_contents.startswith("import marimo"), "Header was not removed"
+        assert file_contents.startswith("import marimo"), (
+            "Header was not removed"
+        )
 
     _try_assert_n_times(5, _assert_contents)
 
