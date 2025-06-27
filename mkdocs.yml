@@ -73,7 +73,7 @@ markdown_extensions:
   - pymdownx.tilde
   - mkdocs-click
 nav:
-  - Marimo: index.md
+  - marimo: index.md
   - Getting Started:
       - Getting Started: getting_started/index.md
       - Installation: getting_started/installation.md
