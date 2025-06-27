@@ -159,6 +159,7 @@ def categorize_entries(
     categories = {
         "bug": [],
         "enhancement": [],
+        "documentation": [],
         "preview": [],
         "other": [],
         "highlights": [],
@@ -171,6 +172,10 @@ def categorize_entries(
 
         label_names = {label.name for label in entry.pr.labels}
 
+        # Skip entries labeled as "internal"
+        if "internal" in label_names:
+            continue
+
         if "release-highlight" in label_names:
             categories["highlights"].append(entry)
 
@@ -178,6 +183,8 @@ def categorize_entries(
             categories["bug"].append(entry)
         elif "enhancement" in label_names:
             categories["enhancement"].append(entry)
+        elif "documentation" in label_names:
+            categories["documentation"].append(entry)
         elif "preview" in label_names:
             categories["preview"].append(entry)
         else:
@@ -226,7 +233,7 @@ def generate_release_notes(since_tag: str) -> str:
                 notes.append("")
 
             if entry.pr:
-                notes.append(f"**TODO: {entry.pr.title}**")
+                notes.append(f"**TODO: {entry.pr.title} #{entry.pr.number}**")
                 notes.append("")
                 notes.append("TODO: Description of the feature")
 
@@ -246,20 +253,26 @@ def generate_release_notes(since_tag: str) -> str:
             notes.append(format_entry(entry))
         notes.append("")
 
-    if categories["preview"]:
-        notes.append("## 🔬 Preview features")
-        for entry in categories["preview"]:
-            notes.append(format_entry(entry))
-        notes.append("")
-
     if categories["bug"]:
         notes.append("## 🐛 Bug fixes")
         for entry in categories["bug"]:
             notes.append(format_entry(entry))
         notes.append("")
 
+    if categories["documentation"]:
+        notes.append("## 📚 Documentation")
+        for entry in categories["documentation"]:
+            notes.append(format_entry(entry))
+        notes.append("")
+
+    if categories["preview"]:
+        notes.append("## 🔬 Preview features")
+        for entry in categories["preview"]:
+            notes.append(format_entry(entry))
+        notes.append("")
+
     if categories["other"]:
-        notes.append("## 📝 Other")
+        notes.append("## 📝 Other changes")
         for entry in categories["other"]:
             notes.append(format_entry(entry))
         notes.append("")
