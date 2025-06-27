@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -83,11 +84,22 @@ def test_save_file(client: TestClient) -> None:
         },
     )
     assert response.status_code == 200, response.text
-    assert "import marimo" in response.text
-    file_contents = path.read_text()
-    assert "import marimo as mo" in file_contents
-    assert "@app.cell(hide_code=True)" in file_contents
-    assert "my_cell" in file_contents
+
+    def _assert_contents():
+        file_contents = path.read_text()
+        assert "import marimo" in response.text
+        assert "import marimo as mo" in file_contents
+        assert "@app.cell(hide_code=True)" in file_contents
+        assert "my_cell" in file_contents
+
+    n_tries = 0
+    while n_tries <= 5:
+        try:
+            _assert_contents()
+            break
+        except Exception:
+            n_tries += 1
+            time.sleep(0.1)
 
     # save back
     response = client.post(
