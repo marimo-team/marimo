@@ -197,19 +197,13 @@ def strip_conventional_prefix(title: str) -> str:
     return title
 
 
-def format_entry(entry: CategorizedEntry, strip_prefix: bool = False) -> str:
+def format_entry(entry: CategorizedEntry) -> str:
     if entry.pr:
-        title = (
-            strip_conventional_prefix(entry.pr.title)
-            if strip_prefix
-            else entry.pr.title
-        )
-        return f"* {title} by @{entry.pr.author.login} in https://github.com/marimo-team/marimo/pull/{entry.pr.number}"
-    else:
-        title = entry.commit.message
-        if strip_prefix:
-            title = strip_conventional_prefix(title)
-        return f"* {title} ({entry.commit.sha[:7]})"
+        title = strip_conventional_prefix(entry.pr.title)
+        return f"* {title} ([#{entry.pr.number}](https://github.com/marimo-team/marimo/pull/{entry.pr.number}))"
+    title = entry.commit.message
+    title = strip_conventional_prefix(entry.commit.message)
+    return f"* {title} ({entry.commit.sha[:7]})"
 
 
 def generate_release_notes(since_tag: str) -> str:
@@ -249,26 +243,25 @@ def generate_release_notes(since_tag: str) -> str:
     if categories["enhancement"]:
         notes.append("## ✨ Enhancements")
         for entry in categories["enhancement"]:
-            notes.append(format_entry(entry, strip_prefix=True))
+            notes.append(format_entry(entry))
         notes.append("")
 
     if categories["preview"]:
         notes.append("## 🔬 Preview features")
         for entry in categories["preview"]:
-            notes.append(format_entry(entry, strip_prefix=True))
+            notes.append(format_entry(entry))
         notes.append("")
 
     if categories["bug"]:
         notes.append("## 🐛 Bug fixes")
         for entry in categories["bug"]:
-            notes.append(format_entry(entry, strip_prefix=True))
+            notes.append(format_entry(entry))
         notes.append("")
 
-    # Other changes (no prefix stripping for these)
     if categories["other"]:
         notes.append("## 📝 Other")
         for entry in categories["other"]:
-            notes.append(format_entry(entry, strip_prefix=False))
+            notes.append(format_entry(entry))
         notes.append("")
 
     notes.append("## New Contributors")
