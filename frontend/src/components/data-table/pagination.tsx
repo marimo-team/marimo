@@ -10,6 +10,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Events } from "@/utils/events";
 import { PluralWord } from "@/utils/pluralize";
 import {
   Select,
@@ -27,6 +28,7 @@ interface DataTablePaginationProps<TData> {
   selection?: DataTableSelection;
   totalColumns: number;
   onSelectAllRowsChange?: (value: boolean) => void;
+  tableLoading?: boolean;
 }
 
 export const DataTablePagination = <TData,>({
@@ -34,6 +36,7 @@ export const DataTablePagination = <TData,>({
   selection,
   onSelectAllRowsChange,
   totalColumns,
+  tableLoading,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
     const { rowSelection, cellSelection } = table.getState();
@@ -59,6 +62,7 @@ export const DataTablePagination = <TData,>({
             data-testid="select-all-button"
             variant="link"
             className="h-4"
+            onMouseDown={Events.preventFocus}
             onClick={() => {
               if (onSelectAllRowsChange) {
                 onSelectAllRowsChange(true);
@@ -82,6 +86,7 @@ export const DataTablePagination = <TData,>({
             data-testid="clear-selection-button"
             variant="link"
             className="h-4"
+            onMouseDown={Events.preventFocus}
             onClick={() => {
               if (!isCellSelection) {
                 if (onSelectAllRowsChange) {
@@ -114,6 +119,13 @@ export const DataTablePagination = <TData,>({
   // Ensure unique page sizes
   const pageSizeSet = new Set([5, 10, 25, 50, 100, pageSize]);
   const pageSizes = [...pageSizeSet].sort((a, b) => a - b);
+
+  const handlePageChange = (pageChangeFn: () => void) => {
+    // Frequent page changes can reset the page index, so we wait until the previous change has completed
+    if (!tableLoading) {
+      pageChangeFn();
+    }
+  };
 
   return (
     <div className="flex flex-1 items-center justify-between px-2">
@@ -151,7 +163,8 @@ export const DataTablePagination = <TData,>({
           variant="outline"
           data-testid="first-page-button"
           className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() => table.setPageIndex(0)}
+          onClick={() => handlePageChange(() => table.setPageIndex(0))}
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanPreviousPage()}
         >
           <span className="sr-only">Go to first page</span>
@@ -162,7 +175,8 @@ export const DataTablePagination = <TData,>({
           variant="outline"
           data-testid="previous-page-button"
           className="h-6 w-6 p-0"
-          onClick={() => table.previousPage()}
+          onClick={() => handlePageChange(() => table.previousPage())}
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanPreviousPage()}
         >
           <span className="sr-only">Go to previous page</span>
@@ -173,7 +187,9 @@ export const DataTablePagination = <TData,>({
           <PageSelector
             currentPage={currentPage}
             totalPages={totalPages}
-            onPageChange={(page) => table.setPageIndex(page)}
+            onPageChange={(page) =>
+              handlePageChange(() => table.setPageIndex(page))
+            }
           />
           <span className="flex-shrink-0">of {prettyNumber(totalPages)}</span>
         </div>
@@ -182,7 +198,8 @@ export const DataTablePagination = <TData,>({
           variant="outline"
           data-testid="next-page-button"
           className="h-6 w-6 p-0"
-          onClick={() => table.nextPage()}
+          onClick={() => handlePageChange(() => table.nextPage())}
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanNextPage()}
         >
           <span className="sr-only">Go to next page</span>
@@ -193,7 +210,10 @@ export const DataTablePagination = <TData,>({
           variant="outline"
           data-testid="last-page-button"
           className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+          onClick={() =>
+            handlePageChange(() => table.setPageIndex(table.getPageCount() - 1))
+          }
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanNextPage()}
         >
           <span className="sr-only">Go to last page</span>

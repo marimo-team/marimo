@@ -55,6 +55,7 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import { disabledCellIds, enabledCellIds } from "@/core/cells/utils";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
@@ -99,6 +100,7 @@ export function useNotebookActions() {
   const [viewState] = useAtom(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const hideAllMarkdownCode = useHideAllMarkdownCode();
+  const [resolvedConfig] = useResolvedMarimoConfig();
 
   const {
     updateCellConfig,
@@ -122,6 +124,10 @@ export function useNotebookActions() {
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
 
+  // Fallback: if sharing is undefined, both are enabled by default
+  const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
+  const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
+
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
       {checked && <CheckIcon size={14} />}
@@ -133,10 +139,12 @@ export function useNotebookActions() {
       icon: <Share2Icon size={14} strokeWidth={1.5} />,
       label: "Share",
       handle: NOOP_HANDLER,
+      hidden: !sharingHtmlEnabled && !sharingWasmEnabled,
       dropdown: [
         {
           icon: <GlobeIcon size={14} strokeWidth={1.5} />,
           label: "Publish HTML to web",
+          hidden: !sharingHtmlEnabled,
           handle: async () => {
             openModal(<ShareStaticNotebookModal onClose={closeModal} />);
           },
@@ -144,6 +152,7 @@ export function useNotebookActions() {
         {
           icon: <LinkIcon size={14} strokeWidth={1.5} />,
           label: "Create WebAssembly link",
+          hidden: !sharingWasmEnabled,
           handle: async () => {
             const code = await readCode();
             const url = createShareableLink({ code: code.contents });
@@ -536,5 +545,15 @@ export function useNotebookActions() {
     },
   ];
 
-  return actions.filter((a) => !a.hidden);
+  return actions
+    .filter((a) => !a.hidden)
+    .map((action) => {
+      if (action.dropdown) {
+        return {
+          ...action,
+          dropdown: action.dropdown.filter((item) => !item.hidden),
+        };
+      }
+      return action;
+    });
 }

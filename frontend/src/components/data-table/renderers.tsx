@@ -55,9 +55,11 @@ export function renderTableHeader<TData>(
 
   return (
     <TableHeader>
-      {renderHeaderGroup(table.getLeftHeaderGroups())}
-      {renderHeaderGroup(table.getCenterHeaderGroups())}
-      {renderHeaderGroup(table.getRightHeaderGroups())}
+      <TableRow>
+        {renderHeaderGroup(table.getLeftHeaderGroups())}
+        {renderHeaderGroup(table.getCenterHeaderGroups())}
+        {renderHeaderGroup(table.getRightHeaderGroups())}
+      </TableRow>
     </TableHeader>
   );
 }

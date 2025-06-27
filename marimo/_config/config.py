@@ -387,6 +387,21 @@ class DatasourcesConfig(TypedDict):
 
 @mddoc
 @dataclass
+class SharingConfig(TypedDict):
+    """Configuration for sharing features.
+
+    **Keys.**
+
+    - `html`: if `False`, HTML sharing options will be hidden from the UI
+    - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+    """
+
+    html: NotRequired[bool]
+    wasm: NotRequired[bool]
+
+
+@mddoc
+@dataclass
 class MarimoConfig(TypedDict):
     """Configuration for the marimo editor"""
 
@@ -404,6 +419,7 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
 
 
 @mddoc
@@ -425,6 +441,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {

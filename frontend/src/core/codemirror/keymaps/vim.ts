@@ -22,6 +22,7 @@ import {
   isAtStartOfEditor,
   isInVimNormalMode,
 } from "../utils";
+import { VimCursorVisibilityPlugin } from "../vim/cursor-visibility";
 import { parseVimrc, type VimCommand } from "./vimrc";
 
 export function vimKeymapExtension(): Extension[] {
@@ -94,6 +95,7 @@ export function vimKeymapExtension(): Extension[] {
         },
       };
     }),
+    ViewPlugin.define((view) => new VimCursorVisibilityPlugin({ view })),
   ];
 }
 

@@ -546,6 +546,7 @@ multi_column = true
 dataframes = "rich"
 
 [tool.marimo.runtime]
+auto_instantiate = false
 watcher_on_save = "autorun"
 output_max_bytes = 10_000_000
 std_stream_max_bytes = 2_000_000

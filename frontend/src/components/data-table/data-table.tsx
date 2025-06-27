@@ -126,11 +126,31 @@ const DataTableInternal = <TData,>({
   onViewedRowChange,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
+  const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
 
   const { columnPinning, setColumnPinning } = useColumnPinning(
     freezeColumnsLeft,
     freezeColumnsRight,
   );
+
+  // Show loading bar only after a short delay to prevent flickering
+  React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (reloading) {
+      timeoutId = setTimeout(() => {
+        setShowLoadingBar(true);
+      }, 300);
+    } else {
+      setShowLoadingBar(false);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [reloading]);
 
   // Returns the row index, accounting for pagination
   function getPaginatedRowIndex(row: TData, idx: number): number {
@@ -231,7 +251,10 @@ const DataTableInternal = <TData,>({
             reloading={reloading}
           />
         )}
-        <Table>
+        <Table className="relative">
+          {showLoadingBar && (
+            <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
+          )}
           {renderTableHeader(table)}
           <CellSelectionProvider>
             <DataTableBody
@@ -260,6 +283,7 @@ const DataTableInternal = <TData,>({
         chartsFeatureEnabled={chartsFeatureEnabled}
         togglePanel={togglePanel}
         isPanelOpen={isPanelOpen}
+        tableLoading={reloading}
       />
     </div>
   );

@@ -164,6 +164,13 @@ export const UserConfigSchema = z
       .passthrough()
       .default({}),
     server: z.object({}).passthrough().default({}),
+    sharing: z
+      .object({
+        html: z.boolean().optional(),
+        wasm: z.boolean().optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   // Pass through so that we don't remove any extra keys that the user has added
   .passthrough()
