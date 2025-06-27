@@ -7,6 +7,7 @@ from marimo._ai._types import (
     ChatAttachment,
     ChatMessage,
     ChatMessageDict,
+    ReasoningDetails,
     ReasoningPart,
     TextPart,
     ToolInvocationPart,
@@ -43,9 +44,34 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
             if part_dict["type"] == "text":
                 parts.append(TextPart(type="text", text=part_dict["text"]))
             elif part_dict["type"] == "reasoning":
+                # Handle ReasoningDetails if present
+                details_list = part_dict.get("details", [])
+                details = []
+
+                if details_list:
+                    for details_dict in details_list:
+                        details.append(
+                            ReasoningDetails(
+                                type=details_dict["type"],
+                                text=details_dict["text"],
+                                signature=details_dict.get("signature"),
+                            )
+                        )
+                else:
+                    # Fallback for backward compatibility
+                    details = [
+                        ReasoningDetails(
+                            type="text",
+                            text=part_dict["reasoning"],
+                            signature=None,
+                        )
+                    ]
+
                 parts.append(
                     ReasoningPart(
-                        type="reasoning", reasoning=part_dict["reasoning"]
+                        type="reasoning",
+                        reasoning=part_dict["reasoning"],
+                        details=details,
                     )
                 )
             elif part_dict["type"] == "tool-invocation":
