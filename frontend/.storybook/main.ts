@@ -1,24 +1,23 @@
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import * as mod from "node:module";
+import * as path from "node:path";
 import type { StorybookConfig } from "@storybook/react-vite";
 
-const require = createRequire(import.meta.url);
-const config: StorybookConfig = {
+function absolutePath(value: string): any {
+  const require = mod.createRequire(import.meta.url);
+  return path.dirname(require.resolve(path.join(value, "package.json")));
+}
+
+export default {
   stories: ["../src/**/*.mdx", "../src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))"],
   addons: [
-    getAbsolutePath("@storybook/addon-links"),
-    getAbsolutePath("@storybook/addon-docs"),
+    absolutePath("@storybook/addon-links"),
+    absolutePath("@storybook/addon-docs"),
   ],
   framework: {
-    name: getAbsolutePath("@storybook/react-vite"),
+    name: absolutePath("@storybook/react-vite"),
     options: {},
   },
   docs: {
     docsMode: false,
   },
-};
-export default config;
-
-function getAbsolutePath(value: string): any {
-  return dirname(require.resolve(join(value, "package.json")));
-}
+} satisfies StorybookConfig;
