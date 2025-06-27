@@ -53,6 +53,11 @@
       }
     </script>
     <marimo-filename hidden>{{ filename }}</marimo-filename>
+    <!-- TODO(Trevor): Legacy, required by VS Code plugin — remove when plugin is updated (see marimo/server/_templates/template.py) -->
+    <marimo-version data-version="{{ version }}" hidden></marimo-version>
+    <marimo-user-config data-config="{{ user_config }}" hidden></marimo-user-config>
+    <marimo-server-token data-token="{{ server_token }}" hidden></marimo-server-token>
+    <!-- /TODO -->
     <title>{{ title }}</title>
   </head>
   <body>
