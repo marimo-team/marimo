@@ -25,7 +25,7 @@
     "noImplicitOverride": true,
 
     /* Style */
-    "allowJs": true, /* needed for storybook */
+    "allowJs": true /* needed for storybook */,
     "paths": {
       "@/*": ["./src/*"]
     },
