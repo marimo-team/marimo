@@ -1152,8 +1152,6 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 name="ai.open_ai.use_entra_id"
                 render={({ field }) => {
-                  const checkedValue = Boolean(field.value);
-
                   return (
                     <div className="flex flex-col space-y-1">
                       <FormItem className={formItemClasses}>
