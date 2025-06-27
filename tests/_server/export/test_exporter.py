@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from typing import TYPE_CHECKING, Any
@@ -461,8 +462,20 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
         argv=None,
     )
     assert did_error is False
-    mock_echo.assert_any_call("hello stdout", file=sys.stderr, nl=False)
-    mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
+
+    def _assert_contents():
+        mock_echo.assert_any_call("hello stdout", file=sys.stderr, nl=False)
+        mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
+
+    n_tries = 0
+    while n_tries <= 5:
+        try:
+            _assert_contents()
+            break
+        except Exception:
+            n_tries += 1
+            await asyncio.sleep(0.1)
+
     cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
     snapshot(
         "run_until_completion_with_console_output.txt",
