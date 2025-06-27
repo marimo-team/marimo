@@ -105,7 +105,6 @@ def test_save_file(client: TestClient) -> None:
     if n_tries > limit:
         _assert_contents()
 
-
     # save back
     response = client.post(
         "/api/kernel/save",
