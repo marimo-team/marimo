@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AppChrome } from "@/components/editor/chrome/wrapper/app-chrome";
 import { TooltipProvider } from "@/components/ui/tooltip";
 

@@ -1,4 +1,4 @@
-import type { Preview, Decorator } from "@storybook/react";
+import type { Preview, Decorator } from "@storybook/react-vite";
 import "../src/css/index.css";
 import "../src/css/app/App.css";
 import "./sb.css";
