@@ -135,7 +135,7 @@ def create_session(
             query_params=query_params,
             filename=filename,
             cli_args={},
-            argv=[""],
+            argv=[],
             app_config=app.config,
         ),
         user_config,
