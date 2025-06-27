@@ -468,13 +468,16 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
         mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
 
     n_tries = 0
-    while n_tries <= 5:
+    limit = 5
+    while n_tries <= limit:
         try:
             _assert_contents()
             break
         except Exception:
             n_tries += 1
             await asyncio.sleep(0.1)
+    if n_tries > limit:
+        _assert_contents()
 
     cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
     snapshot(

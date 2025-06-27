@@ -93,13 +93,18 @@ def test_save_file(client: TestClient) -> None:
         assert "my_cell" in file_contents
 
     n_tries = 0
-    while n_tries <= 5:
+    limit = 5
+    while n_tries <= limit:
         try:
             _assert_contents()
             break
         except Exception:
             n_tries += 1
             time.sleep(0.1)
+
+    if n_tries > limit:
+        _assert_contents()
+
 
     # save back
     response = client.post(
