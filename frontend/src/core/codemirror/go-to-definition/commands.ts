@@ -44,14 +44,6 @@ export function goToVariableDefinition(
         return false;
       } // Stop traversal if found
 
-      // Skip function/lambda bodies entirely
-      if (
-        node.name === "LambdaExpression" ||
-        node.name === "FunctionDefinition"
-      ) {
-        return false;
-      }
-
       // Check if the node is an identifier and matches the variable name
       if (
         node.name === "VariableName" &&
