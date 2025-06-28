@@ -94,7 +94,7 @@ def home_page_template(
     html = html.replace("{{ title }}", "marimo")
     html = html.replace("{{ filename }}", "")
 
-    # TODO(Trevor): Legacy, required by VS Code plugin — remove when plugin is updated (see frontend/index.html)
+    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
     html = html.replace("{{ version }}", get_version())
     html = html.replace(
         "{{ user_config }}", _html_escape(json.dumps(user_config))
@@ -146,7 +146,7 @@ def notebook_page_template(
 
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
 
-    # TODO(Trevor): Legacy, required by VS Code plugin — remove when plugin is updated (see frontend/index.html)
+    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
     html = html.replace("{{ version }}", get_version())
     html = html.replace(
         "{{ user_config }}", _html_escape(json.dumps(user_config))
