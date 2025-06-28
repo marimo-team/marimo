@@ -24,7 +24,7 @@ from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
-from marimo._plugins.validators import validate_page_size
+from marimo._plugins.validators import PAGE_SIZE_LIMIT, validate_page_size
 from marimo._utils.deprecated import deprecated
 
 LOGGER = _loggers.marimo_logger()
@@ -135,13 +135,11 @@ class data_editor(
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
         column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
             `auto` will size columns based on the content, `fit` will size columns to fit the view.
-        pagination (Optional[bool]): Whether to use pagination, enabled by default.
+        pagination (Optional[bool]): Whether to use pagination, enabled by default. If the data has more than 200 rows, pagination is forced.
         page_size (Optional[int]): Page size if pagination is in use, 50 by default.
     """
 
     _name: Final[str] = "marimo-data-editor"
-
-    LIMIT: Final[int] = 1000
 
     def __init__(
         self,
@@ -161,11 +159,10 @@ class data_editor(
         validate_page_size(page_size)
         table_manager = get_table_manager(data)
 
+        # If the data has more than 200 rows, force pagination
         size = table_manager.get_num_rows()
-        if size is None or size > self.LIMIT:
-            raise ValueError(
-                f"Data editor supports a maximum of {self.LIMIT} rows."
-            )
+        if size is not None and size > PAGE_SIZE_LIMIT:
+            pagination = True
 
         self._data = data
         self._edits: DataEdits | None = None

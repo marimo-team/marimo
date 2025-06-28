@@ -6,6 +6,8 @@ from typing import Any
 
 from marimo._dependencies.dependencies import DependencyManager
 
+PAGE_SIZE_LIMIT = 200
+
 
 def validate_range(
     min_value: int | float | None,
@@ -81,7 +83,7 @@ def validate_no_integer_columns(df: Any) -> None:
 
 # issue: https://github.com/marimo-team/marimo/issues/3407
 def validate_page_size(page_size: int) -> None:
-    if page_size > 200:
+    if page_size > PAGE_SIZE_LIMIT:
         raise ValueError(
             "Page size limited to 200 rows. If you'd like this increased, please file an issue"
         )
