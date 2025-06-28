@@ -123,20 +123,23 @@ class AnyProviderConfig:
                 detail="OpenAI config not found",
             )
         key = _get_key(config["open_ai"], "OpenAI")
-        provider_config = {
+
+        kwargs: dict[str, Any] = {
             "base_url": _get_base_url(config["open_ai"]),
             "api_key": key,
             "ssl_verify": config["open_ai"].get("ssl_verify", True),
             "ca_bundle_path": config["open_ai"].get("ca_bundle_path", None),
             "client_pem": config["open_ai"].get("client_pem", None),
         }
+
         # Only include tools if they are available
         # Empty tools list causes an error with deepseek
         # https://discord.com/channels/1059888774789730424/1387766267792068821
         tools = _get_tools(config.get("mode", "manual"))
         if len(tools) > 0:
-            provider_config["tools"] = tools
-        return AnyProviderConfig(**provider_config)
+            kwargs["tools"] = tools
+
+        return AnyProviderConfig(**kwargs)
 
     @staticmethod
     def for_anthropic(config: AiConfig) -> AnyProviderConfig:
