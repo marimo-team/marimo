@@ -8,6 +8,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import {
@@ -19,7 +20,6 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
-import { useCellActions } from "@/core/cells/cells";
 
 export const CreateCellButton = ({
   connectionState,
@@ -30,8 +30,11 @@ export const CreateCellButton = ({
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string }) => void) | undefined;
 }) => {
-  const baseTooltipContent = getConnectionTooltip(connectionState) || tooltipContent;
-  const finalTooltipContent = isAppInteractionDisabled(connectionState) ? baseTooltipContent : (
+  const baseTooltipContent =
+    getConnectionTooltip(connectionState) || tooltipContent;
+  const finalTooltipContent = isAppInteractionDisabled(connectionState) ? (
+    baseTooltipContent
+  ) : (
     <div className="flex flex-col gap-4">
       <div>{baseTooltipContent}</div>
       <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border">
