@@ -17,7 +17,12 @@ describe("maybeAddMissingImport", () => {
     const appStore = createStore();
     appStore.set(variablesAtom, { mo: {} } as Variables);
     const onAddImport = vi.fn();
-    maybeAddMissingImport("marimo", "mo", onAddImport, appStore);
+    maybeAddMissingImport({
+      moduleName: "marimo",
+      variableName: "mo",
+      onAddImport,
+      appStore,
+    });
     expect(onAddImport).not.toHaveBeenCalled();
   });
 
@@ -40,7 +45,12 @@ describe("maybeAddMissingImport", () => {
         cellIds: CELL_IDS,
       } as NotebookState);
       const onAddImport = vi.fn();
-      maybeAddMissingImport("marimo", "mo", onAddImport, appStore);
+      maybeAddMissingImport({
+        moduleName: "marimo",
+        variableName: "mo",
+        onAddImport,
+        appStore,
+      });
       expect(onAddImport).not.toHaveBeenCalled();
     },
   );
@@ -57,7 +67,12 @@ describe("maybeAddMissingImport", () => {
       cellIds: CELL_IDS,
     } as NotebookState);
     const onAddImport = vi.fn();
-    maybeAddMissingImport("marimo", "mo", onAddImport, appStore);
+    maybeAddMissingImport({
+      moduleName: "marimo",
+      variableName: "mo",
+      onAddImport,
+      appStore,
+    });
     expect(onAddImport).toHaveBeenCalledWith("import marimo as mo");
   });
 });
