@@ -28,8 +28,15 @@ export const CreateCellButton = ({
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string }) => void) | undefined;
 }) => {
-  const finalTooltipContent =
-    getConnectionTooltip(connectionState) || tooltipContent;
+  const baseTooltipContent = getConnectionTooltip(connectionState) || tooltipContent;
+  const finalTooltipContent = isAppInteractionDisabled(connectionState) ? baseTooltipContent : (
+    <div className="flex flex-col gap-4">
+      <div>{baseTooltipContent}</div>
+      <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border">
+        Right-click for cell types
+      </div>
+    </div>
+  );
 
   return (
     <CreateCellButtonContextMenu onClick={onClick}>
