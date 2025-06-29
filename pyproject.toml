@@ -142,7 +142,7 @@ docs = [
 ]
 
 azure-identity = [
-    "azure-identity>=1.12.0", # Entre ID authentication for Azure OpenAI
+    "azure-identity>=1.12.0"
 ]
 
 [tool.hatch]
