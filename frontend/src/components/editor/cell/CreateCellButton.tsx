@@ -7,6 +7,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import {
@@ -28,8 +30,18 @@ export const CreateCellButton = ({
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string }) => void) | undefined;
 }) => {
-  const finalTooltipContent =
+  const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
+  const finalTooltipContent = isAppInteractionDisabled(connectionState) ? (
+    baseTooltipContent
+  ) : (
+    <div className="flex flex-col gap-4">
+      <div>{baseTooltipContent}</div>
+      <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border">
+        Right-click for cell types
+      </div>
+    </div>
+  );
 
   return (
     <CreateCellButtonContextMenu onClick={onClick}>
@@ -58,11 +70,16 @@ const CreateCellButtonContextMenu = (props: {
   children: React.ReactNode;
 }) => {
   const { children, onClick } = props;
+  const { createNewCell } = useCellActions();
 
   if (!onClick) {
     return children;
   }
 
+  // NB: When adding the marimo import for markdown and SQL, we run it
+  // automatically regardless of whether autoinstantiate or lazy execution is
+  // enabled; the user experience is confusing otherwise (how does the user
+  // know they need to run import marimo as mo. first?).
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
@@ -84,6 +101,7 @@ const CreateCellButtonContextMenu = (props: {
           key="markdown"
           onSelect={(evt) => {
             evt.stopPropagation();
+            maybeAddMarimoImport(true, createNewCell);
             onClick({ code: new MarkdownLanguageAdapter().defaultCode });
           }}
         >
@@ -96,6 +114,7 @@ const CreateCellButtonContextMenu = (props: {
           key="sql"
           onSelect={(evt) => {
             evt.stopPropagation();
+            maybeAddMarimoImport(true, createNewCell);
             onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >
