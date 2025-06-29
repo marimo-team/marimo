@@ -78,9 +78,6 @@ homepage = "https://github.com/marimo-team/marimo"
 [project.entry-points."docstring_to_markdown"]
 marimo_converter = "marimo._utils.docs:MarimoConverter"
 
-[project.entry-points."pylsp"]
-marimo_plugin = "marimo._server.lsp"
-
 [project.optional-dependencies]
 sql = [
     "duckdb>=1.0.0",
@@ -117,7 +114,7 @@ dev = [
 ]
 
 lsp = [
-    "python-lsp-server>=1.10.0",
+    "python-lsp-server>=1.13.0",
     "python-lsp-ruff>=2.0.0",
 ]
 
@@ -195,7 +192,6 @@ dependencies = [
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
     "loro>=1.5.0",
-    "python-lsp-server>=1.12.1",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
     "litellm>=1.70.0",
@@ -484,11 +480,6 @@ exclude = [
     'marimo/_smoke_tests/',
 ]
 warn_unused_ignores = false
-
-[[tool.mypy.overrides]]
-module = "pylsp"
-# until https://github.com/python-lsp/python-lsp-server/pull/641 is released
-follow_untyped_imports = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
