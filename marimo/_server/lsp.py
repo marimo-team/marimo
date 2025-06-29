@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import subprocess
 from abc import ABC, abstractmethod
+from os import environ
 from pathlib import Path
 from typing import Any, Literal, Optional, Union, cast
 
@@ -173,6 +174,14 @@ class CopilotLspServer(BaseLspServer):
             str(self.port),
             "--lsp",
             f"node {copilot_bin} --stdio",
+            "--log-file",
+            str(
+                Path(environ.get("XDG_CACHE_HOME", Path.home()))
+                / ".cache"
+                / "marimo"
+                / "logs"
+                / "github-copilot-lsp.log"
+            ),
         ]
 
     def missing_binary_alert(self) -> Alert:
