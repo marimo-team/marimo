@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
@@ -21,6 +22,18 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+
+
+def _try_assert_n_times(n: int, assert_fn: Callable[[], None]) -> None:
+    n_tries = 0
+    while n_tries <= n - 1:
+        try:
+            assert_fn()
+            return
+        except Exception:
+            n_tries += 1
+            time.sleep(0.1)
+    assert_fn()
 
 
 @with_session(SESSION_ID)
@@ -46,7 +59,10 @@ def test_rename(client: TestClient) -> None:
     )
     assert response.json() == {"success": True}
 
-    assert new_path.exists()
+    def _new_path_exists():
+        assert new_path.exists()
+
+    _try_assert_n_times(5, _new_path_exists)
 
 
 @with_session(SESSION_ID)
@@ -83,11 +99,15 @@ def test_save_file(client: TestClient) -> None:
         },
     )
     assert response.status_code == 200, response.text
-    assert "import marimo" in response.text
-    file_contents = path.read_text()
-    assert "import marimo as mo" in file_contents
-    assert "@app.cell(hide_code=True)" in file_contents
-    assert "my_cell" in file_contents
+
+    def _assert_contents():
+        file_contents = path.read_text()
+        assert "import marimo" in response.text
+        assert "import marimo as mo" in file_contents
+        assert "@app.cell(hide_code=True)" in file_contents
+        assert "my_cell" in file_contents
+
+    _try_assert_n_times(5, _assert_contents)
 
     # save back
     response = client.post(
@@ -141,14 +161,18 @@ def test_save_with_header(client: TestClient) -> None:
 
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
-    file_contents = path.read_text()
-    assert "import marimo as mo" in file_contents
-    # Race condition with uv (seen in python 3.10)
-    if file_contents.startswith("# ///"):
-        file_contents = file_contents.split("# ///")[2].lstrip()
-    assert file_contents.startswith(header.rstrip()), "Header was removed"
-    assert "@app.cell(hide_code=True)" in file_contents
-    assert "my_cell" in file_contents
+
+    def _assert_contents():
+        file_contents = path.read_text()
+        assert "import marimo as mo" in file_contents
+        # Race condition with uv (seen in python 3.10)
+        if file_contents.startswith("# ///"):
+            file_contents = file_contents.split("# ///")[2].lstrip()
+        assert file_contents.startswith(header.rstrip()), "Header was removed"
+        assert "@app.cell(hide_code=True)" in file_contents
+        assert "my_cell" in file_contents
+
+    _try_assert_n_times(5, _assert_contents)
 
 
 @with_session(SESSION_ID)
@@ -188,14 +212,20 @@ def test_save_with_invalid_file(client: TestClient) -> None:
 
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
-    file_contents = path.read_text()
-    assert "@app.cell(hide_code=True)" in file_contents
-    assert "my_cell" in file_contents
 
-    # Race condition with uv (seen in python 3.10)
-    if file_contents.startswith("# ///"):
-        file_contents = file_contents.split("# ///")[2].lstrip()
-    assert file_contents.startswith("import marimo"), "Header was not removed"
+    def _assert_contents():
+        file_contents = path.read_text()
+        assert "@app.cell(hide_code=True)" in file_contents
+        assert "my_cell" in file_contents
+
+        # Race condition with uv (seen in python 3.10)
+        if file_contents.startswith("# ///"):
+            file_contents = file_contents.split("# ///")[2].lstrip()
+        assert file_contents.startswith("import marimo"), (
+            "Header was not removed"
+        )
+
+    _try_assert_n_times(5, _assert_contents)
 
 
 @with_session(SESSION_ID)
@@ -228,8 +258,11 @@ def test_save_app_config(client: TestClient) -> None:
     assert filename
     path = Path(filename)
 
-    file_contents = path.read_text()
-    assert 'marimo.App(width="medium"' not in file_contents
+    def _wait_for_file_reset():
+        file_contents = path.read_text()
+        assert 'marimo.App(width="medium"' not in file_contents
+
+    _try_assert_n_times(5, _wait_for_file_reset)
 
     response = client.post(
         "/api/kernel/save_app_config",
@@ -240,8 +273,12 @@ def test_save_app_config(client: TestClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert "import marimo" in response.text
-    file_contents = path.read_text()
-    assert 'marimo.App(width="medium"' in file_contents
+
+    def _assert_contents():
+        file_contents = path.read_text()
+        assert 'marimo.App(width="medium"' in file_contents
+
+    _try_assert_n_times(5, _assert_contents)
 
 
 @with_session(SESSION_ID)
@@ -266,9 +303,13 @@ def test_copy_file(client: TestClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert filename_copy in response.text
-    file_contents = open(copied_file).read()
-    assert "import marimo as mo" in file_contents
-    assert 'marimo.App(width="full"' in file_contents
+
+    def _assert_contents():
+        file_contents = open(copied_file).read()
+        assert "import marimo as mo" in file_contents
+        assert 'marimo.App(width="full"' in file_contents
+
+    _try_assert_n_times(5, _assert_contents)
 
 
 @with_websocket_session(SESSION_ID)

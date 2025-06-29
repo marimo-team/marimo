@@ -16,7 +16,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getMarimoVersion } from "@/core/meta/globals";
-import { MinimalShortcut } from "../../shortcuts/renderShortcut";
+import {
+  MinimalShortcut,
+  renderShortcut,
+} from "../../shortcuts/renderShortcut";
 import type { ActionButton } from "../actions/types";
 import { useNotebookActions } from "../actions/useNotebookActions";
 
@@ -30,6 +33,20 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
   tooltip = "Actions",
 }) => {
   const actions = useNotebookActions();
+
+  // Create tooltip content with keyboard shortcut decoration
+  const tooltipContent = (
+    <div className="flex flex-col gap-2">
+      <div>{tooltip}</div>
+      {!disabled && (
+        <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border flex items-center gap-2">
+          <span>Open command palette</span>
+          {renderShortcut("global.commandPalette", false)}
+        </div>
+      )}
+    </div>
+  );
+
   const button = (
     <Button
       aria-label="Config"
@@ -40,7 +57,7 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
       disabled={disabled}
       color={disabled ? "disabled" : "hint-green"}
     >
-      <Tooltip content={tooltip}>
+      <Tooltip content={tooltipContent}>
         <MenuIcon strokeWidth={1.8} />
       </Tooltip>
     </Button>

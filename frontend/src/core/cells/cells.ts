@@ -886,8 +886,7 @@ const {
     const isPastLastCell = nextCellIndex === column.length;
     const isBeforeFirstCell = nextCellIndex === -1;
 
-    // Create a new cell at the end; no need to update scrollKey,
-    // because cell will be created with autoScrollIntoView
+    // Create a new cell at the end and set scrollKey to focus it
     if (isPastLastCell && !noCreate) {
       const newCellId = CellId.create();
       return {
@@ -905,9 +904,8 @@ const {
           ...state.cellHandles,
           [newCellId]: createRef(),
         },
+        scrollKey: newCellId,
       };
-      // Create a new cell at the beginning; again, no need to update
-      // scrollKey
     }
 
     if (isBeforeFirstCell && !noCreate) {
@@ -927,6 +925,7 @@ const {
           ...state.cellHandles,
           [newCellId]: createRef(),
         },
+        scrollKey: newCellId,
       };
     }
 
