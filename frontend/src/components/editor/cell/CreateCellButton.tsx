@@ -7,6 +7,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import {
@@ -18,6 +19,7 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
+import { useCellActions } from "@/core/cells/cells";
 
 export const CreateCellButton = ({
   connectionState,
@@ -65,11 +67,16 @@ const CreateCellButtonContextMenu = (props: {
   children: React.ReactNode;
 }) => {
   const { children, onClick } = props;
+  const { createNewCell } = useCellActions();
 
   if (!onClick) {
     return children;
   }
 
+  // NB: When adding the marimo import for markdown and SQL, we run it
+  // automatically regardless of whether autoinstantiate or lazy execution is
+  // enabled; the user experience is confusing otherwise (how does the user
+  // know they need to run import marimo as mo. first?).
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
@@ -91,6 +98,7 @@ const CreateCellButtonContextMenu = (props: {
           key="markdown"
           onSelect={(evt) => {
             evt.stopPropagation();
+            maybeAddMarimoImport(true, createNewCell);
             onClick({ code: new MarkdownLanguageAdapter().defaultCode });
           }}
         >
@@ -103,6 +111,7 @@ const CreateCellButtonContextMenu = (props: {
           key="sql"
           onSelect={(evt) => {
             evt.stopPropagation();
+            maybeAddMarimoImport(true, createNewCell);
             onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >

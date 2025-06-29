@@ -22,7 +22,7 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellId } from "@/core/cells/ids";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
-import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
+import { aiEnabledAtom } from "@/core/config/config";
 import { isConnectedAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
@@ -290,7 +290,6 @@ const AddCellButtons: React.FC<{
   className?: string;
 }> = ({ columnId, className }) => {
   const { createNewCell } = useCellActions();
-  const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const isConnected = useAtomValue(isConnectedAtom);
@@ -328,7 +327,7 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport(autoInstantiate, createNewCell);
+            maybeAddMarimoImport(true, createNewCell);
 
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -346,7 +345,7 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport(autoInstantiate, createNewCell);
+            maybeAddMarimoImport(true, createNewCell);
 
             createNewCell({
               cellId: { type: "__end__", columnId },
