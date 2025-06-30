@@ -76,7 +76,7 @@ export const Tracing: React.FC = () => {
           <input
             type="checkbox"
             name="chartPosition"
-            id="chartPosition"
+            data-testid="chartPosition"
             onClick={toggleChartPosition}
             defaultChecked={chartPosition === "sideBySide"}
             className="h-3 cursor-pointer"
@@ -203,7 +203,7 @@ const TraceBlockBody: React.FC<{
   const [hoveredCellId, setHoveredCellId] = useState<CellId | null>();
 
   const handleVegaSignal = {
-    [VEGA_HOVER_SIGNAL]: (name: string, value: unknown) => {
+    [VEGA_HOVER_SIGNAL]: (_name: string, value: unknown) => {
       const signalValue = value as VegaHoverCellSignal;
       const hoveredCell = signalValue.cell?.[0] as CellId | undefined;
       setHoveredCellId(hoveredCell ?? null);
