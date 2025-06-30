@@ -95,7 +95,11 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
     const result = maybeTransform(language, value);
 
     if (language === "sql") {
-      maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
+      maybeAddMarimoImport({
+        autoInstantiate,
+        createNewCell,
+        fromCellId: lastFocusedCellId,
+      });
     }
     createNewCell({
       code: result.code,
