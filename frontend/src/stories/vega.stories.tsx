@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Meta } from "@storybook/react";
+import type { Meta } from "@storybook/react-vite";
 import type { VegaLiteSpec } from "@/plugins/impl/vega/types";
 import VegaComponent from "@/plugins/impl/vega/vega-component";
 import {

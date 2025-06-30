@@ -156,7 +156,7 @@ module.exports = {
           "0%, 100%": { opacity: "0.3" },
           "50%": { opacity: "1" },
         },
-        "slide": {
+        slide: {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(400%)" },
         },
@@ -166,8 +166,8 @@ module.exports = {
         "accordion-up": "accordion-up 0.2s ease-out",
         "delayed-show-200": "delayed-show 200ms ease-out",
         "delayed-show-400": "delayed-show 400ms ease-out",
-        'ellipsis-dot': 'ellipsis-dot 400ms ease-in-out infinite',
-        'slide': 'slide 1.5s ease-in-out infinite',
+        "ellipsis-dot": "ellipsis-dot 400ms ease-in-out infinite",
+        slide: "slide 1.5s ease-in-out infinite",
       },
       gridTemplateColumns: {
         "auto-fit": "repeat(auto-fit, minmax(0, 1fr))",

@@ -3,7 +3,7 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useRef } from "react";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";

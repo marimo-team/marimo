@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { exec } from "node:child_process";
+import path from "node:path";
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { devices } from "@playwright/test";
-import path from "node:path";
-import { exec } from "node:child_process";
 
 export type ServerOptions =
   | {

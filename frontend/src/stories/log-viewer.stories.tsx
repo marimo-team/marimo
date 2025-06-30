@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { LogViewer } from "@/components/editor/chrome/panels/logs-panel";
 import type { CellId } from "@/core/cells/ids";
 import { Dialog } from "../components/ui/dialog";

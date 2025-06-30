@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type Locator, type Page, expect } from "@playwright/test";
-import { HotkeyProvider, type HotkeyAction } from "../src/core/hotkeys/hotkeys";
+
 import path from "node:path";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { type HotkeyAction, HotkeyProvider } from "../src/core/hotkeys/hotkeys";
 
 export async function createCellBelow(opts: {
   page: Page;

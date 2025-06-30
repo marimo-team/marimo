@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { test, expect, type Page, type BrowserContext } from "@playwright/test";
+
+import { fileURLToPath } from "node:url";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import {
   type ApplicationNames,
   getAppMode,
   getAppUrl,
 } from "../playwright.config";
 import { maybeRestartKernel, takeScreenshot } from "./helper";
-import { fileURLToPath } from "node:url";
 
 const _filename = fileURLToPath(import.meta.url);
 

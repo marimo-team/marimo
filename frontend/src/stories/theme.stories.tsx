@@ -3,7 +3,7 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import React, { useEffect, useRef } from "react";
 import { basicBundle, type CodeMirrorSetupOpts } from "../core/codemirror/cm";
 import { darkTheme } from "../core/codemirror/theme/dark";

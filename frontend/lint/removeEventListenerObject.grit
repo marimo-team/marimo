@@ -1,8 +1,7 @@
 `$receiver.removeEventListener($event, $handler, $options)` where {
-    $options <: or { `true`, `false` },
-    register_diagnostic(
-        span = $options,
-        message = "Use an object instead of a boolean for removeEventListener options. Replace 'true' with '{ capture: true }' or 'false' with '{ capture: false }' (or omit entirely for false)",
-        severity = "error"
-    )
+  $options <: or {
+    `true`,
+    `false`
+  },
+  register_diagnostic(span=$options, message="Use an object instead of a boolean for removeEventListener options. Replace 'true' with '{ capture: true }' or 'false' with '{ capture: false }' (or omit entirely for false)", severity="error")
 }

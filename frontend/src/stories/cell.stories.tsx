@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { WebSocketState } from "@/core/websocket/types";
 import { Logger } from "@/utils/Logger";
