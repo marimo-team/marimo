@@ -5,7 +5,7 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import type { CellId } from "../cells/ids";
 
-const KEY = "marimo:ai:chatState:v2";
+const KEY = "marimo:ai:chatState:v3";
 
 export const aiCompletionCellAtom = atom<{
   cellId: CellId;
@@ -14,6 +14,7 @@ export const aiCompletionCellAtom = atom<{
 export const includeOtherCellsAtom = atom<boolean>(false);
 
 export interface Message {
+  id: string;
   role: "user" | "assistant" | "data" | "system";
   content: string;
   timestamp: number;

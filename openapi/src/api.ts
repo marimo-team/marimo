@@ -2643,6 +2643,12 @@ export interface components {
                   type: "text";
                 }
               | {
+                  details: {
+                    signature?: string | null;
+                    text: string;
+                    /** @enum {string} */
+                    type: "text";
+                  }[];
                   reasoning: string;
                   /** @enum {string} */
                   type: "reasoning";

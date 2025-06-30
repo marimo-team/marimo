@@ -63,6 +63,7 @@ import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
+import { ToolCallAccordion } from "./tool-call-accordion";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -182,7 +183,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
           />
         </div>
       ) : (
-        <div className="w-[95%]">
+        <div className="w-[95%] break-words">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={message.content} />
           </div>
@@ -198,8 +199,26 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                     key={i}
                     index={i}
                     isStreaming={
-                      index === totalMessages - 1 && isStreamingReasoning
+                      index === totalMessages - 1 &&
+                      isStreamingReasoning &&
+                      // If there are multiple reasoning parts, only show the last one
+                      i === (message.parts?.length || 0) - 1
                     }
+                  />
+                );
+
+              case "tool-invocation":
+                return (
+                  <ToolCallAccordion
+                    key={i}
+                    index={i}
+                    toolName={part.toolInvocation.toolName}
+                    result={
+                      part.toolInvocation.state === "result"
+                        ? part.toolInvocation.result
+                        : null
+                    }
+                    state={part.toolInvocation.state}
                   />
                 );
 
@@ -458,6 +477,7 @@ const ChatPanelBody = () => {
         addMessageToChat(
           prev,
           prev.activeChatId,
+          message.id,
           "assistant",
           message.content,
           message.parts,
@@ -528,6 +548,10 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [chatState.activeChatId]);
 
+  const generateUserMessageId = () => {
+    return generateUUID();
+  };
+
   const createNewThread = (initialMessage: string) => {
     const newChat: Chat = {
       id: generateUUID(),
@@ -540,16 +564,29 @@ const ChatPanelBody = () => {
       updatedAt: Date.now(),
     };
 
-    setChatState((prev) => ({
-      chats: [...prev.chats, newChat],
-      activeChatId: newChat.id,
-    }));
+    setChatState((prev) => {
+      // Keep all operations in the same callback function
+      // to avoid double adding first user message
+      // with the initialMessages hook
+      append({
+        role: "user",
+        content: initialMessage,
+      });
+      const stateWithNewChat = {
+        ...prev,
+        chats: [...prev.chats, newChat],
+        activeChatId: newChat.id,
+      };
+      return addMessageToChat(
+        stateWithNewChat,
+        newChat.id,
+        generateUserMessageId(),
+        "user",
+        initialMessage,
+      );
+    });
 
     setInput("");
-    append({
-      role: "user",
-      content: initialMessage,
-    });
   };
 
   const handleNewChat = () => {
@@ -581,9 +618,16 @@ const ChatPanelBody = () => {
       role: "user",
       content: newValue,
     });
+    const prevMessage = messages[index];
     if (chatState.activeChatId) {
       setChatState((prev) =>
-        addMessageToChat(prev, chatState.activeChatId, "user", newValue),
+        addMessageToChat(
+          prev,
+          chatState.activeChatId,
+          prevMessage.id,
+          "user",
+          newValue,
+        ),
       );
     }
   };
@@ -598,7 +642,13 @@ const ChatPanelBody = () => {
     handleSubmit(e);
     if (chatState.activeChatId) {
       setChatState((prev) =>
-        addMessageToChat(prev, chatState.activeChatId, "user", newValue),
+        addMessageToChat(
+          prev,
+          chatState.activeChatId,
+          generateUserMessageId(),
+          "user",
+          newValue,
+        ),
       );
     }
   };
