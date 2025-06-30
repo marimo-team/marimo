@@ -129,7 +129,7 @@ export const JsonOutput: React.FC<Props> = memo(
             // leave the default valueTypes as it was - 'python', only 'json' is changed
             valueTypes={valueTypesMap[valueTypes]}
             // Don't group arrays, it will make the tree view look like there are nested arrays
-            groupArraysAfterLength={1_000_000}
+            groupArraysAfterLength={Number.MAX_SAFE_INTEGER}
             // Built-in clipboard shifts content on hover
             // so we provide our own copy button
             enableClipboard={false}
