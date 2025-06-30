@@ -2033,7 +2033,19 @@ export interface paths {
         cookie?: never;
       };
       requestBody?: never;
-      responses: never;
+      responses: {
+        /** @description Successfully closed existing sessions */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              status?: string;
+            };
+          };
+        };
+      };
     };
     delete?: never;
     options?: never;

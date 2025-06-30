@@ -3425,16 +3425,16 @@ paths:
           description: Sync cell ids
   /api/kernel/takeover:
     post:
-      responses: null
-      200:
-        content:
-          application/json:
-            schema:
-              properties:
-                status:
-                  type: string
-              type: object
-        description: Successfully closed existing sessions
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: string
+                type: object
+          description: Successfully closed existing sessions
   /api/packages/add:
     post:
       requestBody:
