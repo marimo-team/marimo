@@ -45,7 +45,7 @@ export const CreateCellButton = ({
 
   return (
     <CreateCellButtonContextMenu onClick={onClick}>
-      <Tooltip content={finalTooltipContent} usePortal={false}>
+      <Tooltip content={finalTooltipContent}>
         <Button
           onClick={() => onClick?.({ code: "" })}
           className={cn(
