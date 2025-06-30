@@ -26,9 +26,8 @@ Tag potential reviewers from the community or maintainers who might be intereste
 
 Your PR will be reviewed more quickly if you can figure out the right person to tag with @ -->
 
-@mscolnick (FE / BE / AI)
-@dmadisetti (BE: Runtime, Caching, Fileformat, AST)
+@mscolnick (General, AI)
+@dmadisetti (Runtime, Caching, Fileformat, AST)
 @manzt (Widgets, Dependency Management, LSP)
-@light2dark (FE: Tables, Plots, Layout / BE: SQL)
-@akshayka (docs / BE / Integrations)
-
+@light2dark (Tables, Plots, Layouts, SQL)
+@akshayka (Docs, Backend, Integrations)
