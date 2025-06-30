@@ -1,188 +1,184 @@
-import fsSync from "node:fs";
-import fs from "node:fs/promises";
-import type * as http from "node:http";
-import path from "node:path";
-import type * as rpc from "@sourcegraph/vscode-ws-jsonrpc";
-import * as rpcServer from "@sourcegraph/vscode-ws-jsonrpc/lib/server";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import type { IncomingMessage } from "node:http";
+import { dirname } from "node:path";
+import type { IWebSocket } from "@sourcegraph/vscode-ws-jsonrpc";
+import { forward } from "@sourcegraph/vscode-ws-jsonrpc/lib/server/connection.js";
+import {
+  createServerProcess,
+  createWebSocketConnection,
+} from "@sourcegraph/vscode-ws-jsonrpc/lib/server/launch.js";
 import parseArgs from "minimist";
-import type ws from "ws";
+import type { CloseEvent, Data, ErrorEvent, MessageEvent, WebSocket } from "ws";
 import { WebSocketServer } from "ws";
 
-const LOG_FILE = path.join(
-  process.env.XDG_CACHE_HOME || path.join(process.env.HOME || "", ".cache"),
-  "marimo",
-  "logs",
-  "github-copilot-lsp.log",
-);
-
-let logFileCreated = false;
-
-const appendToFileLog = async (...args: any[]) => {
-  const log = args.join(" ");
-  if (!logFileCreated) {
-    await fs.mkdir(path.dirname(LOG_FILE), { recursive: true });
-    // Clear file on startup
-    await fs.writeFile(LOG_FILE, "");
-    logFileCreated = true;
+class Logger {
+  private constructor(private readonly logFilePath: string) {
+    this.logFilePath = logFilePath;
   }
-  await fs.appendFile(LOG_FILE, `${log}\n`);
-};
 
-const Logger = {
-  debug: (...args: any[]) => {
-    console.log(...args);
-    void appendToFileLog("[DEBUG]", ...args);
-  },
-  log: (...args: any[]) => {
-    console.log(...args);
-    void appendToFileLog("[INFO]", ...args);
-  },
-  error: (...args: any[]) => {
-    console.error(...args);
-    void appendToFileLog("[ERROR]", ...args);
-  },
-};
+  static async create(logFilePath: string): Promise<Logger> {
+    await mkdir(dirname(logFilePath), { recursive: true });
+    await writeFile(logFilePath, "");
 
-// Adapted from https://github.com/wylieconlon/jsonrpc-ws-proxy
-const COPILOT_LSP_PATH = path.join(__dirname, "copilot", "language-server.js");
-if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
-  Logger.error("Compilation artifact does not exist. Exiting.");
-  process.exit(1);
-}
-
-const argv = parseArgs(process.argv.slice(2));
-
-if (argv.help) {
-  Logger.log("Usage: index.js --port 3000");
-  process.exit(0);
-}
-
-const serverPort: number = Number.parseInt(argv.port) || 3000;
-
-const languageServers: Record<string, string[]> = {
-  copilot: ["node", COPILOT_LSP_PATH, "--stdio"],
-};
-
-function toSocket(webSocket: ws): rpc.IWebSocket {
-  return {
-    send: (content) => {
-      try {
-        webSocket.send(content);
-      } catch (error) {
-        Logger.error("Failed to send message:", error);
-      }
-    },
-    onMessage: (cb) => {
-      webSocket.onmessage = (event) => {
-        try {
-          Logger.debug("Received message:", event.data);
-          cb(event.data);
-        } catch (error) {
-          Logger.error("Error processing message:", error);
-        }
-      };
-    },
-    onError: (cb) => {
-      webSocket.onerror = (event) => {
-        Logger.error("WebSocket error:", event);
-        if ("message" in event) {
-          cb(event.message);
-        }
-      };
-    },
-    onClose: (cb) => {
-      webSocket.onclose = (event) => {
-        Logger.log(
-          `WebSocket closed with code ${event.code}, reason: ${event.reason}`,
-        );
-        cb(event.code, event.reason);
-      };
-    },
-    dispose: () => {
-      try {
-        webSocket.close();
-      } catch (error) {
-        Logger.error("Error closing WebSocket:", error);
-      }
-    },
-  };
-}
-
-async function verifyCopilotLSP() {
-  if (!fsSync.existsSync(COPILOT_LSP_PATH)) {
-    Logger.error(
-      `Copilot LSP not found at ${COPILOT_LSP_PATH}. Likely a build error or missing dependencies.`,
-    );
-    process.exit(1);
+    return new Logger(logFilePath);
   }
-}
 
-// Add error handling for WebSocket server creation
-try {
-  const wss = new WebSocketServer(
-    {
-      port: serverPort,
-      perMessageDeflate: false,
-    },
-    () => {
-      Logger.log(`WebSocket server listening on port ${serverPort}`);
-    },
-  );
-
-  wss.on("error", (error) => {
-    Logger.error("WebSocket server error:", error);
-  });
-
-  wss.on("connection", (client: ws, request: http.IncomingMessage) => {
-    Logger.log(`New connection from ${request.socket.remoteAddress}`);
-
-    void verifyCopilotLSP();
-
-    let langServer: string[] | undefined;
-
-    Object.keys(languageServers).forEach((key) => {
-      if (request.url === `/${key}`) {
-        langServer = languageServers[key];
-        Logger.log(`Matched language server: ${key}`);
-      }
-    });
-
-    if (!langServer || !langServer.length) {
-      Logger.error(`Invalid language server requested: ${request.url}`);
-      client.close();
-      return;
-    }
+  private async appendToLogFile(...args: unknown[]): Promise<void> {
+    const log = args.join(" ");
 
     try {
-      const localConnection = rpcServer.createServerProcess(
-        "local",
-        langServer[0],
-        langServer.slice(1),
-      );
-      Logger.log(`Created language server process: ${langServer.join(" ")}`);
-
-      const socket = toSocket(client);
-      const connection = rpcServer.createWebSocketConnection(socket);
-
-      rpcServer.forward(connection, localConnection);
-      Logger.log("Forwarding new client connection");
-
-      socket.onClose((code, reason) => {
-        Logger.log(
-          `Client connection closed - Code: ${code}, Reason: ${reason}`,
-        );
-        try {
-          localConnection.dispose();
-        } catch (error) {
-          Logger.error("Error disposing local connection:", error);
-        }
-      });
+      await appendFile(this.logFilePath, `${log}\n`);
     } catch (error) {
-      Logger.error("Failed to establish language server connection:", error);
-      client.close();
+      console.error("Failed to write to log file:", error);
+    }
+  }
+
+  debug(...args: Parameters<typeof console.log>): void {
+    console.log(...args);
+    void this.appendToLogFile("[DEBUG]", ...args);
+  }
+
+  log(...args: Parameters<typeof console.log>): void {
+    console.log(...args);
+    void this.appendToLogFile("[INFO]", ...args);
+  }
+
+  error(...args: Parameters<typeof console.error>): void {
+    console.error(...args);
+    void this.appendToLogFile("[ERROR]", ...args);
+  }
+}
+
+class WebSocketAdapter implements IWebSocket {
+  constructor(
+    private readonly webSocket: WebSocket,
+    private readonly logger: Logger,
+  ) {
+    this.webSocket = webSocket;
+    this.logger = logger;
+  }
+
+  send(content: string): void {
+    try {
+      this.webSocket.send(content);
+    } catch (error) {
+      this.logger.error("Failed to send message:", error);
+    }
+  }
+
+  onMessage(callback: (data: Data) => void): void {
+    this.webSocket.onmessage = (event: MessageEvent) => {
+      try {
+        this.logger.debug("Received message:", event.data);
+        callback(event.data);
+      } catch (error) {
+        this.logger.error("Error handling message:", error);
+      }
+    };
+  }
+
+  onError(callback: (message: string) => void): void {
+    this.webSocket.onerror = (event: ErrorEvent) => {
+      this.logger.error("WebSocket error:", event);
+      if ("message" in event) {
+        callback(event.message);
+      }
+    };
+  }
+
+  onClose(callback: (code: number, reason: string) => void): void {
+    this.webSocket.onclose = (event: CloseEvent) => {
+      this.logger.log(
+        `WebSocket closed with code ${event.code}: ${event.reason}`,
+      );
+
+      callback(event.code, event.reason);
+    };
+  }
+
+  dispose(): void {
+    this.webSocket.close();
+  }
+}
+
+function handleWebSocketConnection(
+  languageServerCommand: string[],
+  logger: Logger,
+  webSocket: WebSocket,
+  _: IncomingMessage,
+): void {
+  if (!languageServerCommand) {
+    webSocket.close();
+    return;
+  }
+
+  const jsonRpcConnection = createServerProcess(
+    languageServerCommand.join(" "),
+    languageServerCommand[0],
+    languageServerCommand.slice(1),
+  );
+
+  const socket = new WebSocketAdapter(webSocket, logger);
+  const connection = createWebSocketConnection(socket);
+  forward(connection, jsonRpcConnection);
+
+  socket.onClose(() => {
+    jsonRpcConnection.dispose();
+    connection.dispose();
+  });
+
+  connection.onClose(() => {
+    jsonRpcConnection.dispose();
+    socket.dispose();
+  });
+}
+
+function startWebSocketServer(
+  port: number,
+  languageServerCommand: string[],
+  logger: Logger,
+): void {
+  const webSocketServer = new WebSocketServer({
+    port,
+    perMessageDeflate: false,
+  });
+
+  webSocketServer.on("error", (error) => {
+    logger.error("WebSocket server error:", error);
+  });
+
+  webSocketServer.on("connection", (webSocket, request) => {
+    logger.log(`New connection from ${request.socket.remoteAddress}`);
+    try {
+      handleWebSocketConnection(
+        languageServerCommand,
+        logger,
+        webSocket,
+        request,
+      );
+    } catch (error) {
+      logger.error("Failed to start WebSocket bridge:", error);
+      webSocket.close();
     }
   });
-} catch (error) {
-  Logger.error("[FATAL] Failed to start WebSocket server:", error);
-  process.exit(1);
 }
+
+async function main(): Promise<void> {
+  const argv = parseArgs(process.argv);
+
+  if (argv.help) {
+    console.log(
+      'Usage: node index.cjs --log-file <path> --lsp "<command>" [--port <port>]',
+    );
+
+    return;
+  }
+
+  const logger = await Logger.create(argv["log-file"]);
+  const serverPort = Number.parseInt(argv.port) || 3000;
+  const languageServerCommand = argv.lsp.split(" ");
+
+  startWebSocketServer(serverPort, languageServerCommand, logger);
+}
+
+void main();
