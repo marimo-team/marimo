@@ -28,7 +28,7 @@ Your PR will be reviewed more quickly if you can figure out the right person to 
 
 @mscolnick (FE / BE / AI)
 @dmadisetti (BE: Runtime, Caching, Fileformat, AST)
-@mantz (FE: Widgets / BE: Dependency Management, LSP)
+@manzt (Widgets, Dependency Management, LSP)
 @light2dark (FE: Tables, Plots, Layout / BE: SQL)
 @akshayka (docs / BE / Integrations)
 
