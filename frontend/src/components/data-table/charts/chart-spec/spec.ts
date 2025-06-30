@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { slate } from "@radix-ui/colors";
-import type { ExprRef, SignalRef } from "vega";
 import type { TopLevelSpec } from "vega-lite";
 import type {
   ColorDef,
