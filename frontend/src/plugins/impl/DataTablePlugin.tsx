@@ -145,7 +145,7 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
-  showPageSizeSelector: boolean;
+  showPageSizeSelector: number[] | false;
   showColumnExplorer: boolean;
   showChartBuilder: boolean;
   showRowViewer: boolean;
@@ -209,7 +209,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnSummaries: z
         .union([z.boolean(), z.enum(["stats", "chart"])])
         .default(true),
-      showPageSizeSelector: z.boolean().default(true),
+      showPageSizeSelector: z
+        .union([z.array(z.number()), z.literal(false)])
+        .default(false),
       showColumnExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
       showRowViewer: z.boolean().default(true),

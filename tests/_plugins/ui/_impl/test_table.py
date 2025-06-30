@@ -13,6 +13,7 @@ from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
     DEFAULT_MAX_COLUMNS,
+    DEFAULT_PAGE_SIZES,
     MAX_COLUMNS_NOT_PROVIDED,
     CalculateTopKRowsArgs,
     CalculateTopKRowsResponse,
@@ -1963,10 +1964,12 @@ def test_show_page_size_selector_property():
     """Test the show_page_size_selector property behavior."""
     data = {"a": list(range(20))}  # 20 rows to ensure pagination
 
-    # Test default behavior (True)
+    # Test default behavior
     table_default = ui.table(data)
-    assert table_default._component_args["show-page-size-selector"] is True
-
+    assert (
+        table_default._component_args["show-page-size-selector"]
+        == DEFAULT_PAGE_SIZES
+    )
     # Test explicit False
     table_false = ui.table(data, show_page_size_selector=False)
     assert table_false._component_args["show-page-size-selector"] is False
@@ -1976,11 +1979,26 @@ def test_show_page_size_selector_property():
     table_small = ui.table(small_data)
     assert table_small._component_args["show-page-size-selector"] is False
 
-    # Test with small dataset but explicit True
-    table_small_explicit = ui.table(small_data, show_page_size_selector=True)
-    assert (
-        table_small_explicit._component_args["show-page-size-selector"] is True
+    # Test with page size
+    table_list = ui.table(
+        data, show_page_size_selector=[10, 20, 30], page_size=5
     )
+    assert table_list._component_args["show-page-size-selector"] == [
+        5,
+        10,
+        20,
+        30,
+    ]
+
+    # Test sorted and deduped
+    table_list = ui.table(
+        data, show_page_size_selector=[10, 20, 20, 30], page_size=10
+    )
+    assert table_list._component_args["show-page-size-selector"] == [
+        10,
+        20,
+        30,
+    ]
 
 
 def test_show_toggles_app_mode():

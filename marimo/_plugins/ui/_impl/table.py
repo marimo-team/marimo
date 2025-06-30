@@ -92,6 +92,8 @@ DEFAULT_MAX_COLUMNS = 50
 MaxColumnsNotProvided = Literal["inherit"]
 MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
 
+DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100]
+
 
 @dataclass(frozen=True)
 class SearchTableArgs:
@@ -290,8 +292,8 @@ class table(
             If "stats", only show stats. If "chart", only show charts.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
-        show_page_size_selector (bool, optional): Whether to show the page size selector.
-            Defaults to True above 5 rows, False otherwise.
+        show_page_size_selector (Union[List[int], Literal[False]], optional): The page sizes to show in the page size selector.
+            Defaults to [5, 10, 25, 50, 100]. If False, the page size selector is not shown.
         show_column_explorer (bool, optional): Whether to show the column explorer toggle.
             Defaults to True when run in edit mode, False otherwise.
         show_chart_builder (bool, optional): Whether to show the chart builder toggle.
@@ -403,7 +405,9 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
-        show_page_size_selector: Optional[bool] = None,
+        show_page_size_selector: Optional[
+            Union[list[int], Literal[False]]
+        ] = None,
         show_column_explorer: bool = True,
         show_chart_builder: bool = True,
         show_row_viewer: bool = True,
@@ -494,12 +498,19 @@ class table(
             show_column_explorer = False
             show_chart_builder = False
 
-        # We set page_size_selector if not defined by the user
+        # If not provided, auto-determine page size selector
         if show_page_size_selector is None:
             if isinstance(total_rows, int) and total_rows <= 5:
                 show_page_size_selector = False
             else:
-                show_page_size_selector = True
+                page_sizes = DEFAULT_PAGE_SIZES.copy()
+                if isinstance(page_size, int):
+                    page_sizes.append(page_size)
+                show_page_size_selector = sorted(set(page_sizes))
+        elif isinstance(show_page_size_selector, list):
+            if isinstance(page_size, int):
+                show_page_size_selector.append(page_size)
+            show_page_size_selector = sorted(set(show_page_size_selector))
 
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
@@ -1214,3 +1225,7 @@ def _validate_column_formatting(
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
             )
+
+
+def _dedupe_and_sort(lst: list[int]) -> list[int]:
+    return sorted(set(lst))

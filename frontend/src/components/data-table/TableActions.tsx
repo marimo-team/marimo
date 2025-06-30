@@ -35,7 +35,7 @@ interface TableActionsProps<TData> {
   showChartBuilder?: boolean;
   showRowViewer?: boolean;
   showColumnExplorer?: boolean;
-  showPageSizeSelector?: boolean;
+  showPageSizeSelector?: number[] | false;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
   tableLoading?: boolean;

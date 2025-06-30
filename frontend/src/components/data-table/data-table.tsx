@@ -84,7 +84,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   onViewedRowChange?: OnChangeFn<number>;
   // Others
   showChartBuilder?: boolean;
-  showPageSizeSelector?: boolean;
+  showPageSizeSelector?: number[] | false;
   showColumnExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
