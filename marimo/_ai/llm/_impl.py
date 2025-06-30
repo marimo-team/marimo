@@ -108,9 +108,6 @@ class openai(ChatModel):
             AzureOpenAI,
             OpenAI,
         )
-        from openai.types.chat import (  # type: ignore[import-not-found]
-            ChatCompletionMessageParam,
-        )
 
         # Azure OpenAI clients are instantiated slightly differently
         # To check if we're using Azure, we check the base_url for the format
@@ -140,7 +137,7 @@ class openai(ChatModel):
         )
         response = client.chat.completions.create(
             model=self.model,
-            messages=cast(list[ChatCompletionMessageParam], openai_messages),
+            messages=openai_messages,
             max_completion_tokens=config.max_tokens,
             temperature=config.temperature,
             top_p=config.top_p,
@@ -218,9 +215,6 @@ class anthropic(ChatModel):
             NOT_GIVEN,
             Anthropic,
         )
-        from anthropic.types.message_param import (  # type: ignore[import-not-found]
-            MessageParam,
-        )
 
         client = Anthropic(
             api_key=self._require_api_key,
@@ -232,7 +226,7 @@ class anthropic(ChatModel):
             model=self.model,
             system=self.system_message,
             max_tokens=config.max_tokens or 4096,
-            messages=cast(list[MessageParam], anthropic_messages),
+            messages=anthropic_messages,
             top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
             top_k=config.top_k if config.top_k is not None else NOT_GIVEN,
             stream=False,
