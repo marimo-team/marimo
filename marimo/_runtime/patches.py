@@ -60,7 +60,7 @@ def patch_sys_module(module: types.ModuleType) -> None:
 def patch_pyodide_networking() -> None:
     import pyodide_http  # type: ignore
 
-    pyodide_http.patch_urllib()
+    pyodide_http.patch_all()
 
 
 def patch_recursion_limit(limit: int) -> None:
