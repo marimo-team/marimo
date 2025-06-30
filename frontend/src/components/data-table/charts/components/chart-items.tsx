@@ -17,10 +17,20 @@ import type { DataType } from "@/core/kernel/messages";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { isFieldSet } from "../chart-spec/spec";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
-import { CHART_TYPE_ICON, COUNT_FIELD, type EMPTY_VALUE } from "../constants";
+import {
+  CHART_TYPE_ICON,
+  COUNT_FIELD,
+  DEFAULT_AGGREGATION,
+  type EMPTY_VALUE,
+} from "../constants";
 import { useChartFormContext } from "../context";
 import type { ChartSchema } from "../schemas";
-import { CHART_TYPES, type ChartType, type SelectableDataType } from "../types";
+import {
+  type AggregationFn,
+  CHART_TYPES,
+  type ChartType,
+  type SelectableDataType,
+} from "../types";
 import {
   AggregationSelect,
   BinFields,
@@ -85,9 +95,16 @@ const ColumnSelectorWithAggregation: React.FC<{
     type?: FieldDataType;
     selectedDataType?: SelectedDataType;
   };
+  defaultAggregation?: AggregationFn;
   columns: Array<{ name: string; type: DataType }>;
   binFieldName: FieldName;
-}> = ({ columnFieldName, column, columns, binFieldName }) => {
+}> = ({
+  columnFieldName,
+  column,
+  columns,
+  binFieldName,
+  defaultAggregation,
+}) => {
   const { selectedDataType } = getColumnDataTypes(column);
 
   return (
@@ -100,6 +117,7 @@ const ColumnSelectorWithAggregation: React.FC<{
           }
           selectedDataType={selectedDataType}
           binFieldName={binFieldName}
+          defaultAggregation={defaultAggregation}
         />
       )}
     </div>
@@ -214,6 +232,11 @@ export const YAxis: React.FC = () => {
   const xColumnExists = isFieldSet(xColumn?.field);
   const { inferredDataType } = getColumnDataTypes(yColumn);
 
+  // Set default for perf reasons
+  const defaultAggregation = isNumberField(yColumn)
+    ? DEFAULT_AGGREGATION
+    : undefined;
+
   return (
     <FieldSection>
       <Title text="Y-Axis" />
@@ -222,6 +245,7 @@ export const YAxis: React.FC = () => {
         column={yColumn}
         columns={context.fields}
         binFieldName="yAxis.bin.binned"
+        defaultAggregation={defaultAggregation}
       />
 
       {isNonCountField(yColumn) && (

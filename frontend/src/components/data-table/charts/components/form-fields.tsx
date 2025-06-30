@@ -41,6 +41,7 @@ import {
   AGGREGATION_TYPE_DESCRIPTIONS,
   AGGREGATION_TYPE_ICON,
   COUNT_FIELD,
+  DEFAULT_TIME_UNIT,
   EMPTY_VALUE,
   SCALE_TYPE_DESCRIPTIONS,
   TIME_UNIT_DESCRIPTIONS,
@@ -49,9 +50,10 @@ import { useChartFormContext } from "../context";
 import type { BinSchema, ChartSchema, ChartSchemaType } from "../schemas";
 import {
   AGGREGATION_FNS,
+  type AggregationFn,
   BIN_AGGREGATION,
   COMBINED_TIME_UNITS,
-  NONE_AGGREGATION,
+  NONE_VALUE,
   SELECTABLE_DATA_TYPES,
   type SelectableDataType,
   SINGLE_TIME_UNITS,
@@ -509,46 +511,48 @@ export const TimeUnitSelect = ({
     <FormField
       control={form.control}
       name={fieldName}
-      render={({ field }) => (
-        <FormItem className="flex flex-row items-center justify-between w-full">
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Select
-              {...field}
-              onValueChange={(value) => {
-                if (value === CLEAR_VALUE) {
-                  clear();
-                } else {
-                  field.onChange(value);
-                }
-              }}
-              value={field.value}
-            >
-              <SelectTrigger onClear={field.value ? clear : undefined}>
-                <SelectValue placeholder="Select unit" />
-              </SelectTrigger>
-              <SelectContent className="w-72">
-                {field.value && (
-                  <>
-                    <SelectItem value={CLEAR_VALUE}>
-                      <div className="flex items-center truncate">
-                        <XIcon className="w-3 h-3 mr-2" />
-                        Clear
-                      </div>
-                    </SelectItem>
+      render={({ field }) => {
+        return (
+          <FormItem className="flex flex-row items-center justify-between w-full">
+            <FormLabel>{label}</FormLabel>
+            <FormControl>
+              <Select
+                {...field}
+                onValueChange={(value) => {
+                  if (value === CLEAR_VALUE) {
+                    clear();
+                  } else {
+                    field.onChange(value);
+                  }
+                }}
+                value={field.value ?? DEFAULT_TIME_UNIT}
+              >
+                <SelectTrigger onClear={field.value ? clear : undefined}>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent className="w-72">
+                  {field.value && (
+                    <>
+                      <SelectItem value={CLEAR_VALUE}>
+                        <div className="flex items-center truncate">
+                          <XIcon className="w-3 h-3 mr-2" />
+                          Clear
+                        </div>
+                      </SelectItem>
+                      <SelectSeparator />
+                    </>
+                  )}
+                  <SelectGroup>
+                    {COMBINED_TIME_UNITS.map(renderTimeUnit)}
                     <SelectSeparator />
-                  </>
-                )}
-                <SelectGroup>
-                  {COMBINED_TIME_UNITS.map(renderTimeUnit)}
-                  <SelectSeparator />
-                  {SINGLE_TIME_UNITS.map(renderTimeUnit)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FormControl>
-        </FormItem>
-      )}
+                    {SINGLE_TIME_UNITS.map(renderTimeUnit)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FormControl>
+          </FormItem>
+        );
+      }}
     />
   );
 };
@@ -592,6 +596,8 @@ export const DataTypeSelect = ({
                 <SelectGroup>
                   {SELECTABLE_DATA_TYPES.map((type) => {
                     const Icon = DATA_TYPE_ICON[type];
+                    // Categorical is a clearer name for how we will aggregate this
+                    const name = type === "string" ? "categorical" : type;
                     return (
                       <SelectItem
                         key={type}
@@ -605,7 +611,7 @@ export const DataTypeSelect = ({
                           )
                         }
                       >
-                        <IconWithText Icon={Icon} text={capitalize(type)} />
+                        <IconWithText Icon={Icon} text={capitalize(name)} />
                       </SelectItem>
                     );
                   })}
@@ -623,10 +629,12 @@ export const AggregationSelect = ({
   fieldName,
   selectedDataType,
   binFieldName,
+  defaultAggregation,
 }: {
   fieldName: FieldName;
   selectedDataType: SelectableDataType;
   binFieldName: FieldName;
+  defaultAggregation?: AggregationFn;
 }) => {
   const form = useFormContext();
   const availableAggregations =
@@ -681,7 +689,11 @@ export const AggregationSelect = ({
           <FormControl>
             <Select
               {...field}
-              value={(field.value ?? NONE_AGGREGATION).toString()}
+              value={(
+                field.value ??
+                defaultAggregation ??
+                NONE_VALUE
+              ).toString()}
               onValueChange={(value) => {
                 handleFieldChange(value, field.value, field.onChange);
               }}
@@ -700,10 +712,10 @@ export const AggregationSelect = ({
                     const selectItem = renderSelectItem(agg, Icon, subtitle);
                     if (agg === BIN_AGGREGATION) {
                       return (
-                        <>
+                        <div key={agg}>
                           <SelectSeparator />
                           {selectItem}
-                        </>
+                        </div>
                       );
                     }
                     return selectItem;

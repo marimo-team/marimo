@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
 import type {
   ColorDef,
@@ -7,12 +8,18 @@ import type {
   PolarDef,
   PositionDef,
 } from "vega-lite/build/src/channeldef";
+import type { Encoding } from "vega-lite/build/src/encoding";
 import type { Resolve } from "vega-lite/build/src/resolve";
 import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
 import type { z } from "zod";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
-import { COUNT_FIELD, EMPTY_VALUE } from "../constants";
+import {
+  COUNT_FIELD,
+  DEFAULT_AGGREGATION,
+  DEFAULT_TIME_UNIT,
+  EMPTY_VALUE,
+} from "../constants";
 import type {
   AxisSchema,
   BinSchema,
@@ -20,7 +27,7 @@ import type {
   ColumnFacet,
   RowFacet,
 } from "../schemas";
-import { ChartType } from "../types";
+import { ChartType, type ValidAggregationFn } from "../types";
 import {
   getAggregate,
   getBinEncoding,
@@ -29,7 +36,11 @@ import {
   getOffsetEncoding,
 } from "./encodings";
 import { getTooltips } from "./tooltips";
-import { convertChartTypeToMark, convertDataTypeToVega } from "./types";
+import {
+  type BaseSpec,
+  convertChartTypeToMark,
+  convertDataTypeToVega,
+} from "./types";
 
 /**
  * Convert marimo chart configuration to Vega-Lite specification.
@@ -87,6 +98,7 @@ export function createSpecWithoutData(
     getFieldLabel(formValues.yAxis?.label),
     colorByColumn?.field && !horizontal ? stacking : undefined,
     chartType,
+    DEFAULT_AGGREGATION,
   );
 
   const rowFacet = facet?.row.field
@@ -97,26 +109,29 @@ export function createSpecWithoutData(
     : undefined;
 
   const colorByEncoding = getColorEncoding(chartType, formValues);
+  const baseSpec = getBaseSpec([], formValues, theme, width, height, title);
+  const baseEncoding: Encoding<Field> = {
+    [xEncodingKey]: horizontal ? yEncoding : xEncoding,
+    [yEncodingKey]: horizontal ? xEncoding : yEncoding,
+    xOffset: getOffsetEncoding(chartType, formValues),
+    color: colorByEncoding,
+    tooltip: getTooltips({
+      formValues,
+      xEncoding,
+      yEncoding,
+      colorByEncoding,
+    }),
+    ...(rowFacet && { row: rowFacet }),
+    ...(columnFacet && { column: columnFacet }),
+  };
+  const resolve = getResolve(facet?.column, facet?.row);
 
-  // Create the final spec
+  // Create the final spec for other chart types
   return {
-    ...getBaseSpec([], formValues, theme, width, height, title),
+    ...baseSpec,
     mark: { type: convertChartTypeToMark(chartType) },
-    encoding: {
-      [xEncodingKey]: horizontal ? yEncoding : xEncoding,
-      [yEncodingKey]: horizontal ? xEncoding : yEncoding,
-      xOffset: getOffsetEncoding(chartType, formValues),
-      color: colorByEncoding,
-      tooltip: getTooltips({
-        formValues,
-        xEncoding,
-        yEncoding,
-        colorByEncoding,
-      }),
-      row: rowFacet,
-      column: columnFacet,
-    },
-    ...getResolve(facet?.column, facet?.row),
+    encoding: baseEncoding,
+    ...resolve,
   };
 }
 
@@ -136,6 +151,7 @@ export function getAxisEncoding(
   label: string | undefined,
   stack: boolean | undefined,
   chartType: ChartType,
+  defaultAggregate?: ValidAggregationFn,
 ): PositionDef<string> {
   const selectedDataType = column.selectedDataType || "string";
 
@@ -155,7 +171,12 @@ export function getAxisEncoding(
     bin: getBinEncoding(chartType, selectedDataType, binValues),
     title: label,
     stack: stack,
-    aggregate: getAggregate(column.aggregate, selectedDataType),
+    aggregate: getAggregate(
+      column.aggregate,
+      selectedDataType,
+      defaultAggregate,
+    ),
+    sort: column.sort,
     timeUnit: getTimeUnit(column),
   };
 }
@@ -188,7 +209,7 @@ function getPieChartSpec(
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
-) {
+): TopLevelSpec | ErrorMessage {
   const { yColumn, colorByColumn, title } = formValues.general ?? {};
 
   if (!isFieldSet(colorByColumn?.field)) {
@@ -240,14 +261,19 @@ function getBaseSpec(
   width: number | "container",
   height: number,
   title?: string,
-) {
+): BaseSpec {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    background: theme === "dark" ? "dark" : "white",
+    background: theme === "dark" ? "dark" : slate.slate2,
     title: title,
     data: { values: data },
     height: formValues.yAxis?.height ?? height,
     width: formValues.xAxis?.width ?? width,
+    config: {
+      axis: {
+        grid: formValues.style?.gridLines ?? false,
+      },
+    },
   };
 }
 
@@ -263,7 +289,7 @@ function getFieldLabel(label?: string): string | undefined {
 
 function getTimeUnit(column: z.infer<typeof AxisSchema>) {
   if (column.selectedDataType === "temporal") {
-    return column.timeUnit;
+    return column.timeUnit ?? DEFAULT_TIME_UNIT;
   }
   return undefined;
 }

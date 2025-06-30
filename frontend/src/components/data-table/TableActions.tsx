@@ -3,7 +3,7 @@
 
 import type { RowSelectionState, Table } from "@tanstack/react-table";
 import {
-  ChartBarIcon,
+  ChartAreaIcon,
   ChartColumnStacked,
   PanelRightIcon,
   SearchIcon,
@@ -122,7 +122,7 @@ export const TableActions = <TData,>({
             className="mb-0"
             onClick={toggleDisplayHeader}
           >
-            <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
+            <ChartAreaIcon className="w-4 h-4 text-muted-foreground" />
           </Button>
         </Tooltip>
       )}
