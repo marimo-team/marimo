@@ -185,7 +185,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 function makeRelativeWorkerUrl(url: string) {
   return url.startsWith("./")
     ? url
-    : url.startsWith("/")
+    : (url.startsWith("/")
       ? `.${url}`
-      : `./${url}`;
+      : `./${url}`);
 }

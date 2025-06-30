@@ -87,7 +87,7 @@ export interface CodeMirrorSetupOpts {
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
   const { showPlaceholder, enableAI } = opts;
-  return showPlaceholder ? "marimo-import" : enableAI ? "ai" : "none";
+  return showPlaceholder ? "marimo-import" : (enableAI ? "ai" : "none");
 }
 
 /**

@@ -124,9 +124,9 @@ export function renderZodSchema<T extends FieldValues, S>(
           "flex",
           direction === "row"
             ? "flex-row gap-6 items-start"
-            : direction === "two-columns"
+            : (direction === "two-columns"
               ? "grid grid-cols-2 gap-y-6"
-              : "flex-col gap-6",
+              : "flex-col gap-6"),
         )}
       >
         <FormLabel>{label}</FormLabel>
@@ -252,9 +252,9 @@ export function renderZodSchema<T extends FieldValues, S>(
     const inputType =
       special === "datetime"
         ? "datetime-local"
-        : special === "time"
+        : (special === "time"
           ? "time"
-          : "date";
+          : "date");
 
     return (
       <FormField

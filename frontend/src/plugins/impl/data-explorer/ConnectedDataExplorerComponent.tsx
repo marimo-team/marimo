@@ -166,9 +166,9 @@ export const DataExplorerComponent = ({
                     const label =
                       info.fieldDef.field === "*"
                         ? "Count"
-                        : info.fieldDef.fn
+                        : (info.fieldDef.fn
                           ? `${info.fieldDef.fn}(${info.fieldDef.field})`
-                          : info.fieldDef.field.toString();
+                          : info.fieldDef.field.toString());
                     return (
                       <Badge
                         variant={

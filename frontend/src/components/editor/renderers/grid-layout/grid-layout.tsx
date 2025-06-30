@@ -582,9 +582,9 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
   const SideIcon =
     side === "left"
       ? AlignStartVerticalIcon
-      : side === "right"
+      : (side === "right"
         ? AlignEndVerticalIcon
-        : undefined;
+        : undefined);
 
   return (
     <div

@@ -57,9 +57,9 @@ export const BackendConnection: React.FC = () => {
   const getStatusInfo = () => {
     const baseStatus = startCase(connection.toLowerCase());
     const healthInfo = data?.lastChecked
-      ? data.isHealthy
+      ? (data.isHealthy
         ? "✓ Healthy"
-        : "✗ Unhealthy"
+        : "✗ Unhealthy")
       : "Health: Unknown";
 
     const errorInfo = error ? `Error: ${error}` : "";

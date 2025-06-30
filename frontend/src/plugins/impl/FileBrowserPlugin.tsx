@@ -371,9 +371,9 @@ export const FileBrowser = ({
   const selectionKindLabel =
     selectionMode === "all"
       ? PluralWords.of("file", "folder")
-      : selectionMode === "directory"
+      : (selectionMode === "directory"
         ? PluralWords.of("folder")
-        : PluralWords.of("file");
+        : PluralWords.of("file"));
 
   const renderHeader = () => {
     label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;

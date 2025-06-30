@@ -123,9 +123,9 @@ const requestHandler = createRPCRequestHandler({
     const payloadString =
       payload == null
         ? null
-        : typeof payload === "string"
+        : (typeof payload === "string"
           ? payload
-          : JSON.stringify(payload);
+          : JSON.stringify(payload));
 
     // Make the request
     const response =

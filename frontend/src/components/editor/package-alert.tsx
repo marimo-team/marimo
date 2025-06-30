@@ -267,9 +267,9 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
   const status =
     statuses.has("queued") || statuses.has("installing")
       ? "installing"
-      : statuses.has("failed")
+      : (statuses.has("failed")
         ? "failed"
-        : "installed";
+        : "installed");
 
   if (status === "installing") {
     return {
@@ -502,7 +502,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
           </DropdownMenu>
           <span className="shrink-0">]</span>
         </span>
-      ) : availableExtras.length > 0 ? (
+      ) : (availableExtras.length > 0 ? (
         <DropdownMenu
           open={isOpen && canSelectExtras}
           onOpenChange={(open) => {
@@ -549,7 +549,7 @@ const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : null}
+      ) : null)}
     </div>
   );
 };

@@ -1071,9 +1071,9 @@ export const UserConfigForm: React.FC = () => {
                           value={
                             field.value === true
                               ? "github"
-                              : field.value === false
+                              : (field.value === false
                                 ? "none"
-                                : field.value
+                                : field.value)
                           }
                           disabled={field.disabled}
                           className="inline-flex mr-2"

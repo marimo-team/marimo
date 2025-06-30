@@ -99,9 +99,9 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
     let asSeconds =
       typeof selected === "number"
         ? selected
-        : /[a-z]/.test(selected) // check if has units
+        : (/[a-z]/.test(selected) // check if has units
           ? timestring(selected)
-          : timestring(`${selected}s`); // default to seconds if no units
+          : timestring(`${selected}s`)); // default to seconds if no units
 
     // Constrain to smallest interval
     asSeconds = Math.max(asSeconds, MIN_INTERVAL);

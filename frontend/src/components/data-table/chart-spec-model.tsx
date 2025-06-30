@@ -143,9 +143,9 @@ export class ColumnChartSpecModel<T> {
         const format =
           type === "date"
             ? "%Y-%m-%d"
-            : type === "time"
+            : (type === "time"
               ? "%H:%M:%S"
-              : "%Y-%m-%dT%H:%M:%S";
+              : "%Y-%m-%dT%H:%M:%S");
 
         return {
           ...base,

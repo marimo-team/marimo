@@ -225,10 +225,10 @@ const DataTableInternal = <TData,>({
       (paginationState
         ? { pagination: paginationState }
         : // Uncontrolled state
-          pagination && !paginationState
+          (pagination && !paginationState
           ? {}
           : // No pagination, show all rows
-            { pagination: { pageIndex: 0, pageSize: data.length } }),
+            { pagination: { pageIndex: 0, pageSize: data.length } })),
       rowSelection,
       cellSelection,
       cellStyling,

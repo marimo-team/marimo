@@ -14,16 +14,16 @@ export function getProtocolAndParentDirectories(
   const isWindowsPath = /^[A-Za-z]:\\/.test(path);
   const protocol = protocolMatch
     ? protocolMatch[0]
-    : isWindowsPath
+    : (isWindowsPath
       ? path.slice(0, 3)
-      : "/";
+      : "/");
 
   // Remove protocol from path
   const pathWithoutProtocol = isWindowsPath
     ? path.slice(protocol.length)
-    : protocolMatch
+    : (protocolMatch
       ? path.slice(protocol.length)
-      : path;
+      : path);
 
   // Split path into segments
   const segments = pathWithoutProtocol.split(delimiter).filter(Boolean);

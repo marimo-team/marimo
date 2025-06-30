@@ -846,9 +846,9 @@ export class MultiColumn<T> {
     const toIdx =
       toCol === "_left_"
         ? fromIdx - 1
-        : toCol === "_right_"
+        : (toCol === "_right_"
           ? fromIdx + 1
-          : this.indexOfOrThrow(toCol);
+          : this.indexOfOrThrow(toCol));
 
     reorderColumnSizes(fromIdx, toIdx);
     return new MultiColumn(arrayMove([...this.columns], fromIdx, toIdx));

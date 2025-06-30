@@ -32,7 +32,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const [ws] = useState<IReconnectingWebSocket>(() => {
     const socket: IReconnectingWebSocket = isWasm()
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
-      : options.static
+      : (options.static
         ? new StaticWebsocket()
         : new ReconnectingWebSocket(rest.url, undefined, {
             // We don't want Infinity retries
@@ -42,7 +42,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
             // long timeout -- the server can become slow when many notebooks
             // are open.
             connectionTimeout: 10_000,
-          });
+          }));
 
     onOpen && socket.addEventListener("open", onOpen);
     onClose && socket.addEventListener("close", onClose);

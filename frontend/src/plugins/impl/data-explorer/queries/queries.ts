@@ -198,7 +198,7 @@ function getDefaultGroupBy(args: {
 
   return hasWildcardFn
     ? "fieldTransform"
-    : hasWildcardField
+    : (hasWildcardField
       ? "field"
-      : "encoding";
+      : "encoding");
 }

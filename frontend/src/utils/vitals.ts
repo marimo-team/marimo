@@ -16,9 +16,9 @@ export async function reportVitals() {
     const color =
       metric.rating === "good"
         ? "green"
-        : metric.rating === "needs-improvement"
+        : (metric.rating === "needs-improvement"
           ? "orange"
-          : "red";
+          : "red");
     Logger.log(
       `%c [Metric ${metric.name}] ${metric.value}`,
       `background:${color}; color:white; padding:2px 0; border-radius:2px`,

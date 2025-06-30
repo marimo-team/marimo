@@ -83,9 +83,9 @@ const CellLogLogger = {
     const color =
       payload.level === "stdout"
         ? "gray"
-        : payload.level === "stderr"
+        : (payload.level === "stderr"
           ? "red"
-          : "orange";
+          : "orange");
     const status = payload.level.toUpperCase();
     // eslint-disable-next-line no-console
     console.log(

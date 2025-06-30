@@ -47,9 +47,9 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
       const boxProp =
         box === "border-box"
           ? "borderBoxSize"
-          : box === "device-pixel-content-box"
+          : (box === "device-pixel-content-box"
             ? "devicePixelContentBoxSize"
-            : "contentBoxSize";
+            : "contentBoxSize");
 
       const newWidth = extractSize(entry, boxProp, "inlineSize");
       const newHeight = extractSize(entry, boxProp, "blockSize");

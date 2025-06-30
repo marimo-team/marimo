@@ -258,9 +258,9 @@ export const ChartPanel: React.FC<{
       response.data_url,
       response.format === "arrow"
         ? { type: "arrow" }
-        : response.format === "json"
+        : (response.format === "json"
           ? { type: "json" }
-          : { type: "csv", parse: "auto" },
+          : { type: "csv", parse: "auto" }),
       {
         replacePeriod: true,
       },

@@ -171,9 +171,9 @@ function getPinningStyles<TData>(
       boxShadow:
         isLastLeftPinnedColumn && column.id !== "__select__"
           ? "-4px 0 4px -4px var(--slate-8) inset"
-          : isFirstRightPinnedColumn
+          : (isFirstRightPinnedColumn
             ? "4px 0 4px -4px var(--slate-8) inset"
-            : undefined,
+            : undefined),
       left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
       right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
       opacity: 1,

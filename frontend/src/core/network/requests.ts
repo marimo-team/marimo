@@ -18,9 +18,9 @@ function getRequest(): EditRequests & RunRequests {
 
   const base = isWasm()
     ? PyodideBridge.INSTANCE
-    : isStaticNotebook()
+    : (isStaticNotebook()
       ? createStaticRequests()
-      : createNetworkRequests();
+      : createNetworkRequests());
 
   return createErrorToastingRequests(base);
 }
