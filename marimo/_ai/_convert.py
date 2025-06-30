@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal, Union, cast
 
 from marimo import _loggers
 from marimo._ai._types import (
@@ -18,9 +18,15 @@ LOGGER = _loggers.marimo_logger()
 
 
 if TYPE_CHECKING:
+    from anthropic.types.message_param import (  # type: ignore[import-not-found]
+        MessageParam,
+    )
     from google.genai.types import (  # type: ignore[import-not-found]
         Content,
         Part,
+    )
+    from openai.types.chat import (  # type: ignore[import-not-found]
+        ChatCompletionMessageParam,
     )
 
 
@@ -35,40 +41,38 @@ def get_openai_messages_from_parts(
             message = {"role": role, "content": part.text}
             messages.append(message)
         elif isinstance(part, ToolInvocationPart):
-            if part.tool_invocation.state == "result":
-                # Create two messages for the tool result
-                assistant_message = {
-                    "role": role,
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": part.tool_invocation.tool_call_id,
-                            "type": "function",
-                            "function": {
-                                "name": part.tool_invocation.tool_name,
-                                "arguments": str(part.tool_invocation.args)
-                                if part.tool_invocation.args
-                                else "{}",
-                            },
-                        }
-                    ],
-                }
-                messages.append(assistant_message)
-                tool_result_message = {
-                    "role": "tool",
-                    "tool_call_id": part.tool_invocation.tool_call_id,
-                    "name": part.tool_invocation.tool_name,
-                    "content": str(part.tool_invocation.result),
-                }
-                messages.append(tool_result_message)
+            # Create two messages for the tool result
+            assistant_message = {
+                "role": role,
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": part.tool_invocation.tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": part.tool_invocation.tool_name,
+                            "arguments": str(part.tool_invocation.args)
+                            if part.tool_invocation.args
+                            else "{}",
+                        },
+                    }
+                ],
+            }
+            messages.append(assistant_message)
+            tool_result_message = {
+                "role": "tool",
+                "tool_call_id": part.tool_invocation.tool_call_id,
+                "name": part.tool_invocation.tool_name,
+                "content": str(part.tool_invocation.result),
+            }
+            messages.append(tool_result_message)
     return messages
 
 
 def convert_to_openai_messages(
     messages: list[ChatMessage],
-) -> list[dict[Any, Any]]:
+) -> list[ChatCompletionMessageParam]:
     openai_messages: list[dict[Any, Any]] = []
-    LOGGER.warning(f"Converting to OpenAI messages: {messages}")
 
     for message in messages:
         # Handle message without attachments
@@ -112,7 +116,7 @@ def convert_to_openai_messages(
 
         openai_messages.append({"role": message.role, "content": parts})
 
-    return openai_messages
+    return cast("list[ChatCompletionMessageParam]", openai_messages)
 
 
 def get_anthropic_messages_from_parts(
@@ -121,8 +125,6 @@ def get_anthropic_messages_from_parts(
 ) -> list[dict[Any, Any]]:
     messages: list[dict[Any, Any]] = []
     content_parts: list[dict[str, Any]] = []
-
-    LOGGER.warning(f"Converting to Anthropic messages: {parts}")
 
     for part in parts:
         if isinstance(part, TextPart):
@@ -141,40 +143,39 @@ def get_anthropic_messages_from_parts(
                 }
             )
         elif isinstance(part, ToolInvocationPart):
-            if part.tool_invocation.state == "result":
-                # Add tool use to current message content
-                content_parts.append(
-                    {
-                        "type": "tool_use",
-                        "id": part.tool_invocation.tool_call_id,
-                        "name": part.tool_invocation.tool_name,
-                        "input": part.tool_invocation.args,
-                    }
-                )
-
-                # Create the message with current content (including tool use)
-                if content_parts:
-                    message_content = (
-                        content_parts[0]["text"]
-                        if len(content_parts) == 1
-                        and content_parts[0]["type"] == "text"
-                        else content_parts
-                    )
-                    messages.append({"role": role, "content": message_content})
-                    content_parts = []  # Reset for next message
-
-                # Create separate tool result message
-                tool_result_message = {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": part.tool_invocation.tool_call_id,
-                            "content": str(part.tool_invocation.result),
-                        }
-                    ],
+            # Add tool use to current message content
+            content_parts.append(
+                {
+                    "type": "tool_use",
+                    "id": part.tool_invocation.tool_call_id,
+                    "name": part.tool_invocation.tool_name,
+                    "input": part.tool_invocation.args,
                 }
-                messages.append(tool_result_message)
+            )
+
+            # Create the message with current content (including tool use)
+            if content_parts:
+                message_content = (
+                    content_parts[0]["text"]
+                    if len(content_parts) == 1
+                    and content_parts[0]["type"] == "text"
+                    else content_parts
+                )
+                messages.append({"role": role, "content": message_content})
+                content_parts = []  # Reset for next message
+
+            # Create separate tool result message
+            tool_result_message = {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": part.tool_invocation.tool_call_id,
+                        "content": str(part.tool_invocation.result),
+                    }
+                ],
+            }
+            messages.append(tool_result_message)
 
     # Add remaining content parts as a single message if any
     if content_parts:
@@ -191,7 +192,7 @@ def get_anthropic_messages_from_parts(
 
 def convert_to_anthropic_messages(
     messages: list[ChatMessage],
-) -> list[dict[Any, Any]]:
+) -> list[MessageParam]:
     anthropic_messages: list[dict[Any, Any]] = []
 
     for message in messages:
@@ -239,7 +240,7 @@ def convert_to_anthropic_messages(
 
         anthropic_messages.append({"role": message.role, "content": parts})
 
-    return anthropic_messages
+    return cast("list[MessageParam]", anthropic_messages)
 
 
 def convert_to_groq_messages(
@@ -297,36 +298,35 @@ def get_google_messages_from_parts(
             }
             messages.append(reasoning_message)
         elif isinstance(part, ToolInvocationPart):
-            if part.tool_invocation.state == "result":
-                # Create function call message for Google
-                function_call_message: Content = {
-                    "role": "model",
-                    "parts": [
-                        {
-                            "function_call": {
-                                "name": part.tool_invocation.tool_name,
-                                "args": part.tool_invocation.args or {},
-                            }
+            # Create function call message for Google
+            function_call_message: Content = {
+                "role": "model",
+                "parts": [
+                    {
+                        "function_call": {
+                            "name": part.tool_invocation.tool_name,
+                            "args": part.tool_invocation.args or {},
                         }
-                    ],
-                }
-                messages.append(function_call_message)
+                    }
+                ],
+            }
+            messages.append(function_call_message)
 
-                # Create function response message
-                function_response_message: Content = {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "function_response": {
-                                "name": part.tool_invocation.tool_name,
-                                "response": {
-                                    "result": str(part.tool_invocation.result)
-                                },
-                            }
+            # Create function response message
+            function_response_message: Content = {
+                "role": "user",
+                "parts": [
+                    {
+                        "function_response": {
+                            "name": part.tool_invocation.tool_name,
+                            "response": {
+                                "result": str(part.tool_invocation.result)
+                            },
                         }
-                    ],
-                }
-                messages.append(function_response_message)
+                    }
+                ],
+            }
+            messages.append(function_response_message)
 
     return messages
 
