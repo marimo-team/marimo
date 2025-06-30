@@ -34,7 +34,7 @@ export function useSelectAllContent<T extends HTMLElement>(
     event.stopPropagation();
 
     // Create selection of all content within the element
-    const selection = window.getSelection();
+    const selection = globalThis.getSelection();
     if (!selection) {
       return;
     }

@@ -94,7 +94,7 @@ export const KeyboardShortcuts: React.FC = () => {
 
   const handleResetAllShortcuts = async () => {
     if (
-      !window.confirm(
+      !globalThis.confirm(
         "Are you sure you want to reset all shortcuts to their default values?",
       )
     ) {

@@ -19,8 +19,7 @@ function constructCompletionInfoNode(
     return null;
   }
   const container = document.createElement("span");
-  container.classList.add("mo-cm-tooltip");
-  container.classList.add("docs-documentation");
+  container.classList.add("mo-cm-tooltip", "docs-documentation");
   if (showGoToDefinitionHint) {
     container.classList.add("cm-tooltip-section");
   }

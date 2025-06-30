@@ -7,7 +7,7 @@ import { useDelayVisibility } from "../useDelayVisibility";
 describe("useDelayVisibility", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 0;
     });

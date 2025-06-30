@@ -29,7 +29,9 @@ export const useResizeHandle = ({
       return;
     }
 
-    let width = Number.parseInt(window.getComputedStyle(resizableDiv).width);
+    let width = Number.parseInt(
+      globalThis.getComputedStyle(resizableDiv).width,
+    );
     let lastX = 0;
     let isResizing = false;
     let activeDirection: "left" | "right" | null = null;

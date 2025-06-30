@@ -46,7 +46,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
       icon: <CopyIcon size={13} strokeWidth={1.5} />,
       handle: async () => {
         // Has selection, use browser copy
-        const hasSelection = window.getSelection()?.toString();
+        const hasSelection = globalThis.getSelection()?.toString();
         if (hasSelection) {
           document.execCommand("copy");
           return;

@@ -259,9 +259,9 @@ export function useNotebookActions() {
             const beforeprint = new Event("export-beforeprint");
             const afterprint = new Event("export-afterprint");
             function print() {
-              window.dispatchEvent(beforeprint);
-              setTimeout(() => window.print(), 0);
-              setTimeout(() => window.dispatchEvent(afterprint), 0);
+              globalThis.dispatchEvent(beforeprint);
+              setTimeout(() => globalThis.print(), 0);
+              setTimeout(() => globalThis.dispatchEvent(afterprint), 0);
             }
             print();
           },

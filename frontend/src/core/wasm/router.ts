@@ -12,7 +12,7 @@ class URLPyodideRouter {
   }
 
   getCodeFromHash(): string | null {
-    const hash = window.location.hash;
+    const hash = globalThis.location.hash;
     const prefix = "#code/";
     if (!hash.startsWith(prefix)) {
       return null;
@@ -21,17 +21,17 @@ class URLPyodideRouter {
   }
 
   setCodeForHash(code: string) {
-    window.location.hash = `#code/${code}`;
+    globalThis.location.hash = `#code/${code}`;
   }
 
   private setSearchParam(key: string, value: string) {
-    const url = new URL(window.location.href);
+    const url = new URL(globalThis.location.href);
     url.searchParams.set(key, value);
-    window.history.replaceState({}, "", url.toString());
+    globalThis.history.replaceState({}, "", url.toString());
   }
 
   private getSearchParam(key: string): string | null {
-    const url = new URL(window.location.href);
+    const url = new URL(globalThis.location.href);
     return url.searchParams.get(key);
   }
 }

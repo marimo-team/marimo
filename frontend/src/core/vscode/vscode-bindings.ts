@@ -7,13 +7,13 @@ import { isWasm } from "../wasm/utils";
 
 export const isEmbedded =
   // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
-  typeof window !== "undefined" && window.parent !== window;
+  globalThis.window !== undefined && window.parent !== globalThis;
 
 // To enable keyboard shortcuts of VS Code when the iframe is focused,
 // we have to dispatch keyboard events in the parent window.
 // See https://github.com/microsoft/vscode/issues/65452#issuecomment-586036474
 export function maybeRegisterVSCodeBindings() {
-  const isVscode = new URLSearchParams(window.location.search).has(
+  const isVscode = new URLSearchParams(globalThis.location.search).has(
     KnownQueryParams.vscode,
   );
   if (!isVscode) {
@@ -32,16 +32,16 @@ export function maybeRegisterVSCodeBindings() {
 }
 
 function registerCopyPaste() {
-  window.addEventListener("copy", () => {
-    const selection = window.getSelection()?.toString() ?? "";
+  globalThis.addEventListener("copy", () => {
+    const selection = globalThis.getSelection()?.toString() ?? "";
     sendToPanelManager({
       command: "copy",
       text: selection,
     });
   });
 
-  window.addEventListener("cut", () => {
-    const selection = window.getSelection()?.toString() ?? "";
+  globalThis.addEventListener("cut", () => {
+    const selection = globalThis.getSelection()?.toString() ?? "";
     // Only run this on mac
     if (isPlatformMac()) {
       // clear
@@ -89,7 +89,7 @@ function registerKeyboard() {
   document.addEventListener("keydown", (event) => {
     // Copy
     if ((event.ctrlKey || event.metaKey) && event.key === "c") {
-      const selection = window.getSelection()?.toString() ?? "";
+      const selection = globalThis.getSelection()?.toString() ?? "";
       Logger.log("[vscode] Sending copy", selection);
       sendToPanelManager({
         command: "copy",
@@ -99,7 +99,7 @@ function registerKeyboard() {
     }
     // Cut
     if ((event.ctrlKey || event.metaKey) && event.key === "x") {
-      const selection = window.getSelection()?.toString() ?? "";
+      const selection = globalThis.getSelection()?.toString() ?? "";
       // clear
       if (isPlatformMac()) {
         document.execCommand("insertText", false, "");

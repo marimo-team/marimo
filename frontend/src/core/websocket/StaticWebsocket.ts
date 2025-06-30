@@ -49,7 +49,7 @@ export class StaticWebsocket implements IReconnectingWebSocket {
   retryCount = 0;
   shouldReconnect = false;
 
-  reconnect(code?: number | undefined, reason?: string | undefined): void {
+  reconnect(code?: number, reason?: string): void {
     // Noop
   }
   send(data: string | ArrayBuffer | Blob | ArrayBufferView) {

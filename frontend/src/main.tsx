@@ -8,13 +8,12 @@ declare global {
   }
 }
 
-// eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
 const el = document.getElementById("root");
 if (el) {
-  if (!window.__MARIMO_MOUNT_CONFIG__) {
+  if (!globalThis.__MARIMO_MOUNT_CONFIG__) {
     throw new Error("[marimo] mount config not found");
   }
-  mount(window.__MARIMO_MOUNT_CONFIG__, el);
+  mount(globalThis.__MARIMO_MOUNT_CONFIG__, el);
 } else {
   throw new Error("[marimo] root element not found");
 }

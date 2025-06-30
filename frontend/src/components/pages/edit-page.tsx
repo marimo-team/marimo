@@ -12,7 +12,7 @@ interface Props {
 }
 
 const hideChrome = (() => {
-  const url = new URL(window.location.href);
+  const url = new URL(globalThis.location.href);
   return url.searchParams.get(KnownQueryParams.showChrome) === "false";
 })();
 

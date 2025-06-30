@@ -49,7 +49,7 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
   useAutoExport();
 
   // Add beforeunload event listener to prevent accidental closing when there are unsaved changes
-  useEventListener(window, "beforeunload", (event) => {
+  useEventListener(globalThis, "beforeunload", (event) => {
     // Only prevent unload if we have unsaved changes
     if (needsSave) {
       // Standard way to show a confirmation dialog before closing

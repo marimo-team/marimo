@@ -189,7 +189,7 @@ const {
       const selectedRowIndex = rows.findIndex(
         (row) => row.id === currentCell.rowId,
       );
-      if (selectedRowIndex < 0) {
+      if (selectedRowIndex === -1) {
         return state;
       }
 
@@ -213,7 +213,7 @@ const {
       const selectedColumnIndex = cells.findIndex(
         (c) => c.id === currentCell.cellId,
       );
-      if (selectedColumnIndex < 0) {
+      if (selectedColumnIndex === -1) {
         return state;
       }
 

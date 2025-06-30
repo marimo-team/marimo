@@ -4,7 +4,7 @@ export function semverSort(a: string, b: string) {
   const semverRegex = /^(\d+)\.(\d+)\.(\d+)(?:-([\w.-]+))?(?:\+([\w.-]+))?$/;
 
   const parseSemver = (version: string) => {
-    const match = version.match(semverRegex);
+    const match = semverRegex.exec(version);
     if (!match) {
       return null;
     }

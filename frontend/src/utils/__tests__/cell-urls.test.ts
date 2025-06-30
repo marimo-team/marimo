@@ -7,11 +7,11 @@ import {
 } from "../cell-urls";
 
 describe("cell-urls utilities", () => {
-  const originalLocation = window.location;
+  const originalLocation = globalThis.location;
 
   beforeEach(() => {
     // Mock window.location for testing
-    Object.defineProperty(window, "location", {
+    Object.defineProperty(globalThis, "location", {
       value: {
         href: "https://example.com/notebook?file=test.py",
         hash: "",
@@ -22,7 +22,7 @@ describe("cell-urls utilities", () => {
 
   afterEach(() => {
     // Restore original location
-    Object.defineProperty(window, "location", {
+    Object.defineProperty(globalThis, "location", {
       value: originalLocation,
       writable: true,
     });

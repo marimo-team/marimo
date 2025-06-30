@@ -59,7 +59,6 @@ function handleCarriageReturns(
     return newConsoleOutputs;
   }
 
-  // eslint-disable-next-line no-control-regex
   const carriagePattern = /\r[^\n]/g;
   // collapse carriage returns in the final output's data
   let text = lastOutput.data;

@@ -46,12 +46,12 @@ describe("getCopyValue", () => {
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
       `
-      "{
-        "key1": "Hello",
-        "key2": False,
-        "key3": None
-      }"
-    `,
+        "{
+          "key1": "Hello",
+          "key2": False,
+          "key3": None
+        }"
+      `,
     );
   });
 
@@ -65,13 +65,13 @@ describe("getCopyValue", () => {
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
       `
-      "{
-        "true": "true",
-        "None": "none",
-        "null": "null",
-        "sentence": "something true none null something"
-      }"
-    `,
+        "{
+          "true": "true",
+          "None": "none",
+          "null": "null",
+          "sentence": "something true none null something"
+        }"
+      `,
     );
   });
 
@@ -86,14 +86,14 @@ describe("getCopyValue", () => {
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
       `
-      "{
-        "key1": {
-          "nestedKey1": "Nested Hello",
-          "nestedKey2": True
-        },
-        "key2": False
-      }"
-    `,
+        "{
+          "key1": {
+            "nestedKey1": "Nested Hello",
+            "nestedKey2": True
+          },
+          "key2": False
+        }"
+      `,
     );
   });
 
@@ -160,14 +160,14 @@ describe("getCopyValue", () => {
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
       `
-      "{
-        "key1": 42,
-        "key2": "Hello",
-        "key3": True,
-        "key4": None,
-        "key5": 1.23
-      }"
-    `,
+        "{
+          "key1": 42,
+          "key2": "Hello",
+          "key3": True,
+          "key4": None,
+          "key5": 1.23
+        }"
+      `,
     );
   });
 
@@ -186,12 +186,12 @@ describe("getCopyValue", () => {
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
       `
-      "{
-        "key1": 42,
-        "key2": {1,2,3},
-        "key3": True
-      }"
-    `,
+        "{
+          "key1": 42,
+          "key2": {1,2,3},
+          "key3": True
+        }"
+      `,
     );
   });
 
@@ -210,12 +210,12 @@ describe("getCopyValue", () => {
     const result = getCopyValue(value);
     expect(result).toMatchInlineSnapshot(
       `
-      "{
-        "key1": 42,
-        "key2": (1,2,3),
-        "key3": True
-      }"
-    `,
+        "{
+          "key1": 42,
+          "key2": (1,2,3),
+          "key3": True
+        }"
+      `,
     );
   });
 });

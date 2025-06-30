@@ -63,7 +63,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       // HACK: Unfortunately, we have to do this twice to make sure it the
       // panel is fully expanded before we dispatch the resize event
       requestAnimationFrame(() => {
-        window.dispatchEvent(new Event("resize"));
+        globalThis.dispatchEvent(new Event("resize"));
       });
     });
   }, [isSidebarOpen]);
@@ -87,7 +87,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       // HACK: Unfortunately, we have to do this twice to make sure it the
       // panel is fully expanded before we dispatch the resize event
       requestAnimationFrame(() => {
-        window.dispatchEvent(new Event("resize"));
+        globalThis.dispatchEvent(new Event("resize"));
       });
     });
   }, [isTerminalOpen]);

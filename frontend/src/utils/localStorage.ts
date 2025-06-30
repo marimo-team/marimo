@@ -16,7 +16,7 @@ export class TypedLocalStorage<T> implements Storage<T> {
 
   get(key: string): T {
     try {
-      const item = window.localStorage.getItem(key);
+      const item = globalThis.localStorage.getItem(key);
       return item ? (JSON.parse(item) as T) : this.defaultValue;
     } catch {
       return this.defaultValue;
@@ -24,11 +24,11 @@ export class TypedLocalStorage<T> implements Storage<T> {
   }
 
   set(key: string, value: T) {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    globalThis.localStorage.setItem(key, JSON.stringify(value));
   }
 
   remove(key: string) {
-    window.localStorage.removeItem(key);
+    globalThis.localStorage.removeItem(key);
   }
 }
 
@@ -40,7 +40,7 @@ export class ZodLocalStorage<T> implements Storage<T> {
 
   get(key: string): T {
     try {
-      const item = window.localStorage.getItem(key);
+      const item = globalThis.localStorage.getItem(key);
       if (item == null) {
         return this.getDefaultValue();
       }
@@ -57,11 +57,11 @@ export class ZodLocalStorage<T> implements Storage<T> {
   }
 
   set(key: string, value: T) {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    globalThis.localStorage.setItem(key, JSON.stringify(value));
   }
 
   remove(key: string) {
-    window.localStorage.removeItem(key);
+    globalThis.localStorage.removeItem(key);
   }
 }
 

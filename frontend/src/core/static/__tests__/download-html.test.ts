@@ -30,7 +30,7 @@ describe("updateAssetUrl", () => {
     // Assuming window.location.origin is 'https://localhost:8080'
     const existingUrl = "https://localhost:8080/assets/index-c78b8d10.js";
     // Mock window.location.origin to match the existingUrl's origin
-    Object.defineProperty(window, "location", {
+    Object.defineProperty(globalThis, "location", {
       value: {
         origin: "https://localhost:8080",
       },

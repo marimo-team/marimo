@@ -145,7 +145,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const userConfig = store.get(userConfigAtom);
 
     const queryParameters: Record<string, string | string[]> = {};
-    const searchParams = new URLSearchParams(window.location.search);
+    const searchParams = new URLSearchParams(globalThis.location.search);
     for (const key of searchParams.keys()) {
       const value = searchParams.getAll(key);
       queryParameters[key] = value.length === 1 ? value[0] : value;
@@ -359,7 +359,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   openFile: EditRequests["openFile"] = async ({ path }) => {
     const url = createShareableLink({
       code: null,
-      baseUrl: window.location.origin,
+      baseUrl: globalThis.location.origin,
     });
     window.open(url, "_blank");
     return null;
@@ -443,7 +443,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       process.env.NODE_ENV === "development" ||
       process.env.NODE_ENV === "test"
     ) {
-      request.assetUrl = window.location.origin;
+      request.assetUrl = globalThis.location.origin;
     }
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_html",

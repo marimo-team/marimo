@@ -12,11 +12,10 @@ export function patchFetch(
   files: StaticVirtualFiles = getStaticVirtualFiles(),
 ) {
   // Store the original fetch function
-  const originalFetch = window.fetch;
+  const originalFetch = globalThis.fetch;
 
   // Override the global fetch so when /@file/ is used, it returns the blob data
-  window.fetch = async (input, init) => {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+  globalThis.fetch = async (input, init) => {
     const urlString = input instanceof Request ? input.url : input.toString();
 
     if (urlString.startsWith("data:")) {
@@ -26,7 +25,7 @@ export function patchFetch(
     try {
       const url =
         urlString.startsWith("/") || urlString.startsWith("./")
-          ? new URL(urlString, window.location.origin)
+          ? new URL(urlString, globalThis.location.origin)
           : new URL(urlString);
 
       const filePath = url.pathname;
@@ -52,7 +51,7 @@ export function patchFetch(
   };
 
   return () => {
-    window.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
   };
 }
 
@@ -103,7 +102,7 @@ export function patchVegaLoader(
     const vfile = maybeGetVirtualFile(url);
     if (vfile) {
       // If the file is a virtual file, fetch it
-      return await window.fetch(vfile).then((r) => r.text());
+      return await globalThis.fetch(vfile).then((r) => r.text());
     }
 
     try {
@@ -111,7 +110,7 @@ export function patchVegaLoader(
     } catch (error) {
       // If its a data URL, just return the data
       if (url.startsWith("data:")) {
-        return await window.fetch(url).then((r) => r.text());
+        return await globalThis.fetch(url).then((r) => r.text());
       }
       // Re-throw the error
       throw error;
@@ -122,7 +121,7 @@ export function patchVegaLoader(
     const vfile = maybeGetVirtualFile(url);
     if (vfile) {
       // If the file is a virtual file, fetch it
-      return await window.fetch(vfile).then((r) => r.text());
+      return await globalThis.fetch(vfile).then((r) => r.text());
     }
 
     try {
@@ -130,7 +129,7 @@ export function patchVegaLoader(
     } catch (error) {
       // If it's a data URL, just return the data
       if (url.startsWith("data:")) {
-        return await window.fetch(url).then((r) => r.text());
+        return await globalThis.fetch(url).then((r) => r.text());
       }
       // Re-throw the error
       throw error;

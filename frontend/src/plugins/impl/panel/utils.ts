@@ -80,7 +80,7 @@ export class EventBuffer<T> {
     if (this.timeout !== null) {
       clearTimeout(this.timeout);
     }
-    this.timeout = window.setTimeout(() => {
+    this.timeout = globalThis.setTimeout(() => {
       this.isBlocked = false;
       if (this.buffer.length > 0) {
         this.flush();

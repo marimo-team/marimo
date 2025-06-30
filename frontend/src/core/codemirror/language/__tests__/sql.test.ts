@@ -1188,7 +1188,7 @@ describe("tablesCompletionSource", () => {
           "id",
         ],
       }
-      `);
+    `);
   });
 
   it("should return local tables", () => {
@@ -1277,13 +1277,13 @@ describe("tablesCompletionSource", () => {
       "test_engine" as ConnectionName,
     );
     expect(completionSource?.schema).toMatchInlineSnapshot(`
-    {
-      "test_schema": {
-        "dataset2": [
-          "col1",
-        ],
-      },
-    }
+      {
+        "test_schema": {
+          "dataset2": [
+            "col1",
+          ],
+        },
+      }
     `);
 
     const newConnection: DataSourceConnection = {
@@ -1319,17 +1319,17 @@ describe("tablesCompletionSource", () => {
       "test_engine" as ConnectionName,
     );
     expect(completionSource?.schema).toMatchInlineSnapshot(`
-    {
-      "dataset1": [
-        "col1",
-        "col2",
-      ],
-      "test_schema": {
-        "dataset2": [
+      {
+        "dataset1": [
           "col1",
+          "col2",
         ],
-      },
-    }
+        "test_schema": {
+          "dataset2": [
+            "col1",
+          ],
+        },
+      }
     `);
 
     const newTestDatasets = [
@@ -1347,17 +1347,17 @@ describe("tablesCompletionSource", () => {
       "test_engine" as ConnectionName,
     );
     expect(newCompletionSource?.schema).toMatchInlineSnapshot(`
-    {
-      "dataset3": [
-        "col1",
-        "col2",
-      ],
-      "test_schema": {
-        "dataset2": [
+      {
+        "dataset3": [
           "col1",
+          "col2",
         ],
-      },
-    }
+        "test_schema": {
+          "dataset2": [
+            "col1",
+          ],
+        },
+      }
     `);
   });
 });

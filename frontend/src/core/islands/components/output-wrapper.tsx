@@ -89,8 +89,8 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
     }),
   );
   // Set pressed to false if the window loses focus
-  useEventListener(window, "blur", () => setPressed(false));
-  useEventListener(window, "mouseleave", () => setPressed(false));
+  useEventListener(globalThis, "blur", () => setPressed(false));
+  useEventListener(globalThis, "mouseleave", () => setPressed(false));
 
   if (!runtime?.output) {
     return <div className="relative min-h-6 empty:hidden">{children}</div>;

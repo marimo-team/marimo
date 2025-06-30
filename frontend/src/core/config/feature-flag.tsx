@@ -5,7 +5,6 @@ import { repl } from "@/utils/repl";
 import { saveUserConfig } from "../network/requests";
 import { getResolvedMarimoConfig } from "./config";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   inline_ai_tooltip: boolean;

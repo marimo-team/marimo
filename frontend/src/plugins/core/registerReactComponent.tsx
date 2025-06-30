@@ -507,7 +507,7 @@ function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
   }
 
   // Copy stylesheets served from the same origin
-  return sheet.href.startsWith(window.location.origin);
+  return sheet.href.startsWith(globalThis.location.origin);
 }
 
 export function isCustomMarimoElement(

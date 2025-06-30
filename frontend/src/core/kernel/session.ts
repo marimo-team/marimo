@@ -21,7 +21,7 @@ export function isSessionId(value: string | null): value is SessionId {
 }
 
 const sessionId = (() => {
-  const url = new URL(window.location.href);
+  const url = new URL(globalThis.location.href);
   const id = url.searchParams.get(
     KnownQueryParams.sessionId,
   ) as SessionId | null;

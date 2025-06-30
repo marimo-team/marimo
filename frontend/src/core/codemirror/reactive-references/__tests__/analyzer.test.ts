@@ -311,7 +311,7 @@ def outer():
               return a + b + z  # highlight: b
                          ^
           return inner()
-        
+  
       "
     `);
   });

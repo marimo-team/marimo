@@ -10,7 +10,7 @@ import { Logger } from "./Logger";
 export function updateBufferPaths<T extends Record<string, unknown>>(
   inputObject: T,
   bufferPaths: Array<Array<string | number>> | null | undefined,
-  buffers?: Base64String[] | null | undefined,
+  buffers?: Base64String[] | null,
 ): T {
   // If no buffer paths, return the original object
   if (!bufferPaths || bufferPaths.length === 0) {

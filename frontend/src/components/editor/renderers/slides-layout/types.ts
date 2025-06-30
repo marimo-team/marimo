@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-empty-interface */
 
 /**
  * The serialized form of a slides layout.

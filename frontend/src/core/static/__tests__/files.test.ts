@@ -39,7 +39,7 @@ describe("patchFetch", () => {
 
     patchFetch(virtualFiles);
 
-    const response = await window.fetch("/@file/virtual-file.txt");
+    const response = await globalThis.fetch("/@file/virtual-file.txt");
     const blob = await response.blob();
     const text = await blob.text();
 
@@ -48,14 +48,14 @@ describe("patchFetch", () => {
   });
 
   it("should fallback to original fetch for non-virtual files", async () => {
-    vi.spyOn(window, "fetch");
+    vi.spyOn(globalThis, "fetch");
 
     const unpatch = patchFetch({}); // No virtual files
-    const response = await window.fetch(remoteURL);
+    const response = await globalThis.fetch(remoteURL);
     const text = await response.text();
     unpatch();
 
-    expect(window.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       "http://127.0.0.1:4321/@file/remote-content.txt",
       undefined,
     );
@@ -72,9 +72,9 @@ describe("patchFetch", () => {
 
     // Test with both formats of @file URLs
     const responses = await Promise.all([
-      window.fetch("/@file/data.csv"),
-      window.fetch("./@file/data.csv"),
-      window.fetch("http://example.com/@file/data.csv"),
+      globalThis.fetch("/@file/data.csv"),
+      globalThis.fetch("./@file/data.csv"),
+      globalThis.fetch("http://example.com/@file/data.csv"),
     ]);
 
     for (const response of responses) {

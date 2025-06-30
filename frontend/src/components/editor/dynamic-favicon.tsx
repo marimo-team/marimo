@@ -52,7 +52,7 @@ function maybeSendNotification(numErrors: number) {
     }
   };
 
-  if (!("Notification" in window) || Notification.permission === "denied") {
+  if (!("Notification" in globalThis) || Notification.permission === "denied") {
     // Return
   } else if (Notification.permission === "granted") {
     sendNotification();
@@ -130,7 +130,7 @@ export const DynamicFavicon = (props: Props) => {
   }, [errors, prevRunning, isRunning]);
 
   // When notebook comes back in focus, reset favicon
-  useEventListener(window, "focus", async (_) => {
+  useEventListener(globalThis, "focus", async (_) => {
     if (!isRunning) {
       favicon.href = await getFaviconUrl("idle");
     }

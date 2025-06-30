@@ -38,7 +38,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
     // for example, forcing the 'slides' view.
     // https://marimo.app/?slug=14ovyr8&mode=run&view-as=slides
     let finalLayout = selectedLayout;
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(globalThis.location.search);
     if (mode === "read" && params.has(KnownQueryParams.viewAs)) {
       const viewAsOverride = params.get(KnownQueryParams.viewAs);
       if (OVERRIDABLE_LAYOUT_TYPES.includes(viewAsOverride as LayoutType)) {

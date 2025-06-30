@@ -56,7 +56,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const [userConfig] = useResolvedMarimoConfig();
   const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(globalThis.location.search);
   const [showCode, setShowCode] = useState(() => {
     // Check if the setting was set in the mount options
     if (!showCodeInRunModePreference) {

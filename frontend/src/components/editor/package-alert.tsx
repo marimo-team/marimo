@@ -59,7 +59,7 @@ function parsePackageSpecifier(spec: string): {
   name: string;
   extras: string[];
 } {
-  const match = spec.match(/^([^[]+)(?:\[([^\]]+)])?$/);
+  const match = /^([^[]+)(?:\[([^\]]+)])?$/.exec(spec);
   if (!match) {
     return { name: spec, extras: [] };
   }

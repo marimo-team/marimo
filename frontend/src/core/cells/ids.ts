@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-redeclare */
 
 import { invariant } from "@/utils/invariant";
 import type { TypedString } from "../../utils/typed";

@@ -4,7 +4,7 @@ import { Logger } from "./Logger";
 
 export function reloadSafe() {
   try {
-    window.location.reload();
+    globalThis.location.reload();
   } catch (error) {
     Logger.error("Failed to reload page", error);
     toast({

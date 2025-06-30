@@ -8,7 +8,7 @@ import { useFocusFirstEditor } from "../useFocusFirstEditor";
 describe("useFocusFirstEditor", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 0;
     });
@@ -73,8 +73,8 @@ describe("useFocusFirstEditor", () => {
 
   it("should focus cell from URL if scrollTo parameter exists", () => {
     // Mock location.hash
-    const originalHash = window.location.hash;
-    Object.defineProperty(window, "location", {
+    const originalHash = globalThis.location.hash;
+    Object.defineProperty(globalThis, "location", {
       value: { hash: "#scrollTo=testCell" },
       writable: true,
     });
@@ -115,7 +115,7 @@ describe("useFocusFirstEditor", () => {
     expect(mockEditor.focus).toHaveBeenCalled();
 
     // Restore original hash
-    Object.defineProperty(window, "location", {
+    Object.defineProperty(globalThis, "location", {
       value: { hash: originalHash },
       writable: true,
     });

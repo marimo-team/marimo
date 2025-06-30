@@ -184,6 +184,6 @@ export function replaceInvalid(input: string): string {
 }
 
 function isHttpUrl(): boolean {
-  const url = window.location.href;
+  const url = globalThis.location.href;
   return url.startsWith("http://");
 }

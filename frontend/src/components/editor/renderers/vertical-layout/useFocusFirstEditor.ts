@@ -20,7 +20,7 @@ export function useFocusFirstEditor() {
       // Let the DOM render
       requestAnimationFrame(() => {
         // Check if the URL contains a scrollTo parameter
-        const hash = window.location.hash;
+        const hash = globalThis.location.hash;
         const cellName = extractCellNameFromHash(hash);
 
         if (cellName) {

@@ -11,7 +11,7 @@ interface UndoButtonProps extends Omit<ButtonProps, "onClick"> {
 export const UndoButton = (props: UndoButtonProps) => {
   // Add ctrl-z or meta-z event listener
   useEventListener(
-    window,
+    globalThis,
     "keydown",
     (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "z") {

@@ -168,7 +168,7 @@ function dedent(text: string): string {
   const minIndent = Math.min(
     ...nonEmptyLines.map(
       (line) =>
-        line.match(leadingSpaceRegex)?.[0].length ?? Number.POSITIVE_INFINITY,
+        leadingSpaceRegex.exec(line)?.[0].length ?? Number.POSITIVE_INFINITY,
     ),
   );
 

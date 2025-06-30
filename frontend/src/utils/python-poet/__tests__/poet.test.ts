@@ -187,16 +187,16 @@ describe("Python Poet", () => {
 
       expect(chart.toCode()).toMatchInlineSnapshot(
         `
-        "alt.Chart(data=df)
-        .mark_circle()
-        .encode(
-            x='x:Q',
-            y='y:Q',
-            color='category:N',
-            tooltip=['category:N', 'x:Q', 'y:Q', 'size:Q']
-        )
-        .interactive()"
-      `,
+          "alt.Chart(data=df)
+          .mark_circle()
+          .encode(
+              x='x:Q',
+              y='y:Q',
+              color='category:N',
+              tooltip=['category:N', 'x:Q', 'y:Q', 'size:Q']
+          )
+          .interactive()"
+        `,
       );
     });
 
@@ -230,22 +230,22 @@ describe("Python Poet", () => {
 
       expect(layered.toCode()).toMatchInlineSnapshot(
         `
-        "alt.layer(
-            alt.Chart(data=df)
-            .mark_point()
-            .encode(
-                x='x:Q',
-                y='y:Q'
-            ),
-            alt.Chart(data=df)
-            .mark_line()
-            .encode(
-                x='x:Q',
-                y='y:Q'
-            )
-        )
-        .properties(title='Layered Chart')"
-      `,
+          "alt.layer(
+              alt.Chart(data=df)
+              .mark_point()
+              .encode(
+                  x='x:Q',
+                  y='y:Q'
+              ),
+              alt.Chart(data=df)
+              .mark_line()
+              .encode(
+                  x='x:Q',
+                  y='y:Q'
+              )
+          )
+          .properties(title='Layered Chart')"
+        `,
       );
     });
 

@@ -304,7 +304,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         process.env.NODE_ENV === "development" ||
         process.env.NODE_ENV === "test"
       ) {
-        request.assetUrl = window.location.origin;
+        request.assetUrl = globalThis.location.origin;
       }
       return getClient()
         .POST("/api/export/html", {

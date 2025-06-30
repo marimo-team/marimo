@@ -54,10 +54,10 @@ describe("ElapsedTime component", () => {
 describe("CellStatusComponent", () => {
   // Mock date for consistent testing
   const mockDate = new Date(2024, 0, 1, 12, 0, 0);
-  const originalDate = global.Date;
+  const originalDate = globalThis.Date;
 
   beforeEach(() => {
-    global.Date = class extends Date {
+    globalThis.Date = class extends Date {
       static override now() {
         return mockDate.getTime();
       }
@@ -65,7 +65,7 @@ describe("CellStatusComponent", () => {
   });
 
   afterEach(() => {
-    global.Date = originalDate;
+    globalThis.Date = originalDate;
   });
 
   // Base props that will be modified for different test cases

@@ -9,11 +9,14 @@ declare global {
 }
 
 export function isStaticNotebook(): boolean {
-  return window?.__MARIMO_STATIC__ !== undefined;
+  return globalThis?.__MARIMO_STATIC__ !== undefined;
 }
 
 export function getStaticVirtualFiles(): StaticVirtualFiles {
-  invariant(window.__MARIMO_STATIC__ !== undefined, "Not a static notebook");
+  invariant(
+    globalThis.__MARIMO_STATIC__ !== undefined,
+    "Not a static notebook",
+  );
 
-  return window.__MARIMO_STATIC__.files;
+  return globalThis.__MARIMO_STATIC__.files;
 }

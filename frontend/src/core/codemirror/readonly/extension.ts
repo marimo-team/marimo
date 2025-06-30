@@ -84,9 +84,9 @@ export function dynamicReadonly(store: ReturnType<typeof createStore>) {
         showIndicatorAt(window.innerWidth / 2, window.innerHeight * 0.1);
       }
       if (hideIndicatorTimeout) {
-        window.clearTimeout(hideIndicatorTimeout);
+        globalThis.clearTimeout(hideIndicatorTimeout);
       }
-      hideIndicatorTimeout = window.setTimeout(hideIndicator, 1500);
+      hideIndicatorTimeout = globalThis.setTimeout(hideIndicator, 1500);
     }
 
     function onUserInput() {

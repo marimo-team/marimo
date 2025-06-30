@@ -19,7 +19,7 @@ export const Disconnected = ({
 }: DisconnectedProps) => {
   const handleTakeover = async () => {
     try {
-      const searchParams = new URL(window.location.href).searchParams;
+      const searchParams = new URL(globalThis.location.href).searchParams;
       await API.post(`/kernel/takeover?${searchParams.toString()}`, {});
 
       // Refresh the page to reconnect

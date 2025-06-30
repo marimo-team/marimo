@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-empty-interface */
 
 export interface GitHubCopilotSignInInitiateResult {
   verificationUri: string; // https://github.com/login/device

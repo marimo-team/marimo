@@ -45,7 +45,7 @@ function updateAssetUrl(existingUrl: string, assetBaseUrl: string) {
 
   // absolute path
   const url = new URL(existingUrl);
-  if (url.origin !== window.location.origin) {
+  if (url.origin !== globalThis.location.origin) {
     return `${assetBaseUrl}${url.pathname}`;
   }
 

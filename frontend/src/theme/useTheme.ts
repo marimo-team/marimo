@@ -32,7 +32,7 @@ const themeAtom = atom((get) => {
     }
 
     // Check the computed style for color-scheme
-    const computedStyle = window.getComputedStyle(document.body);
+    const computedStyle = globalThis.getComputedStyle(document.body);
     const colorScheme = computedStyle.getPropertyValue("color-scheme").trim();
     if (colorScheme) {
       return colorScheme.includes("dark") ? "dark" : "light";
@@ -58,14 +58,14 @@ const themeAtom = atom((get) => {
 const prefersDarkModeAtom = atom(false);
 
 function setupThemeListener(): void {
-  if (typeof window === "undefined") {
+  if (globalThis.window === undefined) {
     return;
   }
-  if (!window.matchMedia) {
+  if (!globalThis.matchMedia) {
     return;
   }
 
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  const media = globalThis.matchMedia("(prefers-color-scheme: dark)");
   store.set(prefersDarkModeAtom, media.matches);
   media.addEventListener("change", (e) => {
     store.set(prefersDarkModeAtom, e.matches);

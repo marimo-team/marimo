@@ -15,8 +15,10 @@ export function useAutoGrowInputProps(opts: {
   const adjustWidth = (value: string) => {
     if (spanRef.current && inputRef.current) {
       const tmp = spanRef.current;
-      tmp.style.fontSize = window.getComputedStyle(inputRef.current).fontSize;
-      tmp.style.fontFamily = window.getComputedStyle(
+      tmp.style.fontSize = globalThis.getComputedStyle(
+        inputRef.current,
+      ).fontSize;
+      tmp.style.fontFamily = globalThis.getComputedStyle(
         inputRef.current,
       ).fontFamily;
       tmp.textContent = value;

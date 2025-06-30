@@ -20,7 +20,7 @@ describe("isRefObject", () => {
     expect(isRefObject(123)).toBe(false);
     expect(isRefObject(document.createElement("div"))).toBe(false);
     expect(isRefObject(document)).toBe(false);
-    expect(isRefObject(window)).toBe(false);
+    expect(isRefObject(globalThis)).toBe(false);
   });
 
   it("should return true for objects with 'current' property", () => {
@@ -60,9 +60,9 @@ describe("useEventListener", () => {
 
   it("should attach event listener to window", () => {
     const listener = vi.fn();
-    const addSpy = vi.spyOn(window, "addEventListener");
+    const addSpy = vi.spyOn(globalThis, "addEventListener");
 
-    renderHook(() => useEventListener(window, "resize", listener));
+    renderHook(() => useEventListener(globalThis, "resize", listener));
 
     expect(addSpy).toHaveBeenCalledWith(
       "resize",

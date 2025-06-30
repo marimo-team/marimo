@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * Debounces multiple calls to a loader function, returning the same promise for

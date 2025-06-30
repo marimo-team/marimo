@@ -107,7 +107,7 @@ export const PanelPlugin = createPlugin<T>("marimo-panel")
   .renderer((props) => <PanelSlot {...props} />);
 
 function isBokehLoaded() {
-  return window.Bokeh != null;
+  return globalThis.Bokeh != null;
 }
 
 const PanelSlot = (props: Props) => {
@@ -116,7 +116,7 @@ const PanelSlot = (props: Props) => {
   const ref = useRef<HTMLDivElement>(null);
   const docRef = useRef<BokehDocument | null>(null);
   const receiverRef = useRef<InstanceType<
-    typeof window.Bokeh.protocol.Receiver
+    typeof globalThis.Bokeh.protocol.Receiver
   > | null>(null);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [rendered, setRendered] = useState<string | null>(null);
@@ -129,7 +129,7 @@ const PanelSlot = (props: Props) => {
     const events = eventBufferRef.current.getAndClear();
     const patch = docRef.current.create_json_patch(events);
     const message = {
-      ...window.Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
+      ...globalThis.Bokeh.protocol.Message.create("PATCH-DOC", {}, patch),
     };
     const buffers: ArrayBuffer[] = [];
     message.content = extractBuffers(message.content, buffers);
@@ -242,9 +242,9 @@ const PanelSlot = (props: Props) => {
         }
       }
       const modelId = Object.keys(renderItem.roots)[0];
-      await window.Bokeh.embed.embed_items_notebook(docsJson, [renderItem]);
-      docRef.current = window.Bokeh.index.get_by_id(modelId).model.document;
-      receiverRef.current = new window.Bokeh.protocol.Receiver();
+      await globalThis.Bokeh.embed.embed_items_notebook(docsJson, [renderItem]);
+      docRef.current = globalThis.Bokeh.index.get_by_id(modelId).model.document;
+      receiverRef.current = new globalThis.Bokeh.protocol.Receiver();
       docRef.current.on_change((event) => eventBufferRef.current?.add(event));
       setRendered(docId);
     };

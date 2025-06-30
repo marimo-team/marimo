@@ -46,7 +46,7 @@ const RoutesComponent = ({
 
   const router = useMemo(() => new TinyRouter(routes), [routes]);
   const [matched, setMatched] = useState<string | null>(() => {
-    const match = router.match(window.location);
+    const match = router.match(globalThis.location);
     return match ? match[1] : null;
   });
 
@@ -58,13 +58,13 @@ const RoutesComponent = ({
   useEffect(() => {
     // Listen for route changes
     const listener = (e: PopStateEvent | HashChangeEvent) => {
-      handleFindMatch(window.location);
+      handleFindMatch(globalThis.location);
     };
-    window.addEventListener("hashchange", listener);
-    window.addEventListener("popstate", listener);
+    globalThis.addEventListener("hashchange", listener);
+    globalThis.addEventListener("popstate", listener);
     return () => {
-      window.removeEventListener("hashchange", listener);
-      window.removeEventListener("popstate", listener);
+      globalThis.removeEventListener("hashchange", listener);
+      globalThis.removeEventListener("popstate", listener);
     };
   }, [handleFindMatch]);
 

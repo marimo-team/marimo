@@ -66,10 +66,10 @@ class MetaUnderlineVariablePlugin {
     this.hoveredRange = null;
     this.onClick = onClick;
 
-    window.addEventListener("keydown", this.keydown);
-    window.addEventListener("keyup", this.keyup);
+    globalThis.addEventListener("keydown", this.keydown);
+    globalThis.addEventListener("keyup", this.keyup);
     window.addEventListener("blur", this.windowBlur);
-    window.addEventListener("mouseleave", this.windowBlur);
+    globalThis.addEventListener("mouseleave", this.windowBlur);
   }
 
   update(_update: ViewUpdate) {
@@ -79,10 +79,10 @@ class MetaUnderlineVariablePlugin {
   }
 
   destroy() {
-    window.removeEventListener("keydown", this.keydown);
-    window.removeEventListener("keyup", this.keyup);
+    globalThis.removeEventListener("keydown", this.keydown);
+    globalThis.removeEventListener("keyup", this.keyup);
     window.removeEventListener("blur", this.windowBlur);
-    window.removeEventListener("mouseleave", this.windowBlur);
+    globalThis.removeEventListener("mouseleave", this.windowBlur);
     this.view.dom.removeEventListener("mousemove", this.mousemove);
     this.view.dom.removeEventListener("click", this.click);
   }

@@ -31,11 +31,11 @@ export function base64ToDataURL<T>(base64: Base64String<T>, mimeType: string) {
 }
 
 export function typedAtob<T>(base64: Base64String<T>): ByteString<T> {
-  return window.atob(base64) as ByteString<T>;
+  return globalThis.atob(base64) as ByteString<T>;
 }
 
 export function typedBtoa<T>(bytes: ByteString<T>): Base64String<T> {
-  return window.btoa(bytes) as Base64String<T>;
+  return globalThis.btoa(bytes) as Base64String<T>;
 }
 
 export function isDataURLString(str: string): str is DataURLString {

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-empty-interface */
+
 import type { OnChangeFn, RowData } from "@tanstack/react-table";
 
 export type ColumnWrappingState = Record<string, "nowrap" | "wrap" | undefined>;

@@ -180,7 +180,7 @@ describe("insertImage", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.spyOn(window, "prompt").mockImplementation(() => "hello.png");
+    vi.spyOn(globalThis, "prompt").mockImplementation(() => "hello.png");
   });
 
   afterAll(() => {

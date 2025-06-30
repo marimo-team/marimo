@@ -12,14 +12,14 @@ export function useTimer() {
   const interval = useRef<number>(undefined);
 
   const start = useEvent(() => {
-    interval.current = window.setInterval(() => {
+    interval.current = globalThis.setInterval(() => {
       setTime((time) => time + 0.1);
     }, 100);
   });
 
   const stop = useEvent(() => {
     if (interval.current != null) {
-      window.clearInterval(interval.current);
+      globalThis.clearInterval(interval.current);
       interval.current = undefined;
     }
   });
@@ -31,7 +31,7 @@ export function useTimer() {
   // Clear on unmount
   useEffect(() => {
     return () => {
-      window.clearInterval(interval.current);
+      globalThis.clearInterval(interval.current);
     };
   }, []);
 

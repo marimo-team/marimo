@@ -2,7 +2,7 @@
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 
 export function createCellLink(cellName: string): string {
-  const url = new URL(window.location.href);
+  const url = new URL(globalThis.location.href);
   // Add the cell name to the hash parameter
   url.hash = `scrollTo=${encodeURIComponent(cellName)}`;
   return url.toString();
@@ -12,7 +12,7 @@ export function createCellLink(cellName: string): string {
  * Extract cell name from URL hash
  */
 export function extractCellNameFromHash(hash: string): string | null {
-  const scrollToMatch = hash.match(/scrollTo=([^&]+)/);
+  const scrollToMatch = /scrollTo=([^&]+)/.exec(hash);
   const cellName = scrollToMatch?.[1];
   if (cellName) {
     return decodeURIComponent(cellName.split("&")[0]);

@@ -464,7 +464,7 @@ Bob.Jones,25
       0x00,
       0x00, // "ARROW1\0\0"
     ]);
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       arrayBuffer: () => Promise.resolve(arrowData.buffer),
     });
     const data = await vegaLoadData(

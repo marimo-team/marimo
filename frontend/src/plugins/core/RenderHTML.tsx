@@ -129,7 +129,7 @@ export const renderHTML = ({ html, additionalReplacements = [] }: Options) => {
           return transformed;
         }
       }
-      // eslint-disable-next-line react/jsx-no-useless-fragment
+
       return reactNode as JSX.Element;
     },
   });

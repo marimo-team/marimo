@@ -107,11 +107,11 @@ export class DefaultWasmController implements WasmController {
     // during processing of a cell's code.
     //
     // This adds a messenger object to the global scope (import js; js.messenger.callback)
-    self.messenger = {
+    globalThis.messenger = {
       callback: onMessage,
     };
-    self.query_params = queryParameters;
-    self.user_config = userConfig;
+    globalThis.query_params = queryParameters;
+    globalThis.user_config = userConfig;
 
     const span = t.startSpan("startSession.runPython");
     const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;

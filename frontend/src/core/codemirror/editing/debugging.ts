@@ -26,7 +26,7 @@ export function insertDebuggerAtLine(view: EditorView, line: number): boolean {
 
   // Extract the indentation from the target line
   const lineContent = targetLine.text;
-  const indentMatch = lineContent.match(/^(\s*)/);
+  const indentMatch = /^(\s*)/.exec(lineContent);
   const indentation = indentMatch ? indentMatch[1] : "";
 
   // Create the breakpoint statement with the same indentation

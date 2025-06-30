@@ -80,7 +80,7 @@ class SecretContainer {
   print(
     varName: string,
     secretKeyOrValue: string | number | boolean,
-    defaultValue?: string | undefined,
+    defaultValue?: string,
   ): string {
     varName = makePrivate(varName);
     if (isSecret(secretKeyOrValue)) {
@@ -117,7 +117,7 @@ class SecretContainer {
   printInFString(
     varName: string,
     secretKeyOrValue: string | number | undefined | boolean,
-    defaultValue?: string | undefined,
+    defaultValue?: string,
   ): string {
     if (secretKeyOrValue === undefined) {
       return "";
@@ -283,11 +283,11 @@ class SnowflakeGenerator extends CodeGenerator<"snowflake"> {
     };
 
     return dedent(`
-      engine = ${this.orm}.create_engine(
-        URL(
-${formatUrlParams(params, (inner) => `          ${inner}`)},
-        )
-      )
+            engine = ${this.orm}.create_engine(
+              URL(
+      ${formatUrlParams(params, (inner) => `          ${inner}`)},
+              )
+            )
     `);
   }
 }
@@ -346,7 +346,7 @@ class MotherDuckGenerator extends CodeGenerator<"motherduck"> {
     if (!this.connection.token) {
       return dedent(`
         conn = duckdb.connect("md:${database}")
-        `);
+      `);
     }
 
     const token = this.secrets.printPassword(
@@ -383,9 +383,9 @@ class ClickHouseGenerator extends CodeGenerator<"clickhouse_connect"> {
     };
 
     return dedent(`
-      engine = ${this.orm}.get_client(
-${formatUrlParams(params, (inner) => `        ${inner}`)},
-      )
+            engine = ${this.orm}.get_client(
+      ${formatUrlParams(params, (inner) => `        ${inner}`)},
+            )
     `);
   }
 }
@@ -635,9 +635,9 @@ class RedshiftGenerator extends CodeGenerator<"redshift"> {
       };
 
       return dedent(`
-        con = redshift_connector.connect(
-${formatUrlParams(params, (inner) => `          ${inner}`)},
-        )
+                con = redshift_connector.connect(
+        ${formatUrlParams(params, (inner) => `          ${inner}`)},
+                )
       `);
     }
 
@@ -662,9 +662,9 @@ ${formatUrlParams(params, (inner) => `          ${inner}`)},
     };
 
     return dedent(`
-      con = redshift_connector.connect(
-${formatUrlParams(params, (inner) => `          ${inner}`)},
-      )
+            con = redshift_connector.connect(
+      ${formatUrlParams(params, (inner) => `          ${inner}`)},
+            )
     `);
   }
 }

@@ -166,7 +166,7 @@ describe("RuntimeManager", () => {
 
   describe("isHealthy", () => {
     it("should return true for successful health check", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
       });
 
@@ -178,7 +178,7 @@ describe("RuntimeManager", () => {
     });
 
     it("should return false for failed health check", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
       });
 
@@ -190,7 +190,7 @@ describe("RuntimeManager", () => {
 
     it("should return false and log error when fetch throws", async () => {
       const error = new Error("Network error");
-      global.fetch = vi.fn().mockRejectedValue(error);
+      globalThis.fetch = vi.fn().mockRejectedValue(error);
 
       const runtime = new RuntimeManager(mockConfig);
       const result = await runtime.isHealthy();
@@ -273,8 +273,8 @@ describe("RuntimeManager", () => {
 
     it("should preserve all window-level query parameters in URLs", () => {
       // Mock window.location.search with custom query parameters
-      const originalLocation = window.location;
-      Object.defineProperty(window, "location", {
+      const originalLocation = globalThis.location;
+      Object.defineProperty(globalThis, "location", {
         value: {
           ...originalLocation,
           search: "?custom_param=value123&user_token=abc&theme=dark",
@@ -309,7 +309,7 @@ describe("RuntimeManager", () => {
       expect(wsUrl.searchParams.get("session_id")).toBe("test");
 
       // Restore original location
-      Object.defineProperty(window, "location", {
+      Object.defineProperty(globalThis, "location", {
         value: originalLocation,
         writable: true,
       });

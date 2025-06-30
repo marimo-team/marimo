@@ -16,12 +16,12 @@ describe("CollapsibleTree", () => {
 
   it("initializes correctly", () => {
     expect(tree.toString()).toMatchInlineSnapshot(`
-			"one
-			two
-			three
-			four
-			"
-		`);
+      "one
+      two
+      three
+      four
+      "
+    `);
   });
 
   it("collapses nodes correctly with no end", () => {
@@ -29,60 +29,60 @@ describe("CollapsibleTree", () => {
     expect(collapsedTree.nodes[1].isCollapsed).toBe(true);
     expect(collapsedTree.isCollapsed("two")).toBe(true);
     expect(collapsedTree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three
-			  four
-			"
-		`);
+      "one
+      two (collapsed)
+        three
+        four
+      "
+    `);
   });
 
   it("collapses nodes correctly with an 'until' in the middle", () => {
     const collapsedTree = tree.collapse("two", "three");
     expect(collapsedTree.nodes[1].isCollapsed).toBe(true);
     expect(collapsedTree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three
-			four
-			"
-		`);
+      "one
+      two (collapsed)
+        three
+      four
+      "
+    `);
   });
 
   it("collapses nodes correctly with an 'until' at the end", () => {
     const collapsedTree = tree.collapse("two", "four");
     expect(collapsedTree.nodes[1].isCollapsed).toBe(true);
     expect(collapsedTree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three
-			  four
-			"
-		`);
+      "one
+      two (collapsed)
+        three
+        four
+      "
+    `);
   });
 
   it("collapses nodes correctly if just the last node", () => {
     const collapsedTree = tree.collapse("four", undefined);
     expect(collapsedTree.nodes[3].isCollapsed).toBe(true);
     expect(collapsedTree.toString()).toMatchInlineSnapshot(`
-			"one
-			two
-			three
-			four (collapsed)
-			"
-		`);
+      "one
+      two
+      three
+      four (collapsed)
+      "
+    `);
   });
 
   it("collapses nodes correctly if just the first node", () => {
     const collapsedTree = tree.collapse("one", undefined);
     expect(collapsedTree.nodes[0].isCollapsed).toBe(true);
     expect(collapsedTree.toString()).toMatchInlineSnapshot(`
-			"one (collapsed)
-			  two
-			  three
-			  four
-			"
-		`);
+      "one (collapsed)
+        two
+        three
+        four
+      "
+    `);
   });
 
   it("can double collapse", () => {
@@ -90,12 +90,12 @@ describe("CollapsibleTree", () => {
       .collapse("three", undefined)
       .collapse("two", undefined);
     expect(collapsedTree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three (collapsed)
-			    four
-			"
-		`);
+      "one
+      two (collapsed)
+        three (collapsed)
+          four
+      "
+    `);
   });
 
   it("failures to collapse", () => {
@@ -189,12 +189,12 @@ describe("CollapsibleTree", () => {
     const expandedTree = collapsed.expand("two");
     expect(expandedTree.nodes[1].isCollapsed).toBe(false);
     expect(expandedTree.toString()).toMatchInlineSnapshot(`
-			"one
-			two
-			three
-			four
-			"
-		`);
+      "one
+      two
+      three
+      four
+      "
+    `);
   });
 
   it("expands all nested collapsed nodes correctly in one call", () => {
@@ -239,32 +239,32 @@ describe("CollapsibleTree", () => {
   it("moves a collapsed node correctly", () => {
     const collapsed = tree.collapse("two", "three");
     expect(collapsed.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three
-			four
-			"
-		`);
+      "one
+      two (collapsed)
+        three
+      four
+      "
+    `);
     const movedTree = collapsed.move(1, 2);
     expect(movedTree.toString()).toMatchInlineSnapshot(`
-			"one
-			four
-			two (collapsed)
-			  three
-			"
-		`);
+      "one
+      four
+      two (collapsed)
+        three
+      "
+    `);
   });
 
   it("inserts nodes correctly", () => {
     tree = tree.insert("newNode", 1);
     expect(tree.toString()).toMatchInlineSnapshot(`
-			"one
-			newNode
-			two
-			three
-			four
-			"
-		`);
+      "one
+      newNode
+      two
+      three
+      four
+      "
+    `);
 
     tree = tree.insert("newNode2", tree.length - 1);
     expect(tree.toString()).toMatchInlineSnapshot(`
@@ -307,23 +307,23 @@ describe("CollapsibleTree", () => {
     expect(tree.find("three")).toEqual(["two", "three"]);
     expect(tree.find("four")).toEqual(["two", "three", "four"]);
     expect(tree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three (collapsed)
-			    four
-			"
-		`);
+      "one
+      two (collapsed)
+        three (collapsed)
+          four
+      "
+    `);
   });
 
   it("finds and expands correctly at a leaf", () => {
     tree = tree.collapse("three", undefined).collapse("two", undefined);
     expect(tree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three (collapsed)
-			    four
-			"
-		`);
+      "one
+      two (collapsed)
+        three (collapsed)
+          four
+      "
+    `);
     const prevTree = tree;
     tree = tree.findAndExpandDeep("four");
     expect(tree.toString()).toMatchInlineSnapshot(`
@@ -340,12 +340,12 @@ describe("CollapsibleTree", () => {
   it("finds and expands correctly at a non-leaf", () => {
     tree = tree.collapse("three", undefined).collapse("two", undefined);
     expect(tree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three (collapsed)
-			    four
-			"
-		`);
+      "one
+      two (collapsed)
+        three (collapsed)
+          four
+      "
+    `);
     const prevTree = tree;
     tree = tree.findAndExpandDeep("three");
     expect(tree.toString()).toMatchInlineSnapshot(`
@@ -362,12 +362,12 @@ describe("CollapsibleTree", () => {
   it("can delete nodes", () => {
     tree = tree.collapse("three", undefined).collapse("two", undefined);
     expect(tree.toString()).toMatchInlineSnapshot(`
-			"one
-			two (collapsed)
-			  three (collapsed)
-			    four
-			"
-		`);
+      "one
+      two (collapsed)
+        three (collapsed)
+          four
+      "
+    `);
     tree = tree.deleteAtIndex(1);
     expect(tree.toString()).toMatchInlineSnapshot(`
       "one
@@ -385,21 +385,21 @@ describe("CollapsibleTree", () => {
 
   it("top-level ids are correct", () => {
     expect(tree.topLevelIds).toMatchInlineSnapshot(`
-			[
-			  "one",
-			  "two",
-			  "three",
-			  "four",
-			]
-		`);
+      [
+        "one",
+        "two",
+        "three",
+        "four",
+      ]
+    `);
 
     const collapsed = tree.collapse("two", undefined);
     expect(collapsed.topLevelIds).toMatchInlineSnapshot(`
-			[
-			  "one",
-			  "two",
-			]
-		`);
+      [
+        "one",
+        "two",
+      ]
+    `);
   });
 
   it("in order ids are correct", () => {

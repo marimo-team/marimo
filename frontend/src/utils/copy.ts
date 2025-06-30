@@ -12,6 +12,6 @@ export async function copyToClipboard(text: string) {
   await navigator.clipboard.writeText(text).catch(async () => {
     // Fallback to prompt
     Logger.warn("Failed to copy to clipboard using navigator.clipboard");
-    window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+    globalThis.prompt("Copy to clipboard: Ctrl+C, Enter", text);
   });
 }

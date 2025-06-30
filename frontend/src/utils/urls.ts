@@ -3,16 +3,16 @@ import { generateSessionId } from "@/core/kernel/session";
 import { asURL } from "./url";
 
 export function updateQueryParams(updater: (params: URLSearchParams) => void) {
-  const url = new URL(window.location.href);
+  const url = new URL(globalThis.location.href);
   updater(url.searchParams);
-  window.history.replaceState({}, "", url.toString());
+  globalThis.history.replaceState({}, "", url.toString());
 }
 
 export function hasQueryParam(key: string, value?: string): boolean {
-  if (typeof window === "undefined") {
+  if (globalThis.window === undefined) {
     return false;
   }
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(globalThis.location.search);
 
   if (value === undefined) {
     return urlParams.has(key);

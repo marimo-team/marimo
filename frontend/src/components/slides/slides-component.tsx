@@ -42,7 +42,7 @@ const SlidesComponent = ({
 
   useEffect(() => {
     requestAnimationFrame(() => {
-      window.dispatchEvent(new Event("resize"));
+      globalThis.dispatchEvent(new Event("resize"));
     });
   }, [isFullscreen]);
 

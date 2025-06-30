@@ -8,16 +8,16 @@ export function defineCustomElement(
   name: string,
   clazz: CustomElementConstructor,
 ) {
-  if (!window?.customElements) {
+  if (!globalThis?.customElements) {
     Logger.warn("Custom elements not supported");
     return;
   }
 
-  if (window.customElements.get(name)) {
+  if (globalThis.customElements.get(name)) {
     if (import.meta.env.PROD) {
       Logger.warn(`Custom element ${name} already defined`);
     }
     return;
   }
-  window.customElements.define(name, clazz);
+  globalThis.customElements.define(name, clazz);
 }

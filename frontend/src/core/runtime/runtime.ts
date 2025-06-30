@@ -32,7 +32,7 @@ export class RuntimeManager {
   }
 
   get isSameOrigin(): boolean {
-    return this.httpURL.origin === window.location.origin;
+    return this.httpURL.origin === globalThis.location.origin;
   }
 
   /**
@@ -48,7 +48,7 @@ export class RuntimeManager {
     }
     // URL may be something like "http://localhost:8000?auth=123"
     const baseUrl = this.httpURL;
-    const currentParams = new URLSearchParams(window.location.search);
+    const currentParams = new URLSearchParams(globalThis.location.search);
     // Copy over search params if provided
     if (searchParams) {
       for (const [key, value] of searchParams.entries()) {

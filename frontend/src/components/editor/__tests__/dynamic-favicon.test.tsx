@@ -27,13 +27,13 @@ describe("DynamicFavicon", () => {
     mockFetch = vi.fn().mockResolvedValue({
       blob: () => new Blob(),
     });
-    global.fetch = mockFetch;
+    globalThis.fetch = mockFetch;
 
     // Mock URL methods
     mockCreateObjectURL = vi.fn().mockReturnValue("blob:mock-url");
     mockRevokeObjectURL = vi.fn();
-    global.URL.createObjectURL = mockCreateObjectURL;
-    global.URL.revokeObjectURL = mockRevokeObjectURL;
+    globalThis.URL.createObjectURL = mockCreateObjectURL;
+    globalThis.URL.revokeObjectURL = mockRevokeObjectURL;
 
     // Mock document.hasFocus
     vi.spyOn(document, "hasFocus").mockReturnValue(true);
@@ -84,14 +84,14 @@ describe("DynamicFavicon", () => {
     beforeEach(() => {
       vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
       // @ts-expect-error ok in tests
-      global.Notification = vi.fn();
+      globalThis.Notification = vi.fn();
       // @ts-expect-error ok in tests
-      global.Notification.permission = "granted";
+      globalThis.Notification.permission = "granted";
     });
 
     it("should send success notification when run completes without errors", () => {
       // @ts-expect-error ok in tests
-      global.Notification = vi.fn().mockImplementation((title, options) => {
+      globalThis.Notification = vi.fn().mockImplementation((title, options) => {
         expect(title).toBe("Execution completed");
         expect(options).toEqual({
           body: "Your notebook run completed successfully.",
@@ -99,7 +99,7 @@ describe("DynamicFavicon", () => {
         });
       });
       // @ts-expect-error ok in tests
-      global.Notification.permission = "granted";
+      globalThis.Notification.permission = "granted";
 
       const { rerender } = render(<DynamicFavicon isRunning={true} />);
       rerender(<DynamicFavicon isRunning={false} />);
@@ -115,8 +115,8 @@ describe("DynamicFavicon", () => {
 
     it("should request permission if not granted", () => {
       // @ts-expect-error ok in tests
-      global.Notification.permission = "default";
-      global.Notification.requestPermission = vi
+      globalThis.Notification.permission = "default";
+      globalThis.Notification.requestPermission = vi
         .fn()
         .mockResolvedValue("granted");
 

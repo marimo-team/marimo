@@ -53,7 +53,7 @@ export const AppConfigForm: React.FC = () => {
 
   // When width is changed, dispatch a resize event so widgets know to resize
   useEffect(() => {
-    window.dispatchEvent(new Event("resize"));
+    globalThis.dispatchEvent(new Event("resize"));
   }, [config.width]);
 
   return (

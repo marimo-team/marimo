@@ -11,7 +11,7 @@ declare global {
  * Safely adds objects to the global scope for debugging.
  */
 export function repl(item: unknown, name: string) {
-  if (typeof window === "undefined") {
+  if (globalThis.window === undefined) {
     return;
   }
 

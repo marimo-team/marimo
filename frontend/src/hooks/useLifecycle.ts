@@ -13,7 +13,6 @@ export function useOnMount(effect: EffectCallback) {
  * Wrapper around useEffect that makes it clearer that the effect is run, just on unmount.
  */
 export function useOnUnmount(effect: EffectCallback) {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     return effect();
   }, []);

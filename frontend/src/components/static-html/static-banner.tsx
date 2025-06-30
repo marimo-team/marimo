@@ -1,6 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable react/jsx-no-comment-textnodes */
-/* eslint-disable react/jsx-no-target-blank */
 
 import { useAtomValue } from "jotai";
 import { CopyIcon, DownloadIcon } from "lucide-react";
@@ -65,7 +63,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
     filename = filename.slice(lastSlash + 1);
   }
 
-  const href = window.location.href;
+  const href = globalThis.location.href;
   const wasmLink = createShareableLink({ code });
 
   return (
@@ -109,7 +107,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
                   Or run directly from URL:
                 </div>
                 <div className="font-mono text-[var(--sky-11)] break-all">
-                  marimo edit {window.location.href}
+                  marimo edit {globalThis.location.href}
                 </div>
               </div>
             )}

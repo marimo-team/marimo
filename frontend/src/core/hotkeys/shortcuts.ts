@@ -7,16 +7,16 @@ import { NOT_SET } from "./hotkeys";
  * Check if the current platform is Mac
  */
 export function isPlatformMac() {
-  if (typeof window === "undefined") {
+  if (globalThis.window === undefined) {
     Logger.warn("isPlatformMac() called without window");
     return false;
   }
 
   // @ts-expect-error typescript does not have types for experimental userAgentData property
-  const platform = window.navigator.userAgentData
+  const platform = globalThis.navigator.userAgentData
     ? // @ts-expect-error typescript does not have types for experimental userAgentData property
-      window.navigator.userAgentData.platform
-    : window.navigator.platform;
+      globalThis.navigator.userAgentData.platform
+    : globalThis.navigator.platform;
 
   return /mac/i.test(platform);
 }

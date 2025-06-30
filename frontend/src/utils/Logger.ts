@@ -82,8 +82,8 @@ const DisabledLogger: ILogger = {
 };
 
 function getLogger(): ILogger {
-  if (typeof window !== "undefined") {
-    return window.Logger || ConsoleLogger;
+  if (globalThis.window !== undefined) {
+    return globalThis.Logger || ConsoleLogger;
   }
   return ConsoleLogger;
 }

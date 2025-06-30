@@ -194,7 +194,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
       }}
       onResizeStop={() => {
         // Dispatch a resize event so widgets know to resize
-        window.dispatchEvent(new Event("resize"));
+        globalThis.dispatchEvent(new Event("resize"));
       }}
       // When in read mode or locked, disable dragging and resizing
       isDraggable={enableInteractions}

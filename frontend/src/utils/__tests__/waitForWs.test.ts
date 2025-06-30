@@ -9,17 +9,17 @@ describe("waitForWs", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    originalWebSocket = global.WebSocket;
+    originalWebSocket = globalThis.WebSocket;
     mockWs = {
       close: vi.fn(),
       onopen: null,
       onerror: null,
     };
-    global.WebSocket = vi.fn(() => mockWs) as any;
+    globalThis.WebSocket = vi.fn(() => mockWs) as any;
   });
 
   afterEach(() => {
-    global.WebSocket = originalWebSocket;
+    globalThis.WebSocket = originalWebSocket;
     vi.useRealTimers();
     vi.clearAllMocks();
   });
@@ -33,8 +33,8 @@ describe("waitForWs", () => {
 
     await expect(promise).resolves.toBe(url);
     expect(mockWs.close).toHaveBeenCalled();
-    expect(global.WebSocket).toHaveBeenCalledTimes(1);
-    expect(global.WebSocket).toHaveBeenCalledWith(url);
+    expect(globalThis.WebSocket).toHaveBeenCalledTimes(1);
+    expect(globalThis.WebSocket).toHaveBeenCalledWith(url);
   });
 
   it("retries on failure with linear backoff", async () => {
@@ -53,7 +53,7 @@ describe("waitForWs", () => {
     mockWs.onopen();
 
     await expect(promise).resolves.toBe(url);
-    expect(global.WebSocket).toHaveBeenCalledTimes(3);
+    expect(globalThis.WebSocket).toHaveBeenCalledTimes(3);
     expect(mockWs.close).toHaveBeenCalledTimes(3);
   });
 
@@ -70,7 +70,7 @@ describe("waitForWs", () => {
     await vi.advanceTimersByTimeAsync(2000);
 
     expect((await promise).message).toBe(`Failed to connect to ${url}`);
-    expect(global.WebSocket).toHaveBeenCalledTimes(2);
+    expect(globalThis.WebSocket).toHaveBeenCalledTimes(2);
     expect(mockWs.close).toHaveBeenCalledTimes(2);
   });
 });

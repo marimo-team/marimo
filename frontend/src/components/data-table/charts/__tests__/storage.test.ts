@@ -19,7 +19,7 @@ const mockLocalStorage = {
 };
 
 // Mock window.localStorage
-Object.defineProperty(window, "localStorage", {
+Object.defineProperty(globalThis, "localStorage", {
   value: mockLocalStorage,
   writable: true,
 });

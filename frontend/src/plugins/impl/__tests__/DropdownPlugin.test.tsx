@@ -5,7 +5,7 @@ import type { IPluginProps } from "../../types";
 import { DropdownPlugin } from "../DropdownPlugin";
 
 beforeAll(() => {
-  global.ResizeObserver = class ResizeObserver {
+  globalThis.ResizeObserver = class ResizeObserver {
     observe() {
       // do nothing
     }
@@ -16,7 +16,7 @@ beforeAll(() => {
       // do nothing
     }
   };
-  global.HTMLDivElement.prototype.scrollIntoView = () => {
+  globalThis.HTMLDivElement.prototype.scrollIntoView = () => {
     // do nothing
   };
 });

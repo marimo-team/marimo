@@ -130,7 +130,7 @@ export const reducer = (state: State, action: Action): State => {
       const existingIndex = state.toasts.findIndex(
         (t) => t.id === action.toast.id,
       );
-      if (existingIndex > -1) {
+      if (existingIndex !== -1) {
         return {
           ...state,
           toasts: state.toasts.map((t) =>

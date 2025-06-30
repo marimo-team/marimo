@@ -45,7 +45,7 @@ ${opts.codeAfter}
     },
   );
 
-  const firstLineIndent = opts.selection.match(/^\s*/)?.[0] || "";
+  const firstLineIndent = /^\s*/.exec(opts.selection)?.[0] || "";
 
   const reader = response.body?.getReader();
   if (!reader) {
@@ -53,7 +53,7 @@ ${opts.codeAfter}
   }
 
   let result = "";
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) {

@@ -277,7 +277,7 @@ function initStore(options: unknown) {
 
   // Check for view-as parameter to start in present mode
   const shouldStartInPresentMode = (() => {
-    const url = new URL(window.location.href);
+    const url = new URL(globalThis.location.href);
     return url.searchParams.get(KnownQueryParams.viewAs) === "present";
   })();
 

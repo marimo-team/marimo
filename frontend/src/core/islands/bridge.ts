@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getWorkerRPC } from "@/core/wasm/rpc";
 import { Deferred } from "@/utils/Deferred";
@@ -45,16 +44,12 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     const js = `import ${JSON.stringify(new URL(url, import.meta.url))}`;
     const blob = new Blob([js], { type: "application/javascript" });
     const objURL = URL.createObjectURL(blob);
-    const worker = new Worker(
-      // eslint-disable-next-line unicorn/relative-url-style
-      objURL,
-      {
-        type: "module",
-        // Pass the version to the worker
-        /* @vite-ignore */
-        name: getMarimoVersion(),
-      },
-    );
+    const worker = new Worker(objURL, {
+      type: "module",
+      // Pass the version to the worker
+      /* @vite-ignore */
+      name: getMarimoVersion(),
+    });
 
     worker.addEventListener("error", (e) => {
       // Fallback to cleaning up created object URL
