@@ -130,6 +130,7 @@ export const UserConfigSchema = z
             api_key: z.string().optional(),
             base_url: z.string().optional(),
             model: z.string().optional(),
+            use_entra_id: z.boolean().optional(),
           })
           .optional(),
         anthropic: z

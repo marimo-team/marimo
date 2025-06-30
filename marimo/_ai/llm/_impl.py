@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable, Optional, cast
+from typing import Callable, Optional, Union, cast
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -55,6 +55,7 @@ class openai(ChatModel):
             If not provided, the API key will be retrieved
             from the OPENAI_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        use_entra_id: Whether to use Entra ID for authentication
     """
 
     def __init__(
@@ -64,14 +65,20 @@ class openai(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        use_entra_id: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.use_entra_id = use_entra_id
 
     @property
-    def _require_api_key(self) -> str:
+    def _require_api_key(self) -> str | None:
+        # If using Entra ID, we don't need an API key
+        if self.use_entra_id:
+            return None
+
         # If the api key is provided, use it
         if self.api_key is not None:
             return self.api_key
@@ -112,6 +119,8 @@ class openai(ChatModel):
             ChatCompletionMessageParam,
         )
 
+        client: Union[OpenAI, AzureOpenAI]
+
         # Azure OpenAI clients are instantiated slightly differently
         # To check if we're using Azure, we check the base_url for the format
         # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
@@ -123,11 +132,34 @@ class openai(ChatModel):
             api_version = parse_qs(cast(str, parsed_url.query))["api-version"][
                 0
             ]
-            client: AzureOpenAI | OpenAI = AzureOpenAI(
-                api_key=self._require_api_key,
-                api_version=api_version,
-                azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
-            )
+            if self.use_entra_id:
+                # Use Entra ID authentication
+                DependencyManager.azure_identity.require(
+                    "Entra ID authentication requires azure-identity. `pip install azure-identity`"
+                )
+
+                from azure.identity import (
+                    DefaultAzureCredential,
+                    get_bearer_token_provider,
+                )
+
+                credential = DefaultAzureCredential()
+                token_provider = get_bearer_token_provider(
+                    credential, "https://cognitiveservices.azure.com/.default"
+                )
+
+                client = AzureOpenAI(
+                    azure_ad_token_provider=token_provider,
+                    api_version=api_version,
+                    azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+                )
+            else:
+                # Use API key authentication
+                client = AzureOpenAI(
+                    api_key=self._require_api_key,
+                    api_version=api_version,
+                    azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+                )
         else:
             client = OpenAI(
                 api_key=self._require_api_key,

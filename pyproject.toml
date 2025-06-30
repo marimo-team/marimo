@@ -114,6 +114,7 @@ dev = [
     "ruff~=0.9.1",
     # For AI
     "openai>=1.55.3",
+    "azure-identity>=1.12.0",
 ]
 
 lsp = [
@@ -138,6 +139,10 @@ docs = [
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
+]
+
+azure-identity = [
+    "azure-identity>=1.12.0"
 ]
 
 [tool.hatch]
@@ -280,6 +285,7 @@ extra-dependencies = [
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
+    "azure-identity>=1.12.0",
     "anthropic==0.52.2; python_version > '3.9'",
     "google-genai>=0.2.0",
     "boto3>=1.38.25",

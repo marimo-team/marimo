@@ -163,6 +163,23 @@ model = "gpt-4-turbo"
 base_url = "https://api.openai.com/v1"
 ```
 
+##### Azure Entra ID Authentication
+
+For Azure OpenAI deployments, you can use Azure Entra ID authentication instead of API keys:
+
+1. Install prerequisites: `pip install azure-identity` and [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
+2. Configure your `marimo.toml`:
+
+```toml title="marimo.toml"
+[ai.open_ai]
+use_entra_id = true
+base_url = "https://your-resource.openai.azure.com/openai/deployments/deployment-name/chat/completions?api-version=2024-12-01-preview"
+model = ""
+api_key = ""
+```
+
+To use managed identities, see the [Azure documentation](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/managed-identity).
+
 #### Anthropic
 
 To use Anthropic with marimo:
@@ -401,9 +418,3 @@ api_key = "your-llm-api-key"
 model = "your-llm-model-name"
 base_url = "http://127.0.0.1:11434/v1" # or https://your-llm-api-endpoint.com
 ```
-
-The configuration options include:
-
-* `api_key`: Your LLM provider's API key. This may not be required for local models, so you can set it to any random string.
-* `model`: The specific model to use for completion suggestions.
-* `base_url`: The endpoint URL for your LLM provider's API

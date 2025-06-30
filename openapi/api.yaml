@@ -1481,6 +1481,8 @@ components:
                   type: string
                 ssl_verify:
                   type: boolean
+                use_entra_id:
+                  type: boolean
               type: object
             rules:
               type: string
@@ -2701,7 +2703,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.7
+  version: 0.14.8
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

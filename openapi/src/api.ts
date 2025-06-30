@@ -3162,6 +3162,7 @@ export interface components {
           client_pem?: string;
           model?: string;
           ssl_verify?: boolean;
+          use_entra_id?: boolean;
         };
         rules?: string;
       };

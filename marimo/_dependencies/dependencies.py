@@ -213,6 +213,7 @@ class DependencyManager:
     anthropic = Dependency("anthropic")
     google_ai = Dependency("google.genai")
     groq = Dependency("groq")
+    azure_identity = Dependency("azure.identity")
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
     pylsp = Dependency("pylsp")
