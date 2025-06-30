@@ -302,11 +302,15 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             </SelectTrigger>
             <SelectContent>
               {modeOptions.map((option) => (
-                <SelectItem 
+                <SelectItem
                   key={option.value}
-                  value={option.value} 
-                  className="text-xs" 
-                  subtitle={<div className="text-muted-foreground text-xs pl-2">{option.subtitle}</div>}
+                  value={option.value}
+                  className="text-xs"
+                  subtitle={
+                    <div className="text-muted-foreground text-xs pl-2">
+                      {option.subtitle}
+                    </div>
+                  }
                 >
                   {option.label}
                 </SelectItem>
@@ -553,6 +557,7 @@ const ChatPanelBody = () => {
   };
 
   const createNewThread = (initialMessage: string) => {
+    const CURRENT_TIME = Date.now();
     const newChat: Chat = {
       id: generateUUID(),
       title:
@@ -560,32 +565,26 @@ const ChatPanelBody = () => {
           ? `${initialMessage.slice(0, 50)}...`
           : initialMessage,
       messages: [], // Don't pre-populate - let useChat handle it and sync back
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: CURRENT_TIME,
+      updatedAt: CURRENT_TIME,
     };
 
-    setChatState((prev) => {
-      // Keep all operations in the same callback function
-      // to avoid double adding first user message
-      // with the initialMessages hook
-      append({
-        role: "user",
-        content: initialMessage,
-      });
-      const stateWithNewChat = {
-        ...prev,
-        chats: [...prev.chats, newChat],
-        activeChatId: newChat.id,
-      };
-      return addMessageToChat(
-        stateWithNewChat,
-        newChat.id,
-        generateUserMessageId(),
-        "user",
-        initialMessage,
+    // Create new chat and set as active
+    setChatState((prev) => ({
+      ...prev,
+      chats: [...prev.chats, newChat],
+      activeChatId: newChat.id,
+    }));
+
+    // Keep the message updates in setTimeout to ensure that
+    // they happen AFTER the the new chat is created and set as active
+    setTimeout(() => {
+      append({ role: "user", content: initialMessage });
+      const MESSAGE_ID = generateUUID();
+      setChatState((prev) =>
+        addMessageToChat(prev, newChat.id, MESSAGE_ID, "user", initialMessage),
       );
     });
-
     setInput("");
   };
 
