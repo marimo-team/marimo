@@ -282,7 +282,7 @@ extra-dependencies = [
     "openai>=1.55.3",
     "anthropic==0.52.2; python_version > '3.9'",
     "google-genai>=0.2.0",
-    "boto3>=1.38.25",
+    "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb
     "nbformat >=5.10.4",
