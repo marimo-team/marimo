@@ -1,8 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import agGridCss from "ag-grid-community/styles/ag-grid.css?inline";
-import agThemeCss from "ag-grid-community/styles/ag-theme-quartz.css?inline";
 import React from "react";
 import { z } from "zod";
 import { LoadingTable } from "@/components/data-table/loading-table";
@@ -13,8 +12,8 @@ import { DATA_TYPES } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
-import type { DataEditorProps } from "./data-editor/data-editor";
 import gridCss from "./data-editor/grid.css?inline";
+import type { DataEditorProps } from "./data-editor/types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
@@ -30,10 +29,12 @@ interface Edits {
 }
 
 // Lazy load the data editor since it brings in ag-grid
-const LazyDataEditor = React.lazy(() => import("./data-editor/data-editor"));
+const LazyDataEditor = React.lazy(
+  () => import("./data-editor/glide-data-editor"),
+);
 
 export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
-  cssStyles: [gridCss, agGridCss, agThemeCss],
+  cssStyles: [gridCss, glideCss],
 })
   .withData(
     z.object({
@@ -48,8 +49,6 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       }),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
-      pagination: z.boolean().default(false),
-      pageSize: z.number().default(10),
       fieldTypes: z
         .array(
           z.tuple([
@@ -67,12 +66,11 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       <TooltipProvider>
         <LoadingDataEditor
           data={props.data.data}
-          pagination={props.data.pagination}
-          pageSize={props.data.pageSize}
           fieldTypes={props.data.fieldTypes}
           edits={props.value.edits}
           onEdits={props.setValue}
           columnSizingMode={props.data.columnSizingMode}
+          host={props.host}
         />
       </TooltipProvider>
     );
@@ -83,6 +81,7 @@ interface Props
   data: TableData<object>;
   edits: Edits["edits"];
   onEdits: Setter<Edits>;
+  host: HTMLElement;
 }
 
 const LoadingDataEditor = (props: Props) => {
@@ -122,27 +121,47 @@ const LoadingDataEditor = (props: Props) => {
     );
   }
 
+  // return (
+  //   <div className="h-[600px] w-full">
+  //     <GlideDataEditor host={props.host} />
+  //   </div>
+  // );
+
   return (
-    <LazyDataEditor
-      data={data}
-      pagination={props.pagination}
-      pageSize={props.pageSize}
-      fieldTypes={props.fieldTypes}
-      edits={props.edits}
-      onAddEdits={(edits) => {
-        props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
-      }}
-      onAddRows={(rows) => {
-        const newEdits = rows.flatMap((row, rowIndex) =>
-          Object.entries(row).map(([columnId, value]) => ({
-            rowIdx: data.length + rowIndex,
-            columnId,
-            value,
-          })),
-        );
-        props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
-      }}
-      columnSizingMode={props.columnSizingMode}
-    />
+    <div className="h-[400px] w-full">
+      <LazyDataEditor
+        data={data}
+        fieldTypes={props.fieldTypes}
+        rows={data.length}
+        onAddEdits={(edits) => {
+          props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
+        }}
+        host={props.host}
+      />
+    </div>
   );
+
+  // return (
+  //   <LazyDataEditor
+  //     data={data}
+  //     pagination={props.pagination}
+  //     pageSize={props.pageSize}
+  //     fieldTypes={props.fieldTypes}
+  //     edits={props.edits}
+  //     onAddEdits={(edits) => {
+  //       props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
+  //     }}
+  //     onAddRows={(rows) => {
+  //       const newEdits = rows.flatMap((row, rowIndex) =>
+  //         Object.entries(row).map(([columnId, value]) => ({
+  //           rowIdx: data.length + rowIndex,
+  //           columnId,
+  //           value,
+  //         })),
+  //       );
+  //       props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
+  //     }}
+  //     columnSizingMode={props.columnSizingMode}
+  //   />
+  // );
 };
