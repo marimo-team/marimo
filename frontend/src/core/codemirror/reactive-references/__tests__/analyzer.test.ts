@@ -982,6 +982,96 @@ def outer_func():
       "
     `);
   });
+
+  test("should not highlight class keyword argument", () => {
+    expect(
+      runHighlight(
+        ["a", "b", "c"],
+        `
+class Bar:
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+
+Bar(a, b=b)
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      class Bar:
+          def __init__(self, a, b):
+              self.a = a
+              self.b = b
+
+      Bar(a, b=b)
+          ^    ^
+      "
+    `);
+  });
+
+  test("should not highlight function keyword argument", () => {
+    expect(
+      runHighlight(
+        ["a", "b"],
+        `
+def foo(a, b):
+    print(a, b)
+
+foo(a, b=b)
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def foo(a, b):
+          print(a, b)
+
+      foo(a, b=b)
+          ^    ^
+      "
+    `);
+  });
+
+  test("should not highlight function keyword argument (with whitespace)", () => {
+    expect(
+      runHighlight(
+        ["b"],
+        `
+def foo(a, b):
+    print(a, b)
+
+foo(a,
+  b= b)
+
+foo(a,
+  b = b)
+
+foo(a,
+  b =
+
+b)
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      def foo(a, b):
+          print(a, b)
+
+      foo(a,
+        b= b)
+           ^
+
+      foo(a,
+        b = b)
+            ^
+
+      foo(a,
+        b =
+
+      b)
+      ^
+      "
+    `);
+  });
 });
 
 /**

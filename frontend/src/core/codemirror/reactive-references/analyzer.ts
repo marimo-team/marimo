@@ -395,7 +395,7 @@ export function findReactiveVariables(options: {
     if (nodeName === "VariableName") {
       const varName = options.state.doc.sliceString(cursor.from, cursor.to);
 
-      if (allVariableNames.has(varName)) {
+      if (allVariableNames.has(varName) && !isKeywordArgumentName(cursor)) {
         let isDeclaredLocally = false;
         for (const scope of currentScopeStack) {
           if (allDeclarations.get(scope)?.has(varName)) {
@@ -428,6 +428,26 @@ export function findReactiveVariables(options: {
   findUsages(tree, []);
 
   return ranges;
+}
+
+/** Checks whether a `VariableName` is a keyword argument name. */
+function isKeywordArgumentName(cursor: TreeCursor): boolean {
+  const temp = cursor.node.cursor();
+  temp.moveTo(cursor.from);
+  if (temp.parent() && temp.name === "CallExpression" && temp.firstChild()) {
+    do {
+      // @ts-expect-error: comparing disjoint string literals is intentional due to do/while traversal
+      if (temp.name === "ArgList" && temp.firstChild()) {
+        do {
+          if (temp.from === cursor.from && temp.to === cursor.to) {
+            return temp.nextSibling() && temp.name === "AssignOp";
+          }
+        } while (temp.nextSibling());
+        break;
+      }
+    } while (temp.nextSibling());
+  }
+  return false;
 }
 
 /**
