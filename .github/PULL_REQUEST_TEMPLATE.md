@@ -24,10 +24,11 @@ Detail the specific changes made in this pull request. Explain the problem addre
 <!--
 Tag potential reviewers from the community or maintainers who might be interested in reviewing this pull request.
 
-Your PR will be reviewed more quickly if you can figure out the right person to tag with @ -->
+Your PR will be reviewed more quickly if you can figure out the right person to tag with @
 
 @mscolnick (General, AI)
 @dmadisetti (Runtime, Caching, Fileformat, AST)
 @manzt (Widgets, Dependency Management, LSP)
 @light2dark (Tables, Plots, Layouts, SQL)
 @akshayka (Public API, Dependencies, UX/Styling, Backend, Docs, Integrations)
+ -->
