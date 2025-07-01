@@ -6,6 +6,9 @@ import { KnownQueryParams } from "../constants";
 import { getSessionId, type SessionId } from "../kernel/session";
 import type { RuntimeConfig } from "./types";
 
+import { isIslands } from "../islands/utils";
+import { isWasm } from "../wasm/utils";
+
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
 
@@ -155,6 +158,11 @@ export class RuntimeManager {
   }
 
   async isHealthy(): Promise<boolean> {
+    // Always healthy if WASM
+    if (isWasm() || isIslands()) {
+      return true;
+    }
+
     try {
       const response = await fetch(this.healthURL().toString());
       // If there is a redirect, update the URL in the config
