@@ -387,6 +387,9 @@ importers:
       react-resizable-panels:
         specifier: 2.1.9
         version: 2.1.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      react-responsive-carousel:
+        specifier: ^3.2.23
+        version: 3.2.23
       react-use-event-hook:
         specifier: ^0.9.6
         version: 0.9.6(react@19.1.0)
