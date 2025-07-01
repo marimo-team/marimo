@@ -38,8 +38,24 @@ describe("RuntimeManager.getWsURL", () => {
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
     expect(url.toString()).toBe(
-      "ws://marimo.app/nested/ws?foo=bar&session_id=1234&file=test.py",
+      "ws://marimo.app/nested/ws?foo=bar&file=test.py&session_id=1234",
     );
+    expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
+  });
+
+  it("should include all query params from current page", () => {
+    const runtime = new RuntimeManager({
+      url: "http://marimo.app/",
+    });
+    window.history.pushState({}, "", "/?file=test.py&search=test&other=last");
+    const sessionId = "1234" as SessionId;
+    const url = runtime.getWsURL(sessionId);
+    expect(url.toString()).toBe(
+      "ws://marimo.app/ws?file=test.py&search=test&other=last&session_id=1234",
+    );
+    expect(url.searchParams.get("file")).toBe("test.py");
+    expect(url.searchParams.get("search")).toBe("test");
+    expect(url.searchParams.get("other")).toBe("last");
     expect(url.searchParams.get(KnownQueryParams.sessionId)).toBe(sessionId);
   });
 });
