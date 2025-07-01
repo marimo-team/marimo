@@ -436,6 +436,7 @@ function isKeywordArgumentName(cursor: TreeCursor): boolean {
   temp.moveTo(cursor.from);
   if (temp.parent() && temp.name === "CallExpression" && temp.firstChild()) {
     do {
+      // @ts-expect-error: comparing disjoint string literals is intentional due to do/while traversal
       if (temp.name === "ArgList" && temp.firstChild()) {
         do {
           if (temp.from === cursor.from && temp.to === cursor.to) {
