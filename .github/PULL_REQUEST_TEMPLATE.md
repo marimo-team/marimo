@@ -30,4 +30,4 @@ Your PR will be reviewed more quickly if you can figure out the right person to 
 @dmadisetti (Runtime, Caching, Fileformat, AST)
 @manzt (Widgets, Dependency Management, LSP)
 @light2dark (Tables, Plots, Layouts, SQL)
-@akshayka (Docs, Backend, Integrations)
+@akshayka (Public API, Dependencies, UX/Styling, Backend, Docs, Integrations)
