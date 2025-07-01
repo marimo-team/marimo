@@ -36,7 +36,7 @@ uvx marimo edit --sandbox my_notebook.py
 ```
 
 This command installs marimo in a temporary environment, activates it, then
-runs your marimo notebook. The `--sandbox` flag what tells marimo to keep
+runs your marimo notebook. The `--sandbox` flag is what tells marimo to keep
 track of your dependencies and store them in the notebook file. If there are
 any dependencies already tracked in the file, this command will download
 them and install them in the environment.
