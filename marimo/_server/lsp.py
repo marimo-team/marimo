@@ -239,16 +239,29 @@ class TyServer(BaseLspServer):
         return super().start()
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
-        if DependencyManager.ty.has():
-            return True
-        return "ty is missing. Install it with `pip install ty`."
+        if not DependencyManager.ty.has():
+            return "ty is missing. Install it with `pip install ty`."
+
+        if not DependencyManager.which("node"):
+            return "node.js binary is missing. Install node at https://nodejs.org/."
+
+        return True
 
     def get_command(self) -> list[str]:
         from ty.__main__ import find_ty_bin  # type: ignore
 
+        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
+        log_file = _loggers.get_log_directory() / "ty-lsp.log"
+
         return [
-            find_ty_bin(),
-            "server",
+            "node",
+            str(lsp_bin),
+            "--port",
+            str(self.port),
+            "--lsp",
+            f"{find_ty_bin()} server",
+            "--log-file",
+            str(log_file),
         ]
 
     def missing_binary_alert(self) -> Alert:
