@@ -2,7 +2,6 @@
 
 import type { Cell, Table } from "@tanstack/react-table";
 import useEvent from "react-use-event-hook";
-import { Functions } from "@/utils/functions";
 import { type SelectedCell, useCellSelectionReducerActions } from "./atoms";
 
 export interface UseCellRangeSelectionProps<TData> {
@@ -107,18 +106,6 @@ export const useCellRangeSelection = <TData>({
     },
   );
 
-  if (DISABLED) {
-    return {
-      handleCellMouseDown: Functions.NOOP,
-      handleCellMouseUp: Functions.NOOP,
-      handleCellMouseOver: Functions.NOOP,
-      handleCellsKeyDown: Functions.NOOP,
-      updateSelection: Functions.NOOP,
-      clearSelection: Functions.NOOP,
-      handleCopy: Functions.NOOP,
-    };
-  }
-
   return {
     handleCellMouseDown,
     handleCellMouseUp,
@@ -129,5 +116,3 @@ export const useCellRangeSelection = <TData>({
     clearSelection: actions.clearSelection,
   };
 };
-
-const DISABLED = true;
