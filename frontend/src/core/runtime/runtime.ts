@@ -89,7 +89,7 @@ export class RuntimeManager {
   getWsURL(sessionId: SessionId): URL {
     const baseUrl = new URL(this.config.url);
     const searchParams = new URLSearchParams(baseUrl.search);
-    
+
     // Merge in current page's query parameters
     const currentParams = new URLSearchParams(window.location.search);
     currentParams.forEach((value, key) => {
@@ -98,7 +98,7 @@ export class RuntimeManager {
         searchParams.set(key, value);
       }
     });
-    
+
     searchParams.set(KnownQueryParams.sessionId, sessionId);
     return this.formatWsURL("/ws", searchParams);
   }
@@ -109,7 +109,7 @@ export class RuntimeManager {
   getWsSyncURL(sessionId: SessionId): URL {
     const baseUrl = new URL(this.config.url);
     const searchParams = new URLSearchParams(baseUrl.search);
-    
+
     // Merge in current page's query parameters
     const currentParams = new URLSearchParams(window.location.search);
     currentParams.forEach((value, key) => {
@@ -118,7 +118,7 @@ export class RuntimeManager {
         searchParams.set(key, value);
       }
     });
-    
+
     searchParams.set(KnownQueryParams.sessionId, sessionId);
     return this.formatWsURL("/ws_sync", searchParams);
   }
