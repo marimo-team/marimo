@@ -2,6 +2,7 @@
 
 import { createMarimoClient } from "@marimo-team/marimo-api";
 import { Logger } from "../../utils/Logger";
+import { Strings } from "../../utils/strings";
 import { getRuntimeManager } from "../runtime/config";
 import type { RuntimeManager } from "../runtime/runtime";
 
@@ -26,7 +27,9 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
+    const baseUrl = Strings.withTrailingSlash(
+      opts.baseUrl ?? getBaseUriWithoutQueryParams(),
+    );
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "POST",
@@ -65,7 +68,9 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
+    const baseUrl = Strings.withTrailingSlash(
+      opts.baseUrl ?? getBaseUriWithoutQueryParams(),
+    );
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "GET",
