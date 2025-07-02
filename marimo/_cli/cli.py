@@ -159,8 +159,10 @@ token_password_message = (
 )
 
 sandbox_message = (
-    "Run the command in an isolated virtual environment using "
-    "`uv run --isolated`. Requires `uv`."
+    "Run the notebook in an isolated virtual environment, tracking "
+    "installed dependencies in the notebook file as inline script metadata. If "
+    "the notebook file already has tracked dependencies, automatically install "
+    "them into the environment. Requires uv."
 )
 
 
