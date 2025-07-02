@@ -30,6 +30,7 @@ from marimo._server.templates.templates import get_version
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
+from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -594,9 +595,11 @@ def test_cli_sandbox_edit_not_supported() -> None:
         ],
         stderr=subprocess.PIPE,
     )
-    _try_fetch(port)
 
-    assert p.returncode != 0
+    def _assert():
+        assert p.returncode != 0
+
+    try_assert_n_times(5, _assert)
     assert p.stderr is not None
     assert "not supported" in p.stderr.read().decode()
 
