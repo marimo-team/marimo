@@ -6,7 +6,7 @@
   ],
   "files": {
     "includes": [
-      "frontend/src/**/*",
+      "frontend/**/*",
       "openapi/**/*",
       "lsp/**/*",
       "!*.json",

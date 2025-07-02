@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type Plugin, defineConfig } from "vite";
+
 import fs from "node:fs";
-import wasm from "vite-plugin-wasm";
-import topLevelAwait from "vite-plugin-top-level-await";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
+import { defineConfig, type Plugin } from "vite";
+import topLevelAwait from "vite-plugin-top-level-await";
+import wasm from "vite-plugin-wasm";
 import tsconfigPaths from "vite-tsconfig-paths";
 import packageJson from "../package.json";
 

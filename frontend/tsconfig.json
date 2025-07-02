@@ -7,10 +7,7 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "types": [
-      "vite/client",
-      "@testing-library/jest-dom"
-    ],
+    "types": ["vite/client", "@testing-library/jest-dom"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -28,6 +25,7 @@
     "noImplicitOverride": true,
 
     /* Style */
+    "allowJs": true /* needed for storybook */,
     "paths": {
       "@/*": ["./src/*"]
     },
@@ -37,4 +35,3 @@
   },
   "include": ["src"]
 }
-
