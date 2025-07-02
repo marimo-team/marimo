@@ -18,7 +18,6 @@ import {
   memo,
   type SetStateAction,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -452,16 +451,7 @@ const ChatPanelBody = () => {
   } = useChat({
     id: activeChat?.id,
     maxSteps: 10,
-    initialMessages: useMemo(() => {
-      return activeChat
-        ? activeChat.messages.map(({ role, content, timestamp, parts }) => ({
-            role,
-            content,
-            id: timestamp.toString(),
-            parts,
-          }))
-        : [];
-    }, [activeChat]),
+    initialMessages: activeChat?.messages || [],
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
     // experimental_throttle: 100,
@@ -477,16 +467,16 @@ const ChatPanelBody = () => {
       };
     },
     onFinish: (message) => {
-      setChatState((prev) =>
-        addMessageToChat(
+      setChatState((prev) => {
+        return addMessageToChat(
           prev,
           prev.activeChatId,
           message.id,
           "assistant",
           message.content,
           message.parts,
-        ),
-      );
+        );
+      });
     },
     onToolCall: async ({ toolCall }) => {
       try {
@@ -511,6 +501,51 @@ const ChatPanelBody = () => {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  // Sync user messages from useChat to storage when they become available
+  useEffect(() => {
+    if (!chatState.activeChatId || messages.length === 0) {
+      return;
+    }
+
+    // Only sync if the last message is from a user
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role !== "user") {
+      return;
+    }
+
+    const currentChat = chatState.chats.find(
+      (c) => c.id === chatState.activeChatId,
+    );
+    if (!currentChat) {
+      return;
+    }
+
+    const storedMessageIds = new Set(currentChat.messages.map((m) => m.id));
+
+    // Find user messages from useChat that aren't in storage yet
+    const missingUserMessages = messages.filter(
+      (m) => m.role === "user" && !storedMessageIds.has(m.id),
+    );
+
+    if (missingUserMessages.length > 0) {
+      setChatState((prev) => {
+        let result = prev;
+
+        for (const userMessage of missingUserMessages) {
+          result = addMessageToChat(
+            result,
+            prev.activeChatId,
+            userMessage.id,
+            "user",
+            userMessage.content,
+          );
+        }
+
+        return result;
+      });
+    }
+  }, [messages, chatState.activeChatId, chatState.chats, setChatState]);
 
   const isLastMessageReasoning = (messages: Message[]): boolean => {
     if (messages.length === 0) {
@@ -552,10 +587,6 @@ const ChatPanelBody = () => {
     requestAnimationFrame(scrollToBottom);
   }, [chatState.activeChatId]);
 
-  const generateUserMessageId = () => {
-    return generateUUID();
-  };
-
   const createNewThread = (initialMessage: string) => {
     const CURRENT_TIME = Date.now();
     const newChat: Chat = {
@@ -570,20 +601,21 @@ const ChatPanelBody = () => {
     };
 
     // Create new chat and set as active
-    setChatState((prev) => ({
-      ...prev,
-      chats: [...prev.chats, newChat],
-      activeChatId: newChat.id,
-    }));
+    setChatState((prev) => {
+      const newState = {
+        ...prev,
+        chats: [...prev.chats, newChat],
+        activeChatId: newChat.id,
+      };
+      return newState;
+    });
 
-    // Keep the message updates in setTimeout to ensure that
-    // they happen AFTER the the new chat is created and set as active
-    setTimeout(() => {
-      append({ role: "user", content: initialMessage });
-      const MESSAGE_ID = generateUUID();
-      setChatState((prev) =>
-        addMessageToChat(prev, newChat.id, MESSAGE_ID, "user", initialMessage),
-      );
+    // Trigger AI conversation with append
+    const MESSAGE_ID = generateUUID();
+    append({
+      id: MESSAGE_ID,
+      role: "user",
+      content: initialMessage,
     });
     setInput("");
   };
@@ -612,23 +644,10 @@ const ChatPanelBody = () => {
       }));
     }
 
-    // Add user message to useChat and storage
     append({
       role: "user",
       content: newValue,
     });
-    const prevMessage = messages[index];
-    if (chatState.activeChatId) {
-      setChatState((prev) =>
-        addMessageToChat(
-          prev,
-          chatState.activeChatId,
-          prevMessage.id,
-          "user",
-          newValue,
-        ),
-      );
-    }
   };
 
   const handleChatInputSubmit = (
@@ -639,17 +658,6 @@ const ChatPanelBody = () => {
       return;
     }
     handleSubmit(e);
-    if (chatState.activeChatId) {
-      setChatState((prev) =>
-        addMessageToChat(
-          prev,
-          chatState.activeChatId,
-          generateUserMessageId(),
-          "user",
-          newValue,
-        ),
-      );
-    }
   };
 
   const handleReload = () => {
