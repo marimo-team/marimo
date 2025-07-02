@@ -8,7 +8,6 @@ import {
 import { getTabSeparatedValues } from "@/components/data-table/range-focus/utils";
 import type { DataType } from "@/core/kernel/messages";
 import { copyToClipboard } from "@/utils/copy";
-import { Logger } from "@/utils/Logger";
 
 export function copyCells(
   selection: GridSelection,
@@ -49,124 +48,6 @@ export function copyCells(
 
   const text = getTabSeparatedValues(cellsToCopy);
   copyToClipboard(text);
-}
-
-export async function pasteCells<T>(
-  selection: GridSelection,
-  data: T[],
-  columnFields: Record<string, DataType>,
-  indexes: string[],
-  onAddEdits: (
-    edits: Array<{
-      rowIdx: number;
-      columnId: string;
-      value: unknown;
-    }>,
-  ) => void,
-) {
-  if (!selection.current) {
-    return;
-  }
-
-  const { range } = selection.current;
-  const { x: startCol, y: startRow } = range;
-
-  try {
-    let clipboardText = "";
-    if (navigator.clipboard) {
-      clipboardText = await navigator.clipboard.readText();
-    } else {
-      return;
-    }
-    // if (navigator.clipboard && window.isSecureContext) {
-    //   clipboardText = await navigator.clipboard.readText();
-    // } else {
-    //   // Fallback for non-secure contexts
-    //   const textArea = document.createElement("textarea");
-    //   textArea.style.position = "fixed";
-    //   textArea.style.left = "-999999px";
-    //   textArea.style.top = "-999999px";
-    //   document.body.append(textArea);
-    //   textArea.focus();
-
-    //   try {
-    //     document.execCommand("paste");
-    //     clipboardText = textArea.value;
-    //   } catch (error) {
-    //     Logger.error("Failed to read from clipboard:", error);
-    //     return;
-    //   } finally {
-    //     textArea.remove();
-    //   }
-    // }
-
-    // Parse clipboard text (tab-separated values)
-    const rows = clipboardText.trim().split("\n");
-    const cellsToPaste: string[][] = rows.map((row) =>
-      row.split("\t").map((cell) => cell.trim()),
-    );
-
-    // Apply pasted data to the grid
-    const edits: Array<{
-      rowIdx: number;
-      columnId: string;
-      value: unknown;
-    }> = [];
-
-    for (const [rowIdx, rowData] of cellsToPaste.entries()) {
-      const targetRow = startRow + rowIdx;
-      if (targetRow >= data.length) {
-        break; // Don't paste beyond the data bounds
-      }
-
-      for (const [colIdx, cellValue] of rowData.entries()) {
-        const targetCol = startCol + colIdx;
-        if (targetCol >= indexes.length) {
-          break; // Don't paste beyond the column bounds
-        }
-
-        const columnId = indexes[targetCol];
-
-        // Convert value based on column type
-        const columnType = columnFields[columnId];
-        let convertedValue: unknown = cellValue;
-
-        switch (columnType) {
-          case "number":
-          case "integer": {
-            const numValue = Number(cellValue);
-            if (!Number.isNaN(numValue)) {
-              convertedValue =
-                columnType === "integer" ? Math.floor(numValue) : numValue;
-            }
-            break;
-          }
-          case "boolean":
-            convertedValue =
-              cellValue.toLowerCase() === "true" || cellValue === "1";
-            break;
-          default:
-            convertedValue = cellValue;
-        }
-
-        edits.push({
-          rowIdx: targetRow,
-          columnId,
-          value: convertedValue,
-        });
-
-        // Update data in place
-        data[targetRow][targetCol] = convertedValue as T;
-      }
-    }
-
-    // Apply all edits at once
-    if (edits.length > 0) {
-      onAddEdits(edits);
-    }
-  } catch (error) {
-    Logger.error("Failed to paste cells:", error);
-  }
 }
 
 const MIN_WIDTHS: Record<DataType, number> = {
