@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import React from "react";
 import { z } from "zod";
@@ -23,7 +24,9 @@ const LazyDataEditor = React.lazy(
   () => import("./data-editor/glide-data-editor"),
 );
 
-export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
+export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
+  cssStyles: [glideCss],
+})
   .withData(
     z.object({
       initialValue: z.object({
