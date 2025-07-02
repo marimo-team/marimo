@@ -159,7 +159,7 @@ export const OtherOptions: React.FC = () => {
         <AccordionFormTrigger className="pt-0">
           <Title
             text="Faceting"
-            tooltip="Faceting creates multiple small charts by grouping data on specified fields"
+            tooltip="Repeat the chart for each unique field value"
           />
         </AccordionFormTrigger>
         <AccordionFormContent>

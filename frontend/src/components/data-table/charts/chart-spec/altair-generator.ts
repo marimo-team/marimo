@@ -142,6 +142,7 @@ export function generateAltairChartSnippet(
 ): string {
   const code = generateAltairChart(spec, datasource).toCode();
   return `
+# replace ${datasource} with your data source
 ${new VariableDeclaration(variableName, code).toCode()}
 ${variableName}
   `.trim();

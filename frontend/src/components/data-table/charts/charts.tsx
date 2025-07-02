@@ -308,7 +308,7 @@ export const ChartPanel: React.FC<{
     if (typeof specWithoutData !== "string") {
       altairCodeSnippet = generateAltairChartSnippet(
         specWithoutData,
-        "replace_this_df",
+        "_df",
         "_chart",
       );
     }

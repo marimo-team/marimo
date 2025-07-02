@@ -183,7 +183,8 @@ describe("generateAltairChart", () => {
     const result = generateAltairChartSnippet(spec, datasource, "_chart");
 
     expect(result).toMatchInlineSnapshot(`
-      "_chart = (
+      "# replace df with your data source
+      _chart = (
           alt.Chart(df)
           .mark_bar()
           .encode(
