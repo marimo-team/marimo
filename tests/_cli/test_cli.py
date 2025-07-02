@@ -573,15 +573,10 @@ def test_cli_sandbox_edit_new_file() -> None:
             "--headless",
             "--no-token",
             "--sandbox",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        ]
     )
-    _try_fetch(port)
-
-    assert p.returncode != 0
-    assert p.stderr is not None
-    assert "not supported" in p.stderr.read().decode()
+    contents = _try_fetch(port)
+    _check_contents(p, b"edit", contents)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
@@ -596,10 +591,14 @@ def test_cli_sandbox_edit_not_supported() -> None:
             "--headless",
             "--no-token",
             "--sandbox",
-        ]
+        ],
+        stderr=subprocess.PIPE,
     )
-    contents = _try_fetch(port)
-    _check_contents(p, b"not supported", contents)
+    _try_fetch(port)
+
+    assert p.returncode != 0
+    assert p.stderr is not None
+    assert "not supported" in p.stderr.read().decode()
 
 
 @pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
