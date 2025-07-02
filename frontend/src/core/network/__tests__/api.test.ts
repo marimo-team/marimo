@@ -11,7 +11,9 @@ global.fetch = mockFetch;
 let baseUrl = "http://localhost:8000";
 vi.mock("@/core/runtime/config", () => ({
   getRuntimeManager: () => ({
-    get httpURL() { return new URL(baseUrl); },
+    get httpURL() {
+      return new URL(baseUrl);
+    },
     headers: () => ({}),
   }),
 }));
@@ -31,7 +33,7 @@ describe("API", () => {
     await API.post("/foo", { bar: 1 });
     expect(mockFetch).toHaveBeenCalledWith(
       "http://localhost:8000/api/foo",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
     );
   });
 
@@ -44,7 +46,7 @@ describe("API", () => {
     await API.get("/bar");
     expect(mockFetch).toHaveBeenCalledWith(
       "http://localhost:8000/api/bar",
-      expect.objectContaining({ method: "GET" })
+      expect.objectContaining({ method: "GET" }),
     );
   });
 
@@ -58,7 +60,7 @@ describe("API", () => {
     await API.post("/foo", { bar: 1 });
     expect(mockFetch).toHaveBeenCalledWith(
       "http://example.com/e/api/foo",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
     );
   });
 });
