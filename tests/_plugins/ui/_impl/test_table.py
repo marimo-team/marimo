@@ -13,7 +13,6 @@ from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
     DEFAULT_MAX_COLUMNS,
-    DEFAULT_PAGE_SIZES,
     MAX_COLUMNS_NOT_PROVIDED,
     CalculateTopKRowsArgs,
     CalculateTopKRowsResponse,
@@ -1717,7 +1716,6 @@ def test_lazy_dataframe() -> None:
         assert table._component_args["show-page-size-selector"] is False
         assert table._component_args["show-column-explorer"] is False
         assert table._component_args["show-chart-builder"] is False
-        assert table._component_args["show-row-viewer"] is True
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
@@ -1966,39 +1964,12 @@ def test_show_page_size_selector_property():
 
     # Test default behavior
     table_default = ui.table(data)
-    assert (
-        table_default._component_args["show-page-size-selector"]
-        == DEFAULT_PAGE_SIZES
-    )
-    # Test explicit False
-    table_false = ui.table(data, show_page_size_selector=False)
-    assert table_false._component_args["show-page-size-selector"] is False
+    assert table_default._component_args["show-page-size-selector"] is True
 
     # Test with small dataset (should disable automatically)
     small_data = {"a": [1, 2, 3, 4]}  # Less than 5 rows
     table_small = ui.table(small_data)
     assert table_small._component_args["show-page-size-selector"] is False
-
-    # Test with page size
-    table_list = ui.table(
-        data, show_page_size_selector=[10, 20, 30], page_size=5
-    )
-    assert table_list._component_args["show-page-size-selector"] == [
-        5,
-        10,
-        20,
-        30,
-    ]
-
-    # Test sorted and deduped
-    table_list = ui.table(
-        data, show_page_size_selector=[10, 20, 20, 30], page_size=10
-    )
-    assert table_list._component_args["show-page-size-selector"] == [
-        10,
-        20,
-        30,
-    ]
 
 
 def test_show_toggles_app_mode():
@@ -2008,11 +1979,8 @@ def test_show_toggles_app_mode():
         table_default = ui.table(data)
         assert table_default._component_args["show-column-explorer"] is True
         assert table_default._component_args["show-chart-builder"] is True
-        assert table_default._component_args["show-row-viewer"] is True
 
     with patch("marimo._plugins.ui._impl.table.get_mode", return_value="run"):
         table_default = ui.table(data)
         assert table_default._component_args["show-column-explorer"] is False
         assert table_default._component_args["show-chart-builder"] is False
-        # Row viewer set to true
-        assert table_default._component_args["show-row-viewer"] is True

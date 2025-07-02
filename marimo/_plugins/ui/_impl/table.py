@@ -92,8 +92,6 @@ DEFAULT_MAX_COLUMNS = 50
 MaxColumnsNotProvided = Literal["inherit"]
 MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
 
-DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100]
-
 
 @dataclass(frozen=True)
 class SearchTableArgs:
@@ -292,13 +290,6 @@ class table(
             If "stats", only show stats. If "chart", only show charts.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
-        show_page_size_selector (Union[List[int], Literal[False]], optional): The page sizes to show in the page size selector.
-            Defaults to [5, 10, 25, 50, 100]. If False, the page size selector is not shown.
-        show_column_explorer (bool, optional): Whether to show the column explorer toggle.
-            Defaults to True when run in edit mode, False otherwise.
-        show_chart_builder (bool, optional): Whether to show the chart builder toggle.
-            Defaults to True when run in edit mode, False otherwise.
-        show_row_viewer (bool, optional): Whether to show the row viewer toggle. Defaults to True.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
             column names to formatting strings or functions.
         freeze_columns_left (Sequence[str], optional): List of column names to freeze on the left.
@@ -356,10 +347,6 @@ class table(
             page_size=page_size,
             show_column_summaries=False,
             show_download=False,
-            show_page_size_selector=False,
-            show_chart_builder=False,
-            show_row_viewer=True,
-            show_column_explorer=False,
             format_mapping=None,
             freeze_columns_left=None,
             freeze_columns_right=None,
@@ -405,12 +392,6 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
-        show_page_size_selector: Optional[
-            Union[list[int], Literal[False]]
-        ] = None,
-        show_column_explorer: bool = True,
-        show_chart_builder: bool = True,
-        show_row_viewer: bool = True,
         max_columns: Optional[int] = DEFAULT_MAX_COLUMNS,
         *,
         label: str = "",
@@ -494,23 +475,13 @@ class table(
             )
 
         app_mode = get_mode()
-        if app_mode != "edit":
-            show_column_explorer = False
-            show_chart_builder = False
+        # These panels are not as useful in non-edit mode and require an external dependency
+        show_column_explorer = app_mode == "edit"
+        show_chart_builder = app_mode == "edit"
 
-        # If not provided, auto-determine page size selector
-        if show_page_size_selector is None:
-            if isinstance(total_rows, int) and total_rows <= 5:
-                show_page_size_selector = False
-            else:
-                page_sizes = DEFAULT_PAGE_SIZES.copy()
-                if isinstance(page_size, int):
-                    page_sizes.append(page_size)
-                show_page_size_selector = sorted(set(page_sizes))
-        elif isinstance(show_page_size_selector, list):
-            if isinstance(page_size, int):
-                show_page_size_selector.append(page_size)
-            show_page_size_selector = sorted(set(show_page_size_selector))
+        show_page_size_selector = True
+        if (isinstance(total_rows, int) and total_rows <= 5) or _internal_lazy:
+            show_page_size_selector = False
 
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
@@ -644,7 +615,6 @@ class table(
                 "show-page-size-selector": show_page_size_selector,
                 "show-column-explorer": show_column_explorer,
                 "show-chart-builder": show_chart_builder,
-                "show-row-viewer": show_row_viewer,
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
@@ -1225,7 +1195,3 @@ def _validate_column_formatting(
             raise ValueError(
                 f"Column '{next(iter(invalid))}' not found in table."
             )
-
-
-def _dedupe_and_sort(lst: list[int]) -> list[int]:
-    return sorted(set(lst))

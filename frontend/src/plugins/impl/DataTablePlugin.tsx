@@ -145,10 +145,9 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
-  showPageSizeSelector: number[] | false;
+  showPageSizeSelector: boolean;
   showColumnExplorer: boolean;
   showChartBuilder: boolean;
-  showRowViewer: boolean;
   rowHeaders: string[];
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
@@ -209,12 +208,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnSummaries: z
         .union([z.boolean(), z.enum(["stats", "chart"])])
         .default(true),
-      showPageSizeSelector: z
-        .union([z.array(z.number()), z.literal(false)])
-        .default(false),
+      showPageSizeSelector: z.boolean().default(true),
       showColumnExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
-      showRowViewer: z.boolean().default(true),
       rowHeaders: z.array(z.string()),
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
@@ -655,7 +651,6 @@ const DataTableComponent = ({
   showPageSizeSelector,
   showColumnExplorer,
   showChartBuilder,
-  showRowViewer,
   rowHeaders,
   fieldTypes,
   paginationState,
@@ -823,7 +818,7 @@ const DataTableComponent = ({
         </Banner>
       )}
 
-      {showRowViewer && isPanelOpen("row-viewer") && (
+      {isPanelOpen("row-viewer") && (
         <ContextAwarePanelItem>
           <RowViewerPanel
             getRow={getRow}
@@ -884,7 +879,6 @@ const DataTableComponent = ({
             toggleDisplayHeader={toggleDisplayHeader}
             showChartBuilder={showChartBuilder}
             showPageSizeSelector={showPageSizeSelector}
-            showRowViewer={showRowViewer}
             showColumnExplorer={showColumnExplorer}
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}

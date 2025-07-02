@@ -79,12 +79,11 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   freezeColumnsRight?: string[];
   toggleDisplayHeader?: () => void;
   // Row viewer panel
-  showRowViewer?: boolean;
   viewedRowIdx?: number;
   onViewedRowChange?: OnChangeFn<number>;
   // Others
   showChartBuilder?: boolean;
-  showPageSizeSelector?: number[] | false;
+  showPageSizeSelector?: boolean;
   showColumnExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
@@ -124,7 +123,6 @@ const DataTableInternal = <TData,>({
   toggleDisplayHeader,
   showChartBuilder,
   showPageSizeSelector,
-  showRowViewer,
   showColumnExplorer,
   togglePanel,
   isPanelOpen,
@@ -288,7 +286,6 @@ const DataTableInternal = <TData,>({
         toggleDisplayHeader={toggleDisplayHeader}
         showChartBuilder={showChartBuilder}
         showPageSizeSelector={showPageSizeSelector}
-        showRowViewer={showRowViewer}
         showColumnExplorer={showColumnExplorer}
         togglePanel={togglePanel}
         isPanelOpen={isPanelOpen}

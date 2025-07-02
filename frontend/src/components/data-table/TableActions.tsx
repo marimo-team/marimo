@@ -33,9 +33,8 @@ interface TableActionsProps<TData> {
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
   showChartBuilder?: boolean;
-  showRowViewer?: boolean;
   showColumnExplorer?: boolean;
-  showPageSizeSelector?: number[] | false;
+  showPageSizeSelector?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
   tableLoading?: boolean;
@@ -55,7 +54,6 @@ export const TableActions = <TData,>({
   getRowIds,
   toggleDisplayHeader,
   showChartBuilder,
-  showRowViewer,
   showColumnExplorer,
   showPageSizeSelector,
   togglePanel,
@@ -134,22 +132,20 @@ export const TableActions = <TData,>({
       )}
       {togglePanel && isPanelOpen !== undefined && (
         <>
-          {showRowViewer && (
-            <Tooltip content="Toggle row viewer">
-              <Button
-                variant="text"
-                size="xs"
-                onClick={() => togglePanel("row-viewer")}
-              >
-                <PanelRightIcon
-                  className={cn(
-                    "w-4 h-4 text-muted-foreground",
-                    isPanelOpen("row-viewer") && "text-primary",
-                  )}
-                />
-              </Button>
-            </Tooltip>
-          )}
+          <Tooltip content="Toggle row viewer">
+            <Button
+              variant="text"
+              size="xs"
+              onClick={() => togglePanel("row-viewer")}
+            >
+              <PanelRightIcon
+                className={cn(
+                  "w-4 h-4 text-muted-foreground",
+                  isPanelOpen("row-viewer") && "text-primary",
+                )}
+              />
+            </Button>
+          </Tooltip>
           {showColumnExplorer && (
             <Tooltip content="Toggle column explorer">
               <Button

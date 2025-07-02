@@ -29,7 +29,7 @@ interface DataTablePaginationProps<TData> {
   totalColumns: number;
   onSelectAllRowsChange?: (value: boolean) => void;
   tableLoading?: boolean;
-  showPageSizeSelector?: number[] | false;
+  showPageSizeSelector?: boolean;
 }
 
 export const DataTablePagination = <TData,>({
@@ -125,12 +125,11 @@ export const DataTablePagination = <TData,>({
     }
   };
 
-  const renderPageSizeSelector = () => {
-    const pageSizes = showPageSizeSelector;
-    if (!pageSizes) {
-      return null;
-    }
+  // Ensure unique page sizes
+  const pageSizeSet = new Set([5, 10, 25, 50, 100, pageSize]);
+  const pageSizes = [...pageSizeSet].sort((a, b) => a - b);
 
+  const renderPageSizeSelector = () => {
     return (
       <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1">
         <Select
@@ -143,7 +142,7 @@ export const DataTablePagination = <TData,>({
           <SelectContent>
             <SelectGroup>
               <SelectLabel>Rows per page</SelectLabel>
-              {pageSizes.map((size) => {
+              {[...pageSizes].map((size) => {
                 const sizeStr = size.toString();
                 return (
                   <SelectItem key={size} value={sizeStr}>
@@ -163,7 +162,7 @@ export const DataTablePagination = <TData,>({
     <div className="flex flex-1 items-center justify-between px-2">
       <div className="flex items-center gap-2">
         <div className="text-sm text-muted-foreground">{renderTotal()}</div>
-        {renderPageSizeSelector()}
+        {showPageSizeSelector && renderPageSizeSelector()}
       </div>
 
       <div className="flex items-end space-x-2">
