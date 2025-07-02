@@ -69,7 +69,7 @@ export function createSpecWithoutData(
   } = formValues.general ?? {};
 
   if (chartType === ChartType.PIE) {
-    return getPieChartSpec([], formValues, theme, width, height);
+    return getPieChartSpec(formValues, theme, width, height);
   }
 
   // Validate required fields
@@ -115,7 +115,14 @@ export function createSpecWithoutData(
     : undefined;
 
   const colorByEncoding = getColorEncoding(chartType, formValues);
-  const baseSpec = getBaseSpec([], formValues, theme, width, height, title);
+  const baseSpec = getBaseSpec(
+    chartType,
+    formValues,
+    theme,
+    width,
+    height,
+    title,
+  );
   const baseEncoding: Encoding<Field> = {
     [xEncodingKey]: horizontal ? yEncoding : xEncoding,
     [yEncodingKey]: horizontal ? xEncoding : yEncoding,
@@ -214,7 +221,6 @@ export function getFacetEncoding(
 }
 
 function getPieChartSpec(
-  data: object[],
   formValues: ChartSchemaType,
   theme: ResolvedTheme,
   width: number | "container",
@@ -246,7 +252,7 @@ function getPieChartSpec(
   };
 
   return {
-    ...getBaseSpec(data, formValues, theme, width, height, title),
+    ...getBaseSpec(ChartType.PIE, formValues, theme, width, height, title),
     mark: {
       type: convertChartTypeToMark(ChartType.PIE),
       innerRadius: formValues.style?.innerRadius,
@@ -265,23 +271,29 @@ function getPieChartSpec(
 }
 
 function getBaseSpec(
-  data: object[],
+  chartType: ChartType,
   formValues: ChartSchemaType,
   theme: ResolvedTheme,
   width: number | "container",
   height: number,
   title?: string,
 ): BaseSpec {
+  let gridLines = formValues.style?.gridLines ?? false;
+  // Scatter charts have grid lines by default
+  if (chartType === ChartType.SCATTER) {
+    gridLines = true;
+  }
+
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     background: theme === "dark" ? "dark" : slate.slate2,
     title: title,
-    data: { values: data },
+    data: { values: [] },
     height: formValues.yAxis?.height ?? height,
     width: formValues.xAxis?.width ?? width,
     config: {
       axis: {
-        grid: formValues.style?.gridLines ?? false,
+        grid: gridLines,
       },
     },
   };

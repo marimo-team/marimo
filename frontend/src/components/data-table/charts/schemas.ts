@@ -93,7 +93,7 @@ export const ChartSchema = z.object({
   style: z
     .object({
       innerRadius: z.number().optional(),
-      gridLines: z.boolean().default(false),
+      gridLines: z.boolean().optional(),
     })
     .optional(),
   tooltips: z
@@ -131,9 +131,6 @@ export function getChartDefaults(): ChartSchemaType {
     color: {
       field: NONE_VALUE,
       scheme: "default",
-    },
-    style: {
-      gridLines: false,
     },
     tooltips: {
       auto: true,

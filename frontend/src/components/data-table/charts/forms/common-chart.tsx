@@ -64,6 +64,8 @@ export const CommonChartForm: React.FC = () => {
 };
 
 export const StyleForm: React.FC = () => {
+  const { chartType } = useChartFormContext();
+
   return (
     <Accordion type="multiple">
       <AccordionFormItem value="general">
@@ -75,7 +77,7 @@ export const StyleForm: React.FC = () => {
           <BooleanField
             fieldName="style.gridLines"
             label="Show grid lines"
-            defaultValue={false}
+            defaultValue={chartType === ChartType.SCATTER}
           />
         </AccordionFormContent>
       </AccordionFormItem>
