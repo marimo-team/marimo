@@ -97,7 +97,7 @@ def start(
 
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
-    port = port or find_free_port(DEFAULT_PORT)
+    port = port or find_free_port(DEFAULT_PORT, addr=host)
 
     # This is the path that will be used to read the project configuration
     start_path: Optional[str] = None
