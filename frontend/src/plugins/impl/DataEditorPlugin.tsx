@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import React from "react";
 import { z } from "zod";
@@ -12,30 +11,19 @@ import { DATA_TYPES } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
-import gridCss from "./data-editor/grid.css?inline";
-import type { DataEditorProps } from "./data-editor/types";
+import type { DataEditorProps, Edits } from "./data-editor/types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
 
-interface Edits {
-  edits: Array<{
-    rowIdx: number;
-    columnId: string;
-    value: unknown;
-  }>;
-}
-
-// Lazy load the data editor since it brings in ag-grid
+// Lazy load the data editor since it brings in glide-data-grid
 const LazyDataEditor = React.lazy(
   () => import("./data-editor/glide-data-editor"),
 );
 
-export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
-  cssStyles: [gridCss, glideCss],
-})
+export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor")
   .withData(
     z.object({
       initialValue: z.object({
@@ -121,47 +109,15 @@ const LoadingDataEditor = (props: Props) => {
     );
   }
 
-  // return (
-  //   <div className="h-[600px] w-full">
-  //     <GlideDataEditor host={props.host} />
-  //   </div>
-  // );
-
   return (
     <div className="h-[400px] w-full">
       <LazyDataEditor
         data={data}
         fieldTypes={props.fieldTypes}
         rows={data.length}
-        onAddEdits={(edits) => {
-          props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
-        }}
+        onEdits={props.onEdits}
         host={props.host}
       />
     </div>
   );
-
-  // return (
-  //   <LazyDataEditor
-  //     data={data}
-  //     pagination={props.pagination}
-  //     pageSize={props.pageSize}
-  //     fieldTypes={props.fieldTypes}
-  //     edits={props.edits}
-  //     onAddEdits={(edits) => {
-  //       props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
-  //     }}
-  //     onAddRows={(rows) => {
-  //       const newEdits = rows.flatMap((row, rowIndex) =>
-  //         Object.entries(row).map(([columnId, value]) => ({
-  //           rowIdx: data.length + rowIndex,
-  //           columnId,
-  //           value,
-  //         })),
-  //       );
-  //       props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
-  //     }}
-  //     columnSizingMode={props.columnSizingMode}
-  //   />
-  // );
 };
