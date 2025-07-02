@@ -405,13 +405,24 @@ def edit(
         )
         return
 
-    # Set default, if not provided
     if sandbox is None:
+        # When the sandbox flag is omitted we infer whether to
+        # to start in sandbox mode by examining the notebook file and
+        # prompting the user.
         from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
 
         sandbox = maybe_prompt_run_in_sandbox(name)
+    elif sandbox and name is None:
+        raise click.UsageError(
+            """marimo's package sandbox requires a notebook name:
 
-    if sandbox:
+    * marimo edit --sandbox my_notebook.py
+
+  Multi-notebook sandboxed servers (marimo edit --sandbox) are not supported.
+  Follow this issue at: https://github.com/marimo-team/marimo/issues/2598."""
+        )
+
+    elif sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well

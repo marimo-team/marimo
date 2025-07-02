@@ -579,6 +579,25 @@ def test_cli_sandbox_edit_new_file() -> None:
     _check_contents(p, b"edit", contents)
 
 
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_edit_not_supported() -> None:
+    port = _get_port()
+    d = tempfile.TemporaryDirectory()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--sandbox",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"not supported", contents)
+
+
 @pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
 def test_cli_edit_by_url() -> None:
     port = _get_port()
