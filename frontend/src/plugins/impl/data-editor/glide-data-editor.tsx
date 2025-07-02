@@ -7,9 +7,9 @@ import DataEditor, {
   GridCellKind,
   type GridColumn,
   GridColumnIcon,
+  type GridKeyEventArgs,
   type GridSelection,
   type Item,
-  type Theme,
 } from "@glideapps/glide-data-grid";
 import { useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -19,12 +19,14 @@ import {
   toFieldTypes,
 } from "@/components/data-table/types";
 import type { DataType } from "@/core/kernel/messages";
-import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 import { logNever } from "@/utils/assertNever";
 
 // CSS is required for default editor styles
 import "@glideapps/glide-data-grid/dist/index.css";
-import "./grid.css";
+import { isCopyKey, isPasteKey } from "@/components/editor/controls/utils";
+import { getGlideTheme } from "./themes";
+import { copyCells, getColumnWidth, pasteCells } from "./utils";
 
 interface GlideDataEditorProps<T> {
   data: T[];
@@ -109,22 +111,6 @@ export const GlideDataEditor = <T,>({
     const [col, row] = cell;
     const key = indexes[col];
 
-    const columnType = columnFields[key];
-    // Verify the new value is of the correct type
-    switch (columnType) {
-      case "number":
-      case "integer":
-        if (Number.isNaN(Number(newValue.data))) {
-          return;
-        }
-        break;
-      case "boolean":
-        if (typeof newValue.data !== "boolean") {
-          return;
-        }
-        break;
-    }
-
     // Mutate the data in place is demonstrated in the docs
     // eslint-disable-next-line react-hooks/react-compiler
     data[row][key as keyof T] = newValue.data as T[keyof T];
@@ -145,6 +131,43 @@ export const GlideDataEditor = <T,>({
     }));
   });
 
+  const validateCell = useEvent(
+    (cell: Item, newValue: EditableGridCell, _prevValue: GridCell): boolean => {
+      const [col, _row] = cell;
+      const key = indexes[col];
+
+      const columnType = columnFields[key];
+      // Verify the new value is of the correct type
+      switch (columnType) {
+        case "number":
+        case "integer":
+          if (Number.isNaN(Number(newValue.data))) {
+            return false;
+          }
+          break;
+        case "boolean":
+          if (typeof newValue.data !== "boolean") {
+            return false;
+          }
+          break;
+      }
+
+      return true;
+    },
+  );
+
+  const onKeyDown = useEvent((e: GridKeyEventArgs) => {
+    if (isCopyKey(e as unknown as React.KeyboardEvent<HTMLElement>)) {
+      copyCells(selection, getCellContent);
+      return;
+    }
+
+    if (isPasteKey(e as unknown as React.KeyboardEvent<HTMLElement>)) {
+      pasteCells(selection, data, columnFields, indexes, onAddEdits);
+      return;
+    }
+  });
+
   const memoizedThemeValues = useMemo(() => getGlideTheme(theme), [theme]);
   const experimental = useMemo(
     () => ({
@@ -160,7 +183,10 @@ export const GlideDataEditor = <T,>({
       rows={rows}
       smoothScrollX={true}
       smoothScrollY={true}
-      getCellsForSelection={true}
+      validateCell={validateCell}
+      // getCellsForSelection={true} // Enables copy, TODO: Not working, improve perf
+      onPaste={true} // Enables paste, TODO: Not working, improve perf
+      onKeyDown={onKeyDown}
       width="100%"
       onCellEdited={onCellEdited}
       gridSelection={selection}
@@ -208,82 +234,3 @@ function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
 }
 
 export default GlideDataEditor;
-
-const MIN_WIDTHS: Record<DataType, number> = {
-  boolean: 40,
-  string: 80,
-  number: 70,
-  integer: 70,
-  date: 100,
-  datetime: 140,
-  time: 80,
-  unknown: 80,
-};
-
-const ICON_OFFSET_LENGTH = 30;
-function getColumnWidth<T>(
-  fieldType: DataType,
-  values: T[],
-  columnTitle: string,
-): number {
-  if (fieldType === "boolean") {
-    // Base it off title length
-    return 200;
-  }
-
-  const minWidth = MIN_WIDTHS[fieldType];
-
-  const lengths = [
-    columnTitle.length,
-    ...values.map((value) => String(value).length),
-  ];
-
-  // 8px per character
-  const calculatedWidth = Math.max(...lengths) * 8 + ICON_OFFSET_LENGTH;
-
-  // Return the larger of minimum width or calculated width, capped at 600px
-  return Math.min(Math.max(calculatedWidth, minWidth), 600);
-}
-
-function getGlideTheme(theme: ResolvedTheme): Partial<Theme> | undefined {
-  if (theme === "light") {
-    return {
-      lineHeight: 1.25,
-    };
-  }
-
-  return {
-    lineHeight: 1.25,
-    accentColor: "#7c3aed",
-    accentLight: "rgba(124, 58, 237, 0.15)",
-
-    textDark: "#f4f4f5",
-    textMedium: "#a1a1aa",
-    textLight: "#71717a",
-    textBubble: "#f4f4f5",
-
-    bgIconHeader: "#a1a1aa",
-    fgIconHeader: "#18181b",
-    textHeader: "#d4d4d8",
-    textHeaderSelected: "#18181b",
-
-    bgCell: "#18181b",
-    bgCellMedium: "#27272a",
-    bgHeader: "#27272a",
-    bgHeaderHasFocus: "#3f3f46",
-    bgHeaderHovered: "#3f3f46",
-
-    bgBubble: "#27272a",
-    bgBubbleSelected: "#7c3aed",
-
-    bgSearchResult: "#312e81",
-
-    borderColor: "#27272a",
-    drilldownBorder: "#7c3aed",
-
-    linkColor: "#818cf8",
-
-    headerFontStyle: "bold 14px",
-    baseFontStyle: "13px",
-  };
-}
