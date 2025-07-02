@@ -21,6 +21,7 @@ import {
   CHART_TYPE_ICON,
   COUNT_FIELD,
   DEFAULT_AGGREGATION,
+  DEFAULT_MAX_BINS_FACET,
   type EMPTY_VALUE,
 } from "../constants";
 import { useChartFormContext } from "../context";
@@ -28,7 +29,7 @@ import type { ChartSchema } from "../schemas";
 import {
   type AggregationFn,
   CHART_TYPES,
-  type ChartType,
+  ChartType,
   type SelectableDataType,
 } from "../types";
 import {
@@ -50,6 +51,13 @@ type FieldDataType = DataType | typeof EMPTY_VALUE;
 // Utility functions for field type checking
 function isNonCountField(field?: { field?: string }) {
   return isFieldSet(field?.field) && field?.field !== COUNT_FIELD;
+}
+
+function isStringField(field?: {
+  field?: string;
+  selectedDataType?: SelectedDataType;
+}) {
+  return field?.selectedDataType === "string" && isNonCountField(field);
 }
 
 function isNumberField(field?: {
@@ -185,6 +193,11 @@ export const XAxis: React.FC = () => {
   const xColumn = formValues.general?.xColumn;
   const { inferredDataType } = getColumnDataTypes(xColumn);
 
+  const allowSorting =
+    context.chartType === ChartType.LINE ||
+    context.chartType === ChartType.BAR ||
+    context.chartType === ChartType.AREA;
+
   return (
     <FieldSection>
       <Title text="X-Axis" />
@@ -207,7 +220,7 @@ export const XAxis: React.FC = () => {
           label="Time Resolution"
         />
       )}
-      {isNonCountField(xColumn) && (
+      {isNonCountField(xColumn) && allowSorting && (
         <>
           <SortField
             fieldName="general.xColumn.sort"
@@ -232,10 +245,14 @@ export const YAxis: React.FC = () => {
   const xColumnExists = isFieldSet(xColumn?.field);
   const { inferredDataType } = getColumnDataTypes(yColumn);
 
-  // Set default for perf reasons
-  const defaultAggregation = isNumberField(yColumn)
-    ? DEFAULT_AGGREGATION
-    : undefined;
+  let defaultAggregation: AggregationFn | undefined;
+  if (isNumberField(yColumn)) {
+    // Set default for perf reasons
+    defaultAggregation = DEFAULT_AGGREGATION;
+  } else if (isStringField(yColumn)) {
+    // Y-columns tend to be measurements, so we default to count
+    defaultAggregation = "count";
+  }
 
   return (
     <FieldSection>
@@ -335,11 +352,13 @@ export const Facet: React.FC = () => {
                 <BooleanField
                   fieldName={`general.facet.${facet}.binned`}
                   label="Binned"
+                  defaultValue={true}
                 />
                 <NumberField
                   fieldName={`general.facet.${facet}.maxbins`}
                   label="Max Bins"
-                  placeholder="10"
+                  placeholder={DEFAULT_MAX_BINS_FACET.toString()}
+                  defaultValue={DEFAULT_MAX_BINS_FACET}
                 />
               </div>
             )}

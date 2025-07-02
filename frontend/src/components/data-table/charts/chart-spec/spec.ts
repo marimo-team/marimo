@@ -17,6 +17,7 @@ import type { TypedString } from "@/utils/typed";
 import {
   COUNT_FIELD,
   DEFAULT_AGGREGATION,
+  DEFAULT_MAX_BINS_FACET,
   DEFAULT_TIME_UNIT,
   EMPTY_VALUE,
 } from "../constants";
@@ -92,13 +93,18 @@ export function createSpecWithoutData(
     chartType,
   );
 
+  let defaultYAggregation: ValidAggregationFn = DEFAULT_AGGREGATION;
+  if (yColumn?.selectedDataType === "string") {
+    defaultYAggregation = "count";
+  }
+
   const yEncoding = getAxisEncoding(
     yColumn,
     formValues.yAxis?.bin,
     getFieldLabel(formValues.yAxis?.label),
     colorByColumn?.field && !horizontal ? stacking : undefined,
     chartType,
-    DEFAULT_AGGREGATION,
+    defaultYAggregation,
   );
 
   const rowFacet = facet?.row.field
@@ -185,6 +191,9 @@ export function getFacetEncoding(
   facet: z.infer<typeof RowFacet> | z.infer<typeof ColumnFacet>,
   chartType: ChartType,
 ): FacetFieldDef<Field> {
+  const defaultBinValues = {
+    maxbins: DEFAULT_MAX_BINS_FACET,
+  };
   const binValues = getBinEncoding(
     chartType,
     facet.selectedDataType || "string",
@@ -192,12 +201,13 @@ export function getFacetEncoding(
       maxbins: facet.maxbins,
       binned: facet.binned,
     },
+    defaultBinValues,
   );
 
   return {
     field: facet.field,
     sort: facet.sort,
-    timeUnit: getTimeUnit(facet),
+    timeUnit: getFacetTimeUnit(facet),
     type: convertDataTypeToVega(facet.selectedDataType || "unknown"),
     bin: binValues,
   };
@@ -290,6 +300,15 @@ function getFieldLabel(label?: string): string | undefined {
 function getTimeUnit(column: z.infer<typeof AxisSchema>) {
   if (column.selectedDataType === "temporal") {
     return column.timeUnit ?? DEFAULT_TIME_UNIT;
+  }
+  return undefined;
+}
+
+function getFacetTimeUnit(
+  facet: z.infer<typeof RowFacet> | z.infer<typeof ColumnFacet>,
+) {
+  if (facet.selectedDataType === "temporal") {
+    return facet.timeUnit ?? DEFAULT_TIME_UNIT;
   }
   return undefined;
 }

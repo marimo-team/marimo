@@ -24,6 +24,7 @@ export function getBinEncoding(
   chartType: ChartType,
   selectedDataType: SelectableDataType,
   binValues?: z.infer<typeof BinSchema>,
+  defaultBinValues?: z.infer<typeof BinSchema>,
 ): boolean | BinParams | undefined {
   if (chartType === ChartType.HEATMAP) {
     if (!binValues?.maxbins) {
@@ -32,13 +33,13 @@ export function getBinEncoding(
     return { maxbins: binValues?.maxbins };
   }
 
-  if (!binValues?.binned) {
-    return undefined;
-  }
-
   // Don't bin non-numeric data
   if (selectedDataType !== "number") {
     return undefined;
+  }
+
+  if (!binValues?.binned) {
+    return defaultBinValues;
   }
 
   const binParams: BinParams = {};

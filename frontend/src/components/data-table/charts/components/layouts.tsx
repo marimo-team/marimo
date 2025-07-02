@@ -1,16 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { LucideProps } from "lucide-react";
+import { InfoIcon, type LucideProps } from "lucide-react";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 
-export const Title: React.FC<{ text: string }> = ({ text }) => {
-  return <h2 className="font-semibold my-0">{text}</h2>;
+export const Title: React.FC<{ text: string; tooltip?: string }> = ({
+  text,
+  tooltip,
+}) => {
+  return (
+    <h2 className="font-semibold my-0 flex items-center gap-1">
+      {text}
+      {tooltip && (
+        <Tooltip content={tooltip}>
+          <InfoIcon className="w-3 h-3 mt-0.5" />
+        </Tooltip>
+      )}
+    </h2>
+  );
 };
 
 export const TabContainer: React.FC<{

@@ -24,7 +24,7 @@ import {
 import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "../constants";
 import { useChartFormContext } from "../context";
 import type { ChartSchemaType } from "../schemas";
-import { COLOR_BY_FIELDS, NONE_VALUE } from "../types";
+import { ChartType, COLOR_BY_FIELDS, NONE_VALUE } from "../types";
 
 export const CommonChartForm: React.FC = () => {
   const form = useFormContext<ChartSchemaType>();
@@ -34,7 +34,12 @@ export const CommonChartForm: React.FC = () => {
   const groupByColumn = formValues.general?.colorByColumn;
 
   const yColumnExists = isFieldSet(yColumn?.field);
-  const showStacking = isFieldSet(groupByColumn?.field);
+
+  const { chartType } = useChartFormContext();
+
+  const showStacking =
+    isFieldSet(groupByColumn?.field) &&
+    (chartType === ChartType.BAR || chartType === ChartType.LINE);
 
   return (
     <>
@@ -152,7 +157,10 @@ export const OtherOptions: React.FC = () => {
     <Accordion type="multiple">
       <AccordionFormItem value="facet">
         <AccordionFormTrigger className="pt-0">
-          <Title text="Faceting" />
+          <Title
+            text="Faceting"
+            tooltip="Faceting creates multiple small charts by grouping data on specified fields"
+          />
         </AccordionFormTrigger>
         <AccordionFormContent>
           <Facet />

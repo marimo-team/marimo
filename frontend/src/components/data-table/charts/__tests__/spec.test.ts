@@ -62,6 +62,7 @@ describe("getAxisEncoding", () => {
       bin: undefined,
       title: "Average Price",
       stack: false,
+      timeUnit: undefined,
       aggregate: "mean",
     });
   });
@@ -196,12 +197,13 @@ describe("getAxisEncoding", () => {
   });
 
   it("should return correct encoding for sorted data", () => {
-    for (const sort of ["ascending", "descending", undefined]) {
+    for (const sort of ["ascending", "descending"]) {
       const result = getAxisEncoding(
         {
           field: "value",
           selectedDataType: "number",
-          sort: sort as "ascending" | "descending" | undefined,
+          sort: sort as "ascending" | "descending",
+          aggregate: NONE_VALUE,
         },
         undefined,
         "Value",
@@ -220,7 +222,11 @@ describe("getTooltips", () => {
     const result = getTooltips({
       formValues: {
         general: {
-          xColumn: { field: "x", type: "string" as const },
+          xColumn: {
+            field: "x",
+            type: "string",
+            aggregate: NONE_VALUE,
+          },
         },
       },
       xEncoding: { field: "x", type: "nominal" },
@@ -239,13 +245,16 @@ describe("getTooltips", () => {
     const formValues: ChartSchemaType = {
       general: {
         xColumn: {
-          type: "string" as const,
+          type: "string",
+          aggregate: NONE_VALUE,
         },
         yColumn: {
-          type: "number" as const,
+          type: "number",
+          aggregate: NONE_VALUE,
         },
         colorByColumn: {
-          type: "integer" as const,
+          type: "integer",
+          aggregate: NONE_VALUE,
         },
       },
       tooltips: autoTooltips,
@@ -311,8 +320,16 @@ describe("getTooltips", () => {
     const result = getTooltips({
       formValues: {
         general: {
-          xColumn: { field: "x", type: "string" as const },
-          yColumn: { field: "y", type: "number" as const },
+          xColumn: {
+            field: "x",
+            type: "string",
+            aggregate: NONE_VALUE,
+          },
+          yColumn: {
+            field: "y",
+            type: "number",
+            aggregate: NONE_VALUE,
+          },
         },
         tooltips: {
           auto: false,
@@ -329,9 +346,12 @@ describe("getTooltips", () => {
   it("should enhance tooltips with encoding parameters when field name matches encoding field", () => {
     const formValues = {
       general: {
-        xColumn: { type: "string" as const },
-        yColumn: { type: "number" as const },
-        colorByColumn: { type: "string" as const },
+        xColumn: { type: "string" as const, aggregate: NONE_VALUE },
+        yColumn: { type: "number" as const, aggregate: NONE_VALUE },
+        colorByColumn: {
+          type: "string" as const,
+          aggregate: NONE_VALUE,
+        },
       },
       tooltips: {
         auto: false,
@@ -391,8 +411,16 @@ describe("getTooltips", () => {
   it("should handle count aggregate with no field set", () => {
     const formValues = {
       general: {
-        xColumn: { field: "category", type: "string" as const },
-        yColumn: { field: COUNT_FIELD, type: "number" as const },
+        xColumn: {
+          field: "category",
+          type: "string" as const,
+          aggregate: NONE_VALUE,
+        },
+        yColumn: {
+          field: COUNT_FIELD,
+          type: "number" as const,
+          aggregate: NONE_VALUE,
+        },
       },
       tooltips: {
         auto: true,
@@ -424,8 +452,16 @@ describe("getTooltips", () => {
     const result = getTooltips({
       formValues: {
         general: {
-          xColumn: { field: "x", type: "string" as const },
-          yColumn: { field: "y", type: "number" as const },
+          xColumn: {
+            field: "x",
+            type: "string",
+            aggregate: NONE_VALUE,
+          },
+          yColumn: {
+            field: "y",
+            type: "number",
+            aggregate: NONE_VALUE,
+          },
         },
         tooltips: {
           auto: true,
@@ -460,9 +496,14 @@ describe("getColorEncoding", () => {
   it("should return undefined for pie charts", () => {
     const result = getColorEncoding(ChartType.PIE, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
-        colorByColumn: { field: "Color", type: "string" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
       },
     });
 
@@ -472,8 +513,14 @@ describe("getColorEncoding", () => {
   it("should return undefined when no color field is set", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
       },
     });
 
@@ -483,9 +530,18 @@ describe("getColorEncoding", () => {
   it("should return undefined when color field is NONE_VALUE", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
-        colorByColumn: { field: NONE_VALUE, type: "string" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
+        colorByColumn: {
+          field: NONE_VALUE,
+          type: "string",
+        },
       },
     });
 
@@ -495,9 +551,18 @@ describe("getColorEncoding", () => {
   it("should return undefined when color field is empty string", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
-        colorByColumn: { field: EMPTY_VALUE, type: "string" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
+        colorByColumn: {
+          field: EMPTY_VALUE,
+          type: "string",
+        },
       },
     });
 
@@ -507,9 +572,18 @@ describe("getColorEncoding", () => {
   it("should return count encoding for COUNT_FIELD", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
-        colorByColumn: { field: COUNT_FIELD, type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
+        colorByColumn: {
+          field: COUNT_FIELD,
+          type: "number",
+        },
       },
     });
 
@@ -522,13 +596,19 @@ describe("getColorEncoding", () => {
   it("should use colorByColumn when set", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
         colorByColumn: {
           field: "category",
-          type: "string" as const,
+          type: "string",
           selectedDataType: "string",
-          aggregate: "count" as const,
+          aggregate: "count",
         },
       },
       color: {
@@ -551,10 +631,13 @@ describe("getColorEncoding", () => {
       general: {
         xColumn: {
           field: "category",
-          type: "string" as const,
+          type: "string",
           selectedDataType: "string",
         },
-        yColumn: { field: "y", type: "number" as const },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
       },
       color: {
         field: "X",
@@ -574,7 +657,10 @@ describe("getColorEncoding", () => {
   it("should use yColumn when color field matches yColumn field", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
         yColumn: {
           field: "value",
           type: "number",
@@ -600,8 +686,14 @@ describe("getColorEncoding", () => {
   it("should return undefined when color field doesn't match any column", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
       },
       color: {
         field: "Color",
@@ -615,15 +707,22 @@ describe("getColorEncoding", () => {
   it("should handle bin encoding for numeric data", () => {
     const result = getColorEncoding(ChartType.HEATMAP, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
         colorByColumn: {
           field: "value",
-          type: "number" as const,
+          type: "number",
           selectedDataType: "number",
         },
       },
       color: {
+        field: NONE_VALUE,
         bin: { maxbins: 10 },
       },
     });
@@ -640,15 +739,22 @@ describe("getColorEncoding", () => {
   it("should handle color range instead of scheme", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
         colorByColumn: {
           field: "category",
-          type: "string" as const,
+          type: "string",
           selectedDataType: "string",
         },
       },
       color: {
+        field: NONE_VALUE,
         range: ["red", "blue", "green"],
       },
     });
@@ -665,13 +771,19 @@ describe("getColorEncoding", () => {
   it("should handle temporal data types", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
         colorByColumn: {
           field: "date",
-          type: "datetime" as const,
+          type: "datetime",
           selectedDataType: "temporal",
-          aggregate: "sum" as const,
+          aggregate: "sum",
         },
       },
     });
@@ -688,13 +800,19 @@ describe("getColorEncoding", () => {
   it("should handle string aggregation functions", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
         colorByColumn: {
           field: "category",
-          type: "string" as const,
+          type: "string",
           selectedDataType: "string",
-          aggregate: "count" as const,
+          aggregate: "count",
         },
       },
     });
@@ -711,13 +829,19 @@ describe("getColorEncoding", () => {
   it("should return undefined for invalid string aggregation", () => {
     const result = getColorEncoding(ChartType.BAR, {
       general: {
-        xColumn: { field: "x", type: "string" as const },
-        yColumn: { field: "y", type: "number" as const },
+        xColumn: {
+          field: "x",
+          type: "string",
+        },
+        yColumn: {
+          field: "y",
+          type: "number",
+        },
         colorByColumn: {
           field: "category",
-          type: "string" as const,
+          type: "string",
           selectedDataType: "string",
-          aggregate: "sum" as const, // sum is not valid for strings
+          aggregate: "sum", // sum is not valid for string
         },
       },
     });
@@ -739,7 +863,7 @@ describe("getAggregate", () => {
   });
 
   it("should return undefined for NONE_VALUE", () => {
-    const result = getAggregate("none", "number");
+    const result = getAggregate(NONE_VALUE, "number");
     expect(result).toBeUndefined();
   });
 
@@ -841,6 +965,13 @@ describe("getBinEncoding", () => {
   it("should return undefined when binValues is undefined", () => {
     const result = getBinEncoding(ChartType.BAR, "number");
     expect(result).toBeUndefined();
+  });
+
+  it("should return defaultBinValues when binValues is undefined", () => {
+    const result = getBinEncoding(ChartType.BAR, "number", undefined, {
+      step: 10,
+    });
+    expect(result).toEqual({ step: 10 });
   });
 
   it("should handle zero values for step and maxbins", () => {

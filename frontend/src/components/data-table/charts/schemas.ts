@@ -6,7 +6,11 @@
 
 import { z } from "zod";
 import { DATA_TYPES } from "@/core/kernel/messages";
-import { DEFAULT_COLOR_SCHEME, EMPTY_VALUE } from "./constants";
+import {
+  DEFAULT_COLOR_SCHEME,
+  DEFAULT_MAX_BINS_FACET,
+  EMPTY_VALUE,
+} from "./constants";
 import {
   AGGREGATION_FNS,
   COLOR_BY_FIELDS,
@@ -35,14 +39,15 @@ export const AxisSchema = BaseColumnSchema.extend({
 });
 
 export const RowFacet = BaseColumnSchema.extend({
-  linkYAxis: z.boolean().default(true).optional(),
-  binned: z.boolean().default(true).optional(),
-  maxbins: z.number().optional(),
+  linkYAxis: z.boolean().default(true),
+  binned: z.boolean().default(true),
+  maxbins: z.number().default(DEFAULT_MAX_BINS_FACET),
 });
+
 export const ColumnFacet = BaseColumnSchema.extend({
-  linkXAxis: z.boolean().default(true).optional(),
-  binned: z.boolean().default(true).optional(),
-  maxbins: z.number().optional(),
+  linkXAxis: z.boolean().default(true),
+  binned: z.boolean().default(true),
+  maxbins: z.number().default(DEFAULT_MAX_BINS_FACET),
 });
 
 export const ChartSchema = z.object({
@@ -78,10 +83,7 @@ export const ChartSchema = z.object({
     .optional(),
   color: z
     .object({
-      field: z
-        .enum([...COLOR_BY_FIELDS, NONE_VALUE])
-        .default(NONE_VALUE)
-        .optional(),
+      field: z.enum([...COLOR_BY_FIELDS, NONE_VALUE]).default(NONE_VALUE),
       scheme: z.string().default(DEFAULT_COLOR_SCHEME).optional(),
       range: z.array(z.string()).optional(),
       domain: z.array(z.string()).optional(),
@@ -91,7 +93,7 @@ export const ChartSchema = z.object({
   style: z
     .object({
       innerRadius: z.number().optional(),
-      gridLines: z.boolean().default(false).optional(),
+      gridLines: z.boolean().default(false),
     })
     .optional(),
   tooltips: z
@@ -109,3 +111,33 @@ export const ChartSchema = z.object({
 });
 
 export type ChartSchemaType = z.infer<typeof ChartSchema>;
+
+export function getChartDefaults(): ChartSchemaType {
+  return {
+    general: {
+      facet: {
+        row: {
+          linkYAxis: true,
+          binned: true,
+          maxbins: DEFAULT_MAX_BINS_FACET,
+        },
+        column: {
+          linkXAxis: true,
+          binned: true,
+          maxbins: DEFAULT_MAX_BINS_FACET,
+        },
+      },
+    },
+    color: {
+      field: NONE_VALUE,
+      scheme: "default",
+    },
+    style: {
+      gridLines: false,
+    },
+    tooltips: {
+      auto: true,
+      fields: [],
+    },
+  };
+}

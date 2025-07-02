@@ -90,8 +90,8 @@ export const VALID_AGGREGATION_FNS = [
 ];
 export const AGGREGATION_FNS = [
   NONE_VALUE,
-  ...VALID_AGGREGATION_FNS,
   BIN_AGGREGATION,
+  ...VALID_AGGREGATION_FNS,
 ] as const;
 export type AggregationFn = (typeof AGGREGATION_FNS)[number];
 export type ValidAggregationFn = (typeof VALID_AGGREGATION_FNS)[number];

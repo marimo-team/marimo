@@ -30,6 +30,7 @@ import type {
 export const COUNT_FIELD = "__count__";
 export const DEFAULT_COLOR_SCHEME = "default";
 export const DEFAULT_TIME_UNIT = "yearmonthdate";
+export const DEFAULT_MAX_BINS_FACET = 6;
 
 // Set a field to this to reflect that it is not set
 export const EMPTY_VALUE = "";

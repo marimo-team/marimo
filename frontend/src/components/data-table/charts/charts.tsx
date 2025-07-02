@@ -8,8 +8,8 @@ import {
   ChevronRightIcon,
   CodeIcon,
   DatabaseIcon,
+  InfoIcon,
   PaintRollerIcon,
-  TableIcon,
   XIcon,
 } from "lucide-react";
 import type { JSX } from "react";
@@ -17,10 +17,10 @@ import React, { useMemo, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
-import { getDefaults } from "@/components/forms/form-utils";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
@@ -43,7 +43,7 @@ import { CommonChartForm, StyleForm } from "./forms/common-chart";
 import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
 import { LazyChart } from "./lazy-chart";
-import { ChartSchema, type ChartSchemaType } from "./schemas";
+import { ChartSchema, type ChartSchemaType, getChartDefaults } from "./schemas";
 import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
 import { ChartType } from "./types";
 
@@ -88,7 +88,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       {
         tabName,
         chartType: NEW_CHART_TYPE,
-        config: getDefaults(ChartSchema),
+        config: getChartDefaults(),
       },
     ]);
 
@@ -166,7 +166,6 @@ export const TablePanel: React.FC<TablePanelProps> = ({
           value={DEFAULT_TAB_NAME}
           onClick={() => setSelectedTab(DEFAULT_TAB_NAME)}
         >
-          <TableIcon className="w-3 h-3 mr-2" />
           Table
         </TabsTrigger>
         {tabs.map((tab, idx) => (
@@ -240,7 +239,7 @@ export const ChartPanel: React.FC<{
 }) => {
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
-    defaultValues: chartConfig ?? getDefaults(ChartSchema),
+    defaultValues: chartConfig ?? getChartDefaults(),
     resolver: zodResolver(ChartSchema),
   });
 
@@ -316,28 +315,33 @@ export const ChartPanel: React.FC<{
 
     return (
       <Tabs defaultValue="chart">
-        <TabsList>
-          <TabsTrigger value="chart" className="h-6">
-            <ChartColumnIcon className="text-muted-foreground mr-2 w-4 h-4" />
-            Chart
-          </TabsTrigger>
-          <TabsTrigger value="code" className="h-6">
-            <PythonIcon className="text-muted-foreground mr-2" />
-            Python code
-          </TabsTrigger>
-          {developmentMode && (
-            <>
-              <TabsTrigger value="formValues" className="h-6">
-                <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
-                Form values (debug)
-              </TabsTrigger>
-              <TabsTrigger value="vegaSpec" className="h-6">
-                <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
-                Vega spec (debug)
-              </TabsTrigger>
-            </>
-          )}
-        </TabsList>
+        <div className="flex flex-row gap-1.5 items-center">
+          <TabsList>
+            <TabsTrigger value="chart" className="h-6">
+              <ChartColumnIcon className="text-muted-foreground mr-2 w-4 h-4" />
+              Chart
+            </TabsTrigger>
+            <TabsTrigger value="code" className="h-6">
+              <PythonIcon className="text-muted-foreground mr-2" />
+              Python code
+            </TabsTrigger>
+            {developmentMode && (
+              <>
+                <TabsTrigger value="formValues" className="h-6">
+                  <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+                  Form values (debug)
+                </TabsTrigger>
+                <TabsTrigger value="vegaSpec" className="h-6">
+                  <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+                  Vega spec (debug)
+                </TabsTrigger>
+              </>
+            )}
+          </TabsList>
+          <Tooltip content="Charts are saved in local storage but as it remains experimental, we encourage saving the generated Python code in a new cell">
+            <InfoIcon className="w-4 h-4 text-muted-foreground" />
+          </Tooltip>
+        </div>
 
         <TabsContent value="chart" ref={chartContainerRef}>
           {memoizedChart}
@@ -446,7 +450,7 @@ const ChartFormContainer = ({
   }
 
   return (
-    <ChartFormContext value={{ fields, saveForm: debouncedSave }}>
+    <ChartFormContext value={{ fields, saveForm: debouncedSave, chartType }}>
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
           <Tabs defaultValue="data">
