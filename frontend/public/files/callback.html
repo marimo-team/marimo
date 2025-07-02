@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Callback Handler</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 50px;
+        background-color: #f5f5f5;
+      }
+      .message {
+        color: #333;
+        font-size: 18px;
+        margin: 20px 0;
+      }
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #f38020;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 2s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="content">
+      <div class="spinner"></div>
+      <div class="message">Processing callback...</div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const content = document.createElement('div');
+      const header = document.createElement('h3');
+      // Use message if it exists, otherwise use a default header
+      header.textContent = params.get('message') || 'Callback Handler';
+      content.appendChild(header);
+
+      const updates = document.createElement('ul');
+      params.forEach((value, key) => {
+        // Possible malicious localstore injection could effect scratchpad,
+        // chat, and potentially other features.
+        if (!key.startsWith('__')) {
+          // so non-__ prefixed keys are not stored
+          return;
+        }
+        const decodedValue = decodeURIComponent(value);
+        localStorage.setItem(key, decodedValue);
+
+        const listItem = document.createElement('li');
+        listItem.textContent = `${key}: ${decodedValue}`;
+        updates.appendChild(listItem);
+      });
+      content.appendChild(updates);
+      document.getElementById('content').replaceWith(content);
+    </script>
+  </body>
+</html>
