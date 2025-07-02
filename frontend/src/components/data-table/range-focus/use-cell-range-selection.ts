@@ -2,7 +2,7 @@
 
 import type { Cell, Table } from "@tanstack/react-table";
 import useEvent from "react-use-event-hook";
-import { isCopyKey } from "@/components/editor/controls/utils";
+import { copyShortcutPressed } from "@/components/editor/controls/utils";
 import { type SelectedCell, useCellSelectionReducerActions } from "./atoms";
 
 export interface UseCellRangeSelectionProps<TData> {
@@ -48,7 +48,7 @@ export const useCellRangeSelection = <TData>({
   const handleCellsKeyDown = useEvent((e: React.KeyboardEvent<HTMLElement>) => {
     switch (e.key) {
       case "c":
-        if (isCopyKey(e)) {
+        if (copyShortcutPressed(e)) {
           handleCopy();
         }
         break;
