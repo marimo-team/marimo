@@ -13,6 +13,10 @@ function getBaseUriWithoutQueryParams(): string {
   return url.toString();
 }
 
+function withTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url : `${url}/`;
+}
+
 /**
  * Wrapper around fetch that adds XSRF token and session ID to the request and
  * strong types.
@@ -26,7 +30,10 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
+    const baseUrl = withTrailingSlash(
+      opts.baseUrl ?? getBaseUriWithoutQueryParams(),
+    );
+    // Ensure the URL ends with a slash
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "POST",
@@ -65,7 +72,9 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
+    const baseUrl = withTrailingSlash(
+      opts.baseUrl ?? getBaseUriWithoutQueryParams(),
+    );
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "GET",
