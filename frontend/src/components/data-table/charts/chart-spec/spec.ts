@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
 import type {
   ColorDef,
@@ -286,7 +285,7 @@ function getBaseSpec(
 
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    background: theme === "dark" ? "dark" : slate.slate2,
+    background: theme === "dark" ? "dark" : "white",
     title: title,
     data: { values: [] },
     height: formValues.yAxis?.height ?? height,
