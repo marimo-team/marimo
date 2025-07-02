@@ -582,7 +582,6 @@ def test_cli_sandbox_edit_new_file() -> None:
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_edit_not_supported() -> None:
     port = _get_port()
-    d = tempfile.TemporaryDirectory()
     p = subprocess.Popen(
         [
             "marimo",
