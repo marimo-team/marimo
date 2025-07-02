@@ -3,11 +3,10 @@
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
-import { getSessionId, type SessionId } from "../kernel/session";
-import type { RuntimeConfig } from "./types";
-
 import { isIslands } from "../islands/utils";
+import { getSessionId, type SessionId } from "../kernel/session";
 import { isWasm } from "../wasm/utils";
+import type { RuntimeConfig } from "./types";
 
 export class RuntimeManager {
   private initialHealthyCheck = new Deferred<void>();
