@@ -134,7 +134,7 @@ docs = [
     "mkdocs-redirects>=1.2.2",
     "mkdocs-click>=0.8.1",
     "mike>=2.0.0",  # for versioning
-    "pillow>=10.2.0",  # for social cards
+    "pillow>=10.2.0,!=11.3.0",  # for social cards, 11.3.0 doesn't have manylinux wheels
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
