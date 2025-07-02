@@ -31,6 +31,7 @@ export const addMessageToChat = (
 
   // Create copy of chats to modify
   const newChats = [...chatState.chats];
+  const CURRENT_TIMESTAMP = Date.now();
 
   if (messageIndex === -1) {
     // Handle new message
@@ -42,11 +43,11 @@ export const addMessageToChat = (
           id: messageId,
           role,
           content,
-          timestamp: Date.now(),
+          timestamp: CURRENT_TIMESTAMP,
           parts,
         },
       ],
-      updatedAt: Date.now(),
+      updatedAt: CURRENT_TIMESTAMP,
     };
   } else {
     // Handle update message
@@ -59,7 +60,7 @@ export const addMessageToChat = (
     newChats[activeChatIndex] = {
       ...chat,
       messages: newMessages,
-      updatedAt: Date.now(),
+      updatedAt: CURRENT_TIMESTAMP,
     };
   }
 
