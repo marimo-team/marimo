@@ -63,4 +63,18 @@ describe("API", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("API.post handles base URL with trailing slash correctly", async () => {
+    baseUrl = "http://example.com/e/";
+    mockFetch.mockResolvedValue({
+      ok: true,
+      headers: { get: () => "application/json" },
+      json: () => Promise.resolve({ ok: true }),
+    });
+    await API.post("/foo", { bar: 1 });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://example.com/e/api/foo",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

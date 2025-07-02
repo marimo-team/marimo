@@ -2,6 +2,7 @@
 
 import { createMarimoClient } from "@marimo-team/marimo-api";
 import { Logger } from "../../utils/Logger";
+import { Strings } from "../../utils/strings";
 import { getRuntimeManager } from "../runtime/config";
 import type { RuntimeManager } from "../runtime/runtime";
 
@@ -11,10 +12,6 @@ function getBaseUriWithoutQueryParams(): string {
   url.search = "";
   url.hash = "";
   return url.toString();
-}
-
-function withTrailingSlash(url: string): string {
-  return url.endsWith("/") ? url : `${url}/`;
 }
 
 /**
@@ -30,10 +27,9 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = withTrailingSlash(
+    const baseUrl = Strings.withTrailingSlash(
       opts.baseUrl ?? getBaseUriWithoutQueryParams(),
     );
-    // Ensure the URL ends with a slash
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "POST",
@@ -72,7 +68,7 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = withTrailingSlash(
+    const baseUrl = Strings.withTrailingSlash(
       opts.baseUrl ?? getBaseUriWithoutQueryParams(),
     );
     const fullUrl = `${baseUrl}api${url}`;
