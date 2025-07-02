@@ -3,7 +3,9 @@
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
+import { isIslands } from "../islands/utils";
 import { getSessionId, type SessionId } from "../kernel/session";
+import { isWasm } from "../wasm/utils";
 import type { RuntimeConfig } from "./types";
 
 export class RuntimeManager {
@@ -155,6 +157,11 @@ export class RuntimeManager {
   }
 
   async isHealthy(): Promise<boolean> {
+    // Always healthy if WASM
+    if (isWasm() || isIslands()) {
+      return true;
+    }
+
     try {
       const response = await fetch(this.healthURL().toString());
       // If there is a redirect, update the URL in the config
