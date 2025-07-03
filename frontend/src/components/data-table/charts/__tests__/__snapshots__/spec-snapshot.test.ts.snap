@@ -3,7 +3,7 @@
 exports[`create vega spec > should create and augment a spec 1`] = `
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-  "background": "#f9f9fb",
+  "background": "white",
   "config": {
     "axis": {
       "grid": false,
