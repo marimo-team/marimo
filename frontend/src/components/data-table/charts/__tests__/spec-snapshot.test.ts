@@ -9,7 +9,7 @@ import {
   Y_AXIS_REQUIRED,
 } from "../chart-spec/spec";
 import type { ChartSchemaType } from "../schemas";
-import { ChartType, NONE_AGGREGATION } from "../types";
+import { ChartType, NONE_VALUE } from "../types";
 
 describe("create vega spec", () => {
   // Sample data for testing
@@ -33,7 +33,7 @@ describe("create vega spec", () => {
       yColumn: {
         field: "value",
         type: "number" as const,
-        aggregate: NONE_AGGREGATION,
+        aggregate: NONE_VALUE,
       },
     },
   });

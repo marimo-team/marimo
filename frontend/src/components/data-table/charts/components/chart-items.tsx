@@ -17,10 +17,21 @@ import type { DataType } from "@/core/kernel/messages";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { isFieldSet } from "../chart-spec/spec";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
-import { CHART_TYPE_ICON, COUNT_FIELD, type EMPTY_VALUE } from "../constants";
+import {
+  CHART_TYPE_ICON,
+  COUNT_FIELD,
+  DEFAULT_AGGREGATION,
+  DEFAULT_MAX_BINS_FACET,
+  type EMPTY_VALUE,
+} from "../constants";
 import { useChartFormContext } from "../context";
 import type { ChartSchema } from "../schemas";
-import { CHART_TYPES, type ChartType, type SelectableDataType } from "../types";
+import {
+  type AggregationFn,
+  CHART_TYPES,
+  ChartType,
+  type SelectableDataType,
+} from "../types";
 import {
   AggregationSelect,
   BinFields,
@@ -40,6 +51,13 @@ type FieldDataType = DataType | typeof EMPTY_VALUE;
 // Utility functions for field type checking
 function isNonCountField(field?: { field?: string }) {
   return isFieldSet(field?.field) && field?.field !== COUNT_FIELD;
+}
+
+function isStringField(field?: {
+  field?: string;
+  selectedDataType?: SelectedDataType;
+}) {
+  return field?.selectedDataType === "string" && isNonCountField(field);
 }
 
 function isNumberField(field?: {
@@ -85,9 +103,16 @@ const ColumnSelectorWithAggregation: React.FC<{
     type?: FieldDataType;
     selectedDataType?: SelectedDataType;
   };
+  defaultAggregation?: AggregationFn;
   columns: Array<{ name: string; type: DataType }>;
   binFieldName: FieldName;
-}> = ({ columnFieldName, column, columns, binFieldName }) => {
+}> = ({
+  columnFieldName,
+  column,
+  columns,
+  binFieldName,
+  defaultAggregation,
+}) => {
   const { selectedDataType } = getColumnDataTypes(column);
 
   return (
@@ -100,6 +125,7 @@ const ColumnSelectorWithAggregation: React.FC<{
           }
           selectedDataType={selectedDataType}
           binFieldName={binFieldName}
+          defaultAggregation={defaultAggregation}
         />
       )}
     </div>
@@ -167,6 +193,11 @@ export const XAxis: React.FC = () => {
   const xColumn = formValues.general?.xColumn;
   const { inferredDataType } = getColumnDataTypes(xColumn);
 
+  const allowSorting =
+    context.chartType === ChartType.LINE ||
+    context.chartType === ChartType.BAR ||
+    context.chartType === ChartType.AREA;
+
   return (
     <FieldSection>
       <Title text="X-Axis" />
@@ -189,7 +220,7 @@ export const XAxis: React.FC = () => {
           label="Time Resolution"
         />
       )}
-      {isNonCountField(xColumn) && (
+      {isNonCountField(xColumn) && allowSorting && (
         <>
           <SortField
             fieldName="general.xColumn.sort"
@@ -214,6 +245,15 @@ export const YAxis: React.FC = () => {
   const xColumnExists = isFieldSet(xColumn?.field);
   const { inferredDataType } = getColumnDataTypes(yColumn);
 
+  let defaultAggregation: AggregationFn | undefined;
+  if (isNumberField(yColumn)) {
+    // Set default for perf reasons
+    defaultAggregation = DEFAULT_AGGREGATION;
+  } else if (isStringField(yColumn)) {
+    // Y-columns tend to be measurements, so we default to count
+    defaultAggregation = "count";
+  }
+
   return (
     <FieldSection>
       <Title text="Y-Axis" />
@@ -222,6 +262,7 @@ export const YAxis: React.FC = () => {
         column={yColumn}
         columns={context.fields}
         binFieldName="yAxis.bin.binned"
+        defaultAggregation={defaultAggregation}
       />
 
       {isNonCountField(yColumn) && (
@@ -311,11 +352,13 @@ export const Facet: React.FC = () => {
                 <BooleanField
                   fieldName={`general.facet.${facet}.binned`}
                   label="Binned"
+                  defaultValue={true}
                 />
                 <NumberField
                   fieldName={`general.facet.${facet}.maxbins`}
                   label="Max Bins"
-                  placeholder="10"
+                  placeholder={DEFAULT_MAX_BINS_FACET.toString()}
+                  defaultValue={DEFAULT_MAX_BINS_FACET}
                 />
               </div>
             )}

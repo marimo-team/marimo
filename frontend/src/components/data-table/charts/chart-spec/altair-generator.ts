@@ -107,11 +107,16 @@ export function generateAltairChart(
     code = code.chain("resolve_scale", axisArgs);
   }
 
+  // TODO: Add layer support
+
   const propertiesArgs: Record<string, PythonCode> = {};
-  const propertiesKeys = ["title", "height", "width"];
+  const propertiesKeys = ["title", "height", "width", "config"];
   for (const key of propertiesKeys) {
     if (key in spec) {
-      propertiesArgs[key] = new Literal(spec[key as keyof VegaLiteSpec]);
+      const value = spec[key as keyof VegaLiteSpec];
+      if (value !== undefined) {
+        propertiesArgs[key] = new Literal(value);
+      }
     }
   }
 
@@ -137,6 +142,7 @@ export function generateAltairChartSnippet(
 ): string {
   const code = generateAltairChart(spec, datasource).toCode();
   return `
+# replace ${datasource} with your data source
 ${new VariableDeclaration(variableName, code).toCode()}
 ${variableName}
   `.trim();

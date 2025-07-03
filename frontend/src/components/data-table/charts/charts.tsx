@@ -4,20 +4,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
 import {
   ChartColumnIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CodeIcon,
   DatabaseIcon,
+  InfoIcon,
   PaintRollerIcon,
-  TableIcon,
   XIcon,
 } from "lucide-react";
 import type { JSX } from "react";
 import React, { useMemo, useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
+import useResizeObserver from "use-resize-observer";
 import { PythonIcon } from "@/components/editor/cell/code/icons";
-import { getDefaults } from "@/components/forms/form-utils";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
@@ -40,13 +43,13 @@ import { CommonChartForm, StyleForm } from "./forms/common-chart";
 import { HeatmapForm } from "./forms/heatmap";
 import { PieForm } from "./forms/pie";
 import { LazyChart } from "./lazy-chart";
-import { ChartSchema, type ChartSchemaType } from "./schemas";
+import { ChartSchema, type ChartSchemaType, getChartDefaults } from "./schemas";
 import { getChartTabName, type TabName, tabsStorageAtom } from "./storage";
 import { ChartType } from "./types";
 
 const NEW_CHART_TYPE = "bar" as ChartType;
 const DEFAULT_TAB_NAME = "table" as TabName;
-const CHART_HEIGHT = 300;
+const CHART_HEIGHT = 290;
 
 export interface TablePanelProps {
   cellId: CellId | null;
@@ -85,7 +88,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       {
         tabName,
         chartType: NEW_CHART_TYPE,
-        config: getDefaults(ChartSchema),
+        config: getChartDefaults(),
       },
     ]);
 
@@ -163,7 +166,6 @@ export const TablePanel: React.FC<TablePanelProps> = ({
           value={DEFAULT_TAB_NAME}
           onClick={() => setSelectedTab(DEFAULT_TAB_NAME)}
         >
-          <TableIcon className="w-3 h-3 mr-2" />
           Table
         </TabsTrigger>
         {tabs.map((tab, idx) => (
@@ -237,12 +239,15 @@ export const ChartPanel: React.FC<{
 }) => {
   const { theme } = useTheme();
   const form = useForm<ChartSchemaType>({
-    defaultValues: chartConfig ?? getDefaults(ChartSchema),
+    defaultValues: chartConfig ?? getChartDefaults(),
     resolver: zodResolver(ChartSchema),
   });
 
   const [selectedChartType, setSelectedChartType] =
     useState<ChartType>(chartType);
+  const [formCollapsed, setFormCollapsed] = useState(false);
+
+  const { ref: chartContainerRef } = useResizeObserver();
 
   const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl) {
@@ -303,37 +308,44 @@ export const ChartPanel: React.FC<{
     if (typeof specWithoutData !== "string") {
       altairCodeSnippet = generateAltairChartSnippet(
         specWithoutData,
-        "df",
+        "_df",
         "_chart",
       );
     }
 
     return (
       <Tabs defaultValue="chart">
-        <TabsList>
-          <TabsTrigger value="chart" className="h-6">
-            <ChartColumnIcon className="text-muted-foreground mr-2 w-4 h-4" />
-            Chart
-          </TabsTrigger>
-          <TabsTrigger value="code" className="h-6">
-            <PythonIcon className="text-muted-foreground mr-2" />
-            Python code
-          </TabsTrigger>
-          {developmentMode && (
-            <>
-              <TabsTrigger value="formValues" className="h-6">
-                <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
-                Form values (debug)
-              </TabsTrigger>
-              <TabsTrigger value="vegaSpec" className="h-6">
-                <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
-                Vega spec (debug)
-              </TabsTrigger>
-            </>
-          )}
-        </TabsList>
+        <div className="flex flex-row gap-1.5 items-center">
+          <TabsList>
+            <TabsTrigger value="chart" className="h-6">
+              <ChartColumnIcon className="text-muted-foreground mr-2 w-4 h-4" />
+              Chart
+            </TabsTrigger>
+            <TabsTrigger value="code" className="h-6">
+              <PythonIcon className="text-muted-foreground mr-2" />
+              Python code
+            </TabsTrigger>
+            {developmentMode && (
+              <>
+                <TabsTrigger value="formValues" className="h-6">
+                  <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+                  Form values (debug)
+                </TabsTrigger>
+                <TabsTrigger value="vegaSpec" className="h-6">
+                  <CodeIcon className="text-muted-foreground mr-2 w-4 h-4" />
+                  Vega spec (debug)
+                </TabsTrigger>
+              </>
+            )}
+          </TabsList>
+          <Tooltip content="Charts are saved in local storage but as it remains experimental, we encourage saving the generated Python code in a new cell">
+            <InfoIcon className="w-4 h-4 text-muted-foreground" />
+          </Tooltip>
+        </div>
 
-        <TabsContent value="chart">{memoizedChart}</TabsContent>
+        <TabsContent value="chart" ref={chartContainerRef}>
+          {memoizedChart}
+        </TabsContent>
         <TabsContent value="code">
           <CodeSnippet code={altairCodeSnippet} language="python" />
         </TabsContent>
@@ -357,23 +369,44 @@ export const ChartPanel: React.FC<{
     );
   };
 
+  const chartForm = (
+    <>
+      <ChartTypeSelect
+        value={selectedChartType}
+        onValueChange={(value) => {
+          setSelectedChartType(value);
+          saveChartType(value);
+        }}
+      />
+
+      <ChartFormContainer
+        form={form}
+        saveChart={saveChart}
+        fieldTypes={fieldTypes}
+        chartType={selectedChartType}
+      />
+    </>
+  );
+
   return (
     <div className="flex flex-row gap-2 h-full rounded-md border pr-2">
-      <div className="flex flex-col gap-2 w-[300px] overflow-auto px-2 py-3 scrollbar-thin">
-        <ChartTypeSelect
-          value={selectedChartType}
-          onValueChange={(value) => {
-            setSelectedChartType(value);
-            saveChartType(value);
-          }}
-        />
-
-        <ChartFormContainer
-          form={form}
-          saveChart={saveChart}
-          fieldTypes={fieldTypes}
-          chartType={selectedChartType}
-        />
+      <div
+        className={`relative flex flex-col gap-2 overflow-auto px-2 py-3 scrollbar-thin transition-width duration-200 ${formCollapsed ? "w-8" : "w-[300px]"}`}
+      >
+        {!formCollapsed && chartForm}
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute bottom-1 right-1 border-border"
+          onClick={() => setFormCollapsed((prev) => !prev)}
+          title={formCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {formCollapsed ? (
+            <ChevronRightIcon className="w-4 h-4" />
+          ) : (
+            <ChevronLeftIcon className="w-4 h-4" />
+          )}
+        </Button>
       </div>
       <div className="flex-1 overflow-auto h-full w-full mt-3">
         {renderChartDisplay()}
@@ -417,7 +450,7 @@ const ChartFormContainer = ({
   }
 
   return (
-    <ChartFormContext value={{ fields, saveForm: debouncedSave }}>
+    <ChartFormContext value={{ fields, saveForm: debouncedSave, chartType }}>
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()} onChange={debouncedSave}>
           <Tabs defaultValue="data">

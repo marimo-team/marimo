@@ -24,6 +24,7 @@ import {
 import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME } from "../constants";
 import { useChartFormContext } from "../context";
 import type { ChartSchemaType } from "../schemas";
+import { ChartType, COLOR_BY_FIELDS, NONE_VALUE } from "../types";
 
 export const CommonChartForm: React.FC = () => {
   const form = useFormContext<ChartSchemaType>();
@@ -33,7 +34,12 @@ export const CommonChartForm: React.FC = () => {
   const groupByColumn = formValues.general?.colorByColumn;
 
   const yColumnExists = isFieldSet(yColumn?.field);
-  const showStacking = isFieldSet(groupByColumn?.field);
+
+  const { chartType } = useChartFormContext();
+
+  const showStacking =
+    isFieldSet(groupByColumn?.field) &&
+    (chartType === ChartType.BAR || chartType === ChartType.LINE);
 
   return (
     <>
@@ -58,6 +64,8 @@ export const CommonChartForm: React.FC = () => {
 };
 
 export const StyleForm: React.FC = () => {
+  const { chartType } = useChartFormContext();
+
   return (
     <Accordion type="multiple">
       <AccordionFormItem value="general">
@@ -66,6 +74,11 @@ export const StyleForm: React.FC = () => {
         </AccordionFormTrigger>
         <AccordionFormContent>
           <InputField label="Plot title" fieldName="general.title" />
+          <BooleanField
+            fieldName="style.gridLines"
+            label="Show grid lines"
+            defaultValue={chartType === ChartType.SCATTER}
+          />
         </AccordionFormContent>
       </AccordionFormItem>
 
@@ -107,6 +120,15 @@ export const StyleForm: React.FC = () => {
         </AccordionFormTrigger>
         <AccordionFormContent>
           <SelectField
+            fieldName="color.field"
+            label="Field"
+            options={COLOR_BY_FIELDS.map((field) => ({
+              display: capitalize(field),
+              value: field,
+            }))}
+            defaultValue={NONE_VALUE}
+          />
+          <SelectField
             fieldName="color.scheme"
             label="Color scheme"
             defaultValue={DEFAULT_COLOR_SCHEME}
@@ -137,7 +159,10 @@ export const OtherOptions: React.FC = () => {
     <Accordion type="multiple">
       <AccordionFormItem value="facet">
         <AccordionFormTrigger className="pt-0">
-          <Title text="Faceting" />
+          <Title
+            text="Faceting"
+            tooltip="Repeat the chart for each unique field value"
+          />
         </AccordionFormTrigger>
         <AccordionFormContent>
           <Facet />
@@ -149,7 +174,10 @@ export const OtherOptions: React.FC = () => {
           <Title text="Tooltips" />
         </AccordionFormTrigger>
         <AccordionFormContent wrapperClassName="flex-row justify-between">
-          <BooleanField fieldName="tooltips.auto" label="Auto" />
+          <BooleanField
+            fieldName="tooltips.auto"
+            label="Include X, Y and Color"
+          />
           {!autoTooltips && (
             <TooltipSelect
               fieldName="tooltips.fields"
