@@ -116,7 +116,7 @@ class StateRegistry:
                         del self._inv_states[id_key]
                 del self._states[state_key]
             else:
-                active_state_ids.add(self._states[state_key].id)
+                active_state_ids.add(id(self._states[state_key]))
 
         # Remove all non-active states by id
         for state_id in list(self._inv_states.keys()):

@@ -80,10 +80,7 @@ class DirectedGraph:
 
         This is a singleton for well-formed graphs.
         """
-        if name in self.definitions:
-            return self.definitions[name]
-        else:
-            return set()
+        return self.definitions[name]
 
     def get_referring_cells(
         self, name: Name, language: Literal["python", "sql"]
