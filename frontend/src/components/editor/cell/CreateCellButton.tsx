@@ -101,7 +101,7 @@ const CreateCellButtonContextMenu = (props: {
           key="markdown"
           onSelect={(evt) => {
             evt.stopPropagation();
-            maybeAddMarimoImport(true, createNewCell);
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
             onClick({ code: new MarkdownLanguageAdapter().defaultCode });
           }}
         >
@@ -114,7 +114,7 @@ const CreateCellButtonContextMenu = (props: {
           key="sql"
           onSelect={(evt) => {
             evt.stopPropagation();
-            maybeAddMarimoImport(true, createNewCell);
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
             onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >

@@ -273,7 +273,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport(autoInstantiate, createCell);
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           switchLanguage(editorView, "markdown", { keepCodeAsIs: false });
         },
       },
@@ -285,7 +285,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport(autoInstantiate, createCell);
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           switchLanguage(editorView, "sql", { keepCodeAsIs: false });
         },
       },
@@ -297,7 +297,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport(autoInstantiate, createCell);
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           toggleToLanguage(editorView, "python", { force: true });
         },
       },

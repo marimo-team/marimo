@@ -128,7 +128,10 @@ const CellEditorInternal = ({
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const afterToggleMarkdown = useEvent(() => {
-    maybeAddMarimoImport(autoInstantiate, cellActions.createNewCell);
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell: cellActions.createNewCell,
+    });
   });
 
   const aiEnabled = isAiEnabled(userConfig);

@@ -535,7 +535,11 @@ const DatasetTableItem: React.FC<{
   const { createNewCell } = useCellActions();
 
   const handleAddTable = () => {
-    maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell,
+      fromCellId: lastFocusedCellId,
+    });
     const getCode = () => {
       if (table.source_type === "catalog") {
         const identifier = sqlTableContext?.database
@@ -703,7 +707,11 @@ const DatasetColumnItem: React.FC<{
 
   const handleAddColumn = (chartCode: string) => {
     if (chartCode.includes("alt")) {
-      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+      maybeAddAltairImport({
+        autoInstantiate,
+        createNewCell,
+        fromCellId: lastFocusedCellId,
+      });
     }
     createNewCell({
       code: chartCode,
