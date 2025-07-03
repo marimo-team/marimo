@@ -5,7 +5,6 @@ import base64
 import json
 from typing import TYPE_CHECKING, Any, Literal, Union, cast
 
-from marimo import _loggers
 from marimo._ai._types import (
     ChatMessage,
     ReasoningPart,
@@ -13,9 +12,6 @@ from marimo._ai._types import (
     ToolInvocationPart,
 )
 from marimo._server.ai.tools import Tool
-
-LOGGER = _loggers.marimo_logger()
-
 
 if TYPE_CHECKING:
     from anthropic.types.message_param import (  # type: ignore[import-not-found]
