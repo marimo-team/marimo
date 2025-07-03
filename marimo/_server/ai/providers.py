@@ -79,7 +79,8 @@ FinishReason = Literal["tool_calls", "stop"]
 
 # Types for extract_content method return
 DictContent = tuple[
-    dict[str, Any], Literal["tool_call_start", "tool_call_end"]
+    dict[str, Any],
+    Literal["tool_call_start", "tool_call_end", "reasoning_signature"],
 ]
 TextContent = tuple[str, Literal["text", "reasoning", "tool_call_delta"]]
 ExtractedContent = Union[TextContent, DictContent]
@@ -90,7 +91,12 @@ FinishContent = tuple[FinishReason, Literal["finish_reason"]]
 StreamTextContent = tuple[str, Literal["text", "reasoning"]]
 StreamDictContent = tuple[
     dict[str, Any],
-    Literal["tool_call_start", "tool_call_end", "tool_call_delta"],
+    Literal[
+        "tool_call_start",
+        "tool_call_end",
+        "tool_call_delta",
+        "reasoning_signature",
+    ],
 ]
 StreamContent = Union[StreamTextContent, StreamDictContent, FinishContent]
 
@@ -276,6 +282,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
         if content_type in [
             "text",
             "reasoning",
+            "reasoning_signature",
             "tool_call_start",
             "tool_call_delta",
             "tool_call_end",
@@ -317,6 +324,8 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                 return (content_data, "tool_call_end")
             elif content_type == "tool_call_delta":
                 return (content_data, "tool_call_delta")
+            elif content_type == "reasoning_signature":
+                return (content_data, "reasoning_signature")
 
         # Fallback - convert to string content
         content_str = self._content_to_string(content_data)
@@ -732,6 +741,7 @@ class AnthropicProvider(
             InputJSONDelta,
             RawContentBlockDeltaEvent,
             RawContentBlockStartEvent,
+            SignatureDelta,
             TextDelta,
             ThinkingDelta,
             ToolUseBlock,
@@ -745,6 +755,11 @@ class AnthropicProvider(
                 return (response.delta.thinking, "reasoning")
             if isinstance(response.delta, InputJSONDelta):
                 return (response.delta.partial_json, "tool_call_delta")
+            if isinstance(response.delta, SignatureDelta):
+                return (
+                    {"signature": response.delta.signature},
+                    "reasoning_signature",
+                )
 
         # For the beginning of a tool use block
         if isinstance(response, RawContentBlockStartEvent):

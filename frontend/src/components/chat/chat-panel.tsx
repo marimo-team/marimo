@@ -18,7 +18,6 @@ import {
   memo,
   type SetStateAction,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -63,6 +62,7 @@ import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
+import { ToolCallAccordion } from "./tool-call-accordion";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -125,6 +125,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                     onClick={() => {
                       setActiveChat(chat.id);
                     }}
+                    type="button"
                   >
                     <div className="font-medium">{chat.title}</div>
                     <div className="text-sm text-muted-foreground">
@@ -182,7 +183,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
           />
         </div>
       ) : (
-        <div className="w-[95%]">
+        <div className="w-[95%] break-words">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={message.content} />
           </div>
@@ -198,8 +199,26 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
                     key={i}
                     index={i}
                     isStreaming={
-                      index === totalMessages - 1 && isStreamingReasoning
+                      index === totalMessages - 1 &&
+                      isStreamingReasoning &&
+                      // If there are multiple reasoning parts, only show the last one
+                      i === (message.parts?.length || 0) - 1
                     }
+                  />
+                );
+
+              case "tool-invocation":
+                return (
+                  <ToolCallAccordion
+                    key={i}
+                    index={i}
+                    toolName={part.toolInvocation.toolName}
+                    result={
+                      part.toolInvocation.state === "result"
+                        ? part.toolInvocation.result
+                        : null
+                    }
+                    state={part.toolInvocation.state}
                   />
                 );
 
@@ -283,11 +302,15 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             </SelectTrigger>
             <SelectContent>
               {modeOptions.map((option) => (
-                <SelectItem 
+                <SelectItem
                   key={option.value}
-                  value={option.value} 
-                  className="text-xs" 
-                  subtitle={<div className="text-muted-foreground text-xs pl-2">{option.subtitle}</div>}
+                  value={option.value}
+                  className="text-xs"
+                  subtitle={
+                    <div className="text-muted-foreground text-xs pl-2">
+                      {option.subtitle}
+                    </div>
+                  }
                 >
                   {option.label}
                 </SelectItem>
@@ -429,16 +452,7 @@ const ChatPanelBody = () => {
   } = useChat({
     id: activeChat?.id,
     maxSteps: 10,
-    initialMessages: useMemo(() => {
-      return activeChat
-        ? activeChat.messages.map(({ role, content, timestamp, parts }) => ({
-            role,
-            content,
-            id: timestamp.toString(),
-            parts,
-          }))
-        : [];
-    }, [activeChat]),
+    initialMessages: activeChat?.messages || [],
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
     // experimental_throttle: 100,
@@ -454,15 +468,16 @@ const ChatPanelBody = () => {
       };
     },
     onFinish: (message) => {
-      setChatState((prev) =>
-        addMessageToChat(
+      setChatState((prev) => {
+        return addMessageToChat(
           prev,
           prev.activeChatId,
+          message.id,
           "assistant",
           message.content,
           message.parts,
-        ),
-      );
+        );
+      });
     },
     onToolCall: async ({ toolCall }) => {
       try {
@@ -487,6 +502,51 @@ const ChatPanelBody = () => {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  // Sync user messages from useChat to storage when they become available
+  useEffect(() => {
+    if (!chatState.activeChatId || messages.length === 0) {
+      return;
+    }
+
+    // Only sync if the last message is from a user
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role !== "user") {
+      return;
+    }
+
+    const currentChat = chatState.chats.find(
+      (c) => c.id === chatState.activeChatId,
+    );
+    if (!currentChat) {
+      return;
+    }
+
+    const storedMessageIds = new Set(currentChat.messages.map((m) => m.id));
+
+    // Find user messages from useChat that aren't in storage yet
+    const missingUserMessages = messages.filter(
+      (m) => m.role === "user" && !storedMessageIds.has(m.id),
+    );
+
+    if (missingUserMessages.length > 0) {
+      setChatState((prev) => {
+        let result = prev;
+
+        for (const userMessage of missingUserMessages) {
+          result = addMessageToChat(
+            result,
+            prev.activeChatId,
+            userMessage.id,
+            "user",
+            userMessage.content,
+          );
+        }
+
+        return result;
+      });
+    }
+  }, [messages, chatState.activeChatId, chatState.chats, setChatState]);
 
   const isLastMessageReasoning = (messages: Message[]): boolean => {
     if (messages.length === 0) {
@@ -529,6 +589,7 @@ const ChatPanelBody = () => {
   }, [chatState.activeChatId]);
 
   const createNewThread = (initialMessage: string) => {
+    const CURRENT_TIME = Date.now();
     const newChat: Chat = {
       id: generateUUID(),
       title:
@@ -536,20 +597,28 @@ const ChatPanelBody = () => {
           ? `${initialMessage.slice(0, 50)}...`
           : initialMessage,
       messages: [], // Don't pre-populate - let useChat handle it and sync back
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: CURRENT_TIME,
+      updatedAt: CURRENT_TIME,
     };
 
-    setChatState((prev) => ({
-      chats: [...prev.chats, newChat],
-      activeChatId: newChat.id,
-    }));
+    // Create new chat and set as active
+    setChatState((prev) => {
+      const newState = {
+        ...prev,
+        chats: [...prev.chats, newChat],
+        activeChatId: newChat.id,
+      };
+      return newState;
+    });
 
-    setInput("");
+    // Trigger AI conversation with append
+    const MESSAGE_ID = generateUUID();
     append({
+      id: MESSAGE_ID,
       role: "user",
       content: initialMessage,
     });
+    setInput("");
   };
 
   const handleNewChat = () => {
@@ -576,16 +645,10 @@ const ChatPanelBody = () => {
       }));
     }
 
-    // Add user message to useChat and storage
     append({
       role: "user",
       content: newValue,
     });
-    if (chatState.activeChatId) {
-      setChatState((prev) =>
-        addMessageToChat(prev, chatState.activeChatId, "user", newValue),
-      );
-    }
   };
 
   const handleChatInputSubmit = (
@@ -596,11 +659,6 @@ const ChatPanelBody = () => {
       return;
     }
     handleSubmit(e);
-    if (chatState.activeChatId) {
-      setChatState((prev) =>
-        addMessageToChat(prev, chatState.activeChatId, "user", newValue),
-      );
-    }
   };
 
   const handleReload = () => {

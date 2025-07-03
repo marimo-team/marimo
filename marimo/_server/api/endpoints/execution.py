@@ -366,15 +366,15 @@ async def takeover_endpoint(
 ) -> JSONResponse:
     """
     responses:
-    200:
-        description: Successfully closed existing sessions
-        content:
-            application/json:
-                schema:
-                    type: object
-                    properties:
-                        status:
-                            type: string
+        200:
+            description: Successfully closed existing sessions
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            status:
+                                type: string
     """
     app_state = AppState(request)
 

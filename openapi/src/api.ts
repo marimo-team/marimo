@@ -2033,7 +2033,19 @@ export interface paths {
         cookie?: never;
       };
       requestBody?: never;
-      responses: never;
+      responses: {
+        /** @description Successfully closed existing sessions */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              status?: string;
+            };
+          };
+        };
+      };
     };
     delete?: never;
     options?: never;
@@ -2643,6 +2655,12 @@ export interface components {
                   type: "text";
                 }
               | {
+                  details: {
+                    signature?: string | null;
+                    text: string;
+                    /** @enum {string} */
+                    type: "text";
+                  }[];
                   reasoning: string;
                   /** @enum {string} */
                   type: "reasoning";

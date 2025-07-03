@@ -246,6 +246,23 @@ components:
                     - text
                     type: object
                   - properties:
+                      details:
+                        items:
+                          properties:
+                            signature:
+                              nullable: true
+                              type: string
+                            text:
+                              type: string
+                            type:
+                              enum:
+                              - text
+                              type: string
+                          required:
+                          - type
+                          - text
+                          type: object
+                        type: array
                       reasoning:
                         type: string
                       type:
@@ -255,6 +272,7 @@ components:
                     required:
                     - type
                     - reasoning
+                    - details
                     type: object
                   - properties:
                       toolInvocation:
@@ -2701,7 +2719,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.7
+  version: 0.14.8
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3407,16 +3425,16 @@ paths:
           description: Sync cell ids
   /api/kernel/takeover:
     post:
-      responses: null
-      200:
-        content:
-          application/json:
-            schema:
-              properties:
-                status:
-                  type: string
-              type: object
-        description: Successfully closed existing sessions
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: string
+                type: object
+          description: Successfully closed existing sessions
   /api/packages/add:
     post:
       requestBody:

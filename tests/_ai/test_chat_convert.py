@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 
 import pytest
 
@@ -13,10 +14,18 @@ from marimo._ai._convert import (
     convert_to_groq_messages,
     convert_to_openai_messages,
     convert_to_openai_tools,
+    get_anthropic_messages_from_parts,
+    get_google_messages_from_parts,
+    get_openai_messages_from_parts,
 )
 from marimo._ai._types import (
     ChatAttachment,
     ChatMessage,
+    ReasoningDetails,
+    ReasoningPart,
+    TextPart,
+    ToolInvocationPart,
+    ToolInvocationResult,
 )
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._server.ai.tools import Tool
@@ -392,8 +401,6 @@ def test_convert_to_google_tools(sample_tools):
 
 
 def test_convert_to_ai_sdk_messages():
-    import json
-
     # Test text type
     text = "hello world"
     result = convert_to_ai_sdk_messages(text, "text")
@@ -403,6 +410,13 @@ def test_convert_to_ai_sdk_messages():
     reasoning = "step by step"
     result = convert_to_ai_sdk_messages(reasoning, "reasoning")
     assert result == f"g:{json.dumps(reasoning)}\n"
+
+    # Test reasoning_signature type
+    reasoning_signature = {"signature": "encrypted_signature_string"}
+    result = convert_to_ai_sdk_messages(
+        reasoning_signature, "reasoning_signature"
+    )
+    assert result == f"j:{json.dumps(reasoning_signature)}\n"
 
     # Test tool_call_start type
     tool_call_start = {"toolCallId": "123", "toolName": "test_tool"}
@@ -441,3 +455,345 @@ def test_convert_to_ai_sdk_messages():
     # Test unknown type defaults to text
     result = convert_to_ai_sdk_messages("fallback", "unknown")
     assert result == f"0:{json.dumps('fallback')}\n"
+
+
+# Tests for helper functions that convert parts to provider-specific formats
+def test_get_openai_messages_from_parts_text_only():
+    """Test converting TextPart to OpenAI format."""
+    parts = [
+        TextPart(type="text", text="Hello"),
+        TextPart(type="text", text="World"),
+    ]
+
+    result = get_openai_messages_from_parts("user", parts)
+
+    assert len(result) == 2
+    assert result[0] == {"role": "user", "content": "Hello"}
+    assert result[1] == {"role": "user", "content": "World"}
+
+
+def test_get_openai_messages_from_parts_with_tool_invocation():
+    """Test converting ToolInvocationPart to OpenAI format."""
+    tool_invocation = ToolInvocationResult(
+        state="result",
+        tool_call_id="call_123",
+        tool_name="weather_tool",
+        step=1,
+        args={"location": "New York"},
+        result={"temperature": "72°F", "condition": "sunny"},
+    )
+
+    parts = [
+        TextPart(type="text", text="Let me check the weather"),
+        ToolInvocationPart(
+            type="tool-invocation", tool_invocation=tool_invocation
+        ),
+    ]
+
+    result = get_openai_messages_from_parts("assistant", parts)
+
+    assert len(result) == 3  # text message, assistant tool call, tool result
+
+    # Check text message
+    assert result[0] == {
+        "role": "assistant",
+        "content": "Let me check the weather",
+    }
+
+    # Check assistant tool call message
+    assert result[1]["role"] == "assistant"
+    assert result[1]["content"] is None
+    assert len(result[1]["tool_calls"]) == 1
+    tool_call = result[1]["tool_calls"][0]
+    assert tool_call["id"] == "call_123"
+    assert tool_call["type"] == "function"
+    assert tool_call["function"]["name"] == "weather_tool"
+    assert tool_call["function"]["arguments"] == str({"location": "New York"})
+
+    # Check tool result message
+    assert result[2]["role"] == "tool"
+    assert result[2]["tool_call_id"] == "call_123"
+    assert result[2]["name"] == "weather_tool"
+    assert result[2]["content"] == str(
+        {"temperature": "72°F", "condition": "sunny"}
+    )
+
+
+def test_get_openai_messages_from_parts_empty():
+    """Test converting empty parts list."""
+    result = get_openai_messages_from_parts("user", [])
+    assert result == []
+
+
+def test_get_anthropic_messages_from_parts_text_only():
+    """Test converting TextPart to Anthropic format."""
+    parts = [
+        TextPart(type="text", text="Hello"),
+        TextPart(type="text", text="World"),
+    ]
+
+    result = get_anthropic_messages_from_parts("user", parts)
+
+    assert len(result) == 1
+    assert result[0]["role"] == "user"
+    assert result[0]["content"] == [
+        {"type": "text", "text": "Hello"},
+        {"type": "text", "text": "World"},
+    ]
+
+
+def test_get_anthropic_messages_from_parts_with_reasoning():
+    """Test converting ReasoningPart to Anthropic thinking format."""
+    reasoning_details = [
+        ReasoningDetails(
+            type="text", text="Step 1: Analyze", signature="sig123"
+        )
+    ]
+
+    parts = [
+        TextPart(type="text", text="Let me think about this"),
+        ReasoningPart(
+            type="reasoning",
+            reasoning="My thinking process here",
+            details=reasoning_details,
+        ),
+    ]
+
+    result = get_anthropic_messages_from_parts("assistant", parts)
+
+    assert len(result) == 1
+    assert result[0]["role"] == "assistant"
+    assert result[0]["content"] == [
+        {"type": "text", "text": "Let me think about this"},
+        {
+            "type": "thinking",
+            "thinking": "My thinking process here",
+            "signature": "sig123",
+        },
+    ]
+
+
+def test_get_anthropic_messages_from_parts_reasoning_no_signature():
+    """Test converting ReasoningPart without signature to Anthropic format."""
+    reasoning_details = [
+        ReasoningDetails(type="text", text="Step 1", signature=None)
+    ]
+
+    parts = [
+        ReasoningPart(
+            type="reasoning",
+            reasoning="Basic reasoning",
+            details=reasoning_details,
+        ),
+    ]
+
+    result = get_anthropic_messages_from_parts("assistant", parts)
+
+    assert len(result) == 1
+    assert result[0]["role"] == "assistant"
+    assert result[0]["content"] == [
+        {
+            "type": "thinking",
+            "thinking": "Basic reasoning",
+            "signature": "",  # Should be empty string when no signature
+        },
+    ]
+
+
+def test_get_anthropic_messages_from_parts_reasoning_empty_details():
+    """Test converting ReasoningPart with empty details list."""
+    parts = [
+        ReasoningPart(
+            type="reasoning",
+            reasoning="Some reasoning",
+            details=[],  # Empty details
+        ),
+    ]
+
+    result = get_anthropic_messages_from_parts("assistant", parts)
+
+    assert len(result) == 1
+    assert result[0]["role"] == "assistant"
+    assert result[0]["content"] == [
+        {
+            "type": "thinking",
+            "thinking": "Some reasoning",
+            "signature": "",  # Should be empty when no details
+        },
+    ]
+
+
+def test_get_anthropic_messages_from_parts_with_tool_invocation():
+    """Test converting ToolInvocationPart to Anthropic format."""
+    tool_invocation = ToolInvocationResult(
+        state="result",
+        tool_call_id="call_123",
+        tool_name="search_tool",
+        step=1,
+        args={"query": "Python tutorials"},
+        result={"results": ["tutorial1", "tutorial2"]},
+    )
+
+    parts = [
+        TextPart(type="text", text="I'll search for you"),
+        ToolInvocationPart(
+            type="tool-invocation", tool_invocation=tool_invocation
+        ),
+    ]
+
+    result = get_anthropic_messages_from_parts("assistant", parts)
+
+    assert (
+        len(result) == 2
+    )  # One message with tool use, one tool result message
+
+    # Check first message with tool use
+    assert result[0]["role"] == "assistant"
+    expected_content = [
+        {"type": "text", "text": "I'll search for you"},
+        {
+            "type": "tool_use",
+            "id": "call_123",
+            "name": "search_tool",
+            "input": {"query": "Python tutorials"},
+        },
+    ]
+    assert result[0]["content"] == expected_content
+
+    # Check tool result message
+    assert result[1]["role"] == "user"
+    assert result[1]["content"] == [
+        {
+            "type": "tool_result",
+            "tool_use_id": "call_123",
+            "content": str({"results": ["tutorial1", "tutorial2"]}),
+        }
+    ]
+
+
+def test_get_anthropic_messages_from_parts_single_text():
+    """Test converting single TextPart uses string format instead of array."""
+    parts = [TextPart(type="text", text="Single message")]
+
+    result = get_anthropic_messages_from_parts("user", parts)
+
+    assert len(result) == 1
+    assert result[0]["role"] == "user"
+    assert (
+        result[0]["content"] == "Single message"
+    )  # Should be string, not array
+
+
+def test_get_google_messages_from_parts_text_only():
+    """Test converting TextPart to Google format."""
+    parts = [
+        TextPart(type="text", text="Hello"),
+        TextPart(type="text", text="Google"),
+    ]
+
+    result = get_google_messages_from_parts("user", parts)
+
+    assert len(result) == 2
+    assert result[0] == {
+        "role": "user",
+        "parts": [{"text": "Hello"}],
+    }
+    assert result[1] == {
+        "role": "user",
+        "parts": [{"text": "Google"}],
+    }
+
+
+def test_get_google_messages_from_parts_with_reasoning():
+    """Test converting ReasoningPart to Google thinking format."""
+    reasoning_details = [
+        ReasoningDetails(type="text", text="Analysis", signature=None)
+    ]
+
+    parts = [
+        TextPart(type="text", text="Regular text"),
+        ReasoningPart(
+            type="reasoning",
+            reasoning="Deep thinking process",
+            details=reasoning_details,
+        ),
+    ]
+
+    result = get_google_messages_from_parts("assistant", parts)
+
+    assert len(result) == 2
+
+    # Check text message
+    assert result[0] == {
+        "role": "model",
+        "parts": [{"text": "Regular text"}],
+    }
+
+    # Check reasoning message with thought flag
+    assert result[1] == {
+        "role": "model",
+        "parts": [{"text": "Deep thinking process", "thought": True}],
+    }
+
+
+def test_get_google_messages_from_parts_with_tool_invocation():
+    """Test converting ToolInvocationPart to Google function call format."""
+    tool_invocation = ToolInvocationResult(
+        state="result",
+        tool_call_id="call_456",
+        tool_name="calculator",
+        step=1,
+        args={"expression": "2 + 2"},
+        result={"answer": 4},
+    )
+
+    parts = [
+        ToolInvocationPart(
+            type="tool-invocation", tool_invocation=tool_invocation
+        ),
+    ]
+
+    result = get_google_messages_from_parts("assistant", parts)
+
+    assert (
+        len(result) == 2
+    )  # Function call message + function response message
+
+    # Check function call message
+    assert result[0]["role"] == "model"
+    assert result[0]["parts"] == [
+        {
+            "function_call": {
+                "name": "calculator",
+                "args": {"expression": "2 + 2"},
+            }
+        }
+    ]
+
+    # Check function response message
+    assert result[1]["role"] == "user"
+    assert result[1]["parts"] == [
+        {
+            "function_response": {
+                "name": "calculator",
+                "response": {"result": "{'answer': 4}"},
+            }
+        }
+    ]
+
+
+def test_get_google_messages_from_parts_role_mapping():
+    """Test that roles are correctly mapped for Google (user -> user, assistant -> model)."""
+    parts = [TextPart(type="text", text="Test message")]
+
+    user_result = get_google_messages_from_parts("user", parts)
+    assert user_result[0]["role"] == "user"
+
+    assistant_result = get_google_messages_from_parts("assistant", parts)
+    assert assistant_result[0]["role"] == "model"
+
+
+def test_get_google_messages_from_parts_empty():
+    """Test converting empty parts list."""
+    result = get_google_messages_from_parts("user", [])
+    assert result == []

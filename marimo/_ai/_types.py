@@ -21,6 +21,13 @@ class TextPartDict(TypedDict):
 class ReasoningPartDict(TypedDict):
     type: Literal["reasoning"]
     reasoning: str
+    details: list[ReasoningDetailsDict]
+
+
+class ReasoningDetailsDict(TypedDict):
+    type: Literal["text"]
+    text: str
+    signature: Optional[str]
 
 
 class ToolInvocationResultDict(TypedDict):
@@ -92,6 +99,14 @@ class ReasoningPart:
 
     type: Literal["reasoning"]
     reasoning: str
+    details: list[ReasoningDetails]
+
+
+@dataclass
+class ReasoningDetails:
+    type: Literal["text"]
+    text: str
+    signature: Optional[str] = None
 
 
 @dataclass
