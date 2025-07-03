@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { capitalize } from "lodash-es";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, TriangleAlert } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Accordion } from "@/components/ui/accordion";
+import { Tooltip } from "@/components/ui/tooltip";
 import { isFieldSet } from "../chart-spec/spec";
 import { ColorByAxis, Facet, XAxis, YAxis } from "../components/chart-items";
 import {
@@ -43,6 +44,16 @@ export const CommonChartForm: React.FC = () => {
 
   return (
     <>
+      <Tooltip
+        delayDuration={100}
+        content="To persist a chart, add the generated Python code to a new cell."
+      >
+        <div className="flex items-center gap-1">
+          <TriangleAlert className="h-3.5 w-3.5 mb-0.5 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Charts are not saved.</p>
+        </div>
+      </Tooltip>
+
       <XAxis />
       <YAxis />
 

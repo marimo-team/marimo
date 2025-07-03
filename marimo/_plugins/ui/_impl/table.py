@@ -57,6 +57,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
 from marimo._utils.narwhals_utils import (
@@ -473,6 +474,15 @@ class table(
                 TableManager.DEFAULT_SUMMARY_STATS_ROW_LIMIT
             )
 
+        app_mode = get_mode()
+        # These panels are not as useful in non-edit mode and require an external dependency
+        show_column_explorer = app_mode == "edit"
+        show_chart_builder = app_mode == "edit"
+
+        show_page_size_selector = True
+        if (isinstance(total_rows, int) and total_rows <= 5) or _internal_lazy:
+            show_page_size_selector = False
+
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
         self._searched_manager = self._manager
@@ -602,6 +612,9 @@ class table(
                 "show-download": show_download
                 and self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
+                "show-page-size-selector": show_page_size_selector,
+                "show-column-explorer": show_column_explorer,
+                "show-chart-builder": show_chart_builder,
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,

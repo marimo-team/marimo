@@ -29,6 +29,7 @@ interface DataTablePaginationProps<TData> {
   totalColumns: number;
   onSelectAllRowsChange?: (value: boolean) => void;
   tableLoading?: boolean;
+  showPageSizeSelector?: boolean;
 }
 
 export const DataTablePagination = <TData,>({
@@ -37,6 +38,7 @@ export const DataTablePagination = <TData,>({
   onSelectAllRowsChange,
   totalColumns,
   tableLoading,
+  showPageSizeSelector,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
     const { rowSelection, cellSelection } = table.getState();
@@ -116,10 +118,6 @@ export const DataTablePagination = <TData,>({
 
   const pageSize = table.getState().pagination.pageSize;
 
-  // Ensure unique page sizes
-  const pageSizeSet = new Set([5, 10, 25, 50, 100, pageSize]);
-  const pageSizes = [...pageSizeSet].sort((a, b) => a - b);
-
   const handlePageChange = (pageChangeFn: () => void) => {
     // Frequent page changes can reset the page index, so we wait until the previous change has completed
     if (!tableLoading) {
@@ -127,34 +125,44 @@ export const DataTablePagination = <TData,>({
     }
   };
 
+  // Ensure unique page sizes
+  const pageSizeSet = new Set([5, 10, 25, 50, 100, pageSize]);
+  const pageSizes = [...pageSizeSet].sort((a, b) => a - b);
+
+  const renderPageSizeSelector = () => {
+    return (
+      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1">
+        <Select
+          value={pageSize.toString()}
+          onValueChange={(value) => table.setPageSize(Number(value))}
+        >
+          <SelectTrigger className="w-11 h-[18px] !shadow-none !hover:shadow-none !ring-0 border-border text-xs p-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Rows per page</SelectLabel>
+              {[...pageSizes].map((size) => {
+                const sizeStr = size.toString();
+                return (
+                  <SelectItem key={size} value={sizeStr}>
+                    {sizeStr}
+                  </SelectItem>
+                );
+              })}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <span>/ page</span>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-1 items-center justify-between px-2">
       <div className="flex items-center gap-2">
         <div className="text-sm text-muted-foreground">{renderTotal()}</div>
-        <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1">
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => table.setPageSize(Number(value))}
-          >
-            <SelectTrigger className="w-11 h-[18px] !shadow-none !hover:shadow-none !ring-0 border-border text-xs p-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Rows per page</SelectLabel>
-                {[...pageSizes].map((size) => {
-                  const sizeStr = size.toString();
-                  return (
-                    <SelectItem key={size} value={sizeStr}>
-                      {sizeStr}
-                    </SelectItem>
-                  );
-                })}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <span>/ page</span>
-        </div>
+        {showPageSizeSelector && renderPageSizeSelector()}
       </div>
 
       <div className="flex items-end space-x-2">

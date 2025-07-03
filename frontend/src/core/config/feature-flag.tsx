@@ -11,7 +11,6 @@ export interface ExperimentalFeatures {
   inline_ai_tooltip: boolean;
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
-  table_charts: boolean;
   // Add new feature flags here
 }
 
@@ -20,7 +19,6 @@ const defaultValues: ExperimentalFeatures = {
   inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
   rtc_v2: false,
-  table_charts: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

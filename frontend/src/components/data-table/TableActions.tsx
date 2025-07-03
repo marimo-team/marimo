@@ -3,8 +3,8 @@
 
 import type { RowSelectionState, Table } from "@tanstack/react-table";
 import {
-  ChartAreaIcon,
   ChartColumnStacked,
+  ChartSplineIcon,
   PanelRightIcon,
   SearchIcon,
 } from "lucide-react";
@@ -32,7 +32,9 @@ interface TableActionsProps<TData> {
   downloadAs?: DownloadActionProps["downloadAs"];
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
-  chartsFeatureEnabled?: boolean;
+  showChartBuilder?: boolean;
+  showColumnExplorer?: boolean;
+  showPageSizeSelector?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
   tableLoading?: boolean;
@@ -51,7 +53,9 @@ export const TableActions = <TData,>({
   downloadAs,
   getRowIds,
   toggleDisplayHeader,
-  chartsFeatureEnabled,
+  showChartBuilder,
+  showColumnExplorer,
+  showPageSizeSelector,
   togglePanel,
   isPanelOpen,
   tableLoading,
@@ -114,15 +118,15 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {chartsFeatureEnabled && (
-        <Tooltip content="Show charts">
+      {showChartBuilder && (
+        <Tooltip content="Chart builder">
           <Button
             variant="text"
             size="xs"
             className="mb-0"
             onClick={toggleDisplayHeader}
           >
-            <ChartAreaIcon className="w-4 h-4 text-muted-foreground" />
+            <ChartSplineIcon className="w-4 h-4 text-muted-foreground" />
           </Button>
         </Tooltip>
       )}
@@ -142,20 +146,22 @@ export const TableActions = <TData,>({
               />
             </Button>
           </Tooltip>
-          <Tooltip content="Toggle column explorer">
-            <Button
-              variant="text"
-              size="xs"
-              onClick={() => togglePanel("column-explorer")}
-            >
-              <ChartColumnStacked
-                className={cn(
-                  "w-4 h-4 text-muted-foreground",
-                  isPanelOpen("column-explorer") && "text-primary",
-                )}
-              />
-            </Button>
-          </Tooltip>
+          {showColumnExplorer && (
+            <Tooltip content="Toggle column explorer">
+              <Button
+                variant="text"
+                size="xs"
+                onClick={() => togglePanel("column-explorer")}
+              >
+                <ChartColumnStacked
+                  className={cn(
+                    "w-4 h-4 text-muted-foreground",
+                    isPanelOpen("column-explorer") && "text-primary",
+                  )}
+                />
+              </Button>
+            </Tooltip>
+          )}
         </>
       )}
 
@@ -166,6 +172,7 @@ export const TableActions = <TData,>({
           onSelectAllRowsChange={handleSelectAllRows}
           table={table}
           tableLoading={tableLoading}
+          showPageSizeSelector={showPageSizeSelector}
         />
       )}
       <div className="ml-auto">

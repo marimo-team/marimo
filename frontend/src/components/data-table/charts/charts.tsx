@@ -8,7 +8,6 @@ import {
   ChevronRightIcon,
   CodeIcon,
   DatabaseIcon,
-  InfoIcon,
   PaintRollerIcon,
   XIcon,
 } from "lucide-react";
@@ -20,7 +19,6 @@ import { PythonIcon } from "@/components/editor/cell/code/icons";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
@@ -222,6 +220,8 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   );
 };
 
+const CHART_PLACEHOLDER_CODE = "X and Y columns are not set";
+
 export const ChartPanel: React.FC<{
   chartConfig: ChartSchemaType | null;
   chartType: ChartType;
@@ -304,7 +304,7 @@ export const ChartPanel: React.FC<{
   const developmentMode = import.meta.env.DEV;
 
   const renderChartDisplay = () => {
-    let altairCodeSnippet = "X and Y columns are not set";
+    let altairCodeSnippet = CHART_PLACEHOLDER_CODE;
     if (typeof specWithoutData !== "string") {
       altairCodeSnippet = generateAltairChartSnippet(
         specWithoutData,
@@ -338,16 +338,17 @@ export const ChartPanel: React.FC<{
               </>
             )}
           </TabsList>
-          <Tooltip content="Charts are saved in local storage but as it remains experimental, we encourage saving the generated Python code in a new cell">
-            <InfoIcon className="w-4 h-4 text-muted-foreground" />
-          </Tooltip>
         </div>
 
         <TabsContent value="chart" ref={chartContainerRef}>
           {memoizedChart}
         </TabsContent>
         <TabsContent value="code">
-          <CodeSnippet code={altairCodeSnippet} language="python" />
+          <CodeSnippet
+            code={altairCodeSnippet}
+            insertNewCell={altairCodeSnippet !== CHART_PLACEHOLDER_CODE}
+            language="python"
+          />
         </TabsContent>
         {developmentMode && (
           <>
@@ -397,14 +398,14 @@ export const ChartPanel: React.FC<{
         <Button
           variant="outline"
           size="icon"
-          className="absolute bottom-1 right-1 border-border"
+          className="border-border ml-auto"
           onClick={() => setFormCollapsed((prev) => !prev)}
           title={formCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {formCollapsed ? (
-            <ChevronRightIcon className="w-4 h-4" />
+            <ChevronRightIcon className="w-4 h-5" />
           ) : (
-            <ChevronLeftIcon className="w-4 h-4" />
+            <ChevronLeftIcon className="w-4 h-5" />
           )}
         </Button>
       </div>
