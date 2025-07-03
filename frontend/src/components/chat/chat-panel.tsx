@@ -125,6 +125,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                     onClick={() => {
                       setActiveChat(chat.id);
                     }}
+                    type="button"
                   >
                     <div className="font-medium">{chat.title}</div>
                     <div className="text-sm text-muted-foreground">
