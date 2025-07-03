@@ -12,29 +12,32 @@ body:
     id: feature-description
     attributes:
       label: Description
-      description: 'Clear and concise description of the problem. Please make the reason and usecases as detailed as possible. If you intend to submit a PR for this issue, tell us in the description. Thanks!'
-      placeholder: I am hoping to be able to...
+      description: 'A clear and concise description of the problem you are facing. Please describe your use case in detail. Thanks!'
+      placeholder: I am hoping to be able to ...
     validations:
       required: true
   - type: textarea
     id: suggested-solution
     attributes:
       label: Suggested solution
+      description: 'What new feature or behavior would you like to see that would solve your problem? If possible, please provide an example of how the new feature would be used, or how the user experience would change. Thanks!'
     validations:
       required: true
   - type: checkboxes
     id: will-submit-pr
     attributes:
-      label: Will you submit a PR?
+      label: Are you willing to submit a PR?
       description: |
-        If you plan to submit a PR for this issue, please let us know. We'd love to review a PR!
+        If you are interested in submitting a PR, please check this box.
+        However, please confirm with us on whether your proposed feature
+        fits with our roadmap before submitting a PR.
       options:
         - label: 'Yes'
   - type: textarea
     id: alternative
     attributes:
-      label: Alternative
-      description: "Clear and concise description of any alternative solutions or features you've considered."
+      label: Alternatives
+      description: "Alternative solutions or features you've considered."
   - type: textarea
     id: additional-context
     attributes:
