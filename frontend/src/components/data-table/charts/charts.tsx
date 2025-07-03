@@ -220,6 +220,8 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   );
 };
 
+const CHART_PLACEHOLDER_CODE = "X and Y columns are not set";
+
 export const ChartPanel: React.FC<{
   chartConfig: ChartSchemaType | null;
   chartType: ChartType;
@@ -302,7 +304,7 @@ export const ChartPanel: React.FC<{
   const developmentMode = import.meta.env.DEV;
 
   const renderChartDisplay = () => {
-    let altairCodeSnippet = "X and Y columns are not set";
+    let altairCodeSnippet = CHART_PLACEHOLDER_CODE;
     if (typeof specWithoutData !== "string") {
       altairCodeSnippet = generateAltairChartSnippet(
         specWithoutData,
@@ -342,7 +344,11 @@ export const ChartPanel: React.FC<{
           {memoizedChart}
         </TabsContent>
         <TabsContent value="code">
-          <CodeSnippet code={altairCodeSnippet} language="python" />
+          <CodeSnippet
+            code={altairCodeSnippet}
+            insertNewCell={altairCodeSnippet !== CHART_PLACEHOLDER_CODE}
+            language="python"
+          />
         </TabsContent>
         {developmentMode && (
           <>

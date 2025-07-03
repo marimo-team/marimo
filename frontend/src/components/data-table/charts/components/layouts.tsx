@@ -101,8 +101,9 @@ export const AccordionFormContent: React.FC<{
 
 export const CodeSnippet: React.FC<{
   code: string;
+  insertNewCell?: boolean;
   language?: "python" | "sql";
-}> = ({ code, language }) => {
+}> = ({ code, insertNewCell, language }) => {
   return (
     <ReadonlyCode
       minHeight="330px"
@@ -111,7 +112,7 @@ export const CodeSnippet: React.FC<{
       language={language}
       showHideCode={false}
       showCopyCode={false}
-      insertNewCell={true}
+      insertNewCell={insertNewCell}
     />
   );
 };

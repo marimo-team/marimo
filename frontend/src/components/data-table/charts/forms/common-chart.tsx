@@ -44,6 +44,16 @@ export const CommonChartForm: React.FC = () => {
 
   return (
     <>
+      <Tooltip
+        delayDuration={100}
+        content="To persist a chart, add the generated Python code to a new cell."
+      >
+        <div className="flex items-center gap-1">
+          <TriangleAlert className="h-3.5 w-3.5 mb-0.5 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Charts are not saved.</p>
+        </div>
+      </Tooltip>
+
       <XAxis />
       <YAxis />
 
@@ -60,15 +70,6 @@ export const CommonChartForm: React.FC = () => {
 
       <FormSectionHorizontalRule />
       <OtherOptions />
-      <Tooltip
-        delayDuration={100}
-        content="Charts are saved in local storage but we recommend saving Python code in a new cell until this feature is stable."
-      >
-        <div className="flex items-center gap-1">
-          <TriangleAlert className="h-3 w-3 mb-0.5 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">Local storage</p>
-        </div>
-      </Tooltip>
     </>
   );
 };
