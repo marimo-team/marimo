@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { capitalize } from "lodash-es";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, TriangleAlert } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Accordion } from "@/components/ui/accordion";
+import { Tooltip } from "@/components/ui/tooltip";
 import { isFieldSet } from "../chart-spec/spec";
 import { ColorByAxis, Facet, XAxis, YAxis } from "../components/chart-items";
 import {
@@ -59,6 +60,15 @@ export const CommonChartForm: React.FC = () => {
 
       <FormSectionHorizontalRule />
       <OtherOptions />
+      <Tooltip
+        delayDuration={100}
+        content="Charts are saved in local storage but we recommend saving Python code in a new cell until this feature is stable."
+      >
+        <div className="flex items-center gap-1">
+          <TriangleAlert className="h-3 w-3 mb-0.5 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Local storage</p>
+        </div>
+      </Tooltip>
     </>
   );
 };

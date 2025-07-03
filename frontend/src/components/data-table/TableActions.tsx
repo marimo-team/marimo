@@ -3,8 +3,8 @@
 
 import type { RowSelectionState, Table } from "@tanstack/react-table";
 import {
-  ChartAreaIcon,
   ChartColumnStacked,
+  ChartSplineIcon,
   PanelRightIcon,
   SearchIcon,
 } from "lucide-react";
@@ -126,7 +126,7 @@ export const TableActions = <TData,>({
             className="mb-0"
             onClick={toggleDisplayHeader}
           >
-            <ChartAreaIcon className="w-4 h-4 text-muted-foreground" />
+            <ChartSplineIcon className="w-4 h-4 text-muted-foreground" />
           </Button>
         </Tooltip>
       )}
