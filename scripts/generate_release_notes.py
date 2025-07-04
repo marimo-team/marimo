@@ -170,22 +170,23 @@ def categorize_entries(
             categories["other"].append(entry)
             continue
 
-        label_names = {label.name for label in entry.pr.labels}
+        pr: PullRequest = entry.pr
+        label_names = {label.name for label in pr.labels}
 
         # Skip entries labeled as "internal"
-        if "internal" in label_names:
+        if "internal" in label_names or pr.title.startswith("chore"):
             continue
 
-        if "release-highlight" in label_names:
+        if "release-highlight" in label_names or pr.title.startswith("feat"):
             categories["highlights"].append(entry)
 
-        if "bug" in label_names:
+        if "bug" in label_names or pr.title.startswith(("fix", "bug")):
             categories["bug"].append(entry)
-        elif "enhancement" in label_names:
+        elif "enhancement" in label_names or pr.title.startswith(("improve", "enhance", "perf:", "performance")):
             categories["enhancement"].append(entry)
-        elif "documentation" in label_names:
+        elif "documentation" in label_names or pr.title.startswith(("docs", "documentation")):
             categories["documentation"].append(entry)
-        elif "preview" in label_names:
+        elif "preview" in label_names or pr.title.startswith(("preview", "experimental")):
             categories["preview"].append(entry)
         else:
             categories["other"].append(entry)
