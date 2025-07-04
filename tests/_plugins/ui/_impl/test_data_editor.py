@@ -11,6 +11,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.data_editor import (
     DataEdits,
+    _convert_value,
     apply_edits,
 )
 
@@ -28,8 +29,6 @@ def test_data_editor_initialization():
     editor = data_editor(data=data, label="Test Editor")
     assert editor._data == data
     assert editor._edits == {"edits": []}
-    assert editor._component_args["pagination"] is True
-    assert editor._component_args["page-size"] == 50
     assert editor._component_args["column-sizing-mode"] == "auto"
 
 
@@ -40,16 +39,6 @@ def test_data_editor_with_column_oriented_data():
     data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
     editor = data_editor(data=data)
     assert editor._data == data
-
-
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
-)
-def test_data_editor_with_too_many_rows():
-    data = [{"A": i} for i in range(1001)]
-    with pytest.raises(ValueError) as excinfo:
-        data_editor(data=data)
-    assert "Data editor supports a maximum of 1000 rows" in str(excinfo.value)
 
 
 @pytest.mark.skipif(
@@ -242,7 +231,7 @@ def test_apply_edits_various_datatypes():
             "float": 3.14,
             "str": "updated",
             "bool": False,
-            "datetime": datetime.datetime(2023, 1, 1, 12, 0),
+            "datetime": datetime.datetime(2023, 3, 15, 15, 30),
             "date": datetime.date(2023, 3, 15),
             "duration": datetime.timedelta(days=2, seconds=13500),
             "list": [7, 8, 9],
@@ -252,7 +241,7 @@ def test_apply_edits_various_datatypes():
             "float": 4.5,
             "str": "updated2",
             "bool": True,
-            "datetime": datetime.datetime(2023, 1, 1, 12, 0),
+            "datetime": datetime.datetime(2023, 4, 20, 10, 0),
             "date": datetime.date(2023, 4, 20),
             "duration": datetime.timedelta(days=2, seconds=13500),
             "list": [10, 11, 12],
@@ -388,25 +377,6 @@ def test_data_editor_with_polars_dataframe():
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
-def test_data_editor_with_custom_pagination():
-    data = [{"A": i} for i in range(100)]
-    editor = data_editor(data=data, pagination=False, page_size=25)
-    assert editor._component_args["pagination"] is False
-    assert editor._component_args["page-size"] == 25
-
-
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
-)
-def test_data_editor_with_too_large_pagesize():
-    data = [{"A": i} for i in range(300)]
-    with pytest.raises(ValueError):
-        _ = data_editor(data=data, page_size=201)
-
-
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="Polars not installed"
-)
 def test_data_editor_on_change_callback():
     data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
     callback_called = False
@@ -423,3 +393,250 @@ def test_data_editor_on_change_callback():
     editor = data_editor(data=data, on_change=on_change)
     editor._update({"edits": [{"rowIdx": 1, "columnId": "B", "value": "x"}]})
     assert callback_called
+
+
+class TestConvertValue:
+    """Test the _convert_value function directly."""
+
+    def test_convert_value_with_dtype_datetime(self):
+        """Test datetime conversion with dtype."""
+        result = _convert_value("2023-03-15T10:30:00", None, nw.Datetime)
+        assert result == datetime.datetime(2023, 3, 15, 10, 30, 0)
+
+    def test_convert_value_with_dtype_date(self):
+        """Test date conversion with dtype."""
+        result = _convert_value("2023-03-15", None, nw.Date)
+        assert result == datetime.date(2023, 3, 15)
+
+    def test_convert_value_with_dtype_duration(self):
+        """Test duration conversion with dtype."""
+        result = _convert_value("186300000000", None, nw.Duration)
+        assert result == datetime.timedelta(days=2, seconds=13500)
+
+    def test_convert_value_with_dtype_float32(self):
+        """Test Float32 conversion with dtype."""
+        result = _convert_value("3.14", None, nw.Float32)
+        assert result == 3.14
+        assert isinstance(result, float)
+
+    def test_convert_value_with_dtype_float64(self):
+        """Test Float64 conversion with dtype."""
+        result = _convert_value("3.14", None, nw.Float64)
+        assert result == 3.14
+        assert isinstance(result, float)
+
+    def test_convert_value_with_dtype_int16(self):
+        """Test Int16 conversion with dtype."""
+        result = _convert_value("42", None, nw.Int16)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_int32(self):
+        """Test Int32 conversion with dtype."""
+        result = _convert_value("42", None, nw.Int32)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_int64(self):
+        """Test Int64 conversion with dtype."""
+        result = _convert_value("42", None, nw.Int64)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_uint16(self):
+        """Test UInt16 conversion with dtype."""
+        result = _convert_value("42", None, nw.UInt16)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_uint32(self):
+        """Test UInt32 conversion with dtype."""
+        result = _convert_value("42", None, nw.UInt32)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_uint64(self):
+        """Test UInt64 conversion with dtype."""
+        result = _convert_value("42", None, nw.UInt64)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_string(self):
+        """Test String conversion with dtype."""
+        result = _convert_value(42, None, nw.String)
+        assert result == "42"
+        assert isinstance(result, str)
+
+    def test_convert_value_with_dtype_enum(self):
+        """Test Enum conversion with dtype."""
+        result = _convert_value(42, None, nw.Enum)
+        assert result == "42"
+        assert isinstance(result, str)
+
+    def test_convert_value_with_dtype_categorical(self):
+        """Test Categorical conversion with dtype."""
+        result = _convert_value(42, None, nw.Categorical)
+        assert result == "42"
+        assert isinstance(result, str)
+
+    def test_convert_value_with_dtype_boolean(self):
+        """Test Boolean conversion with dtype."""
+        result = _convert_value(True, None, nw.Boolean)
+        assert result is True
+        assert isinstance(result, bool)
+
+        result = _convert_value(False, None, nw.Boolean)
+        assert result is False
+        assert isinstance(result, bool)
+
+        result = _convert_value(1, None, nw.Boolean)
+        assert result is True
+
+        result = _convert_value(0, None, nw.Boolean)
+        assert result is False
+
+    def test_convert_value_with_dtype_list_string_parsable(self):
+        """Test List conversion with dtype - string that can be parsed as list."""
+        result = _convert_value("[1, 2, 3]", None, nw.List)
+        assert result == [1, 2, 3]
+        assert isinstance(result, list)
+
+    def test_convert_value_with_dtype_list_string_comma_separated(self):
+        """Test List conversion with dtype - comma-separated string."""
+        result = _convert_value("1,2,3", None, nw.List)
+        assert result == [1, 2, 3]
+        assert isinstance(result, list)
+
+    def test_convert_value_with_dtype_list_already_list(self):
+        """Test List conversion with dtype - value is already a list."""
+        result = _convert_value([1, 2, 3], None, nw.List)
+        assert result == [1, 2, 3]
+        assert isinstance(result, list)
+
+    def test_convert_value_with_dtype_list_wrap_single_value(self):
+        """Test List conversion with dtype - wrap single value in list."""
+        result = _convert_value(42, None, nw.List)
+        assert result == [42]
+        assert isinstance(result, list)
+
+    def test_convert_value_with_dtype_none_value(self):
+        """Test conversion with dtype when value is None."""
+        result = _convert_value(None, None, nw.String)
+        assert result is None
+
+    def test_convert_value_with_unsupported_dtype(self):
+        """Test conversion with unsupported dtype."""
+        result = _convert_value("test", None, "unsupported_dtype")
+        assert result == "test"
+        assert isinstance(result, str)
+
+    def test_convert_value_without_dtype_original_none(self):
+        """Test conversion without dtype when original_value is None."""
+        result = _convert_value("test", None, None)
+        assert result == "test"
+
+    def test_convert_value_without_dtype_value_none(self):
+        """Test conversion without dtype when value is None."""
+        result = _convert_value(None, "original", None)
+        assert result is None
+
+    def test_convert_value_without_dtype_int_conversion(self):
+        """Test conversion without dtype - int type conversion."""
+        result = _convert_value("42", 10, None)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_without_dtype_float_conversion(self):
+        """Test conversion without dtype - float type conversion."""
+        result = _convert_value("3.14", 1.0, None)
+        assert result == 3.14
+        assert isinstance(result, float)
+
+    def test_convert_value_without_dtype_string_conversion(self):
+        """Test conversion without dtype - string type conversion."""
+        result = _convert_value(42, "original", None)
+        assert result == "42"
+        assert isinstance(result, str)
+
+    def test_convert_value_without_dtype_date_conversion(self):
+        """Test conversion without dtype - date type conversion."""
+        original = datetime.date(2023, 1, 1)
+        result = _convert_value("2023-03-15", original, None)
+        assert result == datetime.date(2023, 3, 15)
+        assert isinstance(result, datetime.date)
+
+    def test_convert_value_without_dtype_datetime_conversion(self):
+        """Test conversion without dtype - datetime type conversion."""
+        original = datetime.datetime(2023, 1, 1, 12, 0)
+        result = _convert_value("2023-03-15T10:30:00", original, None)
+        assert result == datetime.datetime(2023, 3, 15, 10, 30, 0)
+        assert isinstance(result, datetime.datetime)
+
+    def test_convert_value_without_dtype_timedelta_conversion(self):
+        """Test conversion without dtype - timedelta type conversion."""
+        original = datetime.timedelta(days=1)
+        result = _convert_value("186300000000", original, None)
+        assert result == datetime.timedelta(days=2, seconds=13500)
+        assert isinstance(result, datetime.timedelta)
+
+    def test_convert_value_without_dtype_list_string_parsable(self):
+        """Test conversion without dtype - list from parsable string."""
+        original = [1, 2, 3]
+        result = _convert_value("[4, 5, 6]", original, None)
+        assert result == [4, 5, 6]
+        assert isinstance(result, list)
+
+    def test_convert_value_without_dtype_list_string_comma_separated(self):
+        """Test conversion without dtype - list from comma-separated string."""
+        original = [1, 2, 3]
+        result = _convert_value("4,5,6", original, None)
+        assert result == [4, 5, 6]
+        assert isinstance(result, list)
+
+    def test_convert_value_without_dtype_list_already_list(self):
+        """Test conversion without dtype - list when value is already list."""
+        original = [1, 2, 3]
+        result = _convert_value([4, 5, 6], original, None)
+        assert result == [4, 5, 6]
+        assert isinstance(result, list)
+
+    def test_convert_value_without_dtype_list_wrap_single_value(self):
+        """Test conversion without dtype - wrap single value in list."""
+        original = [1, 2, 3]
+        result = _convert_value(42, original, None)
+        assert result == [42]
+        assert isinstance(result, list)
+
+    def test_convert_value_without_dtype_other_types(self):
+        """Test conversion without dtype - other types return value as-is."""
+        original = {"key": "value"}
+        result = _convert_value("new_value", original, None)
+        assert result == "new_value"
+
+    def test_convert_value_value_error_handling(self):
+        """Test error handling when conversion fails."""
+        # This should fail to convert "invalid" to int
+        result = _convert_value("invalid", 42, None)
+        # Should return original value when conversion fails
+        assert result == 42
+
+    def test_convert_value_value_error_handling_with_dtype(self):
+        """Test error handling when conversion fails with dtype."""
+        # This should fail to convert "invalid" to int
+        result = _convert_value("invalid", 42, nw.Int64)
+        # Should return original value when conversion fails
+        assert result == 42
+
+    def test_convert_value_list_parsing_error(self):
+        """Test list parsing error handling."""
+        # This should fail to parse as a list
+        result = _convert_value("invalid[list", [1, 2, 3], nw.List)
+        # Should split by comma as fallback
+        assert result == ["invalid[list"]
+
+    def test_convert_value_list_parsing_error_without_dtype(self):
+        """Test list parsing error handling without dtype."""
+        # This should fail to parse as a list
+        result = _convert_value("invalid[list", [1, 2, 3], None)
+        # Should split by comma as fallback
+        assert result == ["invalid[list"]

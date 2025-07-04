@@ -6,43 +6,44 @@ import DataEditor, {
   type GridCell,
   GridCellKind,
   type GridColumn,
-  GridColumnIcon,
   type GridKeyEventArgs,
   type GridSelection,
   type Item,
   type Rectangle,
 } from "@glideapps/glide-data-grid";
-import { useMemo, useState } from "react";
+import { CopyIcon } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import {
   type FieldTypesWithExternalType,
   toFieldTypes,
 } from "@/components/data-table/types";
-import type { DataType } from "@/core/kernel/messages";
-import { useTheme } from "@/theme/useTheme";
-import { logNever } from "@/utils/assertNever";
-
-// CSS is required for default editor styles
-import "@glideapps/glide-data-grid/dist/index.css";
-import { CopyIcon } from "lucide-react";
 import { copyShortcutPressed } from "@/components/editor/controls/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import type { Setter } from "@/plugins/types";
+import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
 import { getGlideTheme } from "./themes";
-import type { Edits, GridColumnWithKind } from "./types";
-import { copyCells, getColumnWidth } from "./utils";
+import type { Edits, ModifiedGridColumn } from "./types";
+import {
+  copyCells,
+  getColumnHeaderIcon,
+  getColumnKind,
+  getColumnWidth,
+} from "./utils";
+import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
+import { logNever } from "@/utils/assertNever";
 
 interface GlideDataEditorProps<T> {
   data: T[];
   fieldTypes?: FieldTypesWithExternalType | null;
   rows: number;
-  onEdits: Setter<Edits>;
+  onAddEdits: (edits: Edits["edits"]) => void;
+  onAddRows: (newRows: object[]) => void;
   host: HTMLElement;
 }
 
@@ -50,7 +51,8 @@ export const GlideDataEditor = <T,>({
   data,
   fieldTypes,
   rows,
-  onEdits,
+  onAddEdits,
+  onAddRows,
   host,
 }: GlideDataEditorProps<T>) => {
   const { theme } = useTheme();
@@ -62,11 +64,11 @@ export const GlideDataEditor = <T,>({
   });
 
   const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
-
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [totalRows, setTotalRows] = useState<number>(rows);
 
-  const columns: GridColumnWithKind[] = useMemo(() => {
-    const columns: GridColumnWithKind[] = [];
+  const columns: ModifiedGridColumn[] = useMemo(() => {
+    const columns: ModifiedGridColumn[] = [];
     for (const [columnName, fieldType] of Object.entries(columnFields)) {
       columns.push({
         title: columnName,
@@ -75,75 +77,89 @@ export const GlideDataEditor = <T,>({
           getColumnWidth(fieldType, data, columnName),
         icon: getColumnHeaderIcon(fieldType),
         kind: getColumnKind(fieldType),
+        dataType: fieldType,
         hasMenu: true,
       });
     }
+
     return columns;
-  }, [columnFields, data, columnWidths]);
+  }, [columnFields, columnWidths, data]);
 
-  const indexes = Object.keys(columnFields);
+  const getCellContent = useCallback(
+    (cell: Item): GridCell => {
+      const [col, row] = cell;
+      const dataRow = data[row];
 
-  const getCellContent = useEvent((cell: Item): GridCell => {
-    const [col, row] = cell;
-    const dataRow = data[row];
+      const dataItem = dataRow[columns[col].title as keyof T];
+      const columnKind = columns[col].kind;
 
-    const dataItem = dataRow[indexes[col] as keyof T];
-    const columnKind = columns[col].kind;
+      if (columnKind === GridCellKind.Boolean) {
+        const value = Boolean(dataItem);
+        return {
+          kind: GridCellKind.Boolean,
+          allowOverlay: false,
+          readonly: false,
+          data: value,
+        };
+      }
 
-    if (columnKind === GridCellKind.Boolean) {
-      const value = Boolean(dataItem);
+      if (columnKind === GridCellKind.Number && typeof dataItem === "number") {
+        return {
+          kind: GridCellKind.Number,
+          allowOverlay: true,
+          readonly: false,
+          displayData: String(dataItem),
+          data: dataItem,
+        };
+      }
+
       return {
-        kind: GridCellKind.Boolean,
-        allowOverlay: false,
-        readonly: false,
-        data: value,
-      };
-    }
-
-    if (columnKind === GridCellKind.Number && typeof dataItem === "number") {
-      return {
-        kind: GridCellKind.Number,
+        kind: GridCellKind.Text,
         allowOverlay: true,
         readonly: false,
         displayData: String(dataItem),
-        data: dataItem,
+        data: String(dataItem),
       };
-    }
+    },
+    [columns, data],
+  );
 
-    return {
-      kind: GridCellKind.Text,
-      allowOverlay: true,
-      readonly: false,
-      displayData: String(dataItem),
-      data: String(dataItem),
-    };
-  });
+  const onCellEdited = useCallback(
+    (cell: Item, newValue: EditableGridCell) => {
+      const [col, row] = cell;
+      const column = columns[col];
+      const key = column.title;
 
-  const onCellEdited = useEvent((cell: Item, newValue: EditableGridCell) => {
-    const [col, row] = cell;
-    const key = indexes[col];
+      // Deletes are not handled by validateCell, so we need to handle them here
+      let newData = newValue.data;
+      if (
+        (column.dataType === "number" || column.dataType === "integer") &&
+        (newValue.data === undefined || newValue.data === "")
+      ) {
+        newData = null;
+      }
 
-    // Mutate the data in place is demonstrated in the docs
-    // eslint-disable-next-line react-hooks/react-compiler
-    data[row][key as keyof T] = newValue.data as T[keyof T];
+      // Mutate the data in place is demonstrated in the docs
+      // eslint-disable-next-line react-hooks/react-compiler
+      data[row][key as keyof T] = newData as T[keyof T];
 
-    onEdits((v) => ({
-      ...v,
-      edits: [...v.edits, { rowIdx: row, columnId: key, value: newValue.data }],
-    }));
-  });
+      onAddEdits([{ rowIdx: row, columnId: key, value: newData }]);
+    },
+    [columns, data, onAddEdits],
+  );
 
-  const onColumnResize = useEvent((column: GridColumn, newSize: number) => {
+  const onColumnResize = useCallback((column: GridColumn, newSize: number) => {
     setColumnWidths((prev) => ({
       ...prev,
       [column.title]: newSize,
     }));
-  });
+  }, []);
 
-  const validateCell = useEvent(
+  // Only called when user edits a cell, not deletes
+  const validateCell = useCallback(
     (cell: Item, newValue: EditableGridCell, _prevValue: GridCell): boolean => {
       const [col, _row] = cell;
-      const key = indexes[col];
+      const key = columns[col].title;
 
       const columnType = columnFields[key];
       // Verify the new value is of the correct type
@@ -163,14 +179,48 @@ export const GlideDataEditor = <T,>({
 
       return true;
     },
+    [columnFields, columns],
   );
 
   const onKeyDown = useEvent((e: GridKeyEventArgs) => {
+    // Manual copy as the default copy function is not working
     if (copyShortcutPressed(e as unknown as React.KeyboardEvent<HTMLElement>)) {
       copyCells(selection, getCellContent);
       return;
     }
   });
+
+  const onRowAppend = useCallback(() => {
+    const newRow = Object.fromEntries(
+      columns.map((column) => {
+        const dataType = column.dataType;
+        switch (dataType) {
+          case "boolean":
+            return [column.title, false];
+          case "number":
+          case "integer":
+            return [column.title, 0];
+          case "date":
+          case "datetime":
+          case "time":
+            // TODO: Handle specific types
+            return [column.title, new Date()];
+          case "string":
+          case "unknown":
+            return [column.title, ""];
+          default:
+            logNever(dataType);
+            return [column.title, ""];
+        }
+      }),
+    );
+    onAddRows([newRow]);
+
+    // Update data
+    data.push(newRow);
+
+    setTotalRows(totalRows + 1);
+  }, [columns, data, onAddRows, totalRows]);
 
   const onHeaderMenuClick = useEvent((col: number, bounds: Rectangle) => {
     setMenu({ col, bounds });
@@ -178,62 +228,11 @@ export const GlideDataEditor = <T,>({
 
   const handleCopyColumnName = useEvent(async () => {
     if (menu) {
-      const columnName = indexes[menu.col];
+      const columnName = columns[menu.col].title;
       await copyToClipboard(columnName);
       setMenu(undefined);
     }
   });
-
-  // const handleDeleteColumn = useEvent(() => {
-  //   if (!menu) {
-  //     return;
-  //   }
-
-  //   const columnName = indexes[menu.col];
-
-  //   // Create edits to clear all values in this column
-  //   const deleteEdits = data.map((_, rowIdx) => ({
-  //     rowIdx,
-  //     columnId: columnName,
-  //     value: null,
-  //   }));
-
-  //   // Add the delete edits to the existing edits
-  //   onEdits((v) => ({
-  //     ...v,
-  //     edits: [...v.edits, ...deleteEdits],
-  //   }));
-
-  //   setMenu(undefined);
-  // });
-
-  // const handleAddColumn = useEvent((direction: "left" | "right") => {
-  //   if (!menu) {
-  //     return;
-  //   }
-
-  //   const currentColumnName = indexes[menu.col];
-  //   const newColumnName = `Column_${Date.now()}`;
-
-  //   // Determine the position for the new column
-  //   const currentIndex = indexes.indexOf(currentColumnName);
-  //   const newIndex = direction === "left" ? currentIndex : currentIndex + 1;
-
-  //   // Create edits to add default values for the new column
-  //   const addEdits = data.map((_, rowIdx) => ({
-  //     rowIdx,
-  //     columnId: newColumnName,
-  //     value: "", // Default empty string value
-  //   }));
-
-  //   // Add the new column edits to the existing edits
-  //   onEdits((v) => ({
-  //     ...v,
-  //     edits: [...v.edits, ...addEdits],
-  //   }));
-
-  //   setMenu(undefined);
-  // });
 
   const memoizedThemeValues = useMemo(() => getGlideTheme(theme), [theme]);
   const experimental = useMemo(
@@ -246,6 +245,15 @@ export const GlideDataEditor = <T,>({
   // There is a guarantee that only one column's menu is open (as interaction is disabled outside of the menu)
   const isMenuOpen = menu !== undefined;
   const iconClassName = "mr-2 h-3.5 w-3.5";
+
+  const memoizedTrailingRowOptions = useMemo(
+    () => ({
+      hint: "New row",
+      sticky: true,
+      tint: true,
+    }),
+    [],
+  );
 
   return (
     <>
@@ -266,6 +274,8 @@ export const GlideDataEditor = <T,>({
         onColumnResize={onColumnResize}
         onHeaderMenuClick={onHeaderMenuClick}
         theme={memoizedThemeValues}
+        trailingRowOptions={memoizedTrailingRowOptions}
+        onRowAppended={onRowAppend}
         experimental={experimental}
       />
       {isMenuOpen && (
@@ -284,67 +294,11 @@ export const GlideDataEditor = <T,>({
               <CopyIcon className={iconClassName} />
               Copy column name
             </DropdownMenuItem>
-            {/* 
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem onClick={() => handleAddColumn("left")}>
-              <PlusIcon className={iconClassName} />
-              Add column to the left
-            </DropdownMenuItem>
-
-            <DropdownMenuItem onClick={() => handleAddColumn("right")}>
-              <PlusIcon className={iconClassName} />
-              Add column to the right
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={handleDeleteColumn}
-              className="text-destructive"
-            >
-              <TrashIcon className={iconClassName} />
-              Delete column
-            </DropdownMenuItem> */}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
     </>
   );
 };
-
-function getColumnKind(fieldType: DataType): GridCellKind {
-  switch (fieldType) {
-    case "string":
-      return GridCellKind.Text;
-    case "number":
-      return GridCellKind.Number;
-    case "boolean":
-      return GridCellKind.Boolean;
-    default:
-      return GridCellKind.Text;
-  }
-}
-
-function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
-  switch (fieldType) {
-    case "string":
-      return GridColumnIcon.HeaderString;
-    case "number":
-    case "integer":
-      return GridColumnIcon.HeaderNumber;
-    case "boolean":
-      return GridColumnIcon.HeaderBoolean;
-    case "date":
-    case "datetime":
-      return GridColumnIcon.HeaderDate;
-    case "time":
-      return GridColumnIcon.HeaderTime;
-    case "unknown":
-      return GridColumnIcon.HeaderString;
-    default:
-      logNever(fieldType);
-      return GridColumnIcon.HeaderString;
-  }
-}
 
 export default GlideDataEditor;

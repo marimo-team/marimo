@@ -3,10 +3,12 @@
 import {
   type GridCell,
   GridCellKind,
+  GridColumnIcon,
   type GridSelection,
 } from "@glideapps/glide-data-grid";
 import { getTabSeparatedValues } from "@/components/data-table/range-focus/utils";
 import type { DataType } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
 import { copyToClipboard } from "@/utils/copy";
 
 export function copyCells(
@@ -83,4 +85,39 @@ export function getColumnWidth<T>(
 
   // Return the larger of minimum width or calculated width, capped at 600px
   return Math.min(Math.max(calculatedWidth, minWidth), 600);
+}
+
+export function getColumnKind(fieldType: DataType): GridCellKind {
+  switch (fieldType) {
+    case "string":
+      return GridCellKind.Text;
+    case "number":
+      return GridCellKind.Number;
+    case "boolean":
+      return GridCellKind.Boolean;
+    default:
+      return GridCellKind.Text;
+  }
+}
+
+export function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
+  switch (fieldType) {
+    case "string":
+      return GridColumnIcon.HeaderString;
+    case "number":
+    case "integer":
+      return GridColumnIcon.HeaderNumber;
+    case "boolean":
+      return GridColumnIcon.HeaderBoolean;
+    case "date":
+    case "datetime":
+      return GridColumnIcon.HeaderDate;
+    case "time":
+      return GridColumnIcon.HeaderTime;
+    case "unknown":
+      return GridColumnIcon.HeaderString;
+    default:
+      logNever(fieldType);
+      return GridColumnIcon.HeaderString;
+  }
 }
