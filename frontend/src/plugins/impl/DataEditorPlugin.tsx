@@ -113,26 +113,24 @@ const LoadingDataEditor = (props: Props) => {
   }
 
   return (
-    <div className="h-[400px] w-full">
-      <LazyDataEditor
-        data={data}
-        fieldTypes={props.fieldTypes}
-        rows={data.length}
-        onAddEdits={(edits) => {
-          props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
-        }}
-        onAddRows={(rows) => {
-          const newEdits = rows.flatMap((row, rowIndex) =>
-            Object.entries(row).map(([columnId, value]) => ({
-              rowIdx: data.length + rowIndex,
-              columnId,
-              value,
-            })),
-          );
-          props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
-        }}
-        host={props.host}
-      />
-    </div>
+    <LazyDataEditor
+      data={data}
+      fieldTypes={props.fieldTypes}
+      rows={data.length}
+      onAddEdits={(edits) => {
+        props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
+      }}
+      onAddRows={(rows) => {
+        const newEdits = rows.flatMap((row, rowIndex) =>
+          Object.entries(row).map(([columnId, value]) => ({
+            rowIdx: data.length + rowIndex,
+            columnId,
+            value,
+          })),
+        );
+        props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
+      }}
+      host={props.host}
+    />
   );
 };
