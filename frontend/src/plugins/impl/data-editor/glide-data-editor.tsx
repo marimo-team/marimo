@@ -1,25 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import DataEditor, {
-  CompactSelection,
+  type DataEditorRef,
   type EditableGridCell,
   type GridCell,
   GridCellKind,
   type GridColumn,
   type GridKeyEventArgs,
-  type GridSelection,
   type Item,
   type Rectangle,
 } from "@glideapps/glide-data-grid";
 import { CopyIcon } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import {
   type FieldTypesWithExternalType,
   toFieldTypes,
 } from "@/components/data-table/types";
-import { copyShortcutPressed } from "@/components/editor/controls/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,13 +27,12 @@ import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
 import { getGlideTheme } from "./themes";
 import type { Edits, ModifiedGridColumn } from "./types";
-import {
-  copyCells,
-  getColumnHeaderIcon,
-  getColumnKind,
-  getColumnWidth,
-} from "./utils";
+import { getColumnHeaderIcon, getColumnKind } from "./utils";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
+import {
+  copyShortcutPressed,
+  pasteShortcutPressed,
+} from "@/components/editor/controls/utils";
 import { logNever } from "@/utils/assertNever";
 
 interface GlideDataEditorProps<T> {
@@ -44,7 +41,7 @@ interface GlideDataEditorProps<T> {
   rows: number;
   onAddEdits: (edits: Edits["edits"]) => void;
   onAddRows: (newRows: object[]) => void;
-  host: HTMLElement;
+  host?: HTMLElement;
 }
 
 export const GlideDataEditor = <T,>({
@@ -57,11 +54,9 @@ export const GlideDataEditor = <T,>({
 }: GlideDataEditorProps<T>) => {
   const { theme } = useTheme();
 
+  const dataEditorRef = useRef<DataEditorRef>(null);
+
   const [menu, setMenu] = useState<{ col: number; bounds: Rectangle }>();
-  const [selection, setSelection] = useState<GridSelection>({
-    columns: CompactSelection.empty(),
-    rows: CompactSelection.empty(),
-  });
 
   const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -71,10 +66,9 @@ export const GlideDataEditor = <T,>({
     const columns: ModifiedGridColumn[] = [];
     for (const [columnName, fieldType] of Object.entries(columnFields)) {
       columns.push({
+        id: columnName,
         title: columnName,
-        width:
-          columnWidths[columnName] ??
-          getColumnWidth(fieldType, data, columnName),
+        width: columnWidths[columnName], // Enables resizing
         icon: getColumnHeaderIcon(fieldType),
         kind: getColumnKind(fieldType),
         dataType: fieldType,
@@ -83,7 +77,7 @@ export const GlideDataEditor = <T,>({
     }
 
     return columns;
-  }, [columnFields, columnWidths, data]);
+  }, [columnFields, columnWidths]);
 
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
@@ -182,13 +176,19 @@ export const GlideDataEditor = <T,>({
     [columnFields, columns],
   );
 
-  const onKeyDown = useEvent((e: GridKeyEventArgs) => {
-    // Manual copy as the default copy function is not working
-    if (copyShortcutPressed(e as unknown as React.KeyboardEvent<HTMLElement>)) {
-      copyCells(selection, getCellContent);
-      return;
+  // Hack to emit copy and paste events as these events aren't triggered automatically in shadow DOM
+  // TODO: Paste does not work
+  const onKeyDown = useCallback((e: GridKeyEventArgs) => {
+    if (dataEditorRef.current) {
+      const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
+
+      if (copyShortcutPressed(keyboardEvent)) {
+        dataEditorRef.current.emit("copy");
+      } else if (pasteShortcutPressed(keyboardEvent)) {
+        dataEditorRef.current.emit("paste");
+      }
     }
-  });
+  }, []);
 
   const onRowAppend = useCallback(() => {
     const newRow = Object.fromEntries(
@@ -237,7 +237,8 @@ export const GlideDataEditor = <T,>({
   const memoizedThemeValues = useMemo(() => getGlideTheme(theme), [theme]);
   const experimental = useMemo(
     () => ({
-      eventTarget: (host.shadowRoot as unknown as HTMLElement) || window,
+      eventTarget:
+        (host?.shadowRoot as unknown as HTMLElement) ?? document.body,
     }),
     [host],
   );
@@ -258,24 +259,25 @@ export const GlideDataEditor = <T,>({
   return (
     <>
       <DataEditor
+        ref={dataEditorRef}
         getCellContent={getCellContent}
         columns={columns}
         rows={rows}
         smoothScrollX={true}
         smoothScrollY={true}
         validateCell={validateCell}
-        // getCellsForSelection={true} // Enables copy, TODO: Not working
-        onPaste={true} // Enables paste, TODO: Not working
+        getCellsForSelection={true}
+        onPaste={true}
         onKeyDown={onKeyDown}
         width="100%"
         onCellEdited={onCellEdited}
-        gridSelection={selection}
-        onGridSelectionChange={setSelection}
         onColumnResize={onColumnResize}
         onHeaderMenuClick={onHeaderMenuClick}
         theme={memoizedThemeValues}
         trailingRowOptions={memoizedTrailingRowOptions}
         onRowAppended={onRowAppend}
+        maxColumnAutoWidth={600}
+        maxColumnWidth={600}
         experimental={experimental}
       />
       {isMenuOpen && (
