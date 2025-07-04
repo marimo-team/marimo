@@ -256,7 +256,7 @@ Tables in marimo come with several panels to solve your data needs. To open them
 
 ??? note
 
-    The toggles show up in edit mode but are hidden in run mode except for the row viewer.
+    Toggles are visible in edit mode but hidden in run mode (except for the row viewer).
 
 ### Row viewer panel
 
