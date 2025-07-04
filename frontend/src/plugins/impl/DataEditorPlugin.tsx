@@ -58,7 +58,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
         <LoadingDataEditor
           data={props.data.data}
           fieldTypes={props.data.fieldTypes}
-          edits={props.value.edits}
+          edits={props.value}
           onEdits={props.setValue}
           columnSizingMode={props.data.columnSizingMode}
           host={props.host}
@@ -70,7 +70,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
 interface Props
   extends Omit<DataEditorProps<object>, "data" | "onAddEdits" | "onAddRows"> {
   data: TableData<object>;
-  edits: Edits["edits"];
+  edits: Edits;
   onEdits: Setter<Edits>;
   host: HTMLElement;
 }
@@ -118,7 +118,19 @@ const LoadingDataEditor = (props: Props) => {
         data={data}
         fieldTypes={props.fieldTypes}
         rows={data.length}
-        onEdits={props.onEdits}
+        onAddEdits={(edits) => {
+          props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
+        }}
+        onAddRows={(rows) => {
+          const newEdits = rows.flatMap((row, rowIndex) =>
+            Object.entries(row).map(([columnId, value]) => ({
+              rowIdx: data.length + rowIndex,
+              columnId,
+              value,
+            })),
+          );
+          props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
+        }}
         host={props.host}
       />
     </div>
