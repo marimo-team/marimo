@@ -247,18 +247,54 @@ table.value
 
 ///
 
-## Row viewer panel
+## Table panels
 
-To inspect individual rows, you can toggle the Row viewer panel located at the bottom left of a table. While open, click on any row to view. 
+Tables in marimo come with several panels to solve your data needs. To open them, click the toggle at the bottom left of a table. If you need further control, you can
 
-For convenience, you can pin the panel to the side of your editor or toggle the focused cell feature, which ensures the value of the currently focused cell is displayed in the panel.
+- **Pin the panel** to the side of your editor for persistent access
+- **Toggle focus table** to automatically display the currently focused table in the panel
+
+??? note
+
+    The toggles show up in edit mode but are hidden in run mode except for the row viewer.
+
+### Row viewer panel
 
 <div align="center">
 <figure>
-<img src="/_static/docs-row-viewer-panel.gif" width="100%" height="100%" alt="Row viewer panel demonstration (click the bottom left of the table to toggle)">
-<figcaption>Open the row viewer panel to display data vertically</figcaption>
+<video autoplay muted loop playsinline align="center" src="/_static/docs-row-viewer-panel.mp4">
+</video>
 </figure>
 </div>
+
+To inspect individual rows, open the **row viewer**. This presents a vertical view of the selected row.
+
+- **Press `Space`** to select/deselect the current row
+- **Use arrow keys** (`←` `→`) to navigate between rows
+- **Click** on any row in the table to view its data in the panel
+
+### Column explorer panel
+
+<div align="center">
+<figure>
+<video autoplay muted loop playsinline align="center" src="/_static/docs-column-explorer-table.mp4">
+</video>
+</figure>
+</div>
+
+To explore your data, open the **column explorer** where you can find summary statistics and charts for each column. Click the `+` button to add the chart code to a new cell.
+
+This requires the `altair` package to be installed. For large dataframes, `vegafusion` is also needed to render charts. To use the generated Python code, enable vegafusion in your notebook:
+
+```python
+import altair
+
+altair.data_transformers.enable("vegafusion")
+```
+
+### Chart builder
+
+Refer to the [chart builder guide](plotting.md#chart-builder) for more information.
 
 ## Example notebook
 
