@@ -173,8 +173,8 @@ def categorize_entries(
         pr: PullRequest = entry.pr
         label_names = {label.name for label in pr.labels}
 
-        # Skip entries labeled as "internal"
-        if "internal" in label_names or pr.title.startswith("chore"):
+        # Internal PRs can be skipped to focus on public-facing changes
+        if "internal" in label_names or pr.title.startswith(("chore")):
             continue
 
         if "release-highlight" in label_names or pr.title.startswith("feat"):
