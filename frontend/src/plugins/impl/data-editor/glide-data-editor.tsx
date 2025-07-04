@@ -256,6 +256,12 @@ export const GlideDataEditor = <T,>({
     [],
   );
 
+  const memoizedHeight = useMemo(() => {
+    if (rows > 10) {
+      return 450;
+    }
+  }, [rows]);
+
   return (
     <>
       <DataEditor
@@ -269,6 +275,7 @@ export const GlideDataEditor = <T,>({
         getCellsForSelection={true}
         onPaste={true}
         onKeyDown={onKeyDown}
+        height={memoizedHeight}
         width="100%"
         onCellEdited={onCellEdited}
         onColumnResize={onColumnResize}
