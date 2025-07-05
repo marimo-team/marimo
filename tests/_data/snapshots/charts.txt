@@ -184,7 +184,7 @@ _chart = (
             alt.Tooltip("count:Q", format=",.0f", title="Number of records"),
         ],
     )
-    .properties(title="Top 10 {column}", width="container")
+    .properties(title="Top 10 some_column", width="container")
     .configure_view(stroke=None)
     .configure_axis(grid=False)
 )

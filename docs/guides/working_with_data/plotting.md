@@ -279,3 +279,20 @@ If you want to output the plot in the console area, use `plt.show()` or
 To make matplotlib plots interactive, use
 [mo.mpl.interactive][marimo.mpl.interactive].
 (Matplotlib plots are not yet reactive.)
+
+## Chart builder
+
+At the bottom left of a table, you can toggle the chart builder. This provides a drag-and-drop interface to create plots.
+
+<div align="center">
+<figure>
+<video autoplay muted loop playsinline align="center" src="/_static/docs-chart-builder-table.mp4">
+</video>
+</figure>
+</div>
+
+Charts are powered by [Vega-Lite](https://vega.github.io/vega-lite/). To save a chart, click the `+` button in the `Python code` tab to add the code to a new cell.
+
+!!! note
+
+    This feature is in active development. Please report any issues or feedback [here](https://github.com/marimo-team/marimo/issues).

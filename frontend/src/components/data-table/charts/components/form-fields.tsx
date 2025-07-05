@@ -52,6 +52,7 @@ import {
   AGGREGATION_FNS,
   type AggregationFn,
   BIN_AGGREGATION,
+  ChartType,
   COMBINED_TIME_UNITS,
   NONE_VALUE,
   SELECTABLE_DATA_TYPES,
@@ -640,6 +641,10 @@ export const AggregationSelect = ({
   const availableAggregations =
     selectedDataType === "string" ? STRING_AGGREGATION_FNS : AGGREGATION_FNS;
 
+  const { chartType } = useChartFormContext();
+  // Heatmap already has binning as an option elsewhere
+  const isBinningAllowed = chartType !== ChartType.HEATMAP;
+
   const renderSubtitle = (text: string) => {
     return <span className="text-xs text-muted-foreground pr-10">{text}</span>;
   };
@@ -711,6 +716,9 @@ export const AggregationSelect = ({
                     );
                     const selectItem = renderSelectItem(agg, Icon, subtitle);
                     if (agg === BIN_AGGREGATION) {
+                      if (!isBinningAllowed) {
+                        return null;
+                      }
                       return (
                         <div key={agg}>
                           <SelectSeparator />

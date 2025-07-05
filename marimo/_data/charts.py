@@ -205,7 +205,7 @@ class StringChartBuilder(ChartBuilder):
 
     def simple_altair_code(self, data: str, column: str) -> str:
         properties_config = (
-            """.properties(title="Top 10 {column}", width="container")"""
+            f""".properties(title="Top 10 {column}", width="container")"""
             if self.should_limit_to_10_items
             else """.properties(width="container")"""
         )
