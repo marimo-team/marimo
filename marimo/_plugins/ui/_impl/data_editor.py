@@ -24,7 +24,6 @@ from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
-from marimo._plugins.validators import validate_page_size
 from marimo._utils.deprecated import deprecated
 
 LOGGER = _loggers.marimo_logger()
@@ -135,20 +134,20 @@ class data_editor(
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
         column_sizing_mode (Literal["auto", "fit"]): The column sizing mode for the table.
             `auto` will size columns based on the content, `fit` will size columns to fit the view.
-        pagination (Optional[bool]): Whether to use pagination, enabled by default.
-        page_size (Optional[int]): Page size if pagination is in use, 50 by default.
+
+    Deprecated:
+        pagination (bool): Whether to enable pagination.
+        page_size (int): The number of rows to display per page.
     """
 
     _name: Final[str] = "marimo-data-editor"
-
-    LIMIT: Final[int] = 1000
 
     def __init__(
         self,
         data: Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
         *,
-        pagination: bool = True,
-        page_size: int = 50,
+        pagination: bool = True,  # Deprecated, TODO: Remove
+        page_size: int = 50,  # Deprecated
         label: str = "",
         on_change: Optional[
             Callable[
@@ -158,14 +157,8 @@ class data_editor(
         ] = None,
         column_sizing_mode: Literal["auto", "fit"] = "auto",
     ) -> None:
-        validate_page_size(page_size)
+        del pagination, page_size
         table_manager = get_table_manager(data)
-
-        size = table_manager.get_num_rows()
-        if size is None or size > self.LIMIT:
-            raise ValueError(
-                f"Data editor supports a maximum of {self.LIMIT} rows."
-            )
 
         self._data = data
         self._edits: DataEdits | None = None
@@ -178,8 +171,6 @@ class data_editor(
             args={
                 "data": mo_data.csv(table_manager.to_csv()).url,
                 "field-types": field_types or None,
-                "pagination": pagination,
-                "page-size": page_size,
                 "column-sizing-mode": column_sizing_mode,
             },
             on_change=on_change,
@@ -279,6 +270,10 @@ def _convert_value(
     dtype: Optional[DType] = None,
 ) -> Any:
     try:
+        # None is a valid value for all dtypes
+        if value is None:
+            return None
+
         if dtype is not None:
             if dtype == nw.Datetime:
                 return datetime.datetime.fromisoformat(value)
@@ -338,12 +333,13 @@ def _convert_value(
             return original_type(value)
         elif isinstance(original_value, str):
             return str(value)
-        elif isinstance(original_value, (datetime.date)):
-            return datetime.date.fromisoformat(value)
-        elif isinstance(original_value, (datetime.datetime)):
-            return datetime.datetime.fromisoformat(value)
+        # The more specific time checks are handled first to avoid parent classes matching
         elif isinstance(original_value, (datetime.timedelta)):
             return datetime.timedelta(microseconds=float(value))
+        elif isinstance(original_value, (datetime.datetime)):
+            return datetime.datetime.fromisoformat(value)
+        elif isinstance(original_value, (datetime.date)):
+            return datetime.date.fromisoformat(value)
         elif isinstance(original_value, list):
             # Handle list conversion
             if isinstance(value, str):

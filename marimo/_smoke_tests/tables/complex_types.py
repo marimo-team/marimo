@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.15"
+__generated_with = "0.14.9"
 app = marimo.App(width="medium")
 
 
@@ -143,6 +143,13 @@ def _(mo):
     )
     mo.ui.dataframe(pandas_with_timestamp)
     return (pd,)
+
+
+@app.cell
+def _(df, mo):
+    subset = df.drop(["nested_lists", "list_with_structs", "nested_arrays"])
+    mo.ui.data_editor(subset)
+    return
 
 
 @app.cell
