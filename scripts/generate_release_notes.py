@@ -180,7 +180,7 @@ def categorize_entries(
         if "release-highlight" in label_names:
             categories["highlights"].append(entry)
 
-        if "breaking-change" in label_names:
+        if "breaking" in label_names:
             categories["breaking"].append(entry)
         elif "bug" in label_names:
             categories["bug"].append(entry)
