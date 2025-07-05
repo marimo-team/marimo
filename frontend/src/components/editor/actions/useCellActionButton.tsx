@@ -357,14 +357,17 @@ export function useCellActionButtons({ cell }: Props) {
         icon: <ChevronsUpIcon size={13} strokeWidth={1.5} />,
         label: "Send to top",
         hotkey: "cell.sendToTop",
-        handle: () => sendToTop({ cellId }),
+        // When using the cell menu, likely the user doesn't want to scroll
+        // and instead just wants to get the cell out of the way
+        handle: () => sendToTop({ cellId, scroll: false }),
       },
       {
         icon: <ChevronsDownIcon size={13} strokeWidth={1.5} />,
         label: "Send to bottom",
         hotkey: "cell.sendToBottom",
-        handle: () => sendToBottom({ cellId }),
-      },
+        // When using the cell menu, likely the user doesn't want to scroll
+        // and instead just wants to get the cell out of the way
+        handle: () => sendToBottom({ cellId, scroll: false }), },
       {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
         label: "Break into new column",

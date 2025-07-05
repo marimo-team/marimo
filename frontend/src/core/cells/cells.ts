@@ -450,13 +450,13 @@ const {
     scrollToBottom();
     return state;
   },
-  sendToTop: (state, action: { cellId: CellId }) => {
+  sendToTop: (state, action: { cellId: CellId; scroll?: boolean }) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId } = action;
+    const { cellId, scroll = true } = action;
     const cellIndex = column.indexOfOrThrow(cellId);
     if (cellIndex === 0) {
       return state;
@@ -465,16 +465,16 @@ const {
     return {
       ...state,
       cellIds: state.cellIds.moveWithinColumn(column.id, cellIndex, 0),
-      scrollKey: cellId,
+      scrollKey: scroll ? cellId : null,
     };
   },
-  sendToBottom: (state, action: { cellId: CellId }) => {
+  sendToBottom: (state, action: { cellId: CellId; scroll?: boolean }) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId } = action;
+    const { cellId, scroll = true } = action;
     const cellIndex = column.indexOfOrThrow(cellId);
     const newIndex = column.length - 1;
 
@@ -485,7 +485,7 @@ const {
     return {
       ...state,
       cellIds: state.cellIds.moveWithinColumn(column.id, cellIndex, newIndex),
-      scrollKey: cellId,
+      scrollKey: scroll ? cellId : null,
     };
   },
   addColumn: (state, action: { columnId: CellColumnId }) => {
