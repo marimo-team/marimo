@@ -240,7 +240,7 @@ export const GlideDataEditor = <T,>({
       eventTarget:
         (host?.shadowRoot as unknown as HTMLElement) ?? document.body,
     }),
-    [host],
+    [host?.shadowRoot],
   );
 
   // There is a guarantee that only one column's menu is open (as interaction is disabled outside of the menu)
