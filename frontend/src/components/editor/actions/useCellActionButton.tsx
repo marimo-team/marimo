@@ -367,7 +367,8 @@ export function useCellActionButtons({ cell }: Props) {
         hotkey: "cell.sendToBottom",
         // When using the cell menu, likely the user doesn't want to scroll
         // and instead just wants to get the cell out of the way
-        handle: () => sendToBottom({ cellId, scroll: false }), },
+        handle: () => sendToBottom({ cellId, scroll: false }),
+      },
       {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,
         label: "Break into new column",
