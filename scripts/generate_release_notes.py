@@ -157,6 +157,7 @@ def categorize_entries(
     """Categorize entries based on PR labels."""
     # TODO: Could add more or be more granular
     categories = {
+        "breaking": [],
         "bug": [],
         "enhancement": [],
         "documentation": [],
@@ -179,7 +180,9 @@ def categorize_entries(
         if "release-highlight" in label_names:
             categories["highlights"].append(entry)
 
-        if "bug" in label_names:
+        if "breaking" in label_names:
+            categories["breaking"].append(entry)
+        elif "bug" in label_names:
             categories["bug"].append(entry)
         elif "enhancement" in label_names:
             categories["enhancement"].append(entry)
@@ -246,6 +249,12 @@ def generate_release_notes(since_tag: str) -> str:
                         for item in media:
                             notes.append(item)
                 notes.append("")
+
+    if categories["breaking"]:
+        notes.append("## 🚨 Breaking changes")
+        for entry in categories["breaking"]:
+            notes.append(format_entry(entry))
+        notes.append("")
 
     if categories["enhancement"]:
         notes.append("## ✨ Enhancements")
