@@ -269,12 +269,19 @@ const NullFilter = <TData, TValue>({
     }
   };
 
+  const isNullOrNotNull = operator === "is_null" || operator === "is_not_null";
+
   return (
     <Select
       value={operator}
       onValueChange={(value) => handleValueChange(value as OperatorType)}
     >
-      <SelectTrigger className="!shadow-none !ring-0 w-full mb-1">
+      <SelectTrigger
+        className={cn(
+          "border-border !shadow-none !ring-0 w-full mb-0.5",
+          isNullOrNotNull && "mb-2",
+        )}
+      >
         <SelectValue defaultValue={operator} />
       </SelectTrigger>
       <SelectContent>
