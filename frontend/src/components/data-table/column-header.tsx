@@ -2,6 +2,7 @@
 "use no memo";
 
 import type { Column } from "@tanstack/react-table";
+import { capitalize } from "lodash-es";
 import { FilterIcon, MinusIcon, SearchIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -188,12 +189,20 @@ export function renderMenuItemFilter<TData, TValue>(
         <DropdownMenuPortal>
           <DropdownMenuSubContent>
             <DropdownMenuItem
-              onClick={() => column.setFilterValue(Filter.boolean(true))}
+              onClick={() =>
+                column.setFilterValue(
+                  Filter.boolean({ value: true, operator: "is_true" }),
+                )
+              }
             >
               True
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => column.setFilterValue(Filter.boolean(false))}
+              onClick={() =>
+                column.setFilterValue(
+                  Filter.boolean({ value: false, operator: "is_false" }),
+                )
+              }
             >
               False
             </DropdownMenuItem>
@@ -253,6 +262,41 @@ export function renderMenuItemFilter<TData, TValue>(
   return null;
 }
 
+// Type-safe constants for text filter operators
+const TEXT_FILTER_OPERATORS = {
+  is_null: "is_null",
+  is_not_null: "is_not_null",
+} satisfies Record<string, OperatorType>;
+
+const NullFilterSelect = ({
+  defaultItem,
+  operator,
+  setOperator,
+}: {
+  defaultItem: OperatorType | "between";
+  operator: OperatorType | "between";
+  setOperator: (operator: OperatorType) => void;
+}) => {
+  return (
+    <Select
+      value={operator}
+      onValueChange={(value) => setOperator(value as OperatorType)}
+    >
+      <SelectTrigger className="border-border !shadow-none !ring-0 w-full">
+        <SelectValue defaultValue={operator} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={defaultItem}>{capitalize(defaultItem)}</SelectItem>
+        <SelectSeparator />
+        <SelectItem value={TEXT_FILTER_OPERATORS.is_null}>Is null</SelectItem>
+        <SelectItem value={TEXT_FILTER_OPERATORS.is_not_null}>
+          Is not null
+        </SelectItem>
+      </SelectContent>
+    </Select>
+  );
+};
+
 const NumberRangeFilter = <TData, TValue>({
   column,
 }: {
@@ -263,6 +307,9 @@ const NumberRangeFilter = <TData, TValue>({
     | undefined;
   const hasFilter = currentFilter !== undefined;
 
+  const [operator, setOperator] = useState<OperatorType | "between">(
+    currentFilter?.operator ?? "between",
+  );
   const [min, setMin] = useState<number | undefined>(currentFilter?.min);
   const [max, setMax] = useState<number | undefined>(currentFilter?.max);
   const minRef = useRef<HTMLInputElement>(null);
@@ -273,47 +320,55 @@ const NumberRangeFilter = <TData, TValue>({
       Filter.number({
         min: opts.min ?? min,
         max: opts.max ?? max,
+        operator: operator === "between" ? undefined : operator,
       }),
     );
   };
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <div className="flex gap-1 items-center">
-        <NumberField
-          ref={minRef}
-          value={min}
-          onChange={(value) => setMin(value)}
-          aria-label="min"
-          placeholder="min"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleApply({ min: Number.parseFloat(e.currentTarget.value) });
-            }
-            if (e.key === "Tab") {
-              maxRef.current?.focus();
-            }
-          }}
-          className="shadow-none! border-border hover:shadow-none!"
-        />
-        <MinusIcon className="h-5 w-5 text-muted-foreground" />
-        <NumberField
-          ref={maxRef}
-          value={max}
-          onChange={(value) => setMax(value)}
-          aria-label="max"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleApply({ max: Number.parseFloat(e.currentTarget.value) });
-            }
-            if (e.key === "Tab") {
-              minRef.current?.focus();
-            }
-          }}
-          placeholder="max"
-          className="shadow-none! border-border hover:shadow-none!"
-        />
-      </div>
+      <NullFilterSelect
+        defaultItem="between"
+        operator={operator}
+        setOperator={setOperator}
+      />
+      {operator === "between" && (
+        <div className="flex gap-1 items-center">
+          <NumberField
+            ref={minRef}
+            value={min}
+            onChange={(value) => setMin(value)}
+            aria-label="min"
+            placeholder="min"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleApply({ min: Number.parseFloat(e.currentTarget.value) });
+              }
+              if (e.key === "Tab") {
+                maxRef.current?.focus();
+              }
+            }}
+            className="shadow-none! border-border hover:shadow-none!"
+          />
+          <MinusIcon className="h-5 w-5 text-muted-foreground" />
+          <NumberField
+            ref={maxRef}
+            value={max}
+            onChange={(value) => setMax(value)}
+            aria-label="max"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleApply({ max: Number.parseFloat(e.currentTarget.value) });
+              }
+              if (e.key === "Tab") {
+                minRef.current?.focus();
+              }
+            }}
+            placeholder="max"
+            className="shadow-none! border-border hover:shadow-none!"
+          />
+        </div>
+      )}
       <FilterButtons
         onApply={handleApply}
         onClear={() => {
@@ -326,13 +381,6 @@ const NumberRangeFilter = <TData, TValue>({
     </div>
   );
 };
-
-// Type-safe constants for text filter operators
-const TEXT_FILTER_OPERATORS = {
-  contains: "contains",
-  is_null: "is_null",
-  is_not_null: "is_not_null",
-} satisfies Record<string, OperatorType>;
 
 const TextFilter = <TData, TValue>({
   column,
@@ -364,25 +412,11 @@ const TextFilter = <TData, TValue>({
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <Select
-        value={operator}
-        onValueChange={(value) => setOperator(value as OperatorType)}
-      >
-        <SelectTrigger className="border-border !shadow-none !ring-0 w-full">
-          <SelectValue defaultValue={operator} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={TEXT_FILTER_OPERATORS.contains}>
-            Contains
-          </SelectItem>
-          <SelectSeparator />
-          <SelectItem value={TEXT_FILTER_OPERATORS.is_null}>Is null</SelectItem>
-          <SelectItem value={TEXT_FILTER_OPERATORS.is_not_null}>
-            Is not null
-          </SelectItem>
-        </SelectContent>
-      </Select>
-
+      <NullFilterSelect
+        defaultItem="contains"
+        operator={operator}
+        setOperator={setOperator}
+      />
       {operator === "contains" && (
         <Input
           type="text"
@@ -395,7 +429,7 @@ const TextFilter = <TData, TValue>({
               handleApply();
             }
           }}
-          className="shadow-none! border-border hover:shadow-none! mt-0.5"
+          className="shadow-none! border-border hover:shadow-none!"
         />
       )}
       <FilterButtons
@@ -488,7 +522,9 @@ const PopoverFilterByValues = <TData, TValue>({
       column.setFilterValue(undefined);
       return;
     }
-    column.setFilterValue(Filter.select([...chosenValues]));
+    column.setFilterValue(
+      Filter.select({ options: [...chosenValues], operator: "in" }),
+    );
   };
 
   if (data) {

@@ -56,6 +56,14 @@ function formatValue(value: ColumnFilterValue) {
   if (!("type" in value)) {
     return;
   }
+
+  if (value.operator === "is_null") {
+    return "is null";
+  }
+  if (value.operator === "is_not_null") {
+    return "is not null";
+  }
+
   if (value.type === "number") {
     return formatMinMax(value.min, value.max);
   }
@@ -86,9 +94,6 @@ function formatValue(value: ColumnFilterValue) {
     return `is in [${stringifiedOptions.join(", ")}]`;
   }
   if (value.type === "text") {
-    if (value.operator === "is_null" || value.operator === "is_not_null") {
-      return value.operator;
-    }
     return `contains "${value.text}"`;
   }
   logNever(value);
