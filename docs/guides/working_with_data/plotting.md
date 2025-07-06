@@ -284,7 +284,7 @@ To make matplotlib plots interactive, use
 
 marimo comes with a built-in chart builder that makes it easy to create plots specialized to your dataframes with just a few clicks. As you make your charts, marimo generates Python code that you can add to your notebook to save them.
 
-You can toggle the chart builder with a button in the bottom-left of a dataframe output. This provides a GUI interface to create many kinds of plots, while also generating Python code.
+You can toggle the chart builder with a button at the bottom-left of a dataframe output. This provides a GUI interface to create many kinds of plots, while also generating Python code.
 
 <div align="center">
 <figure>
