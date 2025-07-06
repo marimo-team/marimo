@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import os
 import random
-import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
@@ -13,6 +12,7 @@ from tests._server.mocks import (
     with_session,
     with_websocket_session,
 )
+from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient, WebSocketTestSession
@@ -22,18 +22,6 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
-
-
-def _try_assert_n_times(n: int, assert_fn: Callable[[], None]) -> None:
-    n_tries = 0
-    while n_tries <= n - 1:
-        try:
-            assert_fn()
-            return
-        except Exception:
-            n_tries += 1
-            time.sleep(0.1)
-    assert_fn()
 
 
 @with_session(SESSION_ID)
@@ -62,7 +50,7 @@ def test_rename(client: TestClient) -> None:
     def _new_path_exists():
         assert new_path.exists()
 
-    _try_assert_n_times(5, _new_path_exists)
+    try_assert_n_times(5, _new_path_exists)
 
 
 @with_session(SESSION_ID)
@@ -107,7 +95,7 @@ def test_save_file(client: TestClient) -> None:
         assert "@app.cell(hide_code=True)" in file_contents
         assert "my_cell" in file_contents
 
-    _try_assert_n_times(5, _assert_contents)
+    try_assert_n_times(5, _assert_contents)
 
     # save back
     response = client.post(
@@ -172,7 +160,7 @@ def test_save_with_header(client: TestClient) -> None:
         assert "@app.cell(hide_code=True)" in file_contents
         assert "my_cell" in file_contents
 
-    _try_assert_n_times(5, _assert_contents)
+    try_assert_n_times(5, _assert_contents)
 
 
 @with_session(SESSION_ID)
@@ -225,7 +213,7 @@ def test_save_with_invalid_file(client: TestClient) -> None:
             "Header was not removed"
         )
 
-    _try_assert_n_times(5, _assert_contents)
+    try_assert_n_times(5, _assert_contents)
 
 
 @with_session(SESSION_ID)
@@ -262,7 +250,7 @@ def test_save_app_config(client: TestClient) -> None:
         file_contents = path.read_text()
         assert 'marimo.App(width="medium"' not in file_contents
 
-    _try_assert_n_times(5, _wait_for_file_reset)
+    try_assert_n_times(5, _wait_for_file_reset)
 
     response = client.post(
         "/api/kernel/save_app_config",
@@ -278,7 +266,7 @@ def test_save_app_config(client: TestClient) -> None:
         file_contents = path.read_text()
         assert 'marimo.App(width="medium"' in file_contents
 
-    _try_assert_n_times(5, _assert_contents)
+    try_assert_n_times(5, _assert_contents)
 
 
 @with_session(SESSION_ID)
@@ -309,7 +297,7 @@ def test_copy_file(client: TestClient) -> None:
         assert "import marimo as mo" in file_contents
         assert 'marimo.App(width="full"' in file_contents
 
-    _try_assert_n_times(5, _assert_contents)
+    try_assert_n_times(5, _assert_contents)
 
 
 @with_websocket_session(SESSION_ID)
