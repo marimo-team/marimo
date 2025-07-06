@@ -327,6 +327,13 @@ const NumberRangeFilter = <TData, TValue>({
   );
 };
 
+// Type-safe constants for text filter operators
+const TEXT_FILTER_OPERATORS = {
+  contains: "contains",
+  is_null: "is_null",
+  is_not_null: "is_not_null",
+} satisfies Record<string, OperatorType>;
+
 const TextFilter = <TData, TValue>({
   column,
 }: {
@@ -365,10 +372,14 @@ const TextFilter = <TData, TValue>({
           <SelectValue defaultValue={operator} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="contains">Contains</SelectItem>
+          <SelectItem value={TEXT_FILTER_OPERATORS.contains}>
+            Contains
+          </SelectItem>
           <SelectSeparator />
-          <SelectItem value="is_null">Is null</SelectItem>
-          <SelectItem value="is_not_null">Is not null</SelectItem>
+          <SelectItem value={TEXT_FILTER_OPERATORS.is_null}>Is null</SelectItem>
+          <SelectItem value={TEXT_FILTER_OPERATORS.is_not_null}>
+            Is not null
+          </SelectItem>
         </SelectContent>
       </Select>
 
