@@ -86,6 +86,9 @@ function formatValue(value: ColumnFilterValue) {
     return `is in [${stringifiedOptions.join(", ")}]`;
   }
   if (value.type === "text") {
+    if (value.operator === "is_null" || value.operator === "is_not_null") {
+      return value.operator;
+    }
     return `contains "${value.text}"`;
   }
   logNever(value);

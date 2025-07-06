@@ -110,6 +110,7 @@ describe("isConditionValueValid", () => {
 
   it("should return true if the operator does not require a value", () => {
     expect(isConditionValueValid("is_true", null)).toBe(true);
-    expect(isConditionValueValid("is_nan", undefined)).toBe(true);
+    expect(isConditionValueValid("is_null", undefined)).toBe(true);
+    expect(isConditionValueValid("is_not_null", undefined)).toBe(true);
   });
 });

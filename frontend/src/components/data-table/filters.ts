@@ -5,6 +5,7 @@ import type { RowData } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
 import type { ConditionType } from "@/plugins/impl/data-frames/schema";
 import type { ColumnId } from "@/plugins/impl/data-frames/types";
+import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { assertNever } from "@/utils/assertNever";
 
 declare module "@tanstack/react-table" {
@@ -34,10 +35,10 @@ export const Filter = {
       ...opts,
     } as const;
   },
-  text(text: string) {
+  text(opts: { text?: string; operator: OperatorType }) {
     return {
       type: "text",
-      text,
+      ...opts,
     } as const;
   },
   date(opts: { min?: Date; max?: Date }) {
@@ -108,7 +109,7 @@ export function filterToFilterCondition(
     case "text":
       return {
         column_id: columnId,
-        operator: "contains",
+        operator: filter.operator,
         value: filter.text,
       };
     case "datetime": {

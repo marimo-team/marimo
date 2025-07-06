@@ -18,6 +18,7 @@ import {
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
@@ -35,6 +36,14 @@ import { DraggablePopover } from "../ui/draggable-popover";
 import { Input } from "../ui/input";
 import { NumberField } from "../ui/number-field";
 import { PopoverClose } from "../ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { type ColumnFilterForType, Filter } from "./filters";
 import {
   ClearFilterMenuItem,
@@ -328,30 +337,56 @@ const TextFilter = <TData, TValue>({
     | undefined;
   const hasFilter = currentFilter !== undefined;
   const [value, setValue] = useState<string>(currentFilter?.text ?? "");
+  const [operator, setOperator] = useState<OperatorType>(
+    currentFilter?.operator ?? "contains",
+  );
 
   const handleApply = () => {
+    if (operator !== "contains") {
+      column.setFilterValue(Filter.text({ operator }));
+      return;
+    }
+
     if (value === "") {
       column.setFilterValue(undefined);
       return;
     }
-    column.setFilterValue(Filter.text(value));
+
+    column.setFilterValue(Filter.text({ text: value, operator }));
   };
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <Input
-        type="text"
-        icon={<SearchIcon className="h-3 w-3 text-muted-foreground" />}
-        value={value ?? ""}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Search"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            handleApply();
-          }
-        }}
-        className="shadow-none! border-border hover:shadow-none!"
-      />
+      <Select
+        value={operator}
+        onValueChange={(value) => setOperator(value as OperatorType)}
+      >
+        <SelectTrigger className="border-border !shadow-none !ring-0 w-full">
+          <SelectValue defaultValue={operator} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="contains">Contains</SelectItem>
+          <SelectSeparator />
+          <SelectItem value="is_null">Is null</SelectItem>
+          <SelectItem value="is_not_null">Is not null</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {operator === "contains" && (
+        <Input
+          type="text"
+          icon={<SearchIcon className="h-3 w-3 text-muted-foreground" />}
+          value={value ?? ""}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Search"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleApply();
+            }
+          }}
+          className="shadow-none! border-border hover:shadow-none! mt-0.5"
+        />
+      )}
       <FilterButtons
         onApply={handleApply}
         onClear={() => {
