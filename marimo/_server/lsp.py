@@ -228,6 +228,50 @@ class PyLspServer(BaseLspServer):
         )
 
 
+class TyServer(BaseLspServer):
+    id = "ty"
+
+    def start(self) -> Optional[Alert]:
+        # ty is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.ty.has():
+            LOGGER.debug("ty is not installed. Skipping LSP server.")
+            return None
+        return super().start()
+
+    def validate_requirements(self) -> Union[str, Literal[True]]:
+        if not DependencyManager.ty.has():
+            return "ty is missing. Install it with `pip install ty`."
+
+        if not DependencyManager.which("node"):
+            return "node.js binary is missing. Install node at https://nodejs.org/."
+
+        return True
+
+    def get_command(self) -> list[str]:
+        from ty.__main__ import find_ty_bin  # type: ignore
+
+        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
+        log_file = _loggers.get_log_directory() / "ty-lsp.log"
+
+        return [
+            "node",
+            str(lsp_bin),
+            "--port",
+            str(self.port),
+            "--lsp",
+            f"{find_ty_bin()} server",
+            "--log-file",
+            str(log_file),
+        ]
+
+    def missing_binary_alert(self) -> Alert:
+        return Alert(
+            title="Ty: Connection Error",
+            description="<span><a class='hyperlink' href='https://github.com/astral-sh/ty'>Install ty</a> for type checking support.</span>",
+            variant="danger",
+        )
+
+
 class NoopLspServer(LspServer):
     def start(self) -> None:
         pass
@@ -242,6 +286,7 @@ class NoopLspServer(LspServer):
 class CompositeLspServer(LspServer):
     LANGUAGE_SERVERS = {
         "pylsp": PyLspServer,
+        "ty": TyServer,
         "copilot": CopilotLspServer,
     }
 
