@@ -8,7 +8,6 @@ import { languages } from "@codemirror/language-data";
 import { stexMath } from "@codemirror/legacy-modes/mode/stex";
 import type { Extension } from "@codemirror/state";
 import { type EditorView, ViewPlugin } from "@codemirror/view";
-// @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import type { CellId } from "@/core/cells/ids";
 import type { CompletionConfig } from "@/core/config/config-schema";

@@ -19,7 +19,6 @@ import {
 import type { Extension } from "@codemirror/state";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parser } from "@lezer/python";
-// @ts-expect-error: no declaration file
 import dedent from "string-dedent";
 import { isSchemaless } from "@/components/datasources/utils";
 import {
