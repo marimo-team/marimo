@@ -247,22 +247,22 @@ table.value
 
 ///
 
-## Table panels
+## Dataframe panels
 
-Tables in marimo come with several panels to solve your data needs. To open them, click the toggle at the bottom left of a table. If you need further control, you can
+Dataframe outputs in marimo come with several panels to help you visualize, explore, and page through your data interactively. These panels are accessible via toggles at the bottom-left of a dataframe output. If you need further control, after opening a panel you can
 
-- **Pin the panel** to the side of your editor for persistent access
-- **Toggle focus table** to automatically display the currently focused table in the panel
+- **pin the panel** to the side of your editor for persistent access;
+- **toggle focus** to automatically display the currently focused dataframe in the panel.
 
 ??? note
 
-    Toggles are visible in edit mode but hidden in run mode (except for the row viewer).
+    Toggles are visible when editing notebooks (with `marimo edit ...`) but not when running notebooks as apps (with `marimo run ...`), except for the row viewer which is available in both.
 
 ### Row viewer panel
 
 <div align="center">
 <figure>
-<video autoplay muted loop playsinline align="center" src="/_static/docs-row-viewer-panel.mp4">
+<video muted playsinline controls align="center" src="/_static/docs-row-viewer-panel.mp4">
 </video>
 </figure>
 </div>
@@ -271,13 +271,13 @@ To inspect individual rows, open the **row viewer**. This presents a vertical vi
 
 - **Press `Space`** to select/deselect the current row
 - **Use arrow keys** (`←` `→`) to navigate between rows
-- **Click** on any row in the table to view its data in the panel
+- **Click** on any row in the dataframe to view its data in the panel
 
 ### Column explorer panel
 
 <div align="center">
 <figure>
-<video autoplay muted loop playsinline align="center" src="/_static/docs-column-explorer-table.mp4">
+<video controls muted playsinline align="center" src="/_static/docs-column-explorer-table.mp4">
 </video>
 </figure>
 </div>
@@ -294,7 +294,7 @@ altair.data_transformers.enable("vegafusion")
 
 ### Chart builder
 
-Refer to the [chart builder guide](plotting.md#chart-builder) for more information.
+The chart builder toggle lets you rapidly develop charts using a GUI, while also generating Python code to insert in your notebook. Refer to the [chart builder guide](plotting.md#chart-builder) for more details.
 
 ## Example notebook
 
