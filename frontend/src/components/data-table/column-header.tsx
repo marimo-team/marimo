@@ -3,7 +3,7 @@
 
 import type { Column } from "@tanstack/react-table";
 import { capitalize } from "lodash-es";
-import { FilterIcon, MinusIcon, SearchIcon, XIcon } from "lucide-react";
+import { FilterIcon, MinusIcon, TextIcon, XIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -188,24 +188,7 @@ export function renderMenuItemFilter<TData, TValue>(
         {filterMenuItem}
         <DropdownMenuPortal>
           <DropdownMenuSubContent>
-            <DropdownMenuItem
-              onClick={() =>
-                column.setFilterValue(
-                  Filter.boolean({ value: true, operator: "is_true" }),
-                )
-              }
-            >
-              True
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                column.setFilterValue(
-                  Filter.boolean({ value: false, operator: "is_false" }),
-                )
-              }
-            >
-              False
-            </DropdownMenuItem>
+            <BooleanFilter column={column} />
           </DropdownMenuSubContent>
         </DropdownMenuPortal>
       </DropdownMenuSub>
@@ -262,38 +245,93 @@ export function renderMenuItemFilter<TData, TValue>(
   return null;
 }
 
-// Type-safe constants for text filter operators
-const TEXT_FILTER_OPERATORS = {
+// Type-safe constants for null filter operators
+const NULL_FILTER_OPERATORS = {
   is_null: "is_null",
   is_not_null: "is_not_null",
 } satisfies Record<string, OperatorType>;
 
-const NullFilterSelect = ({
+const NullFilter = <TData, TValue>({
+  column,
   defaultItem,
   operator,
   setOperator,
 }: {
-  defaultItem: OperatorType | "between";
+  column: Column<TData, TValue>;
+  defaultItem?: OperatorType | "between";
   operator: OperatorType | "between";
   setOperator: (operator: OperatorType) => void;
 }) => {
+  const handleValueChange = (value: OperatorType) => {
+    setOperator(value);
+    if (value === "is_null" || value === "is_not_null") {
+      column.setFilterValue(Filter.text({ operator: value }));
+    }
+  };
+
   return (
     <Select
       value={operator}
-      onValueChange={(value) => setOperator(value as OperatorType)}
+      onValueChange={(value) => handleValueChange(value as OperatorType)}
     >
-      <SelectTrigger className="border-border !shadow-none !ring-0 w-full">
+      <SelectTrigger className="!shadow-none !ring-0 w-full mb-1">
         <SelectValue defaultValue={operator} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={defaultItem}>{capitalize(defaultItem)}</SelectItem>
+        {defaultItem && (
+          <SelectItem value={defaultItem}>{capitalize(defaultItem)}</SelectItem>
+        )}
         <SelectSeparator />
-        <SelectItem value={TEXT_FILTER_OPERATORS.is_null}>Is null</SelectItem>
-        <SelectItem value={TEXT_FILTER_OPERATORS.is_not_null}>
+        <SelectItem value={NULL_FILTER_OPERATORS.is_null}>Is null</SelectItem>
+        <SelectItem value={NULL_FILTER_OPERATORS.is_not_null}>
           Is not null
         </SelectItem>
       </SelectContent>
     </Select>
+  );
+};
+
+const BooleanFilter = <TData, TValue>({
+  column,
+}: {
+  column: Column<TData, TValue>;
+}) => {
+  return (
+    <>
+      <DropdownMenuItem
+        onClick={() =>
+          column.setFilterValue(
+            Filter.boolean({ value: true, operator: "is_true" }),
+          )
+        }
+      >
+        True
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() =>
+          column.setFilterValue(
+            Filter.boolean({ value: false, operator: "is_false" }),
+          )
+        }
+      >
+        False
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        onClick={() =>
+          column.setFilterValue(Filter.boolean({ operator: "is_null" }))
+        }
+      >
+        Is null
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() =>
+          column.setFilterValue(Filter.boolean({ operator: "is_not_null" }))
+        }
+      >
+        Is not null
+      </DropdownMenuItem>
+    </>
   );
 };
 
@@ -327,57 +365,64 @@ const NumberRangeFilter = <TData, TValue>({
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <NullFilterSelect
+      <NullFilter
+        column={column}
         defaultItem="between"
         operator={operator}
         setOperator={setOperator}
       />
       {operator === "between" && (
-        <div className="flex gap-1 items-center">
-          <NumberField
-            ref={minRef}
-            value={min}
-            onChange={(value) => setMin(value)}
-            aria-label="min"
-            placeholder="min"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleApply({ min: Number.parseFloat(e.currentTarget.value) });
-              }
-              if (e.key === "Tab") {
-                maxRef.current?.focus();
-              }
+        <>
+          <div className="flex gap-1 items-center">
+            <NumberField
+              ref={minRef}
+              value={min}
+              onChange={(value) => setMin(value)}
+              aria-label="min"
+              placeholder="min"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleApply({
+                    min: Number.parseFloat(e.currentTarget.value),
+                  });
+                }
+                if (e.key === "Tab") {
+                  maxRef.current?.focus();
+                }
+              }}
+              className="shadow-none! border-border hover:shadow-none!"
+            />
+            <MinusIcon className="h-5 w-5 text-muted-foreground" />
+            <NumberField
+              ref={maxRef}
+              value={max}
+              onChange={(value) => setMax(value)}
+              aria-label="max"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleApply({
+                    max: Number.parseFloat(e.currentTarget.value),
+                  });
+                }
+                if (e.key === "Tab") {
+                  minRef.current?.focus();
+                }
+              }}
+              placeholder="max"
+              className="shadow-none! border-border hover:shadow-none!"
+            />
+          </div>
+          <FilterButtons
+            onApply={handleApply}
+            onClear={() => {
+              setMin(undefined);
+              setMax(undefined);
+              column.setFilterValue(undefined);
             }}
-            className="shadow-none! border-border hover:shadow-none!"
+            clearButtonDisabled={!hasFilter}
           />
-          <MinusIcon className="h-5 w-5 text-muted-foreground" />
-          <NumberField
-            ref={maxRef}
-            value={max}
-            onChange={(value) => setMax(value)}
-            aria-label="max"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleApply({ max: Number.parseFloat(e.currentTarget.value) });
-              }
-              if (e.key === "Tab") {
-                minRef.current?.focus();
-              }
-            }}
-            placeholder="max"
-            className="shadow-none! border-border hover:shadow-none!"
-          />
-        </div>
+        </>
       )}
-      <FilterButtons
-        onApply={handleApply}
-        onClear={() => {
-          setMin(undefined);
-          setMax(undefined);
-          column.setFilterValue(undefined);
-        }}
-        clearButtonDisabled={!hasFilter}
-      />
     </div>
   );
 };
@@ -412,34 +457,37 @@ const TextFilter = <TData, TValue>({
 
   return (
     <div className="flex flex-col gap-1 pt-3 px-2">
-      <NullFilterSelect
+      <NullFilter
+        column={column}
         defaultItem="contains"
         operator={operator}
         setOperator={setOperator}
       />
       {operator === "contains" && (
-        <Input
-          type="text"
-          icon={<SearchIcon className="h-3 w-3 text-muted-foreground" />}
-          value={value ?? ""}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Search"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleApply();
-            }
-          }}
-          className="shadow-none! border-border hover:shadow-none!"
-        />
+        <>
+          <Input
+            type="text"
+            icon={<TextIcon className="h-3 w-3 text-muted-foreground mb-1" />}
+            value={value ?? ""}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Text..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleApply();
+              }
+            }}
+            className="shadow-none! border-border hover:shadow-none!"
+          />
+          <FilterButtons
+            onApply={handleApply}
+            onClear={() => {
+              setValue("");
+              column.setFilterValue(undefined);
+            }}
+            clearButtonDisabled={!hasFilter}
+          />
+        </>
       )}
-      <FilterButtons
-        onApply={handleApply}
-        onClear={() => {
-          setValue("");
-          column.setFilterValue(undefined);
-        }}
-        clearButtonDisabled={!hasFilter}
-      />
     </div>
   );
 };
@@ -470,7 +518,7 @@ const PopoverFilterByValues = <TData, TValue>({
     }
 
     try {
-      return data.filter(([value, count]) => {
+      return data.filter(([value, _count]) => {
         // Check if value exists and can be converted to string
         // Keep null values for filtering
         return value === undefined

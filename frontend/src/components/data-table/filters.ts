@@ -59,7 +59,7 @@ export const Filter = {
       ...opts,
     } as const;
   },
-  boolean(opts: { value: boolean; operator?: OperatorType }) {
+  boolean(opts: { value?: boolean; operator?: OperatorType }) {
     return {
       type: "boolean",
       ...opts,
