@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -31,6 +31,8 @@ from marimo._server.lsp import LspServer
 from marimo._server.registry import MIDDLEWARE_REGISTRY
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from starlette.types import Lifespan
 
 LOGGER = _loggers.marimo_logger()
@@ -138,22 +140,12 @@ def _create_mpl_proxy_middleware() -> Middleware:
 
 def _create_lsps_proxy_middleware(
     *, servers: list[LspServer]
-) -> list[Middleware]:
-    middlewares: list[Middleware] = []
-    for server in servers:
-
-        def path_rewrite(server_id: str) -> Callable[[str], str]:
-            to_replace = (
-                "/copilot" if server_id == "copilot" else f"/lsp/{server_id}"
-            )
-            return lambda _: to_replace
-
-        middlewares.append(
-            Middleware(
-                ProxyMiddleware,
-                proxy_path=f"/lsp/{server.id}",
-                target_url=f"http://localhost:{server.port}",
-                path_rewrite=path_rewrite(server.id),
-            )
+) -> Iterator[Middleware]:
+    return (
+        Middleware(
+            ProxyMiddleware,
+            proxy_path=f"/lsp/{server.id}",
+            target_url=f"http://localhost:{server.port}",
         )
-    return middlewares
+        for server in servers
+    )
