@@ -24,8 +24,8 @@ export const CellRangeSelectionIndicator = memo<CellSelectionIndicatorProps>(
       <div
         className={cn(
           "absolute inset-0 pointer-events-none",
-          isSelected && "bg-[var(--blue-3)]",
-          isCopied && "bg-[var(--blue-4)] transition-colors duration-150",
+          isSelected && "bg-[var(--green-3)]",
+          isCopied && "bg-[var(--green-4)] transition-colors duration-150",
           className,
         )}
       />
