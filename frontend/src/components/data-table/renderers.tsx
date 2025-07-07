@@ -101,7 +101,7 @@ export const DataTableBody = <TData,>({
           tabIndex={0}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px] select-none outline-none",
+            "whitespace-pre truncate max-w-[300px] outline-none",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
