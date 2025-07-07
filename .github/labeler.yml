@@ -8,6 +8,6 @@ bash-focus:
 # enhancement:
 #   - title: ['^feat:', '^enhancement:']
 # internal:
-#   - title: ['^chore:', '^internal:', '^ci:']
+#   - title: ['^internal:', '^ci:']
 # preview:
 #   - title: ['^preview:', '^experimental:']
