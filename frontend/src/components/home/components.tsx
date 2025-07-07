@@ -30,8 +30,8 @@ import {
 import { Constants } from "@/core/constants";
 import { openTutorial } from "@/core/network/requests";
 import type { TutorialId } from "@/core/network/types";
+import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
-import { asURL } from "@/utils/url";
 
 const TUTORIALS: Record<
   TutorialId,
@@ -89,7 +89,7 @@ export const OpenTutorialDropDown: React.FC = () => {
                 if (!file) {
                   return;
                 }
-                window.open(asURL(`?file=${file.path}`).toString(), "_blank");
+                openNotebook(file.path);
               }}
             >
               <Icon

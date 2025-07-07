@@ -57,6 +57,7 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob } from "@/utils/download";
+import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
 import { FileViewer } from "./file-viewer";
@@ -675,5 +676,5 @@ function openMarimoNotebook(
 ) {
   event.stopPropagation();
   event.preventDefault();
-  window.open(`/?file=${path}`, "_blank");
+  openNotebook(path);
 }
