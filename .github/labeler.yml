@@ -1,0 +1,13 @@
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: ['docs/**']
+bash-focus:
+  - changed-files:
+      - any-glob-to-any-file: ['openapi/api.yaml', 'frontend/index.html']
+# Only valid once this is merged: https://github.com/actions/labeler/pull/866
+# enhancement:
+#   - title: ['^feat:', '^enhancement:']
+# internal:
+#   - title: ['^chore:', '^internal:', '^ci:']
+# preview:
+#   - title: ['^preview:', '^experimental:']
