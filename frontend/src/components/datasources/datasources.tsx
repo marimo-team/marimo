@@ -497,12 +497,11 @@ const DatasetTableItem: React.FC<{
   const { addTable } = useDataSourceActions();
 
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
   const [tableDetailsRequested, setTableDetailsRequested] =
     React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
-  const { isPending, error } = useAsyncData(async () => {
+  const { isFetching, isPending, error } = useAsyncData(async () => {
     if (
       isExpanded &&
       !tableDetailsExist &&
@@ -510,7 +509,6 @@ const DatasetTableItem: React.FC<{
       !tableDetailsRequested
     ) {
       setTableDetailsRequested(true);
-      setIsLoading(true);
       const { engine, database, schema } = sqlTableContext;
       const previewTable = await PreviewSQLTable.request({
         engine: engine,
@@ -527,7 +525,6 @@ const DatasetTableItem: React.FC<{
         table: previewTable.table,
         sqlTableContext: sqlTableContext,
       });
-      setIsLoading(false);
     }
   }, [isExpanded, tableDetailsExist]);
 
@@ -588,7 +585,7 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    if (isPending || isLoading) {
+    if (isPending || isFetching) {
       return <LoadingState message="Loading columns..." className="pl-12" />;
     }
 
