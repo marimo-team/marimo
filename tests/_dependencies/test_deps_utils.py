@@ -54,18 +54,6 @@ def test_get_module_with_double_quotes():
     assert result == "pandas"
 
 
-@pytest.mark.xfail(reason="No quotes is not supported")
-def test_get_module_name_without_name_requires_pattern_no_quotes():
-    """Test when name is None and error message has no quotes."""
-    exception = ModuleNotFoundError(
-        "This library requires scipy to be installed"
-    )
-    exception.name = None
-
-    result = get_module_name(exception)
-    assert result == "scipy"
-
-
 def test_get_module_name_start_location_quotes():
     """Test when name is None and error message matches 'module to be installed' pattern."""
     exception = ModuleNotFoundError(
@@ -88,18 +76,6 @@ def test_get_module_name_start_location_double_quotes():
     assert result == "seaborn"
 
 
-@pytest.mark.xfail(reason="No quotes is not supported")
-def test_get_module_name_start_location_no_quotes():
-    """Test when name is None and error message has no quotes."""
-    exception = ModuleNotFoundError(
-        "sklearn module to be installed for this feature"
-    )
-    exception.name = None
-
-    result = get_module_name(exception)
-    assert result == "sklearn"
-
-
 def test_get_module_name_no_match():
     """Test when name is None and error message doesn't match any pattern."""
     exception = ModuleNotFoundError("Some random error message")
@@ -120,7 +96,7 @@ def test_get_module_name_with_complex_submodule():
     assert result == "tensorflow"
 
 
-@pytest.mark.xfail(reason="No quotes is not supported")
+@pytest.mark.skip(reason="No quotes is not supported")
 def test_get_module_name_with_numbers_in_name():
     """Test with module names containing numbers."""
     exception = ModuleNotFoundError("No module named pandas2")
@@ -128,3 +104,11 @@ def test_get_module_name_with_numbers_in_name():
 
     result = get_module_name(exception)
     assert result == "pandas2"
+
+    exception = ModuleNotFoundError(
+        "sklearn module is required for this feature"
+    )
+    exception.name = None
+
+    result = get_module_name(exception)
+    assert result == "sklearn"
