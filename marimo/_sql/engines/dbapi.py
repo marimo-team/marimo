@@ -221,7 +221,7 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
                 meta["lastrowid"] = cursor.lastrowid
 
             # SQL type guess
-            # rowcount == -1 usually means SELECT (or DDL), >=0 means DML
+            # rowcount == -1 usually means SELECT (or DDL), >=0 means DML or SELECT (after execute)
             rc = getattr(cursor, "rowcount", None)
             if rc is None:
                 sql_type = "Unknown"
