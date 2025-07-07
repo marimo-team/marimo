@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@github/copilot-language-server':
-        specifier: ^1.322.0
-        version: 1.322.0
+        specifier: ^1.338.0
+        version: 1.339.0
     devDependencies:
       '@biomejs/biome':
         specifier: 2.0.0-beta.6
@@ -22,8 +22,8 @@ importers:
         specifier: ^1.2.5
         version: 1.2.5
       '@types/node':
-        specifier: ^24.0.0
-        version: 24.0.0
+        specifier: ^24.0.10
+        version: 24.0.10
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
@@ -37,17 +37,17 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8
       tsup:
-        specifier: ^8.4.0
-        version: 8.4.0(postcss@8.5.3)(typescript@5.8.3)
+        specifier: ^8.5.0
+        version: 8.5.0(postcss@8.5.3)(typescript@5.8.3)
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
       vitest:
         specifier: ^1.6.1
-        version: 1.6.1(@types/node@24.0.0)
+        version: 1.6.1(@types/node@24.0.10)
       ws:
-        specifier: ^8.18.1
-        version: 8.18.1
+        specifier: ^8.18.3
+        version: 8.18.3
 
 packages:
 
@@ -392,8 +392,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@github/copilot-language-server@1.322.0':
-    resolution: {integrity: sha512-KV26tFuWAKqB1eECUoZ/ohit9ekYxEqBA2NuMfIfKnIyINrdVgB39V9j595aAXD8CQAzxq9iW55n0urfDxdeSQ==}
+  '@github/copilot-language-server@1.339.0':
+    resolution: {integrity: sha512-aslbk9SV6cdbXTQjA8f6CBdFlEstxEp+JYnJ8vuEYAz2i/qrrjFHdAUpoFNPgtg4+JfP+629RZ2CVYLzxNRKog==}
     hasBin: true
 
   '@isaacs/cliui@8.0.2':
@@ -533,8 +533,8 @@ packages:
   '@types/minimist@1.2.5':
     resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
 
-  '@types/node@24.0.0':
-    resolution: {integrity: sha512-yZQa2zm87aRVcqDyH5+4Hv9KYgSdgwX1rFnGvpbzMaC7YAljmhBET93TPiTd3ObwTL+gSpIzPKg5BqVxdCvxKg==}
+  '@types/node@24.0.10':
+    resolution: {integrity: sha512-ENHwaH+JIRTDIEEbDK6QSQntAYGtbvdDXnMXnZaZ6k13Du1dPMmprkEHIL7ok2Wl2aZevetwTAb5S+7yIF+enA==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -699,6 +699,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fix-dts-default-cjs-exports@1.0.1:
+    resolution: {integrity: sha512-pVIECanWFC61Hzl2+oOCtoJ3F17kglZC/6N94eRWycFgBH35hHx0Li604ZIzhseh97mf2p0cv7vVrOZGoqhlEg==}
 
   foreground-child@3.3.0:
     resolution: {integrity: sha512-Ld2g8rrAyMYFXBhEqMz8ZAHBi4J4uS1i/CxGMDnjyFWddMXLVcDp051DZfu+t7+ab7Wv6SMqpWmyFIj5UbfFvg==}
@@ -1007,8 +1010,8 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
-  tsup@8.4.0:
-    resolution: {integrity: sha512-b+eZbPCjz10fRryaAA7C8xlIHnf8VnsaRqydheLIqwG/Mcpfk8Z5zp3HayX7GaTygkigHl5cBUs+IhcySiIexQ==}
+  tsup@8.5.0:
+    resolution: {integrity: sha512-VmBp77lWNQq6PfuMqCHD3xWl22vEoWsKajkF8t+yMBawlUS8JzEI+vOVMeuNZIuMML8qXRizFKi9oD5glKQVcQ==}
     engines: {node: '>=18'}
     hasBin: true
     peerDependencies:
@@ -1151,8 +1154,8 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.18.1:
-    resolution: {integrity: sha512-RKW2aJZMXeMxVpnZ6bck+RswznaxmzdULiBr6KY7XkTnW8uvt0iT9H5DkHUChXrc+uurzwa0rVI16n/Xzjdz1w==}
+  ws@8.18.3:
+    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -1348,7 +1351,7 @@ snapshots:
   '@esbuild/win32-x64@0.25.0':
     optional: true
 
-  '@github/copilot-language-server@1.322.0':
+  '@github/copilot-language-server@1.339.0':
     dependencies:
       vscode-languageserver-protocol: 3.17.5
 
@@ -1452,13 +1455,13 @@ snapshots:
 
   '@types/minimist@1.2.5': {}
 
-  '@types/node@24.0.0':
+  '@types/node@24.0.10':
     dependencies:
       undici-types: 7.8.0
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 24.0.0
+      '@types/node': 24.0.10
 
   '@vitest/expect@1.6.1':
     dependencies:
@@ -1657,6 +1660,12 @@ snapshots:
   fdir@6.4.3(picomatch@4.0.2):
     optionalDependencies:
       picomatch: 4.0.2
+
+  fix-dts-default-cjs-exports@1.0.1:
+    dependencies:
+      magic-string: 0.30.17
+      mlly: 1.7.4
+      rollup: 4.34.8
 
   foreground-child@3.3.0:
     dependencies:
@@ -1945,7 +1954,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tsup@8.4.0(postcss@8.5.3)(typescript@5.8.3):
+  tsup@8.5.0(postcss@8.5.3)(typescript@5.8.3):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.25.0)
       cac: 6.7.14
@@ -1953,6 +1962,7 @@ snapshots:
       consola: 3.4.0
       debug: 4.4.0
       esbuild: 0.25.0
+      fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
       picocolors: 1.1.1
       postcss-load-config: 6.0.1(postcss@8.5.3)
@@ -1980,13 +1990,13 @@ snapshots:
 
   undici-types@7.8.0: {}
 
-  vite-node@1.6.1(@types/node@24.0.0):
+  vite-node@1.6.1(@types/node@24.0.10):
     dependencies:
       cac: 6.7.14
       debug: 4.4.0
       pathe: 1.1.2
       picocolors: 1.1.1
-      vite: 5.4.19(@types/node@24.0.0)
+      vite: 5.4.19(@types/node@24.0.10)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -1998,16 +2008,16 @@ snapshots:
       - supports-color
       - terser
 
-  vite@5.4.19(@types/node@24.0.0):
+  vite@5.4.19(@types/node@24.0.10):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.3
       rollup: 4.34.8
     optionalDependencies:
-      '@types/node': 24.0.0
+      '@types/node': 24.0.10
       fsevents: 2.3.3
 
-  vitest@1.6.1(@types/node@24.0.0):
+  vitest@1.6.1(@types/node@24.0.10):
     dependencies:
       '@vitest/expect': 1.6.1
       '@vitest/runner': 1.6.1
@@ -2026,11 +2036,11 @@ snapshots:
       strip-literal: 2.1.1
       tinybench: 2.9.0
       tinypool: 0.8.4
-      vite: 5.4.19(@types/node@24.0.0)
-      vite-node: 1.6.1(@types/node@24.0.0)
+      vite: 5.4.19(@types/node@24.0.10)
+      vite-node: 1.6.1(@types/node@24.0.10)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 24.0.0
+      '@types/node': 24.0.10
     transitivePeerDependencies:
       - less
       - lightningcss
@@ -2085,6 +2095,6 @@ snapshots:
     dependencies:
       async-limiter: 1.0.1
 
-  ws@8.18.1: {}
+  ws@8.18.3: {}
 
   yocto-queue@1.2.1: {}

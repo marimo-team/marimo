@@ -102,6 +102,7 @@ export const TransformPanel: React.FC<Props> = ({
     number | undefined
   >(initialValue.transforms.length > 0 ? 0 : undefined);
 
+  // TODO: This crashes in latest version of react-hook-form
   const transformsField = useFieldArray({
     control: control,
     name: "transforms",
