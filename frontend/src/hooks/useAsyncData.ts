@@ -14,7 +14,7 @@ import { invariant } from "@/utils/invariant";
  *
  * @template T - The type of data being fetched
  */
-export interface AsyncBaseResult<T> {
+interface AsyncBaseResult<T> {
   /**
    * The current status of the async operation.
    * - `pending`: Initial state, no data has been fetched yet
