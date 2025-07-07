@@ -7,6 +7,7 @@ import {
   ZapOffIcon,
 } from "lucide-react";
 import type React from "react";
+import { useState, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,22 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
 }) => {
   const [userConfig, setUserConfig] = useUserConfig();
   const config = useResolvedMarimoConfig()[0];
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // Close dropdown when screen size crosses the md breakpoint
+  useEffect(() => {
+    // 768px matches Tailwind's 'md' breakpoint used in hidden md:flex
+    // TODO: When upgrading to Tailwind v4, use var(--breakpoint-md)
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const handleChange = () => {
+      if (mediaQuery.matches) {
+        setDropdownOpen(false);
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
   const handleStartupToggle = async (checked: boolean) => {
     const newConfig = {
@@ -82,7 +99,7 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
 
   return (
     <div className={cn("flex items-center", className)}>
-      {/* Shown on md and above */}
+      {/* Shown on larger screens */}
       <div className="hidden md:flex md:items-center">
         <FooterItem
           tooltip={
@@ -193,7 +210,7 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
 
       {/* Shown on small screens */}
       <div className="flex md:hidden">
-        <DropdownMenu>
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild={true}>
             <FooterItem
               tooltip="Runtime reactivity"
