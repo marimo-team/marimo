@@ -56,6 +56,14 @@ function formatValue(value: ColumnFilterValue) {
   if (!("type" in value)) {
     return;
   }
+
+  if (value.operator === "is_null") {
+    return "is null";
+  }
+  if (value.operator === "is_not_null") {
+    return "is not null";
+  }
+
   if (value.type === "number") {
     return formatMinMax(value.min, value.max);
   }

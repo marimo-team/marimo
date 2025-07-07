@@ -41,8 +41,8 @@ const createComparisonOperators = (schema: z.ZodType) => ({
   ">=": [schema],
   "<": [schema],
   "<=": [schema],
-  is_nan: [],
-  is_not_nan: [],
+  is_null: [],
+  is_not_null: [],
 });
 
 export const NUMERIC_OPERATORS = createComparisonOperators(Schema.number);
@@ -58,6 +58,8 @@ export const STRING_OPERATORS = {
   starts_with: [Schema.string],
   ends_with: [Schema.string],
   in: [Schema.stringMultiColumnValues],
+  is_null: [],
+  is_not_null: [],
 };
 
 export const ALL_OPERATORS = {

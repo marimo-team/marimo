@@ -5,6 +5,7 @@ import type { RowData } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
 import type { ConditionType } from "@/plugins/impl/data-frames/schema";
 import type { ColumnId } from "@/plugins/impl/data-frames/types";
+import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { assertNever } from "@/utils/assertNever";
 
 declare module "@tanstack/react-table" {
@@ -28,46 +29,46 @@ export type FilterType =
 
 // Filter is a factory function that creates a filter object
 export const Filter = {
-  number(opts: { min?: number; max?: number }) {
+  number(opts: { min?: number; max?: number; operator?: OperatorType }) {
     return {
       type: "number",
       ...opts,
     } as const;
   },
-  text(text: string) {
+  text(opts: { text?: string; operator: OperatorType }) {
     return {
       type: "text",
-      text,
+      ...opts,
     } as const;
   },
-  date(opts: { min?: Date; max?: Date }) {
+  date(opts: { min?: Date; max?: Date; operator?: OperatorType }) {
     return {
       type: "date",
       ...opts,
     } as const;
   },
-  datetime(opts: { min?: Date; max?: Date }) {
+  datetime(opts: { min?: Date; max?: Date; operator?: OperatorType }) {
     return {
       type: "datetime",
       ...opts,
     } as const;
   },
-  time(opts: { min?: Date; max?: Date }) {
+  time(opts: { min?: Date; max?: Date; operator?: OperatorType }) {
     return {
       type: "time",
       ...opts,
     } as const;
   },
-  boolean(value: boolean) {
+  boolean(opts: { value?: boolean; operator?: OperatorType }) {
     return {
       type: "boolean",
-      value,
+      ...opts,
     } as const;
   },
-  select(options: unknown[]) {
+  select(opts: { options: unknown[]; operator: OperatorType }) {
     return {
       type: "select",
-      options,
+      ...opts,
     } as const;
   },
 };
@@ -86,6 +87,14 @@ export function filterToFilterCondition(
     return [];
   }
   const columnId = columnIdString as ColumnId;
+
+  if (filter.operator === "is_null" || filter.operator === "is_not_null") {
+    return {
+      column_id: columnId,
+      operator: filter.operator,
+    };
+  }
+
   switch (filter.type) {
     case "number": {
       const conditions: ConditionType[] = [];
@@ -108,7 +117,7 @@ export function filterToFilterCondition(
     case "text":
       return {
         column_id: columnId,
-        operator: "contains",
+        operator: filter.operator,
         value: filter.text,
       };
     case "datetime": {
