@@ -501,7 +501,7 @@ const DatasetTableItem: React.FC<{
     React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
-  const { isPending, error } = useAsyncData(async () => {
+  const { isFetching, isPending, error } = useAsyncData(async () => {
     if (
       isExpanded &&
       !tableDetailsExist &&
@@ -585,7 +585,7 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    if (isPending) {
+    if (isPending || isFetching) {
       return <LoadingState message="Loading columns..." className="pl-12" />;
     }
 

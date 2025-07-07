@@ -7,7 +7,7 @@ from typing import Any, Literal, Optional, cast
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._runtime.output import replace
-from marimo._sql.engines.dbapi import DBAPIConnection
+from marimo._sql.engines.dbapi import DBAPIConnection, DBAPIEngine
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.engines.types import QueryEngine
@@ -116,6 +116,10 @@ def sql(
             display_df = df
             if SQLAlchemyEngine.is_cursor_result(df):
                 result = SQLAlchemyEngine.get_cursor_metadata(df)
+                if result is not None:
+                    display_df = result
+            elif DBAPIEngine.is_dbapi_cursor(df):
+                result = DBAPIEngine.get_cursor_metadata(df)
                 if result is not None:
                     display_df = result
 
