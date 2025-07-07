@@ -3,6 +3,7 @@
 import path from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { type HotkeyAction, HotkeyProvider } from "../src/core/hotkeys/hotkeys";
+import { clickWithRetry, waitForMarimoApp } from "./test-utils";
 
 export async function createCellBelow(opts: {
   page: Page;
@@ -111,10 +112,7 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
       .getByTestId("notebook-menu-dropdown")
       .click()
       .then(() => {
-        return page.getByText("Download", { exact: true }).hover();
-      })
-      .then(() => {
-        return page.getByText("Download as HTML", { exact: true }).click();
+        return openCommandPalette({ page, command: "Download as HTML" });
       }),
   ]);
 
@@ -151,10 +149,7 @@ export async function exportAsPNG(page: Page) {
       .getByTestId("notebook-menu-dropdown")
       .click()
       .then(() => {
-        return page.getByText("Download", { exact: true }).hover();
-      })
-      .then(() => {
-        return page.getByText("Download as PNG", { exact: true }).click();
+        return openCommandPalette({ page, command: "Download as PNG" });
       }),
   ]);
 
@@ -164,11 +159,33 @@ export async function exportAsPNG(page: Page) {
 }
 
 /**
+ * Open the command palette, type something, and hit Enter
+ */
+export async function openCommandPalette(opts: {
+  page: Page;
+  command: string;
+}) {
+  const { page, command } = opts;
+
+  // Open command palette with Ctrl+K (or Cmd+K on Mac)
+  await pressShortcut(page, "global.commandPalette");
+
+  // Wait for the command palette to be visible
+  await expect(page.getByPlaceholder("Type to search")).toBeVisible();
+
+  // Type the command
+  await page.keyboard.type(command);
+
+  // Hit Enter to execute
+  await page.keyboard.press("Enter");
+}
+
+/**
  * Waits for the page to load. If we have resumed a session, we restart the kernel.
  */
 export async function maybeRestartKernel(page: Page) {
   // Wait for cells to appear
-  await waitForCellsToRender(page);
+  await waitForMarimoApp(page);
 
   // If it says, "You have connected to an existing session", then restart
   const hasText = await page
@@ -178,14 +195,7 @@ export async function maybeRestartKernel(page: Page) {
     return;
   }
 
-  await page.getByTestId("notebook-menu-dropdown").click();
+  await clickWithRetry(page, "[data-testid='notebook-menu-dropdown']");
   await page.getByText("Restart kernel", { exact: true }).click();
   await page.getByLabel("Confirm Restart", { exact: true }).click();
-}
-
-/**
- * Waits for cells to render in edit mode.
- */
-export async function waitForCellsToRender(page: Page) {
-  await page.waitForSelector("[data-testid=cell-editor]");
 }

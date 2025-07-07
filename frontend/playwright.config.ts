@@ -108,21 +108,21 @@ export function startServer(app: ApplicationNames): void {
   exec(marimoCmd);
 }
 
-const WASM_SERVER = {
-  command: "PYODIDE=true vite --port 3000",
-  url: "http://localhost:3000",
-  reuseExistingServer: !!process.env.CI,
-};
+// const WASM_SERVER = {
+//   command: "PYODIDE=true vite --port 3000",
+//   url: "http://localhost:3000",
+//   reuseExistingServer: !!process.env.CI,
+// };
 
 // See https://playwright.dev/docs/test-configuration.
 const config: PlaywrightTestConfig = {
   testDir: "./e2e-tests",
   // Maximum time one test can run for
-  timeout: 30 * 1000,
+  timeout: 30 * 1000, // 30s
   expect: {
     // Maximum time expect() should wait for the condition to be met.
     // For example in `await expect(locator).toHaveText();`
-    timeout: 5000,
+    timeout: 5 * 1000, // 5s
   },
   // Run tests in files in parallel
   fullyParallel: false,
@@ -134,23 +134,34 @@ const config: PlaywrightTestConfig = {
   workers: 1,
   // Reporter to use. See https://playwright.dev/docs/test-reporters
   reporter: "html",
-  // Suppress tests stdout/stderr.
-  quiet: true,
+  // Enable stdout/stderr for better debugging
+  quiet: false,
   // Shared settings for all the projects below. See
   // https://playwright.dev/docs/api/class-testoptions.
   use: {
-    // Max time each action (eg `click()`) can take. Defaults to 0 (no limit).
-    actionTimeout: 0,
-    // Collect trace when retrying the failed test. See
-    // https://playwright.dev/docs/trace-viewer
+    // Max time each action can take
+    actionTimeout: 5 * 1000, // 5s
+    // Navigation timeout
+    navigationTimeout: 10 * 1000, // 10s
+    // Collect trace when retrying the failed test
     trace: "on-first-retry",
+    // Take screenshot on failure
+    screenshot: "only-on-failure",
   },
+
+  // Global setup for better test isolation
+  globalSetup: "./e2e-tests/global-setup.ts",
+  globalTeardown: "./e2e-tests/global-teardown.ts",
 
   // TODO(akshayka): Consider testing on firefox
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Add viewport for consistency
+        viewport: { width: 1280, height: 720 },
+      },
       testIgnore: ["**/cells.spec.ts", "**/disabled.spec.ts"],
     },
     //    Re-enable later ...
@@ -182,7 +193,7 @@ const config: PlaywrightTestConfig = {
         return [];
       }
 
-      const baseUrl = options.command === "run" ? options.baseUrl : undefined;
+      const baseUrl = command === "run" ? options.baseUrl : undefined;
 
       const pathToApp = path.join(pydir, app);
       let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
@@ -193,13 +204,23 @@ const config: PlaywrightTestConfig = {
       return {
         command: marimoCmd,
         url: getUrl(port, baseUrl),
-        reuseExistingServer: false,
+        reuseExistingServer: true,
+        timeout: 30 * 1000,
+        ignoreHTTPSErrors: true,
+        // Add stdout/stderr for debugging
+        stdout: "pipe" as const,
+        stderr: "pipe" as const,
       };
     }),
     {
       command: `marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
       url: getUrl(EDIT_PORT),
-      reuseExistingServer: false,
+      reuseExistingServer: true,
+      timeout: 30 * 1000,
+      ignoreHTTPSErrors: true,
+      // Add stdout/stderr for debugging
+      stdout: "pipe" as const,
+      stderr: "pipe" as const,
     },
     // WASM_SERVER,
   ],

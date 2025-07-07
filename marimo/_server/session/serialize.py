@@ -431,9 +431,14 @@ class SessionCacheManager:
         cache_file = get_session_cache_file(Path(self.path))
         if not cache_file.exists():
             return self.session_view
-        notebook_session: NotebookSessionV1 = json.loads(
-            cache_file.read_text()
-        )
+        try:
+            notebook_session: NotebookSessionV1 = json.loads(
+                cache_file.read_text()
+            )
+        except Exception as e:
+            LOGGER.error(f"Failed to read session cache file: {e}")
+            return self.session_view
+
         if not self.is_cache_hit(notebook_session, key):
             LOGGER.debug("Session view cache miss")
             return self.session_view

@@ -1,5 +1,7 @@
-# Copyright 2024 Marimo. All rights reserved.
-
+# /// script
+# [tool.marimo.runtime]
+# auto_instantiate = true
+# ///
 import marimo
 
 __generated_with = "0.13.15"
