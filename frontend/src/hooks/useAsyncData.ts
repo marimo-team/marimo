@@ -9,7 +9,54 @@ import {
 import useEvent from "react-use-event-hook";
 import { invariant } from "@/utils/invariant";
 
-interface PendingResult {
+/**
+ * Base result interface containing common properties for all async data states.
+ *
+ * @template T - The type of data being fetched
+ */
+interface AsyncBaseResult<T> {
+  /**
+   * The current status of the async operation.
+   * - `pending`: Initial state, no data has been fetched yet
+   * - `loading`: Data is being refetched (has previous data)
+   * - `error`: The fetch operation failed
+   * - `success`: Data has been successfully fetched
+   */
+  status: "pending" | "loading" | "error" | "success";
+
+  /**
+   * The data returned from the fetch operation.
+   * - `undefined` when pending or on error (unless stale data is preserved)
+   * - Contains the fetched data when successful or loading
+   */
+  data: T | undefined;
+
+  /**
+   * The error object if the fetch operation failed.
+   * - `undefined` when not in error state
+   * - Contains the Error object when fetch fails
+   */
+  error: Error | undefined;
+
+  /**
+   * A derived boolean indicating if this is the initial fetch.
+   * - `true` when no data has been fetched yet (pending state)
+   * - `false` when data has been fetched at least once
+   */
+  isPending: boolean;
+
+  /**
+   * A derived boolean indicating if a fetch operation is currently in progress.
+   * - `true` when actively fetching data (pending or loading states)
+   * - `false` when not fetching (success or error states)
+   */
+  isFetching: boolean;
+}
+
+/**
+ * Represents the initial state when no data has been fetched yet.
+ */
+interface PendingResult<T> extends AsyncBaseResult<T> {
   status: "pending";
   data: undefined;
   error: undefined;
@@ -17,7 +64,10 @@ interface PendingResult {
   isFetching: true;
 }
 
-interface LoadingResult<T> {
+/**
+ * Represents the state when data is being refetched (has previous data).
+ */
+interface LoadingResult<T> extends AsyncBaseResult<T> {
   status: "loading";
   data: T;
   error: undefined;
@@ -25,7 +75,10 @@ interface LoadingResult<T> {
   isFetching: true;
 }
 
-interface ErrorResult<T> {
+/**
+ * Represents the error state when data fetching fails.
+ */
+interface ErrorResult<T> extends AsyncBaseResult<T> {
   status: "error";
   data: undefined | T;
   error: Error;
@@ -33,7 +86,10 @@ interface ErrorResult<T> {
   isFetching: false;
 }
 
-interface SuccessResult<T> {
+/**
+ * Represents the success state when data has been successfully fetched.
+ */
+interface SuccessResult<T> extends AsyncBaseResult<T> {
   status: "success";
   data: T;
   error: undefined;
@@ -69,7 +125,7 @@ const Result = {
       isFetching: true,
     };
   },
-  pending(): PendingResult {
+  pending<T>(): PendingResult<T> {
     return {
       status: "pending",
       data: undefined,
@@ -80,12 +136,42 @@ const Result = {
   },
 };
 
+/**
+ * Union type representing all possible async data states.
+ *
+ * @template T - The type of data being fetched
+ */
 export type AsyncDataResult<T> =
-  | PendingResult
+  | PendingResult<T>
   | LoadingResult<T>
   | ErrorResult<T>
   | SuccessResult<T>;
 
+/**
+ * Combines multiple async data results into a single result.
+ *
+ * This utility function allows you to wait for multiple async operations to complete
+ * and provides a unified loading/error/success state. It will:
+ * - Return an error if any of the responses has an error
+ * - Return success when all responses are successful
+ * - Return loading when some responses are loading but all have data
+ * - Return pending when any response is still pending
+ *
+ * @param responses - Array of async data results with refetch functions
+ * @returns Combined async data result with refetch function
+ *
+ * @example
+ * ```tsx
+ * const user = useAsyncData(fetchUser, [userId]);
+ * const posts = useAsyncData(fetchPosts, [userId]);
+ * const combined = combineAsyncData(user, posts);
+ *
+ * if (combined.status === "success") {
+ *   const [userData, postsData] = combined.data;
+ *   // Both user and posts are loaded
+ * }
+ * ```
+ */
 export function combineAsyncData<T extends unknown[]>(
   ...responses: {
     [K in keyof T]: AsyncDataResult<T[K]> & { refetch: () => void };
@@ -132,7 +218,15 @@ export function combineAsyncData<T extends unknown[]>(
   return { ...Result.pending(), refetch };
 }
 
+/**
+ * Context object passed to the fetch function.
+ * Provides utilities for controlling the fetch behavior.
+ */
 interface Context {
+  /**
+   * Call this function to keep the previous data instead of updating.
+   * Useful for conditional updates or when you want to abort the update.
+   */
   previous(): void;
 }
 
@@ -143,19 +237,91 @@ type Props<T> =
   | ((context: Context) => Promise<T>);
 
 /**
- * A hook that loads data asynchronously.
- * Handles loading and error states, and prevents race conditions.
+ * A hook that loads data asynchronously with proper loading states and race condition handling.
+ *
+ * This hook provides a comprehensive solution for async data fetching with:
+ * - Proper loading states (pending, loading, success, error)
+ * - Race condition prevention using AbortController
+ * - Stale data handling (previous data preserved on error)
+ * - Manual data updates via setData
+ * - Refetch functionality
+ *
+ * The hook distinguishes between "pending" (initial load) and "loading" (refetch with existing data).
+ *
+ * @param loaderOrProps - Either a fetch function or an object with a fetch function
+ * @param deps - Dependency array that triggers refetch when changed (like useEffect)
+ * @returns Object with data, loading states, and control functions
+ *
+ * @example
+ * ```tsx
+ * // Basic usage
+ * const { data, status, error, refetch } = useAsyncData(
+ *   async () => {
+ *     const response = await fetch('/api/users');
+ *     return response.json();
+ *   },
+ *   [] // No dependencies - fetch once
+ * );
+ *
+ * // With dependencies
+ * const { data, status, isPending, isFetching } = useAsyncData(
+ *   async () => fetchUser(userId),
+ *   [userId] // Refetch when userId changes
+ * );
+ *
+ * // With context for conditional updates
+ * const { data, setData } = useAsyncData(
+ *   async (context) => {
+ *     const newData = await fetchData();
+ *     if (shouldKeepOldData(newData)) {
+ *       context.previous(); // Keep previous data
+ *       return;
+ *     }
+ *     return newData;
+ *   },
+ *   [someDependency]
+ * );
+ *
+ * // Manual data updates
+ * const { data, setData } = useAsyncData(fetchData, []);
+ * setData(newData); // Update data manually
+ * setData(prevData => ({ ...prevData, updated: true })); // Update with function
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Handling different states
+ * const { data, status, error, isPending, isFetching } = useAsyncData(fetchData, []);
+ *
+ * if (isPending) {
+ *   return <div>Loading...</div>;
+ * }
+ *
+ * if (status === "error") {
+ *   return <div>Error: {error.message}</div>;
+ * }
+ *
+ * if (status === "loading") {
+ *   return <div>Previous data: {data}, Refreshing...</div>;
+ * }
+ *
+ * if (status === "success") {
+ *   return <div>Data: {JSON.stringify(data)}</div>;
+ * }
+ * ```
  */
 export function useAsyncData<T>(
   loaderOrProps: Props<T>,
   deps: DependencyList,
 ): AsyncDataResult<T> & {
+  /** Manually update the data. Transitions to success state. */
   setData: Dispatch<SetStateAction<T>>;
+  /** Refetch the data. Increments internal nonce to trigger effect. */
   refetch: () => void;
 } {
   const [nonce, setNonce] = useState(0);
   const [result, setResult] = useState<
-    PendingResult | LoadingResult<T> | ErrorResult<T> | SuccessResult<T>
+    PendingResult<T> | LoadingResult<T> | ErrorResult<T> | SuccessResult<T>
   >(Result.pending());
 
   const asProps =
