@@ -5,7 +5,7 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import { DelayMount } from "../../utils/delay-mount";
 
 interface FloatingAlertProps {
-  title: string;
+  title?: string;
   children: ReactNode;
   show: boolean;
   delayMs?: number;
@@ -29,11 +29,13 @@ export const FloatingAlert: React.FC<FloatingAlertProps> = ({
         kind={kind}
         className="flex flex-col rounded py-2 px-4 animate-in slide-in-from-top w-fit"
       >
-        <div className="flex justify-between">
-          <span className="font-bold text-lg flex items-center mb-1">
-            {title}
-          </span>
-        </div>
+        {title && (
+          <div className="flex justify-between">
+            <span className="font-bold text-lg flex items-center mb-1">
+              {title}
+            </span>
+          </div>
+        )}
         <div className="flex flex-col gap-4 justify-between items-start text-muted-foreground text-base">
           <div>{children}</div>
         </div>
