@@ -45,7 +45,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function currently only supports scatter plots, treemaps charts,
-    and sunbursts charts.
+    sunbursts charts, and parallel coordinates plots.
 
     Examples:
         ```python
@@ -157,9 +157,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         """
         if not self._selection_data:
             return {}
-        if "range" not in self._selection_data:
+        if "ranges" not in self._selection_data:
             return {}
-        return self._selection_data["range"]  # type:ignore
+        return self._selection_data["ranges"]  # type:ignore
 
     @property
     def points(self) -> list[dict[str, Any]]:
@@ -192,5 +192,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     def _convert_value(self, value: PlotlySelection) -> Any:
         # Store the selection data
         self._selection_data = value
+        if "ranges" in self._selection_data:
+            return self.ranges
         # Default to returning the points
         return self.points

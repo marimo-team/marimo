@@ -21,30 +21,26 @@ router = APIRouter()
 
 async def _read_from_pty(master: int, websocket: WebSocket) -> None:
     loop = asyncio.get_running_loop()
+
+    def on_data_received() -> None:
+        try:
+            data = os.read(master, 1024)
+            if data:
+                asyncio.create_task(websocket.send_text(data.decode()))
+        except OSError as e:
+            if e.errno == 9:  # Bad file descriptor
+                LOGGER.debug("File descriptor closed, stopping read loop")
+                loop.remove_reader(master)
+            else:
+                raise
+
+    loop.add_reader(master, on_data_received)
     try:
-        # TODO: loop.add_reader would likely be better in this case
-        # but when the program is closed from the terminal, it hangs
-        # for an additional second before the process is killed.
-        with os.fdopen(master, "rb", buffering=0) as master_file:
-            while True:
-                try:
-                    r, _, _ = await loop.run_in_executor(
-                        None, select.select, [master_file], [], [], 0.1
-                    )
-                    if not r:
-                        await asyncio.sleep(0.1)  # Prevent busy-waiting
-                        continue
-                    data = os.read(master, 1024)
-                    if not data:
-                        break
-                    await websocket.send_text(data.decode())
-                except (asyncio.CancelledError, WebSocketDisconnect):
-                    break
-    except OSError as e:
-        if e.errno == 9:  # Bad file descriptor
-            LOGGER.debug("File descriptor closed, stopping read loop")
-            return
-        raise  # Re-raise other OSErrors
+        # Keep the task running until the websocket is closed
+        while websocket.application_state != WebSocketState.DISCONNECTED:
+            await asyncio.sleep(0.1)
+    finally:
+        loop.remove_reader(master)
 
 
 async def _write_to_pty(master: int, websocket: WebSocket) -> None:

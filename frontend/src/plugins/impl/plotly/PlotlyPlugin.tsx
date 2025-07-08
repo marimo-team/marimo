@@ -245,6 +245,30 @@ export const PlotlyComponent = memo(
             points: evt.points.map((point) => pick(point, SUNBURST_DATA_KEYS)),
           }));
         })}
+        onRestyle={useEvent((data: Readonly<Plotly.PlotRestyleEvent>) => {
+          if (!data) {
+            return;
+          }
+
+          const [update, traceIndices] = data;
+
+          // If there are no constraints, it's a reset
+          if (!("constraints" in update)) {
+            setValue({});
+            return;
+          }
+
+          const constraints = update.constraints;
+          if (constraints) {
+            const ranges = Object.fromEntries(
+              Object.entries(constraints).map(([key, value]) => {
+                const label = (originalFigure.data[traceIndices[0]] as any).dimensions[key].label;
+                return [label, value.range];
+              })
+            );
+            setValue({ ranges });
+          }
+        })}
         config={plotlyConfig}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
           if (!evt) {
