@@ -189,7 +189,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           {fieldTypes?.map(([columnName, [dataType, externalType]]) => {
             const columnValue = rowValues[columnName];
 
-            if (!inSearchQuery(columnName, columnValue, searchQuery)) {
+            if (!inSearchQuery({ columnName, columnValue, searchQuery })) {
               return null;
             }
 
@@ -330,11 +330,15 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   );
 };
 
-export function inSearchQuery(
-  columnName: string,
-  columnValue: unknown,
-  searchQuery: string,
-) {
+export function inSearchQuery({
+  columnName,
+  columnValue,
+  searchQuery,
+}: {
+  columnName: string;
+  columnValue: unknown;
+  searchQuery: string;
+}) {
   const colName = columnName.toLowerCase();
   const searchQueryLower = searchQuery.toLowerCase();
 
