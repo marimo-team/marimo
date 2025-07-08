@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.15"
+__generated_with = "0.14.10"
 app = marimo.App(width="medium")
 
 
@@ -44,6 +44,11 @@ def _():
                 "nested_lists",
                 [[[1, 2]], [[3, 4]], [[5, 6]]],
                 dtype=pl.List(pl.List(pl.Int64)),
+            ),
+            "lists_with_enum": pl.Series(
+                "lists_with_enum",
+                [["A", "B"], ["A", "B"], ["A", "B"]],
+                dtype=pl.List(pl.Enum(categories=["A", "B"])),
             ),
             "arrays": pl.Series(
                 "arrays",
@@ -160,11 +165,11 @@ def _(mo):
 
 
 @app.cell
-def _(pl):
-    wow_data = pl.scan_parquet(
-        "https://github.com/koaning/wow-avatar-datasets/raw/refs/heads/main/wow-full.parquet"
-    )
-    wow_data
+def _():
+    # wow_data = pl.scan_parquet(
+    #     "https://github.com/koaning/wow-avatar-datasets/raw/refs/heads/main/wow-full.parquet"
+    # )
+    # wow_data
     # wow_data.collect()
     return
 
