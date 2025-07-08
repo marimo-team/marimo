@@ -513,6 +513,7 @@ select.mpl-widget,
 
 def patch_javascript(javascript: str) -> str:
     # Comment out canvas.focus() and canvas_div.focus() calls
+    # https://github.com/matplotlib/matplotlib/blob/4c345b42048811a2122ba0db68551c6ea4ddaf6a/lib/matplotlib/backends/web_backend/js/mpl.js#L338-L343
     javascript = javascript.replace(
         " canvas.focus();",
         "// canvas.focus(); // don't steal focus when in marimo",
