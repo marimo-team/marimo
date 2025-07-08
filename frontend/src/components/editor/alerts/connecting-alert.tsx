@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { LoadingEllipsis } from "@/components/icons/loading-ellipsis";
 import { Spinner } from "@/components/icons/spinner";
 import { DelayMount } from "@/components/utils/delay-mount";
-import { isConnectingAtom } from "@/core/network/connection";
+import { isConnectingAtom, isClosedAtom } from "@/core/network/connection";
 import { Tooltip } from "../../ui/tooltip";
 import { FloatingAlert } from "./floating-alert";
 
@@ -13,6 +13,7 @@ const LONG_DELAY_MS = 5000; // 5 seconds
 
 export const ConnectingAlert: React.FC = () => {
   const isConnecting = useAtomValue(isConnectingAtom);
+  const isClosed = useAtomValue(isClosedAtom);
 
   return (
     isConnecting && (
@@ -33,6 +34,12 @@ export const ConnectingAlert: React.FC = () => {
           </div>
         </FloatingAlert>
       </>
+    ) || isClosed && (
+        <FloatingAlert show={isClosed} kind="error">
+          <div className="flex items-center gap-2">
+            <p>Failed to connect.</p>
+          </div>
+        </FloatingAlert>
     )
   );
 };

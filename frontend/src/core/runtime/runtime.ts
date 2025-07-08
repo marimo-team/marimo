@@ -177,8 +177,11 @@ export class RuntimeManager {
 
   async init(options?: { disableRetryDelay?: boolean }) {
     let retries = 0;
-    const maxRetries = 6;
-    const baseDelay = 1000;
+    // This matches backoff logic elsewhere.
+    const maxRetries = 25;
+    const baseDelay = 100; // 0.1 second
+    const growthFactor = 1.2;
+    const maxDelay = 2000;
 
     while (!(await this.isHealthy())) {
       if (retries >= maxRetries) {
@@ -189,7 +192,7 @@ export class RuntimeManager {
         return;
       }
       if (!options?.disableRetryDelay) {
-        const delay = baseDelay * 2 ** retries;
+        const delay = Math.min(baseDelay * growthFactor ** retries, maxDelay);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
       retries++;
