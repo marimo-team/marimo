@@ -36,7 +36,7 @@ export const ConnectingAlert: React.FC = () => {
       </>
     )) ||
     (isClosed && (
-      <FloatingAlert show={isClosed} kind="error">
+      <FloatingAlert show={isClosed} kind="danger">
         <div className="flex items-center gap-2">
           <p>Failed to connect.</p>
         </div>
