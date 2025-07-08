@@ -102,8 +102,12 @@ function languageToggleKeymaps() {
             return false;
           }
 
-          updateLanguageAdapterAndCode(cm, nextLanguage, {
-            keepCodeAsIs: false,
+          updateLanguageAdapterAndCode({
+            view: cm,
+            nextLanguage,
+            opts: {
+              keepCodeAsIs: false,
+            },
           });
           return true;
         },
@@ -112,11 +116,15 @@ function languageToggleKeymaps() {
   ];
 }
 
-function updateLanguageAdapterAndCode(
-  view: EditorView,
-  nextLanguage: LanguageAdapter,
-  opts: { keepCodeAsIs: boolean },
-) {
+function updateLanguageAdapterAndCode({
+  view,
+  nextLanguage,
+  opts,
+}: {
+  view: EditorView;
+  nextLanguage: LanguageAdapter;
+  opts: { keepCodeAsIs: boolean };
+}) {
   const currentLanguage = view.state.field(languageAdapterState);
   const code = view.state.doc.toString();
   const completionConfig = view.state.facet(completionConfigState);
@@ -263,8 +271,12 @@ export function switchLanguage(
     return;
   }
 
-  updateLanguageAdapterAndCode(view, LanguageAdapters[language], {
-    keepCodeAsIs: opts.keepCodeAsIs ?? false,
+  updateLanguageAdapterAndCode({
+    view,
+    nextLanguage: LanguageAdapters[language],
+    opts: {
+      keepCodeAsIs: opts.keepCodeAsIs ?? false,
+    },
   });
 }
 
