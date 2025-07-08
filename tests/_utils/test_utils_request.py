@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, Optional, Union
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from marimo._utils.requests import (
+    RequestError,
     Response,
     _make_request,
     delete,
@@ -85,24 +86,23 @@ def test_response_object():
 def test_make_request(
     method: str,
     url: str,
-    params: dict[str, str] | None,
-    headers: dict[str, str] | None,
-    data: dict[str, Any] | str | None,
-    json_data: dict[str, Any] | None,
+    params: Optional[dict[str, str]],
+    headers: Optional[dict[str, str]],
+    data: Optional[Union[dict[str, Any], str]],
+    json_data: Optional[dict[str, Any]],
     expected_body: bytes,
     expected_headers: dict[str, str],
 ):
     mock_response = MagicMock()
-    mock_response.status = 200
+    mock_response.getcode.return_value = 200
     mock_response.read.return_value = b'{"key": "value"}'
-    mock_response.getheaders.return_value = [
-        ("Content-Type", "application/json")
-    ]
+    mock_response.headers = {"Content-Type": "application/json"}
+    mock_response.__enter__.return_value = mock_response
+    mock_response.__exit__.return_value = None
 
-    mock_conn = MagicMock()
-    mock_conn.getresponse.return_value = mock_response
-
-    with patch("http.client.HTTPSConnection", return_value=mock_conn):
+    with patch(
+        "urllib.request.urlopen", return_value=mock_response
+    ) as mock_urlopen:
         response = _make_request(
             method,
             url,
@@ -112,23 +112,29 @@ def test_make_request(
             json_data=json_data,
         )
 
-        # Verify connection was made with correct parameters
-        mock_conn.request.assert_called_once()
-        call_args = mock_conn.request.call_args[0]
-        call_kwargs = mock_conn.request.call_args[1]
+        # Verify request was made
+        mock_urlopen.assert_called_once()
+        request_arg = mock_urlopen.call_args[0][0]
 
-        assert call_args[0] == method
+        # Check method and URL
+        assert request_arg.get_method() == method
         if params:
-            assert "param=value" in call_args[1]
-        assert call_kwargs["body"] == expected_body
+            assert "param=value" in request_arg.full_url
 
-        # Verify headers
-        actual_headers = call_kwargs["headers"]
-        if headers:
-            actual_headers.update(headers)
-        if expected_headers:
-            for key, value in expected_headers.items():
-                assert actual_headers[key] == value
+        # Check body
+        assert request_arg.data == expected_body
+
+        # Check headers
+        for key, value in expected_headers.items():
+            # urllib.request.Request normalizes header names to Title-case
+            # We need to check the actual header values as they're stored
+            found_header = False
+            for header_name, header_value in request_arg.headers.items():
+                if header_name.lower() == key.lower():
+                    assert header_value == value
+                    found_header = True
+                    break
+            assert found_header, f"Header {key} not found in request headers"
 
         # Verify response
         assert response.status_code == 200
@@ -194,77 +200,99 @@ def test_http_methods():
         )
 
 
+def test_http_error_handling():
+    """Test that HTTP errors return Response objects instead of raising exceptions."""
+    import urllib.error
+
+    # Mock an HTTP error
+    mock_fp = MagicMock()
+    mock_fp.read.return_value = b'{"error": "not found"}'
+
+    mock_error = urllib.error.HTTPError(
+        url="https://api.example.com",
+        code=404,
+        msg="Not Found",
+        hdrs={"Content-Type": "application/json"},
+        fp=mock_fp,
+    )
+
+    with patch("urllib.request.urlopen", side_effect=mock_error):
+        response = _make_request("GET", "https://api.example.com")
+
+        assert response.status_code == 404
+        assert response.content == b'{"error": "not found"}'
+        assert response.headers == {"Content-Type": "application/json"}
+
+
+def test_request_error_handling():
+    """Test that other exceptions are converted to RequestError."""
+    with patch(
+        "urllib.request.urlopen", side_effect=Exception("Network error")
+    ):
+        with pytest.raises(
+            RequestError, match="Request failed: Network error"
+        ):
+            _make_request("GET", "https://api.example.com")
+
+
 @pytest.mark.parametrize(
-    ("url", "params", "expected_path"),
+    ("url", "params", "expected_url"),
     [
         # URL with no existing params, add new params
-        ("https://api.example.com", {"new": "value"}, "/path?new=value"),
+        (
+            "https://api.example.com/path",
+            {"new": "value"},
+            "https://api.example.com/path?new=value",
+        ),
         # URL with existing params, add new params (merge)
         (
-            "https://api.example.com?existing=param",
+            "https://api.example.com/path?existing=param",
             {"new": "value"},
-            "/path?existing=param&new=value",
+            "https://api.example.com/path?existing=param&new=value",
         ),
         # URL with existing params, no new params (preserve existing)
         (
-            "https://api.example.com?existing=param",
+            "https://api.example.com/path?existing=param",
             None,
-            "/path?existing=param",
+            "https://api.example.com/path?existing=param",
         ),
         # URL with no params at all
-        ("https://api.example.com", None, "/path"),
+        ("https://api.example.com/path", None, "https://api.example.com/path"),
         # URL with existing params, new params override existing
         (
-            "https://api.example.com?key=old",
+            "https://api.example.com/path?key=old",
             {"key": "new"},
-            "/path?key=new",
+            "https://api.example.com/path?key=new",
         ),
         # URL with multiple existing params, add new params
         (
-            "https://api.example.com?a=1&b=2",
+            "https://api.example.com/path?a=1&b=2",
             {"c": "3"},
-            "/path?a=1&b=2&c=3",
+            "https://api.example.com/path?a=1&b=2&c=3",
         ),
         # URL with multiple existing params, override some
         (
-            "https://api.example.com?a=1&b=2",
+            "https://api.example.com/path?a=1&b=2",
             {"b": "new", "c": "3"},
-            "/path?a=1&b=new&c=3",
+            "https://api.example.com/path?a=1&b=new&c=3",
         ),
     ],
 )
 def test_url_parameter_handling(
-    url: str, params: dict[str, str] | None, expected_path: str
+    url: str, params: Optional[dict[str, str]], expected_url: str
 ):
     mock_response = MagicMock()
-    mock_response.status = 200
-    mock_response.read.return_value = b'{"success": true}'
-    mock_response.getheaders.return_value = [
-        ("Content-Type", "application/json")
-    ]
+    mock_response.getcode.return_value = 200
+    mock_response.read.return_value = b'{"key": "value"}'
+    mock_response.headers = {"Content-Type": "application/json"}
+    mock_response.__enter__.return_value = mock_response
+    mock_response.__exit__.return_value = None
 
-    mock_conn = MagicMock()
-    mock_conn.getresponse.return_value = mock_response
+    with patch(
+        "urllib.request.urlopen", return_value=mock_response
+    ) as mock_urlopen:
+        _make_request("GET", url, params=params)
 
-    with patch("http.client.HTTPSConnection", return_value=mock_conn):
-        # Replace the actual URL with a test URL that has /path
-        test_url = url.replace("api.example.com", "api.example.com/path")
-        _make_request("GET", test_url, params=params)
-
-        # Verify the path was constructed correctly
-        call_args = mock_conn.request.call_args[0]
-        actual_path = call_args[1]
-
-        # Parse both paths to compare query parameters regardless of order
-        from urllib.parse import parse_qs, urlparse
-
-        actual_parsed = urlparse(actual_path)
-        expected_parsed = urlparse(expected_path)
-
-        assert actual_parsed.path == expected_parsed.path
-        if expected_parsed.query:
-            actual_query = parse_qs(actual_parsed.query)
-            expected_query = parse_qs(expected_parsed.query)
-            assert actual_query == expected_query
-        else:
-            assert actual_parsed.query == ""
+        # Verify the URL was constructed correctly
+        request_arg = mock_urlopen.call_args[0][0]
+        assert request_arg.full_url == expected_url

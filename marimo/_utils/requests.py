@@ -1,8 +1,8 @@
-import http.client
 import json
+import urllib.error
 import urllib.parse
+import urllib.request
 from typing import Any, Optional, Union
-from urllib.error import HTTPError, URLError
 
 from marimo import __version__
 
@@ -61,9 +61,9 @@ def _make_request(
         "cannot pass both data and json_data"
     )
 
-    parsed = urllib.parse.urlparse(url)
-    path = parsed.path
+    # Handle URL parameters
     if params:
+        parsed = urllib.parse.urlparse(url)
         # Parse existing query parameters
         existing_params = urllib.parse.parse_qs(parsed.query)
         # Flatten existing params (parse_qs returns lists)
@@ -71,38 +71,57 @@ def _make_request(
         # Merge with new params (new params take precedence)
         merged_params = {**flattened_existing, **params}
         query = urllib.parse.urlencode(merged_params)
-        path = f"{path}?{query}"
-    elif parsed.query:
-        # Keep existing query if no new params
-        path = f"{path}?{parsed.query}"
+        url = urllib.parse.urlunparse(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                parsed.params,
+                query,
+                parsed.fragment,
+            )
+        )
 
-    conn = http.client.HTTPSConnection(parsed.netloc, timeout=timeout)
+    # Prepare headers
+    request_headers = headers or {}
+    if "User-Agent" not in request_headers:
+        request_headers["User-Agent"] = MARIMO_USER_AGENT
 
-    headers = headers or {}
+    # Prepare body
+    body = None
     if json_data is not None:
-        headers["Content-Type"] = "application/json"
+        request_headers["Content-Type"] = "application/json"
         body = json.dumps(json_data).encode("utf-8")
     elif data is not None:
         if isinstance(data, dict):
             body = urllib.parse.urlencode(data).encode("utf-8")
-            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            request_headers["Content-Type"] = (
+                "application/x-www-form-urlencoded"
+            )
         else:
             body = str(data).encode("utf-8")
-    else:
-        body = None
+
+    # Create request
+    req = urllib.request.Request(
+        url, data=body, headers=request_headers, method=method
+    )
 
     try:
-        conn.request(method, path, body=body, headers=headers)
-        response = conn.getresponse()
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return Response(
+                status_code=response.getcode(),
+                content=response.read(),
+                headers=dict(response.headers),
+            )
+    except urllib.error.HTTPError as e:
+        # For HTTP errors, we still want to return a Response object
         return Response(
-            status_code=response.status,
-            content=response.read(),
-            headers=dict(response.getheaders()),
+            status_code=e.code,
+            content=e.read(),
+            headers=dict(e.headers),
         )
-    except (HTTPError, URLError, ConnectionRefusedError) as e:
-        raise RequestError(f"Request failed: to {url}: {str(e)}") from None
-    finally:
-        conn.close()
+    except Exception as e:
+        raise RequestError(f"Request failed: {str(e)}") from e
 
 
 def get(
