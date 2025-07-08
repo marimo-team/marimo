@@ -254,7 +254,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("string", dtype)
                 if dtype == "bool":
                     return ("boolean", dtype)
-                if dtype == "datetime64[ns]":
+                if dtype.startswith("datetime"):
                     return ("datetime", dtype)
                 if dtype == "date":
                     return ("date", dtype)

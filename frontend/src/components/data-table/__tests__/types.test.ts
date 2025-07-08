@@ -26,5 +26,19 @@ describe("extractTimezone", () => {
     expect(extractTimezone("datetime[m,UTC]")).toBe("UTC");
     expect(extractTimezone("datetime[m,US/Eastern]")).toBe("US/Eastern");
     expect(extractTimezone("datetime[m,Europe/London]")).toBe("Europe/London");
+
+    // With spaces
+    expect(extractTimezone("datetime[ns, UTC]")).toBe("UTC");
+    expect(extractTimezone("datetime[ns, US/Eastern]")).toBe("US/Eastern");
+    expect(extractTimezone("datetime[m, Europe/London]")).toBe("Europe/London");
+  });
+
+  it("should return timezone for datetime64", () => {
+    expect(extractTimezone("datetime64[ns, UTC]")).toBe("UTC");
+    expect(extractTimezone("datetime64[ns, US/Eastern]")).toBe("US/Eastern");
+    expect(extractTimezone("datetime64[ns, Europe/London]")).toBe(
+      "Europe/London",
+    );
+    expect(extractTimezone("datetime64[m,US/Eastern]")).toBe("US/Eastern");
   });
 });
