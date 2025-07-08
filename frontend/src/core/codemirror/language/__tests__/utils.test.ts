@@ -140,7 +140,7 @@ describe("splitEditor", () => {
   it("handles markdown", () => {
     const mockEditor = createEditor("mo.md('Hello, World!')");
     // Set to markdown
-    switchLanguage(mockEditor, "markdown");
+    switchLanguage(mockEditor, { language: "markdown" });
     // Set cursor position
     mockEditor.dispatch({
       selection: { anchor: "Hello,".length },
@@ -154,7 +154,7 @@ describe("splitEditor", () => {
   it.skip("handles markdown with variables", () => {
     const mockEditor = createEditor('mo.md(f"""{a}\n{b}!""")');
     // Set to markdown
-    switchLanguage(mockEditor, "markdown");
+    switchLanguage(mockEditor, { language: "markdown" });
     // Set cursor position
     mockEditor.dispatch({
       selection: { anchor: "{a}\n".length },

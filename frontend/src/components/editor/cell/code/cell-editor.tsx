@@ -259,7 +259,9 @@ const CellEditorInternal = ({
     setEditorView(ev);
     // Initialize the language adapter
     if (!rtcEnabled) {
-      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+      switchLanguage(ev, {
+        language: getInitialLanguageAdapter(ev.state).type,
+      });
     }
   });
 
@@ -319,7 +321,9 @@ const CellEditorInternal = ({
     });
     // Initialize the language adapter
     if (!rtcEnabled) {
-      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+      switchLanguage(ev, {
+        language: getInitialLanguageAdapter(ev.state).type,
+      });
     }
     setEditorView(ev);
     // Clear the serialized state so that we don't re-create the editor next time

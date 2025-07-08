@@ -53,7 +53,7 @@ export function toggleToLanguage(
     return false;
   }
 
-  switchLanguage(editorView, language);
+  switchLanguage(editorView, { language });
 
   return language;
 }

@@ -231,7 +231,7 @@ function languageObserverExtension(cellId: CellId) {
       logger.debug(
         `[incoming] setting language type: ${currentLang} -> ${newLang}`,
       );
-      switchLanguage(view, newLang, { keepCodeAsIs: true });
+      switchLanguage(view, { language: newLang, keepCodeAsIs: true });
     }
   };
 
@@ -341,13 +341,13 @@ function languageListenerExtension(cellId: CellId) {
     // If the language is not set, set it to the current language
     // and update the LoroDoc
     if (!isInitialized) {
-      const lang = getInitialLanguageAdapter(update.state).type;
-      switchLanguage(update.view, lang);
-      logger.debug("no initial language, setting default to", lang);
+      const language = getInitialLanguageAdapter(update.state).type;
+      switchLanguage(update.view, { language });
+      logger.debug("no initial language, setting default to", language);
 
       // Sync the language to the LoroDoc
       currentLang.delete(0, currentLang.length);
-      currentLang.insert(0, lang);
+      currentLang.insert(0, language);
 
       // Sync the language metadata to the LoroDoc
       logger.debug(

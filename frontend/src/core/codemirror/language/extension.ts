@@ -262,18 +262,20 @@ export function languageAdapterFromCode(doc: string): LanguageAdapter {
  */
 export function switchLanguage(
   view: EditorView,
-  language: LanguageAdapter["type"],
-  opts: { keepCodeAsIs?: boolean } = {},
+  opts: {
+    language: LanguageAdapter["type"];
+    keepCodeAsIs?: boolean;
+  },
 ) {
   // If the existing language is the same as the new language, do nothing
   const currentLanguage = view.state.field(languageAdapterState);
-  if (currentLanguage.type === language) {
+  if (currentLanguage.type === opts.language) {
     return;
   }
 
   updateLanguageAdapterAndCode({
     view,
-    nextLanguage: LanguageAdapters[language],
+    nextLanguage: LanguageAdapters[opts.language],
     opts: {
       keepCodeAsIs: opts.keepCodeAsIs ?? false,
     },
