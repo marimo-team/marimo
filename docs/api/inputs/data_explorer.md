@@ -33,7 +33,6 @@ To set an initial configuration, you can pass keyword arguments to `mo.ui.data_e
 ```python
 @app.cell
 def __():
-    import marimo as mo
     import pandas as pd
     import pyodide
     csv = pyodide.http.open_url("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
