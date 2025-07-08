@@ -127,19 +127,29 @@ function useCellCompletion(
 /**
  * Hook for handling cell hotkeys
  */
-function useCellHotkeys(
-  cellRef: React.RefObject<HTMLDivElement | null> | null,
-  cellId: CellId,
-  runCell: () => void,
-  actions: CellComponentActions,
-  canMoveX: boolean,
-  cellConfig: CellConfig,
-  editorView: React.RefObject<EditorView | null>,
+function useCellHotkeys({
+  cellRef,
+  cellId,
+  runCell,
+  actions,
+  canMoveX,
+  cellConfig,
+  editorView,
+  setAiCompletionCell,
+  cellActionDropdownRef,
+}: {
+  cellRef: React.RefObject<HTMLDivElement | null> | null;
+  cellId: CellId;
+  runCell: () => void;
+  actions: CellComponentActions;
+  canMoveX: boolean;
+  cellConfig: CellConfig;
+  editorView: React.RefObject<EditorView | null>;
   setAiCompletionCell: ReturnType<
     typeof useSetAtom<typeof aiCompletionCellAtom>
-  >,
-  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>,
-) {
+  >;
+  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>;
+}) {
   useHotkeysOnElement(cellRef, {
     "cell.run": runCell,
     "cell.runAndNewBelow": () => {
@@ -623,7 +633,7 @@ const EditableCellComponent = ({
   );
 
   // Hotkey listeners
-  useCellHotkeys(
+  useCellHotkeys({
     cellRef,
     cellId,
     runCell,
@@ -633,7 +643,7 @@ const EditableCellComponent = ({
     editorView,
     setAiCompletionCell,
     cellActionDropdownRef,
-  );
+  });
 
   // Other keyboard listeners
   useCellKeyboardListener(
@@ -1179,7 +1189,7 @@ const SetupCellComponent = ({
   );
 
   // Hotkey listeners
-  useCellHotkeys(
+  useCellHotkeys({
     cellRef,
     cellId,
     runCell,
@@ -1189,7 +1199,7 @@ const SetupCellComponent = ({
     editorView,
     setAiCompletionCell,
     cellActionDropdownRef,
-  );
+  });
 
   // Other keyboard listeners
   useCellKeyboardListener(
