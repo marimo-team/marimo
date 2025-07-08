@@ -21,7 +21,7 @@ snapshot = snapshotter(__file__)
 
 
 # HTTP server for testing remote file conversion
-class TestHTTPServer:
+class MockHTTPServer:
     def __init__(self, directory: Path, port: int):
         self.directory = directory
         self.port = port
@@ -60,7 +60,7 @@ class TestHTTPServer:
 def http_server():
     tmp_path = tempfile.mkdtemp()
     port = find_free_port(1234)
-    server = TestHTTPServer(Path(tmp_path), port=port)
+    server = MockHTTPServer(Path(tmp_path), port=port)
     server.start()
     yield server
     server.stop()
@@ -170,7 +170,7 @@ print('Hello from Markdown!')
         assert "File must be an .ipynb or .md file" in p.stderr
 
     @staticmethod
-    def test_convert_remote_ipynb(http_server: TestHTTPServer) -> None:
+    def test_convert_remote_ipynb(http_server: MockHTTPServer) -> None:
         # Create a notebook file
         notebook_path = http_server.directory / "remote_notebook.ipynb"
         notebook_content = """
@@ -213,7 +213,7 @@ print('Hello from Markdown!')
         is_windows(),
         reason="Markdown conversion adds extra new line on Windows",
     )
-    def test_convert_remote_markdown(http_server: TestHTTPServer) -> None:
+    def test_convert_remote_markdown(http_server: MockHTTPServer) -> None:
         # Create a markdown file
         md_path = http_server.directory / "remote_markdown.md"
         md_content = """
@@ -241,7 +241,7 @@ print('Hello from Remote Markdown!')
         snapshot("remote_markdown_to_marimo.txt", output)
 
     @staticmethod
-    def test_convert_remote_invalid_file(http_server: TestHTTPServer) -> None:
+    def test_convert_remote_invalid_file(http_server: MockHTTPServer) -> None:
         # Create an invalid file
         invalid_file = http_server.directory / "invalid.txt"
         invalid_file.write_text(
@@ -259,7 +259,7 @@ print('Hello from Remote Markdown!')
 
     @staticmethod
     def test_convert_nonexistent_remote_file(
-        http_server: TestHTTPServer,
+        http_server: MockHTTPServer,
     ) -> None:
         # Try to convert non-existent remote file
         p = subprocess.run(

@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { AnsiUp } from "ansi_up";
+import type { JSX } from "react";
 import type { OutputChannel } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
-import { AnsiUp } from "ansi_up";
 
 const ansiUp = new AnsiUp();
 

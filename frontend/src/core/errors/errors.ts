@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
+import { invariant } from "@/utils/invariant";
 import type { CellId } from "../cells/ids";
 import type { MarimoError } from "../kernel/messages";
 import { wrapInFunction } from "./utils";
-import { invariant } from "@/utils/invariant";
 
 export interface AutoFix {
   title: string;

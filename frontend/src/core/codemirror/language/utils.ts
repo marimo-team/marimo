@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
-import type { EditorState } from "@codemirror/state";
 import { languageMetadataField } from "./metadata";
 
 /**

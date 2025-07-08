@@ -19,7 +19,9 @@ from narwhals.typing import IntoDataFrame
 import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._data.models import ColumnStats
+from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.ops import ColumnPreview
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -55,6 +57,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
 from marimo._utils.narwhals_utils import (
@@ -141,6 +144,11 @@ class CalculateTopKRowsArgs:
 @dataclass
 class CalculateTopKRowsResponse:
     data: list[tuple[str, int]]
+
+
+@dataclass
+class PreviewColumnArgs:
+    column: ColumnName
 
 
 def get_default_table_page_size() -> int:
@@ -466,6 +474,15 @@ class table(
                 TableManager.DEFAULT_SUMMARY_STATS_ROW_LIMIT
             )
 
+        app_mode = get_mode()
+        # These panels are not as useful in non-edit mode and require an external dependency
+        show_column_explorer = app_mode == "edit"
+        show_chart_builder = app_mode == "edit"
+
+        show_page_size_selector = True
+        if (isinstance(total_rows, int) and total_rows <= 5) or _internal_lazy:
+            show_page_size_selector = False
+
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
         self._searched_manager = self._manager
@@ -595,6 +612,9 @@ class table(
                 "show-download": show_download
                 and self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
+                "show-page-size-selector": show_page_size_selector,
+                "show-column-explorer": show_column_explorer,
+                "show-chart-builder": show_chart_builder,
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
@@ -637,13 +657,16 @@ class table(
                     arg_cls=CalculateTopKRowsArgs,
                     function=self._calculate_top_k_rows,
                 ),
+                Function(
+                    name="preview_column",
+                    arg_cls=PreviewColumnArgs,
+                    function=self._preview_column,
+                ),
             ),
         )
 
     @property
-    def data(
-        self,
-    ) -> TableData:
+    def data(self) -> TableData:
         """Get the original table data.
 
         Returns:
@@ -900,37 +923,49 @@ class table(
             LOGGER.error("Failed to calculate top k rows: %s", e)
             return CalculateTopKRowsResponse(data=[])
 
-    def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
+    def _preview_column(self, args: PreviewColumnArgs) -> ColumnPreview:
+        """Preview a column of a dataset."""
+        column = args.column
+
+        # We use a placeholder for table names
+        column_preview = get_column_preview_dataset(
+            self._searched_manager, "_df", column
+        )
+        return column_preview
+
+    def _style_cells(
+        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+    ) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
             return None
+
+        def do_style_cell(row: str, col: str) -> dict[str, Any]:
+            selected_cells = self._searched_manager.select_cells(
+                [TableCoordinate(row_id=row, column_name=col)]
+            )
+            if not selected_cells or self._style_cell is None:
+                return {}
+            return self._style_cell(row, col, selected_cells[0].value)
+
+        columns = self._searched_manager.get_column_names()
+        response = self._get_row_ids(EmptyArgs())
+
+        # Clamp the take to the total number of rows
+        if total_rows != "too_many" and skip + take > total_rows:
+            take = total_rows - skip
+
+        # Determine row range
+        row_ids: Union[list[int], range]
+        if response.all_rows or response.error:
+            row_ids = range(skip, skip + take)
         else:
+            row_ids = response.row_ids[skip : skip + take]
 
-            def do_style_cell(row: str, col: str) -> dict[str, Any]:
-                selected_cells = self._searched_manager.select_cells(
-                    [TableCoordinate(row_id=row, column_name=col)]
-                )
-                if len(selected_cells) == 0 or self._style_cell is None:
-                    return dict()
-                else:
-                    return self._style_cell(row, col, selected_cells[0].value)
-
-            columns = self._searched_manager.get_column_names()
-            response = self._get_row_ids(EmptyArgs())
-
-            row_ids: Union[list[int], range]
-            if response.all_rows is True or response.error is not None:
-                # TODO: Handle sorted rows, they have reverse order of row_ids
-                row_ids = range(skip, skip + take)
-            else:
-                row_ids = response.row_ids[skip : skip + take]
-
-            return {
-                str(row): {
-                    col: do_style_cell(str(row), col) for col in columns
-                }
-                for row in row_ids
-            }
+        return {
+            str(row): {col: do_style_cell(str(row), col) for col in columns}
+            for row in row_ids
+        }
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
@@ -983,17 +1018,11 @@ class table(
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=total_rows,
-                # The __init__ will just call this with an arbitrary offset,
-                # we need to check this is not larger than our actual number of rows.
                 cell_styles=self._style_cells(
-                    offset,
-                    min(total_rows, args.page_size)
-                    if total_rows != "too_many"
-                    else args.page_size,
+                    offset, args.page_size, total_rows
                 ),
             )
 
-        # If the arguments are hashable, use the cached method
         filter_function = (
             self._apply_filters_query_sort_cached
             if is_hashable(args.filters, args.query, args.sort)
@@ -1016,7 +1045,7 @@ class table(
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,
-            cell_styles=self._style_cells(offset, args.page_size),
+            cell_styles=self._style_cells(offset, args.page_size, total_rows),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

@@ -1,18 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { type PropsWithChildren } from "react";
-import { Dialog } from "../ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogFooter,
   AlertDialogCancel,
+  AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { Dialog } from "../ui/dialog";
+import { Input } from "../ui/input";
 
 interface ModalContextType {
   modal: React.ReactNode | null;
@@ -30,10 +30,10 @@ export const ModalProvider: React.FC<PropsWithChildren<{}>> = (props) => {
   const [modal, setModal] = React.useState<React.ReactNode | null>(null);
 
   return (
-    <ModalContext.Provider value={{ modal, setModal }}>
+    <ModalContext value={{ modal, setModal }}>
       {modal}
       {props.children}
-    </ModalContext.Provider>
+    </ModalContext>
   );
 };
 /**
@@ -49,7 +49,7 @@ export const ModalProvider: React.FC<PropsWithChildren<{}>> = (props) => {
  * ```
  */
 export function useImperativeModal() {
-  const context = React.useContext(ModalContext);
+  const context = React.use(ModalContext);
 
   if (context === undefined) {
     throw new Error("useModal must be used within a ModalProvider");

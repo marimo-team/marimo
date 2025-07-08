@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { Meta, StoryFn } from "@storybook/react-vite";
 import { ProgressComponent } from "@/plugins/layout/ProgressPlugin";
-import type { Meta, StoryFn } from "@storybook/react";
 
 const meta: Meta<typeof ProgressComponent> = {
   title: "ProgressComponent",

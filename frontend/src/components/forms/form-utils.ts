@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "@/utils/Logger";
+
 import { z } from "zod";
+import { Logger } from "@/utils/Logger";
 
 /**
  * Get default values for a zod schema

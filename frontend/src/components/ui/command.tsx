@@ -1,19 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
 import type { DialogProps } from "@radix-ui/react-dialog";
+import type { VariantProps } from "class-variance-authority";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
-
-import { cn } from "@/utils/cn";
+import * as React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { cn } from "@/utils/cn";
+import { Strings } from "@/utils/strings";
 import {
   MENU_ITEM_DISABLED,
   MenuShortcut,
   menuItemVariants,
   menuSeparatorVariants,
 } from "./menu-items";
-import { Strings } from "@/utils/strings";
-import type { VariantProps } from "class-variance-authority";
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,

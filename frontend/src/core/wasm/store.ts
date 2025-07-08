@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TypedLocalStorage } from "@/utils/localStorage";
+
 import {
-  decompressFromEncodedURIComponent,
   compressToEncodedURIComponent,
+  decompressFromEncodedURIComponent,
 } from "lz-string";
+import { TypedLocalStorage } from "@/utils/localStorage";
 import { PyodideRouter } from "./router";
 
 export interface FileStore {
@@ -87,6 +88,10 @@ const emptyFileStore: FileStore = {
 
 export class CompositeFileStore implements FileStore {
   constructor(private stores: FileStore[]) {}
+
+  insert(index: number, store: FileStore) {
+    this.stores.splice(index, 0, store);
+  }
 
   saveFile(contents: string) {
     this.stores.forEach((store) => store.saveFile(contents));

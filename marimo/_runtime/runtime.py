@@ -105,10 +105,17 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
+from marimo._runtime.packages.import_error_extractors import (
+    extract_missing_module_from_cause_chain,
+    try_extract_packages_from_import_error_message,
+)
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
-from marimo._runtime.packages.utils import is_python_isolated
+from marimo._runtime.packages.utils import (
+    PackageRequirement,
+    is_python_isolated,
+)
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
@@ -2413,7 +2420,7 @@ class PackagesCallbacks:
         module_not_found_errors = [
             e
             for e in runner.exceptions.values()
-            if isinstance(e, (ModuleNotFoundError, ManyModulesNotFoundError))
+            if isinstance(e, (ImportError, ManyModulesNotFoundError))
         ]
 
         if len(module_not_found_errors) == 0:
@@ -2425,23 +2432,36 @@ class PackagesCallbacks:
         missing_modules: set[str] = set()
         missing_packages: set[str] = set()
 
-        # Populate missing_modules and missing_packages
-        # from the errors
+        # Populate missing_modules and missing_packages from the errors
         for e in module_not_found_errors:
             if isinstance(e, ManyModulesNotFoundError):
                 # filter out packages that we already attempted to install
                 # to prevent an infinite loop
                 missing_packages.update(
                     {
-                        package
-                        for package in e.package_names
-                        if not self.package_manager.attempted_to_install(
-                            package
-                        )
+                        pkg
+                        for pkg in e.package_names
+                        if not self.package_manager.attempted_to_install(pkg)
                     }
                 )
-            elif e.name is not None:
-                missing_modules.add(e.name)
+                continue
+
+            maybe_missing_module = extract_missing_module_from_cause_chain(e)
+            if maybe_missing_module:
+                missing_modules.add(maybe_missing_module)
+                continue
+
+            maybe_missing_packages = (
+                try_extract_packages_from_import_error_message(str(e))
+            )
+            if maybe_missing_packages:
+                missing_packages.update(
+                    {
+                        pkg
+                        for pkg in maybe_missing_packages
+                        if not self.package_manager.attempted_to_install(pkg)
+                    }
+                )
 
         # Grab missing modules from module registry and from module not found errors
         missing_modules = (
@@ -2480,7 +2500,9 @@ class PackagesCallbacks:
 
         Runs cells affected by successful installation.
         """
-        assert self.package_manager is not None
+        assert self.package_manager is not None, (
+            "Cannot install packages without a package manager"
+        )
         if request.manager != self.package_manager.name:
             # Swap out the package manager
             self.package_manager = create_package_manager(request.manager)
@@ -2489,17 +2511,26 @@ class PackagesCallbacks:
             self.package_manager.alert_not_installed()
             return
 
-        missing_packages_set = set(request.versions.keys())
+        resolved_packages: dict[str, PackageRequirement] = {}
+        for pkg in request.versions.keys():
+            pkg_req = PackageRequirement.parse(pkg)
+            resolved_packages[pkg_req.name] = pkg_req
+
         # Append all other missing packages from the notebook; the missing
         # package request only contains the packages from the cell the user
         # executed.
-        missing_packages_set.update(
-            [
+        for module in self._kernel.module_registry.missing_modules():
+            pkg_req = PackageRequirement.parse(
                 self.package_manager.module_to_package(module)
-                for module in self._kernel.module_registry.missing_modules()
-            ]
-        )
-        missing_packages = list(sorted(missing_packages_set))
+            )
+            if pkg_req.name not in resolved_packages:
+                resolved_packages[pkg_req.name] = pkg_req
+
+        # Convert back to list of package strings
+        missing_packages = [
+            str(pkg)
+            for pkg in sorted(resolved_packages.values(), key=lambda p: p.name)
+        ]
 
         # Frontend shows package names, not module names
         package_statuses: PackageStatusType = {
@@ -2572,6 +2603,7 @@ class PackagesCallbacks:
             self.package_manager.update_notebook_script_metadata(
                 filepath=filename,
                 import_namespaces_to_add=import_namespaces_to_add,
+                upgrade=False,
             )
         except Exception as e:
             LOGGER.error("Failed to add script metadata to notebook: %s", e)

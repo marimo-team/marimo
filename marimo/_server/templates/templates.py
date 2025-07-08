@@ -1,24 +1,86 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
+import html
 import json
 import os
+from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._messaging.cell_output import CellOutput
+from marimo._convert.converters import MarimoConvert
 from marimo._output.utils import uri_encode_component
+from marimo._schemas.notebook import NotebookV1
+from marimo._schemas.session import NotebookSessionV1
 from marimo._server.api.utils import parse_title
 from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
-from marimo._types.ids import CellId_t
 from marimo._utils.versions import is_editable
+
+MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
+
+
+def _html_escape(text: str) -> str:
+    """Escape HTML special characters."""
+    return html.escape(text, quote=True)
+
+
+def _get_mount_config(
+    *,
+    filename: Optional[str],
+    mode: Literal["edit", "home", "read"],
+    server_token: SkewProtectionToken,
+    user_config: MarimoConfig,
+    config_overrides: PartialMarimoConfig,
+    app_config: Optional[_AppConfig],
+    version: Optional[str] = None,
+    show_app_code: bool = True,
+    session_snapshot: Optional[NotebookSessionV1] = None,
+    notebook_snapshot: Optional[NotebookV1] = None,
+    remote_url: Optional[str] = None,
+) -> str:
+    """
+    Return a JSON string with custom indentation and sorting.
+    """
+
+    options: dict[str, Any] = {
+        "filename": filename or "",
+        "mode": mode,
+        "version": version or get_version(),
+        "server_token": str(server_token),
+        "user_config": user_config,
+        "config_overrides": config_overrides,
+        "app_config": _del_none_or_empty(app_config.asdict())
+        if app_config
+        else {},
+        "view": {
+            "showAppCode": show_app_code,
+        },
+        "notebook": notebook_snapshot,
+        "session": session_snapshot,
+        "runtime_config": [{"url": remote_url}] if remote_url else None,
+    }
+
+    return """{{
+            "filename": {filename},
+            "mode": {mode},
+            "version": {version},
+            "serverToken": {server_token},
+            "config": {user_config},
+            "configOverrides": {config_overrides},
+            "appConfig": {app_config},
+            "view": {view},
+            "notebook": {notebook},
+            "session": {session},
+            "runtimeConfig": {runtime_config},
+        }}
+""".format(
+        **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
+    ).strip()
 
 
 def home_page_template(
@@ -29,15 +91,29 @@ def home_page_template(
     server_token: SkewProtectionToken,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
-    html = html.replace("{{ user_config }}", json.dumps(user_config))
-    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    html = html.replace("{{ server_token }}", str(server_token))
-    html = html.replace("{{ version }}", get_version())
-
     html = html.replace("{{ title }}", "marimo")
-    html = html.replace("{{ app_config }}", json.dumps({}))
     html = html.replace("{{ filename }}", "")
-    html = html.replace("{{ mode }}", "home")
+
+    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
+    html = html.replace("{{ version }}", get_version())
+    html = html.replace(
+        "{{ user_config }}", _html_escape(json.dumps(user_config))
+    )
+    html = html.replace("{{ server_token }}", str(server_token))
+    # /TODO
+
+    html = html.replace(
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            filename=None,
+            mode="home",
+            server_token=server_token,
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=None,
+            remote_url=None,
+        ),
+    )
 
     # Add custom CSS from display config
     html = _inject_custom_css_for_config(html, user_config)
@@ -54,29 +130,53 @@ def notebook_page_template(
     app_config: _AppConfig,
     filename: Optional[str],
     mode: SessionMode,
+    remote_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
-    html = html.replace("{{ user_config }}", json.dumps(user_config))
-    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    html = html.replace("{{ server_token }}", str(server_token))
+
+    # When we have a remote URL, let's pre-populate the index.html page
+    # with a view of the notebook.
+    notebook_snapshot = None
+    if remote_url and filename:
+        filepath = Path(filename)
+        if filepath.exists():
+            notebook_snapshot = MarimoConvert.from_py(
+                filepath.read_text(encoding="utf-8")
+            ).to_notebook_v1()
+
+    html = html.replace("{{ filename }}", _html_escape(filename or ""))
+
+    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
     html = html.replace("{{ version }}", get_version())
+    html = html.replace(
+        "{{ user_config }}", _html_escape(json.dumps(user_config))
+    )
+    html = html.replace("{{ server_token }}", str(server_token))
+    # /TODO
+
+    html = html.replace(
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            filename=filename,
+            mode="read" if mode == SessionMode.RUN else "edit",
+            server_token=server_token,
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=app_config,
+            remote_url=remote_url,
+            notebook_snapshot=notebook_snapshot,
+        ),
+    )
 
     html = html.replace(
         "{{ title }}",
-        (
+        _html_escape(
             parse_title(filename)
             if app_config.app_title is None
             else app_config.app_title
         ),
     )
-    html = html.replace(
-        "{{ app_config }}", json.dumps(_del_none_or_empty(app_config.asdict()))
-    )
-    html = html.replace("{{ filename }}", filename or "")
-    html = html.replace(
-        "{{ mode }}",
-        "read" if mode == SessionMode.RUN else "edit",
-    )
+
     # If has custom css, inline the css and add to the head
     if app_config.css_file:
         css_contents = read_css_file(app_config.css_file, filename=filename)
@@ -110,12 +210,8 @@ def static_notebook_template(
     filepath: Optional[str],
     code: str,
     code_hash: str,
-    cell_ids: list[CellId_t],
-    cell_names: list[str],
-    cell_codes: list[str],
-    cell_configs: list[CellConfig],
-    cell_outputs: dict[CellId_t, CellOutput],
-    cell_console_outputs: dict[CellId_t, list[CellOutput]],
+    session_snapshot: NotebookSessionV1,
+    notebook_snapshot: NotebookV1,
     files: dict[str, str],
     asset_url: Optional[str] = None,
 ) -> str:
@@ -123,65 +219,41 @@ def static_notebook_template(
         asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
 
     html = html.replace("{{ base_url }}", "")
+    filename = os.path.basename(filepath or "")
+    html = html.replace("{{ filename }}", _html_escape(filename))
+
     # We don't need all this user config when we export the notebook,
     # but we do need some:
     # - display.theme
     # - display.cell_output
     html = html.replace(
-        "{{ user_config }}", json.dumps(user_config, sort_keys=True)
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            filename=filename,
+            mode="read",
+            server_token=server_token,
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=app_config,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
+            remote_url=None,
+        ),
     )
-    html = html.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    html = html.replace("{{ server_token }}", str(server_token))
-    html = html.replace("{{ version }}", get_version())
 
     html = html.replace(
         "{{ title }}",
-        (
+        _html_escape(
             parse_title(filepath)
             if app_config.app_title is None
             else app_config.app_title
         ),
     )
-    html = html.replace(
-        "{{ app_config }}",
-        json.dumps(_del_none_or_empty(app_config.asdict()), sort_keys=True),
-    )
-    html = html.replace("{{ filename }}", os.path.basename(filepath or ""))
-    html = html.replace("{{ mode }}", "read")
-
-    serialized_cell_outputs = {
-        cell_id: _serialize_to_base64(json.dumps(output.asdict()))
-        for cell_id, output in cell_outputs.items()
-    }
-    serialized_cell_console_outputs = {
-        cell_id: [_serialize_to_base64(json.dumps(o.asdict())) for o in output]
-        for cell_id, output in cell_console_outputs.items()
-        if output
-    }
 
     static_block = dedent(
         f"""
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
-        window.__MARIMO_STATIC__.version = "{__version__}";
-        window.__MARIMO_STATIC__.notebookState = {
-            json.dumps(
-                {
-                    "cellIds": cell_ids,
-                    "cellNames": _serialize_list_to_base64(cell_names),
-                    "cellCodes": _serialize_list_to_base64(cell_codes),
-                    "cellConfigs": _serialize_list_to_base64(
-                        [
-                            json.dumps(config.asdict())
-                            for config in cell_configs
-                        ]
-                    ),
-                    "cellOutputs": serialized_cell_outputs,
-                    "cellConsoleOutputs": serialized_cell_console_outputs,
-                }
-            )
-        };
-        window.__MARIMO_STATIC__.assetUrl = "{asset_url}";
         window.__MARIMO_STATIC__.files = {json.dumps(files)};
     </script>
     """
@@ -270,20 +342,30 @@ def wasm_notebook_template(
     body = body.replace("{{ base_url }}", "")
     body = body.replace(
         "{{ title }}",
-        parse_title(filename)
-        if app_config.app_title is None
-        else app_config.app_title,
+        _html_escape(
+            parse_title(filename)
+            if app_config.app_title is None
+            else app_config.app_title
+        ),
     )
-    body = body.replace("{{ user_config }}", json.dumps(user_config))
+
+    body = body.replace("{{ filename }}", _html_escape("notebook.py"))
     body = body.replace(
-        "{{ app_config }}", json.dumps(_del_none_or_empty(app_config.asdict()))
+        MOUNT_CONFIG_TEMPLATE,
+        _get_mount_config(
+            # WASM runtime currently expect this to be notebook.py instead of the actual filename
+            filename="notebook.py",
+            mode="edit" if mode == "edit" else "read",
+            server_token=SkewProtectionToken("unused"),
+            user_config=user_config,
+            config_overrides=config_overrides,
+            app_config=app_config,
+            version=version,
+            show_app_code=show_code,
+            remote_url=None,
+        ),
     )
-    body = body.replace("{{ config_overrides }}", json.dumps(config_overrides))
-    body = body.replace("{{ server_token }}", "123")
-    body = body.replace("{{ version }}", version)
-    # WASM runtime currently expect this to be notebook.py instead of the actual filename
-    body = body.replace("{{ filename }}", "notebook.py")
-    body = body.replace("{{ mode }}", "edit" if mode == "edit" else "read")
+
     body = body.replace(
         "</head>", '<marimo-wasm hidden=""></marimo-wasm></head>'
     )
@@ -333,7 +415,7 @@ def wasm_notebook_template(
 
     body = body.replace(
         "</head>",
-        f'<marimo-code hidden="" data-show-code="{json.dumps(show_code)}">{uri_encode_component(code)}</marimo-code></head>',
+        f'<marimo-code hidden="">{uri_encode_component(code)}</marimo-code></head>',
     )
 
     return body
@@ -343,18 +425,6 @@ def inject_script(html: str, script: str) -> str:
     """Inject a script into the HTML before the closing body tag."""
     script_tag = f"<script>{script}</script>"
     return html.replace("</body>", f"{script_tag}</body>")
-
-
-def _serialize_to_base64(value: str) -> str:
-    # Encode the JSON string to URL-encoded format
-    url_encoded = uri_encode_component(value)
-    # Encode the URL-encoded string to Base64
-    base64_encoded = base64.b64encode(url_encoded.encode()).decode()
-    return base64_encoded
-
-
-def _serialize_list_to_base64(value: list[str]) -> list[str]:
-    return [_serialize_to_base64(v) for v in value]
 
 
 def _del_none_or_empty(d: Any) -> Any:

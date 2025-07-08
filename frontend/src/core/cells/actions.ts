@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { store } from "../state/jotai";
-import { Objects } from "@/utils/objects";
-import { notebookAtom } from "./cells";
 import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
+import { Objects } from "@/utils/objects";
+import { store } from "../state/jotai";
+import { notebookAtom } from "./cells";
 
 /**
  * Scroll to the first cell that is currently in "running" state.

@@ -51,10 +51,10 @@
   max-height: 45vh; /* 45% of viewport height */
   max-width: 40vw; /* 40% of viewport width */
   overflow: auto;
+  scrollbar-width: thin;
 
   /* Respect newlines. */
   border-radius: 4px;
-  padding: 0.625rem 0.875rem;
 }
 
 /* Hover tooltips get highest priority in display. */
@@ -73,6 +73,18 @@
   margin-right: 30px;
 
   @apply text-xs;
+}
+
+/* -- Linting -- */
+
+.cm-tooltip-lint {
+  code {
+    @apply bg-muted border border-border rounded-md px-1;
+  }
+
+  .cm-diagnosticText > div {
+    display: inline-flex;
+  }
 }
 
 /* -- Ghost Text -- */

@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { getAllEditorViews, notebookAtom } from "@/core/cells/cells";
-import { getEditorCodeAsPython } from "../language/utils";
+import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import type { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
+import { getEditorCodeAsPython } from "../language/utils";
 
 export function getCodes(otherCode: string) {
   const codes = getOtherCellsCode(otherCode);

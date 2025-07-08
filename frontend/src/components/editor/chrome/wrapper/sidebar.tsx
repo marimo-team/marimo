@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
+import { MessageCircleQuestionIcon } from "lucide-react";
 import type React from "react";
 import type { PropsWithChildren } from "react";
-import { MessageCircleQuestionIcon } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FeedbackButton } from "../components/feedback-button";
-import { type PanelDescriptor, PANELS } from "../types";
 import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
-import { useAtomValue } from "jotai";
+import { cn } from "@/utils/cn";
+import { FeedbackButton } from "../components/feedback-button";
+import { useChromeActions, useChromeState } from "../state";
+import { PANELS, type PanelDescriptor } from "../types";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel } = useChromeState();

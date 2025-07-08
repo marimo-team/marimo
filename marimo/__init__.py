@@ -47,6 +47,7 @@ __all__ = [
     "icon",
     "iframe",
     "image",
+    "image_compare",
     "json",
     "latex",
     "lazy",
@@ -84,7 +85,7 @@ __all__ = [
     "vstack",
     "watch",
 ]
-__version__ = "0.13.12"
+__version__ = "0.14.10"
 
 import marimo._ai as ai
 import marimo._islands as islands
@@ -108,6 +109,7 @@ from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.image_compare import image_compare
 from marimo._plugins.stateless.json_component import json
 from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid

@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { outputIsLoading, outputIsStale } from "../cell";
+import { describe, expect, it } from "vitest";
 import type { OutputMessage } from "@/core/kernel/messages";
-import type { Seconds } from "@/utils/time";
 import type { RuntimeState } from "@/core/network/types";
+import type { Seconds } from "@/utils/time";
+import { outputIsLoading, outputIsStale } from "../cell";
 
 const STATUSES: RuntimeState[] = [
   "queued",

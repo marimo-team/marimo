@@ -782,26 +782,34 @@ class SessionManager:
         # since this will contain config-level overrides
         self._config_manager = config_manager
 
-        # Auth token and Skew-protection token
-        if auth_token is not None:
-            self.auth_token = auth_token
-            self.skew_protection_token = SkewProtectionToken.random()
-        elif mode == SessionMode.EDIT:
-            # In edit mode, if no auth token is provided,
-            # generate a random token
-            self.auth_token = AuthToken.random()
-            self.skew_protection_token = SkewProtectionToken.random()
-        else:
+        def _get_code() -> str:
             app = file_router.get_single_app_file_manager(
                 default_width=self._config_manager.default_width,
                 default_sql_output=self._config_manager.default_sql_output,
             ).app
-            codes = "".join(code for code in app.cell_manager.codes())
+            return "".join(code for code in app.cell_manager.codes())
+
+        # Auth token and Skew-protection token
+        if mode == SessionMode.EDIT:
+            # In edit mode, if no auth token is provided,
+            # generate a random token
+            self.auth_token = (
+                AuthToken.random() if auth_token is None else auth_token
+            )
+            self.skew_protection_token = SkewProtectionToken.random()
+        else:
+            source_code = _get_code()
             # Because run-mode is read-only and we could have multiple
             # servers for the same app (going to sleep or autoscaling),
             # we default to a token based on the app's code
-            self.auth_token = AuthToken.from_code(codes)
-            self.skew_protection_token = SkewProtectionToken.from_code(codes)
+            self.auth_token = (
+                AuthToken.from_code(source_code)
+                if auth_token is None
+                else auth_token
+            )
+            self.skew_protection_token = SkewProtectionToken.from_code(
+                source_code
+            )
 
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """

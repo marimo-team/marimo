@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useCellErrors } from "@/core/cells/cells";
-import { useEventListener } from "@/hooks/useEventListener";
+
 import { usePrevious } from "@dnd-kit/utilities";
 import { useEffect } from "react";
+import { useCellErrors } from "@/core/cells/cells";
+import { useEventListener } from "@/hooks/useEventListener";
 
 const FAVICON_PATHS = {
   idle: "./favicon.ico",

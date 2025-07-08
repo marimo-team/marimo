@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { tableFromIPC, type Table as ArrowTable } from "@uwdata/flechette";
+import { type Table as ArrowTable, tableFromIPC } from "@uwdata/flechette";
 
 // Adapted from https://github.com/vega/vega-loader-arrow/blob/main/src/index.js
 // but this avoids bundling flechette which causes code duplication

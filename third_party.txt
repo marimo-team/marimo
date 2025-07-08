@@ -1,39 +1,57 @@
-The contents below were generated with `nlf -d`, using the nlf node package.
+The contents below were generated with 'make license-snapshot', using the nlf node package.
 See third_party_licenses.txt for license texts.
 
-@codemirror/autocomplete@6.11.1 [license(s): MIT]
+@ai-sdk/react@1.2.12 [license(s): Apache-2.0]
+└── package.json:  Apache-2.0
+
+@anywidget/types@0.2.0 [license(s): MIT]
+├── license files: MIT
+└── readme files: MIT
+
+@cloudflare/workers-types@4.20250528.0 [license(s): MIT OR Apache-2.0]
+└── package.json:  MIT OR Apache-2.0
+
+@codemirror/autocomplete@6.18.6 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/commands@6.3.2 [license(s): MIT]
+@codemirror/commands@6.8.1 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/lang-markdown@6.2.3 [license(s): MIT]
+@codemirror/lang-markdown@6.3.2 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/lang-python@6.1.3 [license(s): MIT]
+@codemirror/lang-python@6.2.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/language@6.9.3 [license(s): MIT]
+@codemirror/lang-sql@6.8.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/language-data@6.3.1 [license(s): MIT]
+@codemirror/language@6.11.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/lint@6.4.2 [license(s): MIT]
+@codemirror/language-data@6.5.1 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/search@6.5.5 [license(s): MIT]
+@codemirror/legacy-modes@6.5.1 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/state@6.3.3 [license(s): MIT]
+@codemirror/lint@6.8.5 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@codemirror/search@6.5.10 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@codemirror/state@6.5.2 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
@@ -41,19 +59,27 @@ See third_party_licenses.txt for license texts.
 ├── package.json:  MIT
 └── license files: MIT
 
-@codemirror/view@6.22.3 [license(s): MIT]
+@codemirror/view@6.36.6 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@dnd-kit/core@6.1.0 [license(s): MIT]
+@dagrejs/dagre@1.1.4 [license(s): MIT]
+├── package.json:  MIT
+└── readme files: MIT
+
+@date-fns/tz@1.2.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@dnd-kit/modifiers@6.0.1 [license(s): MIT]
+@dnd-kit/core@6.3.1 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@dnd-kit/sortable@7.0.2 [license(s): MIT]
+@dnd-kit/modifiers@9.0.0 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@dnd-kit/sortable@10.0.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
@@ -61,134 +87,206 @@ See third_party_licenses.txt for license texts.
 ├── package.json:  MIT
 └── license files: MIT
 
-@emotion/cache@11.11.0 [license(s): MIT]
+@emotion/cache@11.14.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@emotion/react@11.11.1 [license(s): MIT]
+@emotion/react@11.14.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@hookform/resolvers@3.3.2 [license(s): MIT]
+@hookform/resolvers@3.10.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@lezer/common@1.1.2 [license(s): MIT]
+@internationalized/date@3.8.0 [license(s): Apache, Apache-2.0]
+├── package.json:  Apache-2.0
+└── license files: Apache
+
+@lezer/common@1.2.3 [license(s): MIT]
 ├── package.json:  MIT
 ├── license files: MIT
 └── readme files: MIT
 
-@lezer/highlight@1.2.0 [license(s): MIT]
+@lezer/highlight@1.2.1 [license(s): MIT]
 ├── package.json:  MIT
 ├── license files: MIT
 └── readme files: MIT
 
-@lezer/lr@1.3.14 [license(s): MIT]
+@lezer/lr@1.4.2 [license(s): MIT]
 ├── package.json:  MIT
 ├── license files: MIT
 └── readme files: MIT
+
+@lezer/markdown@1.4.2 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+@lezer/python@1.1.17 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+@marimo-team/codemirror-ai@0.1.11 [license(s): Apache, Apache-2.0]
+├── package.json:  Apache-2.0
+└── license files: Apache
+
+@marimo-team/codemirror-languageserver@1.15.14 [license(s): BSD, BSD-3-Clause]
+├── package.json:  BSD-3-Clause
+└── readme files: BSD
 
 @marimo-team/frontend@0.0.0-placeholder [license(s): Apache-2.0]
 └── package.json:  Apache-2.0
+
+@marimo-team/marimo-api@0.1.0 [license(s): Apache-2.0]
+└── package.json:  Apache-2.0
+
+@marimo-team/react-slotz@0.1.10 [license(s): MIT]
+└── package.json:  MIT
+
+@mui/material@6.4.11 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
 @open-rpc/client-js@1.8.1 [license(s): Apache, Apache-2.0]
 ├── package.json:  Apache-2.0
 └── license files: Apache
 
-@radix-ui/colors@2.1.0 [license(s): MIT]
+@paralleldrive/cuid2@2.2.2 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@radix-ui/react-accordion@1.1.2 [license(s): MIT]
+@radix-ui/colors@3.0.0 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/primitive@1.1.2 [license(s): MIT]
 └── package.json:  MIT
 
-@radix-ui/react-alert-dialog@1.0.5 [license(s): MIT]
+@radix-ui/react-accordion@1.2.8 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-alert-dialog@1.1.11 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-checkbox@1.2.3 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-compose-refs@1.1.2 [license(s): MIT]
 └── package.json:  MIT
 
-@radix-ui/react-checkbox@1.0.4 [license(s): MIT]
-└── package.json:  MIT
+@radix-ui/react-context-menu@2.2.12 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
-@radix-ui/react-context-menu@2.1.5 [license(s): MIT]
-└── package.json:  MIT
+@radix-ui/react-dialog@1.1.11 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
-@radix-ui/react-dialog@1.0.5 [license(s): MIT]
-└── package.json:  MIT
+@radix-ui/react-dropdown-menu@2.1.12 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
-@radix-ui/react-dropdown-menu@2.0.6 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-icons@1.3.0 [license(s): MIT]
+@radix-ui/react-icons@1.3.2 [license(s): MIT]
 ├── package.json:  MIT
 ├── license files: MIT
 └── readme files: MIT
 
-@radix-ui/react-label@2.0.2 [license(s): MIT]
+@radix-ui/react-label@2.1.4 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-navigation-menu@1.2.10 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-popover@1.1.11 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-progress@1.1.4 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-radio-group@1.3.4 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-scroll-area@1.2.6 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-select@2.2.2 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-slider@1.3.2 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-slot@1.2.0 [license(s): MIT]
 └── package.json:  MIT
 
-@radix-ui/react-popover@1.0.7 [license(s): MIT]
+@radix-ui/react-switch@1.2.2 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-tabs@1.1.9 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-toast@1.2.11 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-toggle@1.1.6 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-tooltip@1.2.4 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@radix-ui/react-use-callback-ref@1.1.1 [license(s): MIT]
 └── package.json:  MIT
 
-@radix-ui/react-progress@1.0.3 [license(s): MIT]
-└── package.json:  MIT
+@radix-ui/react-use-controllable-state@1.2.2 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
-@radix-ui/react-radio-group@1.1.3 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-select@2.0.0 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-slider@1.1.2 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-slot@1.0.2 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-switch@1.0.3 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-tabs@1.0.4 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-toast@1.1.5 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-toggle@1.0.3 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-tooltip@1.0.7 [license(s): MIT]
-└── package.json:  MIT
-
-@radix-ui/react-use-controllable-state@1.0.1 [license(s): MIT]
-└── package.json:  MIT
-
-@react-aria/focus@3.15.0 [license(s): Apache, Apache-2.0]
+@react-aria/focus@3.20.2 [license(s): Apache, Apache-2.0]
 ├── package.json:  Apache-2.0
 └── license files: Apache
 
-@replit/codemirror-vim@6.1.0 [license(s): MIT]
+@replit/codemirror-vim@6.3.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@storybook/addon-styling@1.3.7 [license(s): MIT]
+@tailwindcss/typography@0.5.16 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@tanstack/react-table@8.11.0 [license(s): MIT]
-└── package.json:  MIT
-
-@textea/json-viewer@3.2.3 [license(s): MIT]
+@tanstack/react-table@8.21.3 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@types/eslint@8.40.2 [license(s): MIT]
+@textea/json-viewer@4.0.1 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@types/eslint-scope@3.7.4 [license(s): MIT]
+@types/eslint@9.6.1 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@types/humanize-duration@3.27.3 [license(s): MIT]
+@types/eslint-scope@3.7.7 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@types/humanize-duration@3.27.4 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
@@ -196,11 +294,15 @@ See third_party_licenses.txt for license texts.
 ├── package.json:  MIT
 └── license files: MIT
 
-@types/jsdom@21.1.6 [license(s): MIT]
+@types/jsdom@21.1.7 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-@types/react@18.2.45 [license(s): MIT]
+@types/node@20.17.32 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+@types/react@18.3.20 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
@@ -208,44 +310,75 @@ See third_party_licenses.txt for license texts.
 ├── package.json:  MIT
 └── license files: MIT
 
-@uiw/react-codemirror@4.21.21 [license(s): MIT]
-├── package.json:  MIT
-├── license files: MIT
-└── readme files: MIT
-
-blob-polyfill@7.0.20220408 [license(s): MIT]
-└── package.json:  MIT
-
-class-variance-authority@0.7.0 [license(s): Apache-2.0]
-└── package.json:  Apache-2.0
-
-clsx@2.0.0 [license(s): MIT]
-├── package.json:  MIT
-├── license files: MIT
-└── readme files: MIT
-
-cmdk@0.2.0 [license(s): MIT]
-└── package.json:  MIT
-
-codemirror-extension-inline-suggestion@0.0.1 [license(s): MIT]
-├── license files: MIT
-└── readme files: MIT
-
-codemirror-languageserver@1.11.0 [license(s): BSD, BSD-3-Clause]
-├── package.json:  BSD-3-Clause
-└── readme files: BSD
-
-cssnano@6.0.2 [license(s): MIT]
-└── package.json:  MIT
-
-date-fns@2.30.0 [license(s): MIT]
+@uidotdev/usehooks@2.4.1 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-dedent@1.5.1 [license(s): MIT]
+@uiw/codemirror-extensions-langs@4.23.11 [license(s): MIT]
+├── package.json:  MIT
+└── readme files: MIT
+
+@uiw/react-codemirror@4.23.10 [license(s): MIT]
+├── package.json:  MIT
+└── readme files: MIT
+
+@uwdata/flechette@1.1.2 [license(s): BSD, BSD-3-Clause]
+├── package.json:  BSD-3-Clause
+└── license files: BSD
+
+@valtown/codemirror-codeium@1.1.1 [license(s): ISC, MIT]
+├── package.json:  ISC
+└── license files: ISC, MIT
+
+@xterm/addon-attach@0.11.0 [license(s): MIT]
+└── package.json:  MIT
+
+@xterm/addon-fit@0.10.0 [license(s): MIT]
+└── package.json:  MIT
+
+@xterm/xterm@5.5.0 [license(s): MIT]
+├── package.json:  MIT
+└── readme files: MIT
+
+ag-grid-community@32.3.7 [license(s): MIT]
 ├── package.json:  MIT
 ├── license files: MIT
 └── readme files: MIT
+
+ag-grid-react@32.3.7 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+ai@4.3.13 [license(s): Apache-2.0]
+└── package.json:  Apache-2.0
+
+ansi_up@6.0.5 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+class-variance-authority@0.7.1 [license(s): Apache, Apache-2.0]
+├── package.json:  Apache-2.0
+└── license files: Apache
+
+clsx@2.1.1 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+cmdk@1.1.1 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+compassql@0.21.2 [license(s): BSD-3-Clause]
+└── package.json:  BSD-3-Clause
+
+cssnano@7.0.6 [license(s): MIT]
+└── package.json:  MIT
+
+date-fns@4.1.0 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
 dequal@2.0.3 [license(s): MIT]
 ├── package.json:  MIT
@@ -256,26 +389,27 @@ eslint-plugin-header@3.1.1 [license(s): MIT]
 ├── package.json:  MIT
 └── readme files: MIT
 
-eslint-utils@3.0.0 [license(s): MIT]
-├── package.json:  MIT
-└── license files: MIT
-
 htm@3.1.1 [license(s): Apache, Apache-2.0]
 ├── package.json:  Apache-2.0
 └── license files: Apache
 
-html-react-parser@5.0.7 [license(s): MIT]
+html-react-parser@5.2.3 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-html-to-image@1.11.11 [license(s): MIT]
+html-to-image@1.11.13 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-humanize-duration@3.31.0 [license(s): Unlicense]
+humanize-duration@3.32.1 [license(s): Unlicense]
 └── package.json:  Unlicense
 
-jotai@2.6.0 [license(s): MIT]
+iconify-icon@2.3.0 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+jotai@2.12.3 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
@@ -283,52 +417,84 @@ js-cookie@3.0.5 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-katex@0.16.9 [license(s): MIT]
+katex@0.16.22 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
 lodash-es@4.17.21 [license(s): MIT]
 └── package.json:  MIT
 
-lucide-react@0.298.0 [license(s): ISC]
-├── package.json:  ISC
-└── license files: ISC
+loro-codemirror@0.1.6 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
-partysocket@0.0.17 [license(s): ISC, MIT]
+loro-crdt@1.5.4 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+lucide-react@0.503.0 [license(s): ISC]
+├── package.json:  ISC
+├── license files: ISC
+└── readme files: ISC
+
+lz-string@1.5.0 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+marked@15.0.11 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+mermaid@11.6.0 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+partysocket@1.1.3 [license(s): ISC, MIT]
 ├── package.json:  ISC
 ├── license files: MIT
 └── readme files: MIT
 
-plotly.js@2.27.1 [license(s): MIT]
-├── package.json:  MIT
-└── license files: MIT
-
-prettier@2.8.8 [license(s): Apache, BSD, ISC, MIT]
-├── package.json:  MIT
-└── license files: Apache, BSD, ISC, MIT
-
-prop-types@15.8.1 [license(s): MIT]
-├── package.json:  MIT
-└── license files: MIT
-
-react-day-picker@8.9.1 [license(s): MIT]
-├── package.json:  MIT
-└── license files: MIT
-
-react-dropzone@14.2.3 [license(s): MIT]
+path-to-regexp@8.2.0 [license(s): MIT]
 ├── package.json:  MIT
 ├── license files: MIT
 └── readme files: MIT
 
-react-error-boundary@4.0.12 [license(s): MIT]
+plotly.js@2.35.3 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-react-grid-layout@1.4.4 [license(s): MIT]
+pyodide@0.27.5 [license(s): Apache-2.0]
+└── package.json:  Apache-2.0
+
+react-arborist@3.4.3 [license(s): MIT]
+└── package.json:  MIT
+
+react-aria-components@1.8.0 [license(s): Apache, Apache-2.0]
+├── package.json:  Apache-2.0
+└── license files: Apache
+
+react-codemirror-merge@4.23.10 [license(s): MIT]
+├── package.json:  MIT
+└── readme files: MIT
+
+react-dropzone@14.3.8 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+react-error-boundary@5.0.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-react-hook-form@7.49.2 [license(s): MIT]
+react-grid-layout@1.5.1 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+react-hook-form@7.54.2 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+react-markdown@9.1.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
@@ -337,8 +503,9 @@ react-plotly.js@2.6.0 [license(s): MIT]
 ├── license files: MIT
 └── readme files: MIT
 
-react-resizable-panels@0.0.55 [license(s): MIT]
-└── package.json:  MIT
+react-resizable-panels@2.1.9 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
 
 react-use-event-hook@0.9.6 [license(s): MIT]
 ├── package.json:  MIT
@@ -347,12 +514,31 @@ react-use-event-hook@0.9.6 [license(s): MIT]
 react-vega@7.6.0 [license(s): Apache-2.0]
 └── package.json:  Apache-2.0
 
-reactflow@11.10.1 [license(s): MIT]
+react-virtuoso@4.12.6 [license(s): MIT]
 ├── package.json:  MIT
 ├── license files: MIT
 └── readme files: MIT
 
-tailwind-merge@1.14.0 [license(s): MIT]
+reactflow@11.11.4 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+rpc-anywhere@1.7.0 [license(s): MIT]
+└── package.json:  MIT
+
+sql-formatter@15.6.1 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+string-dedent@3.0.1 [license(s): MIT]
+└── package.json:  MIT
+
+swiper@11.2.6 [license(s): MIT]
+├── package.json:  MIT
+└── license files: MIT
+
+tailwind-merge@2.6.0 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
@@ -360,26 +546,48 @@ tailwindcss-animate@1.0.7 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
+thememirror@2.0.1 [license(s): MIT]
+└── package.json:  MIT
+
 timestring@7.0.0 [license(s): MIT]
 └── package.json:  MIT
 
-vega-lite@5.16.3 [license(s): BSD-3-Clause]
+typescript-memoize@1.1.1 [license(s): MIT]
+└── package.json:  MIT
+
+use-resize-observer@9.1.0 [license(s): MIT]
+├── package.json:  MIT
+├── license files: MIT
+└── readme files: MIT
+
+vega@5.33.0 [license(s): BSD-3-Clause]
 └── package.json:  BSD-3-Clause
 
-vega-loader@4.5.1 [license(s): BSD-3-Clause]
+vega-lite@5.23.0 [license(s): BSD-3-Clause]
+└── package.json:  BSD-3-Clause
+
+vega-loader@4.5.3 [license(s): BSD-3-Clause]
 └── package.json:  BSD-3-Clause
 
 vscode-languageserver-protocol@3.17.5 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-web-vitals@3.5.0 [license(s): Apache, Apache-2.0]
+web-vitals@4.2.4 [license(s): Apache, Apache-2.0]
 ├── package.json:  Apache-2.0
 └── license files: Apache
 
-zod@3.22.2 [license(s): MIT]
+zod@3.24.3 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
 
-LICENSES: Apache, Apache-2.0, BSD, BSD-3-Clause, ISC, MIT, Unlicense
+LICENSES: Apache, Apache-2.0, BSD, BSD-3-Clause, ISC, MIT, MIT OR Apache-2.0, Unlicense
+
+@github/copilot-language-server@1.322.0 [license(s): https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features]
+└── package.json:  https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features
+
+lsp@0.0.0 [license(s): Apache-2.0]
+└── package.json:  Apache-2.0
+
+LICENSES: Apache-2.0, https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features
 

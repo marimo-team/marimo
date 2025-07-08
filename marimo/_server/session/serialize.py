@@ -4,11 +4,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import __version__, _loggers
+from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
     Error as MarimoError,
@@ -16,31 +18,89 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
+from marimo._schemas.notebook import (
+    NotebookCell,
+    NotebookCellConfig,
+    NotebookMetadata,
+    NotebookV1,
+)
 from marimo._schemas.session import (
     VERSION,
     Cell,
+    ConsoleType,
     DataOutput,
     ErrorOutput,
-    NotebookMetadata,
+    NotebookSessionMetadata,
     NotebookSessionV1,
     OutputType,
+    StreamMediaOutput,
     StreamOutput,
 )
 from marimo._server.session.session_view import SessionView
 from marimo._types.ids import CellId_t
+from marimo._utils.async_path import AsyncPath
 from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 LOGGER = _loggers.marimo_logger()
 
 
-def serialize_session_view(view: SessionView) -> NotebookSessionV1:
-    """Convert a SessionView to a NotebookSession schema."""
+def _normalize_error(error: Union[MarimoError, dict[str, Any]]) -> ErrorOutput:
+    """Normalize error to consistent format."""
+    if isinstance(error, dict):
+        return ErrorOutput(
+            type="error",
+            ename=error.get("type", "UnknownError"),
+            evalue=error.get("msg", ""),
+            traceback=error.get("traceback", []),
+        )
+    else:
+        return ErrorOutput(
+            type="error",
+            ename=error.type,
+            evalue=error.describe(),
+            traceback=getattr(error, "traceback", []),
+        )
+
+
+def serialize_session_view(
+    view: SessionView, cell_ids: Iterable[CellId_t] | None = None
+) -> NotebookSessionV1:
+    """Convert a SessionView to a NotebookSession schema.
+
+    When `cell_ids` is provided, it determines the order of the cells in
+    the NotebookSession schema (and only these cells will be saved to the
+    schema). When not provided, this method attempts to recover the notebook
+    order from the SessionView object, but this is not always possible.
+    """
     cells: list[Cell] = []
 
-    for cell_id, cell_op in view.cell_operations.items():
+    if cell_ids is None:
+        if view.cell_ids is not None:
+            cell_ids = view.cell_ids.cell_ids
+        else:
+            # TODO: This is a problem for exporting to HTML, but not for caching the session view for replays. Something seems off.
+            LOGGER.debug(
+                "When serializing session view, the notebook-order of cells was "
+                "not known. This may cause issues when attempting to "
+                "reconstruct the notebook state from the serialized session "
+                "view."
+            )
+            cell_ids = view.cell_operations.keys()
+
+    for cell_id in cell_ids:
+        cell_op = view.cell_operations.get(cell_id)
+        if cell_op is None:
+            # We haven't seen any outputs or operations for this cell.
+            cells.append(
+                Cell(id=cell_id, code_hash=None, outputs=[], console=[])
+            )
+            continue
         outputs: list[OutputType] = []
-        console: list[StreamOutput] = []
+        console: list[ConsoleType] = []
 
         # Convert output
         if cell_op.output:
@@ -49,26 +109,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
                     list[Union[MarimoError, dict[str, Any]]],
                     cell_op.output.data,
                 ):
-                    # Handle both dictionary and object errors
-                    # Errors can be a dictionary if they are serialized
-                    error_type = (
-                        error.get("type", "Unknown")
-                        if isinstance(error, dict)
-                        else error.type
-                    )
-                    error_value = (
-                        error.get("msg", "")
-                        if isinstance(error, dict)
-                        else error.describe()
-                    )
-                    outputs.append(
-                        ErrorOutput(
-                            type="error",
-                            ename=error_type,
-                            evalue=error_value,
-                            traceback=[],
-                        )
-                    )
+                    outputs.append(_normalize_error(error))
             else:
                 outputs.append(
                     DataOutput(
@@ -82,7 +123,17 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
         # Convert console outputs
         for console_out in as_list(cell_op.console):
             assert isinstance(console_out, CellOutput)
-            if console_out:
+            if console_out.channel == CellChannel.MEDIA:
+                console.append(
+                    StreamMediaOutput(
+                        type="streamMedia",
+                        name="media",
+                        mimetype=console_out.mimetype,
+                        data=str(console_out.data),
+                    )
+                )
+            else:
+                # catch all for everything else
                 console.append(
                     StreamOutput(
                         type="stream",
@@ -106,7 +157,7 @@ def serialize_session_view(view: SessionView) -> NotebookSessionV1:
 
     return NotebookSessionV1(
         version=VERSION,
-        metadata=NotebookMetadata(marimo_version=__version__),
+        metadata=NotebookSessionMetadata(marimo_version=__version__),
         cells=cells,
     )
 
@@ -164,15 +215,24 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
         # Convert console
         console_outputs: list[CellOutput] = []
         for console in cell["console"]:
-            console_outputs.append(
-                CellOutput(
-                    channel=CellChannel.STDERR
-                    if console["name"] == "stderr"
-                    else CellChannel.STDOUT,
-                    data=console["text"],
-                    mimetype="text/plain",
+            if console["name"] == "media":
+                console_outputs.append(
+                    CellOutput(
+                        channel=CellChannel.MEDIA,
+                        data=console["data"],
+                        mimetype=console["mimetype"],
+                    )
                 )
-            )
+            else:
+                console_outputs.append(
+                    CellOutput(
+                        channel=CellChannel.STDERR
+                        if console["name"] == "stderr"
+                        else CellChannel.STDOUT,
+                        data=console["text"],
+                        mimetype="text/plain",
+                    )
+                )
 
         cell_id = CellId_t(cell["id"])
 
@@ -185,6 +245,51 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
         )
 
     return view
+
+
+def serialize_notebook(
+    view: SessionView, cell_manager: CellManager
+) -> NotebookV1:
+    """Convert a SessionView to a Notebook schema."""
+    cells: list[NotebookCell] = []
+
+    # Use document order from cell_manager instead of execution order from session_view
+    # to ensure cells appear in the correct sequence in HTML export
+    for cell_id in cell_manager.cell_ids():
+        # Get the code from last_executed_code, fallback to empty string
+        code = view.last_executed_code.get(cell_id, "")
+        cell_data = cell_manager.get_cell_data(cell_id)
+        if cell_data is None:
+            LOGGER.warning(f"Cell data not found for cell {cell_id}")
+            name = None
+            config = NotebookCellConfig(
+                column=None,
+                disabled=None,
+                hide_code=None,
+            )
+        else:
+            name = cell_data.name
+            config = NotebookCellConfig(
+                column=cell_data.config.column,
+                disabled=cell_data.config.disabled,
+                hide_code=cell_data.config.hide_code,
+            )
+
+        cells.append(
+            NotebookCell(
+                id=cell_id,
+                code=code,
+                code_hash=_hash_code(code),
+                name=name,
+                config=config,
+            )
+        )
+
+    return NotebookV1(
+        version="1",
+        metadata=NotebookMetadata(marimo_version=__version__),
+        cells=cells,
+    )
 
 
 def get_session_cache_file(path: Path) -> Path:
@@ -213,13 +318,19 @@ class SessionCacheWriter(AsyncBackgroundTask):
     ) -> None:
         super().__init__()
         self.session_view = session_view
-        self.path = path
+        # Windows does not support our async path implementation
+        self.path: AsyncPath | Path = path
+        if os.name != "nt":
+            self.path = AsyncPath(path)
         self.interval = interval
 
     async def startup(self) -> None:
         # Create parent directories if they don't exist
         try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(self.path, AsyncPath):
+                await self.path.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             LOGGER.error(f"Failed to create parent directories: {e}")
             raise
@@ -231,7 +342,10 @@ class SessionCacheWriter(AsyncBackgroundTask):
                     self.session_view.mark_auto_export_session()
                     LOGGER.debug(f"Writing session view to cache {self.path}")
                     data = serialize_session_view(self.session_view)
-                    self.path.write_text(json.dumps(data, indent=2))
+                    if isinstance(self.path, AsyncPath):
+                        await self.path.write_text(json.dumps(data, indent=2))
+                    else:
+                        self.path.write_text(json.dumps(data, indent=2))
                 await asyncio.sleep(self.interval)
             except asyncio.CancelledError:
                 raise
@@ -317,9 +431,14 @@ class SessionCacheManager:
         cache_file = get_session_cache_file(Path(self.path))
         if not cache_file.exists():
             return self.session_view
-        notebook_session: NotebookSessionV1 = json.loads(
-            cache_file.read_text()
-        )
+        try:
+            notebook_session: NotebookSessionV1 = json.loads(
+                cache_file.read_text()
+            )
+        except Exception as e:
+            LOGGER.error(f"Failed to read session cache file: {e}")
+            return self.session_view
+
         if not self.is_cache_hit(notebook_session, key):
             LOGGER.debug("Session view cache miss")
             return self.session_view

@@ -1,15 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HTMLCellId } from "@/core/cells/ids";
-import { EditorView, hoverTooltip } from "@codemirror/view";
-import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
-import { Logger } from "@/utils/Logger";
+
 import type { EditorState, Text } from "@codemirror/state";
+import { EditorView, hoverTooltip } from "@codemirror/view";
 import { debounce } from "lodash-es";
+import { chromeAtom } from "@/components/editor/chrome/state";
+import { HTMLCellId } from "@/core/cells/ids";
+import { hasCapability } from "@/core/config/capabilities";
+import type { LSPConfig } from "@/core/config/config-schema";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
-import { chromeAtom } from "@/components/editor/chrome/state";
-import type { LSPConfig } from "@/core/config/config-schema";
-import { hasCapability } from "@/core/config/capabilities";
+import { Logger } from "@/utils/Logger";
+import { reactiveReferencesField } from "../reactive-references/extension";
+import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 
 export function hintTooltip(lspConfig: LSPConfig) {
   return [
@@ -45,6 +47,12 @@ async function requestDocumentation(
 
   const { startToken, endToken } = getPositionAtWordBounds(view.state.doc, pos);
 
+  // Check if this position is on a reactive variable
+  const isReactiveVariable =
+    view.state
+      .field(reactiveReferencesField, false)
+      ?.ranges.some((range) => pos >= range.from && pos <= range.to) ?? false;
+
   const result = await AUTOCOMPLETER.request({
     document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
     cellId: cellId,
@@ -59,6 +67,7 @@ async function requestDocumentation(
     message: result,
     exactName: fullWord,
     excludeTypes: excludeTypes,
+    showGoToDefinitionHint: isReactiveVariable,
   });
   return tooltip ?? null;
 }

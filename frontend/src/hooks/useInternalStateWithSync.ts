@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 
 type EqualityFn<T> = (a: T, b: T) => boolean;
 

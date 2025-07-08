@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useLayoutEffect, useRef } from "react";
+import { type JSX, useLayoutEffect, useRef } from "react";
 
 import { z } from "zod";
+import { once } from "@/utils/once";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import { once } from "@/utils/once";
 
 /**
  * TexPlugin

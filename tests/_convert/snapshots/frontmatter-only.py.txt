@@ -1,0 +1,11 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App(app_title="My Title")
+
+
+
+
+
+if __name__ == "__main__":
+    app.run()

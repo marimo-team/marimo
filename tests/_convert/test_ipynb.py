@@ -6,9 +6,10 @@ from textwrap import dedent
 import pytest
 
 from marimo._convert.ipynb import (
-    _transform_sources,
+    CellsTransform,
+    CodeCell,
+    Transform,
     transform_add_marimo_import,
-    transform_cell_metadata,
     transform_duplicate_definitions,
     transform_exclamation_mark,
     transform_fixup_multiple_definitions,
@@ -19,6 +20,16 @@ from marimo._convert.ipynb import (
 
 def dd(sources: list[str]) -> list[str]:
     return [dedent(s) for s in sources]
+
+
+def strip_cells(transform: CellsTransform) -> Transform:
+    """Test wrapper for cell transforms - extracts only source content for testing."""
+
+    def wrapped(sources: list[str]) -> list[str]:
+        cells = [CodeCell(s) for s in sources]
+        return [cell.source for cell in transform(cells)]
+
+    return wrapped
 
 
 def assert_sources_equal(transformed: list[str], expected: list[str]) -> None:
@@ -127,7 +138,7 @@ def test_transform_add_marimo_import():
         "mo.md('# Hello')",
         "print('World')",
     ]
-    result = transform_add_marimo_import(sources)
+    result = strip_cells(transform_add_marimo_import)(sources)
     assert "import marimo as mo" in result
 
     # mo.sql
@@ -135,13 +146,13 @@ def test_transform_add_marimo_import():
         "mo.sql('SELECT * FROM table')",
         "print('World')",
     ]
-    result = transform_add_marimo_import(sources)
+    result = strip_cells(transform_add_marimo_import)(sources)
     assert "import marimo as mo" in result
 
     # if `import marimo as mo` is already present
     # it should not be added again
     existing = sources + ["import marimo as mo"]
-    assert transform_add_marimo_import(existing) == existing
+    assert strip_cells(transform_add_marimo_import)(existing) == existing
 
     existing = [
         # slight support for different import orders
@@ -149,7 +160,7 @@ def test_transform_add_marimo_import():
         "import antigravity; import marimo as mo",
         "mo.md('# Hello')",
     ]
-    assert transform_add_marimo_import(existing) == existing
+    assert strip_cells(transform_add_marimo_import)(existing) == existing
 
 
 def test_transform_add_marimo_import_already_imported():
@@ -158,7 +169,7 @@ def test_transform_add_marimo_import_already_imported():
         "mo.md('# Hello')",
         "print('World')",
     ]
-    result = transform_add_marimo_import(sources)
+    result = strip_cells(transform_add_marimo_import)(sources)
     assert result == sources
 
 
@@ -168,7 +179,7 @@ def test_transform_add_marimo_import_already_but_in_comment_or_definition():
         "mo.md('# Hello')",
         "# import marimo as mo",
     ]
-    result = transform_add_marimo_import(sources)
+    result = strip_cells(transform_add_marimo_import)(sources)
     assert result == sources + ["import marimo as mo"]
 
     # Definition
@@ -176,7 +187,7 @@ def test_transform_add_marimo_import_already_but_in_comment_or_definition():
         "mo.md('# Hello')",
         "def foo():\n    import marimo as mo",
     ]
-    result = transform_add_marimo_import(sources)
+    result = strip_cells(transform_add_marimo_import)(sources)
     assert result == sources + ["import marimo as mo"]
 
 
@@ -276,22 +287,6 @@ def test_transform_duplicate_definitions():
     ]
 
 
-def test_transform_cell_metadata():
-    sources = [
-        "print('Hello')",
-        "print('World')",
-    ]
-    metadata = [
-        {"tags": ["tag1", "tag2"]},
-        {},
-    ]
-    result = transform_cell_metadata(sources, metadata)
-    assert result == [
-        "# Cell tags: tag1, tag2\nprint('Hello')",
-        "print('World')",
-    ]
-
-
 def test_transform_remove_duplicate_imports():
     sources = [
         "import numpy as np\nimport pandas as pd\nimport numpy as np",
@@ -354,7 +349,7 @@ def test_transform_add_marimo_import_edge_cases():
         "print('mo.sql is not a real call')",
         "mo = 'not the real mo'",
     ]
-    result = transform_add_marimo_import(sources)
+    result = strip_cells(transform_add_marimo_import)(sources)
     assert "import marimo as mo" not in result
 
 
@@ -415,25 +410,6 @@ def test_transform_duplicate_definitions_complex():
         "a_1 = 3\nc = 4\nprint(a_1, c)",
         "b_1 = 5\nd = 6\nprint(b_1, d)",
         "a_2 = 7\nb_2 = 8\nc_1 = 9\nprint(a_2, b_2, c_1)",
-    ]
-
-
-def test_transform_cell_metadata_complex():
-    sources = [
-        "print('Cell 1')",
-        "print('Cell 2')",
-        "print('Cell 3')",
-    ]
-    metadata = [
-        {"tags": ["important", "data-processing"]},
-        {"tags": []},
-        {"tags": ["visualization"], "collapsed": True},
-    ]
-    result = transform_cell_metadata(sources, metadata)
-    assert result == [
-        "# Cell tags: important, data-processing\nprint('Cell 1')",
-        "print('Cell 2')",
-        "# Cell tags: visualization\nprint('Cell 3')",
     ]
 
 
@@ -516,24 +492,6 @@ def test_transform_duplicate_definitions_with_reference_to_previous():
         "x = 1",
         "x_1 = x + 1\nprint(x_1)",
         "print(x_1)",
-    ]
-
-
-def test_transform_cell_metadata_with_complex_metadata():
-    sources = [
-        "print('Complex metadata')",
-    ]
-    metadata = [
-        {
-            "tags": ["tag1", "tag2"],
-            "collapsed": True,
-            "scrolled": False,
-            "custom": {"key": "value"},
-        }
-    ]
-    result = transform_cell_metadata(sources, metadata)
-    assert result == [
-        "# Cell tags: tag1, tag2\nprint('Complex metadata')",
     ]
 
 
@@ -929,64 +887,5 @@ def test_transform_duplicate_definitions_numbered():
             "df_2",
             "df_3 = 3",
             "df_3",
-        ],
-    )
-
-
-def test_transform_duplicate_definitions_and_aug_assign() -> None:
-    sources = dd(
-        [
-            "x = 1",
-            "x",
-            "x += 1",
-            "x",
-        ]
-    )
-    result = _transform_sources(sources, [{} for _ in sources])
-    assert_sources_equal(
-        result,
-        [
-            "x = 1",
-            "x",
-            "x_1 = x + 1",
-            "x_1",
-        ],
-    )
-
-
-def test_transform_duplicate_definitions_read_before_write() -> None:
-    sources = dd(
-        [
-            "x = 1",
-            "x",
-            "x; x = 2; x",
-            "x",
-        ]
-    )
-    result = _transform_sources(sources, [{} for _ in sources])
-    assert_sources_equal(
-        result,
-        [
-            "x = 1",
-            "x",
-            "x; x_1 = 2; x_1",
-            "x_1",
-        ],
-    )
-
-
-def test_transform_duplicate_definitions_syntax_error() -> None:
-    sources = dd(
-        [
-            "x ( b 2 d & !",
-            "x",
-        ]
-    )
-    result = _transform_sources(sources, [{} for _ in sources])
-    assert_sources_equal(
-        result,
-        [
-            "x ( b 2 d & !",
-            "x",
         ],
     )

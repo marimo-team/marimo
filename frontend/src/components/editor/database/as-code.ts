@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { assertNever } from "@/utils/assertNever";
-import { DatabaseConnectionSchema, type DatabaseConnection } from "./schemas";
-// @ts-expect-error: no declaration file
+
 import dedent from "string-dedent";
+import { assertNever } from "@/utils/assertNever";
+import { type DatabaseConnection, DatabaseConnectionSchema } from "./schemas";
 import { isSecret, unprefixSecret } from "./secrets";
 
 export type ConnectionLibrary =
@@ -13,7 +13,8 @@ export type ConnectionLibrary =
   | "chdb"
   | "pyiceberg"
   | "ibis"
-  | "motherduck";
+  | "motherduck"
+  | "redshift";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
@@ -24,6 +25,7 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   pyiceberg: "PyIceberg",
   ibis: "Ibis",
   motherduck: "MotherDuck",
+  redshift: "Redshift",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -594,6 +596,78 @@ class PySparkGenerator extends CodeGenerator<"pyspark"> {
   }
 }
 
+class RedshiftGenerator extends CodeGenerator<"redshift"> {
+  generateImports(): string[] {
+    return ["import redshift_connector"];
+  }
+
+  generateConnectionCode(): string {
+    const host = this.secrets.print("host", this.connection.host);
+    const port = this.secrets.print("port", this.connection.port);
+    const database = this.secrets.print("database", this.connection.database);
+
+    if (this.connection.connectionType.type === "IAM credentials") {
+      const accessKeyId = this.secrets.print(
+        "aws_access_key_id",
+        this.connection.connectionType.aws_access_key_id,
+      );
+      const secretAccessKey = this.secrets.print(
+        "aws_secret_access_key",
+        this.connection.connectionType.aws_secret_access_key,
+      );
+      const sessionToken = this.connection.connectionType.aws_session_token
+        ? this.secrets.print(
+            "aws_session_token",
+            this.connection.connectionType.aws_session_token,
+          )
+        : undefined;
+
+      const params = {
+        iam: true,
+        host: host,
+        port: port,
+        region: `"${this.connection.connectionType.region}"`,
+        database: database,
+        access_key_id: accessKeyId,
+        secret_access_key: secretAccessKey,
+        ...(sessionToken && { session_token: sessionToken }),
+      };
+
+      return dedent(`
+        con = redshift_connector.connect(
+${formatUrlParams(params, (inner) => `          ${inner}`)},
+        )
+      `);
+    }
+
+    // DB credentials
+    const user = this.connection.connectionType.user
+      ? this.secrets.print("user", this.connection.connectionType.user)
+      : undefined;
+    const password = this.connection.connectionType.password
+      ? this.secrets.printPassword(
+          this.connection.connectionType.password,
+          "REDSHIFT_PASSWORD",
+          false,
+        )
+      : undefined;
+
+    const params = {
+      host: host,
+      port: port,
+      database: database,
+      ...(user && { user: user }),
+      ...(password && { password: password }),
+    };
+
+    return dedent(`
+      con = redshift_connector.connect(
+${formatUrlParams(params, (inner) => `          ${inner}`)},
+      )
+    `);
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -630,6 +704,8 @@ class CodeGeneratorFactory {
         return new DataFusionGenerator(connection, orm, this.secrets);
       case "pyspark":
         return new PySparkGenerator(connection, orm, this.secrets);
+      case "redshift":
+        return new RedshiftGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }

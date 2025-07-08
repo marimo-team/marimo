@@ -381,6 +381,9 @@ export const IcebergConnectionSchema = z.object({
           ),
       }),
     ])
+    .default({
+      type: "REST",
+    })
     .describe(FieldOptions.of({ special: "tabs" })),
 });
 
@@ -403,6 +406,64 @@ export const PySparkConnectionSchema = z.object({
   port: portField().optional(),
 });
 
+// Ref: https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/001%20-%20Connecting%20to%20Amazon%20Redshift.ipynb
+export const RedshiftConnectionSchema = z
+  .object({
+    type: z.literal("redshift"),
+    host: hostField(),
+    port: portField(5439),
+    connectionType: z
+      .discriminatedUnion("type", [
+        z.object({
+          type: z.literal("IAM credentials"),
+          region: z.string().describe(FieldOptions.of({ label: "Region" })),
+          aws_access_key_id: z
+            .string()
+            .nonempty()
+            .describe(
+              FieldOptions.of({
+                label: "AWS Access Key ID",
+                inputType: "password",
+                optionRegex: ".*aws_access_key_id.*",
+              }),
+            ),
+          aws_secret_access_key: z
+            .string()
+            .nonempty()
+            .describe(
+              FieldOptions.of({
+                label: "AWS Secret Access Key",
+                inputType: "password",
+                optionRegex: ".*aws_secret_access_key.*",
+              }),
+            ),
+          aws_session_token: z
+            .string()
+            .optional()
+            .describe(
+              FieldOptions.of({
+                label: "AWS Session Token",
+                inputType: "password",
+                optionRegex: ".*aws_session_token.*",
+              }),
+            ),
+        }),
+        z.object({
+          type: z.literal("DB credentials"),
+          user: usernameField(),
+          password: passwordField(),
+        }),
+      ])
+      .default({
+        type: "IAM credentials",
+        aws_access_key_id: "",
+        aws_secret_access_key: "",
+        region: "",
+      }),
+    database: databaseField(),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
@@ -418,6 +479,7 @@ export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   IcebergConnectionSchema,
   DataFusionConnectionSchema,
   PySparkConnectionSchema,
+  RedshiftConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;

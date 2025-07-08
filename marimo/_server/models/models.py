@@ -165,3 +165,16 @@ class SaveUserConfigurationRequest:
 @dataclass
 class StdinRequest:
     text: str
+
+
+@dataclass
+class InvokeAiToolRequest:
+    tool_name: str
+    arguments: dict[str, Any]
+
+
+@dataclass
+class InvokeAiToolResponse(BaseResponse):
+    tool_name: str
+    result: Any
+    error: Optional[str] = None

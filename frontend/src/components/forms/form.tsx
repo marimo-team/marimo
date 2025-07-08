@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { z } from "zod";
-import { DebouncedInput, DebouncedNumberInput } from "../ui/input";
-import { Checkbox } from "../ui/checkbox";
+
+import { PlusIcon, RefreshCcw, Trash2Icon } from "lucide-react";
+import React from "react";
 import {
   type FieldValues,
   FormProvider,
@@ -10,25 +10,12 @@ import {
   type UseFormReturn,
   useFieldArray,
 } from "react-hook-form";
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  FormDescription,
-} from "../ui/form";
-import { Objects } from "../../utils/objects";
-import { Button } from "../ui/button";
-import { getDefaults, getUnionLiteral } from "./form-utils";
-import { PlusIcon, RefreshCcw, Trash2Icon } from "lucide-react";
+import { z } from "zod";
 import { FieldOptions, randomNumber } from "@/components/forms/options";
-import { cn } from "@/utils/cn";
-import React from "react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Strings } from "@/utils/strings";
+import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -37,14 +24,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox, ComboboxItem } from "@/components/ui/combobox";
+import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { Strings } from "@/utils/strings";
+import { Objects } from "../../utils/objects";
+import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 import {
-  TextAreaMultiSelect,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "../ui/form";
+import { DebouncedInput, DebouncedNumberInput } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { getDefaults, getUnionLiteral } from "./form-utils";
+import {
   ensureStringArray,
   SwitchableMultiSelect,
+  TextAreaMultiSelect,
 } from "./switchable-multi-select";
-import { Textarea } from "../ui/textarea";
 export interface FormRenderer<T extends FieldValues = any, S = any> {
   isMatch: (schema: z.ZodType) => schema is z.ZodType<S, z.ZodTypeDef, unknown>;
   Component: React.ComponentType<{

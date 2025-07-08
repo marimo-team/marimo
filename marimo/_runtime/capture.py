@@ -25,7 +25,7 @@ def capture_stdout() -> Iterator[io.StringIO]:
         with mo.capture_stdout() as buffer:
             print("Hello!")
         output = buffer.getvalue()
-    ```
+        ```
     """
     with contextlib.redirect_stdout(io.StringIO()) as buffer:
         yield buffer

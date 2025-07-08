@@ -1,27 +1,27 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useState } from "react";
+
 import {
+  booleanType,
   type DataItemProps,
   type DataType,
-  JsonViewer,
-  booleanType,
   defineDataType,
-  intType,
   floatType,
+  intType,
+  JsonViewer,
   nullType,
   objectType,
   stringType,
 } from "@textea/json-viewer";
-
+import { CheckIcon, CopyIcon } from "lucide-react";
+import { memo, useState } from "react";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { isUrl } from "@/utils/urls";
+import { useTheme } from "../../../theme/useTheme";
+import { logNever } from "../../../utils/assertNever";
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";
 import { VideoOutput } from "./VideoOutput";
-import { logNever } from "../../../utils/assertNever";
-import { useTheme } from "../../../theme/useTheme";
-import { isUrl } from "@/utils/urls";
-import { copyToClipboard } from "@/utils/copy";
-import { CheckIcon, CopyIcon } from "lucide-react";
-import { cn } from "@/utils/cn";
 
 interface Props {
   /**
@@ -128,11 +128,13 @@ export const JsonOutput: React.FC<Props> = memo(
             collapseStringsAfterLength={COLLAPSED_TEXT_LENGTH}
             // leave the default valueTypes as it was - 'python', only 'json' is changed
             valueTypes={valueTypesMap[valueTypes]}
-            // disable array grouping (it's misleading) by using a large value
-            groupArraysAfterLength={1_000_000}
+            // Don't group arrays, it will make the tree view look like there are nested arrays
+            groupArraysAfterLength={Number.MAX_SAFE_INTEGER}
             // Built-in clipboard shifts content on hover
             // so we provide our own copy button
             enableClipboard={false}
+            // Improve perf for large arrays
+            maxDisplayLength={determineMaxDisplayLength(data)}
           />
         );
 
@@ -342,7 +344,7 @@ const REPLACE_SUFFIX = "</marimo-replace>";
  * - maps booleans to True and False
  * - maps null/undefined to None
  */
-function pythonJsonReplacer(key: string, value: unknown): unknown {
+function pythonJsonReplacer(_key: string, value: unknown): unknown {
   if (value == null) {
     return `${REPLACE_PREFIX}None${REPLACE_SUFFIX}`;
   }
@@ -383,4 +385,40 @@ export function getCopyValue(value: unknown): string {
   return JSON.stringify(value, pythonJsonReplacer, 2)
     .replaceAll(`"${REPLACE_PREFIX}`, "")
     .replaceAll(`${REPLACE_SUFFIX}"`, "");
+}
+
+/**
+ * Determine the max display length for a given data.
+ * - For 3D arrays, we return 5
+ * - For 2D arrays, return undefined <= 20 items, 10 >= 20 items, 5 >= 50 items
+ * - For 1D arrays and other types, we return undefined
+ *
+ * @param data - The data to determine the max display length for.
+ * @returns The max display length, or undefined to use the default.
+ */
+export function determineMaxDisplayLength(data: unknown): number | undefined {
+  if (Array.isArray(data)) {
+    const sampleElements = data.slice(0, 15);
+
+    let maxLength = 0;
+    for (const element of sampleElements) {
+      if (Array.isArray(element)) {
+        // Check for 3D arrays and return early
+        const nextSample = element.slice(0, 5);
+        for (const nextElement of nextSample) {
+          if (Array.isArray(nextElement)) {
+            return 5;
+          }
+        }
+
+        maxLength = Math.max(maxLength, element.length);
+      }
+    }
+
+    if (maxLength <= 20) {
+      return undefined;
+    }
+
+    return maxLength >= 50 ? 5 : 10;
+  }
 }

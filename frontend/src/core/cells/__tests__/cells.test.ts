@@ -1,4 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import {
   afterAll,
   beforeAll,
@@ -8,28 +12,25 @@ import {
   it,
   vi,
 } from "vitest";
-import {
-  type NotebookState,
-  SETUP_CELL_ID,
-  exportedForTesting,
-  flattenTopLevelNotebookCells,
-} from "../cells";
-import { CellId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
-import type { Seconds } from "@/utils/time";
-import { EditorView } from "@codemirror/view";
-import { python } from "@codemirror/lang-python";
-import { EditorState } from "@codemirror/state";
 import type { CellHandle } from "@/components/editor/Cell";
+import { CellId } from "@/core/cells/ids";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { OutputMessage } from "@/core/kernel/messages";
+import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import type { Seconds } from "@/utils/time";
+import {
+  exportedForTesting,
+  flattenTopLevelNotebookCells,
+  type NotebookState,
+  SETUP_CELL_ID,
+} from "../cells";
 import {
   focusAndScrollCellIntoView,
-  scrollToTop,
   scrollToBottom,
+  scrollToTop,
 } from "../scrollCellIntoView";
-import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
 import type { CellData } from "../types";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
@@ -2140,5 +2141,152 @@ describe("cell reducer", () => {
     expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+  });
+
+  it("can clear all outputs", () => {
+    // Add a cell and give it output
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+
+    const cell1Id = cells[0].id;
+    const cell2Id = cells[1].id;
+
+    // Manually set output for the cells
+    state.cellRuntime[cell1Id].output = {
+      channel: "output",
+      mimetype: "text/plain",
+      data: "output1",
+      timestamp: 0 as Seconds,
+    };
+    state.cellRuntime[cell2Id].output = {
+      channel: "output",
+      mimetype: "text/plain",
+      data: "output2",
+      timestamp: 0 as Seconds,
+    };
+
+    actions.clearAllCellOutputs();
+
+    expect(state.cellRuntime[cell1Id].output).toBeNull();
+    expect(state.cellRuntime[cell2Id].output).toBeNull();
+  });
+
+  describe("moveToNextCell", () => {
+    let cell1Id: CellId;
+    let cell2Id: CellId;
+    let cell3Id: CellId;
+
+    beforeEach(() => {
+      // Create a few cells to work with
+      actions.createNewCell({ cellId: "__end__", before: false });
+      actions.createNewCell({ cellId: "__end__", before: false });
+
+      cell1Id = state.cellIds.inOrderIds[0];
+      cell2Id = state.cellIds.inOrderIds[1];
+      cell3Id = state.cellIds.inOrderIds[2];
+    });
+
+    it("creates new cell when moving after last cell with noCreate=false", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+
+      actions.moveToNextCell({
+        cellId: cell3Id,
+        before: false,
+        noCreate: false,
+      });
+
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
+    });
+
+    it("creates new cell when moving before first cell with noCreate=false", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+
+      actions.moveToNextCell({
+        cellId: cell1Id,
+        before: true,
+        noCreate: false,
+      });
+
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
+    });
+
+    it("does not create new cell when moving after last cell with noCreate=true", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+      const initialState = { ...state };
+
+      actions.moveToNextCell({
+        cellId: cell3Id,
+        before: false,
+        noCreate: true,
+      });
+
+      // Should not create a new cell
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount);
+      // Should not crash or throw an error
+      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
+    });
+
+    it("does not create new cell when moving before first cell with noCreate=true", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+      const initialState = { ...state };
+
+      actions.moveToNextCell({ cellId: cell1Id, before: true, noCreate: true });
+
+      // Should not create a new cell
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount);
+      // Should not crash or throw an error
+      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
+    });
+
+    it("focuses next cell when moving within bounds", () => {
+      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
+      focusSpy.mockClear();
+
+      actions.moveToNextCell({
+        cellId: cell1Id,
+        before: false,
+        noCreate: true,
+      });
+
+      expect(focusSpy).toHaveBeenCalledWith({
+        cellId: cell2Id,
+        cell: state.cellHandles[cell2Id],
+        config: state.cellData[cell2Id].config,
+        codeFocus: "top",
+        variableName: undefined,
+      });
+    });
+
+    it("focuses previous cell when moving backward within bounds", () => {
+      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
+      focusSpy.mockClear();
+
+      actions.moveToNextCell({ cellId: cell2Id, before: true, noCreate: true });
+
+      expect(focusSpy).toHaveBeenCalledWith({
+        cellId: cell1Id,
+        cell: state.cellHandles[cell1Id],
+        config: state.cellData[cell1Id].config,
+        codeFocus: "bottom",
+        variableName: undefined,
+      });
+    });
+
+    it("does not move focus from scratch cell", () => {
+      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
+      focusSpy.mockClear();
+      const initialState = { ...state };
+
+      actions.moveToNextCell({
+        cellId: "__scratch__" as CellId,
+        before: false,
+        noCreate: false,
+      });
+
+      expect(focusSpy).not.toHaveBeenCalled();
+      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
+    });
   });
 });

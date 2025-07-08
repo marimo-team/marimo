@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { EditorView } from "@codemirror/view";
-import { makeBulkCommand, foldAllBulk, unfoldAllBulk } from "../commands";
+
 import { foldAll, unfoldAll } from "@codemirror/language";
+import type { EditorView } from "@codemirror/view";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { foldAllBulk, makeBulkCommand, unfoldAllBulk } from "../commands";
 
 vi.mock("@codemirror/language", () => ({
   foldAll: vi.fn(),

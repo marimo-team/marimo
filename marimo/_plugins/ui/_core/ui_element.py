@@ -470,9 +470,26 @@ class UIElement(Html, Generic[S, T]):
     def __deepcopy__(self, memo: dict[int, Any]) -> UIElement[S, T]:
         # Custom deepcopy that excludes elements that can't be deepcopied
         cls = self.__class__
+        return cls.from_args(
+            self.__dict__, args=self._args, memo=memo, basis=self
+        )
+
+    @classmethod
+    def from_args(
+        cls,
+        data: dict[str, int],
+        args: InitializationArgs[S, T],
+        memo: dict[int, Any] | None = None,
+        basis: UIElement[S, T] | None = None,
+    ) -> UIElement[S, T]:
         result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
+        if memo is None:
+            memo = {}
+        if basis is None:
+            basis = result
+
+        memo[id(basis)] = result
+        for k, v in data.items():
             if isinstance(v, RuntimeContext):
                 setattr(result, k, v)
             else:
@@ -483,18 +500,17 @@ class UIElement(Html, Generic[S, T]):
         # We use the new instance's functions, since they are typically bound
         # to the UI element instance. But we only use the new on_change
         # if the old one was bound to self.
-        args: InitializationArgs[S, T]
         if (
-            isinstance(self._args.on_change, types.MethodType)
-            and self._args.on_change.__self__ is self
+            isinstance(args.on_change, types.MethodType)
+            and args.on_change.__self__ is basis
         ):
             # on_change was bound to self; use the new one.
             args = InitializationArgs(
                 **{
                     # dataclass asdict does a deepcopy, we want shallow.
                     **{
-                        field.name: getattr(self._args, field.name)
-                        for field in fields(self._args)
+                        field.name: getattr(args, field.name)
+                        for field in fields(args)
                     },
                     "on_change": result._args.on_change,
                     "functions": result._args.functions,
@@ -506,8 +522,8 @@ class UIElement(Html, Generic[S, T]):
             args = InitializationArgs(
                 **{
                     **{
-                        field.name: getattr(self._args, field.name)
-                        for field in fields(self._args)
+                        field.name: getattr(args, field.name)
+                        for field in fields(args)
                     },
                     "functions": result._args.functions,
                 }

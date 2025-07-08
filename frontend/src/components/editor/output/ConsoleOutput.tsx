@@ -1,18 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useLayoutEffect } from "react";
-import type { OutputMessage } from "@/core/kernel/messages";
-import { OutputRenderer } from "../Output";
-import { cn } from "@/utils/cn";
-import { isInternalCellName } from "@/core/cells/names";
-import { NameCellContentEditable } from "../actions/name-cell-input";
-import type { CellId } from "@/core/cells/ids";
-import { Input } from "@/components/ui/input";
+
 import { AnsiUp } from "ansi_up";
-import type { WithResponse } from "@/core/cells/types";
-import { invariant } from "@/utils/invariant";
-import { ErrorBoundary } from "../boundary/ErrorBoundary";
-import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { ChevronRightIcon } from "lucide-react";
+import React, { useLayoutEffect } from "react";
+import { DebuggerControls } from "@/components/debugger/debugger-code";
+import { Input } from "@/components/ui/input";
+import type { CellId } from "@/core/cells/ids";
+import { isInternalCellName } from "@/core/cells/names";
+import type { WithResponse } from "@/core/cells/types";
+import type { OutputMessage } from "@/core/kernel/messages";
+import { useSelectAllContent } from "@/hooks/useSelectAllContent";
+import { cn } from "@/utils/cn";
+import { invariant } from "@/utils/invariant";
+import { NameCellContentEditable } from "../actions/name-cell-input";
+import { ErrorBoundary } from "../boundary/ErrorBoundary";
+import { OutputRenderer } from "../Output";
 
 const ansiUp = new AnsiUp();
 
@@ -62,6 +64,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   const hasOutputs = consoleOutputs.length > 0;
 
+  // Enable Ctrl/Cmd-A to select all content within the console output
+  useSelectAllContent(ref, hasOutputs);
+
   // Keep scroll at the bottom if it is within 120px of the bottom,
   // so when we add new content, it will lock to the bottom
   //
@@ -105,8 +110,10 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
       title={stale ? "This console output is stale" : undefined}
       data-testid="console-output-area"
       ref={ref}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: Needed to capture keypress events
+      tabIndex={0}
       className={cn(
-        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1",
+        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full gap-1 focus:outline-none",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3",
         className,
@@ -207,10 +214,7 @@ const StdInput = (props: {
   );
 };
 
-const StdInputWithResponse = (props: {
-  output: string;
-  response?: string;
-}) => {
+const StdInputWithResponse = (props: { output: string; response?: string }) => {
   return (
     <div className="flex gap-2 items-center">
       {renderText(props.output)}

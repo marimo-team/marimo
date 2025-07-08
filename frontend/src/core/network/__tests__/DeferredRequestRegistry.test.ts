@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { beforeEach, expect, vi, describe, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DeferredRequestRegistry,
   type RequestId,

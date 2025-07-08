@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { OutputRenderer } from "../editor/Output";
-import type { OutputMessage } from "@/core/kernel/messages";
 
 interface MimeCellProps {
   value: MimeValue;

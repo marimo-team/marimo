@@ -4,12 +4,15 @@ from __future__ import annotations
 import abc
 import subprocess
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import Alert
 from marimo._runtime.packages.utils import append_version
+
+if TYPE_CHECKING:
+    from marimo._server.models.packages import DependencyTreeNode
 
 LOGGER = _loggers.marimo_logger()
 
@@ -50,17 +53,21 @@ class PackageManager(abc.ABC):
         return False
 
     @abc.abstractmethod
-    async def _install(self, package: str) -> bool:
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
         """Installation logic."""
         ...
 
-    async def install(self, package: str, version: Optional[str]) -> bool:
+    async def install(
+        self, package: str, version: Optional[str], upgrade: bool = False
+    ) -> bool:
         """Attempt to install a package that makes this module available.
 
         Returns True if installation succeeded, else False.
         """
         self._attempted_packages.add(package)
-        return await self._install(append_version(package, version))
+        return await self._install(
+            append_version(package, version), upgrade=upgrade
+        )
 
     @abc.abstractmethod
     async def uninstall(self, package: str) -> bool:
@@ -92,6 +99,7 @@ class PackageManager(abc.ABC):
         packages_to_remove: Optional[list[str]] = None,
         import_namespaces_to_add: Optional[list[str]] = None,
         import_namespaces_to_remove: Optional[list[str]] = None,
+        upgrade: bool,
     ) -> None:
         del (
             filepath,
@@ -99,6 +107,7 @@ class PackageManager(abc.ABC):
             packages_to_remove,
             import_namespaces_to_add,
             import_namespaces_to_remove,
+            upgrade,
         )
         """
         Add or remove inline script metadata metadata
@@ -116,6 +125,20 @@ class PackageManager(abc.ABC):
     def list_packages(self) -> list[PackageDescription]:
         """List installed packages."""
         ...
+
+    def dependency_tree(
+        self,
+        filename: Optional[str] = None,  # noqa: ARG002
+    ) -> Optional[DependencyTreeNode]:
+        """Get dependency tree for the current environment or script.
+
+        Args:
+            filename: Optional path to a script file for script-specific dependencies
+
+        Returns:
+            DependencyTreeNode if supported by this package manager, None otherwise
+        """
+        return None
 
     def alert_not_installed(self) -> None:
         """Alert the user that the package manager is not installed."""

@@ -1,15 +1,15 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
+from pathlib import Path
 
 from marimo._ast.parse import Parser, parse_notebook
 
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+DIR_PATH = Path(__file__).parent
 
 
-def get_filepath(name: str) -> str:
-    return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
+def get_filepath(name: str) -> Path:
+    return DIR_PATH / f"codegen_data/{name}.py"
 
 
 # NB. Some barebones testing at the areas that seemed to be most sensitive.
@@ -17,7 +17,7 @@ def get_filepath(name: str) -> str:
 class TestParser:
     @staticmethod
     def test_parse_codes() -> None:
-        parser = Parser(get_filepath("test_generate_filecontents"))
+        parser = Parser.from_file(get_filepath("test_generate_filecontents"))
         body = parser.node_stack()
         body_result = parser.parse_body(body)
         assert body_result
@@ -33,7 +33,7 @@ class TestParser:
 
     @staticmethod
     def test_parse_setup_blank() -> None:
-        parser = Parser(get_filepath("test_get_setup_blank"))
+        parser = Parser.from_file(get_filepath("test_get_setup_blank"))
         body = parser.node_stack()
         _ = parser.parse_header(body)
         setup_result = parser.parse_setup(body)
@@ -45,7 +45,7 @@ class TestParser:
     @staticmethod
     def test_parse_codes_toplevel() -> None:
         notebook = parse_notebook(
-            get_filepath("test_generate_filecontents_toplevel")
+            get_filepath("test_generate_filecontents_toplevel").read_text()
         )
         assert notebook
         assert notebook.header.value.startswith(
@@ -73,7 +73,7 @@ class TestParser:
 
     @staticmethod
     def test_parse_app_with_only_comments() -> None:
-        parser = Parser(get_filepath("test_app_with_only_comments"))
+        parser = Parser.from_file(get_filepath("test_app_with_only_comments"))
         body = parser.node_stack()
         header_result = parser.parse_header(body)
         assert header_result
@@ -83,7 +83,9 @@ class TestParser:
 
     @staticmethod
     def test_just_app() -> None:
-        notebook = parse_notebook(get_filepath("test_get_app_kwargs"))
+        notebook = parse_notebook(
+            get_filepath("test_get_app_kwargs").read_text()
+        )
         # No generated with, or run guard
         assert len(notebook.violations) == 2
         assert "generated_with" in notebook.violations[0].description
@@ -92,7 +94,7 @@ class TestParser:
     @staticmethod
     def test_parse_messy_toplevel() -> None:
         notebook = parse_notebook(
-            get_filepath("test_get_codes_messy_toplevel")
+            get_filepath("test_get_codes_messy_toplevel").read_text()
         )
         assert notebook
         # unexpected statements and a missing run guard

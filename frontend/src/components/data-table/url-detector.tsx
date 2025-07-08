@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Events } from "@/utils/events";
+
+import { useState } from "react";
 import {
   Popover,
-  PopoverTrigger,
   PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
-import { useState } from "react";
+import { Events } from "@/utils/events";
 
 const urlRegex = /(https?:\/\/\S+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;

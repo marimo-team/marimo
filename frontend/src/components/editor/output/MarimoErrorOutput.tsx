@@ -1,10 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { cn } from "../../../utils/cn";
-import type { MarimoError } from "../../../core/kernel/messages";
-import { Alert } from "../../ui/alert";
-import { AlertTitle } from "../../ui/alert";
-
+import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import { Fragment, type JSX } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -12,13 +9,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Fragment } from "react";
-import { CellLinkError } from "../links/cell-link";
-import type { CellId } from "@/core/cells/ids";
-import { AutoFixButton } from "../errors/auto-fix";
-import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { ExternalLink } from "@/components/ui/links";
+import type { CellId } from "@/core/cells/ids";
+import type { MarimoError } from "../../../core/kernel/messages";
+import { cn } from "../../../utils/cn";
+import { Alert, AlertTitle } from "../../ui/alert";
 import { useChromeActions } from "../chrome/state";
+import { AutoFixButton } from "../errors/auto-fix";
+import { CellLinkError } from "../links/cell-link";
 
 const Tip = (props: {
   title?: string;

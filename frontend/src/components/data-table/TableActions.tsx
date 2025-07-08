@@ -1,18 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
+import type { RowSelectionState, Table } from "@tanstack/react-table";
+import {
+  ChartColumnStacked,
+  ChartSplineIcon,
+  PanelRightIcon,
+  SearchIcon,
+} from "lucide-react";
 import React from "react";
-import { Tooltip } from "../ui/tooltip";
-import { Button } from "../ui/button";
-import { SearchIcon, ChartBarIcon, PanelRightIcon } from "lucide-react";
-import { DataTablePagination } from "./pagination";
-import { DownloadAs, type DownloadActionProps } from "./download-actions";
-import type { Table, RowSelectionState } from "@tanstack/react-table";
-import type { DataTableSelection } from "./types";
 import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
-import { toast } from "../ui/use-toast";
 import { cn } from "@/utils/cn";
-import { initialMode } from "@/core/mode";
+import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
+import { toast } from "../ui/use-toast";
+import { type DownloadActionProps, DownloadAs } from "./download-actions";
+import { DataTablePagination } from "./pagination";
+import type { DataTableSelection } from "./types";
 
 interface TableActionsProps<TData> {
   enableSearch: boolean;
@@ -27,9 +32,12 @@ interface TableActionsProps<TData> {
   downloadAs?: DownloadActionProps["downloadAs"];
   getRowIds?: GetRowIds;
   toggleDisplayHeader?: () => void;
-  chartsFeatureEnabled?: boolean;
-  toggleRowViewerPanel?: () => void;
-  isRowViewerPanelOpen?: boolean;
+  showChartBuilder?: boolean;
+  showColumnExplorer?: boolean;
+  showPageSizeSelector?: boolean;
+  togglePanel?: (panelType: PanelType) => void;
+  isPanelOpen?: (panelType: PanelType) => boolean;
+  tableLoading?: boolean;
 }
 
 export const TableActions = <TData,>({
@@ -45,9 +53,12 @@ export const TableActions = <TData,>({
   downloadAs,
   getRowIds,
   toggleDisplayHeader,
-  chartsFeatureEnabled,
-  toggleRowViewerPanel,
-  isRowViewerPanelOpen,
+  showChartBuilder,
+  showColumnExplorer,
+  showPageSizeSelector,
+  togglePanel,
+  isPanelOpen,
+  tableLoading,
 }: TableActionsProps<TData>) => {
   const handleSelectAllRows = (value: boolean) => {
     if (!onRowSelectionChange) {
@@ -107,37 +118,61 @@ export const TableActions = <TData,>({
           </Button>
         </Tooltip>
       )}
-      {chartsFeatureEnabled && (
-        <Tooltip content="Show charts">
+      {showChartBuilder && (
+        <Tooltip content="Chart builder">
           <Button
             variant="text"
             size="xs"
             className="mb-0"
             onClick={toggleDisplayHeader}
           >
-            <ChartBarIcon className="w-4 h-4 text-muted-foreground" />
+            <ChartSplineIcon className="w-4 h-4 text-muted-foreground" />
           </Button>
         </Tooltip>
       )}
-      {/* Disable in read mode, for now, until the panel is shown */}
-      {toggleRowViewerPanel && initialMode !== "read" && (
-        <Tooltip content="Toggle row viewer">
-          <Button variant="text" size="xs" onClick={toggleRowViewerPanel}>
-            <PanelRightIcon
-              className={cn(
-                "w-4 h-4 text-muted-foreground",
-                isRowViewerPanelOpen && "text-primary",
-              )}
-            />
-          </Button>
-        </Tooltip>
+      {togglePanel && isPanelOpen !== undefined && (
+        <>
+          <Tooltip content="Toggle row viewer">
+            <Button
+              variant="text"
+              size="xs"
+              onClick={() => togglePanel("row-viewer")}
+            >
+              <PanelRightIcon
+                className={cn(
+                  "w-4 h-4 text-muted-foreground",
+                  isPanelOpen("row-viewer") && "text-primary",
+                )}
+              />
+            </Button>
+          </Tooltip>
+          {showColumnExplorer && (
+            <Tooltip content="Toggle column explorer">
+              <Button
+                variant="text"
+                size="xs"
+                onClick={() => togglePanel("column-explorer")}
+              >
+                <ChartColumnStacked
+                  className={cn(
+                    "w-4 h-4 text-muted-foreground",
+                    isPanelOpen("column-explorer") && "text-primary",
+                  )}
+                />
+              </Button>
+            </Tooltip>
+          )}
+        </>
       )}
+
       {pagination && (
         <DataTablePagination
           totalColumns={totalColumns}
           selection={selection}
           onSelectAllRowsChange={handleSelectAllRows}
           table={table}
+          tableLoading={tableLoading}
+          showPageSizeSelector={showPageSizeSelector}
         />
       )}
       <div className="ml-auto">

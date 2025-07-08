@@ -1,32 +1,32 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Extension } from "@codemirror/state";
-import type { LanguageAdapter } from "../types";
+
+import { autocompletion } from "@codemirror/autocomplete";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { python, pythonLanguage } from "@codemirror/lang-python";
+import { StreamLanguage } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { stexMath } from "@codemirror/legacy-modes/mode/stex";
-// @ts-expect-error: no declaration file
+import type { Extension } from "@codemirror/state";
+import { type EditorView, ViewPlugin } from "@codemirror/view";
 import dedent from "string-dedent";
-import { autocompletion } from "@codemirror/autocomplete";
-import { enhancedMarkdownExtension } from "../../markdown/extension";
+import type { CellId } from "@/core/cells/ids";
 import type { CompletionConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { markdownAutoRunExtension } from "../../cells/extensions";
+import { pythonCompletionSource } from "../../completion/completer";
+import { conditionalCompletion } from "../../completion/utils";
+import type { PlaceholderType } from "../../config/types";
+import { markdownCompletionSources } from "../../markdown/completions";
+import { enhancedMarkdownExtension } from "../../markdown/extension";
+import { parsePython } from "../embedded/embedded-python";
+import { parseLatex } from "../embedded/latex";
+import { languageMetadataField } from "../metadata";
+import type { LanguageAdapter } from "../types";
 import {
   QUOTE_PREFIX_KINDS,
   type QuotePrefixKind,
   splitQuotePrefix,
 } from "../utils/quotes";
-import { markdownAutoRunExtension } from "../../cells/extensions";
-import type { PlaceholderType } from "../../config/types";
-import type { CellId } from "@/core/cells/ids";
-import { parseLatex } from "../embedded/latex";
-import { StreamLanguage } from "@codemirror/language";
-import { parsePython } from "../embedded/embedded-python";
-import { conditionalCompletion } from "../../completion/utils";
-import { pythonCompletionSource } from "../../completion/completer";
-import { markdownCompletionSources } from "../../markdown/completions";
-import { type EditorView, ViewPlugin } from "@codemirror/view";
-import { languageMetadataField } from "../metadata";
 
 export interface MarkdownLanguageAdapterMetadata {
   quotePrefix: QuotePrefixKind;

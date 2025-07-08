@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { isIslands } from "@/core/islands/utils";
 import type { IReconnectingWebSocket } from "./types";
 
 export class StaticWebsocket implements IReconnectingWebSocket {
@@ -17,9 +19,20 @@ export class StaticWebsocket implements IReconnectingWebSocket {
   onmessage = null;
   onopen = null;
 
-  addEventListener(type: unknown, callback: unknown, options?: unknown): void {
-    // Noop
+  addEventListener(
+    type: string,
+    callback: EventListener,
+    _options?: unknown,
+  ): void {
+    // Normally this would be a no-op in a mock, but we simulate a synthetic "open" event
+    // to mimic the WebSocket transitioning from CONNECTING to OPEN state.
+    if (type === "open" && !isIslands()) {
+      queueMicrotask(() => {
+        callback(new Event("open"));
+      });
+    }
   }
+
   removeEventListener(
     type: unknown,
     callback: unknown,

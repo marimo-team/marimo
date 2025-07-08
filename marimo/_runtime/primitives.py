@@ -180,8 +180,12 @@ def is_pure_function(
     # (e.g. list)
     if getattr(value, "__hash__", None) is None:
         return False
-    if value in cache:
-        return cache[value]
+    try:
+        if value in cache:
+            return cache[value]
+    except TypeError:
+        # If value is not hashable, we assume it's not pure.
+        return False
     # Trivial enough not to cache.
     if inspect.isclass(value) or not callable(value):
         return False

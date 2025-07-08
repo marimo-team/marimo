@@ -247,18 +247,54 @@ table.value
 
 ///
 
-## Row viewer panel
+## Dataframe panels
 
-To inspect individual rows, you can toggle the Row viewer panel located at the bottom left of a table. While open, click on any row to view. 
+Dataframe outputs in marimo come with several panels to help you visualize, explore, and page through your data interactively. These panels are accessible via toggles at the bottom-left of a dataframe output. If you need further control, after opening a panel you can
 
-For convenience, you can pin the panel to the side of your editor or toggle the focused cell feature, which ensures the value of the currently focused cell is displayed in the panel.
+- **pin the panel** to the side of your editor for persistent access;
+- **toggle focus** to automatically display the currently focused dataframe in the panel.
+
+??? note
+
+    Toggles are visible when editing notebooks (with `marimo edit ...`) but not when running notebooks as apps (with `marimo run ...`), except for the row viewer which is available in both.
+
+### Row viewer panel
 
 <div align="center">
 <figure>
-<img src="/_static/docs-row-viewer-panel.gif" width="100%" height="100%" alt="Row viewer panel demonstration (click the bottom left of the table to toggle)">
-<figcaption>Open the row viewer panel to display data vertically</figcaption>
+<video muted playsinline controls align="center" src="/_static/docs-row-viewer-panel.mp4">
+</video>
 </figure>
 </div>
+
+To inspect individual rows, open the **row viewer**. This presents a vertical view of the selected row.
+
+- **Press `Space`** to select/deselect the current row
+- **Use arrow keys** (`←` `→`) to navigate between rows
+- **Click** on any row in the dataframe to view its data in the panel
+
+### Column explorer panel
+
+<div align="center">
+<figure>
+<video controls muted playsinline align="center" src="/_static/docs-column-explorer-table.mp4">
+</video>
+</figure>
+</div>
+
+To explore your data, open the **column explorer** where you can find summary statistics and charts for each column. Click the `+` button to add the chart code to a new cell.
+
+This requires the `altair` package to be installed. For large dataframes, `vegafusion` is also needed to render charts. To use the generated Python code, enable vegafusion in your notebook:
+
+```python
+import altair
+
+altair.data_transformers.enable("vegafusion")
+```
+
+### Chart builder
+
+The chart builder toggle lets you rapidly develop charts using a GUI, while also generating Python code to insert in your notebook. Refer to the [chart builder guide](plotting.md#chart-builder) for more details.
 
 ## Example notebook
 

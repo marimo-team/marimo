@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
-import { lazy } from "react";
+import { type JSX, lazy } from "react";
+import { z } from "zod";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,

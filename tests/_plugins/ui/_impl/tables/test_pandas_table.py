@@ -285,6 +285,42 @@ class TestPandasTableManager(unittest.TestCase):
             {"level_0": "z", "level_1": 3, "a": 3, "b": 6},
         ]
 
+    def test_to_json_multi_index_unnamed_2(self) -> None:
+        # Create a DataFrame with a MultiIndex where second level is unnamed
+        df = pd.DataFrame(
+            {
+                "A": [1, 2, 3, 4],
+                "B": [5, 6, 7, 8],
+            },
+            index=pd.MultiIndex.from_tuples(
+                [("x", 1), ("x", 2), ("y", 1), ("y", 2)],
+                names=["level1", None],  # Second level is unnamed
+            ),
+        )
+
+        json_data = self.factory_create_json_from_df(df)
+        # Second level converted to empty string
+        assert json_data == [
+            {"level1": "x", "": 1, "A": 1, "B": 5},
+            {"level1": "x", "": 2, "A": 2, "B": 6},
+            {"level1": "y", "": 1, "A": 3, "B": 7},
+            {"level1": "y", "": 2, "A": 4, "B": 8},
+        ]
+
+    def test_to_json_multi_index_unnamed_3(self) -> None:
+        cols = pd.MultiIndex.from_tuples([("weight", "kg"), ("height", "m")])
+        df = pd.DataFrame(
+            [[1.0, 2.0], [3.0, 4.0]], index=["cat", "dog"], columns=cols
+        )
+        df = df.stack(future_stack=True)
+        json_data = self.factory_create_json_from_df(df)
+        assert json_data == [
+            {"": "cat", " ": "kg", "weight": 1.0, "height": None},
+            {"": "cat", " ": "m", "weight": None, "height": 2.0},
+            {"": "dog", " ": "kg", "weight": 3.0, "height": None},
+            {"": "dog", " ": "m", "weight": None, "height": 4.0},
+        ]
+
     def test_to_json_multi_col_index(self) -> None:
         cols = pd.MultiIndex.from_arrays(
             [["basic_amt"] * 2, ["NSW", "QLD"]], names=[None, "Faculty"]
@@ -1028,6 +1064,17 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.time(4, 5, 6),
                     datetime.time(7, 8, 9),
                 ],
+                "datetime_tz_col": [
+                    datetime.datetime(
+                        2021, 1, 1, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 2, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 3, tzinfo=datetime.timezone.utc
+                    ),
+                ],
             }
         )
         manager = self.factory.create()(data)
@@ -1038,6 +1085,10 @@ class TestPandasTableManager(unittest.TestCase):
             "datetime64[ns]",
         )
         assert manager.get_field_type("time_col") == ("string", "object")
+        assert manager.get_field_type("datetime_tz_col") == (
+            "datetime",
+            "datetime64[ns, UTC]",
+        )
 
     def test_get_sample_values(self) -> None:
         df = pd.DataFrame({"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]})

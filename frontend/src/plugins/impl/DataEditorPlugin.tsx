@@ -1,20 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-import { createPlugin } from "../core/builder";
+
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import type { DataEditorProps } from "./data-editor/data-editor";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { vegaLoadData } from "./vega/loader";
-import type { Setter } from "../types";
-import { LoadingTable } from "@/components/data-table/loading-table";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { DelayMount } from "@/components/utils/delay-mount";
-import React from "react";
-import gridCss from "./data-editor/grid.css?inline";
 import agGridCss from "ag-grid-community/styles/ag-grid.css?inline";
 import agThemeCss from "ag-grid-community/styles/ag-theme-quartz.css?inline";
-import { DATA_TYPES } from "@/core/kernel/messages";
+import React from "react";
+import { z } from "zod";
+import { LoadingTable } from "@/components/data-table/loading-table";
 import { toFieldTypes } from "@/components/data-table/types";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { DelayMount } from "@/components/utils/delay-mount";
+import { DATA_TYPES } from "@/core/kernel/messages";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { createPlugin } from "../core/builder";
+import type { Setter } from "../types";
+import type { DataEditorProps } from "./data-editor/data-editor";
+import gridCss from "./data-editor/grid.css?inline";
+import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
 type CsvURL = string;

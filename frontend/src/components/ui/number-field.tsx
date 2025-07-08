@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import React from "react";
 import {
   NumberField as AriaNumberField,
   type NumberFieldProps as AriaNumberFieldProps,
@@ -7,15 +8,15 @@ import {
   type ButtonProps,
   Input as RACInput,
 } from "react-aria-components";
-import React from "react";
 import { cn } from "@/utils/cn";
 
 export interface NumberFieldProps extends AriaNumberFieldProps {
   placeholder?: string;
+  variant?: "default" | "xs";
 }
 
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
-  ({ placeholder, ...props }, ref) => {
+  ({ placeholder, variant = "default", ...props }, ref) => {
     return (
       <AriaNumberField
         {...props}
@@ -27,9 +28,11 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
         <div
           className={cn(
             "shadow-xsSolid hover:shadow-smSolid hover:focus-within:shadow-mdSolid",
-            "flex h-6 w-full mb-1  overflow-hidden rounded-sm border border-input bg-background text-sm font-code ring-offset-background",
+            "flex overflow-hidden rounded-sm border border-input bg-background text-sm font-code ring-offset-background",
             "disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-xsSolid",
             "focus-within:shadow-mdSolid focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:border-primary",
+            variant === "default" ? "h-6 w-full mb-1" : "h-4 w-full mb-0.5",
+            variant === "xs" && "text-xs",
             props.className,
           )}
         >
@@ -48,16 +51,36 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
               "placeholder:text-muted-foreground",
               "outline-none",
               "disabled:cursor-not-allowed disabled:opacity-50",
-              "px-1.5",
+              variant === "default" ? "px-1.5" : "px-1",
             )}
           />
           <div className={"flex flex-col border-s-2"}>
-            <StepperButton slot="increment" isDisabled={props.isDisabled}>
-              <ChevronUp aria-hidden={true} className="w-3 h-3 -mb-[1px]" />
+            <StepperButton
+              slot="increment"
+              isDisabled={props.isDisabled}
+              variant={variant}
+            >
+              <ChevronUp
+                aria-hidden={true}
+                className={cn(
+                  "w-3 h-3 -mb-[1px]",
+                  variant === "xs" && "w-2 h-2",
+                )}
+              />
             </StepperButton>
             <div className={"h-[1px] flex-shrink-0 divider bg-border z-10"} />
-            <StepperButton slot="decrement" isDisabled={props.isDisabled}>
-              <ChevronDown aria-hidden={true} className="w-3 h-3 -mt-[1px]" />
+            <StepperButton
+              slot="decrement"
+              isDisabled={props.isDisabled}
+              variant={variant}
+            >
+              <ChevronDown
+                aria-hidden={true}
+                className={cn(
+                  "w-3 h-3 -mt-[1px]",
+                  variant === "xs" && "w-2 h-2",
+                )}
+              />
             </StepperButton>
           </div>
         </div>
@@ -67,14 +90,15 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
 );
 NumberField.displayName = "NumberField";
 
-const StepperButton = (props: ButtonProps) => {
+const StepperButton = (props: ButtonProps & { variant?: "default" | "xs" }) => {
   return (
     <Button
       {...props}
       className={cn(
-        "px-0.5 cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary",
+        "cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary",
         "disabled:cursor-not-allowed disabled:opacity-50",
         !props.isDisabled && "hover:text-primary hover:bg-muted",
+        props.variant === "default" ? "px-0.5" : "px-0.25",
       )}
     />
   );

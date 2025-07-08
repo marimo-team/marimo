@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 import sqlite3
@@ -143,3 +143,24 @@ def test_execute_with_parameters(dbapi_engine: DBAPIEngine) -> None:
         )
         assert len(result) == 1
         assert result.iloc[0].to_dict() == {"id": 1, "name": "a", "value": 1.0}
+
+
+def test_is_dbapi_cursor() -> None:
+    cursor = sqlite3.connect(":memory:").cursor()
+    assert DBAPIEngine.is_dbapi_cursor(cursor)
+
+    # Test with non-DBAPI object
+    assert not DBAPIEngine.is_dbapi_cursor("not a cursor")
+    assert not DBAPIEngine.is_dbapi_cursor(None)
+
+
+def test_get_cursor_metadata(dbapi_engine: DBAPIEngine) -> None:
+    with patch.object(
+        dbapi_engine, "sql_output_format", return_value="native"
+    ):
+        result = dbapi_engine.execute("SELECT * FROM test")
+        result = DBAPIEngine.get_cursor_metadata(result)
+
+        assert result is not None
+        assert len(result["columns"]) == 3
+        assert result["sql_statement_type"] == "Query/DDL"

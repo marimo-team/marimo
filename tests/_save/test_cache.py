@@ -8,6 +8,7 @@ import warnings
 
 import pytest
 
+import marimo
 from marimo._ast.app import App
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
@@ -307,7 +308,8 @@ class TestAppCache:
                 from tests._save.loaders.mocks import MockLoader
 
                 with persistent_cache(
-                    name="one", _loader=MockLoader(data={"X": 7, "Y": 8})
+                    name="one",
+                    _loader=MockLoader(data={"X": 7, "Y": 8}, strict=True)
                 ) as cache:
                     Y = 9
                     X = 10
@@ -320,6 +322,169 @@ class TestAppCache:
         assert k.globals["X"] == 7
         assert k.globals["Y"] == 8
         assert k.globals["Z"] == 3
+
+    async def test_cache_module_hit(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                import marimo as mod
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                def my_func_2():
+                    return 2
+
+                with persistent_cache(
+                    name="one",
+                    _loader=MockLoader(data={"mo": mod}, strict=True),
+                ) as cache:
+                    import numpy as mo
+                """
+                    ),
+                ),
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
+        assert k.globals["mo"].__version__ == marimo.__version__
+
+    async def test_cache_module_miss(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader()
+                ) as cache:
+                    import marimo as mo
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert k.errors == {}
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["mo"].__version__ == marimo.__version__
+
+    async def test_cache_function_hit(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                def my_func_2():
+                    return 2
+
+                loader = MockLoader(data={"my_func": my_func_2}, strict=True)
+                with persistent_cache(name="one", _loader=loader) as cache:
+                    def my_func():
+                        return 1
+                """
+                    ),
+                ),
+            ]
+        )
+        assert "cache" in k.globals
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, (k.stderr, k.stdout)
+        assert k.globals["my_func"]() == 2
+
+    async def test_cache_function_miss(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader(),
+                ) as cache:
+                    def my_func():
+                        return 1
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["my_func"]() == 1
+
+    async def test_cache_ui_hit(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                import marimo as mo
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+                loaded_slider = mo.ui.slider(20, 30)
+
+                with persistent_cache(
+                    name="one",
+                    _loader=MockLoader(data={"slider": loaded_slider}, strict=True),
+                ) as cache:
+                    slider = mo.ui.slider(0, 1)
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["slider"].value == 20
+
+    async def test_cache_ui_miss(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                import marimo as mo
+                from marimo._save.save import persistent_cache
+                from tests._save.loaders.mocks import MockLoader
+
+                with persistent_cache(
+                    name="one", _loader=MockLoader()
+                ) as cache:
+                    slider = mo.ui.slider(0, 1)
+                """
+                    ),
+                ),
+            ]
+        )
+        # No warning messages.
+        assert not k.stdout.messages, k.stdout
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["slider"].value == 0
 
     async def test_cache_one_line(self, any_kernel: Kernel) -> None:
         k = any_kernel
@@ -340,7 +505,6 @@ class TestAppCache:
                 ),
             ]
         )
-        assert k.errors == {}
         assert k.errors == {}
         assert k.globals["X"] == 1
         assert k.globals["Y"] == 2

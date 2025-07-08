@@ -1,15 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  MarimoTracebackOutput,
-  replaceTracebackPrefix,
-  replaceTracebackFilenames,
-} from "../MarimoTracebackOutput";
-import { renderHTML } from "@/plugins/core/RenderHTML";
-import { Tracebacks } from "@/__mocks__/tracebacks";
+
 import { render } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
-import type { CellId } from "@/core/cells/ids";
+import { Tracebacks } from "@/__mocks__/tracebacks";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { CellId } from "@/core/cells/ids";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import {
+  MarimoTracebackOutput,
+  replaceTracebackFilenames,
+  replaceTracebackPrefix,
+} from "../MarimoTracebackOutput";
 
 const cellId = "1" as CellId;
 

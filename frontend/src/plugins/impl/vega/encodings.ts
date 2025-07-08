@@ -2,8 +2,8 @@
 import { Marks } from "./marks";
 import type {
   AnyMark,
-  EncodingType,
   Encodings,
+  EncodingType,
   Field,
   MarkDef,
   SharedCompositeEncoding,

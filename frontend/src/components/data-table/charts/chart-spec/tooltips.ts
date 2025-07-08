@@ -5,8 +5,8 @@ import type {
   PositionDef,
   StringFieldDef,
 } from "vega-lite/build/src/channeldef";
-import type { ChartSchemaType } from "../schemas";
 import type { DataType } from "@/core/kernel/messages";
+import type { ChartSchemaType } from "../schemas";
 import { isFieldSet } from "./spec";
 
 function getTooltipFormat(dataType: DataType): string | undefined {
@@ -53,6 +53,12 @@ export function getTooltips(
     }
 
     if (encoding && "field" in encoding && isFieldSet(encoding.field)) {
+      if (encoding.timeUnit && !title) {
+        // When there is a time unit, we want to show the field name as the title
+        // otherwise the title becomes too verbose
+        title = encoding.field;
+      }
+
       const tooltip: StringFieldDef<string> = {
         field: encoding.field,
         aggregate: encoding.aggregate,

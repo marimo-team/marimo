@@ -1,7 +1,9 @@
 # Copyright 2025 Marimo. All rights reserved.
+import copy
 from typing import Any, Literal, Optional, TypedDict, Union, cast
 
 from marimo import _loggers
+from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
 from marimo._save.stores.rest import RestStore
@@ -27,6 +29,10 @@ CACHE_STORES: dict[StoreKey, StoreType] = {
 DEFAULT_STORE_KEY: StoreKey = "file"
 DEFAULT_STORE: StoreType = CACHE_STORES[DEFAULT_STORE_KEY]
 
+_STORE_REGISTRY = EntryPointRegistry[StoreType](
+    "marimo.cache.store",
+)
+
 
 def get_store(current_path: Optional[str] = None) -> Store:
     from marimo._config.manager import get_default_config_manager
@@ -43,9 +49,15 @@ def get_store(current_path: Optional[str] = None) -> Store:
 
 def _get_store_from_config(
     config: Union[list[StoreConfig], StoreConfig, None],
+    registry: EntryPointRegistry[StoreType] = _STORE_REGISTRY,
 ) -> Store:
     if config is None:
         return DEFAULT_STORE()
+
+    cache_stores = copy.copy(cast(dict[str, StoreType], CACHE_STORES))
+    cache_stores.update(
+        {name: registry.get(name) for name in registry.names()}
+    )
 
     if isinstance(config, list):
         sub_stores = [
@@ -58,13 +70,13 @@ def _get_store_from_config(
         return TieredStore(sub_stores)
     else:
         store_type = cast(StoreKey, config.get("store", DEFAULT_STORE_KEY))
-        if store_type not in CACHE_STORES:
+        if store_type not in cache_stores:
             LOGGER.error(f"Invalid store type: {store_type}")
             store_type = DEFAULT_STORE_KEY
 
         try:
             store_args = config.get("args", {})
-            return CACHE_STORES[store_type](**store_args)
+            return cache_stores[store_type](**store_args)
         except Exception as e:
             LOGGER.error(f"Error creating store: {e}")
             return DEFAULT_STORE()

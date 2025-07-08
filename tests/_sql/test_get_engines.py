@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -18,6 +19,7 @@ from marimo._sql.engines.duckdb import (
     DuckDBEngine,
 )
 from marimo._sql.engines.ibis import IbisEngine
+from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
@@ -30,6 +32,7 @@ HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_IBIS = DependencyManager.ibis.has()
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_CLICKHOUSE = DependencyManager.chdb.has()
+HAS_REDSHIFT = DependencyManager.redshift_connector.has()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -125,6 +128,22 @@ def test_get_engines_from_variables_clickhouse():
     var_name, engine = engines[0]
     assert var_name == "clickhouse_conn"
     assert isinstance(engine, ClickhouseEmbedded)
+
+
+@pytest.mark.skipif(not HAS_REDSHIFT, reason="Redshift not installed")
+def test_get_engines_from_variables_redshift():
+    import redshift_connector
+
+    mock_redshift_conn = MagicMock(spec=redshift_connector.Connection)
+    variables: list[tuple[str, object]] = [
+        ("redshift_conn", mock_redshift_conn)
+    ]
+
+    engines = get_engines_from_variables(variables)
+    assert len(engines) == 1
+    var_name, engine = engines[0]
+    assert var_name == "redshift_conn"
+    assert isinstance(engine, RedshiftEngine)
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")

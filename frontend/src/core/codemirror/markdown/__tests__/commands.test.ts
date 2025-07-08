@@ -1,14 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorState, EditorView, basicSetup } from "@uiw/react-codemirror";
+import { basicSetup, EditorState, EditorView } from "@uiw/react-codemirror";
 import {
-  describe,
-  afterEach,
-  test,
-  expect,
-  vi,
-  beforeEach,
   afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
 } from "vitest";
+import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/file-state";
+import { store } from "@/core/state/jotai";
 import {
   insertBlockquote,
   insertBoldMarker,
@@ -20,9 +23,6 @@ import {
   insertTextFile,
   insertUL,
 } from "../commands";
-import { sendCreateFileOrFolder } from "@/core/network/requests";
-import { filenameAtom } from "@/core/saving/filenameAtom";
-import { store } from "@/core/state/jotai";
 
 function createEditor(content: string) {
   const state = EditorState.create({

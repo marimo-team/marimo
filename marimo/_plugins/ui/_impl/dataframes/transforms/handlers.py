@@ -104,9 +104,9 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             elif condition.operator == "is_false":
                 df_filter = column.eq(False)
             # Handle null checks
-            elif condition.operator == "is_nan":
+            elif condition.operator == "is_null":
                 df_filter = column.isna()
-            elif condition.operator == "is_not_nan":
+            elif condition.operator == "is_not_null":
                 df_filter = column.notna()
             # Handle equality operations
             elif condition.operator == "equals":
@@ -331,9 +331,9 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
                 condition_expr = column.eq(True)
             elif condition.operator == "is_false":
                 condition_expr = column.eq(False)
-            elif condition.operator == "is_nan":
+            elif condition.operator == "is_null":
                 condition_expr = column.is_null()
-            elif condition.operator == "is_not_nan":
+            elif condition.operator == "is_not_null":
                 condition_expr = column.is_not_null()
             elif condition.operator == "equals":
                 condition_expr = column == value
@@ -581,9 +581,9 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
                 filter_conditions.append(column)
             elif condition.operator == "is_false":
                 filter_conditions.append(~column)
-            elif condition.operator == "is_nan":
+            elif condition.operator == "is_null":
                 filter_conditions.append(column.isnull())
-            elif condition.operator == "is_not_nan":
+            elif condition.operator == "is_not_null":
                 filter_conditions.append(column.notnull())
             elif condition.operator == "equals":
                 filter_conditions.append(column == value)

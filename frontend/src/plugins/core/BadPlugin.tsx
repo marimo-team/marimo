@@ -1,15 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ZodError } from "zod";
-import { Alert } from "../../components/ui/alert";
-import { AlertTitle } from "../../components/ui/alert";
+
 import {
   Accordion,
+  AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
 } from "@radix-ui/react-accordion";
-import { JsonOutput } from "@/components/editor/output/JsonOutput";
+import type { JSX } from "react";
+import { ZodError } from "zod";
 import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
+import { JsonOutput } from "@/components/editor/output/JsonOutput";
+import { Alert, AlertTitle } from "../../components/ui/alert";
 
 interface Props {
   error: ZodError | Error;

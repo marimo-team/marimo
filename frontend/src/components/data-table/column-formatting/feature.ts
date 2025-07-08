@@ -2,26 +2,26 @@
 "use no memo";
 
 import {
-  type TableFeature,
-  type RowData,
-  makeStateUpdater,
-  type Table,
   type Column,
+  makeStateUpdater,
+  type RowData,
+  type Table,
+  type TableFeature,
   type Updater,
 } from "@tanstack/react-table";
-import type {
-  ColumnFormattingTableState,
-  ColumnFormattingOptions,
-  ColumnFormattingState,
-} from "./types";
 import type { DataType } from "@/core/kernel/messages";
-import type { FormatOption } from "./types";
+import { logNever } from "@/utils/assertNever";
 import {
+  prettyEngineeringNumber,
   prettyNumber,
   prettyScientificNumber,
-  prettyEngineeringNumber,
 } from "@/utils/numbers";
-import { logNever } from "@/utils/assertNever";
+import type {
+  ColumnFormattingOptions,
+  ColumnFormattingState,
+  ColumnFormattingTableState,
+  FormatOption,
+} from "./types";
 
 export const ColumnFormattingFeature: TableFeature = {
   // define the column formatting's initial state

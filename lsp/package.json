@@ -1,5 +1,7 @@
 {
   "main": "dist/index.cjs",
+  "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "build:ts": "tsup index.ts --format cjs --minify",
     "build:deps": "cp -LR node_modules/@github/copilot-language-server/dist/ dist/",
@@ -8,20 +10,21 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@github/copilot-language-server": "^1.322.0"
+    "@github/copilot-language-server": "^1.338.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.0.0-beta.6",
     "@sourcegraph/vscode-ws-jsonrpc": "0.0.3-fork",
     "@types/minimist": "^1.2.5",
-    "@types/node": "^20.17.32",
+    "@types/node": "^24.0.10",
     "@types/ws": "^8.18.1",
-    "@vitest/expect": "^1.4.0",
+    "@vitest/expect": "^1.6.1",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
-    "tsup": "^8.4.0",
+    "tsup": "^8.5.0",
     "typescript": "^5.8.3",
-    "vitest": "^1.4.0",
-    "ws": "^8.18.1"
+    "vitest": "^1.6.1",
+    "ws": "^8.18.3"
   },
-  "packageManager": "pnpm@10.10.0"
+  "packageManager": "pnpm@10.12.4"
 }

@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
 
-import { cn } from "@/utils/cn";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
-import { Events } from "@/utils/events";
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { SearchIcon, XIcon } from "lucide-react";
+import * as React from "react";
 import {
   NumberField,
   type NumberFieldProps,
 } from "@/components/ui/number-field";
-import { SearchIcon, XIcon } from "lucide-react";
-import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   rootClassName?: string;
@@ -126,12 +126,13 @@ export const SearchInput = React.forwardRef<
     },
     ref,
   ) => {
-    const id = React.useId();
+    const uniqueId = React.useId();
+    const inputId = props.id || uniqueId;
     return (
       <div className={cn("flex items-center border-b px-3", rootClassName)}>
         {icon}
         <input
-          id={id}
+          id={inputId}
           ref={ref}
           className={cn(
             "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50",
@@ -144,7 +145,7 @@ export const SearchInput = React.forwardRef<
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const input = document.getElementById(id);
+              const input = document.getElementById(inputId);
               if (input && input instanceof HTMLInputElement) {
                 input.focus();
                 input.value = "";
@@ -157,7 +158,7 @@ export const SearchInput = React.forwardRef<
               }
             }}
           >
-            <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
+            <XIcon className="h-4 w-4 opacity-50 hover:opacity-90 cursor-pointer" />
           </span>
         )}
       </div>

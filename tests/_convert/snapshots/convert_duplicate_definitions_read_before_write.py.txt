@@ -1,0 +1,33 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    x = 1
+    return (x,)
+
+
+@app.cell
+def _(x):
+    x
+    return
+
+
+@app.cell
+def _(x):
+    x
+    x_1 = 2
+    x_1
+    return (x_1,)
+
+
+@app.cell
+def _(x_1):
+    x_1
+    return
+
+
+if __name__ == "__main__":
+    app.run()

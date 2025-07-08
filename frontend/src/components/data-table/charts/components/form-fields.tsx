@@ -1,24 +1,27 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React from "react";
 import { capitalize } from "lodash-es";
 import {
-  XIcon,
+  ArrowDownWideNarrowIcon,
+  ArrowUpWideNarrowIcon,
   PlusIcon,
   SquareFunctionIcon,
-  ArrowUpWideNarrowIcon,
-  ArrowDownWideNarrowIcon,
+  XIcon,
 } from "lucide-react";
+import React from "react";
 import { type Path, useFormContext, useWatch } from "react-hook-form";
-
-import type { DataType } from "@/core/kernel/messages";
-
+import type { z } from "zod";
+import { DATA_TYPE_ICON } from "@/components/datasets/icons";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
 } from "@/components/ui/form";
+import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
+import type { NumberFieldProps } from "@/components/ui/number-field";
 import {
   Select,
   SelectContent,
@@ -29,40 +32,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
-import { DebouncedInput, DebouncedNumberInput } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/utils/cn";
+import { Slider } from "@/components/ui/slider";
+import type { DataType } from "@/core/kernel/messages";
 import { Multiselect } from "@/plugins/impl/MultiselectPlugin";
-
+import { cn } from "@/utils/cn";
+import { convertDataTypeToSelectable } from "../chart-spec/types";
+import {
+  AGGREGATION_TYPE_DESCRIPTIONS,
+  AGGREGATION_TYPE_ICON,
+  COUNT_FIELD,
+  DEFAULT_TIME_UNIT,
+  EMPTY_VALUE,
+  SCALE_TYPE_DESCRIPTIONS,
+  TIME_UNIT_DESCRIPTIONS,
+} from "../constants";
+import { useChartFormContext } from "../context";
+import type { BinSchema, ChartSchema, ChartSchemaType } from "../schemas";
 import {
   AGGREGATION_FNS,
+  type AggregationFn,
+  BIN_AGGREGATION,
+  ChartType,
   COMBINED_TIME_UNITS,
-  NONE_AGGREGATION,
+  NONE_VALUE,
   SELECTABLE_DATA_TYPES,
   type SelectableDataType,
   SINGLE_TIME_UNITS,
   SORT_TYPES,
   STRING_AGGREGATION_FNS,
-  BIN_AGGREGATION,
   type TimeUnit,
 } from "../types";
-import {
-  AGGREGATION_TYPE_DESCRIPTIONS,
-  AGGREGATION_TYPE_ICON,
-  COUNT_FIELD,
-  EMPTY_VALUE,
-  SCALE_TYPE_DESCRIPTIONS,
-  TIME_UNIT_DESCRIPTIONS,
-} from "../constants";
-import { Slider } from "@/components/ui/slider";
 import { IconWithText } from "./layouts";
-import { useChartFormContext } from "../context";
-import type { NumberFieldProps } from "@/components/ui/number-field";
-import { convertDataTypeToSelectable } from "../chart-spec/types";
-import type { BinSchema, ChartSchema, ChartSchemaType } from "../schemas";
-import type { z } from "zod";
 
 const CLEAR_VALUE = "__clear__";
 
@@ -512,46 +512,48 @@ export const TimeUnitSelect = ({
     <FormField
       control={form.control}
       name={fieldName}
-      render={({ field }) => (
-        <FormItem className="flex flex-row items-center justify-between w-full">
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <Select
-              {...field}
-              onValueChange={(value) => {
-                if (value === CLEAR_VALUE) {
-                  clear();
-                } else {
-                  field.onChange(value);
-                }
-              }}
-              value={field.value}
-            >
-              <SelectTrigger onClear={field.value ? clear : undefined}>
-                <SelectValue placeholder="Select unit" />
-              </SelectTrigger>
-              <SelectContent className="w-72">
-                {field.value && (
-                  <>
-                    <SelectItem value={CLEAR_VALUE}>
-                      <div className="flex items-center truncate">
-                        <XIcon className="w-3 h-3 mr-2" />
-                        Clear
-                      </div>
-                    </SelectItem>
+      render={({ field }) => {
+        return (
+          <FormItem className="flex flex-row items-center justify-between w-full">
+            <FormLabel>{label}</FormLabel>
+            <FormControl>
+              <Select
+                {...field}
+                onValueChange={(value) => {
+                  if (value === CLEAR_VALUE) {
+                    clear();
+                  } else {
+                    field.onChange(value);
+                  }
+                }}
+                value={field.value ?? DEFAULT_TIME_UNIT}
+              >
+                <SelectTrigger onClear={field.value ? clear : undefined}>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent className="w-72">
+                  {field.value && (
+                    <>
+                      <SelectItem value={CLEAR_VALUE}>
+                        <div className="flex items-center truncate">
+                          <XIcon className="w-3 h-3 mr-2" />
+                          Clear
+                        </div>
+                      </SelectItem>
+                      <SelectSeparator />
+                    </>
+                  )}
+                  <SelectGroup>
+                    {COMBINED_TIME_UNITS.map(renderTimeUnit)}
                     <SelectSeparator />
-                  </>
-                )}
-                <SelectGroup>
-                  {COMBINED_TIME_UNITS.map(renderTimeUnit)}
-                  <SelectSeparator />
-                  {SINGLE_TIME_UNITS.map(renderTimeUnit)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FormControl>
-        </FormItem>
-      )}
+                    {SINGLE_TIME_UNITS.map(renderTimeUnit)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </FormControl>
+          </FormItem>
+        );
+      }}
     />
   );
 };
@@ -595,6 +597,8 @@ export const DataTypeSelect = ({
                 <SelectGroup>
                   {SELECTABLE_DATA_TYPES.map((type) => {
                     const Icon = DATA_TYPE_ICON[type];
+                    // Categorical is a clearer name for how we will aggregate this
+                    const name = type === "string" ? "categorical" : type;
                     return (
                       <SelectItem
                         key={type}
@@ -608,7 +612,7 @@ export const DataTypeSelect = ({
                           )
                         }
                       >
-                        <IconWithText Icon={Icon} text={capitalize(type)} />
+                        <IconWithText Icon={Icon} text={capitalize(name)} />
                       </SelectItem>
                     );
                   })}
@@ -626,14 +630,20 @@ export const AggregationSelect = ({
   fieldName,
   selectedDataType,
   binFieldName,
+  defaultAggregation,
 }: {
   fieldName: FieldName;
   selectedDataType: SelectableDataType;
   binFieldName: FieldName;
+  defaultAggregation?: AggregationFn;
 }) => {
   const form = useFormContext();
   const availableAggregations =
     selectedDataType === "string" ? STRING_AGGREGATION_FNS : AGGREGATION_FNS;
+
+  const { chartType } = useChartFormContext();
+  // Heatmap already has binning as an option elsewhere
+  const isBinningAllowed = chartType !== ChartType.HEATMAP;
 
   const renderSubtitle = (text: string) => {
     return <span className="text-xs text-muted-foreground pr-10">{text}</span>;
@@ -684,7 +694,11 @@ export const AggregationSelect = ({
           <FormControl>
             <Select
               {...field}
-              value={(field.value ?? NONE_AGGREGATION).toString()}
+              value={(
+                field.value ??
+                defaultAggregation ??
+                NONE_VALUE
+              ).toString()}
               onValueChange={(value) => {
                 handleFieldChange(value, field.value, field.onChange);
               }}
@@ -702,11 +716,14 @@ export const AggregationSelect = ({
                     );
                     const selectItem = renderSelectItem(agg, Icon, subtitle);
                     if (agg === BIN_AGGREGATION) {
+                      if (!isBinningAllowed) {
+                        return null;
+                      }
                       return (
-                        <>
+                        <div key={agg}>
                           <SelectSeparator />
                           {selectItem}
-                        </>
+                        </div>
                       );
                     }
                     return selectItem;

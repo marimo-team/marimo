@@ -1,13 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import type * as LSP from "vscode-languageserver-protocol";
-import { getTopologicalCodes } from "../copilot/getCodes";
-import { createNotebookLens } from "./lens";
-import { CellDocumentUri, type ILanguageServerClient } from "./types";
+import type { CellId } from "@/core/cells/ids";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
-import type { CellId } from "@/core/cells/ids";
-import type { EditorView } from "@codemirror/view";
+import { getTopologicalCodes } from "../copilot/getCodes";
+import { createNotebookLens } from "./lens";
+import {
+  CellDocumentUri,
+  type ILanguageServerClient,
+  isClientWithNotify,
+  isClientWithPlugins,
+} from "./types";
 import { getLSPDocument } from "./utils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
@@ -27,7 +32,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     }
   >(20);
 
-  private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<LSP.DocumentUri>();
+  private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
   constructor(
     client: ILanguageServerClient,
@@ -41,12 +46,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     // Handle configuration after initialization
     this.initializePromise.then(() => {
       invariant(
-        "notify" in this.client,
+        isClientWithNotify(this.client),
         "notify is not a method on the client",
       );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.client as any).notify("workspace/didChangeConfiguration", {
+      this.client.notify("workspace/didChangeConfiguration", {
         settings: initialSettings,
       });
     });
@@ -202,9 +205,13 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     const newEdits = lens.getEditsForNewText(edit.newText);
     const editsToNewCode = new Map(newEdits.map((e) => [e.cellId, e.text]));
 
+    invariant(
+      isClientWithPlugins(this.client),
+      "Expected client with plugins.",
+    );
+
     // Update the code in the plugins manually
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const plugin of (this.client as any).plugins) {
+    for (const plugin of this.client.plugins) {
       const documentUri: string = plugin.documentUri;
       if (!CellDocumentUri.is(documentUri)) {
         Logger.warn("Invalid cell document URI", documentUri);
@@ -218,16 +225,19 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         continue;
       }
 
-      const view: EditorView = plugin.view;
-      if (!view) {
+      if (!plugin.view) {
         Logger.warn("No view for plugin", plugin);
         continue;
       }
 
       // Only update if it has changed
-      if (view.state.doc.toString() !== newCode) {
-        view.dispatch({
-          changes: { from: 0, to: view.state.doc.length, insert: newCode },
+      if (plugin.view.state.doc.toString() !== newCode) {
+        plugin.view.dispatch({
+          changes: {
+            from: 0,
+            to: plugin.view.state.doc.length,
+            insert: newCode,
+          },
         });
       }
     }
@@ -348,6 +358,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       version,
       lens,
     });
+    invariant(
+      CellDocumentUri.is(cellDocumentUri),
+      "Execpted URI to be CellDocumentUri",
+    );
     NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.add(cellDocumentUri);
 
     // Pass merged doc to super
@@ -517,22 +531,6 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
         const diagnostics = notification.params.diagnostics;
 
-        // If diagnostics are empty, we can just clear them for all cells
-        if (diagnostics.length === 0) {
-          Logger.debug("[lsp] clearing diagnostics");
-
-          for (const cellDocumentUri of NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS) {
-            previousProcessNotification({
-              method: "textDocument/publishDiagnostics",
-              params: {
-                uri: cellDocumentUri,
-                diagnostics: [],
-              },
-            });
-          }
-          return;
-        }
-
         const { lens, version: cellVersion } = payload;
 
         // Pre-partition diagnostics by cell
@@ -556,19 +554,41 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
           }
         }
 
+        const cellsToClear = new Set(
+          NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS,
+        );
+
         // Process each cell's diagnostics
         for (const [cellId, cellDiagnostics] of diagnosticsByCellId.entries()) {
           Logger.debug("[lsp] diagnostics for cell", cellId, cellDiagnostics);
+          const cellDocumentUri = CellDocumentUri.of(cellId);
+
+          cellsToClear.delete(cellDocumentUri);
 
           previousProcessNotification({
             ...notification,
             params: {
               ...notification.params,
-              uri: CellDocumentUri.of(cellId),
+              uri: cellDocumentUri,
               version: cellVersion,
               diagnostics: cellDiagnostics,
             },
           });
+        }
+
+        // Clear the rest of the diagnostics
+        if (cellsToClear.size > 0) {
+          Logger.debug("[lsp] clearing diagnostics", cellsToClear);
+
+          for (const cellDocumentUri of cellsToClear) {
+            previousProcessNotification({
+              method: "textDocument/publishDiagnostics",
+              params: {
+                uri: cellDocumentUri,
+                diagnostics: [],
+              },
+            });
+          }
         }
 
         return;

@@ -1,0 +1,134 @@
+{
+  "$schema": "frontend/node_modules/@biomejs/biome/configuration_schema.json",
+  "plugins": [
+    "frontend/lint/addEventListenerObject.grit",
+    "frontend/lint/removeEventListenerObject.grit",
+    "frontend/lint/preferObjectParams.grit"
+  ],
+  "files": {
+    "includes": [
+      "frontend/**/*",
+      "openapi/**/*",
+      "lsp/**/*",
+      "!*.json",
+      "!*.jsonc"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 80,
+    "attributePosition": "auto"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "noAutofocus": "off",
+        "noStaticElementInteractions": "off",
+        "useAriaPropsSupportedByRole": "off",
+        "noSvgWithoutTitle": "info",
+        "useButtonType": "info",
+        "useIframeTitle": "info",
+        "useKeyWithClickEvents": "off",
+        "useGenericFontNames": "off",
+        "useSemanticElements": "off",
+        "useMediaCaption": "info"
+      },
+      "complexity": {
+        "noBannedTypes": "off",
+        "noForEach": "off",
+        "useArrowFunction": "error"
+      },
+      "correctness": {
+        "noInnerDeclarations": "error",
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "warn",
+        "useExhaustiveDependencies": "off",
+        "useHookAtTopLevel": "info"
+      },
+      "nursery": {
+        "useUniqueElementIds": "warn",
+        "noNestedComponentDefinitions": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "off",
+        "noUnusedTemplateLiteral": "error",
+        "useNamingConvention": {
+          "level": "warn",
+          "options": {
+            "strictCase": false,
+            "conventions": [
+              {
+                "selector": { "kind": "const", "scope": "global" },
+                "match": ".*"
+              },
+              {
+                "selector": { "kind": "let", "scope": "global" },
+                "match": ".*"
+              },
+              {
+                "selector": { "kind": "function" },
+                "formats": ["camelCase", "PascalCase"]
+              },
+              {
+                "selector": { "kind": "variable" },
+                "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+              },
+              {
+                "selector": { "kind": "typeLike" },
+                "formats": ["PascalCase", "CONSTANT_CASE", "camelCase"]
+              },
+              {
+                "match": ".*"
+              }
+            ]
+          }
+        },
+        "useConsistentArrayType": "off",
+        "useImportType": "error",
+        "useNodejsImportProtocol": "error",
+        "useSingleVarDeclarator": "error",
+        "useTemplate": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "info",
+        "noConsole": "off",
+        "noDoubleEquals": "error",
+        "noEmptyBlockStatements": "info",
+        "noExplicitAny": "off",
+        "noImplicitAnyLet": "error",
+        "noRedeclare": "info",
+        "noShadowRestrictedNames": "error"
+      }
+    }
+  },
+  "javascript": {
+    "jsxRuntime": "reactClassic",
+    "formatter": {
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false,
+      "quoteStyle": "double",
+      "attributePosition": "auto"
+    }
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  }
+}

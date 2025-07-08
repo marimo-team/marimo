@@ -1,50 +1,39 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  type NodeApi,
-  type NodeRendererProps,
-  Tree,
-  type TreeApi,
-} from "react-arborist";
 
-import React, {
-  Suspense,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useAtom } from "jotai";
 import {
   ArrowLeftIcon,
+  BetweenHorizontalStartIcon,
   BracesIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   CopyIcon,
   CopyMinusIcon,
+  DownloadIcon,
   Edit3Icon,
   ExternalLinkIcon,
   FilePlus2Icon,
   FolderPlusIcon,
+  ListTreeIcon,
   MoreVerticalIcon,
   PlaySquareIcon,
   RefreshCcwIcon,
   Trash2Icon,
   UploadIcon,
   ViewIcon,
-  DownloadIcon,
 } from "lucide-react";
-import type { FileInfo } from "@/core/network/types";
+import React, { Suspense, use, useEffect, useRef, useState } from "react";
 import {
-  FILE_TYPE_ICONS,
-  type FileType,
-  PYTHON_CODE_FOR_FILE_TYPE,
-  guessFileType,
-} from "./types";
-import { toast } from "@/components/ui/use-toast";
+  type NodeApi,
+  type NodeRendererProps,
+  Tree,
+  type TreeApi,
+} from "react-arborist";
+import useEvent from "react-use-event-hook";
+import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
-import { useAtom } from "jotai";
 import { Button, buttonVariants } from "@/components/ui/button";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,20 +42,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/utils/cn";
-import { FileViewer } from "./file-viewer";
-import { treeAtom, openStateAtom } from "./state";
-import { useFileExplorerUpload } from "./upload";
+import { toast } from "@/components/ui/use-toast";
+import { useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import {
+  openFile,
+  sendCreateFileOrFolder,
+  sendFileDetails,
+} from "@/core/network/requests";
+import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { Spinner } from "@/components/icons/spinner";
-import type { RequestingTree } from "./requesting-tree";
-import type { FilePath } from "@/utils/paths";
-import useEvent from "react-use-event-hook";
+import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
-import { openFile, sendFileDetails } from "@/core/network/requests";
 import { downloadBlob } from "@/utils/download";
+import { openNotebook } from "@/utils/links";
+import type { FilePath } from "@/utils/paths";
+import { fileSplit } from "@/utils/pathUtils";
+import { FileViewer } from "./file-viewer";
+import type { RequestingTree } from "./requesting-tree";
+import { openStateAtom, treeAtom } from "./state";
+import {
+  FILE_TYPE_ICONS,
+  type FileType,
+  guessFileType,
+  PYTHON_CODE_FOR_FILE_TYPE,
+} from "./types";
+import { useFileExplorerUpload } from "./upload";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
@@ -82,7 +85,7 @@ export const FileExplorer: React.FC<{
   // when this component is unmounted
   const [openState, setOpenState] = useAtom(openStateAtom);
 
-  const { loading, error } = useAsyncData(() => tree.initialize(setData), []);
+  const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
 
   const handleRefresh = useEvent(() => {
     tree.refreshAll(Object.keys(openState).filter((id) => openState[id]));
@@ -111,7 +114,7 @@ export const FileExplorer: React.FC<{
     setOpenState({});
   });
 
-  if (loading) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 
@@ -158,7 +161,7 @@ export const FileExplorer: React.FC<{
         onCollapseAll={handleCollapseAll}
         tree={tree}
       />
-      <RequestingTreeContext.Provider value={tree}>
+      <RequestingTreeContext value={tree}>
         <Tree<FileInfo>
           width="100%"
           ref={treeRef}
@@ -207,7 +210,7 @@ export const FileExplorer: React.FC<{
         >
           {Node}
         </Tree>
-      </RequestingTreeContext.Provider>
+      </RequestingTreeContext>
     </>
   );
 };
@@ -223,7 +226,6 @@ interface ToolbarProps {
 }
 
 const Toolbar = ({
-  tree,
   onRefresh,
   onCreateFile,
   onCreateFolder,
@@ -360,7 +362,18 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
 
   const Icon = FILE_TYPE_ICONS[fileType];
   const { openConfirm, openPrompt } = useImperativeModal();
-  const tree = useContext(RequestingTreeContext);
+  const { createNewCell } = useCellActions();
+  const lastFocusedCellId = useLastFocusedCellId();
+
+  const handleInsertCode = (code: string) => {
+    createNewCell({
+      code,
+      before: false,
+      cellId: lastFocusedCellId ?? "__end__",
+    });
+  };
+
+  const tree = use(RequestingTreeContext);
 
   const handleOpenMarimoFile = async (
     evt: Pick<Event, "stopPropagation" | "preventDefault">,
@@ -411,6 +424,40 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     });
   });
 
+  const handleDuplicate = useEvent(async () => {
+    if (!tree || node.data.isDirectory) {
+      return;
+    }
+
+    const [name, extension] = fileSplit(node.data.name);
+    const duplicateName = `${name}_copy${extension}`;
+
+    try {
+      // First get the file contents
+      const details = await sendFileDetails({ path: node.data.path });
+
+      // Get the parent directory path
+      const parentPath = node.parent?.data.path || "";
+
+      // Create the duplicate file by creating a new file with the same contents
+      await sendCreateFileOrFolder({
+        path: parentPath,
+        type: "file",
+        name: duplicateName,
+        contents: details.contents ? btoa(details.contents) : undefined,
+      });
+
+      // Refresh the parent folder to show the new file
+      await tree.refreshAll([parentPath]);
+    } catch {
+      toast({
+        title: "Failed to duplicate file",
+        description: "Unable to create a duplicate of the file",
+        variant: "danger",
+      });
+    }
+  });
+
   const renderActions = () => {
     const iconProps = {
       size: 14,
@@ -457,13 +504,19 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           <Edit3Icon {...iconProps} />
           Rename
         </DropdownMenuItem>
+        {!node.data.isDirectory && (
+          <DropdownMenuItem onSelect={handleDuplicate}>
+            <CopyIcon {...iconProps} />
+            Duplicate
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onSelect={async () => {
             await copyToClipboard(node.data.path);
             toast({ title: "Copied to clipboard" });
           }}
         >
-          <CopyIcon {...iconProps} />
+          <ListTreeIcon {...iconProps} />
           Copy path
         </DropdownMenuItem>
         {tree && (
@@ -475,10 +528,22 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               toast({ title: "Copied to clipboard" });
             }}
           >
-            <CopyIcon {...iconProps} />
+            <ListTreeIcon {...iconProps} />
             Copy relative path
           </DropdownMenuItem>
         )}
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem
+          onSelect={() => {
+            const { path } = node.data;
+            const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
+            handleInsertCode(pythonCode);
+          }}
+        >
+          <BetweenHorizontalStartIcon {...iconProps} />
+          Insert snippet for reading file
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={async () => {
             toast({
@@ -611,5 +676,5 @@ function openMarimoNotebook(
 ) {
   event.stopPropagation();
   event.preventDefault();
-  window.open(`/?file=${path}`, "_blank");
+  openNotebook(path);
 }

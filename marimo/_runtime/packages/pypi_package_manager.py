@@ -19,7 +19,10 @@ from marimo._runtime.packages.package_manager import (
     PackageDescription,
 )
 from marimo._runtime.packages.utils import split_packages
+from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.platform import is_pyodide
+from marimo._utils.uv import find_uv_bin
+from marimo._utils.uv_tree import parse_uv_tree
 
 PY_EXE = sys.executable
 
@@ -52,11 +55,13 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
-    async def _install(self, package: str) -> bool:
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
         LOGGER.info(f"Installing {package} with pip")
-        return self.run(
-            ["pip", "--python", PY_EXE, "install", *split_packages(package)]
-        )
+        cmd = ["pip", "--python", PY_EXE, "install"]
+        if upgrade:
+            cmd.append("--upgrade")
+        cmd.extend(split_packages(package))
+        return self.run(cmd)
 
     async def uninstall(self, package: str) -> bool:
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -86,9 +91,17 @@ class MicropipPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return is_pyodide()
 
-    async def _install(self, package: str) -> bool:
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
+
+        # If we're upgrading, we need to uninstall the package first
+        # to avoid conflicts
+        if upgrade:
+            try:
+                await micropip.uninstall(split_packages(package))
+            except ValueError:
+                pass
 
         try:
             await micropip.install(split_packages(package))
@@ -125,14 +138,24 @@ class UvPackageManager(PypiPackageManager):
     name = "uv"
     docs_url = "https://docs.astral.sh/uv/"
 
-    async def _install(self, package: str) -> bool:
+    @cached_property
+    def _uv_bin(self) -> str:
+        return find_uv_bin()
+
+    def is_manager_installed(self) -> bool:
+        return self._uv_bin != "uv" or super().is_manager_installed()
+
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
         install_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Installing in {package} with 'uv add'")
-            install_cmd = ["uv", "add"]
+            install_cmd = [self._uv_bin, "add"]
         else:
             LOGGER.info(f"Installing in {package} with 'uv pip install'")
-            install_cmd = ["uv", "pip", "install"]
+            install_cmd = [self._uv_bin, "pip", "install"]
+
+        if upgrade:
+            install_cmd.append("--upgrade")
 
         return self.run(
             # trade installation time for faster start time
@@ -147,6 +170,7 @@ class UvPackageManager(PypiPackageManager):
         packages_to_remove: Optional[list[str]] = None,
         import_namespaces_to_add: Optional[list[str]] = None,
         import_namespaces_to_remove: Optional[list[str]] = None,
+        upgrade: bool,
     ) -> None:
         """Update the notebook's script metadata with the packages to add/remove.
 
@@ -156,6 +180,7 @@ class UvPackageManager(PypiPackageManager):
             packages_to_remove: List of packages to remove from the script metadata
             import_namespaces_to_add: List of import namespaces to add
             import_namespaces_to_remove: List of import namespaces to remove
+            upgrade: Whether to upgrade the packages
         """
         packages_to_add = packages_to_add or []
         packages_to_remove = packages_to_remove or []
@@ -200,10 +225,10 @@ class UvPackageManager(PypiPackageManager):
         if filepath.endswith(".md") or filepath.endswith(".qmd"):
             # md and qmd require writing to a faux python file first.
             return self._process_md_changes(
-                filepath, packages_to_add, packages_to_remove
+                filepath, packages_to_add, packages_to_remove, upgrade=upgrade
             )
         return self._process_changes_for_script_metadata(
-            filepath, packages_to_add, packages_to_remove
+            filepath, packages_to_add, packages_to_remove, upgrade=upgrade
         )
 
     def _process_md_changes(
@@ -211,8 +236,9 @@ class UvPackageManager(PypiPackageManager):
         filepath: str,
         packages_to_add: list[str],
         packages_to_remove: list[str],
+        upgrade: bool,
     ) -> None:
-        from marimo._cli.convert.markdown import extract_frontmatter
+        from marimo._convert.markdown.markdown import extract_frontmatter
         from marimo._utils import yaml
         from marimo._utils.inline_script_metadata import (
             get_headers_from_frontmatter,
@@ -241,6 +267,7 @@ class UvPackageManager(PypiPackageManager):
             temp_file.name,
             packages_to_add,
             packages_to_remove,
+            upgrade=upgrade,
         )
         with open(temp_file.name, encoding="utf-8") as f:
             header = f.read()
@@ -271,15 +298,17 @@ class UvPackageManager(PypiPackageManager):
         filepath: str,
         packages_to_add: list[str],
         packages_to_remove: list[str],
+        upgrade: bool,
     ) -> None:
         if packages_to_add:
-            self.run(
-                ["uv", "--quiet", "add", "--script", filepath]
-                + packages_to_add
-            )
+            cmd = [self._uv_bin, "--quiet", "add", "--script", filepath]
+            if upgrade:
+                cmd.append("--upgrade")
+            cmd.extend(packages_to_add)
+            self.run(cmd)
         if packages_to_remove:
             self.run(
-                ["uv", "--quiet", "remove", "--script", filepath]
+                [self._uv_bin, "--quiet", "remove", "--script", filepath]
                 + packages_to_remove
             )
 
@@ -302,6 +331,9 @@ class UvPackageManager(PypiPackageManager):
         - The "uv.lock" file exists where the "VIRTUAL_ENV" is
         - The "pyproject.toml" file exists where the "VIRTUAL_ENV" is
 
+        OR
+        - The "UV_PROJECT_ENVIRONMENT" is equal to "VIRTUAL_ENV"
+
         If at least one of these conditions are not met,
         we are in a temporary virtual environment (e.g. `uvx marimo edit` or `uv --with=marimo run marimo edit`)
         or in the currently activated virtual environment (e.g. `uv venv`).
@@ -310,6 +342,12 @@ class UvPackageManager(PypiPackageManager):
         venv_path = os.environ.get("VIRTUAL_ENV", None)
         if not venv_path:
             return False
+
+        # Check that the "UV_PROJECT_ENVIRONMENT" is equal to "VIRTUAL_ENV"
+        uv_project_environment = os.environ.get("UV_PROJECT_ENVIRONMENT", None)
+        if uv_project_environment == venv_path:
+            return True
+
         # Check that the `UV` environment variable is set
         # This tells us that marimo was run by uv
         uv_env_exists = os.environ.get("UV", None)
@@ -324,10 +362,10 @@ class UvPackageManager(PypiPackageManager):
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
-            uninstall_cmd = ["uv", "remove"]
+            uninstall_cmd = [self._uv_bin, "remove"]
         else:
             LOGGER.info(f"Uninstalling {package} with 'uv pip uninstall'")
-            uninstall_cmd = ["uv", "pip", "uninstall"]
+            uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
 
         return self.run(
             uninstall_cmd + [*split_packages(package), "-p", PY_EXE]
@@ -335,15 +373,52 @@ class UvPackageManager(PypiPackageManager):
 
     def list_packages(self) -> list[PackageDescription]:
         LOGGER.info("Listing packages with 'uv pip list'")
-        cmd = ["uv", "pip", "list", "--format=json", "-p", PY_EXE]
+        cmd = [self._uv_bin, "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
+
+    def dependency_tree(
+        self, filename: Optional[str] = None
+    ) -> Optional[DependencyTreeNode]:
+        """Return the project’s dependency tree using the `uv tree` command."""
+
+        # Skip if not a script and not inside a uv-managed project
+        if filename is None and not self.is_in_uv_project:
+            return None
+
+        tree_cmd = [self._uv_bin, "tree", "--no-dedupe"]
+        if filename:
+            tree_cmd += ["--script", filename]
+
+        try:
+            result = subprocess.run(
+                tree_cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            tree = parse_uv_tree(result.stdout)
+
+            # If in a uv project and the only top-level item is the project itself,
+            # return its dependencies directly
+            if filename is None and len(tree.dependencies) == 1:
+                return tree.dependencies[0]
+
+            return tree
+
+        except subprocess.CalledProcessError:
+            LOGGER.error(f"Failed to get dependency tree for {filename}")
+            return None
 
 
 class RyePackageManager(PypiPackageManager):
     name = "rye"
     docs_url = "https://rye.astral.sh/"
 
-    async def _install(self, package: str) -> bool:
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
+        if upgrade:
+            return self.run(
+                ["rye", "sync", "--update", *split_packages(package)]
+            )
         return self.run(["rye", "add", *split_packages(package)])
 
     async def uninstall(self, package: str) -> bool:
@@ -358,7 +433,17 @@ class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
     docs_url = "https://python-poetry.org/docs/"
 
-    async def _install(self, package: str) -> bool:
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
+        if upgrade:
+            return self.run(
+                [
+                    "poetry",
+                    "update",
+                    "--no-interaction",
+                    *split_packages(package),
+                ]
+            )
+
         return self.run(
             ["poetry", "add", "--no-interaction", *split_packages(package)]
         )

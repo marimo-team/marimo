@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { OutputMessage } from "../kernel/messages";
+
+import type { Milliseconds, Seconds } from "@/utils/time";
 import type { SerializedEditorState } from "../codemirror/types";
-import type { Outline } from "./outline";
+import type { OutputMessage } from "../kernel/messages";
+import type { CellConfig, RuntimeState } from "../network/types";
 import type { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
-import type { Milliseconds, Seconds } from "@/utils/time";
-import type { CellConfig, RuntimeState } from "../network/types";
+import type { Outline } from "./outline";
 
 /**
  * Create a new cell with default state.

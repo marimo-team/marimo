@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { getCopyValue } from "../JsonOutput";
+import { describe, expect, it } from "vitest";
+import { determineMaxDisplayLength, getCopyValue } from "../JsonOutput";
 
 describe("getCopyValue", () => {
   it("should handle strings without MIME prefixes", () => {
@@ -217,5 +217,53 @@ describe("getCopyValue", () => {
       }"
     `,
     );
+  });
+});
+
+describe("determineMaxDisplayLength", () => {
+  const sample2DArray = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+    [10, 11, 12],
+    [13, 14, 15],
+    [16, 17, 18],
+    [19, 20, 21],
+    [22, 23, 24],
+    [25, 26, 27],
+    [28, 29, 30],
+  ];
+
+  it("should return undefined for 1 level arrays", () => {
+    const value = [1, 2, 3];
+    const result = determineMaxDisplayLength(value);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined for 2 level arrays with less than 20 items", () => {
+    const value = sample2DArray;
+    const result = determineMaxDisplayLength(value);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return 10 for 2 level arrays with more than 20 items", () => {
+    const longArray = Array.from({ length: 21 }, (_, i) => i);
+    const value = [...sample2DArray, longArray];
+    const result = determineMaxDisplayLength(value);
+    expect(result).toBe(10);
+  });
+
+  it("should return 5 for 2 level arrays with more than 50 items", () => {
+    const longArray = Array.from({ length: 51 }, (_, i) => i);
+    const value = [...sample2DArray, longArray];
+    const result = determineMaxDisplayLength(value);
+    expect(result).toBe(5);
+  });
+
+  it("should return 5 for 3 level arrays with more than 20 items", () => {
+    const longArray = Array.from({ length: 21 }, (_, i) => i);
+    const value = [[...sample2DArray], [...sample2DArray, longArray]];
+    const result = determineMaxDisplayLength(value);
+    expect(result).toBe(5);
   });
 });

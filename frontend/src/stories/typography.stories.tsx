@@ -4,11 +4,11 @@ import {
   H2,
   H3,
   H4,
-  P,
-  Lead,
   LargeText,
-  SmallText,
+  Lead,
   MutatedText,
+  P,
+  SmallText,
 } from "@/components/ui/typography";
 
 export default {

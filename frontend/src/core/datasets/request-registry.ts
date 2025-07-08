@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { SQLTablePreview, SQLTableListPreview } from "../kernel/messages";
+import type { SQLTableListPreview, SQLTablePreview } from "../kernel/messages";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { previewSQLTable, previewSQLTableList } from "../network/requests";
 import type {
-  PreviewSQLTableRequest,
   PreviewSQLTableListRequest,
+  PreviewSQLTableRequest,
 } from "../network/types";
 
 // We make a request to the backend to preview the table, passing in Engine, DB, Schema, and Table

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import pytest
 
@@ -979,6 +980,7 @@ def test_show_column_summaries_modes():
     assert summaries_default.is_disabled is False
     assert summaries_default.data is not None
     assert len(summaries_default.stats) > 0
+    assert table_default._component_args["show-column-summaries"] is True
 
 
 def test_table_with_frozen_columns() -> None:
@@ -1046,7 +1048,6 @@ def test_show_column_summaries_default():
     # explicitly set to True
     table_true = ui.table(large_data, show_column_summaries=True)
     assert table_true._show_column_summaries is True
-    assert table_true._component_args["show-column-summaries"] is True
 
 
 def test_data_with_rich_components():
@@ -1520,6 +1521,62 @@ def test_cell_style_of_next_page():
     assert "green" in cell_styles["2"]["a"]["backgroundColor"]
 
 
+def test_cell_style_last_page():
+    def always_green(_row, _col, _value):
+        return {"backgroundColor": "green"}
+
+    data = [{"a": 1}, {"a": 2}, {"a": 3}]
+    table = ui.table(data, page_size=2, style_cell=always_green)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_styles = last_page.cell_styles
+    assert len(cell_styles) == 1
+    assert "2" in cell_styles
+    assert "a" in cell_styles["2"]
+    assert "backgroundColor" in cell_styles["2"]["a"]
+    assert "green" in cell_styles["2"]["a"]["backgroundColor"]
+
+
+def test_cell_style_edge_cases():
+    """Test cell styling with various edge cases around page sizes and row IDs."""
+
+    def style_cell(row: str, _col: str, _value: Any) -> dict[str, Any]:
+        return {"backgroundColor": "red" if int(row) % 2 == 0 else "blue"}
+
+    # Test with empty data
+    table = ui.table([], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {}
+
+    # Test with single row
+    table = ui.table([{"a": 1}], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {"0": {"a": {"backgroundColor": "red"}}}
+
+    # Test with page size larger than total rows
+    table = ui.table([{"a": 1}, {"a": 2}], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {
+        "0": {"a": {"backgroundColor": "red"}},
+        "1": {"a": {"backgroundColor": "blue"}},
+    }
+
+    # Test with skip beyond total rows
+    response = table._search(SearchTableArgs(page_size=10, page_number=1))
+    assert response.cell_styles == {}
+
+    # Test with "too_many" total rows
+    table = ui.table(
+        [{"a": 1}, {"a": 2}],
+        style_cell=style_cell,
+        _internal_total_rows="too_many",
+    )
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {
+        "0": {"a": {"backgroundColor": "red"}},
+        "1": {"a": {"backgroundColor": "blue"}},
+    }
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
@@ -1656,6 +1713,9 @@ def test_lazy_dataframe() -> None:
         assert table._component_args["total-columns"] == 0
         assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
         assert table._component_args["field-types"] is None
+        assert table._component_args["show-page-size-selector"] is False
+        assert table._component_args["show-column-explorer"] is False
+        assert table._component_args["show-chart-builder"] is False
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
@@ -1896,3 +1956,31 @@ def test_max_columns_not_provided_with_filters():
     response = table._search(search_args)
     result_data = json.loads(response.data)
     assert len(result_data[0].keys()) == 101  # +1 for marimo_row_id
+
+
+def test_show_page_size_selector_property():
+    """Test the show_page_size_selector property behavior."""
+    data = {"a": list(range(20))}  # 20 rows to ensure pagination
+
+    # Test default behavior
+    table_default = ui.table(data)
+    assert table_default._component_args["show-page-size-selector"] is True
+
+    # Test with small dataset (should disable automatically)
+    small_data = {"a": [1, 2, 3, 4]}  # Less than 5 rows
+    table_small = ui.table(small_data)
+    assert table_small._component_args["show-page-size-selector"] is False
+
+
+def test_show_toggles_app_mode():
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+
+    with patch("marimo._plugins.ui._impl.table.get_mode", return_value="edit"):
+        table_default = ui.table(data)
+        assert table_default._component_args["show-column-explorer"] is True
+        assert table_default._component_args["show-chart-builder"] is True
+
+    with patch("marimo._plugins.ui._impl.table.get_mode", return_value="run"):
+        table_default = ui.table(data)
+        assert table_default._component_args["show-column-explorer"] is False
+        assert table_default._component_args["show-chart-builder"] is False

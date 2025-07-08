@@ -8,6 +8,11 @@ marimo is an AI-native editor, with support for full-cell AI code generation:
 
 as well as inline copilots (like GitHub Copilot).
 
+marimo's AI assistant is specialized for working with data: unlike traditional
+assistants that only have access to the text of your program, marimo's assistant
+has access to the values of variables in memory, letting it code against
+your dataframe and database schemas.
+
 This guide provides an overview of these features and how to configure them.
 
 !!! tip "Locating your marimo.toml config file"
@@ -16,6 +21,10 @@ This guide provides an overview of these features and how to configure them.
     file. Locate this file with `marimo config show | head`.
 
 ## Generating cells with AI
+
+<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
+</video>
 
 marimo has built-in support for generating and refactoring code with LLMs.
 marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google,
@@ -180,9 +189,9 @@ To use AWS Bedrock with marimo:
 2. [Enable model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) for the specific models you want to use in the AWS Bedrock console.
 3. Install the boto3 Python client: `pip install boto3`
 4. Configure AWS credentials using one of these methods:
-   - AWS CLI: Run `aws configure` to set up credentials
-   - Environment variables: Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-   - AWS credentials file at `~/.aws/credentials`
+   * AWS CLI: Run `aws configure` to set up credentials
+   * Environment variables: Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+   * AWS credentials file at `~/.aws/credentials`
 5. Add the following to your `marimo.toml`:
 
 ```toml title="marimo.toml"
@@ -198,7 +207,7 @@ model = "bedrock/anthropic.claude-3-sonnet-20240229"
 [ai.bedrock]
 region_name = "us-east-1" # AWS region where Bedrock is available
 # Optional AWS profile name (from ~/.aws/credentials)
-profile_name = "my-profile" 
+profile_name = "my-profile"
 ```
 
 If you're using an AWS named profile different from your default, specify the profile_name. For explicit credentials (not recommended), you can use environment variables instead.
@@ -208,12 +217,12 @@ If you're using an AWS named profile different from your default, specify the pr
 To use Google AI with marimo:
 
 1. Sign up for an account at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
-2. Install the Google AI Python client: `pip install google-generativeai`
+2. Install the Google AI Python client: `pip install google-genai`
 3. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
-model = "gemini-1.5-flash"
+model = "gemini-2.5-flash-preview-05-20"
 # or any model from https://ai.google.dev/gemini-api/docs/models/gemini
 
 [ai.google]
@@ -230,7 +239,7 @@ You can use your GitHub Copilot for code refactoring or the chat panel. This req
 
 ```toml title="marimo.toml"
 [ai.open_ai]
-model = "gpt-4o"
+model = "gpt-4o-mini"
 api_key = "gho_..."
 base_url = "https://api.githubcopilot.com/"
 ```
@@ -264,13 +273,15 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 !!! note "Port already in use"
     If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
 
-5. Open a new terminal and start marimo:
+5. Open a new terminal and install the openai client (e.g. `pip install openai`, `uv add openai`)
+
+6. Start marimo:
 
    ```bash
    marimo edit notebook.py
    ```
 
-6. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
+7. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { prettyDate, exactDateTime, timeAgo, getShortTimeZone } from "../dates";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { exactDateTime, getShortTimeZone, prettyDate, timeAgo } from "../dates";
 
 describe("dates", () => {
   // Save original timezone

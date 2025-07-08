@@ -13,6 +13,7 @@ from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.models import SaveNotebookRequest
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -228,6 +229,38 @@ def test_save_cannot_rename(app_file_manager: AppFileManager) -> None:
     with pytest.raises(HTTPException) as e:
         app_file_manager.save(save_request)
     assert e.value.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_save_with_header(
+    app_file_manager: AppFileManager, tmp_path: Path
+) -> None:
+    file = tmp_path / "test_save_with_header.py"
+    file.write_text("""
+# This is a header
+
+import marimo
+app = marimo.App()
+
+@app.cell
+def _():
+    print(1)
+    return
+""")
+    app_file_manager.filename = str(file)
+    assert app_file_manager.path is not None
+    app_file_manager.save(
+        SaveNotebookRequest(
+            cell_ids=[CellId_t("1")],
+            filename=str(file),
+            codes=["print(2)"],
+            names=["_"],
+            configs=[CellConfig(hide_code=True)],
+        )
+    )
+    new_contents = file.read_text()
+    assert "# This is a header" in new_contents
+    assert "print(2)" in new_contents
+    assert "print(1)" not in new_contents
 
 
 def test_read_valid_filename(app_file_manager: AppFileManager) -> None:
@@ -630,3 +663,25 @@ app = marimo.App(sql_output="lazy-polars", width="columns")
     )
     assert manager.app.config.width == "columns"
     assert manager.app.config.sql_output == "lazy-polars"
+
+
+def test_overload_app_settings() -> None:
+    """Test that private env can overload app settings."""
+    # Test with defaults
+    manager = AppFileManager(
+        filename=None,
+    )
+    assert manager.app.config.auto_download == []
+    assert manager.app.config.sql_output == "auto"
+
+    # Test with env set
+    try:
+        os.environ["_MARIMO_APP_OVERLOAD_SQL_OUTPUT"] = "polars"
+        os.environ["_MARIMO_APP_OVERLOAD_AUTO_DOWNLOAD"] = "[html,ipynb]"
+        manager = AppFileManager(filename=None)
+
+        assert manager.app.config.auto_download == ["html", "ipynb"]
+        assert manager.app.config.sql_output == "polars"
+    finally:
+        os.environ.pop("_MARIMO_APP_OVERLOAD_SQL_OUTPUT", None)
+        os.environ.pop("_MARIMO_APP_OVERLOAD_AUTO_DOWNLOAD", None)

@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { memo, useRef } from "react";
-import { SortableColumn } from "./sortable-column";
-import type { CellColumnId } from "@/utils/id-tree";
 import type { AppConfig } from "@/core/config/config-schema";
-import { storageFn } from "./storage";
 import { useResizeHandle } from "@/hooks/useResizeHandle";
+import type { CellColumnId } from "@/utils/id-tree";
+import { SortableColumn } from "./sortable-column";
+import { storageFn } from "./storage";
 
 interface Props {
   className?: string;
@@ -80,7 +80,7 @@ const ResizableComponent = ({
     onResize,
   });
 
-  const renderResizeHandler = (ref: React.RefObject<HTMLDivElement>) => {
+  const renderResizeHandler = (ref: React.RefObject<HTMLDivElement | null>) => {
     return (
       <div
         ref={ref}

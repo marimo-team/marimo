@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { MultiColumn } from "@/utils/id-tree";
+
 import { debounce, isEqual } from "lodash-es";
+import type { MultiColumn } from "@/utils/id-tree";
 import { kioskModeAtom } from "../mode";
 import { syncCellIds } from "../network/requests";
 import type { UpdateCellIdsRequest } from "../network/types";

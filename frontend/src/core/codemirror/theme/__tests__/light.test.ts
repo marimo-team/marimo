@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { tags as t, type Tag } from "@lezer/highlight";
+
+import { type Tag, tags as t } from "@lezer/highlight";
+import { describe, expect, it } from "vitest";
 import { lightTheme } from "../light";
 
 // Helper function to get theme configuration from the source

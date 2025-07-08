@@ -345,6 +345,21 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Watch the file for changes and reload the code when saved in another editor.",
 )
+@click.option(
+    "--skew-protection/--no-skew-protection",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Enable skew protection middleware to prevent version mismatch issues.",
+)
+@click.option(
+    "--remote-url",
+    default=None,
+    type=str,
+    hidden=True,
+    help="Remote URL for runtime configuration.",
+)
 @click.argument(
     "name",
     required=False,
@@ -364,6 +379,8 @@ def edit(
     sandbox: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
+    skew_protection: bool,
+    remote_url: Optional[str],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -447,6 +464,7 @@ def edit(
         mode=SessionMode.EDIT,
         include_code=True,
         watch=watch,
+        skew_protection=skew_protection,
         cli_args=parse_args(args),
         argv=list(args),
         auth_token=_resolve_token(token, token_password),
@@ -454,6 +472,7 @@ def edit(
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
         ttl_seconds=None,
+        remote_url=remote_url,
     )
 
 
@@ -544,6 +563,14 @@ new_help_msg = "\n".join(
     type=bool,
     help=sandbox_message,
 )
+@click.option(
+    "--skew-protection/--no-skew-protection",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Enable skew protection middleware to prevent version mismatch issues.",
+)
 @click.argument("prompt", required=False)
 def new(
     port: Optional[int],
@@ -554,6 +581,7 @@ def new(
     token_password: Optional[str],
     base_url: str,
     sandbox: Optional[bool],
+    skew_protection: bool,
     prompt: Optional[str],
 ) -> None:
     if sandbox:
@@ -625,6 +653,7 @@ def new(
         mode=SessionMode.EDIT,
         include_code=True,
         watch=False,
+        skew_protection=skew_protection,
         cli_args={},
         argv=[],
         auth_token=_resolve_token(token, token_password),
@@ -715,6 +744,14 @@ Example:
     ),
 )
 @click.option(
+    "--skew-protection/--no-skew-protection",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Enable skew protection middleware to prevent version mismatch issues.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -760,6 +797,7 @@ def run(
     include_code: bool,
     session_ttl: int,
     watch: bool,
+    skew_protection: bool,
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
@@ -813,6 +851,7 @@ def run(
         include_code=include_code,
         ttl_seconds=session_ttl,
         watch=watch,
+        skew_protection=skew_protection,
         base_url=base_url,
         allow_origins=allow_origins,
         cli_args=parse_args(args),
@@ -826,9 +865,11 @@ def run(
 @click.argument(
     "name",
     required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, path_type=Path
+    ),
 )
-def recover(name: str) -> None:
+def recover(name: Path) -> None:
     click.echo(codegen.recover(name))
 
 
@@ -891,6 +932,14 @@ Recommended sequence:
     type=str,
     help=token_password_message,
 )
+@click.option(
+    "--skew-protection/--no-skew-protection",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Enable skew protection middleware to prevent version mismatch issues.",
+)
 @click.argument(
     "name",
     required=True,
@@ -903,6 +952,7 @@ def tutorial(
     headless: bool,
     token: bool,
     token_password: Optional[str],
+    skew_protection: bool,
     name: Tutorial,
 ) -> None:
     temp_dir = tempfile.TemporaryDirectory()
@@ -919,6 +969,7 @@ def tutorial(
         include_code=True,
         headless=headless,
         watch=False,
+        skew_protection=skew_protection,
         cli_args={},
         argv=[],
         auth_token=_resolve_token(token, token_password),

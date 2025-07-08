@@ -1,21 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { FC } from "react";
-import SQLiteIcon from "./icons/sqlite.svg";
-import DuckDBIcon from "./icons/duckdb.svg";
-import MotherDuckIcon from "./icons/motherduck.svg";
-import PostgresQLIcon from "./icons/postgresql.svg";
-import MySQLIcon from "./icons/mysql.svg";
-import SnowflakeIcon from "./icons/snowflake.svg";
-import DatabricksIcon from "./icons/databricks.svg";
-import ClickhouseIcon from "./icons/clickhouse.svg";
-import TimeplusIcon from "./icons/timeplus.svg";
-import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
-import TrinoIcon from "./icons/trino.svg";
-import IcebergIcon from "./icons/iceberg.png";
-import DataFusionIcon from "./icons/datafusion.png";
-import PySparkIcon from "./icons/spark.svg";
-import { cn } from "@/utils/cn";
+
 import { DatabaseIcon } from "lucide-react";
+import type { FC } from "react";
+import { cn } from "@/utils/cn";
+import ClickhouseIcon from "./icons/clickhouse.svg";
+import DatabricksIcon from "./icons/databricks.svg";
+import DataFusionIcon from "./icons/datafusion.png";
+import DuckDBIcon from "./icons/duckdb.svg";
+import GoogleBigQueryIcon from "./icons/googlebigquery.svg";
+import IcebergIcon from "./icons/iceberg.png";
+import MotherDuckIcon from "./icons/motherduck.svg";
+import MySQLIcon from "./icons/mysql.svg";
+import PostgresQLIcon from "./icons/postgresql.svg";
+import RedshiftIcon from "./icons/redshift.svg";
+import SnowflakeIcon from "./icons/snowflake.svg";
+import PySparkIcon from "./icons/spark.svg";
+import SQLiteIcon from "./icons/sqlite.svg";
+import TimeplusIcon from "./icons/timeplus.svg";
+import TrinoIcon from "./icons/trino.svg";
 
 export type DBLogoName =
   | "sqlite"
@@ -32,7 +34,8 @@ export type DBLogoName =
   | "trino"
   | "iceberg"
   | "datafusion"
-  | "pyspark";
+  | "pyspark"
+  | "redshift";
 
 /**
  * Icons are from https://simpleicons.org/
@@ -59,6 +62,7 @@ const URLS: Record<DBLogoName, string | undefined> = {
   iceberg: IcebergIcon,
   datafusion: DataFusionIcon,
   pyspark: PySparkIcon,
+  redshift: RedshiftIcon,
 };
 
 export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {

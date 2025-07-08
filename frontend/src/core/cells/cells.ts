@@ -1,33 +1,47 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { historyField } from "@codemirror/commands";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
-import { type ReducerWithoutAction, createRef } from "react";
-import type { CellMessage } from "../kernel/messages";
+import { selectAtom, splitAtom } from "jotai/utils";
+import { isEqual, zip } from "lodash-es";
+import { createRef, type ReducerWithoutAction } from "react";
+import type { CellHandle } from "@/components/editor/Cell";
 import {
-  type CellRuntimeState,
+  type CellColumnId,
+  type CellIndex,
+  MultiColumn,
+} from "@/utils/id-tree";
+import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
+import { clamp } from "@/utils/math";
+import { Objects } from "@/utils/objects";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
+import { createReducerAndAtoms } from "../../utils/createReducer";
+import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
+import {
+  splitEditor,
+  updateEditorCodeFromPython,
+} from "../codemirror/language/utils";
+import { findCollapseRange, mergeOutlines } from "../dom/outline";
+import type { CellMessage } from "../kernel/messages";
+import { isErrorMime } from "../mime";
+import type { CellConfig } from "../network/types";
+import { isRtcEnabled } from "../rtc/state";
+import { createDeepEqualAtom, store } from "../state/jotai";
+import { prepareCellForExecution, transitionCell } from "./cell";
+import { CellId } from "./ids";
+import { type CellLog, getCellLogsForMessage } from "./logs";
+import {
+  focusAndScrollCellIntoView,
+  scrollToBottom,
+  scrollToTop,
+} from "./scrollCellIntoView";
+import {
   type CellData,
+  type CellRuntimeState,
   createCell,
   createCellRuntimeState,
 } from "./types";
-import {
-  scrollToBottom,
-  scrollToTop,
-  focusAndScrollCellIntoView,
-} from "./scrollCellIntoView";
-import { CellId } from "./ids";
-import { prepareCellForExecution, transitionCell } from "./cell";
-import { createDeepEqualAtom, store } from "../state/jotai";
-import { createReducerAndAtoms } from "../../utils/createReducer";
-import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
-import { findCollapseRange, mergeOutlines, parseOutline } from "../dom/outline";
-import type { CellHandle } from "@/components/editor/Cell";
-import { Logger } from "@/utils/Logger";
-import { Objects } from "@/utils/objects";
-import { splitAtom, selectAtom } from "jotai/utils";
-import { isStaticNotebook, parseStaticState } from "../static/static-state";
-import { type CellLog, getCellLogsForMessage } from "./logs";
-import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
-import { historyField } from "@codemirror/commands";
-import { clamp } from "@/utils/math";
 import {
   canUndoDeletes,
   disabledCellIds,
@@ -36,21 +50,6 @@ import {
   notebookNeedsRun,
   notebookQueueOrRunningCount,
 } from "./utils";
-import {
-  splitEditor,
-  updateEditorCodeFromPython,
-} from "../codemirror/language/utils";
-import { invariant } from "@/utils/invariant";
-import type { CellConfig } from "../network/types";
-import {
-  type CellColumnId,
-  type CellIndex,
-  MultiColumn,
-} from "@/utils/id-tree";
-import { isEqual, zip } from "lodash-es";
-import { isErrorMime } from "../mime";
-import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
-import { isRtcEnabled } from "../rtc/state";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
@@ -78,7 +77,7 @@ export interface NotebookState {
   /**
    * Cell handlers
    */
-  cellHandles: Record<CellId, React.RefObject<CellHandle>>;
+  cellHandles: Record<CellId, React.RefObject<CellHandle | null>>;
   /**
    * Array of deleted cells (with their data and index) so that cell deletion can be undone
    *
@@ -127,57 +126,6 @@ function withScratchCell(notebookState: NotebookState): NotebookState {
  * Initial state of the notebook.
  */
 function initialNotebookState(): NotebookState {
-  if (isStaticNotebook()) {
-    const {
-      cellCodes,
-      cellConfigs,
-      cellConsoleOutputs,
-      cellIds,
-      cellNames,
-      cellOutputs,
-    } = parseStaticState();
-    const cellData: Record<CellId, CellData> = {};
-    const cellRuntime: Record<CellId, CellRuntimeState> = {};
-    for (const [i, cellId] of cellIds.entries()) {
-      const name = cellNames[i];
-      const code = cellCodes[i];
-      const config = cellConfigs[i];
-      const outputs = cellConsoleOutputs[cellId] || [];
-      const output = cellOutputs[cellId];
-      cellData[cellId] = {
-        id: cellId,
-        name: deserializeBase64(name),
-        code: deserializeBase64(code),
-        edited: false,
-        lastCodeRun: null,
-        lastExecutionTime: null,
-        config: deserializeJson(deserializeBase64(config)),
-        serializedEditorState: null,
-      };
-      const outputMessage = output
-        ? deserializeJson(deserializeBase64(output))
-        : null;
-      cellRuntime[cellId] = {
-        ...createCellRuntimeState(),
-        output: outputMessage,
-        outline: parseOutline(outputMessage),
-        consoleOutputs: outputs.map((output) =>
-          deserializeJson(deserializeBase64(output)),
-        ),
-      };
-    }
-
-    return {
-      cellIds: MultiColumn.from([cellIds]),
-      cellData: cellData,
-      cellRuntime: cellRuntime,
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
-    };
-  }
-
   return withScratchCell({
     cellIds: MultiColumn.from([]),
     cellData: {},
@@ -502,13 +450,13 @@ const {
     scrollToBottom();
     return state;
   },
-  sendToTop: (state, action: { cellId: CellId }) => {
+  sendToTop: (state, action: { cellId: CellId; scroll?: boolean }) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId } = action;
+    const { cellId, scroll = true } = action;
     const cellIndex = column.indexOfOrThrow(cellId);
     if (cellIndex === 0) {
       return state;
@@ -517,16 +465,16 @@ const {
     return {
       ...state,
       cellIds: state.cellIds.moveWithinColumn(column.id, cellIndex, 0),
-      scrollKey: cellId,
+      scrollKey: scroll ? cellId : null,
     };
   },
-  sendToBottom: (state, action: { cellId: CellId }) => {
+  sendToBottom: (state, action: { cellId: CellId; scroll?: boolean }) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId } = action;
+    const { cellId, scroll = true } = action;
     const cellIndex = column.indexOfOrThrow(cellId);
     const newIndex = column.length - 1;
 
@@ -537,7 +485,7 @@ const {
     return {
       ...state,
       cellIds: state.cellIds.moveWithinColumn(column.id, cellIndex, newIndex),
-      scrollKey: cellId,
+      scrollKey: scroll ? cellId : null,
     };
   },
   addColumn: (state, action: { columnId: CellColumnId }) => {
@@ -934,9 +882,12 @@ const {
     const column = state.cellIds.findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
-    // Create a new cell at the end; no need to update scrollKey,
-    // because cell will be created with autoScrollIntoView
-    if (nextCellIndex === column.length && !noCreate) {
+
+    const isPastLastCell = nextCellIndex === column.length;
+    const isBeforeFirstCell = nextCellIndex === -1;
+
+    // Create a new cell at the end and set scrollKey to focus it
+    if (isPastLastCell && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -953,12 +904,11 @@ const {
           ...state.cellHandles,
           [newCellId]: createRef(),
         },
+        scrollKey: newCellId,
       };
-      // Create a new cell at the beginning; again, no need to update
-      // scrollKey
     }
 
-    if (nextCellIndex === -1 && !noCreate) {
+    if (isBeforeFirstCell && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -975,11 +925,18 @@ const {
           ...state.cellHandles,
           [newCellId]: createRef(),
         },
+        scrollKey: newCellId,
       };
     }
 
-    if (nextCellIndex !== -1) {
-      // Don't wrap around from top to bottom
+    if ((isPastLastCell || isBeforeFirstCell) && noCreate) {
+      // Trying to move past the last cell or before the first cell
+      // with noCreate=true - do nothing
+      return state;
+    }
+
+    if (nextCellIndex >= 0 && nextCellIndex < column.length) {
+      // Move to valid cell within bounds
       const nextCellId = column.atOrThrow(nextCellIndex);
       // Just focus, no state change
       focusAndScrollCellIntoView({
@@ -990,6 +947,7 @@ const {
         variableName: undefined,
       });
     }
+
     return state;
   },
   scrollToTarget: (state) => {
@@ -1544,7 +1502,7 @@ export const columnIdsAtom = atom((get) =>
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
   return cellIds.inOrderIds
-    .map((cellId) => cellHandles[cellId].current?.editorView)
+    .map((cellId) => cellHandles[cellId]?.current?.editorView)
     .filter(Boolean);
 };
 

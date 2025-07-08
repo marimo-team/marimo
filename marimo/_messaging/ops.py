@@ -619,18 +619,23 @@ class SQLTableListPreview(Op):
 
 
 @dataclass
-class DataColumnPreview(Op):
-    """Preview of a column in a dataset."""
-
-    name: ClassVar[str] = "data-column-preview"
-    table_name: str
-    column_name: str
+class ColumnPreview:
     chart_spec: Optional[str] = None
-    chart_max_rows_errors: bool = False
     chart_code: Optional[str] = None
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None
     stats: Optional[ColumnStats] = None
+
+
+# We shouldn't need to make table_name and column_name have default values.
+# We can use kw_only=True once we drop support for Python 3.9.
+@dataclass()
+class DataColumnPreview(Op, ColumnPreview):
+    """Preview of a column in a dataset."""
+
+    name: ClassVar[str] = "data-column-preview"
+    table_name: str = ""
+    column_name: str = ""
 
 
 @dataclass

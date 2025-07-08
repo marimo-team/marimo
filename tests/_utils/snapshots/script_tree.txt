@@ -1,0 +1,34 @@
+polars v1.31.0
+pandas v2.3.0
+├── numpy v2.3.0
+├── python-dateutil v2.9.0.post0
+│   └── six v1.17.0
+├── pytz v2025.2
+└── tzdata v2025.2
+anywidget v0.9.18
+├── ipywidgets v8.1.7
+│   ├── comm v0.2.2
+│   │   └── traitlets v5.14.3
+│   ├── ipython v9.3.0
+│   │   ├── decorator v5.2.1
+│   │   ├── ipython-pygments-lexers v1.1.1
+│   │   │   └── pygments v2.19.1
+│   │   ├── jedi v0.19.2
+│   │   │   └── parso v0.8.4
+│   │   ├── matplotlib-inline v0.1.7
+│   │   │   └── traitlets v5.14.3
+│   │   ├── pexpect v4.9.0
+│   │   │   └── ptyprocess v0.7.0
+│   │   ├── prompt-toolkit v3.0.51
+│   │   │   └── wcwidth v0.2.13
+│   │   ├── pygments v2.19.1
+│   │   ├── stack-data v0.6.3
+│   │   │   ├── asttokens v3.0.0
+│   │   │   ├── executing v2.2.0
+│   │   │   └── pure-eval v0.2.3
+│   │   └── traitlets v5.14.3
+│   ├── jupyterlab-widgets v3.0.15
+│   ├── traitlets v5.14.3
+│   └── widgetsnbextension v4.0.14
+├── psygnal v0.13.0
+└── typing-extensions v4.14.0

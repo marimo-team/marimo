@@ -1,0 +1,23 @@
+// Prefer object parameters pattern: fn(), fn(options), or fn(arg, options)
+// This rule enforces using objects for multiple parameters instead of positional arguments
+`$declaration` where {
+  $declaration <: or {
+    // Regular functions
+    `function $name($p1, $p2, $p3, $...) { $body }`,
+    // Async functions
+    `async function $name($p1, $p2, $p3, $...) { $body }`,
+    // Generator functions
+    `function* $name($p1, $p2, $p3, $...) { $body }`,
+    // Arrow functions
+    `const $name = ($p1, $p2, $p3, $...) => $body`,
+    // Function expressions
+    `const $name = function($p1, $p2, $p3, $...) { $body }`,
+    // Methods
+    `$name($p1, $p2, $p3, $...) { $body }`
+  },
+  register_diagnostic(
+    span=$name,
+    message="Avoid multiple positional arguments. Prefer an options object instead, e.g., fn(options) or fn(arg, options).",
+    severity="warn"
+  )
+}

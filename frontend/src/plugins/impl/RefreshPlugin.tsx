@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useState } from "react";
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps } from "@/plugins/types";
 import { RefreshCwIcon } from "lucide-react";
+import { type JSX, useEffect, useState } from "react";
 import timestring from "timestring";
-import { NativeSelect } from "@/components/ui/native-select";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { useEvent } from "../../hooks/useEvent";
+import { NativeSelect } from "@/components/ui/native-select";
+import type { IPlugin, IPluginProps } from "@/plugins/types";
 import { cn } from "@/utils/cn";
+import { useEvent } from "../../hooks/useEvent";
 import { Labeled } from "./common/labeled";
 
 type Value = string | number | undefined;

@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, beforeEach } from "vitest";
-import { parsePython, variableCompletionSource } from "../embedded-python";
-import { EditorState } from "@codemirror/state";
+
+import type { CompletionContext } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
+import type { InlineContext } from "@lezer/markdown";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import type { Variables, VariableName } from "@/core/variables/types";
-import type { CellId } from "@/core/cells/ids";
-import type { CompletionContext } from "@codemirror/autocomplete";
-import type { InlineContext } from "@lezer/markdown";
+import type { VariableName, Variables } from "@/core/variables/types";
+import { parsePython, variableCompletionSource } from "../embedded-python";
 
 const IS_ACTIVE = () => true;
 

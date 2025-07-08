@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { PartyPopperIcon } from "lucide-react";
 import React from "react";
+import { CellLinkError } from "@/components/editor/links/cell-link";
 import { useCellErrors } from "../../../../core/cells/cells";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
-import { CellLinkError } from "@/components/editor/links/cell-link";
-import { PartyPopperIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 
 export const ErrorsPanel: React.FC = () => {

@@ -15,7 +15,6 @@ from marimo._sql.engines.types import (
     NO_SCHEMA_NAME,
     EngineCatalog,
     InferenceConfig,
-    register_engine,
 )
 from marimo._sql.utils import sql_type_to_data_type
 from marimo._types.ids import VariableName
@@ -26,7 +25,6 @@ if TYPE_CHECKING:
     from pyiceberg.catalog import Catalog
 
 
-@register_engine
 class PyIcebergEngine(EngineCatalog["Catalog"]):
     """PyIceberg engine."""
 

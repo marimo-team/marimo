@@ -2,16 +2,25 @@
 "use no memo";
 
 import type { Table } from "@tanstack/react-table";
+import { range } from "lodash-es";
 import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
+import { Events } from "@/utils/events";
 import { PluralWord } from "@/utils/pluralize";
-import { range } from "lodash-es";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import type { DataTableSelection } from "./types";
 
 interface DataTablePaginationProps<TData> {
@@ -19,6 +28,8 @@ interface DataTablePaginationProps<TData> {
   selection?: DataTableSelection;
   totalColumns: number;
   onSelectAllRowsChange?: (value: boolean) => void;
+  tableLoading?: boolean;
+  showPageSizeSelector?: boolean;
 }
 
 export const DataTablePagination = <TData,>({
@@ -26,6 +37,8 @@ export const DataTablePagination = <TData,>({
   selection,
   onSelectAllRowsChange,
   totalColumns,
+  tableLoading,
+  showPageSizeSelector,
 }: DataTablePaginationProps<TData>) => {
   const renderTotal = () => {
     const { rowSelection, cellSelection } = table.getState();
@@ -51,6 +64,7 @@ export const DataTablePagination = <TData,>({
             data-testid="select-all-button"
             variant="link"
             className="h-4"
+            onMouseDown={Events.preventFocus}
             onClick={() => {
               if (onSelectAllRowsChange) {
                 onSelectAllRowsChange(true);
@@ -74,6 +88,7 @@ export const DataTablePagination = <TData,>({
             data-testid="clear-selection-button"
             variant="link"
             className="h-4"
+            onMouseDown={Events.preventFocus}
             onClick={() => {
               if (!isCellSelection) {
                 if (onSelectAllRowsChange) {
@@ -92,10 +107,8 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    const rowsLabel = prettifyRowCount(numRows);
-    const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
-
-    return <span>{[rowsLabel, columnsLabel].join(", ")}</span>;
+    const rowColumnCount = prettifyRowColumnCount(numRows, totalColumns);
+    return <span>{rowColumnCount}</span>;
   };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,
@@ -103,16 +116,63 @@ export const DataTablePagination = <TData,>({
   );
   const totalPages = table.getPageCount();
 
+  const pageSize = table.getState().pagination.pageSize;
+
+  const handlePageChange = (pageChangeFn: () => void) => {
+    // Frequent page changes can reset the page index, so we wait until the previous change has completed
+    if (!tableLoading) {
+      pageChangeFn();
+    }
+  };
+
+  // Ensure unique page sizes
+  const pageSizeSet = new Set([5, 10, 25, 50, 100, pageSize]);
+  const pageSizes = [...pageSizeSet].sort((a, b) => a - b);
+
+  const renderPageSizeSelector = () => {
+    return (
+      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1">
+        <Select
+          value={pageSize.toString()}
+          onValueChange={(value) => table.setPageSize(Number(value))}
+        >
+          <SelectTrigger className="w-11 h-[18px] !shadow-none !hover:shadow-none !ring-0 border-border text-xs p-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Rows per page</SelectLabel>
+              {[...pageSizes].map((size) => {
+                const sizeStr = size.toString();
+                return (
+                  <SelectItem key={size} value={sizeStr}>
+                    {sizeStr}
+                  </SelectItem>
+                );
+              })}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <span>/ page</span>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-1 items-center justify-between px-2">
-      <div className="text-sm text-muted-foreground">{renderTotal()}</div>
+      <div className="flex items-center gap-2">
+        <div className="text-sm text-muted-foreground">{renderTotal()}</div>
+        {showPageSizeSelector && renderPageSizeSelector()}
+      </div>
+
       <div className="flex items-end space-x-2">
         <Button
           size="xs"
           variant="outline"
           data-testid="first-page-button"
           className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() => table.setPageIndex(0)}
+          onClick={() => handlePageChange(() => table.setPageIndex(0))}
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanPreviousPage()}
         >
           <span className="sr-only">Go to first page</span>
@@ -123,7 +183,8 @@ export const DataTablePagination = <TData,>({
           variant="outline"
           data-testid="previous-page-button"
           className="h-6 w-6 p-0"
-          onClick={() => table.previousPage()}
+          onClick={() => handlePageChange(() => table.previousPage())}
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanPreviousPage()}
         >
           <span className="sr-only">Go to previous page</span>
@@ -134,7 +195,9 @@ export const DataTablePagination = <TData,>({
           <PageSelector
             currentPage={currentPage}
             totalPages={totalPages}
-            onPageChange={(page) => table.setPageIndex(page)}
+            onPageChange={(page) =>
+              handlePageChange(() => table.setPageIndex(page))
+            }
           />
           <span className="flex-shrink-0">of {prettyNumber(totalPages)}</span>
         </div>
@@ -143,7 +206,8 @@ export const DataTablePagination = <TData,>({
           variant="outline"
           data-testid="next-page-button"
           className="h-6 w-6 p-0"
-          onClick={() => table.nextPage()}
+          onClick={() => handlePageChange(() => table.nextPage())}
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanNextPage()}
         >
           <span className="sr-only">Go to next page</span>
@@ -154,7 +218,10 @@ export const DataTablePagination = <TData,>({
           variant="outline"
           data-testid="last-page-button"
           className="hidden h-6 w-6 p-0 lg:flex"
-          onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+          onClick={() =>
+            handlePageChange(() => table.setPageIndex(table.getPageCount() - 1))
+          }
+          onMouseDown={Events.preventFocus}
           disabled={!table.getCanNextPage()}
         >
           <span className="sr-only">Go to last page</span>
@@ -249,3 +316,14 @@ export const PageSelector = ({
 export function prettifyRowCount(rowCount: number): string {
   return `${prettyNumber(rowCount)} ${new PluralWord("row").pluralize(rowCount)}`;
 }
+
+export const prettifyRowColumnCount = (
+  numRows: number | "too_many",
+  totalColumns: number,
+): string => {
+  const rowsLabel =
+    numRows === "too_many" ? "Unknown" : prettifyRowCount(numRows);
+  const columnsLabel = `${prettyNumber(totalColumns)} ${new PluralWord("column").pluralize(totalColumns)}`;
+
+  return [rowsLabel, columnsLabel].join(", ");
+};

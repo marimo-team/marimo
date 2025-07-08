@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { CellId, CellOutputId, HTMLCellId, findCellId } from "../ids";
+import { describe, expect, it } from "vitest";
+import { CellId, CellOutputId, findCellId, HTMLCellId } from "../ids";
 
 describe("CellId", () => {
   it("create", () => {
@@ -36,6 +36,16 @@ describe("HTMLCellId", () => {
     const cell = HTMLCellId.findElement(innerDiv!);
     expect(cell).toBeDefined();
     expect(cell!.id.startsWith("cell-")).toBe(true);
+  });
+
+  it("create 1000 ids", () => {
+    const ids: CellId[] = [];
+    for (let i = 0; i < 1000; i++) {
+      const id = CellId.create();
+      ids.push(id);
+    }
+    expect(ids.length).toBe(1000);
+    expect(new Set(ids).size).toBe(1000);
   });
 });
 

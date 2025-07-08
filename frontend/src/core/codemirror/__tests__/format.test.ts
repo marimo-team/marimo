@@ -1,24 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EditorView } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
 import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NotebookState } from "@/core/cells/cells";
+import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { formatEditorViews, formatAll, formatSQL } from "../format";
+import { notebookCellEditorViews } from "@/core/cells/utils";
+import { getResolvedMarimoConfig } from "@/core/config/config";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { sendFormat } from "@/core/network/requests";
+import type { MarimoConfig } from "@/core/network/types";
+import { type CodemirrorCellActions, cellActionsState } from "../cells/state";
+import { cellIdState } from "../config/extension";
+import { formatAll, formatEditorViews, formatSQL } from "../format";
 import {
   adaptiveLanguageConfiguration,
   switchLanguage,
 } from "../language/extension";
-import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { sendFormat } from "@/core/network/requests";
-import { getNotebook } from "@/core/cells/cells";
-import { notebookCellEditorViews } from "@/core/cells/utils";
-import { getResolvedMarimoConfig } from "@/core/config/config";
-import type { NotebookState } from "@/core/cells/cells";
-import { cellActionsState, type CodemirrorCellActions } from "../cells/state";
-import type { MarimoConfig } from "@/core/network/types";
-import { cellIdState } from "../config/extension";
 
 vi.mock("@/core/network/requests", () => ({
   sendFormat: vi.fn(),

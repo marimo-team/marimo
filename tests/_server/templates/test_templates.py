@@ -8,22 +8,39 @@ from pathlib import Path
 from typing import Literal
 
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import CellConfig
 from marimo._config.config import (
     MarimoConfig,
     PartialMarimoConfig,
     merge_default_config,
 )
-from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._server.export.exporter import hash_code
+from marimo._schemas.notebook import (
+    NotebookCell,
+    NotebookCellConfig,
+    NotebookMetadata,
+    NotebookV1,
+)
+from marimo._schemas.session import (
+    VERSION,
+    Cell,
+    DataOutput,
+    NotebookSessionMetadata,
+    NotebookSessionV1,
+    StreamOutput,
+)
 from marimo._server.model import SessionMode
 from marimo._server.templates import templates
 from marimo._server.tokens import SkewProtectionToken
+from marimo._utils.code import hash_code
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 default_config = merge_default_config({})
+
+
+def _assert_no_leftover_replacements(result: str) -> None:
+    has_replacement = "{{" in result and "}}" in result
+    assert not has_replacement, f"Found {{}} in {result}"
 
 
 class TestNotebookPageTemplate(unittest.TestCase):
@@ -61,6 +78,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "read" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_no_filename(self) -> None:
         result = templates.notebook_page_template(
@@ -78,6 +96,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert "<title>marimo</title>" in result
         assert "read" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_edit_mode(self) -> None:
         result = templates.notebook_page_template(
@@ -95,6 +114,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "edit" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_custom_css(self) -> None:
         # Create css file
@@ -115,6 +135,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert css in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_custom_head(self) -> None:
         # Create html head file
@@ -145,6 +166,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert head in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_custom_css_config(self) -> None:
         # Create CSS files
@@ -174,6 +196,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert css1 in result
         assert css2 in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_absolute_custom_css(self) -> None:
         # Create CSS file with absolute path
@@ -198,6 +221,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert css in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_config_overrides_custom_css(
         self,
@@ -224,6 +248,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert css1 in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_notebook_page_template_with_nonexistent_custom_css(self) -> None:
         # Update config with nonexistent CSS path
@@ -243,6 +268,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         assert "nonexistent.css" in result
         assert "<style title='marimo-custom'>" not in result
+        _assert_no_leftover_replacements(result)
 
 
 class TestHomePageTemplate(unittest.TestCase):
@@ -273,11 +299,12 @@ class TestHomePageTemplate(unittest.TestCase):
 
         assert self.base_url not in result
         assert str(self.server_token) in result
-        assert json.dumps(self.user_config) in result
+        assert json.dumps(self.user_config, sort_keys=True) in result
         assert "marimo" in result
         assert json.dumps({}) in result
         assert "" in result
         assert "home" in result
+        _assert_no_leftover_replacements(result)
 
 
 class TestStaticNotebookTemplate(unittest.TestCase):
@@ -297,35 +324,66 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         self.filename = tmp_path / "notebook.py"
         self.filepath = "path/to/notebook.py"
         self.code = "print('Hello, World!')"
-        self.cell_ids = ["cell1", "cell2"]
-        self.cell_names = ["Cell 1", "Cell 2"]
-        self.cell_codes = ["print('Hello, Cell 1')", "print('Hello, Cell 2')"]
-        self.cell_configs = [CellConfig(), CellConfig()]
-        self.cell_outputs = {
-            "cell1": CellOutput(
-                channel=CellChannel.OUTPUT,
-                data="Hello, Cell 1",
-                mimetype="text/plain",
-                timestamp=0,
-            )
-        }
-        self.cell_console_outputs = {
-            "cell1": [
-                CellOutput(
-                    channel=CellChannel.STDOUT,
-                    data="Hello, Cell 1",
-                    mimetype="text/plain",
-                    timestamp=0,
+
+        # Create session and notebook snapshots
+        self.session_snapshot = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[
+                Cell(
+                    id="cell1",
+                    code_hash="abc123",
+                    outputs=[
+                        DataOutput(
+                            type="data",
+                            data={
+                                "text/plain": "Hello, Cell 1",
+                            },
+                        )
+                    ],
+                    console=[
+                        StreamOutput(
+                            type="stream",
+                            name="stdout",
+                            text="Hello, Cell 1",
+                        ),
+                        StreamOutput(
+                            type="stream",
+                            name="stderr",
+                            text="Error in Cell 1",
+                        ),
+                    ],
                 ),
-                CellOutput(
-                    channel=CellChannel.STDERR,
-                    data="Error in Cell 1",
-                    mimetype="text/plain",
-                    timestamp=0,
+                Cell(
+                    id="cell2",
+                    code_hash="def456",
+                    outputs=[],
+                    console=[],
                 ),
             ],
-            "cell2": [],
-        }
+        )
+
+        self.notebook_snapshot = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[
+                NotebookCell(
+                    id="cell1",
+                    code="print('Hello, Cell 1')",
+                    code_hash=hash_code("print('Hello, Cell 1')"),
+                    name="Cell 1",
+                    config=NotebookCellConfig(),
+                ),
+                NotebookCell(
+                    id="cell2",
+                    code="print('Hello, Cell 2')",
+                    code_hash=hash_code("print('Hello, Cell 2')"),
+                    name="Cell 2",
+                    config=NotebookCellConfig(),
+                ),
+            ],
+        )
+
         self.files = {"file1": "File 1 content", "file2": "File 2 content"}
 
     def tearDown(self) -> None:
@@ -341,16 +399,13 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.filepath,
             self.code,
             hash_code(self.code),
-            self.cell_ids,
-            self.cell_names,
-            self.cell_codes,
-            self.cell_configs,
-            self.cell_outputs,
-            self.cell_console_outputs,
+            self.session_snapshot,
+            self.notebook_snapshot,
             self.files,
         )
 
         snapshot("export1.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_no_filename(self) -> None:
         result = templates.static_notebook_template(
@@ -362,18 +417,27 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             None,
             self.code,
             hash_code(self.code),
-            self.cell_ids,
-            self.cell_names,
-            self.cell_codes,
-            self.cell_configs,
-            self.cell_outputs,
-            self.cell_console_outputs,
+            self.session_snapshot,
+            self.notebook_snapshot,
             files=self.files,
         )
 
         snapshot("export2.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_no_code(self) -> None:
+        # Create empty snapshots for no-code case
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
@@ -383,16 +447,13 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.filepath,
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
         snapshot("export3.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_css(self) -> None:
         # Create css file
@@ -400,6 +461,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         css_file = self.filename.parent / "custom.css"
         css_file.write_text(css)
+
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
 
         result = templates.static_notebook_template(
             self.html,
@@ -410,16 +483,13 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
         snapshot("export4.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_head(self) -> None:
         # Create html head file
@@ -438,6 +508,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         head_file = self.filename.parent / "head.html"
         head_file.write_text(head)
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
@@ -447,16 +529,13 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
         snapshot("export5.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_custom_css_config(self) -> None:
         # Create CSS files
@@ -472,6 +551,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         config = merge_default_config(self.user_config)
         config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             config,
@@ -481,12 +572,8 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
@@ -494,6 +581,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         assert css2 in result
         assert "<style title='marimo-custom'>" in result
         snapshot("export6.txt", normalize_index_html(result))
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_absolute_custom_css(self) -> None:
         # Create CSS file with absolute path
@@ -505,6 +593,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         config = merge_default_config(self.user_config)
         config["display"]["custom_css"] = [str(css_file)]
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             config,
@@ -514,17 +614,14 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
         assert css in result
         assert "<style title='marimo-custom'>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_static_notebook_template_with_nonexistent_custom_css(
         self,
@@ -533,6 +630,18 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         config = merge_default_config(self.user_config)
         config["display"]["custom_css"] = ["nonexistent.css"]
 
+        # Create empty snapshots
+        empty_session = NotebookSessionV1(
+            version=VERSION,
+            metadata=NotebookSessionMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+        empty_notebook = NotebookV1(
+            version=VERSION,
+            metadata=NotebookMetadata(marimo_version="0.1.0"),
+            cells=[],
+        )
+
         result = templates.static_notebook_template(
             self.html,
             config,
@@ -542,17 +651,14 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             str(self.filename),
             "",
             hash_code(self.code),
-            [],
-            [],
-            [],
-            [],
-            {},
-            {},
+            empty_session,
+            empty_notebook,
             {},
         )
 
         assert "nonexistent.css" in result
         assert "<style title='marimo-custom'>" not in result
+        _assert_no_leftover_replacements(result)
 
 
 class TestWasmNotebookTemplate(unittest.TestCase):
@@ -589,10 +695,12 @@ class TestWasmNotebookTemplate(unittest.TestCase):
 
         assert self.filename.name in result
         assert self.mode in result
-        assert json.dumps(self.user_config) in result
+        assert json.dumps(self.user_config, sort_keys=True) in result
         assert '<marimo-wasm hidden="">' in result
-        assert '<marimo-code hidden="" data-show-code="false">' in result
+        assert '<marimo-code hidden="">' in result
+        assert '"showAppCode": false' in result
         assert "<title>notebook</title>" in result
+        _assert_no_leftover_replacements(result)
 
     def test_wasm_notebook_template_custom_css_and_assets(self) -> None:
         # Create css file
@@ -617,7 +725,9 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert css in result
         assert '<marimo-wasm hidden="">' in result
         assert "https://my.cdn.com/assets/" in result
-        assert '<marimo-code hidden="" data-show-code="true">' in result
+        assert '<marimo-code hidden="">' in result
+        assert '"showAppCode": true' in result
+        _assert_no_leftover_replacements(result)
 
     def test_wasm_notebook_template_custom_head(self) -> None:
         # Create html head file
@@ -652,7 +762,9 @@ class TestWasmNotebookTemplate(unittest.TestCase):
 
         assert head in result
         assert '<marimo-wasm hidden="">' in result
-        assert '<marimo-code hidden="" data-show-code="false">' in result
+        assert '<marimo-code hidden="">' in result
+        assert '"showAppCode": false' in result
         assert "#save-button" in result
         assert "#filename-input" in result
         assert "<title>My App</title>" in result
+        _assert_no_leftover_replacements(result)

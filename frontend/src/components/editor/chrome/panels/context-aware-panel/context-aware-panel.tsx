@@ -1,25 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { SlotNames } from "@/core/slots/slots";
 import { Fill, Slot, useSlot } from "@marimo-team/react-slotz";
 import { useAtom } from "jotai";
+import { CrosshairIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
 import type { PropsWithChildren } from "react";
-import { PanelResizeHandle, Panel } from "react-resizable-panels";
-import { handleDragging } from "../../wrapper/utils";
-import { useResizeHandle } from "@/hooks/useResizeHandle";
-
-import { PinIcon, PinOffIcon, XIcon, CrosshairIcon } from "lucide-react";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Panel, PanelResizeHandle } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
-import { ErrorBoundary } from "../../../boundary/ErrorBoundary";
+import { Tooltip } from "@/components/ui/tooltip";
+import { SlotNames } from "@/core/slots/slots";
+import { useResizeHandle } from "@/hooks/useResizeHandle";
 import { cn } from "@/utils/cn";
+import { ErrorBoundary } from "../../../boundary/ErrorBoundary";
+import { handleDragging } from "../../wrapper/utils";
 import {
+  contextAwarePanelOpen,
   contextAwarePanelOwner,
   isCellAwareAtom,
   isPinnedAtom,
-  contextAwarePanelOpen,
 } from "./atoms";
+
+export type PanelType = "row-viewer" | "column-explorer";
 
 export const ContextAwarePanel: React.FC = () => {
   const [owner, setOwner] = useAtom(contextAwarePanelOwner);

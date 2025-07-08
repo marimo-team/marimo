@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { filenameAtom } from "@/core/saving/filenameAtom";
-import { store } from "@/core/state/jotai";
+
 import type { ZodType, ZodTypeDef } from "zod";
+import { filenameAtom } from "@/core/saving/file-state";
+import { store } from "@/core/state/jotai";
 import { Logger } from "./Logger";
 
 interface Storage<T> {

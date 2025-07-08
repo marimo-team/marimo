@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
+import { throttle } from "lodash-es";
 import type {
   CompletionItem,
   CompletionList,
@@ -12,20 +15,18 @@ import type {
   InlineCompletionParams,
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
-import { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
+import { Logger } from "@/utils/Logger";
+import { getCodes } from "./getCodes";
+import {
+  clearGitHubCopilotLoadingVersion,
+  isCopilotEnabled,
+  setGitHubCopilotLoadingVersion,
+} from "./state";
 import type {
   GitHubCopilotSignInConfirmParams,
   GitHubCopilotSignInInitiateResult,
   GitHubCopilotStatusResult,
 } from "./types";
-import {
-  isCopilotEnabled,
-  setGitHubCopilotLoadingVersion,
-  clearGitHubCopilotLoadingVersion,
-} from "./state";
-import { getCodes } from "./getCodes";
-import { Logger } from "@/utils/Logger";
-import { throttle } from "lodash-es";
 
 const logger = Logger.get("@github/copilot-language-server");
 

@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi } from "vitest";
-import { CellSelectionFeature } from "../feature";
-import type { Table, Row, Cell, Column } from "@tanstack/react-table";
+
+import type { Cell, Column, Row, Table } from "@tanstack/react-table";
+import { describe, expect, it, vi } from "vitest";
 import { INDEX_COLUMN_NAME } from "../../types";
+import { CellSelectionFeature } from "../feature";
 import type { CellSelectionTableState } from "../types";
 
 describe("CellSelectionFeature", () => {

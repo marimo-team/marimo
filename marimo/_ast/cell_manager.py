@@ -17,6 +17,7 @@ if sys.version_info < (3, 10):
 else:
     from typing import ParamSpec, TypeAlias
 
+from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import (
     cell_factory,
@@ -45,6 +46,36 @@ Fn: TypeAlias = Callable[P, R]
 Cls: TypeAlias = type
 Obj: TypeAlias = "Cls | Fn[P, R]"
 
+LOGGER = _loggers.marimo_logger()
+
+
+class CellIdGenerator:
+    def __init__(self, prefix: str = "") -> None:
+        self.prefix = prefix
+        self.random_seed = random.Random(42)
+        self.seen_ids: set[CellId_t] = set()
+
+    def create_cell_id(self) -> CellId_t:
+        """Create a new unique cell ID.
+
+        Returns:
+            CellId_t: A new cell ID consisting of the manager's prefix followed by 4 random letters.
+        """
+        attempts = 0
+        while attempts < 100:
+            # 4 random letters
+            _id = self.prefix + "".join(
+                self.random_seed.choices(string.ascii_letters, k=4)
+            )
+            if _id not in self.seen_ids:
+                self.seen_ids.add(CellId_t(_id))
+                return CellId_t(_id)
+            attempts += 1
+
+        raise ValueError(
+            f"Failed to create a unique cell ID after {attempts} attempts"
+        )
+
 
 class CellManager:
     """A manager for cells in a marimo notebook.
@@ -59,7 +90,6 @@ class CellManager:
     Attributes:
         prefix (str): A prefix added to all cell IDs managed by this instance
         unparsable (bool): Flag indicating if any unparsable cells were encountered
-        random_seed (random.Random): Seeded random number generator for deterministic cell ID creation
     """
 
     def __init__(self, prefix: str = "") -> None:
@@ -71,8 +101,7 @@ class CellManager:
         self._cell_data: dict[CellId_t, CellData] = {}
         self.prefix = prefix
         self.unparsable = False
-        self.random_seed = random.Random(42)
-        self.seen_ids: set[CellId_t] = set()
+        self._cell_id_generator = CellIdGenerator(prefix)
 
     def create_cell_id(self) -> CellId_t:
         """Create a new unique cell ID.
@@ -80,16 +109,7 @@ class CellManager:
         Returns:
             CellId_t: A new cell ID consisting of the manager's prefix followed by 4 random letters.
         """
-        # 4 random letters
-        _id = self.prefix + "".join(
-            self.random_seed.choices(string.ascii_letters, k=4)
-        )
-        while _id in self.seen_ids:
-            _id = self.prefix + "".join(
-                self.random_seed.choices(string.ascii_letters, k=4)
-            )
-        self.seen_ids.add(CellId_t(_id))
-        return CellId_t(_id)
+        return self._cell_id_generator.create_cell_id()
 
     def cell_decorator(
         self,
@@ -401,9 +421,31 @@ class CellManager:
         return self._cell_data[cell_id]
 
     def get_cell_code(self, cell_id: CellId_t) -> Optional[str]:
+        """Get the code for a cell by its ID.
+
+        Args:
+            cell_id: The ID of the cell
+
+        Returns:
+            Optional[str]: The cell's code, or None if the cell doesn't exist
+        """
         if cell_id not in self._cell_data:
             return None
         return self._cell_data[cell_id].code
+
+    def get_cell_data(self, cell_id: CellId_t) -> Optional[CellData]:
+        """Get the cell data for a specific cell ID.
+
+        Args:
+            cell_id: The ID of the cell to get data for
+
+        Returns:
+            Optional[CellData]: The cell's data, or None if the cell doesn't exist
+        """
+        if cell_id not in self._cell_data:
+            LOGGER.debug(f"Cell with ID '{cell_id}' not found in cell manager")
+            return None
+        return self._cell_data[cell_id]
 
     def get_cell_id_by_code(self, code: str) -> Optional[CellId_t]:
         """Find a cell ID by its code content.
@@ -450,7 +492,11 @@ class CellManager:
 
         # Add the new ids to the set, so we don't reuse them in the future
         for _id in sorted_ids:
-            self.seen_ids.add(_id)
+            self._cell_id_generator.seen_ids.add(_id)
+
+    @property
+    def seen_ids(self) -> set[CellId_t]:
+        return self._cell_id_generator.seen_ids
 
 
 def _match_cell_ids_by_similarity(

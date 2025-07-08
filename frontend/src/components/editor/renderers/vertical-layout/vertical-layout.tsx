@@ -1,15 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type React from "react";
-import { memo, useRef, useState } from "react";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { OutputArea } from "@/components/editor/Output";
-import type { ICellRendererPlugin, ICellRendererProps } from "../types";
-import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
-import { z } from "zod";
-import { useDelayVisibility } from "./useDelayVisibility";
-import { type AppMode, kioskModeAtom } from "@/core/mode";
-import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+
+import { useAtomValue } from "jotai";
 import {
   Check,
   Code2Icon,
@@ -17,29 +8,40 @@ import {
   ImageIcon,
   MoreHorizontalIcon,
 } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/button";
-import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
-import { isStaticNotebook } from "@/core/static/static-state";
+import type React from "react";
+import { memo, useRef, useState } from "react";
+import { z } from "zod";
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+import { OutputArea } from "@/components/editor/Output";
 import { ConsoleOutput } from "@/components/editor/output/ConsoleOutput";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
-  DropdownMenuItem,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuTrigger,
+  DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { downloadHTMLAsImage } from "@/utils/download";
-import { downloadAsHTML } from "@/core/static/download-html";
-import { isWasm } from "@/core/wasm/utils";
-import type { CellConfig } from "@/core/network/types";
-import { useAtomValue } from "jotai";
-import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
-import { KnownQueryParams } from "@/core/constants";
-import { useResolvedMarimoConfig } from "@/core/config/config";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import { KnownQueryParams } from "@/core/constants";
+import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
-import { getMarimoShowCode } from "@/core/dom/marimo-tag";
+import { type AppMode, kioskModeAtom } from "@/core/mode";
+import type { CellConfig } from "@/core/network/types";
+import { downloadAsHTML } from "@/core/static/download-html";
+import { isStaticNotebook } from "@/core/static/static-state";
+import { isWasm } from "@/core/wasm/utils";
+import { cn } from "@/utils/cn";
+import { downloadHTMLAsImage } from "@/utils/download";
+import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
+import type { ICellRendererPlugin, ICellRendererProps } from "../types";
+import { useDelayVisibility } from "./useDelayVisibility";
+import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -52,12 +54,12 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
   const [userConfig] = useResolvedMarimoConfig();
+  const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
   const urlParams = new URLSearchParams(window.location.search);
   const [showCode, setShowCode] = useState(() => {
-    // Check marimo-code tag setting first
-    const showCodePreference = getMarimoShowCode();
-    if (!showCodePreference) {
+    // Check if the setting was set in the mount options
+    if (!showCodeInRunModePreference) {
       return false;
     }
     // If 'auto' or not found, use URL param
@@ -127,6 +129,19 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
       );
     }
 
+    if (cells.length === 0 && !invisible) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center py-8">
+          <Alert variant="info">
+            <AlertTitle>Empty Notebook</AlertTitle>
+            <AlertDescription>
+              This notebook has no code or outputs.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
+
     return <>{cells.map(renderCell)}</>;
   };
 
@@ -173,6 +188,50 @@ const ActionButtons: React.FC<{
     await downloadAsHTML({ filename: document.title, includeCode: true });
   };
 
+  const isStatic = isStaticNotebook();
+  const actions: React.ReactNode[] = [];
+
+  if (canShowCode) {
+    actions.push(
+      <DropdownMenuItem
+        onSelect={onToggleShowCode}
+        id="notebook-action-show-code"
+        key="show-code"
+      >
+        <Code2Icon className="mr-2" size={14} strokeWidth={1.5} />
+        <span className="flex-1">Show code</span>
+        {showCode && <Check className="h-4 w-4" />}
+      </DropdownMenuItem>,
+      <DropdownMenuSeparator key="show-code-separator" />,
+    );
+  }
+
+  if (!isStatic) {
+    actions.push(
+      <DropdownMenuItem
+        onSelect={handleDownloadAsHTML}
+        id="notebook-action-download-html"
+        key="download-html"
+      >
+        <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
+        Download as HTML
+      </DropdownMenuItem>,
+      <DropdownMenuSeparator key="download-html-separator" />,
+      <DropdownMenuItem
+        onSelect={handleDownloadAsPNG}
+        id="notebook-action-download-png"
+        key="download-png"
+      >
+        <ImageIcon className="mr-2" size={14} strokeWidth={1.5} />
+        Download as PNG
+      </DropdownMenuItem>,
+    );
+  }
+
+  if (actions.length === 0) {
+    return null;
+  }
+
   // Don't change the id of this element
   // as this may be used in custom css to hide/show the actions dropdown
   return (
@@ -193,33 +252,7 @@ const ActionButtons: React.FC<{
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="no-print w-[220px]">
-          {canShowCode && (
-            <>
-              <DropdownMenuItem
-                onSelect={onToggleShowCode}
-                id="notebook-action-show-code"
-              >
-                <Code2Icon className="mr-2" size={14} strokeWidth={1.5} />
-                <span className="flex-1">Show code</span>
-                {showCode && <Check className="h-4 w-4" />}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
-          <DropdownMenuItem
-            onSelect={handleDownloadAsHTML}
-            id="notebook-action-download-html"
-          >
-            <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
-            Download as HTML
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={handleDownloadAsPNG}
-            id="notebook-action-download-png"
-          >
-            <ImageIcon className="mr-2" size={14} strokeWidth={1.5} />
-            Download as PNG
-          </DropdownMenuItem>
+          {actions}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

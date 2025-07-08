@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +19,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.validators import validate_one_of
 from marimo._runtime.functions import Function
+from marimo._utils.files import natural_sort
 
 LOGGER = _loggers.marimo_logger()
 
@@ -218,33 +218,47 @@ class file_browser(
                 "Navigation is restricted; navigating to a "
                 "parent of initial path is not allowed."
             )
-
+        folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
+
         for file in path.iterdir():
-            _, extension = os.path.splitext(file.name)
+            extension = file.suffix
+            is_directory = file.is_dir()
 
             # Skip non-directories if selection mode is directory
-            if self._selection_mode == "directory" and not file.is_dir():
+            if self._selection_mode == "directory" and not is_directory:
                 continue
 
             # Skip non-matching file types
-            if self._filetypes and not file.is_dir():
+            if self._filetypes and not is_directory:
                 if extension not in self._filetypes:
                     continue
 
-            files.append(
-                TypedFileBrowserFileInfo(
-                    id=str(file),
-                    path=str(file),
-                    name=file.name,
-                    is_directory=file.is_dir(),
-                )
+            file_info = TypedFileBrowserFileInfo(
+                id=str(file),
+                path=str(file),
+                name=file.name,
+                is_directory=is_directory,
             )
 
-            if len(files) >= self._limit:
+            if is_directory:
+                folders.append(file_info)
+            else:
+                files.append(file_info)
+
+            if len(folders) + len(files) >= self._limit:
                 break
 
-        return ListDirectoryResponse(files)
+        def natural_sort_info(
+            info: TypedFileBrowserFileInfo,
+        ) -> list[Union[int, str]]:
+            return natural_sort(info["name"])
+
+        # Sort folders then files, based on natural sort (alpha, then num)
+        all_files = sorted(folders, key=natural_sort_info) + sorted(
+            files, key=natural_sort_info
+        )
+        return ListDirectoryResponse(all_files)
 
     def _convert_value(
         self, value: list[TypedFileBrowserFileInfo]

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from typing import Literal, Optional
+from pathlib import Path
+from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
@@ -23,14 +24,11 @@ LOGGER = _loggers.marimo_logger()
 # on startup and defer errors to the runtime.
 
 
-def _maybe_contents(filename: Optional[str]) -> Optional[str]:
+def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
     if filename is None:
         return None
 
-    with open(filename, encoding="utf-8") as f:
-        contents = f.read().strip()
-
-    return contents
+    return Path(filename).read_text(encoding="utf-8").strip()
 
 
 # Used in tests and current fallback
@@ -60,11 +58,14 @@ def _dynamic_load(filename: str) -> Optional[App]:
     return app
 
 
-def _static_load(filename: str) -> Optional[App]:
-    notebook = parse_notebook(filename)
+def _static_load(filepath: Path) -> Optional[App]:
+    contents = _maybe_contents(filepath)
+    if not contents:
+        return None
+    notebook = parse_notebook(contents)
     if notebook is None or not notebook.valid:
         return None
-    app = App(**notebook.app.options, _filename=filename)
+    app = App(**notebook.app.options, _filename=str(filepath))
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
             app._unparsable_cell(cell.code, **cell.options)
@@ -85,19 +86,26 @@ def notebook_is_openable(filename: str) -> Literal[True]:
     Raises:
         SyntaxError: If the file contains a syntax error
     """
+    path = Path(filename)
 
-    if filename.endswith(".md") or filename.endswith(".qmd"):
-        contents = _maybe_contents(filename)
-        if not contents:
-            # We can still "open" it
-            return True
-        from marimo._cli.convert.markdown import convert_from_md
-
-        _ = convert_from_md(contents)
+    contents = _maybe_contents(filename)
+    if not contents:
         return True
-    _ = parse_notebook(filename)
-    # NB. A invalid notebook can still be opened.
-    return True
+
+    if path.suffix in (".md", ".qmd"):
+        from marimo._convert.markdown.markdown import (
+            convert_from_md_to_marimo_ir,
+        )
+
+        _ = convert_from_md_to_marimo_ir(contents)
+        return True
+
+    if path.suffix == ".py":
+        _ = parse_notebook(contents)
+        # NB. A invalid notebook can still be opened.
+        return True
+
+    raise MarimoFileError("File must end with .py, .md, or .qmd.")
 
 
 def load_app(filename: Optional[str]) -> Optional[App]:
@@ -120,19 +128,21 @@ def load_app(filename: Optional[str]) -> Optional[App]:
     if filename is None:
         return None
 
-    if filename.endswith(".md") or filename.endswith(".qmd"):
+    path = Path(filename)
+
+    if path.suffix in (".md", ".qmd"):
         contents = _maybe_contents(filename)
         if not contents:
             return None
-        from marimo._cli.convert.markdown import convert_from_md_to_app
+        from marimo._convert.markdown.markdown import convert_from_md_to_app
 
         return convert_from_md_to_app(contents) if contents else None
 
-    if not filename.endswith(".py"):
+    if not path.suffix == ".py":
         raise MarimoFileError("File must end with .py or .md")
 
     try:
-        return _static_load(filename)
+        return _static_load(path)
     except MarimoFileError:
         # Security advantages of static load are lost here, but reasonable
         # fallback for now.

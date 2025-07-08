@@ -1,18 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { notebookOutline } from "@/core/cells/cells";
-import { cn } from "@/utils/cn";
+
 import { useAtomValue } from "jotai";
 import React from "react";
-import {
-  useActiveOutline,
-  scrollToOutlineItem,
-  findOutlineElements,
-} from "./useActiveOutline";
+import { notebookOutline } from "@/core/cells/cells";
 import type { OutlineItem } from "@/core/cells/outline";
+import { cn } from "@/utils/cn";
+import {
+  findOutlineElements,
+  scrollToOutlineItem,
+  useActiveOutline,
+} from "./useActiveOutline";
 
 export const FloatingOutline: React.FC = () => {
   const { items } = useAtomValue(notebookOutline);
-  const { activeHeaderId } = useActiveOutline(findOutlineElements(items));
+  const { activeHeaderId, activeOccurrences } = useActiveOutline(
+    findOutlineElements(items),
+  );
   const [isHovered, setIsHovered] = React.useState(false);
 
   // Hide if < 2 items
@@ -39,8 +42,13 @@ export const FloatingOutline: React.FC = () => {
         )}
         items={items}
         activeHeaderId={activeHeaderId}
+        activeOccurrences={activeOccurrences}
       />
-      <MiniMap items={items} activeHeaderId={activeHeaderId} />
+      <MiniMap
+        items={items}
+        activeHeaderId={activeHeaderId}
+        activeOccurrences={activeOccurrences}
+      />
     </div>
   );
 };
@@ -48,7 +56,8 @@ export const FloatingOutline: React.FC = () => {
 export const MiniMap: React.FC<{
   items: OutlineItem[];
   activeHeaderId: string | undefined;
-}> = ({ items, activeHeaderId }) => {
+  activeOccurrences: number | undefined;
+}> = ({ items, activeHeaderId, activeOccurrences }) => {
   // Map of selector to its occurrences
   const seen = new Map<string, number>();
   return (
@@ -68,7 +77,9 @@ export const MiniMap: React.FC<{
               item.level === 2 && "w-4",
               item.level === 3 && "w-3",
               item.level === 4 && "w-2",
-              activeHeaderId === identifier && "bg-foreground",
+              occurrences === activeOccurrences &&
+                activeHeaderId === identifier &&
+                "bg-foreground",
             )}
             onClick={() => scrollToOutlineItem(item, occurrences)}
           />
@@ -82,7 +93,8 @@ export const OutlineList: React.FC<{
   className?: string;
   items: OutlineItem[];
   activeHeaderId: string | undefined;
-}> = ({ items, activeHeaderId, className }) => {
+  activeOccurrences: number | undefined;
+}> = ({ items, activeHeaderId, activeOccurrences, className }) => {
   // Map of selector to its occurrences
   const seen = new Map<string, number>();
   return (
@@ -102,7 +114,9 @@ export const OutlineList: React.FC<{
               item.level === 2 && "ml-3",
               item.level === 3 && "ml-6",
               item.level === 4 && "ml-9",
-              activeHeaderId === identifier && "text-accent-foreground",
+              occurrences === activeOccurrences &&
+                activeHeaderId === identifier &&
+                "text-accent-foreground",
             )}
             onClick={() => scrollToOutlineItem(item, occurrences)}
           >

@@ -1,17 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { once } from "@/utils/once";
-import { Logger } from "../../utils/Logger";
-import { getMarimoServerToken } from "../dom/marimo-tag";
-import { getSessionId } from "../kernel/session";
-import { createMarimoClient } from "@marimo-team/marimo-api";
 
-const getServerTokenOnce = once(() => {
-  return getMarimoServerToken();
-});
+import { createMarimoClient } from "@marimo-team/marimo-api";
+import { Logger } from "../../utils/Logger";
+import { Strings } from "../../utils/strings";
+import { getRuntimeManager } from "../runtime/config";
+import type { RuntimeManager } from "../runtime/runtime";
 
 function getBaseUriWithoutQueryParams(): string {
   // Remove query params and hash
-  const url = new URL(document.baseURI);
+  const url = getRuntimeManager().httpURL;
   url.search = "";
   url.hash = "";
   return url.toString();
@@ -30,7 +27,9 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
+    const baseUrl = Strings.withTrailingSlash(
+      opts.baseUrl ?? getBaseUriWithoutQueryParams(),
+    );
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "POST",
@@ -69,7 +68,9 @@ export const API = {
       baseUrl?: string;
     } = {},
   ): Promise<RESP> {
-    const baseUrl = opts.baseUrl ?? getBaseUriWithoutQueryParams();
+    const baseUrl = Strings.withTrailingSlash(
+      opts.baseUrl ?? getBaseUriWithoutQueryParams(),
+    );
     const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "GET",
@@ -96,10 +97,8 @@ export const API = {
       });
   },
   headers() {
-    return {
-      "Marimo-Session-Id": getSessionId(),
-      "Marimo-Server-Token": getServerTokenOnce(),
-    };
+    const runtimeManager = getRuntimeManager();
+    return runtimeManager.headers();
   },
   handleResponse: <T>(response: {
     data?: T | undefined;
@@ -124,19 +123,21 @@ export const API = {
   },
 };
 
-export const marimoClient = createMarimoClient({
-  // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
-  baseUrl:
-    typeof document === "undefined"
-      ? undefined
-      : getBaseUriWithoutQueryParams(),
-});
+export function createClientWithRuntimeManager(runtimeManager: RuntimeManager) {
+  const marimoClient = createMarimoClient({
+    baseUrl: runtimeManager.httpURL.toString(),
+  });
 
-marimoClient.use({
-  onRequest: (req) => {
-    for (const [key, value] of Object.entries(API.headers())) {
-      req.headers.set(key, value);
-    }
-    return req;
-  },
-});
+  marimoClient.use({
+    onRequest: (req) => {
+      const headers = runtimeManager.headers();
+
+      for (const [key, value] of Object.entries(headers)) {
+        req.headers.set(key, value);
+      }
+      return req;
+    },
+  });
+
+  return marimoClient;
+}

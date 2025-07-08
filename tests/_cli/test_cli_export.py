@@ -80,12 +80,10 @@ class TestExportHTML:
         )
         assert p.returncode == 0, p.stderr.decode()
         html = Path(out_dir / "index.html").read_text()
-        assert "<marimo-mode data-mode='edit'" in html
-        assert (
-            '<marimo-code hidden="" data-show-code="false"></marimo-code>'
-            not in html
-        )
+        assert '"mode": "edit"' in html
+        assert '<marimo-code hidden=""></marimo-code>' not in html
         assert "<marimo-wasm" in html
+        assert '"showAppCode": false' in html
         assert Path(out_dir / ".nojekyll").exists()
 
     @staticmethod
@@ -199,11 +197,9 @@ class TestExportHTML:
         )
         assert p.returncode == 0, p.stderr.decode()
         html = Path(out_dir / "index.html").read_text()
-        assert "<marimo-mode data-mode='read'" in html
-        assert (
-            '<marimo-code hidden="" data-show-code="false"></marimo-code>'
-            not in html
-        )
+        assert '"mode": "read"' in html
+        assert '<marimo-code hidden=""></marimo-code>' not in html
+        assert '"showAppCode": false' in html
         assert "<marimo-wasm" in html
 
     @pytest.mark.skipif(
@@ -386,7 +382,7 @@ class TestExportHTML:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "uv run --isolated" in output
+        assert "run --isolated" in output
         html = normalize_index_html(output)
         # Remove folder path
         dirname = path.dirname(temp_marimo_file)
@@ -925,7 +921,7 @@ class TestExportIpynb:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "uv run --isolated" in output
+        assert "run --isolated" in output
 
     @staticmethod
     @pytest.mark.skipif(

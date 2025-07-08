@@ -29,7 +29,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import { parseMixed, type Parser } from "@lezer/common";
+import { type Parser, parseMixed } from "@lezer/common";
 import { tags } from "@lezer/highlight";
 import type {
   DelimiterType,
@@ -81,7 +81,7 @@ const DELIMITERS = Object.keys(DELIMITER_LENGTH).reduce<
  * @returns Markdown extension
  */
 export function parseLatex(latexParser: Parser): MarkdownConfig {
-  const defineNodes = new Array<NodeSpec>();
+  const defineNodes: NodeSpec[] = [];
   Object.keys(DELIMITER_LENGTH).forEach((name) => {
     defineNodes.push(
       {

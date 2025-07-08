@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 
 const appUrl = getAppUrl("bad_button.py");

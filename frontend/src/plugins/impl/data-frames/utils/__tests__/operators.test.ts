@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { expect, describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  BOOLEAN_OPERATORS,
+  DATE_OPERATORS,
+  DATETIME_OPERATORS,
   getOperatorForDtype,
   getSchemaForOperator,
   isConditionValueValid,
-  BOOLEAN_OPERATORS,
-  DATE_OPERATORS,
   NUMERIC_OPERATORS,
   STRING_OPERATORS,
-  DATETIME_OPERATORS,
 } from "../operators";
 
 describe("getOperatorForDtype", () => {
@@ -110,6 +110,7 @@ describe("isConditionValueValid", () => {
 
   it("should return true if the operator does not require a value", () => {
     expect(isConditionValueValid("is_true", null)).toBe(true);
-    expect(isConditionValueValid("is_nan", undefined)).toBe(true);
+    expect(isConditionValueValid("is_null", undefined)).toBe(true);
+    expect(isConditionValueValid("is_not_null", undefined)).toBe(true);
   });
 });

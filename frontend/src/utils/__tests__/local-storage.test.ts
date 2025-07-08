@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { describe, it, expect, afterEach } from "vitest";
-import { NotebookScopedLocalStorage } from "../localStorage";
+import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
-import { filenameAtom } from "@/core/saving/filenameAtom";
+import { NotebookScopedLocalStorage } from "../localStorage";
 
 describe("NotebookScopedLocalStorage", () => {
   const schema = z.object({

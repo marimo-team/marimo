@@ -273,8 +273,7 @@ class _cache_context(SkipContext):
         # Note the behavior does subtly change in 3.14, but will still be
         # captured by this check.
         if self._cache and self._cache.hit:
-            if with_frame.f_lineno >= self._body_start:
-                self.skip()
+            self.skip()
 
         stack = traceback.extract_stack()
 

@@ -1,45 +1,44 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Extension } from "@codemirror/state";
-import type { LanguageAdapter } from "../types";
-// @ts-expect-error: no declaration file
-import dedent from "string-dedent";
-import { indentOneTab } from "../utils/indentOneTab";
+
 import {
   autocompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
-import { store } from "@/core/state/jotai";
-import type { QuotePrefixKind } from "../utils/quotes";
-import { MarkdownLanguageAdapter } from "./markdown";
+import {
+  keywordCompletionSource,
+  MSSQL,
+  MySQL,
+  PostgreSQL,
+  type SQLConfig,
+  type SQLDialect,
+  SQLite,
+  StandardSQL,
+  schemaCompletionSource,
+  sql,
+} from "@codemirror/lang-sql";
+import type { Extension } from "@codemirror/state";
+import type { SyntaxNode, TreeCursor } from "@lezer/common";
+import { parser } from "@lezer/python";
+import dedent from "string-dedent";
+import { isSchemaless } from "@/components/datasources/utils";
 import {
   dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
-  DUCKDB_ENGINE,
   setLatestEngineSelected,
-  type ConnectionName,
 } from "@/core/datasets/data-source-connections";
-import { parser } from "@lezer/python";
-import type { SyntaxNode, TreeCursor } from "@lezer/common";
-import { parseArgsKwargs } from "../utils/ast";
-import { Logger } from "@/utils/Logger";
-import {
-  sql,
-  StandardSQL,
-  type SQLConfig,
-  schemaCompletionSource,
-  type SQLDialect,
-  PostgreSQL,
-  MySQL,
-  SQLite,
-  MSSQL,
-  keywordCompletionSource,
-} from "@codemirror/lang-sql";
-import { LRUCache } from "@/utils/lru";
-import type { DataSourceConnection } from "@/core/kernel/messages";
-import { isSchemaless } from "@/components/datasources/utils";
+import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetTablesAtom } from "@/core/datasets/state";
+import type { DataSourceConnection } from "@/core/kernel/messages";
+import { store } from "@/core/state/jotai";
+import { Logger } from "@/utils/Logger";
+import { LRUCache } from "@/utils/lru";
 import { variableCompletionSource } from "../embedded/embedded-python";
 import { languageMetadataField } from "../metadata";
+import type { LanguageAdapter } from "../types";
+import { parseArgsKwargs } from "../utils/ast";
+import { indentOneTab } from "../utils/indentOneTab";
+import type { QuotePrefixKind } from "../utils/quotes";
+import { MarkdownLanguageAdapter } from "./markdown";
 
 export interface SQLLanguageAdapterMetadata {
   dataframeName: string;

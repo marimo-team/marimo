@@ -41,8 +41,9 @@ jobs:
         run: |
           pr="$(gh api /repos/${GH_REPO}/pulls/${PR_NUMBER})"
           head_sha="$(echo "$pr" | jq -r .head.sha)"
-          pushed_at="$(echo "$pr" | jq -r .pushed_at)"
+          pushed_at="$(echo "$pr" | jq -r .head.repo.pushed_at)"
 
+          # NB mitigate potential race condition.
           if [[ $(date -d "$pushed_at" +%s) -gt $(date -d "$COMMENT_AT" +%s) ]]; then
               echo "Updating is not allowed because the PR was pushed to (at $pushed_at) after the triggering comment was issued (at $COMMENT_AT)"
               exit 1

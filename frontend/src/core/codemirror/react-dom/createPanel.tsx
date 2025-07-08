@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { store } from "@/core/state/jotai";
+
 import type { EditorView, Panel } from "@codemirror/view";
 import { Provider } from "jotai";
-import { type Root, createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
+import { store } from "@/core/state/jotai";
 
 /**
  * Bridge between Codemirror panels and React

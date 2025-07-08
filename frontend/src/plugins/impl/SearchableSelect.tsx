@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, useMemo, useState } from "react";
-import { Combobox, ComboboxItem } from "../../components/ui/combobox";
-import { Labeled } from "./common/labeled";
-import { cn } from "../../utils/cn";
-import { multiselectFilterFn } from "./multiselectFilterFn";
+import { type JSX, useId, useMemo, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
+import { Combobox, ComboboxItem } from "../../components/ui/combobox";
+import { cn } from "../../utils/cn";
+import { Labeled } from "./common/labeled";
+import { multiselectFilterFn } from "./multiselectFilterFn";
 
 interface SearchableSelectProps {
   options: string[];

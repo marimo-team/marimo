@@ -912,9 +912,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             ]
             assert manager.take(count=10, offset=0).get_num_rows() == 10
 
-            # This is ok and expected, since we don't support pagination for lazy frames
-            with pytest.raises(TypeError):
-                manager.take(count=10, offset=10)
+            result = manager.take(count=5, offset=10)
+            assert result.get_num_rows() == 5
+            assert result.data["A"].to_list() == [10, 11, 12, 13, 14]
 
         assert len(recorded_warnings) == 0
 

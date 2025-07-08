@@ -88,6 +88,8 @@ def start(
     allow_origins: Optional[tuple[str, ...]] = None,
     auth_token: Optional[AuthToken],
     redirect_console_to_browser: bool,
+    skew_protection: bool,
+    remote_url: Optional[str] = None,
 ) -> None:
     """
     Start the server.
@@ -95,7 +97,7 @@ def start(
 
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
-    port = port or find_free_port(DEFAULT_PORT)
+    port = port or find_free_port(DEFAULT_PORT, addr=host)
 
     # This is the path that will be used to read the project configuration
     start_path: Optional[str] = None
@@ -178,6 +180,7 @@ def start(
         lsp_servers=list(lsp_composite_server.servers.values())
         if lsp_composite_server is not None
         else None,
+        skew_protection=skew_protection,
     )
 
     app.state.port = external_port
@@ -188,6 +191,7 @@ def start(
     app.state.session_manager = session_manager
     app.state.base_url = base_url
     app.state.config_manager = config_reader
+    app.state.remote_url = remote_url
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource

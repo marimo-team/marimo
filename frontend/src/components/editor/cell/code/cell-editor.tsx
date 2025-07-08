@@ -2,47 +2,45 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import React, { memo, useEffect, useRef, useMemo } from "react";
-
-import { setupCodeMirror } from "@/core/codemirror/cm";
+import { useAtom, useAtomValue } from "jotai";
+import React, { memo, useEffect, useMemo, useRef } from "react";
 import useEvent from "react-use-event-hook";
-import { notebookAtom, useCellActions } from "@/core/cells/cells";
-import type { CellRuntimeState, CellData } from "@/core/cells/types";
-import type { UserConfig } from "@/core/config/config-schema";
-import type { Theme } from "@/theme/useTheme";
+import { Button } from "@/components/ui/button";
+import { DelayMount } from "@/components/utils/delay-mount";
+import { aiCompletionCellAtom } from "@/core/ai/state";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
+import { useSetLastFocusedCellId } from "@/core/cells/focus";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import { setupCodeMirror } from "@/core/codemirror/cm";
 import {
   getInitialLanguageAdapter,
   languageAdapterState,
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import { LanguageToggles } from "./language-toggle";
-import { cn } from "@/utils/cn";
-import { saveCellConfig } from "@/core/network/requests";
-import { HideCodeButton } from "../../code/readonly-python-code";
-import { AiCompletionEditor } from "../../ai/ai-completion-editor";
-import { useAtom, useAtomValue } from "jotai";
-import { aiCompletionCellAtom } from "@/core/ai/state";
-import { mergeRefs } from "@/utils/mergeRefs";
-import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
-import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { useSplitCellCallback } from "../useSplitCell";
-import { invariant } from "@/utils/invariant";
-import { connectionAtom } from "@/core/network/connection";
-import { WebSocketState } from "@/core/websocket/types";
 import {
   connectedDocAtom,
   realTimeCollaboration,
 } from "@/core/codemirror/rtc/extension";
-import { store } from "@/core/state/jotai";
-import { useDeleteCellCallback } from "../useDeleteCell";
-import { useSaveNotebook } from "@/core/saving/save-component";
-import { DelayMount } from "@/components/utils/delay-mount";
-import { Button } from "@/components/ui/button";
+import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
+import type { UserConfig } from "@/core/config/config-schema";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { connectionAtom } from "@/core/network/connection";
+import { saveCellConfig } from "@/core/network/requests";
 import { isRtcEnabled } from "@/core/rtc/state";
+import { useSaveNotebook } from "@/core/saving/save-component";
+import { WebSocketState } from "@/core/websocket/types";
+import type { Theme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { invariant } from "@/utils/invariant";
+import { mergeRefs } from "@/utils/mergeRefs";
+import { AiCompletionEditor } from "../../ai/ai-completion-editor";
+import { HideCodeButton } from "../../code/readonly-python-code";
+import { useDeleteCellCallback } from "../useDeleteCell";
+import { useSplitCellCallback } from "../useSplitCell";
+import { LanguageToggles } from "./language-toggle";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -52,11 +50,6 @@ export interface CellEditorProps
   showPlaceholder: boolean;
   editorViewRef: React.MutableRefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
-  /**
-   * If true, the cell is allowed to be focus on.
-   * This is false when the app is initially loading.
-   */
-  allowFocus: boolean;
   userConfig: UserConfig;
   /**
    * If true, the cell code is hidden.
@@ -78,7 +71,6 @@ export interface CellEditorProps
 const CellEditorInternal = ({
   theme,
   showPlaceholder,
-  allowFocus,
   id: cellId,
   config: cellConfig,
   code,
@@ -184,6 +176,7 @@ const CellEditorInternal = ({
       theme,
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
       diagnosticsConfig: userConfig.diagnostics,
+      displayConfig: userConfig.display,
     });
 
     extensions.push(
@@ -364,31 +357,6 @@ const CellEditorInternal = ({
     extensions,
   ]);
 
-  // Auto-focus. Should focus newly created editors.
-  // We don't focus if RTC is enabled, since other players will be creating editors
-  const shouldFocus =
-    (editorViewRef.current === null || serializedEditorState !== null) &&
-    !isRtcEnabled();
-  useEffect(() => {
-    // Perf:
-    // We don't pass this in from the props since it causes lots of re-renders for unrelated cells
-    const hasNotebookKey = store.get(notebookAtom).scrollKey !== null;
-
-    // Only focus if the notebook does not currently have a scrollKey (which means we are focusing on another cell)
-    if (shouldFocus && allowFocus && !hasNotebookKey) {
-      // Focus and scroll into view; request an animation frame to
-      // avoid a race condition when new editors are created
-      // very rapidly by holding a hotkey
-      requestAnimationFrame(() => {
-        editorViewRef.current?.focus();
-        editorViewRef.current?.dom.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
-      });
-    }
-  }, [shouldFocus, allowFocus, editorViewRef]);
-
   // Destroy the editor when the component is unmounted
   useEffect(() => {
     const ev = editorViewRef.current;
@@ -405,7 +373,8 @@ const CellEditorInternal = ({
   if (isMarkdown && hidden && hasOutput) {
     editorClassName = "h-0 overflow-hidden";
   } else if (hidden) {
-    editorClassName = "opacity-20 h-8 overflow-hidden";
+    editorClassName =
+      "opacity-20 h-8 [&>div.cm-editor]:h-full [&>div.cm-editor]:overflow-hidden";
   }
 
   return (
@@ -518,6 +487,7 @@ CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 function WithWaitUntilConnected<T extends {}>(
   Component: React.ComponentType<T>,
 ) {
+  // biome-ignore lint/nursery/noNestedComponentDefinitions: this is evaluated top-level
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);

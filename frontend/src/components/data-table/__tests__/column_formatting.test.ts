@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { applyFormat } from "../column-formatting/feature";
 import {
-  prettyScientificNumber,
   prettyEngineeringNumber,
+  prettyScientificNumber,
 } from "@/utils/numbers";
+import { applyFormat } from "../column-formatting/feature";
 
 describe("applyFormat", () => {
   it("should return an empty string for null, undefined, or empty string values", () => {

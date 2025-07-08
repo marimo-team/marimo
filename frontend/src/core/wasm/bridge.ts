@@ -1,6 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { toast } from "@/components/ui/use-toast";
+import { userConfigAtom } from "@/core/config/config";
+import { Deferred } from "@/utils/Deferred";
+import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
+import { reloadSafe } from "@/utils/reload-safe";
+import { generateUUID } from "@/utils/uuid";
+import { notebookIsRunningAtom } from "../cells/cells";
+import { getMarimoVersion } from "../meta/globals";
+import { getInitialAppMode } from "../mode";
+import { API } from "../network/api";
 import type {
   EditRequests,
   ExportAsHTMLRequest,
@@ -16,26 +27,16 @@ import type {
   SaveUserConfigurationRequest,
   Snippets,
 } from "../network/types";
+import { store } from "../state/jotai";
 import type { IReconnectingWebSocket } from "../websocket/types";
+import { PyodideRouter } from "./router";
+import { getWorkerRPC } from "./rpc";
+import { createShareableLink } from "./share";
+import { wasmInitializationAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
-import { Deferred } from "@/utils/Deferred";
-import { createShareableLink } from "./share";
-import { PyodideRouter } from "./router";
-import { getMarimoVersion } from "../dom/marimo-tag";
-import { getWorkerRPC } from "./rpc";
-import { API } from "../network/api";
-import { parseUserConfig } from "../config/config-schema";
-import { throwNotImplemented } from "@/utils/functions";
-import type { WorkerSchema } from "./worker/worker";
 import type { SaveWorkerSchema } from "./worker/save-worker";
-import { toast } from "@/components/ui/use-toast";
-import { generateUUID } from "@/utils/uuid";
-import { store } from "../state/jotai";
-import { notebookIsRunningAtom } from "../cells/cells";
-import { getInitialAppMode, initialMode } from "../mode";
-import { wasmInitializationAtom } from "./state";
-import { reloadSafe } from "@/utils/reload-safe";
+import type { WorkerSchema } from "./worker/worker";
 
 type SaveWorker = ReturnType<
   typeof getWorkerRPC<SaveWorkerSchema>
@@ -58,7 +59,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   public initialized = new Deferred<void>();
 
   private getSaveWorker(): SaveWorker {
-    if (initialMode === "read") {
+    if (getInitialAppMode() === "read") {
       Logger.debug("Skipping SaveWorker in read-mode");
       return {
         readFile: throwNotImplemented,
@@ -137,10 +138,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Pass the code to the worker
     // If a filename is provided, it will be used to save the file
     // If no filename is provided, the file will not be saved
+
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = PyodideRouter.getFilename();
-    const userConfig = parseUserConfig();
+    const userConfig = store.get(userConfigAtom);
 
     const queryParameters: Record<string, string | string[]> = {};
     const searchParams = new URLSearchParams(window.location.search);
@@ -512,6 +514,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
+  getDependencyTree = async () => {
+    // WASM doesn't support dependency trees yet
+    return { tree: undefined };
+  };
+
   listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
     await this.putControlRequest(request);
     return null;
@@ -521,6 +528,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     await this.putControlRequest(request);
     return null;
   };
+
+  invokeAiTool = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({

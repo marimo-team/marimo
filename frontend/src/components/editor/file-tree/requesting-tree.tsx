@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { SimpleTree } from "react-arborist";
 import { toast } from "@/components/ui/use-toast";
 import type {
-  sendListFiles,
   sendCreateFileOrFolder,
   sendDeleteFileOrFolder,
+  sendListFiles,
   sendRenameFileOrFolder,
 } from "@/core/network/requests";
 import type { FileInfo, FileUpdateResponse } from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { type FilePath, PathBuilder } from "@/utils/paths";
-import { SimpleTree } from "react-arborist";
 
 export class RequestingTree {
   private delegate = new SimpleTree<FileInfo>([]);
@@ -202,7 +203,11 @@ export class RequestingTree {
   };
 
   public relativeFromRoot = (path: FilePath): FilePath => {
-    const root = withTrailingSlash(this.rootPath);
+    // Add a trailing delimiter to the root path if it doesn't have one
+    const root = this.rootPath.endsWith(this.path.deliminator)
+      ? this.rootPath
+      : `${this.rootPath}${this.path.deliminator}`;
+
     if (path.startsWith(root)) {
       return path.slice(root.length) as FilePath;
     }
@@ -222,8 +227,4 @@ export class RequestingTree {
 
     return response;
   };
-}
-
-function withTrailingSlash(path: string): string {
-  return path.endsWith("/") ? path : `${path}/`;
 }

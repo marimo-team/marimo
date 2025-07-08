@@ -1,5 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import type { VariantProps } from "class-variance-authority";
+import { Check, ChevronRight, Circle } from "lucide-react";
+import React from "react";
+import { StyleNamespace } from "@/theme/namespace";
+import { cn } from "@/utils/cn";
+import { withFullScreenAsRoot } from "./fullscreen";
 import {
   MenuShortcut,
   menuContentCommon,
@@ -10,12 +16,6 @@ import {
   menuSeparatorVariants,
   menuSubTriggerVariants,
 } from "./menu-items";
-import { cn } from "@/utils/cn";
-import React from "react";
-import { Check, ChevronRight, Circle } from "lucide-react";
-import type { VariantProps } from "class-variance-authority";
-import { withFullScreenAsRoot } from "./fullscreen";
-import { StyleNamespace } from "@/theme/namespace";
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;

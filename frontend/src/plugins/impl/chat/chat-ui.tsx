@@ -1,60 +1,61 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Spinner } from "@/components/icons/spinner";
-import { Logger } from "@/utils/Logger";
-import { type Message, useChat } from "ai/react";
-import React, { useEffect, useRef } from "react";
-import type {
-  ChatMessage,
-  ChatConfig,
-  ChatAttachment,
-  ChatRole,
-} from "./types";
-import { ErrorBanner } from "../common/error-banner";
-import { Button, buttonVariants } from "@/components/ui/button";
+
+import { useChat } from "@ai-sdk/react";
+import { ChatBubbleIcon } from "@radix-ui/react-icons";
+import { PopoverAnchor } from "@radix-ui/react-popover";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import type { Message } from "ai/react";
+import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
   ClipboardIcon,
-  HelpCircleIcon,
-  SendIcon,
-  Trash2Icon,
   DownloadIcon,
+  HelpCircleIcon,
   PaperclipIcon,
+  SendIcon,
+  SettingsIcon,
+  Trash2Icon,
   X,
 } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { toast } from "@/components/ui/use-toast";
-import { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Label } from "@/components/ui/label";
-import { SettingsIcon } from "lucide-react";
-import { NumberField } from "@/components/ui/number-field";
-import { Objects } from "@/utils/objects";
+  type AdditionalCompletions,
+  PromptInput,
+} from "@/components/editor/ai/add-cell-with-ai";
+import { Spinner } from "@/components/icons/spinner";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip } from "@/components/ui/tooltip";
-import { startCase } from "lodash-es";
-import { ChatBubbleIcon } from "@radix-ui/react-icons";
-import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Input } from "@/components/ui/input";
-import { PopoverAnchor } from "@radix-ui/react-popover";
-import { copyToClipboard } from "@/utils/copy";
+import { Label } from "@/components/ui/label";
+import { NumberField } from "@/components/ui/number-field";
 import {
-  type AdditionalCompletions,
-  PromptInput,
-} from "@/components/editor/ai/add-cell-with-ai";
-import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useTheme } from "@/theme/useTheme";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Tooltip } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/use-toast";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
-import type { PluginFunctions } from "./ChatPlugin";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
+import { ErrorBanner } from "../common/error-banner";
+import type { PluginFunctions } from "./ChatPlugin";
+import type {
+  ChatAttachment,
+  ChatConfig,
+  ChatMessage,
+  ChatRole,
+} from "./types";
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -92,7 +93,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     input,
     setInput,
     handleSubmit,
-    isLoading,
+    status,
     stop,
     error,
     reload,
@@ -147,6 +148,8 @@ export const Chatbot: React.FC<Props> = (props) => {
       Logger.debug("Received HTTP response from server:", response);
     },
   });
+
+  const isLoading = status === "submitted" || status === "streaming";
 
   const handleDelete = (id: string) => {
     const index = messages.findIndex((message) => message.id === id);

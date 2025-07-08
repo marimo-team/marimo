@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
 import type * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
+import { AlertCircleIcon } from "lucide-react";
+import * as React from "react";
 import {
   Controller,
   type ControllerProps,
@@ -10,11 +12,9 @@ import {
   FormProvider,
   useFormContext,
 } from "react-hook-form";
-
-import { cn } from "@/utils/cn";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
-import { AlertCircleIcon } from "lucide-react";
+import { cn } from "@/utils/cn";
 
 const Form = FormProvider;
 
@@ -53,15 +53,15 @@ const FormField = <
 }: ControllerProps<TFieldValues, TName>) => {
   return (
     // Need key to prevent context value from being stale
-    <FormFieldContext.Provider key={props.name} value={{ name: props.name }}>
+    <FormFieldContext key={props.name} value={{ name: props.name }}>
       <Controller {...props} />
-    </FormFieldContext.Provider>
+    </FormFieldContext>
   );
 };
 
 const useFormField = () => {
-  const fieldContext = React.useContext(FormFieldContext);
-  const itemContext = React.useContext(FormItemContext);
+  const fieldContext = React.use(FormFieldContext);
+  const itemContext = React.use(FormItemContext);
   const { getFieldState, formState } = useFormContext();
 
   const fieldState = getFieldState(fieldContext.name, formState);
@@ -97,13 +97,13 @@ const FormItem = React.forwardRef<
   const id = React.useId();
 
   return (
-    <FormItemContext.Provider value={{ id }}>
+    <FormItemContext value={{ id }}>
       <div
         ref={ref}
         className={cn("flex flex-col gap-1", className)}
         {...props}
       />
-    </FormItemContext.Provider>
+    </FormItemContext>
   );
 });
 FormItem.displayName = "FormItem";

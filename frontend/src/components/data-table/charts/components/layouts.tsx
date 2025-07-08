@@ -1,13 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { InfoIcon, type LucideProps } from "lucide-react";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
-import { AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { AccordionContent } from "@/components/ui/accordion";
+import {
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
-import type { LucideProps } from "lucide-react";
 
-export const Title: React.FC<{ text: string }> = ({ text }) => {
-  return <h2 className="font-semibold my-0">{text}</h2>;
+export const Title: React.FC<{ text: string; tooltip?: string }> = ({
+  text,
+  tooltip,
+}) => {
+  return (
+    <h2 className="font-semibold my-0 flex items-center gap-1">
+      {text}
+      {tooltip && (
+        <Tooltip content={tooltip}>
+          <InfoIcon className="w-3 h-3 mt-0.5" />
+        </Tooltip>
+      )}
+    </h2>
+  );
 };
 
 export const TabContainer: React.FC<{
@@ -85,14 +101,18 @@ export const AccordionFormContent: React.FC<{
 
 export const CodeSnippet: React.FC<{
   code: string;
+  insertNewCell?: boolean;
   language?: "python" | "sql";
-}> = ({ code, language }) => {
+}> = ({ code, insertNewCell, language }) => {
   return (
     <ReadonlyCode
       minHeight="330px"
       maxHeight="330px"
       code={code}
       language={language}
+      showHideCode={false}
+      showCopyCode={false}
+      insertNewCell={insertNewCell}
     />
   );
 };

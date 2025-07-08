@@ -1,12 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { SCRATCH_CELL_ID } from "@/core/cells/cells";
+
+import type { JSX } from "react"; /* Copyright 2024 Marimo. All rights reserved. */
+import {
+  SCRATCH_CELL_ID,
+  useCellActions,
+  useCellIds,
+  useCellNames,
+} from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { Logger } from "../../../utils/Logger";
-import { cn } from "@/utils/cn";
 import { displayCellName } from "@/core/cells/names";
-import { useCellActions, useCellIds, useCellNames } from "@/core/cells/cells";
-import { useFilename } from "@/core/saving/filename";
 import { goToCellLine } from "@/core/codemirror/go-to-definition/utils";
+import { useFilename } from "@/core/saving/filename";
+import { cn } from "@/utils/cn";
+import { Logger } from "../../../utils/Logger";
 
 interface Props {
   cellId: CellId;
@@ -68,7 +74,10 @@ export const CellLinkError = (
 export const CellLinkTraceback = ({
   cellId,
   lineNumber,
-}: { cellId: CellId; lineNumber: number }): JSX.Element => {
+}: {
+  cellId: CellId;
+  lineNumber: number;
+}): JSX.Element => {
   const filename = useFilename();
   return (
     <CellLink

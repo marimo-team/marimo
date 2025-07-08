@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { DatasetsState } from "./types";
 import { atom, useAtomValue } from "jotai";
-import type { VariableName } from "../variables/types";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 import type {
   DataColumnPreview,
   OperationMessageData,
 } from "../kernel/messages";
 import { previewDatasetColumn } from "../network/requests";
+import type { VariableName } from "../variables/types";
+import type { DatasetsState } from "./types";
 
 function initialState(): DatasetsState {
   return {

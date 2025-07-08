@@ -56,16 +56,23 @@ class AutoExportState:
 
 
 class SessionView:
-    """
-    This stores the current view of the session.
+    """A representation of a session state for replay and serialization.
 
-    Which are the cell's outputs, status, and console.
+    Of note, a SessionView stores:
+    * the last-seen notebook-order of Cell IDs
+    * a mapping from cell IDs to their last seen operation of interest,
+      such as an output, status, or console output
+    * various other state needed for replay
+
+    A notebook session can be hydrated from a serialized SessionView,
+    for example on notebook startup when auto-instantiate is off, or
+    on reconnection via a replay.
     """
 
     def __init__(self) -> None:
-        # Last seen cell IDs
+        # Last seen notebook-order of cell IDs
         self.cell_ids: Optional[UpdateCellIdsRequest] = None
-        # List of operations we care about keeping track of.
+        # A mapping from cell (IDs) to their last seen operation
         self.cell_operations: dict[CellId_t, CellOp] = {}
         # The most recent datasets operation.
         self.datasets = Datasets(tables=[])
