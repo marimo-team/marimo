@@ -15,9 +15,5 @@
     // Methods
     `$name($p1, $p2, $p3, $...) { $body }`
   },
-  register_diagnostic(
-    span=$name,
-    message="Avoid multiple positional arguments. Prefer an options object instead, e.g., fn(options) or fn(arg, options).",
-    severity="warn"
-  )
+  register_diagnostic(span=$name, message="Avoid multiple positional arguments. Prefer an options object instead, e.g., fn(options) or fn(arg, options).", severity="warn")
 }

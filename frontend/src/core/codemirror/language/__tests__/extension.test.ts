@@ -30,17 +30,17 @@ function createState(content: string, selection?: { anchor: number }) {
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
       }),
-      cellConfigExtension(
-        {
+      cellConfigExtension({
+        completionConfig: {
           copilot: false,
           activate_on_typing: true,
           codeium_api_key: null,
         },
-        new OverridingHotkeyProvider({}),
-        "marimo-import",
-        {},
-        {},
-      ),
+        hotkeys: new OverridingHotkeyProvider({}),
+        placeholderType: "marimo-import",
+        lspConfig: {},
+        diagnosticsConfig: {},
+      }),
     ],
     selection,
   });
@@ -74,7 +74,7 @@ describe("switchLanguage", () => {
       anchor: 2,
     });
     const mockEditor = new EditorView({ state });
-    switchLanguage(mockEditor, "python", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "python", keepCodeAsIs: true });
     expect(mockEditor.state.field(languageAdapterState).type).toBe("python");
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
@@ -87,14 +87,14 @@ describe("switchLanguage", () => {
     expect(getInitialLanguageAdapter(mockEditor.state).type).toBe("python");
 
     // Switch to markdown
-    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "markdown", keepCodeAsIs: true });
     expect(mockEditor.state.field(languageAdapterState).type).toBe("markdown");
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
     );
 
     // Switch back to python
-    switchLanguage(mockEditor, "python", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "python", keepCodeAsIs: true });
     expect(mockEditor.state.field(languageAdapterState).type).toBe("python");
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
@@ -104,7 +104,7 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.selection.main.from).toEqual(2);
 
     // Switch to sql
-    switchLanguage(mockEditor, "sql", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "sql", keepCodeAsIs: true });
     expect(mockEditor.state.field(languageAdapterState).type).toBe("sql");
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
@@ -114,7 +114,7 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.selection.main.from).toEqual(2);
 
     // Switch back to python
-    switchLanguage(mockEditor, "python", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "python", keepCodeAsIs: true });
     expect(mockEditor.state.field(languageAdapterState).type).toBe("python");
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
@@ -129,7 +129,7 @@ describe("switchLanguage", () => {
       anchor: 2,
     });
     const mockEditor = new EditorView({ state });
-    switchLanguage(mockEditor, "python", { keepCodeAsIs: false });
+    switchLanguage(mockEditor, { language: "python", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
     );
@@ -138,13 +138,13 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.selection.main.from).toEqual(2);
 
     // Switch to markdown
-    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: false });
+    switchLanguage(mockEditor, { language: "markdown", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
     );
 
     // Switch back to python
-    switchLanguage(mockEditor, "python", { keepCodeAsIs: false });
+    switchLanguage(mockEditor, { language: "python", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "mo.md(
           r"""
@@ -155,14 +155,14 @@ describe("switchLanguage", () => {
     `);
 
     // Switch to sql
-    switchLanguage(mockEditor, "sql", { keepCodeAsIs: false });
+    switchLanguage(mockEditor, { language: "sql", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "print('Hello')
       print('Goodbye')"
     `);
 
     // Switch back to python
-    switchLanguage(mockEditor, "python", { keepCodeAsIs: false });
+    switchLanguage(mockEditor, { language: "python", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "_df = mo.sql(
           f"""
@@ -180,7 +180,7 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.field(languageMetadataField)).toEqual({});
 
     // Switch to SQL
-    switchLanguage(mockEditor, "sql", { keepCodeAsIs: false });
+    switchLanguage(mockEditor, { language: "sql", keepCodeAsIs: false });
 
     // Check that the language was switched
     expect(mockEditor.state.field(languageAdapterState).type).toBe("sql");
@@ -206,7 +206,7 @@ describe("switchLanguage", () => {
     const mockEditor = new EditorView({ state });
     expect(mockEditor.state.field(languageMetadataField)).toEqual({});
 
-    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "markdown", keepCodeAsIs: true });
     expect(mockEditor.state.doc.toString()).toEqual("# hello");
     expect(mockEditor.state.field(languageMetadataField)).toEqual({
       quotePrefix: "r",
@@ -218,13 +218,13 @@ describe("switchLanguage", () => {
     const mockEditor = new EditorView({ state });
     expect(mockEditor.state.field(languageMetadataField)).toEqual({});
 
-    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "markdown", keepCodeAsIs: true });
     expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
     expect(mockEditor.state.field(languageMetadataField)).toEqual({
       quotePrefix: "r",
     });
 
-    switchLanguage(mockEditor, "sql", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "sql", keepCodeAsIs: true });
     expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
     expect(mockEditor.state.field(languageMetadataField)).toEqual({
       commentLines: [],
@@ -235,7 +235,7 @@ describe("switchLanguage", () => {
     });
 
     // Switch back to markdown
-    switchLanguage(mockEditor, "markdown", { keepCodeAsIs: true });
+    switchLanguage(mockEditor, { language: "markdown", keepCodeAsIs: true });
     expect(mockEditor.state.doc.toString()).toEqual("SELECT * FROM df");
     expect(mockEditor.state.field(languageMetadataField)).toEqual({
       quotePrefix: "r",

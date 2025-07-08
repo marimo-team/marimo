@@ -196,11 +196,15 @@ const COLUMNS = [
  * Sort the variables by the specified column sort
  * Defaults to the order they are defined in the notebook
  */
-function sortData(
-  variables: ResolvedVariable[],
-  sort: ColumnSort | undefined,
-  cellIdToIndex: Map<CellId, number>,
-) {
+function sortData({
+  variables,
+  sort,
+  cellIdToIndex,
+}: {
+  variables: ResolvedVariable[];
+  sort: ColumnSort | undefined;
+  cellIdToIndex: Map<CellId, number>;
+}) {
   // Default to sort by the cell that defined it
   if (!sort) {
     sort = { id: ColumnIds.defs, desc: false };
@@ -251,7 +255,11 @@ export const VariableTable: React.FC<Props> = memo(
     const sortedVariables = useMemo(() => {
       const cellIdToIndex = new Map<CellId, number>();
       cellIds.forEach((id, index) => cellIdToIndex.set(id, index));
-      return sortData(resolvedVariables, sorting[0], cellIdToIndex);
+      return sortData({
+        variables: resolvedVariables,
+        sort: sorting[0],
+        cellIdToIndex,
+      });
     }, [resolvedVariables, sorting, cellIds]);
 
     const table = useReactTable({

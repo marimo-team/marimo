@@ -84,7 +84,11 @@ export function handleKernelReady(
   const layoutState = initialLayoutState();
   if (layout) {
     const layoutType = layout.type as LayoutType;
-    const layoutData = deserializeLayout(layoutType, layout.data, cells);
+    const layoutData = deserializeLayout({
+      type: layoutType,
+      data: layout.data,
+      cells,
+    });
     layoutState.selectedLayout = layoutType;
     layoutState.layoutData[layoutType] = layoutData;
     setLayoutData({ layoutView: layoutType, data: layoutData });

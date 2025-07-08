@@ -623,11 +623,15 @@ const {
   },
   clearSerializedEditorState: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    return updateCellData(state, cellId, (cell) => {
-      return {
-        ...cell,
-        serializedEditorState: null,
-      };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          serializedEditorState: null,
+        };
+      },
     });
   },
   updateCellCode: (
@@ -647,29 +651,37 @@ const {
       return state;
     }
 
-    return updateCellData(state, cellId, (cell) => {
-      // Formatting-only change means we can re-use the last code run
-      // if it was not previously edited. And we don't change the edited state.
-      return formattingChange
-        ? {
-            ...cell,
-            code: code,
-            lastCodeRun: cell.edited ? cell.lastCodeRun : code,
-          }
-        : {
-            ...cell,
-            code: code,
-            edited: code.trim() !== cell.lastCodeRun,
-          };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        // Formatting-only change means we can re-use the last code run
+        // if it was not previously edited. And we don't change the edited state.
+        return formattingChange
+          ? {
+              ...cell,
+              code: code,
+              lastCodeRun: cell.edited ? cell.lastCodeRun : code,
+            }
+          : {
+              ...cell,
+              code: code,
+              edited: code.trim() !== cell.lastCodeRun,
+            };
+      },
     });
   },
   updateCellName: (state, action: { cellId: CellId; name: string }) => {
     const { cellId, name } = action;
-    return updateCellData(state, cellId, (cell) => {
-      return {
-        ...cell,
-        name: name,
-      };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          name: name,
+        };
+      },
     });
   },
   updateCellConfig: (
@@ -677,29 +689,45 @@ const {
     action: { cellId: CellId; config: Partial<CellConfig> },
   ) => {
     const { cellId, config } = action;
-    return updateCellData(state, cellId, (cell) => {
-      return {
-        ...cell,
-        config: { ...cell.config, ...config },
-      };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          config: { ...cell.config, ...config },
+        };
+      },
     });
   },
   prepareForRun: (state, action: { cellId: CellId }) => {
-    const newState = updateCellRuntimeState(state, action.cellId, (cell) => {
-      return prepareCellForExecution(cell);
+    const newState = updateCellRuntimeState({
+      state,
+      cellId: action.cellId,
+      cellReducer: (cell) => {
+        return prepareCellForExecution(cell);
+      },
     });
-    return updateCellData(newState, action.cellId, (cell) => {
-      return {
-        ...cell,
-        edited: false,
-        lastCodeRun: cell.code.trim(),
-      };
+    return updateCellData({
+      state: newState,
+      cellId: action.cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          edited: false,
+          lastCodeRun: cell.code.trim(),
+        };
+      },
     });
   },
   handleCellMessage: (state, message: CellMessage) => {
     const cellId = message.cell_id as CellId;
-    const nextState = updateCellRuntimeState(state, cellId, (cell) => {
-      return transitionCell(cell, message);
+    const nextState = updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return transitionCell(cell, message);
+      },
     });
     return {
       ...nextState,
@@ -748,11 +776,15 @@ const {
 
     let nextState = { ...state };
 
-    const cellReducer = (
-      cell: CellData | undefined,
-      code: string,
-      cellId: CellId,
-    ) => {
+    const cellReducer = ({
+      cell,
+      code,
+      cellId,
+    }: {
+      cell: CellData | undefined;
+      code: string;
+      cellId: CellId;
+    }) => {
       if (!cell) {
         return createCell({
           id: cellId,
@@ -805,7 +837,11 @@ const {
         ...nextState,
         cellData: {
           ...nextState.cellData,
-          [cellId]: cellReducer(nextState.cellData[cellId], code, cellId),
+          [cellId]: cellReducer({
+            cell: nextState.cellData[cellId],
+            code,
+            cellId,
+          }),
         },
       };
     }
@@ -817,27 +853,31 @@ const {
     action: { cellId: CellId; response: string; outputIndex: number },
   ) => {
     const { cellId, response, outputIndex } = action;
-    return updateCellRuntimeState(state, cellId, (cell) => {
-      const consoleOutputs = [...cell.consoleOutputs];
-      const stdinOutput = consoleOutputs[outputIndex];
-      if (stdinOutput.channel !== "stdin") {
-        Logger.warn("Expected stdin output");
-        return cell;
-      }
+    return updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        const consoleOutputs = [...cell.consoleOutputs];
+        const stdinOutput = consoleOutputs[outputIndex];
+        if (stdinOutput.channel !== "stdin") {
+          Logger.warn("Expected stdin output");
+          return cell;
+        }
 
-      consoleOutputs[outputIndex] = {
-        channel: "stdin",
-        mimetype: stdinOutput.mimetype,
-        data: stdinOutput.data,
-        timestamp: stdinOutput.timestamp,
-        response,
-      };
+        consoleOutputs[outputIndex] = {
+          channel: "stdin",
+          mimetype: stdinOutput.mimetype,
+          data: stdinOutput.data,
+          timestamp: stdinOutput.timestamp,
+          response,
+        };
 
-      return {
-        ...cell,
-        interrupted: false,
-        consoleOutputs,
-      };
+        return {
+          ...cell,
+          interrupted: false,
+          consoleOutputs,
+        };
+      },
     });
   },
   setCells: (state, cells: CellData[]) => {
@@ -1203,21 +1243,29 @@ const {
   },
   clearCellOutput: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    return updateCellRuntimeState(state, cellId, (cell) => ({
-      ...cell,
-      output: null,
-      consoleOutputs: [],
-    }));
+    return updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => ({
+        ...cell,
+        output: null,
+        consoleOutputs: [],
+      }),
+    });
   },
   clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    return updateCellRuntimeState(state, cellId, (cell) => ({
-      ...cell,
-      // Remove everything except unresponsed stdin
-      consoleOutputs: cell.consoleOutputs.filter(
-        (output) => output.channel === "stdin" && output.response == null,
-      ),
-    }));
+    return updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => ({
+        ...cell,
+        // Remove everything except unresponsed stdin
+        consoleOutputs: cell.consoleOutputs.filter(
+          (output) => output.channel === "stdin" && output.response == null,
+        ),
+      }),
+    });
   },
   clearAllCellOutputs: (state) => {
     const newCellRuntime = { ...state.cellRuntime };
@@ -1239,11 +1287,15 @@ const {
     // First check if setup cell already exists
     if (SETUP_CELL_ID in state.cellData) {
       // Update existing setup cell
-      return updateCellData(state, SETUP_CELL_ID, (cell) => ({
-        ...cell,
-        code,
-        edited: code.trim() !== cell.lastCodeRun?.trim(),
-      }));
+      return updateCellData({
+        state,
+        cellId: SETUP_CELL_ID,
+        cellReducer: (cell) => ({
+          ...cell,
+          code,
+          edited: code.trim() !== cell.lastCodeRun?.trim(),
+        }),
+      });
     }
 
     return {
@@ -1275,11 +1327,15 @@ const {
 });
 
 // Helper function to update a cell in the array
-function updateCellRuntimeState(
-  state: NotebookState,
-  cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellRuntimeState>,
-) {
+function updateCellRuntimeState({
+  state,
+  cellId,
+  cellReducer,
+}: {
+  state: NotebookState;
+  cellId: CellId;
+  cellReducer: ReducerWithoutAction<CellRuntimeState>;
+}) {
   if (!(cellId in state.cellRuntime)) {
     Logger.warn(`Cell ${cellId} not found in state`);
     return state;
@@ -1294,11 +1350,15 @@ function updateCellRuntimeState(
   };
 }
 
-function updateCellData(
-  state: NotebookState,
-  cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellData>,
-) {
+function updateCellData({
+  state,
+  cellId,
+  cellReducer,
+}: {
+  state: NotebookState;
+  cellId: CellId;
+  cellReducer: ReducerWithoutAction<CellData>;
+}) {
   if (!(cellId in state.cellData)) {
     Logger.warn(`Cell ${cellId} not found in state`);
     return state;

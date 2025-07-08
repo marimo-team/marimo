@@ -3,12 +3,17 @@
 /**
  * Get the protocol and parent directories of a path.
  */
-export function getProtocolAndParentDirectories(
-  path: string,
-  delimiter: string,
-  initialPath: string,
-  restrictNavigation: boolean,
-) {
+export function getProtocolAndParentDirectories({
+  path,
+  delimiter,
+  initialPath,
+  restrictNavigation,
+}: {
+  path: string;
+  delimiter: string;
+  initialPath: string;
+  restrictNavigation: boolean;
+}) {
   // Determine protocol (http://, gs://, C:\, s3://, or /)
   const protocolMatch = path.match(/^[\dA-Za-z]+:\/\//);
   const isWindowsPath = /^[A-Za-z]:\\/.test(path);

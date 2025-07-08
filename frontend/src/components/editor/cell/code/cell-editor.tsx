@@ -259,7 +259,9 @@ const CellEditorInternal = ({
     setEditorView(ev);
     // Initialize the language adapter
     if (!rtcEnabled) {
-      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+      switchLanguage(ev, {
+        language: getInitialLanguageAdapter(ev.state).type,
+      });
     }
   });
 
@@ -278,15 +280,16 @@ const CellEditorInternal = ({
     editorViewRef.current.dispatch({
       effects: [
         StateEffect.reconfigure.of([extensions]),
-        reconfigureLanguageEffect(
-          editorViewRef.current,
-          userConfig.completion,
-          new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
-          {
+        reconfigureLanguageEffect(editorViewRef.current, {
+          completionConfig: userConfig.completion,
+          hotkeysProvider: new OverridingHotkeyProvider(
+            userConfig.keymap.overrides ?? {},
+          ),
+          lspConfig: {
             ...userConfig.language_servers,
             diagnostics: userConfig.diagnostics,
           },
-        ),
+        }),
       ],
     });
   });
@@ -319,7 +322,9 @@ const CellEditorInternal = ({
     });
     // Initialize the language adapter
     if (!rtcEnabled) {
-      switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+      switchLanguage(ev, {
+        language: getInitialLanguageAdapter(ev.state).type,
+      });
     }
     setEditorView(ev);
     // Clear the serialized state so that we don't re-create the editor next time

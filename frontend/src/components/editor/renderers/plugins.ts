@@ -14,11 +14,15 @@ export const cellRendererPlugins: Array<ICellRendererPlugin<any, any>> = [
   VerticalLayoutPlugin,
 ];
 
-export function deserializeLayout(
-  type: LayoutType,
-  data: unknown,
-  cells: CellData[],
-) {
+export function deserializeLayout({
+  type,
+  data,
+  cells,
+}: {
+  type: LayoutType;
+  data: unknown;
+  cells: CellData[];
+}) {
   const plugin = cellRendererPlugins.find((plugin) => plugin.type === type);
   if (plugin === undefined) {
     throw new Error(`Unknown layout type: ${type}`);

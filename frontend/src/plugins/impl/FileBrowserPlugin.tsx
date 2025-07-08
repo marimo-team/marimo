@@ -217,11 +217,15 @@ export const FileBrowser = ({
     setIsUpdatingPath(false);
   }
 
-  function createFileInfo(
-    path: string,
-    name: string,
-    isDirectory: boolean,
-  ): FileInfo {
+  function createFileInfo({
+    path,
+    name,
+    isDirectory,
+  }: {
+    path: string;
+    name: string;
+    isDirectory: boolean;
+  }): FileInfo {
     return {
       id: path,
       name: name,
@@ -230,8 +234,16 @@ export const FileBrowser = ({
     };
   }
 
-  function handleSelection(path: string, name: string, isDirectory: boolean) {
-    const fileInfo = createFileInfo(path, name, isDirectory);
+  function handleSelection({
+    path,
+    name,
+    isDirectory,
+  }: {
+    path: string;
+    name: string;
+    isDirectory: boolean;
+  }) {
+    const fileInfo = createFileInfo({ path, name, isDirectory });
 
     if (multiple) {
       if (selectedPaths.has(path)) {
@@ -264,7 +276,11 @@ export const FileBrowser = ({
       if (selectedPaths.has(file.path)) {
         continue;
       }
-      const fileInfo = createFileInfo(file.path, file.name, file.is_directory);
+      const fileInfo = createFileInfo({
+        path: file.path,
+        name: file.name,
+        isDirectory: file.is_directory,
+      });
       filesInView.push(fileInfo);
     }
 
@@ -297,7 +313,9 @@ export const FileBrowser = ({
     }
 
     // Click handler
-    const handleClick = file.is_directory ? setNewPath : handleSelection;
+    const handleClick = file.is_directory
+      ? ({ path }: { path: string }) => setNewPath(path)
+      : handleSelection;
 
     // Icon
     const fileType: FileType = file.is_directory
@@ -317,7 +335,11 @@ export const FileBrowser = ({
             <Checkbox
               checked={isSelected}
               onClick={(e) => {
-                handleSelection(filePath, file.name, file.is_directory);
+                handleSelection({
+                  path: filePath,
+                  name: file.name,
+                  isDirectory: file.is_directory,
+                });
                 e.stopPropagation();
               }}
               className={cn("", {
@@ -347,7 +369,13 @@ export const FileBrowser = ({
             "bg-primary bg-opacity-25": isSelected,
           },
         )}
-        onClick={() => handleClick(filePath, file.name, file.is_directory)}
+        onClick={() =>
+          handleClick({
+            path: filePath,
+            name: file.name,
+            isDirectory: file.is_directory,
+          })
+        }
       >
         <TableCell className="w-[50px] pl-4">
           {renderCheckboxOrIcon()}
@@ -361,12 +389,12 @@ export const FileBrowser = ({
   //
   // Assumes that path contains at least one delimiter, which is true
   // only if this is an absolute path.
-  const { parentDirectories } = getProtocolAndParentDirectories(
+  const { parentDirectories } = getProtocolAndParentDirectories({
     path,
     delimiter,
     initialPath,
     restrictNavigation,
-  );
+  });
 
   const selectionKindLabel =
     selectionMode === "all"

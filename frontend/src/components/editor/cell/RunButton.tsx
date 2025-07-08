@@ -10,12 +10,17 @@ import type { WebSocketState } from "@/core/websocket/types";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { ToolbarItem } from "./toolbar";
 
-function computeColor(
-  connectionState: WebSocketState,
-  needsRun: boolean,
-  loading: boolean,
-  inactive: boolean,
-) {
+function computeColor({
+  connectionState,
+  needsRun,
+  loading,
+  inactive,
+}: {
+  connectionState: WebSocketState;
+  needsRun: boolean;
+  loading: boolean;
+  inactive: boolean;
+}) {
   if (isAppInteractionDisabled(connectionState)) {
     return "disabled";
   }
@@ -44,7 +49,12 @@ export const RunButton = (props: {
     isAppInteractionDisabled(connectionState) ||
     loading ||
     (!config.disabled && blockedStatus && !edited);
-  const variant = computeColor(connectionState, needsRun, loading, inactive);
+  const variant = computeColor({
+    connectionState,
+    needsRun,
+    loading,
+    inactive,
+  });
 
   if (config.disabled) {
     return (

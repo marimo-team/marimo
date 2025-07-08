@@ -137,7 +137,11 @@ export const LanguagePanelComponent: React.FC<{
       if (typeof checked !== "boolean") {
         return;
       }
-      const newPrefix = getQuotePrefix(quotePrefix, checked, prefix);
+      const newPrefix = getQuotePrefix({
+        currentQuotePrefix: quotePrefix,
+        checked,
+        prefix,
+      });
       triggerUpdate<Metadata2>({
         quotePrefix: newPrefix,
       });

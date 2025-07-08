@@ -74,7 +74,7 @@ export const ColumnFormattingFeature: TableFeature = {
       const dataType = column.columnDef.meta?.dataType;
       const format = column.getColumnFormatting?.();
       if (format) {
-        return applyFormat(value, format, dataType);
+        return applyFormat(value, { format, dataType });
       }
       return value;
     };
@@ -109,9 +109,12 @@ const integerFormatter = new Intl.NumberFormat(undefined, {
 // Apply formatting to a value given a format and data type
 export const applyFormat = (
   value: unknown,
-  format: FormatOption,
-  dataType: DataType | undefined,
+  options: {
+    format: FormatOption;
+    dataType: DataType | undefined;
+  },
 ) => {
+  const { format, dataType } = options;
   // If the value is null, return an empty string
   if (value === null || value === undefined || value === "") {
     return "";
@@ -198,21 +201,46 @@ export function formattingExample(
 ): string | number | undefined | null {
   switch (format) {
     case "Date":
-      return String(applyFormat(new Date(), "Date", "date"));
+      return String(
+        applyFormat(new Date(), { format: "Date", dataType: "date" }),
+      );
     case "Datetime":
-      return String(applyFormat(new Date(), "Datetime", "date"));
+      return String(
+        applyFormat(new Date(), {
+          format: "Datetime",
+          dataType: "date",
+        }),
+      );
     case "Time":
-      return String(applyFormat(new Date(), "Time", "date"));
+      return String(
+        applyFormat(new Date(), { format: "Time", dataType: "date" }),
+      );
     case "Percent":
-      return String(applyFormat(0.1234, "Percent", "number"));
+      return String(
+        applyFormat(0.1234, { format: "Percent", dataType: "number" }),
+      );
     case "Scientific":
-      return String(applyFormat(12_345_678_910, "Scientific", "number"));
+      return String(
+        applyFormat(12_345_678_910, {
+          format: "Scientific",
+          dataType: "number",
+        }),
+      );
     case "Engineering":
-      return String(applyFormat(12_345_678_910, "Engineering", "number"));
+      return String(
+        applyFormat(12_345_678_910, {
+          format: "Engineering",
+          dataType: "number",
+        }),
+      );
     case "Integer":
-      return String(applyFormat(1234.567, "Integer", "number"));
+      return String(
+        applyFormat(1234.567, { format: "Integer", dataType: "number" }),
+      );
     case "Auto":
-      return String(applyFormat(1234.567, "Auto", "number"));
+      return String(
+        applyFormat(1234.567, { format: "Auto", dataType: "number" }),
+      );
     default:
       return null;
   }

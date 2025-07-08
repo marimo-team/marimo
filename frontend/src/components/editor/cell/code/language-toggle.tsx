@@ -112,7 +112,7 @@ export const LanguageToggle: React.FC<Props> = ({
     if (!editorView) {
       return;
     }
-    switchLanguage(editorView, toType);
+    switchLanguage(editorView, { language: toType });
     onAfterToggle();
   };
 

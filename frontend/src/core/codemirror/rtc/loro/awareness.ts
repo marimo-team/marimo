@@ -401,12 +401,12 @@ export class AwarenessPlugin implements PluginValue {
     }
     const selection = update.state.selection.main;
     if (this.view.hasFocus && !this.doc.isDetached()) {
-      const cursorState = getCursorState(
-        this.doc,
-        this.getTextFromDoc,
-        selection.anchor,
-        selection.head,
-      );
+      const cursorState = getCursorState({
+        doc: this.doc,
+        getTextFromDoc: this.getTextFromDoc,
+        anchor: selection.anchor,
+        head: selection.head,
+      });
       this.awareness.setLocalState({
         type: "update",
         uid: this.getUserId ? this.getUserId() : this.doc.peerIdStr,
@@ -465,12 +465,17 @@ export class RemoteAwarenessPlugin implements PluginValue {
   }
 }
 
-const getCursorState = (
-  doc: LoroDoc,
-  getTextFromDoc: (doc: LoroDoc) => LoroText,
-  anchor: number,
-  head: number | undefined,
-) => {
+const getCursorState = ({
+  doc,
+  getTextFromDoc,
+  anchor,
+  head,
+}: {
+  doc: LoroDoc;
+  getTextFromDoc: (doc: LoroDoc) => LoroText;
+  anchor: number;
+  head: number | undefined;
+}) => {
   if (anchor === head) {
     head = undefined;
   }

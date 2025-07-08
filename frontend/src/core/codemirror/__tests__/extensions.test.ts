@@ -73,8 +73,10 @@ describe("scrollActiveLineIntoView", () => {
     // Check that smartScrollIntoView was called with the right arguments
     expect(vi.mocked(scrollUtils.smartScrollIntoView)).toHaveBeenCalledWith(
       activeLine,
-      { top: 30, bottom: 150 },
-      mockAppElement,
+      {
+        offset: { top: 30, bottom: 150 },
+        body: mockAppElement,
+      },
     );
   });
 

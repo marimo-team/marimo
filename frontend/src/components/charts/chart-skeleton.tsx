@@ -19,7 +19,15 @@ const hashString = (str: string) => {
 };
 
 // Utility function to generate deterministic random heights based on a seed
-const generateHeights = (numBars: number, maxHeight: number, seed: string) => {
+const generateHeights = ({
+  numBars,
+  maxHeight,
+  seed,
+}: {
+  numBars: number;
+  maxHeight: number;
+  seed: string;
+}) => {
   const heights = [];
   let randomSeed = hashString(seed);
   for (let i = 0; i < numBars; i++) {
@@ -34,7 +42,7 @@ const generateHeights = (numBars: number, maxHeight: number, seed: string) => {
 export const ChartSkeleton: React.FC<Props> = ({ seed, width, height }) => {
   const numBars = 9;
   const barWidth = width / numBars;
-  const heights = generateHeights(numBars, height - 15, seed);
+  const heights = generateHeights({ numBars, maxHeight: height - 15, seed });
   return (
     <div className="flex items-end gap-[1px] pb-2" style={{ width, height }}>
       {heights.map((barHeight, index) => (

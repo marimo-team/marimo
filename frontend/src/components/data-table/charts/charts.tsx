@@ -109,11 +109,15 @@ export const TablePanel: React.FC<TablePanelProps> = ({
     setTabNum(tabNum - 1);
   };
 
-  const saveTabChart = (
-    tabName: TabName,
-    chartType: ChartType,
-    chartConfig: ChartSchemaType,
-  ) => {
+  const saveTabChart = ({
+    tabName,
+    chartType,
+    chartConfig,
+  }: {
+    tabName: TabName;
+    chartType: ChartType;
+    chartConfig: ChartSchemaType;
+  }) => {
     if (!cellId) {
       return;
     }
@@ -198,7 +202,11 @@ export const TablePanel: React.FC<TablePanelProps> = ({
       </TabsContent>
       {tabs.map((tab, idx) => {
         const saveChart = (formValues: ChartSchemaType) => {
-          saveTabChart(tab.tabName, tab.chartType, formValues);
+          saveTabChart({
+            tabName: tab.tabName,
+            chartType: tab.chartType,
+            chartConfig: formValues,
+          });
         };
         const saveChartType = (chartType: ChartType) => {
           saveTabChartType(tab.tabName, chartType);

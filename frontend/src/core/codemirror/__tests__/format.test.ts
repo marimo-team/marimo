@@ -187,7 +187,7 @@ describe("format", () => {
     it("should format SQL code", async () => {
       const cellId = "1" as CellId;
       const editor = createEditor("SELECT * FROM table WHERE id = 1", cellId);
-      switchLanguage(editor, "sql");
+      switchLanguage(editor, { language: "sql" });
 
       await formatSQL(editor);
 
@@ -210,7 +210,7 @@ describe("format", () => {
     it("should not format if language adapter is not SQL", async () => {
       const cellId = "1" as CellId;
       const editor = createEditor("SELECT * FROM table WHERE id = 1", cellId);
-      switchLanguage(editor, "python");
+      switchLanguage(editor, { language: "python" });
 
       await formatSQL(editor);
 

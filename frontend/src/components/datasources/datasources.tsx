@@ -544,7 +544,7 @@ const DatasetTableItem: React.FC<{
       }
 
       if (sqlTableContext) {
-        return sqlCode(table, "*", sqlTableContext);
+        return sqlCode({ table, columnName: "*", sqlTableContext });
       }
 
       switch (table.source_type) {
@@ -552,7 +552,7 @@ const DatasetTableItem: React.FC<{
           return `mo.ui.table(${table.name})`;
         case "duckdb":
         case "connection":
-          return sqlCode(table, "*", sqlTableContext);
+          return sqlCode({ table, columnName: "*", sqlTableContext });
         default:
           logNever(table.source_type);
           return "";

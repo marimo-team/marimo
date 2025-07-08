@@ -21,14 +21,18 @@ export const needsSaveAtom = atom((get) => {
   const lastSavedNotebook = get(lastSavedNotebookAtom);
   const state = get(notebookAtom);
   const layout = get(layoutStateAtom);
-  return notebookNeedsSave(state, layout, lastSavedNotebook);
+  return notebookNeedsSave({ state, layout, lastSavedNotebook });
 });
 
-export function notebookNeedsSave(
-  state: NotebookState,
-  layout: LayoutState,
-  lastSavedNotebook: LastSavedNotebook | undefined,
-) {
+function notebookNeedsSave({
+  state,
+  layout,
+  lastSavedNotebook,
+}: {
+  state: NotebookState;
+  layout: LayoutState;
+  lastSavedNotebook: LastSavedNotebook | undefined;
+}) {
   if (!lastSavedNotebook) {
     return false;
   }

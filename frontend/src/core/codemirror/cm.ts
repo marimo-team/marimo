@@ -114,13 +114,13 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     pasteBundle(),
     jupyterHelpExtension(),
     // Cell editing
-    cellConfigExtension(
+    cellConfigExtension({
       completionConfig,
       hotkeys,
       placeholderType,
       lspConfig,
       diagnosticsConfig,
-    ),
+    }),
     cellBundle(cellId, hotkeys, cellActions),
     // Comes last so that it can be overridden
     basicBundle(opts),
