@@ -109,7 +109,6 @@ export const DataTableBody = <TData,>({
             className,
           )}
           style={style}
-          title={String(cell.getValue())}
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
