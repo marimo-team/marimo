@@ -141,6 +141,11 @@ const {
       selectedCell,
     );
 
+    const isSelectingMultipleCells = cellsInRange.length > 1;
+    if (isSelectingMultipleCells) {
+      clearTextSelection();
+    }
+
     return {
       ...state,
       selectedCells: new Set(cellsInRange),
@@ -337,9 +342,6 @@ export const focusedCellAtom = atom(
 export const isSelectingAtom = atom(
   (get) => get(cellSelectionStateAtom).isSelecting,
 );
-export const isSelectingMultipleCellsAtom = atom(
-  (get) => get(cellSelectionStateAtom).selectedCells.size > 1,
-);
 
 // Optimized derived atoms for individual cell state
 export const createCellSelectedAtom = (cellId: string) =>
@@ -363,3 +365,10 @@ export const createCellStateAtom = (cellId: string) =>
       isCopied: copiedCells.has(cellId),
     };
   });
+
+// Clear browser text selection to prevent visual conflicts with cell selection indicator
+export const clearTextSelection = () => {
+  if (window.getSelection) {
+    window.getSelection()?.empty();
+  }
+};
