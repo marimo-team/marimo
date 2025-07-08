@@ -161,6 +161,12 @@ const {
       onCopyComplete: () => void;
     },
   ) => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      // Let browser handle the copy
+      return state;
+    }
+
     const text = getCellValues(table, state.selectedCells);
     copyToClipboard(text);
     onCopyComplete();
