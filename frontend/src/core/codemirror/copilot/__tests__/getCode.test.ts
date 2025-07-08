@@ -43,17 +43,17 @@ function createMockEditorView(code: string) {
           placeholderType: "marimo-import",
           lspConfig: {},
         }),
-        cellConfigExtension(
-          {
+        cellConfigExtension({
+          completionConfig: {
             copilot: false,
             activate_on_typing: true,
             codeium_api_key: null,
           },
-          new OverridingHotkeyProvider({}),
-          "marimo-import",
-          {},
-          {},
-        ),
+          hotkeys: new OverridingHotkeyProvider({}),
+          placeholderType: "marimo-import",
+          lspConfig: {},
+          diagnosticsConfig: {},
+        }),
       ],
     }),
   });

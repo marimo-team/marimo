@@ -30,17 +30,17 @@ function createState(content: string, selection?: { anchor: number }) {
         hotkeys: new OverridingHotkeyProvider({}),
         placeholderType: "marimo-import",
       }),
-      cellConfigExtension(
-        {
+      cellConfigExtension({
+        completionConfig: {
           copilot: false,
           activate_on_typing: true,
           codeium_api_key: null,
         },
-        new OverridingHotkeyProvider({}),
-        "marimo-import",
-        {},
-        {},
-      ),
+        hotkeys: new OverridingHotkeyProvider({}),
+        placeholderType: "marimo-import",
+        lspConfig: {},
+        diagnosticsConfig: {},
+      }),
     ],
     selection,
   });

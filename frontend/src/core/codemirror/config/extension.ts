@@ -40,13 +40,19 @@ export const lspConfigState = singleFacet<
 /**
  * Extension for cell config
  */
-export function cellConfigExtension(
-  completionConfig: CompletionConfig,
-  hotkeys: HotkeyProvider,
-  placeholderType: PlaceholderType,
-  lspConfig: LSPConfig,
-  diagnosticsConfig: DiagnosticsConfig,
-) {
+export function cellConfigExtension({
+  completionConfig,
+  hotkeys,
+  placeholderType,
+  lspConfig,
+  diagnosticsConfig,
+}: {
+  completionConfig: CompletionConfig;
+  hotkeys: HotkeyProvider;
+  placeholderType: PlaceholderType;
+  lspConfig: LSPConfig;
+  diagnosticsConfig: DiagnosticsConfig;
+}) {
   return [
     // Store state
     completionConfigState.of(completionConfig),

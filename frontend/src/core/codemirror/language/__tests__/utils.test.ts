@@ -29,21 +29,21 @@ function createEditor(doc: string) {
           placeholderType: "marimo-import",
           lspConfig: {},
         }),
-        cellConfigExtension(
-          {
+        cellConfigExtension({
+          completionConfig: {
             activate_on_typing: true,
             copilot: false,
             codeium_api_key: null,
           },
-          new OverridingHotkeyProvider({}),
-          "marimo-import",
-          {
+          hotkeys: new OverridingHotkeyProvider({}),
+          placeholderType: "marimo-import",
+          lspConfig: {
             pylsp: {
               enabled: true,
             },
           },
-          {},
-        ),
+          diagnosticsConfig: {},
+        }),
       ],
     }),
   });
