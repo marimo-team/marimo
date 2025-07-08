@@ -280,15 +280,16 @@ const CellEditorInternal = ({
     editorViewRef.current.dispatch({
       effects: [
         StateEffect.reconfigure.of([extensions]),
-        reconfigureLanguageEffect(
-          editorViewRef.current,
-          userConfig.completion,
-          new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
-          {
+        reconfigureLanguageEffect(editorViewRef.current, {
+          completionConfig: userConfig.completion,
+          hotkeysProvider: new OverridingHotkeyProvider(
+            userConfig.keymap.overrides ?? {},
+          ),
+          lspConfig: {
             ...userConfig.language_servers,
             diagnostics: userConfig.diagnostics,
           },
-        ),
+        }),
       ],
     });
   });

@@ -291,9 +291,15 @@ export function switchLanguage(
  */
 export function reconfigureLanguageEffect(
   view: EditorView,
-  completionConfig: CompletionConfig,
-  hotkeysProvider: HotkeyProvider,
-  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig },
+  {
+    completionConfig,
+    hotkeysProvider,
+    lspConfig,
+  }: {
+    completionConfig: CompletionConfig;
+    hotkeysProvider: HotkeyProvider;
+    lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig };
+  },
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
