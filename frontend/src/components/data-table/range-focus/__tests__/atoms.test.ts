@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Cell, Row, Table } from "@tanstack/react-table";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { visibleForTesting } from "../atoms";
 
 // Mock dependencies
@@ -406,6 +406,11 @@ describe("cell selection atoms", () => {
       vi.mocked(getCellValues).mockReturnValue("mocked cell values");
     });
 
+    afterEach(() => {
+      // Clear text selection
+      window.getSelection = vi.fn().mockReturnValue(null);
+    });
+
     it("should copy selected cells and call onCopyComplete", () => {
       const selectedCells = new Set(["row1_col1", "row1_col2"]);
       const onCopyComplete = vi.fn();
@@ -422,6 +427,29 @@ describe("cell selection atoms", () => {
       expect(copyToClipboard).toHaveBeenCalledWith("mocked cell values");
       expect(onCopyComplete).toHaveBeenCalledWith();
       expect(state.copiedCells).toEqual(selectedCells);
+    });
+
+    it("should not copy if there is text selection", () => {
+      const selectedCells = new Set(["row1_col1", "row1_col2"]);
+      const onCopyComplete = vi.fn();
+
+      // Set some selected cells first
+      actions.setSelectedCells(selectedCells);
+
+      // Set text selection
+      window.getSelection = vi.fn().mockReturnValue({
+        toString: vi.fn().mockReturnValue("some text"),
+      });
+
+      actions.handleCopy({
+        table: mockTable,
+        onCopyComplete,
+      });
+
+      expect(getCellValues).not.toHaveBeenCalled();
+      expect(copyToClipboard).not.toHaveBeenCalled();
+      expect(onCopyComplete).not.toHaveBeenCalled();
+      expect(state.copiedCells).toEqual(new Set());
     });
   });
 

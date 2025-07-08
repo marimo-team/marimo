@@ -141,6 +141,11 @@ const {
       selectedCell,
     );
 
+    const isSelectingMultipleCells = cellsInRange.length > 1;
+    if (isSelectingMultipleCells) {
+      clearTextSelection();
+    }
+
     return {
       ...state,
       selectedCells: new Set(cellsInRange),
@@ -156,6 +161,12 @@ const {
       onCopyComplete: () => void;
     },
   ) => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      // Let browser handle the copy
+      return state;
+    }
+
     const text = getCellValues(table, state.selectedCells);
     copyToClipboard(text);
     onCopyComplete();
@@ -360,3 +371,10 @@ export const createCellStateAtom = (cellId: string) =>
       isCopied: copiedCells.has(cellId),
     };
   });
+
+// Clear browser text selection to prevent visual conflicts with cell selection indicator
+export const clearTextSelection = () => {
+  if (window.getSelection) {
+    window.getSelection()?.empty();
+  }
+};
