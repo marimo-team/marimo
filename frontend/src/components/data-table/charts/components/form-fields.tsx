@@ -649,11 +649,15 @@ export const AggregationSelect = ({
     return <span className="text-xs text-muted-foreground pr-10">{text}</span>;
   };
 
-  const renderSelectItem = (
-    value: string,
-    Icon: React.ElementType,
-    subtitle: React.ReactNode,
-  ) => {
+  const renderSelectItem = ({
+    value,
+    Icon,
+    subtitle,
+  }: {
+    value: string;
+    Icon: React.ElementType;
+    subtitle: React.ReactNode;
+  }) => {
     return (
       <SelectItem
         key={value}
@@ -669,11 +673,15 @@ export const AggregationSelect = ({
     );
   };
 
-  const handleFieldChange = (
-    value: string,
-    previousValue: string,
-    onChange: (value: string) => void,
-  ) => {
+  const handleFieldChange = ({
+    value,
+    previousValue,
+    onChange,
+  }: {
+    value: string;
+    previousValue: string;
+    onChange: (value: string) => void;
+  }) => {
     // Special handling for binning, as this is not a valid aggregation
     if (value === BIN_AGGREGATION) {
       form.setValue(binFieldName, true);
@@ -700,7 +708,11 @@ export const AggregationSelect = ({
                 NONE_VALUE
               ).toString()}
               onValueChange={(value) => {
-                handleFieldChange(value, field.value, field.onChange);
+                handleFieldChange({
+                  value,
+                  previousValue: field.value,
+                  onChange: field.onChange,
+                });
               }}
             >
               <SelectTrigger variant="ghost">
@@ -714,7 +726,11 @@ export const AggregationSelect = ({
                     const subtitle = renderSubtitle(
                       AGGREGATION_TYPE_DESCRIPTIONS[agg],
                     );
-                    const selectItem = renderSelectItem(agg, Icon, subtitle);
+                    const selectItem = renderSelectItem({
+                      value: agg,
+                      Icon,
+                      subtitle,
+                    });
                     if (agg === BIN_AGGREGATION) {
                       if (!isBinningAllowed) {
                         return null;
