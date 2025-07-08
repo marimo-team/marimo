@@ -13,13 +13,13 @@ from marimo._utils.url import is_url
 def load_external_file(file_path: str, ext: str) -> str:
     notebook: str = ""
     if is_github_src(file_path, ext=ext):
-        response = requests.get(get_github_src_url(file_path))
-        response.raise_for_status()
-        notebook = response.text()
+        notebook = (
+            requests.get(get_github_src_url(file_path))
+            .raise_for_status()
+            .text()
+        )
     elif is_url(file_path):
-        response = requests.get(file_path)
-        response.raise_for_status()
-        notebook = response.text()
+        notebook = requests.get(file_path).raise_for_status().text()
     else:
         if not Path(file_path).exists():
             raise click.FileError(file_path, "File does not exist")

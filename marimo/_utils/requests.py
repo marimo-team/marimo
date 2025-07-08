@@ -51,14 +51,19 @@ class Response:
         """
         return self.content.decode("utf-8")
 
-    def raise_for_status(self) -> None:
-        """Raise an exception for non-2xx status codes."""
+    def raise_for_status(self) -> "Response":
+        """Raise an exception for non-2xx status codes.
+
+        Returns:
+            The response object for chaining.
+        """
         if self.status_code >= 300:
             if self.original_error:
                 raise self.original_error
             raise RequestError(
                 f"Request failed: {self.status_code}. {self.text()}"
             )
+        return self
 
 
 def _make_request(

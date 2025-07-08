@@ -71,8 +71,7 @@ def text_to_notebook(prompt: str) -> str:
 
         # Create a request with a proper User-Agent header
         headers = {"User-Agent": requests.MARIMO_USER_AGENT}
-        response = requests.get(url, headers=headers)
-        result = response.text()
+        result = requests.get(url, headers=headers).raise_for_status().text()
 
         print_(green("Notebook generated successfully."))
 

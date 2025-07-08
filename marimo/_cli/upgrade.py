@@ -6,7 +6,7 @@ import os
 import urllib.error
 import urllib.request
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import marimo._utils.requests as requests
 from marimo import __version__ as current_version, _loggers
@@ -109,7 +109,7 @@ def _fetch_data_from_url(url: str) -> dict[str, Any]:
     try:
         response = requests.get(url, timeout=FETCH_TIMEOUT)
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
     except urllib.error.URLError as e:
         LOGGER.warning(
             f"Network error while checking for version updates: {e}"

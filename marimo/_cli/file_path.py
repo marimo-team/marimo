@@ -7,7 +7,7 @@ import re
 import urllib.parse
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import Any, Optional, cast
 from urllib.error import HTTPError
 
 import marimo._utils.requests as requests
@@ -74,9 +74,9 @@ class GitHubIssueReader(FileReader):
     def read(self, name: str) -> tuple[str, str]:
         issue_number = name.split("/")[-1]
         api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
-        issue_response = requests.get(api_url)
-        issue_response.raise_for_status()
-        issue_response = issue_response.json()
+        response = requests.get(api_url)
+        response.raise_for_status()
+        issue_response = cast(dict[str, Any], response.json())
 
         if "body" not in issue_response:
             raise ValueError(

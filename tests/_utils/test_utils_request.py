@@ -29,6 +29,7 @@ def test_response_raise_for_status():
     # Test that raise_for_status does not raise for success codes
     success_response = Response(200, b"OK", {})
     success_response.raise_for_status()  # Should not raise
+    assert success_response is success_response.raise_for_status()
 
     # Test that raise_for_status raises for error codes
     error_response = Response(404, b"Not Found", {})
