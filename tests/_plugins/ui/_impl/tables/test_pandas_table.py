@@ -1064,6 +1064,17 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.time(4, 5, 6),
                     datetime.time(7, 8, 9),
                 ],
+                "datetime_tz_col": [
+                    datetime.datetime(
+                        2021, 1, 1, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 2, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 3, tzinfo=datetime.timezone.utc
+                    ),
+                ],
             }
         )
         manager = self.factory.create()(data)
@@ -1074,6 +1085,10 @@ class TestPandasTableManager(unittest.TestCase):
             "datetime64[ns]",
         )
         assert manager.get_field_type("time_col") == ("string", "object")
+        assert manager.get_field_type("datetime_tz_col") == (
+            "datetime",
+            "datetime64[ns, UTC]",
+        )
 
     def test_get_sample_values(self) -> None:
         df = pd.DataFrame({"A": [1, 2, 3, 4], "B": ["a", "b", "c", "d"]})

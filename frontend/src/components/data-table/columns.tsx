@@ -7,6 +7,7 @@ import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import { exactDateTime } from "@/utils/dates";
+import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { Objects } from "@/utils/objects";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
@@ -395,6 +396,20 @@ function renderAny(value: unknown): string {
   }
 }
 
+function renderDate(
+  value: Date,
+  dataType?: DataType,
+  dtype?: string,
+): React.ReactNode {
+  const type = dataType === "date" ? "date" : "datetime";
+  const timezone = extractTimezone(dtype);
+  return (
+    <DatePopover date={value} type={type}>
+      {exactDateTime(value, timezone)}
+    </DatePopover>
+  );
+}
+
 export function renderCellValue<TData, TValue>(
   column: Column<TData, TValue>,
   renderValue: () => TValue | null,
@@ -404,6 +419,23 @@ export function renderCellValue<TData, TValue>(
 ) {
   const value = getValue();
   const format = column.getColumnFormatting?.();
+
+  const dataType = column.columnDef.meta?.dataType;
+  const dtype = column.columnDef.meta?.dtype;
+
+  if (dataType === "datetime" && typeof value === "string") {
+    try {
+      const date = new Date(value);
+      return renderDate(date, dataType, dtype);
+    } catch (error) {
+      Logger.error("Error parsing datetime, fallback to string", error);
+    }
+  }
+
+  if (value instanceof Date) {
+    // e.g. 2010-10-07 17:15:00
+    return renderDate(value, dataType, dtype);
+  }
 
   if (typeof value === "string") {
     const stringValue = format
@@ -446,20 +478,6 @@ export function renderCellValue<TData, TValue>(
     return (
       <div onClick={selectCell} className={cellStyles}>
         {rendered == null ? "" : String(rendered)}
-      </div>
-    );
-  }
-
-  if (value instanceof Date) {
-    // e.g. 2010-10-07 17:15:00
-    const type =
-      column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
-    const timezone = extractTimezone(column.columnDef.meta?.dtype);
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        <DatePopover date={value} type={type}>
-          {exactDateTime(value, timezone)}
-        </DatePopover>
       </div>
     );
   }

@@ -225,7 +225,9 @@ describe("generateColumns", () => {
     // Assuming getCellStyleClass is a function that returns a class name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cell = (columns[0].cell as any)({
-      column: columns[0],
+      column: {
+        columnDef: columns[0],
+      },
       renderValue: () => "John",
       getValue: () => "John",
     });
