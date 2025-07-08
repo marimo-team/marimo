@@ -2,11 +2,15 @@
 import type { QuotePrefixKind } from "../utils/quotes";
 
 // Based on the current quote prefix and the checkbox state, return the new quote prefix
-export function getQuotePrefix(
-  currentQuotePrefix: QuotePrefixKind,
-  checked: boolean,
-  prefix: QuotePrefixKind,
-) {
+export function getQuotePrefix({
+  currentQuotePrefix,
+  checked,
+  prefix,
+}: {
+  currentQuotePrefix: QuotePrefixKind;
+  checked: boolean;
+  prefix: QuotePrefixKind;
+}) {
   let newQuotePrefix = currentQuotePrefix;
   if (checked) {
     // Add a prefix
