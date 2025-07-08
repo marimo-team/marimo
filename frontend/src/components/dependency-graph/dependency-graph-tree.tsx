@@ -59,7 +59,9 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
       variables,
       settings.hidePureMarkdown,
     );
-    elements = layoutElements(elements.nodes, elements.edges, {
+    elements = layoutElements({
+      nodes: elements.nodes,
+      edges: elements.edges,
       direction: layoutDirection,
     });
 
@@ -74,7 +76,9 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   const syncChanges = useEvent(
     (elements: { nodes: Array<Node<NodeData>>; edges: Edge[] }) => {
       // Layout the elements
-      const result = layoutElements(elements.nodes, elements.edges, {
+      const result = layoutElements({
+        nodes: elements.nodes,
+        edges: elements.edges,
         direction: layoutDirection,
       });
       setNodes(result.nodes);

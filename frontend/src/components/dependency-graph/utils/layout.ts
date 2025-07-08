@@ -5,13 +5,17 @@ import type { LayoutDirection } from "../types";
 
 const g = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
-export const layoutElements = (
-  nodes: Node[],
-  edges: Edge[],
-  options: { direction: LayoutDirection },
-) => {
+export const layoutElements = ({
+  nodes,
+  edges,
+  direction,
+}: {
+  nodes: Node[];
+  edges: Edge[];
+  direction: LayoutDirection;
+}) => {
   g.setGraph({
-    rankdir: options.direction,
+    rankdir: direction,
     nodesep: 150,
     ranksep: 200,
     // So far, longest-path seems to give the best results as trees are
