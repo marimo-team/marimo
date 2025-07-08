@@ -129,7 +129,8 @@ class StaticNotebookReader(FileReader):
 
         # Starts with https://static.marimo.app/, append /download
         if url.startswith("https://static.marimo.app/static"):
-            return download(urllib.parse.urljoin(url, "download"))
+            normalized_url = url if url.endswith("/") else url + "/"
+            return download(urllib.parse.urljoin(normalized_url, "download"))
 
         # Other marimo domains
         DOMAINS = [
