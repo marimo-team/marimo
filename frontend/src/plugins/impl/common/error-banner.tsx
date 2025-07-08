@@ -45,7 +45,7 @@ export const ErrorBanner = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="text-error">Error</AlertDialogTitle>
           </AlertDialogHeader>
-          <pre className="text-error text-sm p-2 font-mono overflow-auto">
+          <pre className="text-error text-sm p-2 font-mono overflow-auto whitespace-pre-wrap">
             {message}
           </pre>
           <AlertDialogFooter>

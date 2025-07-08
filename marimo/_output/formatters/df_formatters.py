@@ -93,7 +93,9 @@ class PolarsFormatter(FormatterFactory):
         ) -> tuple[KnownMimeType, str]:
             try:
                 return table(df, selection=None, pagination=True)._mime_()
-            except Exception as e:
+            except BaseException as e:
+                # Catch-all: some libraries like Polars have bugs and raise
+                # BaseExceptions, which shouldn't crash the kernel
                 LOGGER.warning("Failed to format DataFrame: %s", e)
                 return ("text/html", df._repr_html_())
 
@@ -108,7 +110,9 @@ class PolarsFormatter(FormatterFactory):
                 else:
                     df = series.to_frame()
                 return table(df, selection=None, pagination=True)._mime_()
-            except Exception as e:
+            except BaseException as e:
+                # Catch-all: some libraries like Polars have bugs and raise
+                # BaseExceptions, which shouldn't crash the kernel
                 LOGGER.warning("Failed to format Series: %s", e)
                 return ("text/html", series._repr_html_())
 

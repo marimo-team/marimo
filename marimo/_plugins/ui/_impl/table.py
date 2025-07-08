@@ -73,6 +73,12 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+class TableSearchError(Exception):
+    def __init__(self, error: str):
+        self.error = error
+        super().__init__(error)
+
+
 @dataclass
 class DownloadAsArgs:
     format: Literal["csv", "json", "parquet"]
@@ -1003,7 +1009,13 @@ class table(
             # Do not clamp if max_columns is None
             if max_columns is not None and len(column_names) > max_columns:
                 data = data.select_columns(column_names[:max_columns])
-            return data.to_json_str(self._format_mapping)
+
+            try:
+                return data.to_json_str(self._format_mapping)
+            except BaseException as e:
+                # Catch and re-raise the error as a non-BaseException
+                # to avoid crashing the kernel
+                raise TableSearchError(str(e)) from e
 
         # If no query or sort, return nothing
         # The frontend will just show the original data

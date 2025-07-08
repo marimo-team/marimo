@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -12,7 +12,7 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
     GetColumnValuesArgs,
     GetColumnValuesResponse,
 )
-from marimo._plugins.ui._impl.table import SearchTableArgs
+from marimo._plugins.ui._impl.table import SearchTableArgs, TableSearchError
 from marimo._runtime.functions import EmptyArgs
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
@@ -486,3 +486,41 @@ def test_dataframe_with_int_column_names():
         assert "DataFrame has integer column names" in str(w[0].message)
 
     assert dataframe.value is not None
+
+
+@pytest.mark.skipif(
+    not HAS_IBIS or not HAS_POLARS,
+    reason="optional dependencies not installed",
+)
+def test_base_exception_handling():
+    """Test that BaseException is caught and re-raised as TableSearchError."""
+    import polars as pl
+
+    df = pl.DataFrame({"col": [1]})
+    table = ui.dataframe(df)
+
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        query="test",
+        sort=None,
+        filters=None,
+    )
+
+    table_manager = table._get_cached_table_manager(df, None)
+
+    with patch.object(table_manager, "take") as take:
+        take.side_effect = BaseException("to json panic")
+
+        with patch.object(
+            table, "_apply_filters_query_sort"
+        ) as _apply_filters_query_sort:
+            _apply_filters_query_sort.return_value = table_manager
+
+            # Should catch BaseException and re-raise as TableSearchError
+            with pytest.raises(TableSearchError) as exc_info:
+                table._search(search_args)
+
+    # Verify the error message is preserved
+    assert "to json panic" in str(exc_info.value)
+    assert exc_info.value.error == str(exc_info.value)
