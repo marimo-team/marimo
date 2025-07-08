@@ -20,7 +20,11 @@ export function hintTooltip(lspConfig: LSPConfig) {
       ? []
       : hoverTooltip(
           async (view, pos) => {
-            const result = await requestDocumentation(view, pos, ["tooltip"]);
+            const result = await requestDocumentation({
+              view,
+              pos,
+              excludeTypes: ["tooltip"],
+            });
             if (result === null || result === "cancelled") {
               return null;
             }
@@ -32,11 +36,15 @@ export function hintTooltip(lspConfig: LSPConfig) {
   ];
 }
 
-async function requestDocumentation(
-  view: EditorView,
-  pos: number,
-  excludeTypes?: string[],
-) {
+async function requestDocumentation({
+  view,
+  pos,
+  excludeTypes,
+}: {
+  view: EditorView;
+  pos: number;
+  excludeTypes?: string[];
+}) {
   const cellContainer = HTMLCellId.findElement(view.dom);
   if (!cellContainer) {
     Logger.error("Failed to find active cell.");
@@ -114,7 +122,7 @@ const debouncedAutocomplete = debounce(
       return;
     }
 
-    const tooltip = await requestDocumentation(view, position);
+    const tooltip = await requestDocumentation({ view, pos: position });
     // If cancelled, don't update the documentation
     if (tooltip === "cancelled") {
       return;
