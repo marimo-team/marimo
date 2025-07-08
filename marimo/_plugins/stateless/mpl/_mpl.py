@@ -133,7 +133,7 @@ def create_application() -> Starlette:
     async def mpl_js(request: Request) -> Response:
         del request
         return Response(
-            content=FigureManagerWebAgg.get_javascript(),  # type: ignore[no-untyped-call]
+            content=patch_javascript(FigureManagerWebAgg.get_javascript()),  # type: ignore[no-untyped-call]
             media_type="application/javascript",
         )
 
@@ -509,3 +509,16 @@ select.mpl-widget,
     filter: invert(0.3);
 }
 """.strip()
+
+
+def patch_javascript(javascript: str) -> str:
+    # Comment out canvas.focus() and canvas_div.focus() calls
+    javascript = javascript.replace(
+        " canvas.focus();",
+        "// canvas.focus(); // don't steal focus when in marimo",
+    )
+    javascript = javascript.replace(
+        " canvas_div.focus();",
+        "// canvas_div.focus(); // don't steal focus when in marimo",
+    )
+    return javascript
