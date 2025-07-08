@@ -213,14 +213,21 @@ function useCellHotkeys({
 /**
  * Hook for handling cell keyboard listeners
  */
-function useCellKeyboardListener(
-  cellRef: React.RefObject<HTMLDivElement | null> | null,
-  cellId: CellId,
-  actions: CellComponentActions,
-  showHiddenMarkdownCode: () => void,
-  userConfig: UserConfig,
-  isCellCodeShown: boolean,
-) {
+function useCellKeyboardListener({
+  cellRef,
+  cellId,
+  actions,
+  showHiddenMarkdownCode,
+  userConfig,
+  isCellCodeShown,
+}: {
+  cellRef: React.RefObject<HTMLDivElement | null> | null;
+  cellId: CellId;
+  actions: CellComponentActions;
+  showHiddenMarkdownCode: () => void;
+  userConfig: UserConfig;
+  isCellCodeShown: boolean;
+}) {
   useKeydownOnElement(cellRef, {
     ArrowDown: (evt) => {
       if (evt && Events.fromInput(evt)) {
@@ -266,12 +273,17 @@ function useCellKeyboardListener(
 /**
  * Hook for handling hidden cell logic
  */
-function useCellHiddenLogic(
-  cellConfig: CellConfig,
-  languageAdapter: LanguageAdapterType | undefined,
-  editorView: React.RefObject<EditorView | null>,
-  editorViewParentRef: React.RefObject<HTMLDivElement | null>,
-) {
+function useCellHiddenLogic({
+  cellConfig,
+  languageAdapter,
+  editorView,
+  editorViewParentRef,
+}: {
+  cellConfig: CellConfig;
+  languageAdapter: LanguageAdapterType | undefined;
+  editorView: React.RefObject<EditorView | null>;
+  editorViewParentRef: React.RefObject<HTMLDivElement | null>;
+}) {
   const [temporarilyVisible, setTemporarilyVisible] = useState(false);
 
   // The cell code is shown if the cell is not configured to be hidden or if the code is temporarily visible (i.e. when focused).
@@ -625,12 +637,12 @@ const EditableCellComponent = ({
     isMarkdownCodeHidden,
     temporarilyShowCode,
     showHiddenMarkdownCode,
-  } = useCellHiddenLogic(
+  } = useCellHiddenLogic({
     cellConfig,
     languageAdapter,
     editorView,
     editorViewParentRef,
-  );
+  });
 
   // Hotkey listeners
   useCellHotkeys({
@@ -646,14 +658,14 @@ const EditableCellComponent = ({
   });
 
   // Other keyboard listeners
-  useCellKeyboardListener(
+  useCellKeyboardListener({
     cellRef,
     cellId,
     actions,
     showHiddenMarkdownCode,
     userConfig,
     isCellCodeShown,
-  );
+  });
 
   const canCollapse = canCollapseOutline(outline);
   const hasOutput = !isOutputEmpty(output);
@@ -1202,14 +1214,14 @@ const SetupCellComponent = ({
   });
 
   // Other keyboard listeners
-  useCellKeyboardListener(
+  useCellKeyboardListener({
     cellRef,
     cellId,
     actions,
-    Functions.NOOP,
+    showHiddenMarkdownCode: Functions.NOOP,
     userConfig,
-    true,
-  );
+    isCellCodeShown: true,
+  });
 
   const hasOutput = !isOutputEmpty(output);
   const hasConsoleOutput = consoleOutputs.length > 0;
