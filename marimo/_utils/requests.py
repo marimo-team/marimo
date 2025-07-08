@@ -24,11 +24,16 @@ class Response:
     """Simple response object similar to requests.Response."""
 
     def __init__(
-        self, status_code: int, content: bytes, headers: dict[str, str]
+        self,
+        status_code: int,
+        content: bytes,
+        headers: dict[str, str],
+        original_error: Optional[Exception] = None,
     ):
         self.status_code = status_code
         self.content = content
         self.headers = headers
+        self.original_error = original_error
 
     def json(self) -> Any:
         """Parse response content as JSON."""
@@ -37,6 +42,15 @@ class Response:
     def text(self) -> str:
         """Get response content as text."""
         return self.content.decode("utf-8")
+
+    def raise_for_status(self) -> None:
+        """Raise an exception for non-2xx status codes."""
+        if self.status_code >= 300:
+            if self.original_error:
+                raise self.original_error
+            raise RequestError(
+                f"Request failed: {self.status_code}. {self.text()}"
+            )
 
 
 def _make_request(
@@ -119,6 +133,7 @@ def _make_request(
             status_code=e.code,
             content=e.read(),
             headers=dict(e.headers),
+            original_error=e,
         )
     except Exception as e:
         raise RequestError(f"Request failed: {str(e)}") from e

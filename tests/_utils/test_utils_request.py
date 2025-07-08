@@ -25,6 +25,30 @@ def test_response_object():
     assert response.json() == {"key": "value"}
 
 
+def test_response_raise_for_status():
+    # Test that raise_for_status does not raise for success codes
+    success_response = Response(200, b"OK", {})
+    success_response.raise_for_status()  # Should not raise
+
+    # Test that raise_for_status raises for error codes
+    error_response = Response(404, b"Not Found", {})
+    with pytest.raises(RequestError, match="Request failed: 404"):
+        error_response.raise_for_status()
+
+    # Test various error codes
+    for status_code in [300, 400, 401, 403, 404, 500, 502, 503]:
+        error_response = Response(status_code, b"Error", {})
+        with pytest.raises(
+            RequestError, match=f"Request failed: {status_code}"
+        ):
+            error_response.raise_for_status()
+
+    # Test that success codes (2xx) don't raise
+    for status_code in [200, 201, 202, 204]:
+        success_response = Response(status_code, b"Success", {})
+        success_response.raise_for_status()  # Should not raise
+
+
 @pytest.mark.parametrize(
     (
         "method",
