@@ -9,12 +9,12 @@ describe("getProtocolAndParentDirectories", () => {
     const initialPath = "http://example.com/folder";
     const restrictNavigation = true;
 
-    const { protocol, parentDirectories } = getProtocolAndParentDirectories(
+    const { protocol, parentDirectories } = getProtocolAndParentDirectories({
       path,
       delimiter,
       initialPath,
       restrictNavigation,
-    );
+    });
 
     expect(protocol).toBe("http://");
     expect(parentDirectories).toEqual([
@@ -29,12 +29,12 @@ describe("getProtocolAndParentDirectories", () => {
     const initialPath = "gs://bucket/folder";
     const restrictNavigation = true;
 
-    const { protocol, parentDirectories } = getProtocolAndParentDirectories(
+    const { protocol, parentDirectories } = getProtocolAndParentDirectories({
       path,
       delimiter,
       initialPath,
       restrictNavigation,
-    );
+    });
 
     expect(protocol).toBe("gs://");
     expect(parentDirectories).toEqual([
@@ -49,12 +49,12 @@ describe("getProtocolAndParentDirectories", () => {
     const initialPath = "s3://bucket/folder";
     const restrictNavigation = true;
 
-    const { protocol, parentDirectories } = getProtocolAndParentDirectories(
+    const { protocol, parentDirectories } = getProtocolAndParentDirectories({
       path,
       delimiter,
       initialPath,
       restrictNavigation,
-    );
+    });
 
     expect(protocol).toBe("s3://");
     expect(parentDirectories).toEqual([
@@ -69,12 +69,12 @@ describe("getProtocolAndParentDirectories", () => {
     const initialPath = "/folder";
     const restrictNavigation = false;
 
-    const { protocol, parentDirectories } = getProtocolAndParentDirectories(
+    const { protocol, parentDirectories } = getProtocolAndParentDirectories({
       path,
       delimiter,
       initialPath,
       restrictNavigation,
-    );
+    });
 
     expect(protocol).toBe("/");
     expect(parentDirectories).toEqual(["/folder/subfolder", "/folder", "/"]);
@@ -85,12 +85,12 @@ describe("getProtocolAndParentDirectories", () => {
     const initialPath = "C:\\folder";
     const restrictNavigation = false;
 
-    const { protocol, parentDirectories } = getProtocolAndParentDirectories(
+    const { protocol, parentDirectories } = getProtocolAndParentDirectories({
       path,
       delimiter,
       initialPath,
       restrictNavigation,
-    );
+    });
 
     expect(protocol).toBe("C:\\");
     expect(parentDirectories).toEqual([

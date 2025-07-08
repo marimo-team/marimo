@@ -361,12 +361,12 @@ export const FileBrowser = ({
   //
   // Assumes that path contains at least one delimiter, which is true
   // only if this is an absolute path.
-  const { parentDirectories } = getProtocolAndParentDirectories(
+  const { parentDirectories } = getProtocolAndParentDirectories({
     path,
     delimiter,
     initialPath,
     restrictNavigation,
-  );
+  });
 
   const selectionKindLabel =
     selectionMode === "all"
