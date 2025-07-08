@@ -569,15 +569,14 @@ def _create_notebook_cell(
 
 def get_html_contents() -> str:
     if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
-        import urllib.request
+        import marimo._utils.requests as requests
 
         # Fetch from a CDN
         LOGGER.info(
             "Fetching index.html from jsdelivr because in development mode"
         )
         url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist/index.html"
-        with urllib.request.urlopen(url) as response:
-            return cast(str, response.read().decode("utf-8"))
+        return requests.get(url).text()
 
     index_html = Path(ROOT) / "index.html"
     return index_html.read_text(encoding="utf-8")
