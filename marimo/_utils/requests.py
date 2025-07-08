@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 import json
 import urllib.error
 import urllib.parse
