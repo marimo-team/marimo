@@ -10,12 +10,17 @@ import { CellId } from "./ids";
  * @param moduleName The name of the module to import.
  * @param variableName The name of the variable to import.
  */
-export function maybeAddMissingImport(
-  moduleName: string,
-  variableName: string,
-  onAddImport: (importStatement: string) => void,
-  appStore: typeof store = store,
-): boolean {
+export function maybeAddMissingImport({
+  moduleName,
+  variableName,
+  onAddImport,
+  appStore = store,
+}: {
+  moduleName: string;
+  variableName: string;
+  onAddImport: (importStatement: string) => void;
+  appStore?: typeof store;
+}): boolean {
   // If variableName is already in the variables state,
   // then the import is not missing (or the name has been taken).
   const variables = appStore.get(variablesAtom);
@@ -41,44 +46,60 @@ export function maybeAddMissingImport(
   return true;
 }
 
-export function maybeAddMarimoImport(
-  autoRun: boolean,
-  createNewCell: CellActions["createNewCell"],
-  fromCellId?: CellId | null,
-): boolean {
-  return maybeAddMissingImport("marimo", "mo", (importStatement) => {
-    const newCellId = CellId.create();
-    createNewCell({
-      cellId: fromCellId ?? "__end__",
-      before: false,
-      code: importStatement,
-      lastCodeRun: autoRun ? importStatement : undefined,
-      newCellId: newCellId,
-      autoFocus: false,
-    });
-    if (autoRun) {
-      void sendRun({ cellIds: [newCellId], codes: [importStatement] });
-    }
+export function maybeAddMarimoImport({
+  autoInstantiate,
+  createNewCell,
+  fromCellId,
+}: {
+  autoInstantiate: boolean;
+  createNewCell: CellActions["createNewCell"];
+  fromCellId?: CellId | null;
+}): boolean {
+  return maybeAddMissingImport({
+    moduleName: "marimo",
+    variableName: "mo",
+    onAddImport: (importStatement) => {
+      const newCellId = CellId.create();
+      createNewCell({
+        cellId: fromCellId ?? "__end__",
+        before: false,
+        code: importStatement,
+        lastCodeRun: autoInstantiate ? importStatement : undefined,
+        newCellId: newCellId,
+        autoFocus: false,
+      });
+      if (autoInstantiate) {
+        void sendRun({ cellIds: [newCellId], codes: [importStatement] });
+      }
+    },
   });
 }
 
-export function maybeAddAltairImport(
-  autoRun: boolean,
-  createNewCell: CellActions["createNewCell"],
-  fromCellId?: CellId | null,
-): boolean {
-  return maybeAddMissingImport("altair", "alt", (importStatement) => {
-    const newCellId = CellId.create();
-    createNewCell({
-      cellId: fromCellId ?? "__end__",
-      before: false,
-      code: importStatement,
-      lastCodeRun: autoRun ? importStatement : undefined,
-      newCellId: newCellId,
-      autoFocus: false,
-    });
-    if (autoRun) {
-      void sendRun({ cellIds: [newCellId], codes: [importStatement] });
-    }
+export function maybeAddAltairImport({
+  autoInstantiate,
+  createNewCell,
+  fromCellId,
+}: {
+  autoInstantiate: boolean;
+  createNewCell: CellActions["createNewCell"];
+  fromCellId?: CellId | null;
+}): boolean {
+  return maybeAddMissingImport({
+    moduleName: "altair",
+    variableName: "alt",
+    onAddImport: (importStatement) => {
+      const newCellId = CellId.create();
+      createNewCell({
+        cellId: fromCellId ?? "__end__",
+        before: false,
+        code: importStatement,
+        lastCodeRun: autoInstantiate ? importStatement : undefined,
+        newCellId: newCellId,
+        autoFocus: false,
+      });
+      if (autoInstantiate) {
+        void sendRun({ cellIds: [newCellId], codes: [importStatement] });
+      }
+    },
   });
 }
