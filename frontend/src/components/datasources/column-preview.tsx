@@ -74,7 +74,9 @@ export const DatasetColumnPreview: React.FC<{
           variant="outline"
           size="xs"
           onClick={Events.stopPropagation(() => {
-            onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
+            onAddColumnChart(
+              sqlCode({ table, columnName: column.name, sqlTableContext }),
+            );
           })}
         >
           <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
@@ -119,7 +121,9 @@ export const DatasetColumnPreview: React.FC<{
         size="icon"
         className="z-10 bg-background absolute right-1 -top-1"
         onClick={Events.stopPropagation(() => {
-          onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
+          onAddColumnChart(
+            sqlCode({ table, columnName: column.name, sqlTableContext }),
+          );
         })}
       >
         <PlusSquareIcon className="h-3 w-3" />

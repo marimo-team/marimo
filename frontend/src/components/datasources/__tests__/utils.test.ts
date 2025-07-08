@@ -19,7 +19,7 @@ describe("sqlCode", () => {
   } as DataTableColumn;
 
   it("should generate basic SQL without sqlTableContext", () => {
-    const result = sqlCode(mockTable, mockColumn.name);
+    const result = sqlCode({ table: mockTable, columnName: mockColumn.name });
     expect(result).toBe(
       "_df = mo.sql(f'SELECT \"email\" FROM users LIMIT 100')",
     );
@@ -34,7 +34,11 @@ describe("sqlCode", () => {
       database: "mydb",
     };
 
-    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    const result = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext,
+    });
     expect(result).toBe('_df = mo.sql(f"SELECT email FROM users LIMIT 100")');
   });
 
@@ -47,7 +51,11 @@ describe("sqlCode", () => {
       database: "mydb",
     };
 
-    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    const result = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext,
+    });
     expect(result).toBe(
       '_df = mo.sql(f"SELECT email FROM analytics.users LIMIT 100")',
     );
@@ -62,7 +70,11 @@ describe("sqlCode", () => {
       database: "mydb",
     };
 
-    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    const result = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext,
+    });
     expect(result).toBe(
       '_df = mo.sql(f"SELECT email FROM users LIMIT 100", engine=snowflake)',
     );
@@ -77,7 +89,11 @@ describe("sqlCode", () => {
       database: "mydb",
     };
 
-    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    const result = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext,
+    });
     expect(result).toBe(
       '_df = mo.sql(f"SELECT email FROM sales.users LIMIT 100", engine=bigquery)',
     );
@@ -92,7 +108,11 @@ describe("sqlCode", () => {
       database: "remote",
     };
 
-    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    const result = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext,
+    });
     expect(result).toBe(
       '_df = mo.sql(f"SELECT email FROM remote.users LIMIT 100")',
     );
@@ -107,7 +127,11 @@ describe("sqlCode", () => {
       database: "remote",
     };
 
-    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    const result = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext,
+    });
     expect(result).toBe(
       '_df = mo.sql(f"SELECT email FROM remote.sales.users LIMIT 100", engine=bigquery)',
     );
@@ -121,7 +145,11 @@ describe("sqlCode", () => {
       database: "mydb",
     };
 
-    const result = sqlCode(mockTable, mockColumn.name, sqlTableContext);
+    const result = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext,
+    });
     expect(result).toBe('_df = mo.sql(f"SELECT email FROM users LIMIT 100")');
 
     const sqlTableContext2: SQLTableContext = {
@@ -131,7 +159,11 @@ describe("sqlCode", () => {
       database: "another_db",
     };
 
-    const result2 = sqlCode(mockTable, mockColumn.name, sqlTableContext2);
+    const result2 = sqlCode({
+      table: mockTable,
+      columnName: mockColumn.name,
+      sqlTableContext: sqlTableContext2,
+    });
     expect(result2).toBe(
       '_df = mo.sql(f"SELECT email FROM another_db.users LIMIT 100")',
     );

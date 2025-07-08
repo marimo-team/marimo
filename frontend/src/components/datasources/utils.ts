@@ -9,11 +9,15 @@ export function isSchemaless(schemaName: string) {
   return schemaName === "";
 }
 
-export function sqlCode(
-  table: DataTable,
-  columnName: string,
-  sqlTableContext?: SQLTableContext,
-) {
+export function sqlCode({
+  table,
+  columnName,
+  sqlTableContext,
+}: {
+  table: DataTable;
+  columnName: string;
+  sqlTableContext?: SQLTableContext;
+}) {
   if (sqlTableContext) {
     const { engine, schema, defaultSchema, defaultDatabase, database } =
       sqlTableContext;
