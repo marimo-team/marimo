@@ -58,9 +58,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
     if (ws.readyState === WebSocket.CLOSED) {
       // Ignore waitToConnect for static and wasm notebooks
       if (waitToConnect && !isStaticNotebook() && !isWasm()) {
-        waitToConnect().then(() => {
-          ws.reconnect();
-        });
+        waitToConnect()
+          .then(() => {
+            ws.reconnect();
+          })
+          .catch((error) => {
+            Logger.error("Healthy connection never made", error);
+            ws.close();
+          });
       } else {
         ws.reconnect();
       }

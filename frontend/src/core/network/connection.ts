@@ -26,3 +26,8 @@ export const isConnectedAtom = atom((get) => {
   const connection = get(connectionAtom);
   return connection.state === WebSocketState.OPEN;
 });
+
+export const isClosedAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return connection.state === WebSocketState.CLOSED;
+});

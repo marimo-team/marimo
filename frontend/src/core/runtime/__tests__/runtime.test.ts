@@ -229,7 +229,7 @@ describe("RuntimeManager", () => {
       runtime.init({ disableRetryDelay: true });
 
       await expect(runtime.waitForHealthy()).rejects.toThrow(
-        "Failed to connect after 6 retries",
+        "Failed to connect after 25 retries",
       );
     });
   });
