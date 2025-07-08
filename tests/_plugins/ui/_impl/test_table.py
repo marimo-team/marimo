@@ -19,6 +19,7 @@ from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
+    TableSearchError,
     get_default_table_page_size,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
@@ -1984,3 +1985,29 @@ def test_show_toggles_app_mode():
         table_default = ui.table(data)
         assert table_default._component_args["show-column-explorer"] is False
         assert table_default._component_args["show-chart-builder"] is False
+
+
+def test_base_exception_handling():
+    """Test that BaseException is caught and re-raised as TableSearchError."""
+    table = ui.table({"col": [1]})
+
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        query="test",
+        sort=None,
+        filters=None,
+    )
+
+    with patch(
+        "marimo._plugins.ui._impl.tables.default_table.DefaultTableManager.to_json_str"
+    ) as mock_to_json_str:
+        mock_to_json_str.side_effect = BaseException("to json panic")
+
+        # Should catch BaseException and re-raise as TableSearchError
+        with pytest.raises(TableSearchError) as exc_info:
+            table._search(search_args)
+
+    # Verify the error message is preserved
+    assert "to json panic" in str(exc_info.value)
+    assert exc_info.value.error == str(exc_info.value)
