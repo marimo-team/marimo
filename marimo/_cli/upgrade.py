@@ -16,7 +16,6 @@ from marimo._config.cli_state import (
     get_cli_state,
     write_cli_state,
 )
-from marimo._server.api.status import HTTPException
 from marimo._tracer import server_tracer
 
 FETCH_TIMEOUT = 3
@@ -109,14 +108,8 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
 def _fetch_data_from_url(url: str) -> dict[str, Any]:
     try:
         response = requests.get(url, timeout=FETCH_TIMEOUT)
-        status = response.status_code
-        if status == 200:
-            return response.json()
-        else:
-            raise HTTPException(
-                status_code=status,
-                detail=f"HTTP request failed with status code {status}",
-            )
+        response.raise_for_status()
+        return response.json()
     except urllib.error.URLError as e:
         LOGGER.warning(
             f"Network error while checking for version updates: {e}"

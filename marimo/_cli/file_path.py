@@ -74,7 +74,9 @@ class GitHubIssueReader(FileReader):
     def read(self, name: str) -> tuple[str, str]:
         issue_number = name.split("/")[-1]
         api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
-        issue_response = requests.get(api_url).json()
+        issue_response = requests.get(api_url)
+        issue_response.raise_for_status()
+        issue_response = issue_response.json()
 
         if "body" not in issue_response:
             raise ValueError(
@@ -113,7 +115,9 @@ class StaticNotebookReader(FileReader):
     def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
         def download(url: str) -> tuple[bool, str]:
             LOGGER.info("Downloading %s", url)
-            file_contents = requests.get(url, headers=USER_AGENT_HEADER).text()
+            response = requests.get(url, headers=USER_AGENT_HEADER)
+            response.raise_for_status()
+            file_contents = response.text()
             return (
                 StaticNotebookReader.CODE_TAG in file_contents,
                 file_contents,
@@ -168,7 +172,9 @@ class GitHubSourceReader(FileReader):
 
     def read(self, name: str) -> tuple[str, str]:
         url = get_github_src_url(name)
-        content = requests.get(url, headers=USER_AGENT_HEADER).text()
+        response = requests.get(url, headers=USER_AGENT_HEADER)
+        response.raise_for_status()
+        content = response.text()
         return content, os.path.basename(url)
 
 
@@ -177,7 +183,9 @@ class GenericURLReader(FileReader):
         return is_url(name)
 
     def read(self, name: str) -> tuple[str, str]:
-        content = requests.get(name, headers=USER_AGENT_HEADER).text()
+        response = requests.get(name, headers=USER_AGENT_HEADER)
+        response.raise_for_status()
+        content = response.text()
         # Remove query parameters from the URL
         url_without_query = name.split("?")[0]
         return content, os.path.basename(url_without_query)
