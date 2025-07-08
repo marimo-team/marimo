@@ -85,7 +85,10 @@ export function scrollActiveLineIntoView() {
         const activeLine = activeLines[0] as HTMLElement;
         const appEl = document.getElementById("App");
         invariant(appEl, "App not found");
-        smartScrollIntoView(activeLine, { top: 30, bottom: 150 }, appEl);
+        smartScrollIntoView(activeLine, {
+          offset: { top: 30, bottom: 150 },
+          body: appEl,
+        });
       }
     }
   });
