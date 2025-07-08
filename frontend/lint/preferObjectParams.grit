@@ -18,6 +18,6 @@
   register_diagnostic(
     span=$name,
     message="Avoid multiple positional arguments. Prefer an options object instead, e.g., fn(options) or fn(arg, options).",
-    severity="warn"
+    severity="error"
   )
 }
