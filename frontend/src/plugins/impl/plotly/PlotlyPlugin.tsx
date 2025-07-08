@@ -262,9 +262,10 @@ export const PlotlyComponent = memo(
           if (constraints) {
             const ranges = Object.fromEntries(
               Object.entries(constraints).map(([key, value]) => {
-                const label = (originalFigure.data[traceIndices[0]] as any).dimensions[key].label;
+                const label = (originalFigure.data[traceIndices[0]] as any)
+                  .dimensions[key].label;
                 return [label, value.range];
-              })
+              }),
             );
             setValue({ ranges });
           }

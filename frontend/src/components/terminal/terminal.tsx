@@ -3,13 +3,13 @@
 import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { Logger } from "@/utils/Logger";
 import { debounce } from "@/utils/debounce";
+import { Logger } from "@/utils/Logger";
 
 const TerminalComponent: React.FC<{
   visible: boolean;
