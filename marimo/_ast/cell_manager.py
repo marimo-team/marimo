@@ -139,13 +139,31 @@ class CellManager:
             factory: Callable[..., Cell] = (
                 toplevel_cell_factory if top_level else cell_factory
             )
-            cell = factory(
-                obj,
-                cell_id=self.create_cell_id(),
-                anonymous_file=app._app._anonymous_file if app else False,
-                test_rewrite=is_top_level_pytest
-                or (app is not None and app._app._pytest_rewrite),
-            )
+            try:
+                cell = factory(
+                    obj,
+                    cell_id=self.create_cell_id(),
+                    anonymous_file=app._app._anonymous_file if app else False,
+                    test_rewrite=is_top_level_pytest
+                    or (app is not None and app._app._pytest_rewrite),
+                )
+            except TypeError as e:
+                LOGGER.debug(
+                    f"Failed to register cell: {e}. Expected class or function,"
+                    f"got {type(obj)}."
+                )
+                # Top level definitions can wrap non-functions or classes.
+                # Since static parsing makes it possible to load and create a
+                # notebook like this, importing the notebooks shouldn't fail
+                # either.
+                if top_level:
+                    return obj
+                # If it is not a top-level definition, something is very wrong
+                raise ValueError(
+                    "Unexpected failure. Please report this error to "
+                    "github.com/marimo-team/marimo/issues."
+                ) from e
+
             cell._cell.configure(cell_config)
             self._register_cell(cell, app=app)
 
@@ -446,6 +464,21 @@ class CellManager:
             LOGGER.debug(f"Cell with ID '{cell_id}' not found in cell manager")
             return None
         return self._cell_data[cell_id]
+
+    def get_cell_data_by_name(self, name: str) -> Optional[CellData]:
+        """Find a cell ID by its name.
+
+        Args:
+            name: The name to search for
+
+        Returns:
+            Optional[CellData]: The data of the first cell with matching name,
+            or None if no match is found
+        """
+        for cell_data in self._cell_data.values():
+            if cell_data.name.strip("*") == name:
+                return cell_data
+        return None
 
     def get_cell_id_by_code(self, code: str) -> Optional[CellId_t]:
         """Find a cell ID by its code content.

@@ -271,3 +271,17 @@ class TestGetCodes:
         else:
             assert len(caplog.records) == 1
         assert "kwarg_that_doesnt_exist" in caplog.text
+
+    @staticmethod
+    def test_get_app_with_bad_decorator(static_load) -> None:
+        app = static_load(get_filepath("test_with_bad_decorator"))
+        assert app is not None
+        assert app._cell_manager.get_cell_data_by_name("wrap").cell.defs == {
+            "wrap"
+        }
+        assert app._cell_manager.get_cell_data_by_name(
+            "hundred"
+        ).cell.defs == {"hundred"}
+        from codegen_data.test_with_bad_decorator import hundred
+
+        assert hundred == 100

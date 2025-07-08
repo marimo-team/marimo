@@ -378,6 +378,26 @@ class TestReusableCell:
         assert defs == {"z": -1}
 
 
+class TestDecoratedCells:
+    @staticmethod
+    def test_functool_wrapped(app) -> None:
+        with app.setup:
+            from functools import cache
+
+        @app.function
+        @cache
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        assert add(1, 2) == 3
+        assert add.cache_info().hits == 0
+        assert add(1, 2) == 3
+        assert add.cache_info().hits == 1
+        assert app._cell_manager.get_cell_data_by_name("add").cell.defs == {
+            "add"
+        }
+
+
 def help_smoke() -> None:
     app = App()
 
