@@ -36,11 +36,19 @@ class Response:
         self.original_error = original_error
 
     def json(self) -> Any:
-        """Parse response content as JSON."""
+        """Parse response content as JSON.
+
+        This assumes the response is UTF-8 encoded.
+        In future, we can infer the encoding from the headers.
+        """
         return json.loads(self.text())
 
     def text(self) -> str:
-        """Get response content as text."""
+        """Get response content as text.
+
+        This assumes the response is UTF-8 encoded.
+        In future, we can infer the encoding from the headers.
+        """
         return self.content.decode("utf-8")
 
     def raise_for_status(self) -> None:
