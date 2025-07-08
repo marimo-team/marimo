@@ -11,6 +11,7 @@ import {
   type Table,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
+import { useAtomValue } from "jotai";
 import type { JSX } from "react";
 import {
   TableBody,
@@ -20,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
+import { isSelectingMultipleCellsAtom } from "./range-focus/atoms";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 
@@ -87,6 +89,12 @@ export const DataTableBody = <TData,>({
     handleCellMouseOver,
     handleCellsKeyDown,
   } = useCellRangeSelection({ table });
+
+  const isSelectingMultipleCells = useAtomValue(isSelectingMultipleCellsAtom);
+
+  if (isSelectingMultipleCells && window.getSelection) {
+    window.getSelection()?.empty();
+  }
 
   const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {

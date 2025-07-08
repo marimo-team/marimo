@@ -337,6 +337,9 @@ export const focusedCellAtom = atom(
 export const isSelectingAtom = atom(
   (get) => get(cellSelectionStateAtom).isSelecting,
 );
+export const isSelectingMultipleCellsAtom = atom(
+  (get) => get(cellSelectionStateAtom).selectedCells.size > 1,
+);
 
 // Optimized derived atoms for individual cell state
 export const createCellSelectedAtom = (cellId: string) =>
