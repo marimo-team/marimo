@@ -748,11 +748,15 @@ const {
 
     let nextState = { ...state };
 
-    const cellReducer = (
-      cell: CellData | undefined,
-      code: string,
-      cellId: CellId,
-    ) => {
+    const cellReducer = ({
+      cell,
+      code,
+      cellId,
+    }: {
+      cell: CellData | undefined;
+      code: string;
+      cellId: CellId;
+    }) => {
       if (!cell) {
         return createCell({
           id: cellId,
@@ -805,7 +809,11 @@ const {
         ...nextState,
         cellData: {
           ...nextState.cellData,
-          [cellId]: cellReducer(nextState.cellData[cellId], code, cellId),
+          [cellId]: cellReducer({
+            cell: nextState.cellData[cellId],
+            code,
+            cellId,
+          }),
         },
       };
     }
