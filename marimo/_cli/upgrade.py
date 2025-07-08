@@ -8,6 +8,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any, Callable
 
+import marimo._utils.requests as requests
 from marimo import __version__ as current_version, _loggers
 from marimo._cli.print import echo, green, orange
 from marimo._config.cli_state import (
@@ -107,17 +108,15 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
 
 def _fetch_data_from_url(url: str) -> dict[str, Any]:
     try:
-        with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as response:
-            status = response.status
-            if status == 200:
-                data = response.read()
-                encoding = response.info().get_content_charset("utf-8")
-                return json.loads(data.decode(encoding))  # type: ignore
-            else:
-                raise HTTPException(
-                    status_code=status,
-                    detail=f"HTTP request failed with status code {status}",
-                )
+        response = requests.get(url, timeout=FETCH_TIMEOUT)
+        status = response.status_code
+        if status == 200:
+            return response.json()
+        else:
+            raise HTTPException(
+                status_code=status,
+                detail=f"HTTP request failed with status code {status}",
+            )
     except urllib.error.URLError as e:
         LOGGER.warning(
             f"Network error while checking for version updates: {e}"
