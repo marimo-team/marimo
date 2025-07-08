@@ -1,3 +1,9 @@
+# /// script
+# [tool.marimo.runtime]
+# auto_instantiate = true
+# [tool.marimo.save]
+# autosave = "off"
+# ///
 import marimo
 
 __generated_with = "0.1.88"

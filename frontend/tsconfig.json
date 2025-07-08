@@ -33,5 +33,5 @@
     "useDefineForClassFields": true,
     "experimentalDecorators": true
   },
-  "include": ["src"]
+  "include": ["src", "playwright.config.ts", "e2e-tests"]
 }

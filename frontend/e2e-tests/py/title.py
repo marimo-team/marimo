@@ -1,4 +1,9 @@
+# /// script
+# [tool.marimo.runtime]
+# auto_instantiate = true
+# ///
 import marimo
+
 
 __generated_with = "0.0.1"
 app = marimo.App()

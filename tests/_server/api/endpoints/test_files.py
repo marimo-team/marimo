@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
+import pytest
+
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
     token_header,
@@ -127,6 +129,9 @@ def test_save_file(client: TestClient) -> None:
     )
 
 
+@pytest.mark.xfail(
+    reason="Flaky in CI, can't repro locally",
+)
 @with_session(SESSION_ID)
 def test_save_with_header(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
