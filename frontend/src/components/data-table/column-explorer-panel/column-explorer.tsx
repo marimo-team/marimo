@@ -202,7 +202,11 @@ const ColumnPreview = ({
 
   const errorState =
     previewError &&
-    renderPreviewError(previewError, missing_packages, refetchPreview);
+    renderPreviewError({
+      error: previewError,
+      missingPackages: missing_packages,
+      refetchPreview,
+    });
 
   const previewStats = stats && renderStats(stats, dataType);
 

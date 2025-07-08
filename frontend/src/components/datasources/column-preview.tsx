@@ -97,7 +97,11 @@ export const DatasetColumnPreview: React.FC<{
 
   const error =
     preview.error &&
-    renderPreviewError(preview.error, preview.missing_packages, previewColumn);
+    renderPreviewError({
+      error: preview.error,
+      missingPackages: preview.missing_packages,
+      refetchPreview: previewColumn,
+    });
 
   const stats = preview.stats && renderStats(preview.stats, column.type);
 
@@ -138,17 +142,21 @@ export const DatasetColumnPreview: React.FC<{
   );
 };
 
-export function renderPreviewError(
-  error: string,
-  missing_packages?: string[] | null,
-  refetchPreview?: () => void,
-) {
+export function renderPreviewError({
+  error,
+  missingPackages,
+  refetchPreview,
+}: {
+  error: string;
+  missingPackages?: string[] | null;
+  refetchPreview?: () => void;
+}) {
   return (
     <div className="text-xs text-muted-foreground p-2 border border-border rounded flex items-center justify-between">
       <span>{error}</span>
-      {missing_packages && (
+      {missingPackages && (
         <InstallPackageButton
-          packages={missing_packages}
+          packages={missingPackages}
           showMaxPackages={1}
           className="w-32"
           onInstall={refetchPreview}
