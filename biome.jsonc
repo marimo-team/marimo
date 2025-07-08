@@ -2,7 +2,8 @@
   "$schema": "frontend/node_modules/@biomejs/biome/configuration_schema.json",
   "plugins": [
     "frontend/lint/addEventListenerObject.grit",
-    "frontend/lint/removeEventListenerObject.grit"
+    "frontend/lint/removeEventListenerObject.grit",
+    "frontend/lint/preferObjectParams.grit"
   ],
   "files": {
     "includes": [
