@@ -123,15 +123,17 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     LOGGER.info(
                         "Failed to write json. Trying to convert columns to strings."
                     )
+                    converted_columns = []
                     for column in result.get_columns():
                         dtype = column.dtype
                         if isinstance(dtype, pl.Object):
                             result = self._cast_object_to_string(
                                 result, column
                             )
+                            converted_columns.append(column.name)
                         elif str(dtype) == "Int128":
                             # Use string comparison because pl.Int128 doesn't exist on older versions
-                            # As of writing this, Int128 is not supported by polars
+                            # As of writing this, Int128 to json is not supported by polars
                             LOGGER.warning(
                                 "Column %s is of type Int128, which is not supported. Converting to string.",
                                 column.name,
@@ -139,10 +141,27 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = result.with_columns(
                                 column.cast(pl.String)
                             )
+                            converted_columns.append(column.name)
                         elif isinstance(dtype, pl.Duration):
                             result = self._convert_time_to_string(
                                 result, column
                             )
+                            converted_columns.append(column.name)
+                        # https://github.com/pola-rs/polars/issues/23459
+                        elif isinstance(dtype, pl.List) and isinstance(
+                            dtype.inner, (pl.Enum, pl.Categorical)
+                        ):
+                            # Convert each element in the list to a string
+                            result = result.with_columns(
+                                pl.col(column.name).cast(pl.List(pl.String))
+                            )
+                            converted_columns.append(column.name)
+
+                    if converted_columns:
+                        LOGGER.info(
+                            "Converted columns %s to string.",
+                            ", ".join(f"'{col}'" for col in converted_columns),
+                        )
 
                     return sanitize_json_bigint(result.write_json())
 

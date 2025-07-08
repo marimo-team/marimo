@@ -109,6 +109,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                         [],
                     ],
                 ),
+                "enum_list": pl.Series(
+                    [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]],
+                    dtype=pl.List(pl.Enum(categories=["A", "B", "C"])),
+                ),
             },
             strict=False,
         )
@@ -943,3 +947,42 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         # Large integers should be converted to strings
         assert json_data[1]["A"] == "9007199254740992"
         assert json_data[1]["B"] == "-9007199254740992"
+
+    def test_to_json_enum_list(self) -> None:
+        import polars as pl
+
+        data = {"A": [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]]}
+
+        data_enum = pl.DataFrame(
+            data, schema={"A": pl.List(pl.Enum(categories=["A", "B", "C"]))}
+        )
+        manager = self.factory.create()(data_enum)
+        json_data = json.loads(manager.to_json())
+        assert json_data[0]["A"] == ["A", "B", "C"]
+        assert json_data[1]["A"] == ["A", "B", "C"]
+        assert json_data[2]["A"] == ["A", "B", "C"]
+
+        data_categorical = pl.DataFrame(
+            data, schema={"A": pl.List(pl.Categorical())}
+        )
+        manager = self.factory.create()(data_categorical)
+        json_data = json.loads(manager.to_json())
+        assert json_data[0]["A"] == ["A", "B", "C"]
+        assert json_data[1]["A"] == ["A", "B", "C"]
+        assert json_data[2]["A"] == ["A", "B", "C"]
+
+    def test_to_json_enum_list_not_supported(self) -> None:
+        # When this is supported, we can remove the casting to string
+        import polars as pl
+
+        data = {"A": [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]]}
+
+        data_enum = pl.DataFrame(
+            data, schema={"A": pl.List(pl.Enum(categories=["A", "B", "C"]))}
+        )
+        with pytest.raises(pl.exceptions.PanicException):
+            data_enum.write_json()
+
+        data_list = pl.DataFrame(data, schema={"A": pl.List(pl.Categorical())})
+        with pytest.raises(pl.exceptions.PanicException):
+            data_list.write_json()
