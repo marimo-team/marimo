@@ -118,7 +118,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           }
           return false;
         },
-        { retries: 3, delay: 100 },
+        { retries: 3, delay: 100, initialDelay: 100 },
       ); // Wait for animation to complete
 
       selectAllText(inputRef.current?.view);
