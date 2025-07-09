@@ -33,24 +33,23 @@ import {
   copyShortcutPressed,
   pasteShortcutPressed,
 } from "@/components/editor/controls/utils";
+import { useOnMount } from "@/hooks/useLifecycle";
 import { logNever } from "@/utils/assertNever";
 
 interface GlideDataEditorProps<T> {
   data: T[];
   fieldTypes?: FieldTypesWithExternalType | null;
-  rows: number;
+  edits: Edits["edits"];
   onAddEdits: (edits: Edits["edits"]) => void;
   onAddRows: (newRows: object[]) => void;
-  host?: HTMLElement;
 }
 
 export const GlideDataEditor = <T,>({
   data,
   fieldTypes,
-  rows,
+  edits,
   onAddEdits,
   onAddRows,
-  host,
 }: GlideDataEditorProps<T>) => {
   const { theme } = useTheme();
 
@@ -60,7 +59,42 @@ export const GlideDataEditor = <T,>({
 
   const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
-  const [totalRows, setTotalRows] = useState<number>(rows);
+
+  useOnMount(() => {
+    if (edits.length === 0) {
+      return;
+    }
+
+    // Group edits by row index to build new rows
+    const newRows = new Map<number, Record<string, unknown>>();
+
+    for (const edit of edits) {
+      if (edit.rowIdx >= data.length) {
+        // This is a new row
+        if (!newRows.has(edit.rowIdx)) {
+          newRows.set(edit.rowIdx, {});
+        }
+        const row = newRows.get(edit.rowIdx);
+        if (row) {
+          row[edit.columnId] = edit.value;
+        }
+      } else {
+        // This is an existing row, update the data directly
+        // @ts-expect-error: Mutate data directly for performance
+        // eslint-disable-next-line react-hooks/react-compiler
+        data[edit.rowIdx][edit.columnId] = edit.value;
+      }
+    }
+
+    // Add new rows in order
+    const sortedNewRows = [...newRows.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([, row]) => row);
+
+    if (sortedNewRows.length > 0) {
+      data.push(...(sortedNewRows as T[]));
+    }
+  });
 
   const columns: ModifiedGridColumn[] = useMemo(() => {
     const columns: ModifiedGridColumn[] = [];
@@ -218,9 +252,7 @@ export const GlideDataEditor = <T,>({
 
     // Update data
     data.push(newRow);
-
-    setTotalRows(totalRows + 1);
-  }, [columns, data, onAddRows, totalRows]);
+  }, [columns, data, onAddRows]);
 
   const onHeaderMenuClick = useEvent((col: number, bounds: Rectangle) => {
     setMenu({ col, bounds });
@@ -234,33 +266,15 @@ export const GlideDataEditor = <T,>({
     }
   });
 
-  const memoizedThemeValues = useMemo(() => getGlideTheme(theme), [theme]);
-  const experimental = useMemo(
-    () => ({
-      eventTarget:
-        (host?.shadowRoot as unknown as HTMLElement) ?? document.body,
-    }),
-    [host?.shadowRoot],
-  );
-
   // There is a guarantee that only one column's menu is open (as interaction is disabled outside of the menu)
   const isMenuOpen = menu !== undefined;
   const iconClassName = "mr-2 h-3.5 w-3.5";
 
-  const memoizedTrailingRowOptions = useMemo(
-    () => ({
-      hint: "New row",
-      sticky: true,
-      tint: true,
-    }),
-    [],
-  );
-
-  const memoizedHeight = useMemo(() => {
-    if (rows > 10) {
-      return 450;
-    }
-  }, [rows]);
+  const trailingRowOptions = {
+    hint: "New row",
+    sticky: true,
+    tint: true,
+  };
 
   return (
     <>
@@ -268,7 +282,7 @@ export const GlideDataEditor = <T,>({
         ref={dataEditorRef}
         getCellContent={getCellContent}
         columns={columns}
-        rows={rows}
+        rows={data.length}
         smoothScrollX={true}
         smoothScrollY={true}
         validateCell={validateCell}
@@ -277,17 +291,17 @@ export const GlideDataEditor = <T,>({
         fillHandle={true}
         allowedFillDirections="vertical" // We can support all directions, but we need to handle datatype logic
         onKeyDown={onKeyDown}
-        height={memoizedHeight}
-        width="100%"
+        height={data.length > 10 ? 450 : undefined}
+        width={"100%"}
+        rowMarkers={"number"}
         onCellEdited={onCellEdited}
         onColumnResize={onColumnResize}
         onHeaderMenuClick={onHeaderMenuClick}
-        theme={memoizedThemeValues}
-        trailingRowOptions={memoizedTrailingRowOptions}
+        theme={getGlideTheme(theme)}
+        trailingRowOptions={trailingRowOptions}
         onRowAppended={onRowAppend}
         maxColumnAutoWidth={600}
         maxColumnWidth={600}
-        experimental={experimental}
       />
       {isMenuOpen && (
         <DropdownMenu
@@ -299,7 +313,7 @@ export const GlideDataEditor = <T,>({
               left: menu?.bounds.x ?? 0,
               top: (menu?.bounds.y ?? 0) + (menu?.bounds.height ?? 0),
             }}
-            className="fixed w-48 z-[1000]"
+            className="fixed w-48"
           >
             <DropdownMenuItem onClick={handleCopyColumnName}>
               <CopyIcon className={iconClassName} />
