@@ -335,7 +335,7 @@ marimo using `pip`/`uv` if you need Copilot._
 
 ### Windsurf Copilot
 
-Windsurf (formerly codeium) provides tab-completion tooling that can also be used from within marimo. 
+[Windsurf](https://windsurf.com/) (formerly codeium) provides tab-completion tooling that can also be used from within marimo. 
 
 To set up windsurf:
 
