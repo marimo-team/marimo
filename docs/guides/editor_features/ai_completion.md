@@ -354,7 +354,7 @@ To set up windsurf:
 ```toml title="marimo.toml"
 [completion]
 copilot = "codeium"
-windsurf_api_key = ""
+codeium_api_key = ""
 ```
 
 ### Custom copilots
