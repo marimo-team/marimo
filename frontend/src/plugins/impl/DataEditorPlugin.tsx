@@ -116,7 +116,7 @@ const LoadingDataEditor = (props: Props) => {
     <LazyDataEditor
       data={data}
       fieldTypes={props.fieldTypes}
-      rows={data.length}
+      edits={props.edits.edits}
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}
@@ -130,7 +130,6 @@ const LoadingDataEditor = (props: Props) => {
         );
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
       }}
-      host={props.host}
     />
   );
 };
