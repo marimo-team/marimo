@@ -98,6 +98,8 @@ DEFAULT_MAX_COLUMNS = 50
 MaxColumnsNotProvided = Literal["inherit"]
 MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
 
+MaxColumnsType = Union[int, None, MaxColumnsNotProvided]
+
 
 @dataclass(frozen=True)
 class SearchTableArgs:
@@ -165,6 +167,16 @@ def get_default_table_page_size() -> int:
         return 10
     else:
         return ctx.marimo_config["display"]["default_table_page_size"]
+
+
+def get_default_table_max_columns() -> int:
+    """Get the default maximum number of columns to display in a table."""
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return 50
+    else:
+        return ctx.marimo_config["display"]["default_table_max_columns"]
 
 
 @mddoc
@@ -307,8 +319,8 @@ class table(
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
         style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
-        max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
-            Set to None to show all columns.
+        max_columns (int, optional): Maximum number of columns to display. Defaults to the
+            configured default_table_max_columns (50 by default). Set to None to show all columns.
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
@@ -361,7 +373,7 @@ class table(
             label="",
             on_change=None,
             style_cell=None,
-            max_columns=DEFAULT_MAX_COLUMNS,
+            max_columns=MAX_COLUMNS_NOT_PROVIDED,
             _internal_column_charts_row_limit=None,
             _internal_summary_row_limit=None,
             _internal_total_rows="too_many",
@@ -398,7 +410,7 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
-        max_columns: Optional[int] = DEFAULT_MAX_COLUMNS,
+        max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
         label: str = "",
         on_change: Optional[
@@ -440,8 +452,17 @@ class table(
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
-        self._max_columns = max_columns
-        max_columns_arg = "all" if max_columns is None else max_columns
+
+        # Handle max_columns: use config default if not provided, None means "all"
+        if max_columns == MAX_COLUMNS_NOT_PROVIDED:
+            self._max_columns = get_default_table_max_columns()
+            max_columns_arg = self._max_columns
+        elif max_columns is None:
+            self._max_columns = None
+            max_columns_arg = "all"
+        else:
+            self._max_columns = max_columns
+            max_columns_arg = max_columns
 
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows

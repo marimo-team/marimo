@@ -1575,6 +1575,8 @@ components:
               - rich
               - plain
               type: string
+            default_table_max_columns:
+              type: integer
             default_table_page_size:
               type: integer
             default_width:
@@ -1600,6 +1602,7 @@ components:
           - default_width
           - dataframes
           - default_table_page_size
+          - default_table_max_columns
           type: object
         experimental:
           additionalProperties: {}
@@ -2719,7 +2722,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.8
+  version: 0.14.10
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

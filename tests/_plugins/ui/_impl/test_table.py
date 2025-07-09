@@ -20,6 +20,7 @@ from marimo._plugins.ui._impl.table import (
     SearchTableArgs,
     SortArgs,
     TableSearchError,
+    get_default_table_max_columns,
     get_default_table_page_size,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
@@ -1804,6 +1805,10 @@ def test_default_table_page_size():
     assert get_default_table_page_size() == 10
 
 
+def test_default_table_max_columns():
+    assert get_default_table_max_columns() == 50
+
+
 def test_calculate_top_k_rows():
     table = ui.table({"A": [1, 3, 3, None, None]})
     result = table._calculate_top_k_rows(
@@ -2011,3 +2016,14 @@ def test_base_exception_handling():
     # Verify the error message is preserved
     assert "to json panic" in str(exc_info.value)
     assert exc_info.value.error == str(exc_info.value)
+
+
+def test_table_uses_default_max_columns():
+    # Create data with many columns
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+
+    # Create table without specifying max_columns
+    table = ui.table(data)
+
+    # Should use the default max_columns (50)
+    assert table._max_columns == 50
