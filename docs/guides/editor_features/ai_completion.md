@@ -343,15 +343,17 @@ To set up windsurf:
 2. Download the Windsurf app.
 3. After installing Windsurf and authenticating, open up the command pallette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard. 
 
-![](/_static/windsurf-api.png)
+![Copy Windsurf API key](/_static/windsurf-api.png)
 
-4a. Configure the UI settings in the editor to use windsurf. 
+4a. Configure the UI settings in the editor to use Windsurf. 
+
+![Paste Windsurf API key](/_static/windsurf-settings.png)
 
 4b. Alternatively you can also configure the api key from the marimo config file. 
 
 ```toml title="marimo.toml"
 [completion]
-copilot = "windsurf"
+copilot = "codeium"
 windsurf_api_key = ""
 ```
 
