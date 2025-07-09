@@ -1,12 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import DataEditor, {
+  CompactSelection,
   type DataEditorRef,
   type EditableGridCell,
   type GridCell,
   GridCellKind,
   type GridColumn,
   type GridKeyEventArgs,
+  type GridSelection,
   type Item,
   type Rectangle,
 } from "@glideapps/glide-data-grid";
@@ -27,7 +29,7 @@ import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
 import { getGlideTheme } from "./themes";
 import type { Edits, ModifiedGridColumn } from "./types";
-import { getColumnHeaderIcon, getColumnKind } from "./utils";
+import { getColumnHeaderIcon, getColumnKind, pasteCells } from "./utils";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
 import {
   copyShortcutPressed,
@@ -57,6 +59,10 @@ export const GlideDataEditor = <T,>({
   const dataEditorRef = useRef<DataEditorRef>(null);
 
   const [menu, setMenu] = useState<{ col: number; bounds: Rectangle }>();
+  const [selection, setSelection] = React.useState<GridSelection>({
+    columns: CompactSelection.empty(),
+    rows: CompactSelection.empty(),
+  });
 
   const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -216,19 +222,27 @@ export const GlideDataEditor = <T,>({
     [columnFields, columns],
   );
 
-  // Hack to emit copy and paste events as these events aren't triggered automatically in shadow DOM
-  // TODO: Paste does not work
-  const onKeyDown = useCallback((e: GridKeyEventArgs) => {
-    if (dataEditorRef.current) {
-      const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
+  // Hack to emit copy event as these events aren't triggered automatically in shadow DOM
+  // Paste event does not work so we manually handle it
+  const onKeyDown = useCallback(
+    (e: GridKeyEventArgs) => {
+      if (dataEditorRef.current) {
+        const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
 
-      if (copyShortcutPressed(keyboardEvent)) {
-        dataEditorRef.current.emit("copy");
-      } else if (pasteShortcutPressed(keyboardEvent)) {
-        dataEditorRef.current.emit("paste");
+        if (copyShortcutPressed(keyboardEvent)) {
+          dataEditorRef.current.emit("copy");
+        } else if (pasteShortcutPressed(keyboardEvent)) {
+          pasteCells({
+            selection,
+            data,
+            columns,
+            onAddEdits,
+          });
+        }
       }
-    }
-  }, []);
+    },
+    [selection, data, onAddEdits, columns],
+  );
 
   const onRowAppend = useCallback(() => {
     const newRow = Object.fromEntries(
@@ -288,6 +302,8 @@ export const GlideDataEditor = <T,>({
         ref={dataEditorRef}
         getCellContent={getCellContent}
         columns={columns}
+        gridSelection={selection}
+        onGridSelectionChange={setSelection}
         rows={data.length}
         smoothScrollX={true}
         smoothScrollY={true}
