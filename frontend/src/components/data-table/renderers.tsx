@@ -11,7 +11,7 @@ import {
   type Table,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
-import type { JSX } from "react";
+import { type JSX, useRef } from "react";
 import {
   TableBody,
   TableCell,
@@ -22,6 +22,7 @@ import {
 import { cn } from "@/utils/cn";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
+import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -81,6 +82,10 @@ export const DataTableBody = <TData,>({
   getRowIndex,
   viewedRowIdx,
 }: DataTableBodyProps<TData>) => {
+  // Automatically scroll focused cells into view
+  const tableRef = useRef<HTMLTableSectionElement>(null);
+  useScrollIntoViewOnFocus(tableRef);
+
   const {
     handleCellMouseDown,
     handleCellMouseUp,
@@ -130,7 +135,7 @@ export const DataTableBody = <TData,>({
   };
 
   return (
-    <TableBody onKeyDown={handleCellsKeyDown}>
+    <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => {
           // Only find the row index if the row viewer panel is open
