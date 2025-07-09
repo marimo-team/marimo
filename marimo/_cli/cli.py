@@ -346,7 +346,7 @@ edit_help_msg = "\n".join(
     hidden=True,
     help="""Enables the usage of package sandboxing when running a multi-edit
 notebook server; this behavior is dangerous, for reasons described in
-https://github.com/marimo-team/marimo/issues/5219l.""",
+https://github.com/marimo-team/marimo/issues/5219.""",
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
