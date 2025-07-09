@@ -34,6 +34,7 @@ import {
   pasteShortcutPressed,
 } from "@/components/editor/controls/utils";
 import { useOnMount } from "@/hooks/useLifecycle";
+import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
 
 interface GlideDataEditorProps<T> {
@@ -59,7 +60,9 @@ export const GlideDataEditor = <T,>({
 
   const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const rerender = useNonce();
 
+  // Handle initial edits passed in
   useOnMount(() => {
     if (edits.length === 0) {
       return;
@@ -94,6 +97,9 @@ export const GlideDataEditor = <T,>({
     if (sortedNewRows.length > 0) {
       data.push(...(sortedNewRows as T[]));
     }
+
+    // Force re-render to update the total rows
+    rerender();
   });
 
   const columns: ModifiedGridColumn[] = useMemo(() => {
