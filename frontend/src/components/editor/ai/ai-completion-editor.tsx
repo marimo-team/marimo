@@ -23,6 +23,7 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
+import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import { getAICompletionBody } from "./completion-utils";
 
@@ -107,11 +108,19 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   // Focus the input
   useEffect(() => {
-    const input = inputRef.current;
-    if (enabled && input) {
-      requestAnimationFrame(() => {
-        input.view?.focus();
-      });
+    if (enabled) {
+      retryWithTimeout(
+        () => {
+          const input = inputRef.current;
+          if (input?.view) {
+            input.view.focus();
+            return true;
+          }
+          return false;
+        },
+        { retries: 3, delay: 100, initialDelay: 100 },
+      ); // Wait for animation to complete
+
       selectAllText(inputRef.current?.view);
     }
   }, [enabled]);
