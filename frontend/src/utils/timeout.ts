@@ -23,10 +23,10 @@ export function retryWithTimeout(
           return;
         }
       } catch (error) {
-        Logger.error("Error executing function, retrying", {
-          error,
-          attempts,
-        });
+        Logger.error(
+          `Error executing function on attempt ${attempts + 1}, retrying`,
+          { error },
+        );
       }
 
       attempts++;
