@@ -335,55 +335,25 @@ marimo using `pip`/`uv` if you need Copilot._
 
 ### Windsurf Copilot
 
-Windsurf (formerly codeium) provides a free coding copilot. You can try
-setting up Windsurf with the following:
+Windsurf (formerly codeium) provides tab-completion tooling that can also be used from within marimo. 
+
+To set up windsurf:
 
 1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
-2. Try the method from: <https://github.com/leona/helix-gpt/discussions/60>
+2. Download the Windsurf app.
+3. After installing Windsurf and authenticating, open up the command pallette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard. 
 
-Add your key to your marimo.toml file (or configure in the UI settings in the editor):
+![](/_static/windsurf-api.png)
+
+4a. Configure the UI settings in the editor to use windsurf. 
+
+4b. Alternatively you can also configure the api key from the marimo config file. 
 
 ```toml title="marimo.toml"
 [completion]
-copilot = "codeium"
-codeium_api_key = ""
+copilot = "windsurf"
+windsurf_api_key = ""
 ```
-
-For official support, please ping the Windsurf team and ask them to support marimo.
-
-??? note "Alternative: Obtain Windsurf API key using VS Code"
-
-    1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
-    2. Install the [Codeium Visual Studio Code extension](vscode:extension/codeium.codeium) (see [here](https://codeium.com/vscode_tutorial) for complete guide)
-    3. Sign in to your Codeium account in the VS Code extension
-    4. Select the Codeium icon on the Activity bar (left side), which opens the Codeium pane
-    5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
-
-    <div align="center">
-      <figure>
-        <img src="/_static/docs-ai-completion-codeium-vscode.png"/>
-        <figcaption>Open Codeium settings</figcaption>
-    </figure>
-    </div>
-
-    6. Click the **Download** link under the **Extension Diagnostics** section
-    7. Open the diagnostic file and search for `apiKey`
-
-    <div align="center">
-      <figure>
-        <img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png"/>
-        <figcaption>Download diagnostics file with API key</figcaption>
-      </figure>
-    </div>
-
-    8. Copy the value of the `apiKey` to `$XDG_CONFIG_HOME/marimo/marimo.toml`:
-
-    ```toml title="marimo.toml"
-    [completion]
-    codeium_api_key = "a1e8..."  # <-- paste your API key here
-    copilot = "codeium"
-    activate_on_typing = true
-    ```
 
 ### Custom copilots
 
