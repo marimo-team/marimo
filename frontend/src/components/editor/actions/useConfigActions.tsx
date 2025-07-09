@@ -149,6 +149,32 @@ export function useConfigActions() {
         });
       },
     },
+    {
+      label: "Config > Set cell output area: above",
+      hidden: config.display.cell_output === "above",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            cell_output: "above",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set cell output area: below",
+      hidden: config.display.cell_output === "below",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            cell_output: "below",
+          },
+        });
+      },
+    },
   ];
 
   return actions.filter((a) => !a.hidden);
