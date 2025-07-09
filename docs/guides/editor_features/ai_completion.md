@@ -341,7 +341,7 @@ To set up windsurf:
 
 1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
 2. Download the Windsurf app.
-3. After installing Windsurf and authenticating, open up the command pallette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard. 
+3. After installing Windsurf and authenticating, open up the command palette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard. 
 
 ![Copy Windsurf API key](/_static/windsurf-api.png)
 
