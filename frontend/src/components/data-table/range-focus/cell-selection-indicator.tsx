@@ -22,6 +22,7 @@ export const CellRangeSelectionIndicator = memo<CellSelectionIndicatorProps>(
 
     return (
       <div
+        data-cell-id={cellId}
         className={cn(
           "absolute inset-0 pointer-events-none",
           isSelected && "bg-[var(--green-3)]",
