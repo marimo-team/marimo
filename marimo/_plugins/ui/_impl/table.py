@@ -442,6 +442,8 @@ class table(
         validate_page_size(page_size)
         self._lazy = _internal_lazy
         self._page_size = page_size
+        self._max_columns: Optional[int] = None
+        max_columns_arg: Union[int, str]
 
         has_stable_row_id = False
         if selection is not None:

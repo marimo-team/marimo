@@ -41,6 +41,7 @@ describe("Cell data attributes", () => {
           code_editor_font_size: 14,
           dataframes: "rich",
           default_table_page_size: 10,
+          default_table_max_columns: 10,
           default_width: "normal",
           theme: "light",
           reference_highlighting: false,
