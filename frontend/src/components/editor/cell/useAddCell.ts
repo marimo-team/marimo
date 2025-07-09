@@ -13,7 +13,11 @@ export function useAddCodeToNewCell(): (code: string) => void {
 
   return (code: string) => {
     if (code.includes("alt")) {
-      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+      maybeAddAltairImport({
+        autoInstantiate,
+        createNewCell,
+        fromCellId: lastFocusedCellId,
+      });
     }
 
     createNewCell({

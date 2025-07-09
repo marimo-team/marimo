@@ -327,7 +327,7 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport(true, createNewCell);
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -345,7 +345,7 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport(true, createNewCell);
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
             createNewCell({
               cellId: { type: "__end__", columnId },

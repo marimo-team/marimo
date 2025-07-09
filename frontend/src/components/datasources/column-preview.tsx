@@ -237,7 +237,11 @@ export const AddDataframeChart: React.FC<{
 
   const handleAddColumn = (chartCode: string) => {
     if (chartCode.includes("alt")) {
-      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
+      maybeAddAltairImport({
+        autoInstantiate,
+        createNewCell,
+        fromCellId: lastFocusedCellId,
+      });
     }
     createNewCell({
       code: chartCode,

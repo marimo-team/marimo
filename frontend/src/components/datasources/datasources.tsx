@@ -534,7 +534,11 @@ const DatasetTableItem: React.FC<{
   const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
-    maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell,
+      fromCellId: lastFocusedCellId,
+    });
     const getCode = () => {
       if (table.source_type === "catalog") {
         const identifier = sqlTableContext?.database
