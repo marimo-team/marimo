@@ -310,16 +310,23 @@ export const GlideDataEditor = <T,>({
     [columnFields, columns],
   );
 
-  // Hack to emit copy and paste events as these events aren't triggered automatically in shadow DOM
-  // TODO: Paste does not work
-  const onKeyDown = useCallback((e: GridKeyEventArgs) => {
-    if (dataEditorRef.current) {
-      const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
+  // Hack to emit copy event as these events aren't triggered automatically in shadow DOM
+  // Paste event does not work so we manually handle it
+  const onKeyDown = useCallback(
+    (e: GridKeyEventArgs) => {
+      if (dataEditorRef.current) {
+        const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
 
-      if (copyShortcutPressed(keyboardEvent)) {
-        dataEditorRef.current.emit("copy");
-      } else if (pasteShortcutPressed(keyboardEvent)) {
-        dataEditorRef.current.emit("paste");
+        if (copyShortcutPressed(keyboardEvent)) {
+          dataEditorRef.current.emit("copy");
+        } else if (pasteShortcutPressed(keyboardEvent)) {
+          pasteCells({
+            selection,
+            data,
+            columns,
+            onAddEdits,
+          });
+        }
       } else if (isModifierKey(keyboardEvent) && keyboardEvent.key === "f") {
         setShowSearch((prev) => !prev);
         e.stopPropagation();
@@ -327,8 +334,9 @@ export const GlideDataEditor = <T,>({
       } else if (keyboardEvent.key === "Escape") {
         setShowSearch(false);
       }
-    }
-  }, []);
+    },
+    [selection, data, onAddEdits, columns],
+  );
 
   const onRowAppend = useCallback(() => {
     const newRow = Object.fromEntries(
