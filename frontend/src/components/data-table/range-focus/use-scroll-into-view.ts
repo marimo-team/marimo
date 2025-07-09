@@ -34,7 +34,7 @@ export function useScrollIntoViewOnFocus(
       }
 
       indicator.scrollIntoView({
-        behavior: "instant",
+        behavior: "auto",
         block: "nearest",
         inline: "nearest",
       });
