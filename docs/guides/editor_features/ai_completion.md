@@ -337,10 +337,10 @@ marimo using `pip`/`uv` if you need Copilot._
 
 [Windsurf](https://windsurf.com/) (formerly codeium) provides tab-completion tooling that can also be used from within marimo. 
 
-To set up windsurf:
+To set up Windsurf:
 
-1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
-2. Download the Windsurf app.
+1. Go to [windsurf.com](https://windsurf.com/) website and sign up for an account.
+2. Download the [Windsurf app](https://windsurf.com/download).
 3. After installing Windsurf and authenticating, open up the command palette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard. 
 
 ![Copy Windsurf API key](/_static/windsurf-api.png)
