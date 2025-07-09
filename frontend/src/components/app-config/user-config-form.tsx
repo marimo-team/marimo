@@ -141,8 +141,8 @@ export const UserConfigForm: React.FC = () => {
       return (
         <>
           <p className="text-sm text-muted-secondary">
-            To get a Codeium API key, follow{" "}
-            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot">
+            To get a Windsurf API key, follow{" "}
+            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#windsurf-copilot">
               these instructions
             </ExternalLink>
             .
