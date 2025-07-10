@@ -8,7 +8,6 @@ import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { debounce } from "@/utils/debounce";
 import { Logger } from "@/utils/Logger";
 
 const TerminalComponent: React.FC<{
