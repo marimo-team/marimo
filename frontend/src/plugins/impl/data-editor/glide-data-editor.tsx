@@ -41,11 +41,10 @@ import {
   isModifierKey,
   pasteShortcutPressed,
 } from "@/components/editor/controls/utils";
+import { Button } from "@/components/ui/button";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
-import { Button } from "@/components/ui/button";
-import { useNonce } from "@/hooks/useNonce";
 
 interface GlideDataEditorProps<T> {
   data: T[];
@@ -240,9 +239,10 @@ export const GlideDataEditor = <T,>({
 
   // Hack to emit copy and paste events as these events aren't triggered automatically in shadow DOM
   // TODO: Paste does not work
-  const onKeyDown = useCallback((e: GridKeyEventArgs) => {
-    if (dataEditorRef.current) {
-      const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
+  const onKeyDown = useCallback(
+    (e: GridKeyEventArgs) => {
+      if (dataEditorRef.current) {
+        const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
 
         if (copyShortcutPressed(keyboardEvent)) {
           dataEditorRef.current.emit("copy");
