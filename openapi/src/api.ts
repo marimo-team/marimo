@@ -3206,6 +3206,7 @@ export interface components {
         custom_css?: string[];
         /** @enum {string} */
         dataframes: "rich" | "plain";
+        default_table_max_columns: number;
         default_table_page_size: number;
         /** @enum {string} */
         default_width: "normal" | "compact" | "medium" | "full" | "columns";

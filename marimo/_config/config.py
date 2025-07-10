@@ -167,6 +167,7 @@ class DisplayConfig(TypedDict):
     - `dataframes`: `"rich"` or `"plain"`
     - `custom_css`: list of paths to custom CSS files
     - `default_table_page_size`: default number of rows to display in tables
+    - `default_table_max_columns`: default maximum number of columns to display in tables
     - `reference_highlighting`: if `True`, highlight reactive variable references
     """
 
@@ -177,6 +178,7 @@ class DisplayConfig(TypedDict):
     dataframes: Literal["rich", "plain"]
     custom_css: NotRequired[list[str]]
     default_table_page_size: int
+    default_table_max_columns: int
     reference_highlighting: NotRequired[bool]
 
 
@@ -451,6 +453,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_width": "medium",
         "dataframes": "rich",
         "default_table_page_size": 10,
+        "default_table_max_columns": 50,
         "reference_highlighting": False,
     },
     "formatting": {"line_length": 79},

@@ -191,7 +191,7 @@ class anywidget(UIElement[T, T]):
         self._prev_state = value
         return value
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: Any) -> Any:
         # Overriding UIElement deepcopy implementation
         widget_deep_copy = deepcopy(self.widget, memo)
         return from_anywidget(widget_deep_copy)  # reuse caching
