@@ -12,7 +12,11 @@ import { DATA_TYPES } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
-import type { DataEditorProps, Edits } from "./data-editor/types";
+import {
+  BulkEdit,
+  type DataEditorProps,
+  type Edits,
+} from "./data-editor/types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
@@ -129,6 +133,18 @@ const LoadingDataEditor = (props: Props) => {
           })),
         );
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
+      }}
+      onDeleteRows={(rowIndexes) => {
+        props.onEdits((v) => {
+          const newEdits = rowIndexes.map((rowIdx, index) => ({
+            rowIdx: rowIdx - index,
+            type: BulkEdit.Remove,
+          }));
+          return {
+            ...v,
+            edits: [...v.edits, ...newEdits],
+          };
+        });
       }}
     />
   );

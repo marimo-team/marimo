@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import datetime
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -30,6 +31,7 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from narwhals.dtypes import DType
+    from typing_extensions import TypeIs
 
 
 @dataclass
@@ -57,14 +59,40 @@ class PositionalEdit(TypedDict):
     value: Any
 
 
-class DataEdits(TypedDict):
-    """A typed dictionary containing a list of positional edits.
+class ColumnEdit(TypedDict):
+    """A typed dictionary representing a bulk edit of a column.
 
     Attributes:
-        edits (List[PositionalEdit]): List of individual cell edits.
+        columnIdx (int): The index of the column being edited. or columnId?
+        type (Literal["insert", "remove"]): The type of edit.
     """
 
-    edits: list[PositionalEdit]
+    columnIdx: int
+    type: Literal["insert", "remove"]
+
+
+class RowEdit(TypedDict):
+    """A typed dictionary representing a bulk edit of a row.
+
+    Attributes:
+        rowIdx (int): The index of the row being edited.
+        type (Literal["insert", "remove"]): The type of edit.
+
+    Note: Insert is already handled with positional edits, so we can focus on remove here
+    """
+
+    rowIdx: int
+    type: Literal["insert", "remove"]
+
+
+class DataEdits(TypedDict):
+    """A typed dictionary containing a list of edits.
+
+    Attributes:
+        edits (List[PositionalEdit | RowEdit | ColumnEdit]): List of individual cell edits, row edits, or column edits.
+    """
+
+    edits: list[Union[PositionalEdit, RowEdit, ColumnEdit]]
 
 
 RowOrientedData = list[dict[str, Any]]
@@ -186,7 +214,7 @@ class data_editor(
         self, value: DataEdits
     ) -> Union[RowOrientedData, ColumnOrientedData, IntoDataFrame]:
         self._edits = value
-        return apply_edits(self._data, value)
+        return apply_edits(deepcopy(self._data), value)
 
     def __hash__(self) -> int:
         return id(self)
@@ -220,14 +248,22 @@ def _apply_edits_column_oriented(
     schema: Optional[nw.Schema] = None,
 ) -> ColumnOrientedData:
     for edit in edits["edits"]:
-        column = data[edit["columnId"]]
-        if edit["rowIdx"] >= len(column):
-            # Extend the column with None values up to the new row index
-            column.extend([None] * (edit["rowIdx"] - len(column) + 1))
-        dtype = schema.get(edit["columnId"]) if schema else None
-        column[edit["rowIdx"]] = _convert_value(
-            edit["value"], column[0] if column else None, dtype
-        )
+        if is_positional_edit(edit):
+            column = data[edit["columnId"]]
+            if not _is_valid_index(edit["rowIdx"], len(column)):
+                # Extend the column with None values up to the new row index
+                column.extend([None] * (edit["rowIdx"] - len(column) + 1))
+            dtype = schema.get(edit["columnId"]) if schema else None
+            column[edit["rowIdx"]] = _convert_value(
+                edit["value"], column[0] if column else None, dtype
+            )
+        elif is_row_edit(edit):
+            if edit["type"] == "remove":
+                rowIdx = edit["rowIdx"]
+                for column in data.values():
+                    if not _is_valid_index(rowIdx, len(column)):
+                        continue
+                    del column[rowIdx]
 
     return data
 
@@ -238,15 +274,22 @@ def _apply_edits_row_oriented(
     schema: Optional[nw.Schema] = None,
 ) -> RowOrientedData:
     for edit in edits["edits"]:
-        if edit["rowIdx"] >= len(data):
-            # Create a new row with None values for all columns
-            new_row = {col: None for col in data[0].keys()}
-            data.append(new_row)
-        original_value = data[0][edit["columnId"]] if data else None
-        dtype = schema.get(edit["columnId"]) if schema else None
-        data[edit["rowIdx"]][edit["columnId"]] = _convert_value(
-            edit["value"], original_value, dtype
-        )
+        if is_positional_edit(edit):
+            if not _is_valid_index(edit["rowIdx"], len(data)):
+                # Create a new row with None values for all columns
+                new_row = {col: None for col in data[0].keys()}
+                data.append(new_row)
+            original_value = data[0][edit["columnId"]] if data else None
+            dtype = schema.get(edit["columnId"]) if schema else None
+            data[edit["rowIdx"]][edit["columnId"]] = _convert_value(
+                edit["value"], original_value, dtype
+            )
+        elif is_row_edit(edit):
+            rowIdx = edit["rowIdx"]
+            if not _is_valid_index(rowIdx, len(data)):
+                continue
+            if edit["type"] == "remove":
+                data.pop(rowIdx)
 
     return data
 
@@ -360,3 +403,28 @@ def _convert_value(
         LOGGER.error(str(e))
         # If conversion fails, return the original value
         return original_value  # type: ignore[return-value]
+
+
+def is_positional_edit(
+    edit: Union[PositionalEdit, RowEdit, ColumnEdit],
+) -> TypeIs[PositionalEdit]:
+    """Check if edit is a PositionalEdit and return it typed."""
+    return "rowIdx" in edit and "columnId" in edit and "value" in edit
+
+
+def is_row_edit(
+    edit: Union[PositionalEdit, RowEdit, ColumnEdit],
+) -> TypeIs[RowEdit]:
+    """Check if edit is a RowEdit and return it typed."""
+    return "rowIdx" in edit and "type" in edit
+
+
+def is_column_edit(
+    edit: Union[PositionalEdit, RowEdit, ColumnEdit],
+) -> TypeIs[ColumnEdit]:
+    """Check if edit is a ColumnEdit and return it typed."""
+    return "columnIdx" in edit and "type" in edit
+
+
+def _is_valid_index(index: int, length: int) -> bool:
+    return index >= 0 and index < length

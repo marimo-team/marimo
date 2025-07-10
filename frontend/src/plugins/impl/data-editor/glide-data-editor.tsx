@@ -10,7 +10,7 @@ import DataEditor, {
   type Item,
   type Rectangle,
 } from "@glideapps/glide-data-grid";
-import { CopyIcon } from "lucide-react";
+import { CopyIcon, PlusIcon, TrashIcon } from "lucide-react";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { inferFieldTypes } from "@/components/data-table/columns";
@@ -22,20 +22,30 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
 import { getGlideTheme } from "./themes";
-import type { Edits, ModifiedGridColumn } from "./types";
-import { getColumnHeaderIcon, getColumnKind } from "./utils";
+import { BulkEdit, type Edits, type ModifiedGridColumn } from "./types";
+import {
+  getColumnHeaderIcon,
+  getColumnKind,
+  isPositionalEdit,
+  isRowEdit,
+  pasteCells,
+} from "./utils";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
 import {
   copyShortcutPressed,
+  isModifierKey,
   pasteShortcutPressed,
 } from "@/components/editor/controls/utils";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
+import { Button } from "@/components/ui/button";
+import { useNonce } from "@/hooks/useNonce";
 
 interface GlideDataEditorProps<T> {
   data: T[];
@@ -43,6 +53,7 @@ interface GlideDataEditorProps<T> {
   edits: Edits["edits"];
   onAddEdits: (edits: Edits["edits"]) => void;
   onAddRows: (newRows: object[]) => void;
+  onDeleteRows: (rows: number[]) => void;
 }
 
 export const GlideDataEditor = <T,>({
@@ -51,12 +62,18 @@ export const GlideDataEditor = <T,>({
   edits,
   onAddEdits,
   onAddRows,
+  onDeleteRows,
 }: GlideDataEditorProps<T>) => {
   const { theme } = useTheme();
 
   const dataEditorRef = useRef<DataEditorRef>(null);
 
   const [menu, setMenu] = useState<{ col: number; bounds: Rectangle }>();
+  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [selection, setSelection] = React.useState<GridSelection>({
+    columns: CompactSelection.empty(),
+    rows: CompactSelection.empty(),
+  });
 
   const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -72,20 +89,25 @@ export const GlideDataEditor = <T,>({
     const newRows = new Map<number, Record<string, unknown>>();
 
     for (const edit of edits) {
-      if (edit.rowIdx >= data.length) {
-        // This is a new row
-        if (!newRows.has(edit.rowIdx)) {
-          newRows.set(edit.rowIdx, {});
+      if (isPositionalEdit(edit)) {
+        if (edit.rowIdx >= data.length) {
+          // This is a new row
+          if (!newRows.has(edit.rowIdx)) {
+            newRows.set(edit.rowIdx, {});
+          }
+          const row = newRows.get(edit.rowIdx);
+          if (row) {
+            row[edit.columnId] = edit.value;
+          }
+        } else {
+          // This is an existing row, update the data directly
+          // @ts-expect-error: Mutate data directly for performance
+          // eslint-disable-next-line react-hooks/react-compiler
+          data[edit.rowIdx][edit.columnId] = edit.value;
         }
-        const row = newRows.get(edit.rowIdx);
-        if (row) {
-          row[edit.columnId] = edit.value;
-        }
-      } else {
-        // This is an existing row, update the data directly
-        // @ts-expect-error: Mutate data directly for performance
-        // eslint-disable-next-line react-hooks/react-compiler
-        data[edit.rowIdx][edit.columnId] = edit.value;
+      } else if (isRowEdit(edit) && edit.type === BulkEdit.Remove) {
+        // Add rows is currently handled under positional edits, so we only cover deletes here
+        data.splice(edit.rowIdx, 1);
       }
     }
 
@@ -222,13 +244,26 @@ export const GlideDataEditor = <T,>({
     if (dataEditorRef.current) {
       const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
 
-      if (copyShortcutPressed(keyboardEvent)) {
-        dataEditorRef.current.emit("copy");
-      } else if (pasteShortcutPressed(keyboardEvent)) {
-        dataEditorRef.current.emit("paste");
+        if (copyShortcutPressed(keyboardEvent)) {
+          dataEditorRef.current.emit("copy");
+        } else if (pasteShortcutPressed(keyboardEvent)) {
+          pasteCells({
+            selection,
+            data,
+            columns,
+            onAddEdits,
+          });
+        } else if (isModifierKey(keyboardEvent) && keyboardEvent.key === "f") {
+          setShowSearch((prev) => !prev);
+          e.stopPropagation();
+          e.preventDefault();
+        } else if (keyboardEvent.key === "Escape") {
+          setShowSearch(false);
+        }
       }
-    }
-  }, []);
+    },
+    [selection, data, onAddEdits, columns],
+  );
 
   const onRowAppend = useCallback(() => {
     const newRow = Object.fromEntries(
@@ -260,17 +295,35 @@ export const GlideDataEditor = <T,>({
     data.push(newRow);
   }, [columns, data, onAddRows]);
 
+  const handleDeleteRows = () => {
+    const rows = selection.rows.toArray();
+    onDeleteRows(rows);
+
+    let index = 0;
+    for (const row of rows) {
+      const adjustedRow = row - index; // Adjust for previously deleted rows
+      data.splice(adjustedRow, 1);
+      index++;
+    }
+
+    // Clear selection
+    setSelection({
+      columns: CompactSelection.empty(),
+      rows: CompactSelection.empty(),
+    });
+  };
+
   const onHeaderMenuClick = useEvent((col: number, bounds: Rectangle) => {
     setMenu({ col, bounds });
   });
 
-  const handleCopyColumnName = useEvent(async () => {
+  const handleCopyColumnName = async () => {
     if (menu) {
       const columnName = columns[menu.col].title;
       await copyToClipboard(columnName);
       setMenu(undefined);
     }
-  });
+  };
 
   // There is a guarantee that only one column's menu is open (as interaction is disabled outside of the menu)
   const isMenuOpen = menu !== undefined;
@@ -282,6 +335,9 @@ export const GlideDataEditor = <T,>({
     tint: true,
   };
 
+  // For large datasets, we disable smooth scrolling to improve performance
+  const smoothScrolling = !(data.length > 100_000);
+
   return (
     <>
       <DataEditor
@@ -289,17 +345,23 @@ export const GlideDataEditor = <T,>({
         getCellContent={getCellContent}
         columns={columns}
         rows={data.length}
-        smoothScrollX={true}
-        smoothScrollY={true}
+        overscrollX={50} // Adds padding at the end for resizing the last column
+        smoothScrollX={smoothScrolling}
+        smoothScrollY={smoothScrolling}
         validateCell={validateCell}
         getCellsForSelection={true}
         onPaste={true}
+        showSearch={showSearch}
         fillHandle={true}
         allowedFillDirections="vertical" // We can support all directions, but we need to handle datatype logic
         onKeyDown={onKeyDown}
         height={data.length > 10 ? 450 : undefined}
         width={"100%"}
-        rowMarkers={"number"}
+        rowMarkers={{
+          kind: "both",
+          headerDisabled: true,
+        }}
+        rowSelectionMode={"multi"}
         onCellEdited={onCellEdited}
         onColumnResize={onColumnResize}
         onHeaderMenuClick={onHeaderMenuClick}
@@ -325,9 +387,36 @@ export const GlideDataEditor = <T,>({
               <CopyIcon className={iconClassName} />
               Copy column name
             </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem>
+              <PlusIcon className={iconClassName} />
+              Add column to the left
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <PlusIcon className={iconClassName} />
+              Add column to the right
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem className="text-destructive focus:text-destructive">
+              <TrashIcon className={iconClassName} />
+              Delete column
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+      <Button
+        variant="destructive"
+        size="sm"
+        disabled={selection.rows.length === 0}
+        className="absolute bottom-1 right-2 h-7"
+        onClick={handleDeleteRows}
+      >
+        {selection.rows.length <= 1 ? "Delete row" : "Delete rows"}
+      </Button>
     </>
   );
 };

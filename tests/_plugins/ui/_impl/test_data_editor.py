@@ -395,6 +395,171 @@ def test_data_editor_on_change_callback():
     assert callback_called
 
 
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+class TestBulkEditsRowOrientedData:
+    """Test bulk edits for row-oriented data."""
+
+    def test_remove_start_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == [{"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+
+    def test_remove_middle_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == [{"A": 1, "B": "a"}, {"A": 3, "B": "c"}]
+
+    def test_remove_end_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}]
+
+    def test_remove_invalid_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 3, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == [
+            {"A": 1, "B": "a"},
+            {"A": 2, "B": "b"},
+            {"A": 3, "B": "c"},
+        ]
+
+    def test_remove_multiple_rows(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 1, "type": "remove"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        assert result == [{"A": 2, "B": "b"}]
+
+    def test_remove_then_edit(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 0, "columnId": "B", "value": "x"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        assert result == [{"A": 2, "B": "x"}, {"A": 3, "B": "c"}]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+class TestBulkEditsColumnOrientedData:
+    """Test bulk edits for column-oriented data."""
+
+    def test_remove_start_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == {"A": [2, 3], "B": ["b", "c"], "C": [5, 6]}
+
+    def test_remove_middle_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == {"A": [1, 3], "B": ["a", "c"], "C": [4, 6]}
+
+    def test_remove_end_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == {"A": [1, 2], "B": ["a", "b"], "C": [4, 5]}
+
+    def test_remove_invalid_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [
+                {"rowIdx": 3, "type": "remove"},
+                {"rowIdx": -1, "type": "remove"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        assert result == {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+
+    def test_remove_then_edit(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 0, "columnId": "B", "value": "x"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        assert result == {"A": [2, 3], "B": ["x", "c"], "C": [5, 6]}
+
+    def test_remove_multiple_rows(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 1, "type": "remove"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        assert result == {"A": [2], "B": ["b"], "C": [5]}
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has() and not DependencyManager.polars.has(),
+    reason="Pandas or Polars not installed",
+)
+class TestBulkEditsDataframe:
+    """Test bulk edits for dataframe data."""
+
+    def test_remove_start_row(self):
+        import pandas as pd
+        import polars as pl
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pd.DataFrame({"A": [2, 3], "B": ["b", "c"]}).equals(result)
+
+        data = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pl.DataFrame({"A": [2, 3], "B": ["b", "c"]}).equals(result)
+
+    def test_remove_middle_row(self):
+        import pandas as pd
+        import polars as pl
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pd.DataFrame({"A": [1, 3], "B": ["a", "c"]}).equals(result)
+
+        data = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pl.DataFrame({"A": [1, 3], "B": ["a", "c"]}).equals(result)
+
+    def test_remove_end_row(self):
+        import pandas as pd
+        import polars as pl
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pd.DataFrame({"A": [1, 2], "B": ["a", "b"]}).equals(result)
+
+        data = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pl.DataFrame({"A": [1, 2], "B": ["a", "b"]}).equals(result)
+
+
 class TestConvertValue:
     """Test the _convert_value function directly."""
 
