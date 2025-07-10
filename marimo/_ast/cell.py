@@ -393,14 +393,31 @@ class CellImpl:
 class Cell:
     """An executable notebook cell
 
-    A `Cell` object can be executed as a function via its `run()` method, which
-    returns the cell's last expression (output) and a mapping from its defined
-    names to its values.
+    Cells are the fundamental unit of execution in marimo. They represent
+    a single unit of execution, which can be run independently and reused
+    across notebooks.
 
-    Cells can be named via the marimo editor in the browser, or by
-    changing the cell's function name in the notebook file. Named
-    cells can then be executed for use in other notebooks, or to test
-    in unit tests.
+    Cells are defined using the `@app.cell` decorator, which registers the
+    function as a cell in marimo.
+
+    For example:
+
+    ```python
+    @app.cell
+    def my_cell(mo, x, y):
+        z = x + y
+        mo.md(f"The value of z is {z}") # This will output markdown
+        return (z,)
+    ```
+
+    Cells can invoked as functions, and picked up by test frameworks like
+    `pytest` if their name starts with `test_`. However, consider implementing
+    reusable functions (@app.function) in your notebook for granular control of
+    the output.
+
+    A `Cell` object can also be executed without arguments via its `run()`
+    method, which returns the cell's last expression (output) and a mapping from
+    its defined names to its values.
 
     For example:
 
@@ -409,6 +426,9 @@ class Cell:
 
     output, definitions = my_cell.run()
     ```
+
+    Cells can be named via the marimo editor in the browser, or by
+    changing the cell's function name in the notebook file.
 
     See the documentation of `run` for info and examples.
     """
