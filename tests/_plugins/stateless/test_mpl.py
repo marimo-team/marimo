@@ -64,3 +64,19 @@ async def test_mpl_show(k: Kernel, exec_req: ExecReqProvider) -> None:
             )
         ]
     )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.matplotlib.has(),
+    reason="matplotlib is not installed",
+)
+def test_patch_javascript() -> None:
+    from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg
+
+    from marimo._plugins.stateless.mpl._mpl import patch_javascript
+
+    javascript: str = str(FigureManagerWebAgg.get_javascript())  # type: ignore[no-untyped-call]
+    assert javascript is not None
+    javascript = patch_javascript(javascript)
+    assert javascript.count("// canvas.focus();") == 1
+    assert javascript.count("// canvas_div.focus();") == 1
