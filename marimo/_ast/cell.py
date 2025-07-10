@@ -406,7 +406,7 @@ class Cell:
     @app.cell
     def my_cell(mo, x, y):
         z = x + y
-        mo.md(f"The value of z is {z}") # This will output markdown
+        mo.md(f"The value of z is {z}")  # This will output markdown
         return (z,)
     ```
 
