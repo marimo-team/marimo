@@ -68,7 +68,6 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormDescription>{description}</FormDescription>
-            <StyledFormMessage />
             <FormControl>
               <Select
                 data-testid="marimo-plugin-data-frames-column-select"
@@ -82,9 +81,13 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
                   field.onChange(realValue);
                 }}
               >
-                <SelectTrigger className="min-w-[180px]">
-                  <SelectValue placeholder="--" />
-                </SelectTrigger>
+                <div className="flex items-center gap-1">
+                  <SelectTrigger className="min-w-[180px]">
+                    <SelectValue placeholder="--" />
+                  </SelectTrigger>
+                  <StyledFormMessage />
+                </div>
+
                 <SelectContent>
                   <SelectGroup>
                     {[...columns.entries()].map(([name, dtype]) => (
@@ -353,10 +356,7 @@ export const multiColumnValuesRenderer = <
 const StyledFormMessage = ({ className }: { className?: string }) => {
   return (
     <FormMessageTooltip
-      className={cn(
-        "absolute -left-6 bottom-0 text-destructive text-xs w-[16px]",
-        className,
-      )}
+      className={cn("text-destructive text-xs w-[16px]", className)}
     />
   );
 };
@@ -437,7 +437,7 @@ const ColumnFilterForm = <T extends FieldValues>({
           className="text-muted-foreground text-xs font-semibold"
         >
           <FormLabel className="whitespace-pre"> </FormLabel>
-          <div>This column type does not support filtering.</div>
+          <p>This column type does not support filtering.</p>
         </div>,
       );
     } else {

@@ -138,40 +138,44 @@ exports[`renderZodSchema > should render a form column_conversion 1`] = `
         >
           Column
         </label>
-        <button
-          aria-autocomplete="none"
-          aria-controls="radix-«re»"
-          aria-expanded="false"
-          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
-          data-placeholder=""
-          data-state="closed"
-          dir="ltr"
-          role="combobox"
-          type="button"
+        <div
+          class="flex items-center gap-1"
         >
-          <span
-            style="pointer-events: none;"
+          <button
+            aria-autocomplete="none"
+            aria-controls="radix-«re»"
+            aria-expanded="false"
+            class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+            data-placeholder=""
+            data-state="closed"
+            dir="ltr"
+            role="combobox"
+            type="button"
           >
-            --
-          </span>
-          <svg
-            aria-hidden="true"
-            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="m6 9 6 6 6-6"
-            />
-          </svg>
-        </button>
+            <span
+              style="pointer-events: none;"
+            >
+              --
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
     <div
@@ -316,40 +320,44 @@ exports[`renderZodSchema > should render a form expand_dict 1`] = `
         >
           Column
         </label>
-        <button
-          aria-autocomplete="none"
-          aria-controls="radix-«r2p»"
-          aria-expanded="false"
-          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
-          data-placeholder=""
-          data-state="closed"
-          dir="ltr"
-          role="combobox"
-          type="button"
+        <div
+          class="flex items-center gap-1"
         >
-          <span
-            style="pointer-events: none;"
+          <button
+            aria-autocomplete="none"
+            aria-controls="radix-«r2p»"
+            aria-expanded="false"
+            class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+            data-placeholder=""
+            data-state="closed"
+            dir="ltr"
+            role="combobox"
+            type="button"
           >
-            --
-          </span>
-          <svg
-            aria-hidden="true"
-            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="m6 9 6 6 6-6"
-            />
-          </svg>
-        </button>
+            <span
+              style="pointer-events: none;"
+            >
+              --
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -712,40 +720,44 @@ exports[`renderZodSchema > should render a form rename_column 1`] = `
         >
           Column
         </label>
-        <button
-          aria-autocomplete="none"
-          aria-controls="radix-«r6»"
-          aria-expanded="false"
-          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
-          data-placeholder=""
-          data-state="closed"
-          dir="ltr"
-          role="combobox"
-          type="button"
+        <div
+          class="flex items-center gap-1"
         >
-          <span
-            style="pointer-events: none;"
+          <button
+            aria-autocomplete="none"
+            aria-controls="radix-«r6»"
+            aria-expanded="false"
+            class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+            data-placeholder=""
+            data-state="closed"
+            dir="ltr"
+            role="combobox"
+            type="button"
           >
-            --
-          </span>
-          <svg
-            aria-hidden="true"
-            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="m6 9 6 6 6-6"
-            />
-          </svg>
-        </button>
+            <span
+              style="pointer-events: none;"
+            >
+              --
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
     <div
@@ -1094,40 +1106,44 @@ exports[`renderZodSchema > should render a form sort_column 1`] = `
         >
           Column
         </label>
-        <button
-          aria-autocomplete="none"
-          aria-controls="radix-«r1e»"
-          aria-expanded="false"
-          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
-          data-placeholder=""
-          data-state="closed"
-          dir="ltr"
-          role="combobox"
-          type="button"
+        <div
+          class="flex items-center gap-1"
         >
-          <span
-            style="pointer-events: none;"
+          <button
+            aria-autocomplete="none"
+            aria-controls="radix-«r1e»"
+            aria-expanded="false"
+            class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+            data-placeholder=""
+            data-state="closed"
+            dir="ltr"
+            role="combobox"
+            type="button"
           >
-            --
-          </span>
-          <svg
-            aria-hidden="true"
-            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="m6 9 6 6 6-6"
-            />
-          </svg>
-        </button>
+            <span
+              style="pointer-events: none;"
+            >
+              --
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
     <div
@@ -1356,40 +1372,44 @@ exports[`renders custom forms column_id 1`] = `
     >
       Column
     </label>
-    <button
-      aria-autocomplete="none"
-      aria-controls="radix-«r39»"
-      aria-expanded="false"
-      class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
-      data-placeholder=""
-      data-state="closed"
-      dir="ltr"
-      role="combobox"
-      type="button"
+    <div
+      class="flex items-center gap-1"
     >
-      <span
-        style="pointer-events: none;"
+      <button
+        aria-autocomplete="none"
+        aria-controls="radix-«r39»"
+        aria-expanded="false"
+        class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+        data-placeholder=""
+        data-state="closed"
+        dir="ltr"
+        role="combobox"
+        type="button"
       >
-        --
-      </span>
-      <svg
-        aria-hidden="true"
-        class="lucide lucide-chevron-down h-4 w-4 opacity-50"
-        fill="none"
-        height="24"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        viewBox="0 0 24 24"
-        width="24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="m6 9 6 6 6-6"
-        />
-      </svg>
-    </button>
+        <span
+          style="pointer-events: none;"
+        >
+          --
+        </span>
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="m6 9 6 6 6-6"
+          />
+        </svg>
+      </button>
+    </div>
   </div>
 </DocumentFragment>
 `;
@@ -1503,40 +1523,44 @@ exports[`renders custom forms column_id_optional 1`] = `
     >
       Column
     </label>
-    <button
-      aria-autocomplete="none"
-      aria-controls="radix-«r3k»"
-      aria-expanded="false"
-      class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
-      data-placeholder=""
-      data-state="closed"
-      dir="ltr"
-      role="combobox"
-      type="button"
+    <div
+      class="flex items-center gap-1"
     >
-      <span
-        style="pointer-events: none;"
+      <button
+        aria-autocomplete="none"
+        aria-controls="radix-«r3k»"
+        aria-expanded="false"
+        class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+        data-placeholder=""
+        data-state="closed"
+        dir="ltr"
+        role="combobox"
+        type="button"
       >
-        --
-      </span>
-      <svg
-        aria-hidden="true"
-        class="lucide lucide-chevron-down h-4 w-4 opacity-50"
-        fill="none"
-        height="24"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        viewBox="0 0 24 24"
-        width="24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="m6 9 6 6 6-6"
-        />
-      </svg>
-    </button>
+        <span
+          style="pointer-events: none;"
+        >
+          --
+        </span>
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="m6 9 6 6 6-6"
+          />
+        </svg>
+      </button>
+    </div>
   </div>
 </DocumentFragment>
 `;
