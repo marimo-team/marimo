@@ -1284,9 +1284,12 @@ components:
               type: boolean
             terminal:
               type: boolean
+            ty:
+              type: boolean
           required:
           - terminal
           - pylsp
+          - ty
           type: object
         cell_ids:
           items:
@@ -1644,6 +1647,11 @@ components:
                   type: boolean
                 enable_ruff:
                   type: boolean
+                enabled:
+                  type: boolean
+              type: object
+            ty:
+              properties:
                 enabled:
                   type: boolean
               type: object
@@ -2719,7 +2727,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.8
+  version: 0.14.10
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
