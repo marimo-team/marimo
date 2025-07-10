@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
+import json
 import os
 import select
 import signal
+import struct
 import subprocess
+import termios
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -45,22 +49,35 @@ async def _read_from_pty(master: int, websocket: WebSocket) -> None:
 
 async def _write_to_pty(master: int, websocket: WebSocket) -> None:
     try:
-        buffer = ""
         with os.fdopen(master, "wb", buffering=0) as master_file:
             while True:
                 try:
                     data = await websocket.receive_text()
                     LOGGER.debug("Received: %s", data)
 
-                    buffer += data
-                    if data in ["\r", "\n"]:  # Check for line ending
-                        if buffer.strip().lower() == "exit":
-                            LOGGER.debug(
-                                "Exit command received, closing connection"
+                    # Try to parse as JSON
+                    try:
+                        payload = json.loads(data)
+                        if "resize" in payload:
+                            rows, cols = payload["resize"]
+                            LOGGER.debug(f"Resizing to {rows}x{cols}")
+                            # Set the window size of the PTY
+                            fcntl.ioctl(
+                                master,
+                                termios.TIOCSWINSZ,
+                                struct.pack("HHHH", rows, cols, 0, 0),
                             )
-                            # End the connection
-                            return
-                        buffer = ""  # Reset buffer after processing a command
+                            continue
+                    except json.JSONDecodeError:
+                        # Not a JSON object, treat as raw data
+                        pass
+
+                    if data.strip().lower() == "exit":
+                        LOGGER.debug(
+                            "Exit command received, closing connection"
+                        )
+                        # End the connection
+                        return
 
                     master_file.write(data.encode())
                     master_file.flush()

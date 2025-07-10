@@ -40,9 +40,9 @@ const TerminalComponent: React.FC<{
       fitAddon.current = addon;
 
       // Handle resize
-      const handleResize = debounce(() => {
+      const handleResize = () => {
         fitAddon.current?.fit();
-      }, 50);
+      };
       window.addEventListener("resize", handleResize);
 
       return () => {
@@ -67,6 +67,11 @@ const TerminalComponent: React.FC<{
         const socket = new WebSocket(runtimeManager.getTerminalWsURL());
         const attachAddon = new AttachAddon(socket);
         terminal.current?.loadAddon(attachAddon);
+
+        // Handle resize
+        terminal.current?.onResize(({ rows, cols }) => {
+          socket.send(JSON.stringify({ resize: [rows, cols] }));
+        });
 
         const handleDisconnect = () => {
           onClose();
