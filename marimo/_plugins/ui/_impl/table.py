@@ -174,7 +174,7 @@ def get_default_table_max_columns() -> int:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        return 50
+        return DEFAULT_MAX_COLUMNS
     else:
         return ctx.marimo_config["display"]["default_table_max_columns"]
 
