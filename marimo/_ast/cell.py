@@ -410,10 +410,10 @@ class Cell:
         return (z,)
     ```
 
-    Cells can invoked as functions, and picked up by test frameworks like
-    `pytest` if their name starts with `test_`. However, consider implementing
-    reusable functions (@app.function) in your notebook for granular control of
-    the output.
+    Cells can be invoked as functions, and picked up by external frameworks
+    (like `pytest` if their name starts with `test_`). However, consider
+    implementing reusable functions (@app.function) in your notebook for
+    granular control of the output.
 
     A `Cell` object can also be executed without arguments via its `run()`
     method, which returns the cell's last expression (output) and a mapping from
