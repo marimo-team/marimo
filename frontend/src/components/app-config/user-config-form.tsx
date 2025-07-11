@@ -470,6 +470,48 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="language_servers.ty.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        ty (
+                        <ExternalLink href="https://github.com/astral-sh/ty">
+                          ty
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="ty-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.ty.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.ty && (
+                      <Banner kind="danger">
+                        ty is not available in your current environment. Please
+                        install <Kbd className="inline">ty</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
               <FormDescription>
                 See the{" "}
                 <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
