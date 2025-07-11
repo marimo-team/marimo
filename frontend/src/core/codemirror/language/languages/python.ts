@@ -207,7 +207,11 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
       }
 
       if (clients.length > 0) {
-        const client = new FederatedLanguageServerClient(clients);
+        const client =
+          clients.length === 1
+            ? (clients[0] as NotebookLanguageServerClient)
+            : new FederatedLanguageServerClient(clients);
+
         return [
           languageServerWithClient({
             client: client as unknown as LanguageServerClient,
