@@ -859,6 +859,119 @@ class TestCacheDecorator:
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
 
+    async def test_persistent_cache_decorator_with_kwargs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import persistent_cache
+                    from marimo._save.loaders import MemoryLoader
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    def my_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    # First call with specific kwargs
+                    result1 = my_cached_func(1, 2, some_kw_arg=3)
+                    hash1 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Second call with different kwargs - should be cache miss
+                    result2 = my_cached_func(1, 2, some_kw_arg=4)
+                    hash2 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Third call with same kwargs as first - should be cache hit
+                    result3 = my_cached_func(1, 2, some_kw_arg=3)
+                    hash3 = my_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 6  # 1 + 2 + 3
+        assert k.globals["result2"] == 7  # 1 + 2 + 4
+        assert k.globals["result3"] == 6  # 1 + 2 + 3
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, "Cache key should change when kwargs change"
+        assert hash1 == hash3, (
+            "Cache key should be same for identical args/kwargs"
+        )
+
+        # Verify cache hits
+        assert k.globals["my_cached_func"].hits == 1
+
+    async def test_persistent_cache_decorator_kwargs_expansion(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import persistent_cache
+                    from marimo._save.loaders import MemoryLoader
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    def my_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    # Test with kwargs expansion
+                    _kw = {"some_kw_arg": 1}
+                    result1 = my_cached_func(1, 2, **_kw)
+                    hash1 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different kwargs expansion
+                    _kw = {"some_kw_arg": 2}
+                    result2 = my_cached_func(1, 2, **_kw)
+                    hash2 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same kwargs expansion - should hit cache
+                    _kw = {"some_kw_arg": 1}
+                    result3 = my_cached_func(1, 2, **_kw)
+                    hash3 = my_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 4  # 1 + 2 + 1
+        assert k.globals["result2"] == 5  # 1 + 2 + 2
+        assert k.globals["result3"] == 4  # 1 + 2 + 1
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, (
+            "Cache key should change when kwargs expansion changes"
+        )
+        assert hash1 == hash3, (
+            "Cache key should be same for identical kwargs expansion"
+        )
+
+        # Verify cache hits
+        assert k.globals["my_cached_func"].hits == 1
+
     async def test_cross_cell_cache(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
