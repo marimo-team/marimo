@@ -424,8 +424,12 @@ class TestExportHTML:
 
         p2 = subprocess.run(
             [
-                "marimo", "export", "html", temp_marimo_file,
-                "-o", str(output_path)
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
             ],
             capture_output=True,
             input=b"n\n",
@@ -434,13 +438,18 @@ class TestExportHTML:
 
         p3 = subprocess.run(
             [
-                "marimo", "export", "html", temp_marimo_file,
-                "-o", str(output_path),
-                "--force"
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
+                "--force",
             ],
             capture_output=True,
         )
         assert p3.returncode == 0, p3.stderr.decode()
+
 
 class TestExportHtmlSmokeTests:
     def assert_not_errored(

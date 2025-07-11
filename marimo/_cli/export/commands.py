@@ -50,7 +50,7 @@ def watch_and_export(
     output: Optional[Path],
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
-    force: bool
+    force: bool,
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -199,7 +199,9 @@ def html(
             )
         )
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback, force)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -253,11 +255,7 @@ Watch for changes and regenerate the script on modification:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def script(
-    name: str,
-    output: Path,
-    watch: bool,
-    sandbox: Optional[bool],
-    force: bool
+    name: str, output: Path, watch: bool, sandbox: Optional[bool], force: bool
 ) -> None:
     """
     Export a marimo notebook as a flat script, in topological order.
@@ -279,7 +277,9 @@ def script(
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_script(file_path)
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback, force)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -333,11 +333,7 @@ Watch for changes and regenerate the script on modification:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def md(
-    name: str,
-    output: Path,
-    watch: bool,
-    sandbox: Optional[bool],
-    force: bool
+    name: str, output: Path, watch: bool, sandbox: Optional[bool], force: bool
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
@@ -359,7 +355,9 @@ def md(
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_md(file_path, new_filename=output)
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback, force)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -475,7 +473,9 @@ def ipynb(
             )
         return export_as_ipynb(file_path, sort_mode=sort)
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback, force)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -625,7 +625,9 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
-    return watch_and_export(MarimoPath(name), outfile, watch, export_callback, force)
+    return watch_and_export(
+        MarimoPath(name), outfile, watch, export_callback, force
+    )
 
 
 export.add_command(html)
