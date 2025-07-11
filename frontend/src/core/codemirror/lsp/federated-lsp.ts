@@ -4,6 +4,7 @@ import type { LanguageServerPlugin } from "@marimo-team/codemirror-languageserve
 import type * as LSP from "vscode-languageserver-protocol";
 import { Objects } from "@/utils/objects";
 import type { ILanguageServerClient } from "./types";
+import { getLSPDocument } from "./utils.ts";
 
 function removeFalseyValues<T extends object>(obj: T): T {
   return Objects.filter(obj, (value) => value !== false && value !== null) as T;
@@ -15,10 +16,12 @@ function mergeDictsIgnoreFalsey<T extends object>(dicts: T[]): T {
 }
 
 export class FederatedLanguageServerClient implements ILanguageServerClient {
-  private clients: ILanguageServerClient[] = [];
+  private readonly clients: ILanguageServerClient[] = [];
+  public readonly documentUri: string;
 
   constructor(clients: ILanguageServerClient[]) {
     this.clients = clients;
+    this.documentUri = getLSPDocument();
   }
 
   get clientCapabilities(): LSP.ClientCapabilities | undefined {
