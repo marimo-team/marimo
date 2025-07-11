@@ -66,6 +66,7 @@ import { DeleteButton } from "./cell/DeleteButton";
 import { RunButton } from "./cell/RunButton";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
+import { cellDomProps } from "./common";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
@@ -519,8 +520,6 @@ const ReadonlyCellComponent = forwardRef(
       published: true,
     });
 
-    const HTMLId = HTMLCellId.create(cellId);
-
     const outputIsError = isErrorMime(output?.mimetype);
 
     // Hide the output if it's an error or stopped.
@@ -532,11 +531,9 @@ const ReadonlyCellComponent = forwardRef(
     return (
       <div
         tabIndex={-1}
-        id={HTMLId}
         ref={ref}
         className={className}
-        data-cell-id={cellId}
-        data-cell-name={name}
+        {...cellDomProps(cellId, name)}
       >
         <OutputArea
           allowExpand={false}
@@ -748,8 +745,6 @@ const EditableCellComponent = ({
     borderless: isMarkdownCodeHidden && hasOutput,
   });
 
-  const HTMLId = HTMLCellId.create(cellId);
-
   const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
     setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
   });
@@ -794,10 +789,8 @@ const EditableCellComponent = ({
         >
           <div
             className={className}
-            id={HTMLId}
             ref={cellContainerRef}
-            data-cell-id={cellId}
-            data-cell-name={name}
+            {...cellDomProps(cellId, name)}
           >
             {cellOutput === "above" && outputArea}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>

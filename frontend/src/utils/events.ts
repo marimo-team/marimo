@@ -36,7 +36,7 @@ export const Events = {
   /**
    * Returns true if the event is coming from a text input
    */
-  fromInput: (e: KeyboardEvent) => {
+  fromInput: (e: Pick<KeyboardEvent, "target">) => {
     const target = e.target as HTMLElement;
     return (
       target.tagName === "INPUT" ||
