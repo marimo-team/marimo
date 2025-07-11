@@ -964,6 +964,87 @@ class TestExportIpynb:
         )
         assert p.returncode == 0, p.stderr.decode()
 
+    @staticmethod
+    def test_cli_export_html_force_overwrite(temp_marimo_file: str) -> None:
+        """
+        Test that the --force/-f flag allows overwriting an existing file.
+        """
+        output_path = Path(temp_marimo_file).parent / "output.html"
+
+        # 1. First export: should succeed and create the file
+        p1 = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
+            ],
+            capture_output=True,
+        )
+        assert p1.returncode == 0, p1.stderr.decode()
+        assert output_path.exists()
+        initial_mtime = output_path.stat().st_mtime
+
+        # Pause to ensure the modification time will be different
+        time.sleep(0.01)
+
+        # 2. Second export (no force): should not overwrite.
+        #    We pipe "n" to stdin to simulate a user refusing the prompt.
+        p2 = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
+            ],
+            capture_output=True,
+            input=b"n\n",
+        )
+        assert p2.returncode == 0, p2.stderr.decode()
+        # Modification time should be the same, as file was not overwritten
+        assert output_path.stat().st_mtime == initial_mtime
+
+        # 3. Third export (with --force): should succeed and overwrite
+        p3 = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
+                "--force",
+            ],
+            capture_output=True,
+        )
+        assert p3.returncode == 0, p3.stderr.decode()
+        force_mtime = output_path.stat().st_mtime
+        # Modification time should be newer
+        assert force_mtime > initial_mtime
+
+        # Pause again
+        time.sleep(0.01)
+
+        # 4. Fourth export (with -f): should also succeed and overwrite
+        p4 = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
+                "-f",
+            ],
+            capture_output=True,
+        )
+        assert p4.returncode == 0, p4.stderr.decode()
+        # Modification time should be newer again
+        assert output_path.stat().st_mtime > force_mtime
 
 def _delete_lines_with_files(output: str) -> str:
     return "\n".join(

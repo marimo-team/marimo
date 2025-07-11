@@ -50,6 +50,7 @@ def watch_and_export(
     output: Optional[Path],
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
+    force: bool
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -68,7 +69,7 @@ def watch_and_export(
 
     if output:
         output_path = Path(output)
-        if not prompt_to_overwrite(output_path):
+        if not force and not prompt_to_overwrite(output_path):
             return
 
     # No watch, just run once
@@ -147,6 +148,13 @@ Optionally pass CLI args to the notebook:
     show_default=False,
     type=bool,
     help=_sandbox_message,
+)
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force overwrite of the output file if it already exists.",
 )
 @click.argument(
     "name",
