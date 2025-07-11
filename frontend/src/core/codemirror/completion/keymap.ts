@@ -16,7 +16,7 @@ const KEYS_TO_REMOVE = new Set<string | undefined>([
   // Issue: https://github.com/marimo-team/marimo/issues/4351
   "Escape",
 
-  // Remove Alt-` affects Italian keyboards.
+  // Remove Alt-` since this affects Italian keyboards from using backticks.
   // Issue: https://github.com/marimo-team/marimo/issues/5606
   // Alt-` is set to startCompletion on macOS which is likely not used,
   // Completions is still done via Ctrl-Space and Alt-i.
