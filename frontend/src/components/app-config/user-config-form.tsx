@@ -470,6 +470,48 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="language_servers.ty.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        ty (
+                        <ExternalLink href="https://github.com/astral-sh/ty">
+                          ty
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="ty-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.ty.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.ty && (
+                      <Banner kind="danger">
+                        ty is not available in your current environment. Please
+                        install <Kbd className="inline">ty</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
               <FormDescription>
                 See the{" "}
                 <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
@@ -1341,43 +1383,46 @@ export const UserConfigForm: React.FC = () => {
                 control={form.control}
                 disabled={isWasmRuntime}
                 name="ai.open_ai.model"
-                render={({ field }) => (
-                  <div className="flex flex-col space-y-1">
-                    <FormItem className={formItemClasses}>
-                      <FormLabel>Model</FormLabel>
-                      <FormControl>
-                        <Input
-                          list="ai-model-datalist"
-                          data-testid="ai-model-input"
-                          className="m-0 inline-flex"
-                          placeholder="gpt-4-turbo"
-                          {...field}
+                render={({ field }) => {
+                  const modelDatalistId = React.useId();
+                  return (
+                    <div className="flex flex-col space-y-1">
+                      <FormItem className={formItemClasses}>
+                        <FormLabel>Model</FormLabel>
+                        <FormControl>
+                          <Input
+                            list={modelDatalistId}
+                            data-testid="ai-model-input"
+                            className="m-0 inline-flex"
+                            placeholder="gpt-4-turbo"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <IsOverridden
+                          userConfig={config}
+                          name="ai.open_ai.model"
                         />
-                      </FormControl>
-                      <FormMessage />
-                      <IsOverridden
-                        userConfig={config}
-                        name="ai.open_ai.model"
-                      />
-                    </FormItem>
-                    <datalist id="ai-model-datalist">
-                      {KNOWN_AI_MODELS.map((model) => (
-                        <option value={model} key={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </datalist>
-                    <FormDescription>
-                      If the model starts with "claude-", we will use your
-                      Anthropic API key. If the model starts with "gemini-", we
-                      will use your Google AI API key. If the model starts with
-                      a "bedrock/" prefix followed by a model id (e.g.,
-                      "bedrock/anthropic.claude-3-sonnet-20240229"), we will use
-                      your AWS Bedrock configuration. Otherwise, we will use
-                      your OpenAI API key.
-                    </FormDescription>
-                  </div>
-                )}
+                      </FormItem>
+                      <datalist id={modelDatalistId}>
+                        {KNOWN_AI_MODELS.map((model) => (
+                          <option value={model} key={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </datalist>
+                      <FormDescription>
+                        If the model starts with "claude-", we will use your
+                        Anthropic API key. If the model starts with "gemini-",
+                        we will use your Google AI API key. If the model starts
+                        with a "bedrock/" prefix followed by a model id (e.g.,
+                        "bedrock/anthropic.claude-3-sonnet-20240229"), we will
+                        use your AWS Bedrock configuration. Otherwise, we will
+                        use your OpenAI API key.
+                      </FormDescription>
+                    </div>
+                  );
+                }}
               />
 
               <FormField
