@@ -58,7 +58,7 @@ class BaseLspServer(LspServer):
 
         cmd = None
         try:
-            LOGGER.debug("Starting LSP server at port %s...", self.port)
+            LOGGER.info(f"Starting LSP {self.id} at port {self.port}")
             cmd = self.get_command()
 
             # Empty command means the server is not enabled
@@ -104,7 +104,7 @@ class BaseLspServer(LspServer):
                     variant="danger",
                 )
 
-            LOGGER.debug("Started LSP server at port %s", self.port)
+            LOGGER.info(f"Started LSP {self.id} at port {self.port}")
 
         except Exception as e:
             cmd_str = " ".join(cmd or [])

@@ -17,7 +17,6 @@ import {
   LanguageServerClient,
   languageServerWithClient,
 } from "@marimo-team/codemirror-languageserver";
-import { WebSocketTransport } from "@open-rpc/client-js";
 import type { CellId } from "@/core/cells/ids";
 import { hasCapability } from "@/core/config/capabilities";
 import type {
@@ -25,61 +24,28 @@ import type {
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
-import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { waitForConnectionOpen } from "@/core/network/connection";
 import { openFile } from "@/core/network/requests";
-import { getRuntimeManager } from "@/core/runtime/config";
 import { Logger } from "@/utils/Logger";
 import { once } from "@/utils/once";
-import { Paths } from "@/utils/paths";
 import { cellActionsState } from "../../cells/state";
 import { pythonCompletionSource } from "../../completion/completer";
 import type { PlaceholderType } from "../../config/types";
+import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
 import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
-import { CellDocumentUri } from "../../lsp/types";
+import { createTransport } from "../../lsp/transports";
+import { CellDocumentUri, type ILanguageServerClient } from "../../lsp/types";
+import { getLSPDocumentRootUri } from "../../lsp/utils";
 import {
   clickablePlaceholderExtension,
   smartPlaceholderExtension,
 } from "../../placeholder/extensions";
 import type { LanguageAdapter } from "../types";
 
-const pylspTransport = once(() => {
-  const runtimeManager = getRuntimeManager();
-  const transport = new WebSocketTransport(
-    runtimeManager.getLSPURL("pylsp").toString(),
-  );
-
-  // Override connect to ensure runtime is healthy
-  const originalConnect = transport.connect.bind(transport);
-  transport.connect = async () => {
-    await waitForConnectionOpen();
-    return originalConnect();
-  };
-
-  return transport;
-});
-
-const tyTransport = once(() => {
-  const runtimeManager = getRuntimeManager();
-  const transport = new WebSocketTransport(
-    runtimeManager.getLSPURL("ty").toString(),
-  );
-
-  // Override connect to ensure runtime is healthy
-  const originalConnect = transport.connect.bind(transport);
-  transport.connect = async () => {
-    await waitForConnectionOpen();
-    return originalConnect();
-  };
-
-  return transport;
-});
-
 const pylspClient = once((lspConfig: LSPConfig) => {
   const lspClientOpts = {
-    transport: pylspTransport(),
-    rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
+    transport: createTransport("pylsp"),
+    rootUri: getLSPDocumentRootUri(),
     workspaceFolders: [],
   };
   const config = lspConfig?.pylsp;
@@ -166,8 +132,8 @@ const pylspClient = once((lspConfig: LSPConfig) => {
 
 const tyLspClient = once((_: LSPConfig) => {
   const lspClientOpts = {
-    transport: tyTransport(),
-    rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
+    transport: createTransport("ty"),
+    rootUri: getLSPDocumentRootUri(),
     workspaceFolders: [],
   };
 
@@ -226,12 +192,22 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
         // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
         closeOnBlur: false,
       };
+
       const hoverOptions = {
         hideOnChange: true,
       };
 
+      const clients: ILanguageServerClient[] = [];
+
       if (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) {
-        const client = pylspClient(lspConfig);
+        clients.push(pylspClient(lspConfig));
+      }
+      if (lspConfig?.ty?.enabled && hasCapability("ty")) {
+        clients.push(tyLspClient(lspConfig));
+      }
+
+      if (clients.length > 0) {
+        const client = new FederatedLanguageServerClient(clients);
         return [
           languageServerWithClient({
             client: client as unknown as LanguageServerClient,
@@ -263,20 +239,6 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
                 path: result.uri.replace("file://", ""),
               });
             },
-          }),
-          documentUri.of(CellDocumentUri.of(cellId)),
-        ];
-      }
-
-      if (lspConfig?.ty?.enabled && hasCapability("ty")) {
-        const client = tyLspClient(lspConfig);
-        return [
-          languageServerWithClient({
-            client: client as unknown as LanguageServerClient,
-            languageId: "python",
-            allowHTMLContent: true,
-            hoverConfig: hoverOptions,
-            diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
           }),
           documentUri.of(CellDocumentUri.of(cellId)),
         ];
