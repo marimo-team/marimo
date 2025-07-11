@@ -63,12 +63,15 @@ class ColumnEdit(TypedDict):
     """A typed dictionary representing a bulk edit of a column.
 
     Attributes:
-        columnIdx (int): The index of the column being edited. or columnId?
-        type (Literal["insert", "remove"]): The type of edit.
+        columnIdx (int): The index of the column being edited.
+        If insert/remove, this is the index of the column to be edited. If rename, this is the index of the column to be renamed.
+        newName (Optional[str]): The new name of the column.
+        type (Literal["insert", "remove", "rename"]): The type of edit.
     """
 
     columnIdx: int
-    type: Literal["insert", "remove"]
+    newName: Optional[str]
+    type: Literal["insert", "remove", "rename"]
 
 
 class RowEdit(TypedDict):
@@ -78,7 +81,7 @@ class RowEdit(TypedDict):
         rowIdx (int): The index of the row being edited.
         type (Literal["insert", "remove"]): The type of edit.
 
-    Note: Insert is already handled with positional edits, so we can focus on remove here
+    Note: Insert is already handled with positional edits, so we can focus on 'remove' here
     """
 
     rowIdx: int
@@ -264,6 +267,56 @@ def _apply_edits_column_oriented(
                     if not _is_valid_index(rowIdx, len(column)):
                         continue
                     del column[rowIdx]
+        elif is_column_edit(edit):
+            column_idx = edit["columnIdx"]
+            edit_type = edit["type"]
+
+            if column_idx < 0 or column_idx > len(data):
+                raise ValueError(f"Column index {column_idx} is out of bounds")
+
+            # Get column order and validate new name for insert/rename operations
+            column_order = list(data.keys())
+            new_column_name = edit.get("newName")
+
+            if edit_type in ("insert", "rename") and new_column_name is None:
+                raise ValueError(
+                    "New column name is required for insert/rename operations"
+                )
+
+            if edit_type == "insert":
+                data_length = len(data[column_order[0]]) if column_order else 0
+
+                if column_idx == len(column_order):
+                    # Add new column at the end
+                    data[new_column_name] = [None] * data_length
+                else:
+                    # Insert new column at specific index
+                    column_data = data.copy()
+                    data.clear()
+                    for idx, key in enumerate(column_order):
+                        if idx == column_idx:
+                            data[new_column_name] = [None] * data_length
+                        data[key] = column_data[key]
+                continue
+
+            column_id: Union[str, None] = None
+            for idx, key in enumerate(column_order):
+                if idx == column_idx:
+                    column_id = key
+                    break
+            if column_id is None:
+                raise ValueError(f"Column index {column_idx} not found")
+
+            if edit_type == "rename":
+                column_data = data.copy()
+                data.clear()
+                for key in column_order:
+                    if key == column_id:
+                        data[new_column_name] = column_data[key]
+                    else:
+                        data[key] = column_data[key]
+            elif edit_type == "remove":
+                del data[column_id]
 
     return data
 
@@ -290,6 +343,66 @@ def _apply_edits_row_oriented(
                 continue
             if edit["type"] == "remove":
                 data.pop(rowIdx)
+        elif is_column_edit(edit):
+            column_idx = edit["columnIdx"]
+            edit_type = edit["type"]
+
+            if column_idx < 0 or column_idx > len(data[0]) + 1:
+                raise ValueError(f"Column index {column_idx} is out of bounds")
+
+            if edit_type == "insert":
+                new_column_name = edit.get("newName")
+                if new_column_name is None:
+                    raise ValueError("New column name is required for insert")
+
+                column_order = list(data[0].keys())
+                if column_idx < len(column_order):
+                    new_column_order = (
+                        column_order[:column_idx]
+                        + [new_column_name]
+                        + column_order[column_idx:]
+                    )
+                else:
+                    new_column_order = column_order + [new_column_name]
+
+                for row_idx, row in enumerate(data):
+                    new_row = {
+                        column: row.get(column, None)
+                        for column in new_column_order
+                    }
+                    data[row_idx] = new_row
+
+                continue
+
+            # Enumerate through dict to get the column id
+            column_id: Union[str, None] = None
+            for idx, column in enumerate(data[0]):
+                if idx == column_idx:
+                    column_id = column
+                    break
+            if column_id is None:
+                raise ValueError(f"Column index {column_idx} not found")
+
+            if edit_type == "remove":
+                for d in data:
+                    del d[column_id]
+            elif edit_type == "rename":
+                new_column_name = edit["newName"]
+                if new_column_name is None:
+                    raise ValueError("New column name is required for rename")
+
+                # Get the column name at the specified index
+                column_name = list(data[0].keys())[column_idx]
+
+                for row in data:
+                    new_row = {}
+                    for key in row.keys():
+                        if key == column_name:
+                            new_row[new_column_name] = row[key]
+                        else:
+                            new_row[key] = row[key]
+                    row.clear()
+                    row.update(new_row)
 
     return data
 
@@ -300,6 +413,8 @@ def _apply_edits_dataframe(
     df = nw.from_native(native_df, eager_or_interchange_only=True)
     column_oriented = df.to_dict(as_series=False)
     schema = schema or cast(nw.Schema, df.schema)
+
+    # TODO: We should try to find more performant methods of bulk edits for dataframes
     new_data = _apply_edits_column_oriented(column_oriented, edits, schema)
     new_native_df = nw.from_dict(
         new_data, backend=nw.get_native_namespace(df)

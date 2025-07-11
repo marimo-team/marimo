@@ -99,7 +99,6 @@ export function isRowEdit(edit: Edits["edits"][number]): edit is RowEdit {
   return "rowIdx" in edit && "type" in edit;
 }
 
-// TODO:
 export function isColumnEdit(edit: Edits["edits"][number]): edit is ColumnEdit {
-  return "columnId" in edit && "type" in edit;
+  return "columnIdx" in edit && "type" in edit;
 }

@@ -146,6 +146,24 @@ const LoadingDataEditor = (props: Props) => {
           };
         });
       }}
+      onRenameColumn={(columnIdx: number, newName: string) => {
+        props.onEdits((v) => ({
+          ...v,
+          edits: [...v.edits, { columnIdx, newName, type: BulkEdit.Rename }],
+        }));
+      }}
+      onDeleteColumn={(columnIdx: number) => {
+        props.onEdits((v) => ({
+          ...v,
+          edits: [...v.edits, { columnIdx, type: BulkEdit.Remove }],
+        }));
+      }}
+      onAddColumn={(columnIdx: number, newName: string) => {
+        props.onEdits((v) => ({
+          ...v,
+          edits: [...v.edits, { columnIdx, newName, type: BulkEdit.Insert }],
+        }));
+      }}
     />
   );
 };

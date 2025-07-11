@@ -13,6 +13,7 @@ export interface PositionalEdit {
 export enum BulkEdit {
   Insert = "insert",
   Remove = "remove",
+  Rename = "rename",
 }
 
 export interface RowEdit {
@@ -21,7 +22,8 @@ export interface RowEdit {
 }
 
 export interface ColumnEdit {
-  columnId: string;
+  columnIdx: number;
+  newName?: string;
   type: BulkEdit;
 }
 

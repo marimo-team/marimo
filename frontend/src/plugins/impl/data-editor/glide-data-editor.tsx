@@ -1,17 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import DataEditor, {
+  CompactSelection,
   type DataEditorRef,
   type EditableGridCell,
   type GridCell,
   GridCellKind,
   type GridColumn,
   type GridKeyEventArgs,
+  type GridSelection,
   type Item,
   type Rectangle,
 } from "@glideapps/glide-data-grid";
-import { CopyIcon, PlusIcon, TrashIcon } from "lucide-react";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { CopyIcon, PencilIcon, PlusIcon, TrashIcon } from "lucide-react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import useEvent from "react-use-event-hook";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import {
@@ -31,9 +39,9 @@ import { BulkEdit, type Edits, type ModifiedGridColumn } from "./types";
 import {
   getColumnHeaderIcon,
   getColumnKind,
+  isColumnEdit,
   isPositionalEdit,
   isRowEdit,
-  pasteCells,
 } from "./utils";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
 import {
@@ -53,6 +61,9 @@ interface GlideDataEditorProps<T> {
   onAddEdits: (edits: Edits["edits"]) => void;
   onAddRows: (newRows: object[]) => void;
   onDeleteRows: (rows: number[]) => void;
+  onRenameColumn: (columnIdx: number, newName: string) => void;
+  onDeleteColumn: (columnIdx: number) => void;
+  onAddColumn: (columnIdx: number, newName: string) => void;
 }
 
 export const GlideDataEditor = <T,>({
@@ -62,6 +73,9 @@ export const GlideDataEditor = <T,>({
   onAddEdits,
   onAddRows,
   onDeleteRows,
+  onRenameColumn,
+  onDeleteColumn,
+  onAddColumn,
 }: GlideDataEditorProps<T>) => {
   const { theme } = useTheme();
 
@@ -74,9 +88,15 @@ export const GlideDataEditor = <T,>({
     rows: CompactSelection.empty(),
   });
 
-  const columnFields = toFieldTypes(fieldTypes ?? inferFieldTypes(data));
+  const [columnFields, setColumnFields] = useState(
+    toFieldTypes(fieldTypes ?? inferFieldTypes(data)),
+  );
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const rerender = useNonce();
+
+  useEffect(() => {
+    setColumnFields(toFieldTypes(fieldTypes ?? inferFieldTypes(data)));
+  }, [data, fieldTypes]);
 
   // Handle initial edits passed in
   useOnMount(() => {
@@ -107,6 +127,64 @@ export const GlideDataEditor = <T,>({
       } else if (isRowEdit(edit) && edit.type === BulkEdit.Remove) {
         // Add rows is currently handled under positional edits, so we only cover deletes here
         data.splice(edit.rowIdx, 1);
+      } else if (isColumnEdit(edit)) {
+        switch (edit.type) {
+          case BulkEdit.Remove:
+            // Remove the column from the data
+            data.forEach((row) => {
+              const rowData = row as Record<string, unknown>;
+              const entries = Object.entries(rowData);
+              const columnName = entries[edit.columnIdx]?.[0];
+              if (columnName) {
+                const { [columnName]: _, ...rest } = rowData;
+                Object.assign(rowData, rest);
+              }
+            });
+            setColumnFields((prev) => {
+              const entries = Object.entries(prev);
+              const columnName = entries[edit.columnIdx]?.[0];
+              if (columnName) {
+                const { [columnName]: _, ...rest } = prev;
+                return rest;
+              }
+              return prev;
+            });
+            break;
+          case BulkEdit.Insert:
+            // Insert the column at the proper index
+            setColumnFields((prev) => {
+              const entries = Object.entries(prev);
+              const newEntries = [
+                ...entries.slice(0, edit.columnIdx),
+                [edit.newName, "string"], // Default to string type for new columns
+                ...entries.slice(edit.columnIdx),
+              ];
+              return Object.fromEntries(newEntries);
+            });
+
+            // Update the data
+            data.forEach((row) => {
+              const rowData = row as Record<string, unknown>;
+              const entries = Object.entries(rowData);
+              const columnName = entries[edit.columnIdx]?.[0];
+              if (columnName) {
+                const { [columnName]: _, ...rest } = rowData;
+                Object.assign(rowData, rest);
+              }
+            });
+            break;
+          case BulkEdit.Rename:
+            setColumnFields((prev) => {
+              const entries = Object.entries(prev);
+              const columnName = entries[edit.columnIdx]?.[0];
+              if (columnName && edit.newName) {
+                const { [columnName]: _, ...rest } = prev;
+                return { ...rest, [edit.newName]: prev[columnName] };
+              }
+              return prev;
+            });
+            break;
+        }
       }
     }
 
@@ -244,26 +322,19 @@ export const GlideDataEditor = <T,>({
       if (dataEditorRef.current) {
         const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
 
-        if (copyShortcutPressed(keyboardEvent)) {
-          dataEditorRef.current.emit("copy");
-        } else if (pasteShortcutPressed(keyboardEvent)) {
-          pasteCells({
-            selection,
-            data,
-            columns,
-            onAddEdits,
-          });
-        } else if (isModifierKey(keyboardEvent) && keyboardEvent.key === "f") {
-          setShowSearch((prev) => !prev);
-          e.stopPropagation();
-          e.preventDefault();
-        } else if (keyboardEvent.key === "Escape") {
-          setShowSearch(false);
-        }
+      if (copyShortcutPressed(keyboardEvent)) {
+        dataEditorRef.current.emit("copy");
+      } else if (pasteShortcutPressed(keyboardEvent)) {
+        dataEditorRef.current.emit("paste");
+      } else if (isModifierKey(keyboardEvent) && keyboardEvent.key === "f") {
+        setShowSearch((prev) => !prev);
+        e.stopPropagation();
+        e.preventDefault();
+      } else if (keyboardEvent.key === "Escape") {
+        setShowSearch(false);
       }
-    },
-    [selection, data, onAddEdits, columns],
-  );
+    }
+  }, []);
 
   const onRowAppend = useCallback(() => {
     const newRow = Object.fromEntries(
@@ -325,6 +396,95 @@ export const GlideDataEditor = <T,>({
     }
   };
 
+  const handleRenameColumn = () => {
+    if (menu) {
+      const newName = prompt("Enter new column name");
+      if (newName) {
+        const oldColumnName = columns[menu.col].title;
+        onRenameColumn(menu.col, newName);
+        setColumnFields((prev) => {
+          // Preserve the original column order
+          const newFields: typeof prev = {};
+          for (const [key, value] of Object.entries(prev)) {
+            if (key === oldColumnName) {
+              newFields[newName] = value;
+            } else {
+              newFields[key] = value;
+            }
+          }
+          return newFields;
+        });
+
+        // Update the data
+        data.forEach((row) => {
+          const rowData = row as Record<string, unknown>;
+          const oldValue = rowData[oldColumnName];
+          // Use object destructuring to avoid dynamic property deletion
+          const { [oldColumnName]: _, ...rest } = rowData;
+          Object.assign(rowData, { ...rest, [newName]: oldValue });
+        });
+        setMenu(undefined);
+      }
+    }
+  };
+
+  const handleDeleteColumn = () => {
+    if (menu) {
+      const oldColumnName = columns[menu.col].title;
+      onDeleteColumn(menu.col);
+      setColumnFields((prev) => {
+        const { [oldColumnName]: _, ...rest } = prev;
+        return rest;
+      });
+
+      // Update the data
+      data.forEach((row) => {
+        const rowData = row as Record<string, unknown>;
+        const { [oldColumnName]: _, ...rest } = rowData;
+        Object.assign(rowData, rest);
+      });
+      setMenu(undefined);
+    }
+  };
+
+  const handleAddColumn = (direction: "left" | "right") => {
+    if (menu) {
+      const columnIdx = menu.col + (direction === "left" ? 0 : 1);
+      // Clamp to 0 and length of columns
+      const clampedColumnIdx = Math.max(0, Math.min(columnIdx, columns.length));
+
+      const newName = prompt("Enter new column name");
+      if (!newName) {
+        return;
+      }
+      onAddColumn(clampedColumnIdx, newName);
+
+      setColumnFields((prev) => {
+        const entries = Object.entries(prev);
+        const newEntries = [
+          ...entries.slice(0, clampedColumnIdx),
+          [newName, "string"], // Default to string type for new columns
+          ...entries.slice(clampedColumnIdx),
+        ];
+        return Object.fromEntries(newEntries);
+      });
+
+      // Update the data - add the new column to all rows at the proper index
+      data.forEach((row) => {
+        const rowData = row as Record<string, unknown>;
+        const entries = Object.entries(rowData);
+        const newEntries = [
+          ...entries.slice(0, clampedColumnIdx),
+          [newName, ""], // Default empty string value
+          ...entries.slice(clampedColumnIdx),
+        ];
+        const newRowData = Object.fromEntries(newEntries);
+        Object.assign(rowData, newRowData);
+      });
+      setMenu(undefined);
+    }
+  };
+
   // There is a guarantee that only one column's menu is open (as interaction is disabled outside of the menu)
   const isMenuOpen = menu !== undefined;
   const iconClassName = "mr-2 h-3.5 w-3.5";
@@ -344,6 +504,8 @@ export const GlideDataEditor = <T,>({
         ref={dataEditorRef}
         getCellContent={getCellContent}
         columns={columns}
+        gridSelection={selection}
+        onGridSelectionChange={setSelection}
         rows={data.length}
         overscrollX={50} // Adds padding at the end for resizing the last column
         smoothScrollX={smoothScrolling}
@@ -388,35 +550,45 @@ export const GlideDataEditor = <T,>({
               Copy column name
             </DropdownMenuItem>
 
+            <DropdownMenuItem onClick={handleRenameColumn}>
+              <PencilIcon className={iconClassName} />
+              Rename column
+            </DropdownMenuItem>
+
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleAddColumn("left")}>
               <PlusIcon className={iconClassName} />
               Add column to the left
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleAddColumn("right")}>
               <PlusIcon className={iconClassName} />
               Add column to the right
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={handleDeleteColumn}
+              className="text-destructive focus:text-destructive"
+            >
               <TrashIcon className={iconClassName} />
               Delete column
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <Button
-        variant="destructive"
-        size="sm"
-        disabled={selection.rows.length === 0}
-        className="absolute bottom-1 right-2 h-7"
-        onClick={handleDeleteRows}
-      >
-        {selection.rows.length <= 1 ? "Delete row" : "Delete rows"}
-      </Button>
+      <div className="absolute bottom-1 right-2 w-26">
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={selection.rows.length === 0}
+          className="bottom-1 right-2 h-7"
+          onClick={handleDeleteRows}
+        >
+          {selection.rows.length <= 1 ? "Delete row" : "Delete rows"}
+        </Button>
+      </div>
     </>
   );
 };
