@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { codecovVitePlugin } from "@codecov/vite-plugin";
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-oxc";
 import { JSDOM } from "jsdom";
-import { defineConfig, type Plugin } from "vite";
-import topLevelAwait from "vite-plugin-top-level-await";
+import path from "path";
+import { defineConfig, type Plugin } from "rolldown-vite";
 import wasm from "vite-plugin-wasm";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -184,14 +183,13 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
   };
 };
 
-const ReactCompilerConfig = {
-  target: "19",
-};
-
 // https://vitejs.dev/config/
 export default defineConfig({
   // This allows for a dynamic <base> tag in index.html
   base: "./",
+  experimental: {
+    enableNativePlugin: true,
+  },
   server: {
     host: "localhost",
     port: 3000,
@@ -258,10 +256,13 @@ export default defineConfig({
       : JSON.stringify("latest"),
   },
   build: {
-    minify: isDev ? false : "terser",
+    minify: isDev ? false : "esbuild",
     sourcemap: isDev,
   },
   resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+    },
     dedupe: [
       "react",
       "react-dom",
@@ -273,27 +274,16 @@ export default defineConfig({
   },
   worker: {
     format: "es",
-    plugins: () => [tsconfigPaths()],
+    plugins: () => [],
   },
   plugins: [
     htmlDevPlugin(),
-    react({
-      babel: {
-        presets: ["@babel/preset-typescript"],
-        plugins: [
-          ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["@babel/plugin-proposal-class-properties", { loose: true }],
-          ["babel-plugin-react-compiler", ReactCompilerConfig],
-        ],
-      },
-    }),
-    tsconfigPaths(),
+    react(),
     codecovVitePlugin({
       enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
       bundleName: "marimo",
       uploadToken: process.env.CODECOV_TOKEN,
     }),
     wasm(),
-    topLevelAwait(),
   ],
 });
