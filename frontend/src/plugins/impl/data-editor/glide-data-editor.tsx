@@ -153,9 +153,9 @@ export const GlideDataEditor = <T,>({
           case BulkEdit.Remove:
             // Remove the column from the data
             setLocalData((prev) => removeColumn(prev, edit.columnIdx));
-            setColumnFields((prev) => {
-              return modifyColumnFields(prev, edit.columnIdx, "remove");
-            });
+            setColumnFields((prev) =>
+              modifyColumnFields(prev, edit.columnIdx, "remove"),
+            );
             break;
           case BulkEdit.Insert:
             setColumnFields((prev) =>
