@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { FocusScope } from "@react-aria/focus";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ArrowLeftIcon,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { FocusScope } from "react-aria";
 import {
   findNext,
   findPrev,

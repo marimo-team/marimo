@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useRef } from "react";
+
+import React, { memo, useRef } from "react";
 import type { AppConfig } from "@/core/config/config-schema";
 import { useResizeHandle } from "@/hooks/useResizeHandle";
 import type { CellColumnId } from "@/utils/id-tree";
@@ -23,20 +24,6 @@ const { getColumnWidth, saveColumnWidth } = storageFn;
 export const Column = memo((props: Props) => {
   const columnRef = useRef<HTMLDivElement>(null);
 
-  const column: React.ReactNode =
-    props.width === "columns" ? (
-      <ResizableComponent
-        startingWidth={getColumnWidth(props.index)}
-        onResize={(width: number) => {
-          saveColumnWidth(props.index, width);
-        }}
-      >
-        {props.children}
-      </ResizableComponent>
-    ) : (
-      <div className="flex flex-col gap-5">{props.children}</div>
-    );
-
   if (props.width === "columns") {
     return (
       <SortableColumn
@@ -48,7 +35,14 @@ export const Column = memo((props: Props) => {
         canMoveRight={props.canMoveRight}
         className="group/column"
       >
-        {column}
+        <ResizableComponent
+          startingWidth={getColumnWidth(props.index)}
+          onResize={(width: number) => {
+            saveColumnWidth(props.index, width);
+          }}
+        >
+          {props.children}
+        </ResizableComponent>
         {props.footer}
       </SortableColumn>
     );
@@ -56,7 +50,9 @@ export const Column = memo((props: Props) => {
 
   return (
     <>
-      {column}
+      <div data-testid="cell-column" className="flex flex-col gap-5">
+        {props.children}
+      </div>
       {props.footer}
     </>
   );
@@ -85,7 +81,7 @@ const ResizableComponent = ({
       <div
         ref={ref}
         className={`w-[3px] cursor-col-resize transition-colors duration-200 z-[100]
-          relative before:content-[''] before:absolute before:inset-y-0 before:-left-[3px] 
+          relative before:content-[''] before:absolute before:inset-y-0 before:-left-[3px]
           before:right-[-3px] before:w-[9px] before:z-[-1]
           hover/column:bg-[var(--slate-3)] dark:hover/column:bg-[var(--slate-5)]
           hover/column:hover:bg-primary/60 dark:hover/column:hover:bg-primary/60`}

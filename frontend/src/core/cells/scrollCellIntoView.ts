@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { RefObject } from "react";
 import type { CellHandle } from "@/components/editor/Cell";
+import {
+  isAnyCellFocused,
+  tryFocus,
+} from "@/components/editor/focus/focus-manager";
 import { Logger } from "../../utils/Logger";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
 import type { CellConfig } from "../network/types";
@@ -29,11 +33,18 @@ export function focusAndScrollCellIntoView({
     return;
   }
 
+  // If another cell is focus at the cell level (not within or at the editor),
+  // then just focus on the next cell at the same level.
+  if (isAnyCellFocused()) {
+    tryFocus(element);
+    return;
+  }
+
   // If the cell's code is hidden, just focus the cell and not the editor.
   if (config.hide_code) {
     // Focus the parent element, as this is the one with the event handlers.
     // https://github.com/marimo-team/marimo/issues/2940
-    element.parentElement?.focus();
+    tryFocus(element);
   } else {
     const editor = cell.current?.editorView;
     if (!editor) {
