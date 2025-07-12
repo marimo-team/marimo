@@ -1140,7 +1140,7 @@ class TestCacheDecorator:
             [
                 exec_req.get(
                     """
-                    from marimo._save.save import cache
+                    from marimo._save.save import persistent_cache
                     from marimo._save.loaders import MemoryLoader
 
                     @persistent_cache(_loader=MemoryLoader)
