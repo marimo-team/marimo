@@ -41,8 +41,17 @@ export const Events = {
     return (
       target.tagName === "INPUT" ||
       target.tagName === "TEXTAREA" ||
-      target.tagName.startsWith("MARIMO")
+      target.tagName.startsWith("MARIMO") ||
+      Events.fromCodeMirror(e)
     );
+  },
+
+  /**
+   * Returns true if the event is coming from a code editor.
+   */
+  fromCodeMirror: (e: Pick<KeyboardEvent, "target">) => {
+    const target = e.target as HTMLElement;
+    return target.closest(".cm-editor") !== null;
   },
 
   /**

@@ -23,7 +23,7 @@ export class CellFocusManager {
   focusCell(cellId: CellId): void {
     const element = document.getElementById(HTMLCellId.create(cellId));
     if (element) {
-      element.focus();
+      tryFocus(element);
     } else {
       Logger.warn(`[CellFocusManager] focusCell: element not found: ${cellId}`);
     }
@@ -33,4 +33,22 @@ export class CellFocusManager {
 export function useCellFocusManager() {
   const store = useStore();
   return new CellFocusManager(store);
+}
+
+/**
+ * Checks if the cell is focused at the top level.
+ */
+export function isAnyCellFocused(): boolean {
+  return (
+    document.activeElement instanceof HTMLElement &&
+    document.activeElement.classList.contains("marimo-cell")
+  );
+}
+
+export function tryFocus(dom: HTMLElement) {
+  try {
+    dom.focus();
+  } catch {
+    Logger.warn("[CellFocusManager] element may not be focusable", dom);
+  }
 }

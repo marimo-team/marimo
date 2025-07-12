@@ -44,6 +44,10 @@ export const aiAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).ai;
 });
 
+export const keymapPresetAtom = atom((get) => {
+  return get(resolvedMarimoConfigAtom).keymap.preset;
+});
+
 /**
  * Returns the user config.
  */
