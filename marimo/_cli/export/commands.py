@@ -69,7 +69,7 @@ def watch_and_export(
 
     if output:
         output_path = Path(output)
-        if output_path.exists() and not force:
+        if not force:
             if not prompt_to_overwrite(output_path):
                 return
 
