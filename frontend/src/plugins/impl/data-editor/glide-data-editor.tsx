@@ -52,6 +52,7 @@ import {
   pasteShortcutPressed,
 } from "@/components/editor/controls/utils";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
@@ -389,11 +390,26 @@ export const GlideDataEditor = <T,>({
     }
   };
 
+  function toastColumnExists(name: string) {
+    toast({
+      title: `Column '${name}' already exists`,
+      description: "Please enter a different column name",
+      variant: "danger",
+    });
+  }
+
   const handleRenameColumn = () => {
     if (menu) {
       const newName = prompt("Enter new column name");
       if (newName) {
         const oldColumnName = columns[menu.col].title;
+
+        // Validate the new column name
+        if (columnFields[newName]) {
+          toastColumnExists(newName);
+          return;
+        }
+
         onRenameColumn(menu.col, newName);
         setColumnFields((prev) =>
           modifyColumnFields(prev, menu.col, "rename", newName),
@@ -426,6 +442,13 @@ export const GlideDataEditor = <T,>({
       if (!newName) {
         return;
       }
+
+      // Validate the new column name
+      if (columnFields[newName]) {
+        toastColumnExists(newName);
+        return;
+      }
+
       onAddColumn(clampedColumnIdx, newName);
 
       setColumnFields((prev) =>
