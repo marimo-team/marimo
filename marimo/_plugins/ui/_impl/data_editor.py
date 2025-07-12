@@ -495,12 +495,17 @@ def _apply_column_edit_column_oriented(
     column_order = list(data.keys())
     new_column_name = edit.get("newName")
 
+    column_idx = edit["columnIdx"]
+    edit_type = edit["type"]
+
     _validate_column_edit(edit, len(data), new_column_name)
 
     column_idx = edit["columnIdx"]
     edit_type = edit["type"]
 
     if edit_type == "insert":
+        assert new_column_name is not None
+
         data_length = len(data[column_order[0]]) if column_order else 0
 
         if column_idx == len(column_order):
@@ -527,6 +532,8 @@ def _apply_column_edit_column_oriented(
         raise ValueError(f"Column index {column_idx} not found")
 
     if edit_type == "rename":
+        assert new_column_name is not None
+
         column_data = data.copy()
         data.clear()
         for key in column_order:
@@ -555,6 +562,8 @@ def _apply_column_edit_row_oriented(
     edit_type = edit["type"]
 
     if edit_type == "insert":
+        assert new_column_name is not None
+
         if column_idx < len(column_order):
             new_column_order = (
                 column_order[:column_idx]
@@ -585,6 +594,8 @@ def _apply_column_edit_row_oriented(
         for d in data:
             del d[column_id]
     elif edit_type == "rename":
+        assert new_column_name is not None
+
         # Get the column name at the specified index
         column_name = list(data[0].keys())[column_idx]
 
