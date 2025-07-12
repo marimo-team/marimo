@@ -12,6 +12,16 @@ export interface ReactiveVariableRange {
   variableName: string;
 }
 
+const SCOPE_CREATING_NODES = new Set([
+  "FunctionDefinition",
+  "LambdaExpression",
+  "ArrayComprehensionExpression",
+  "SetComprehension",
+  "DictionaryComprehensionExpression",
+  "ComprehensionExpression",
+  "ClassDefinition",
+]);
+
 /**
  * Analyzes the given editor state to find variable names that represent
  * reactive dependencies from other cells (similar to ObservableHQ's approach).
@@ -54,10 +64,13 @@ export function findReactiveVariables(options: {
 
   const ranges: ReactiveVariableRange[] = [];
 
-  // Map from node position to declared variables in that scope
-  const allDeclarations = new Map<number, Set<string>>();
-  // Map from node position to scope type
-  const scopeTypes = new Map<number, string>();
+  // Maps to track variable declarations and scopes
+  const allDeclarations = new Map<number, Set<string>>(); // scope position -> variable names
+  const scopeTypes = new Map<number, string>(); // scope position -> scope type (e.g., "ClassDefinition")
+  const classLevelDeclarations = new Map<number, Array<[string, number]>>(); // class scope -> [varName, position] pairs
+
+  // Class-level variables require special handling because they're evaluated sequentially
+  // A variable is only available after its assignment statement completes
 
   // First pass: all variable declarations in their respective scopes
   function collectDeclarations(node: SyntaxNode | Tree, scopeStack: number[]) {
@@ -65,15 +78,7 @@ export function findReactiveVariables(options: {
     const nodeName = cursor.name;
     const nodeStart = cursor.from;
 
-    const isNewScope = [
-      "FunctionDefinition",
-      "LambdaExpression",
-      "ArrayComprehensionExpression",
-      "SetComprehension",
-      "DictionaryComprehensionExpression",
-      "ComprehensionExpression",
-      "ClassDefinition",
-    ].includes(nodeName);
+    const isNewScope = SCOPE_CREATING_NODES.has(nodeName);
 
     let currentScopeStack = scopeStack;
     if (isNewScope) {
@@ -201,6 +206,8 @@ export function findReactiveVariables(options: {
           }
         } while (subCursor.nextSibling());
 
+        classLevelDeclarations.set(nodeStart, []);
+
         break;
       }
       case "AssignStatement": {
@@ -232,6 +239,9 @@ export function findReactiveVariables(options: {
               state: options.state,
               allDeclarations,
               scopeTypes,
+              classLevelDeclarations,
+              // Use the position after the assignment for sequential ordering
+              assignmentPosition: cursor.to,
             });
           }
         } while (secondPassCursor.nextSibling());
@@ -364,11 +374,48 @@ export function findReactiveVariables(options: {
       // No default
     }
 
-    if (cursor.firstChild()) {
-      do {
-        collectDeclarations(cursor.node, currentScopeStack);
-      } while (cursor.nextSibling());
+    traverseChildren(cursor, (childNode) => {
+      collectDeclarations(childNode, currentScopeStack);
+    });
+  }
+
+  function isVariableDeclaredInClassScope(
+    varName: string,
+    scope: number,
+    position: number,
+  ): boolean {
+    const classDecls = classLevelDeclarations.get(scope);
+    if (!classDecls) {
+      return false;
     }
+
+    return classDecls.some(
+      ([declName, declPos]) => declName === varName && declPos < position,
+    );
+  }
+
+  function isVariableDeclaredLocally(
+    varName: string,
+    scopeStack: number[],
+    cursorPosition: number,
+  ): boolean {
+    for (const scope of scopeStack) {
+      const scopeType = scopeTypes.get(scope);
+
+      if (scopeType === "ClassDefinition") {
+        // for class scopes, check position-based declarations
+        if (isVariableDeclaredInClassScope(varName, scope, cursorPosition)) {
+          return true;
+        }
+      } else {
+        // for non-class scopes, use the regular set-based check
+        if (allDeclarations.get(scope)?.has(varName)) {
+          return true;
+        }
+      }
+    }
+
+    return allDeclarations.get(-1)?.has(varName) ?? false;
   }
 
   // Second pass: find variable usages and check if they should be highlighted
@@ -377,15 +424,7 @@ export function findReactiveVariables(options: {
     const nodeName = cursor.name;
     const nodeStart = cursor.from;
 
-    const isNewScope = [
-      "FunctionDefinition",
-      "LambdaExpression",
-      "ArrayComprehensionExpression",
-      "SetComprehension",
-      "DictionaryComprehensionExpression",
-      "ComprehensionExpression",
-      "ClassDefinition",
-    ].includes(nodeName);
+    const isNewScope = SCOPE_CREATING_NODES.has(nodeName);
 
     let currentScopeStack = scopeStack;
     if (isNewScope) {
@@ -395,17 +434,12 @@ export function findReactiveVariables(options: {
     if (nodeName === "VariableName") {
       const varName = options.state.doc.sliceString(cursor.from, cursor.to);
 
-      if (allVariableNames.has(varName) && !isKeywordArgumentName(cursor)) {
-        let isDeclaredLocally = false;
-        for (const scope of currentScopeStack) {
-          if (allDeclarations.get(scope)?.has(varName)) {
-            isDeclaredLocally = true;
-            break;
-          }
-        }
-        if (allDeclarations.get(-1)?.has(varName)) {
-          isDeclaredLocally = true;
-        }
+      if (shouldHighlightVariable(varName, cursor)) {
+        const isDeclaredLocally = isVariableDeclaredLocally(
+          varName,
+          currentScopeStack,
+          cursor.from,
+        );
 
         if (!isDeclaredLocally) {
           ranges.push({
@@ -417,9 +451,29 @@ export function findReactiveVariables(options: {
       }
     }
 
+    traverseChildren(cursor, (childNode) => {
+      findUsages(childNode, currentScopeStack);
+    });
+  }
+
+  function shouldHighlightVariable(
+    varName: string,
+    cursor: TreeCursor,
+  ): boolean {
+    return (
+      allVariableNames.has(varName) &&
+      !isKeywordArgumentName(cursor) &&
+      !isAssignmentTarget(cursor)
+    );
+  }
+
+  function traverseChildren(
+    cursor: TreeCursor,
+    callback: (node: SyntaxNode) => void,
+  ) {
     if (cursor.firstChild()) {
       do {
-        findUsages(cursor.node, currentScopeStack);
+        callback(cursor.node);
       } while (cursor.nextSibling());
     }
   }
@@ -450,6 +504,31 @@ function isKeywordArgumentName(cursor: TreeCursor): boolean {
   return false;
 }
 
+/** Checks whether a `VariableName` is an assignment target (left side of =). */
+function isAssignmentTarget(cursor: TreeCursor): boolean {
+  const temp = cursor.node.cursor();
+
+  // Check if parent is AssignStatement
+  if (temp.parent() && temp.name === "AssignStatement") {
+    // Now check if this VariableName is before the AssignOp
+    const assignStatementCursor = temp.node.cursor();
+    assignStatementCursor.firstChild();
+
+    let assignOpPosition = -1;
+    do {
+      if (assignStatementCursor.name === "AssignOp") {
+        assignOpPosition = assignStatementCursor.from;
+        break;
+      }
+    } while (assignStatementCursor.nextSibling());
+
+    // If we found an AssignOp and our variable is before it, it's a target
+    return assignOpPosition !== -1 && cursor.from < assignOpPosition;
+  }
+
+  return false;
+}
+
 /**
  * Checks if the syntax tree contains any syntax errors.
  * If there are errors, we shouldn't show reactive variable highlighting.
@@ -466,7 +545,8 @@ function hasSyntaxErrors(tree: Tree): boolean {
 }
 
 /**
- * Helper function to extract variable names from assignment targets (including tuples)
+ * Extracts variable names from assignment targets (e.g., x = 1, (x, y) = ..., [a, b] = ...)
+ * Handles class-level assignments differently to track their sequential nature
  */
 function extractAssignmentTargets(
   cursor: TreeCursor,
@@ -475,6 +555,8 @@ function extractAssignmentTargets(
     state: EditorState;
     allDeclarations: Map<number, Set<string>>;
     scopeTypes: Map<number, string>;
+    classLevelDeclarations: Map<number, Array<[string, number]>>;
+    assignmentPosition: number;
   },
 ) {
   switch (cursor.name) {
@@ -484,7 +566,15 @@ function extractAssignmentTargets(
         options.currentScope !== -1 &&
         options.scopeTypes.get(options.currentScope) === "ClassDefinition";
 
-      if (!isInClassScope) {
+      if (isInClassScope) {
+        // For class-level assignments, track the position of the assignment
+        const classDecls = options.classLevelDeclarations.get(
+          options.currentScope,
+        );
+        if (classDecls) {
+          classDecls.push([varName, options.assignmentPosition]);
+        }
+      } else {
         if (!options.allDeclarations.has(options.currentScope)) {
           options.allDeclarations.set(options.currentScope, new Set());
         }
