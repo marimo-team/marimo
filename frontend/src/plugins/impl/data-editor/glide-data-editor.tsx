@@ -23,6 +23,7 @@ import React, {
 import useEvent from "react-use-event-hook";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import {
+  type FieldTypes,
   type FieldTypesWithExternalType,
   toFieldTypes,
 } from "@/components/data-table/types";
@@ -44,6 +45,7 @@ import {
   isRowEdit,
 } from "./utils";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
+import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import {
   copyShortcutPressed,
   isModifierKey,
@@ -53,6 +55,12 @@ import { Button } from "@/components/ui/button";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
+import {
+  insertColumn,
+  modifyColumnFields,
+  removeColumn,
+  renameColumn,
+} from "./data-utils";
 
 interface GlideDataEditorProps<T> {
   data: T[];
@@ -78,9 +86,9 @@ export const GlideDataEditor = <T,>({
   onAddColumn,
 }: GlideDataEditorProps<T>) => {
   const { theme } = useTheme();
-
   const dataEditorRef = useRef<DataEditorRef>(null);
 
+  const [localData, setLocalData] = useState<T[]>(data);
   const [menu, setMenu] = useState<{ col: number; bounds: Rectangle }>();
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const [selection, setSelection] = React.useState<GridSelection>({
@@ -88,15 +96,24 @@ export const GlideDataEditor = <T,>({
     rows: CompactSelection.empty(),
   });
 
-  const [columnFields, setColumnFields] = useState(
-    toFieldTypes(fieldTypes ?? inferFieldTypes(data)),
+  const getColumnFields = useCallback(() => {
+    return toFieldTypes(fieldTypes ?? inferFieldTypes(data));
+  }, [data, fieldTypes]);
+
+  const [columnFields, setColumnFields] = useState<FieldTypes>(
+    getColumnFields(),
   );
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const rerender = useNonce();
 
+  // useEffects are needed if the cell is refreshed / new data is passed in
   useEffect(() => {
-    setColumnFields(toFieldTypes(fieldTypes ?? inferFieldTypes(data)));
-  }, [data, fieldTypes]);
+    setColumnFields(getColumnFields());
+  }, [getColumnFields]);
+
+  useEffect(() => {
+    setLocalData(data);
+  }, [data]);
 
   // Handle initial edits passed in
   useOnMount(() => {
@@ -119,71 +136,61 @@ export const GlideDataEditor = <T,>({
             row[edit.columnId] = edit.value;
           }
         } else {
-          // This is an existing row, update the data directly
-          // @ts-expect-error: Mutate data directly for performance
-          // eslint-disable-next-line react-hooks/react-compiler
-          data[edit.rowIdx][edit.columnId] = edit.value;
+          // This is an existing row, update the data
+          setLocalData((prev) => {
+            const newData = [...prev];
+            newData[edit.rowIdx][edit.columnId as keyof T] =
+              edit.value as T[keyof T];
+            return newData;
+          });
         }
       } else if (isRowEdit(edit) && edit.type === BulkEdit.Remove) {
         // Add rows is currently handled under positional edits, so we only cover deletes here
-        data.splice(edit.rowIdx, 1);
+        setLocalData((prev) => prev.filter((_, i) => i !== edit.rowIdx));
       } else if (isColumnEdit(edit)) {
         switch (edit.type) {
           case BulkEdit.Remove:
             // Remove the column from the data
-            data.forEach((row) => {
-              const rowData = row as Record<string, unknown>;
-              const entries = Object.entries(rowData);
-              const columnName = entries[edit.columnIdx]?.[0];
-              if (columnName) {
-                const { [columnName]: _, ...rest } = rowData;
-                Object.assign(rowData, rest);
-              }
-            });
+            setLocalData((prev) => removeColumn(prev, edit.columnIdx));
             setColumnFields((prev) => {
-              const entries = Object.entries(prev);
-              const columnName = entries[edit.columnIdx]?.[0];
-              if (columnName) {
-                const { [columnName]: _, ...rest } = prev;
-                return rest;
-              }
-              return prev;
+              return modifyColumnFields(prev, edit.columnIdx, "remove");
             });
             break;
           case BulkEdit.Insert:
-            // Insert the column at the proper index
-            setColumnFields((prev) => {
-              const entries = Object.entries(prev);
-              const newEntries = [
-                ...entries.slice(0, edit.columnIdx),
-                [edit.newName, "string"], // Default to string type for new columns
-                ...entries.slice(edit.columnIdx),
-              ];
-              return Object.fromEntries(newEntries);
-            });
+            setColumnFields((prev) =>
+              modifyColumnFields(prev, edit.columnIdx, "insert", edit.newName),
+            );
+            setLocalData((prev) => insertColumn(prev, edit.newName));
+            break;
+          case BulkEdit.Rename: {
+            // let oldName: string | undefined;
+            // for (const [index, [key]] of Object.entries(
+            //   Object.entries(columnFields),
+            // )) {
+            //   if (Number(index) === edit.columnIdx) {
+            //     oldName = key;
+            //     break;
+            //   }
+            // }
 
-            // Update the data
-            data.forEach((row) => {
-              const rowData = row as Record<string, unknown>;
-              const entries = Object.entries(rowData);
-              const columnName = entries[edit.columnIdx]?.[0];
-              if (columnName) {
-                const { [columnName]: _, ...rest } = rowData;
-                Object.assign(rowData, rest);
-              }
-            });
+            // const newName = edit.newName;
+            // if (!oldName || !newName) {
+            //   return;
+            // }
+
+            const oldName = columns[edit.columnIdx].title;
+            const newName = edit.newName;
+            if (!oldName || !newName) {
+              return;
+            }
+
+            setColumnFields((prev) =>
+              modifyColumnFields(prev, edit.columnIdx, "rename", newName),
+            );
+
+            setLocalData((prev) => renameColumn(prev, oldName, newName));
             break;
-          case BulkEdit.Rename:
-            setColumnFields((prev) => {
-              const entries = Object.entries(prev);
-              const columnName = entries[edit.columnIdx]?.[0];
-              if (columnName && edit.newName) {
-                const { [columnName]: _, ...rest } = prev;
-                return { ...rest, [edit.newName]: prev[columnName] };
-              }
-              return prev;
-            });
-            break;
+          }
         }
       }
     }
@@ -194,7 +201,7 @@ export const GlideDataEditor = <T,>({
       .map(([, row]) => row);
 
     if (sortedNewRows.length > 0) {
-      data.push(...(sortedNewRows as T[]));
+      setLocalData((prev) => [...prev, ...(sortedNewRows as T[])]);
     }
 
     // Force re-render to update the total rows
@@ -221,7 +228,7 @@ export const GlideDataEditor = <T,>({
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
       const [col, row] = cell;
-      const dataRow = data[row];
+      const dataRow = localData[row];
 
       const dataItem = dataRow[columns[col].title as keyof T];
       const columnKind = columns[col].kind;
@@ -254,7 +261,7 @@ export const GlideDataEditor = <T,>({
         data: String(dataItem),
       };
     },
-    [columns, data],
+    [columns, localData],
   );
 
   const onCellEdited = useCallback(
@@ -272,13 +279,15 @@ export const GlideDataEditor = <T,>({
         newData = null;
       }
 
-      // Mutate the data in place is demonstrated in the docs
-      // eslint-disable-next-line react-hooks/react-compiler
-      data[row][key as keyof T] = newData as T[keyof T];
+      setLocalData((prev) => {
+        const data = [...prev];
+        data[row][key as keyof T] = newData as T[keyof T];
+        return data;
+      });
 
       onAddEdits([{ rowIdx: row, columnId: key, value: newData }]);
     },
-    [columns, data, onAddEdits],
+    [columns, onAddEdits],
   );
 
   const onColumnResize = useCallback((column: GridColumn, newSize: number) => {
@@ -362,8 +371,8 @@ export const GlideDataEditor = <T,>({
     onAddRows([newRow]);
 
     // Update data
-    data.push(newRow);
-  }, [columns, data, onAddRows]);
+    setLocalData((prev) => [...prev, newRow]);
+  }, [columns, onAddRows]);
 
   const handleDeleteRows = () => {
     const rows = selection.rows.toArray();
@@ -372,7 +381,7 @@ export const GlideDataEditor = <T,>({
     let index = 0;
     for (const row of rows) {
       const adjustedRow = row - index; // Adjust for previously deleted rows
-      data.splice(adjustedRow, 1);
+      setLocalData((prev) => prev.filter((_, i) => i !== adjustedRow));
       index++;
     }
 
@@ -401,27 +410,12 @@ export const GlideDataEditor = <T,>({
       if (newName) {
         const oldColumnName = columns[menu.col].title;
         onRenameColumn(menu.col, newName);
-        setColumnFields((prev) => {
-          // Preserve the original column order
-          const newFields: typeof prev = {};
-          for (const [key, value] of Object.entries(prev)) {
-            if (key === oldColumnName) {
-              newFields[newName] = value;
-            } else {
-              newFields[key] = value;
-            }
-          }
-          return newFields;
-        });
+        setColumnFields((prev) =>
+          modifyColumnFields(prev, menu.col, "rename", newName),
+        );
 
         // Update the data
-        data.forEach((row) => {
-          const rowData = row as Record<string, unknown>;
-          const oldValue = rowData[oldColumnName];
-          // Use object destructuring to avoid dynamic property deletion
-          const { [oldColumnName]: _, ...rest } = rowData;
-          Object.assign(rowData, { ...rest, [newName]: oldValue });
-        });
+        setLocalData((prev) => renameColumn(prev, oldColumnName, newName));
         setMenu(undefined);
       }
     }
@@ -429,19 +423,10 @@ export const GlideDataEditor = <T,>({
 
   const handleDeleteColumn = () => {
     if (menu) {
-      const oldColumnName = columns[menu.col].title;
       onDeleteColumn(menu.col);
-      setColumnFields((prev) => {
-        const { [oldColumnName]: _, ...rest } = prev;
-        return rest;
-      });
+      setColumnFields((prev) => modifyColumnFields(prev, menu.col, "remove"));
 
-      // Update the data
-      data.forEach((row) => {
-        const rowData = row as Record<string, unknown>;
-        const { [oldColumnName]: _, ...rest } = rowData;
-        Object.assign(rowData, rest);
-      });
+      setLocalData((prev) => removeColumn(prev, menu.col));
       setMenu(undefined);
     }
   };
@@ -458,28 +443,13 @@ export const GlideDataEditor = <T,>({
       }
       onAddColumn(clampedColumnIdx, newName);
 
-      setColumnFields((prev) => {
-        const entries = Object.entries(prev);
-        const newEntries = [
-          ...entries.slice(0, clampedColumnIdx),
-          [newName, "string"], // Default to string type for new columns
-          ...entries.slice(clampedColumnIdx),
-        ];
-        return Object.fromEntries(newEntries);
-      });
+      setColumnFields((prev) =>
+        modifyColumnFields(prev, clampedColumnIdx, "insert", newName),
+      );
 
-      // Update the data - add the new column to all rows at the proper index
-      data.forEach((row) => {
-        const rowData = row as Record<string, unknown>;
-        const entries = Object.entries(rowData);
-        const newEntries = [
-          ...entries.slice(0, clampedColumnIdx),
-          [newName, ""], // Default empty string value
-          ...entries.slice(clampedColumnIdx),
-        ];
-        const newRowData = Object.fromEntries(newEntries);
-        Object.assign(rowData, newRowData);
-      });
+      // Update the data - add the new column to all rows,
+      // ordering does not matter as we call getCellContent based on columnTitle
+      setLocalData((prev) => insertColumn(prev, newName));
       setMenu(undefined);
     }
   };
@@ -495,43 +465,46 @@ export const GlideDataEditor = <T,>({
   };
 
   // For large datasets, we disable smooth scrolling to improve performance
-  const smoothScrolling = !(data.length > 100_000);
+  const smoothScrolling = !(localData.length > 100_000);
 
   return (
     <>
-      <DataEditor
-        ref={dataEditorRef}
-        getCellContent={getCellContent}
-        columns={columns}
-        gridSelection={selection}
-        onGridSelectionChange={setSelection}
-        rows={data.length}
-        overscrollX={50} // Adds padding at the end for resizing the last column
-        smoothScrollX={smoothScrolling}
-        smoothScrollY={smoothScrolling}
-        validateCell={validateCell}
-        getCellsForSelection={true}
-        onPaste={true}
-        showSearch={showSearch}
-        fillHandle={true}
-        allowedFillDirections="vertical" // We can support all directions, but we need to handle datatype logic
-        onKeyDown={onKeyDown}
-        height={data.length > 10 ? 450 : undefined}
-        width={"100%"}
-        rowMarkers={{
-          kind: "both",
-          headerDisabled: true,
-        }}
-        rowSelectionMode={"multi"}
-        onCellEdited={onCellEdited}
-        onColumnResize={onColumnResize}
-        onHeaderMenuClick={onHeaderMenuClick}
-        theme={getGlideTheme(theme)}
-        trailingRowOptions={trailingRowOptions}
-        onRowAppended={onRowAppend}
-        maxColumnAutoWidth={600}
-        maxColumnWidth={600}
-      />
+      <ErrorBoundary>
+        <DataEditor
+          ref={dataEditorRef}
+          getCellContent={getCellContent}
+          columns={columns}
+          gridSelection={selection}
+          onGridSelectionChange={setSelection}
+          rows={localData.length}
+          overscrollX={50} // Adds padding at the end for resizing the last column
+          smoothScrollX={smoothScrolling}
+          smoothScrollY={smoothScrolling}
+          validateCell={validateCell}
+          getCellsForSelection={true}
+          onPaste={true}
+          showSearch={showSearch}
+          fillHandle={true}
+          allowedFillDirections="vertical" // We can support all directions, but we need to handle datatype logic
+          onKeyDown={onKeyDown}
+          height={localData.length > 10 ? 450 : undefined}
+          width={"100%"}
+          rowMarkers={{
+            kind: "both",
+            headerDisabled: true,
+          }}
+          rowSelectionMode={"multi"}
+          onCellEdited={onCellEdited}
+          onColumnResize={onColumnResize}
+          onHeaderMenuClick={onHeaderMenuClick}
+          theme={getGlideTheme(theme)}
+          trailingRowOptions={trailingRowOptions}
+          onRowAppended={onRowAppend}
+          maxColumnAutoWidth={600}
+          maxColumnWidth={600}
+        />
+      </ErrorBoundary>
+
       {isMenuOpen && (
         <DropdownMenu
           open={isMenuOpen}
