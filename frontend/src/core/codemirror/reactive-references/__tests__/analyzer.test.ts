@@ -1072,6 +1072,71 @@ b)
       "
     `);
   });
+
+  test("should not highlight class property", () => {
+    expect(
+      runHighlight(
+        ["bar"],
+        `
+class Foo:
+    bar = 10
+    baz = bar
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      class Foo:
+          bar = 10
+          baz = bar
+      "
+    `);
+  });
+
+  test("class property referencing undefined then defined", () => {
+    expect(
+      runHighlight(
+        ["bar"],
+        `
+class Foo:
+    baz = bar
+    bar = bar
+    bar = 10
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      class Foo:
+          baz = bar
+                ^^^
+          bar = bar
+                ^^^
+          bar = 10
+      "
+    `);
+  });
+
+  test("class property self-reference", () => {
+    expect(
+      runHighlight(
+        ["bar"],
+        `
+class Foo:
+    baz = bar
+    bar = bar
+    bar = bar
+`,
+      ),
+    ).toMatchInlineSnapshot(`
+      "
+      class Foo:
+          baz = bar
+                ^^^
+          bar = bar
+                ^^^
+          bar = bar
+      "
+    `);
+  });
 });
 
 /**
