@@ -78,6 +78,7 @@
     "@radix-ui/react-use-callback-ref": "~1.1.1",
     "@radix-ui/react-use-controllable-state": "~1.2.2",
     "@react-aria/focus": "^3.20.2",
+    "@react-aria/utils": "^3.29.1",
     "@replit/codemirror-vim": "^6.3.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-table": "^8.21.3",
