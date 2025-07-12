@@ -52,7 +52,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           ]),
         )
         .nullish(),
-      columnSizingMode: z.enum(["auto", "fit"]).default("auto"),
+      columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
   )
   .withFunctions({})
@@ -120,7 +120,7 @@ const LoadingDataEditor = (props: Props) => {
     <LazyDataEditor
       data={data}
       fieldTypes={props.fieldTypes}
-      edits={props.edits.edits}
+      edits={props.edits.edits} // TODO: This is returning old edits upon refresh
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}

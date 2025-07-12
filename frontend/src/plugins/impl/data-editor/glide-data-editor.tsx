@@ -338,7 +338,7 @@ export const GlideDataEditor = <T,>({
             return [column.title, false];
           case "number":
           case "integer":
-            return [column.title, 0];
+            return [column.title, null];
           case "date":
           case "datetime":
           case "time":
