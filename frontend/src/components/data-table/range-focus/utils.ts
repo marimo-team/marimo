@@ -36,7 +36,11 @@ export function getCellValues<TData>(
     rowValues.set(rowId, values);
   }
 
-  return [...rowValues.values()].map((values) => values.join("\t")).join("\n");
+  return getTabSeparatedValues([...rowValues.values()]);
+}
+
+export function getTabSeparatedValues(values: string[][]) {
+  return values.map((row) => row.join("\t")).join("\n");
 }
 
 /**
