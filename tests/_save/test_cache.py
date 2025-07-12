@@ -1121,8 +1121,8 @@ class TestCacheDecorator:
 
         # Verify results
         assert k.globals["result1"] == 6  # 1 + 2 + 3
-        assert k.globals["result2"] == 3  # 1 + 2 + 3
-        assert k.globals["result3"] == 10  # 1 + 2 + 3
+        assert k.globals["result2"] == 3  # 1 + 2
+        assert k.globals["result3"] == 10  # 1 + 2 + 3 + 4
 
         # Verify cache keys
         hash1 = k.globals["hash1"]
