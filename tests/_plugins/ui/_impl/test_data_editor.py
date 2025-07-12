@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from copy import deepcopy
 from typing import Any
 
 import narwhals.stable.v1 as nw
@@ -19,6 +20,28 @@ data_editor = ui.data_editor
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
+
+
+def assert_data_equals_with_order(actual, expected):
+    """Helper function to test both values and column ordering."""
+    # Test that the data has the same values
+    assert actual == expected
+
+    # Test that the column order is preserved
+    if isinstance(actual, list) and actual and isinstance(actual[0], dict):
+        # Row-oriented data
+        actual_keys = list(actual[0].keys())
+        expected_keys = list(expected[0].keys())
+        assert actual_keys == expected_keys, (
+            f"Column order mismatch: {actual_keys} != {expected_keys}"
+        )
+    elif isinstance(actual, dict) and actual:
+        # Column-oriented data
+        actual_keys = list(actual.keys())
+        expected_keys = list(expected.keys())
+        assert actual_keys == expected_keys, (
+            f"Column order mismatch: {actual_keys} != {expected_keys}"
+        )
 
 
 @pytest.mark.skipif(
@@ -393,6 +416,448 @@ def test_data_editor_on_change_callback():
     editor = data_editor(data=data, on_change=on_change)
     editor._update({"edits": [{"rowIdx": 1, "columnId": "B", "value": "x"}]})
     assert callback_called
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+class TestBulkEditsRowOrientedData:
+    """Test bulk edits for row-oriented data."""
+
+    def test_remove_start_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = [{"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_middle_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = [{"A": 1, "B": "a"}, {"A": 3, "B": "c"}]
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_end_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}]
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_invalid_row(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"rowIdx": 3, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert result == [
+            {"A": 1, "B": "a"},
+            {"A": 2, "B": "b"},
+            {"A": 3, "B": "c"},
+        ]
+
+    def test_remove_multiple_rows(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 1, "type": "remove"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        expected = [{"A": 2, "B": "b"}]
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_then_edit(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 0, "columnId": "B", "value": "x"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        expected = [{"A": 2, "B": "x"}, {"A": 3, "B": "c"}]
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_first_column(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"columnIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = [{"B": "a"}, {"B": "b"}, {"B": "c"}]
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_middle_column(self):
+        data = [
+            {"A": 1, "B": "a", "C": "x"},
+            {"A": 2, "B": "b", "C": "y"},
+            {"A": 3, "B": "c", "C": "z"},
+        ]
+        edits = {"edits": [{"columnIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = [
+            {"A": 1, "C": "x"},
+            {"A": 2, "C": "y"},
+            {"A": 3, "C": "z"},
+        ]
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_last_column(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"columnIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = [{"A": 1}, {"A": 2}, {"A": 3}]
+        assert_data_equals_with_order(result, expected)
+
+    def test_add_column_start(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"columnIdx": 0, "type": "insert", "newName": "C"}]}
+        result = apply_edits(data, edits)
+        expected = [
+            {"C": None, "A": 1, "B": "a"},
+            {"C": None, "A": 2, "B": "b"},
+            {"C": None, "A": 3, "B": "c"},
+        ]
+        assert_data_equals_with_order(result, expected)
+
+    def test_add_column_middle(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"columnIdx": 1, "type": "insert", "newName": "C"}]}
+        result = apply_edits(data, edits)
+        expected = [
+            {"A": 1, "C": None, "B": "a"},
+            {"A": 2, "C": None, "B": "b"},
+            {"A": 3, "C": None, "B": "c"},
+        ]
+        assert_data_equals_with_order(result, expected)
+
+    def test_add_column_end(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"columnIdx": 2, "type": "insert", "newName": "C"}]}
+        result = apply_edits(data, edits)
+        expected = [
+            {"A": 1, "B": "a", "C": None},
+            {"A": 2, "B": "b", "C": None},
+            {"A": 3, "B": "c", "C": None},
+        ]
+        assert_data_equals_with_order(result, expected)
+
+    def test_add_column_fails(self):
+        data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+        edits = {"edits": [{"columnIdx": 3, "type": "insert"}]}
+
+        with pytest.raises(
+            ValueError, match="New column name is required for insert"
+        ):
+            apply_edits(data, edits)
+
+    def test_rename_column_start(self):
+        data = [
+            {"A": 1, "B": "a", "C": "x", "D": "w"},
+            {"A": 2, "B": "b", "C": "y", "D": "v"},
+            {"A": 3, "B": "c", "C": "z", "D": "u"},
+        ]
+        edits = {"edits": [{"columnIdx": 0, "type": "rename", "newName": "X"}]}
+        result = apply_edits(data, edits)
+        expected = [
+            {"X": 1, "B": "a", "C": "x", "D": "w"},
+            {"X": 2, "B": "b", "C": "y", "D": "v"},
+            {"X": 3, "B": "c", "C": "z", "D": "u"},
+        ]
+        assert_data_equals_with_order(result, expected)
+
+    def test_rename_column_middle(self):
+        data = [
+            {"A": 1, "B": "a", "C": "x", "D": "w"},
+            {"A": 2, "B": "b", "C": "y", "D": "v"},
+            {"A": 3, "B": "c", "C": "z", "D": "u"},
+        ]
+        edits = {"edits": [{"columnIdx": 1, "type": "rename", "newName": "X"}]}
+        result = apply_edits(data, edits)
+        expected = [
+            {"A": 1, "X": "a", "C": "x", "D": "w"},
+            {"A": 2, "X": "b", "C": "y", "D": "v"},
+            {"A": 3, "X": "c", "C": "z", "D": "u"},
+        ]
+        assert_data_equals_with_order(result, expected)
+
+    def test_rename_column_end(self):
+        data = [
+            {"A": 1, "B": "a", "C": "x", "D": "w"},
+            {"A": 2, "B": "b", "C": "y", "D": "v"},
+            {"A": 3, "B": "c", "C": "z", "D": "u"},
+        ]
+        edits = {"edits": [{"columnIdx": 3, "type": "rename", "newName": "X"}]}
+        result = apply_edits(data, edits)
+        expected = [
+            {"A": 1, "B": "a", "C": "x", "X": "w"},
+            {"A": 2, "B": "b", "C": "y", "X": "v"},
+            {"A": 3, "B": "c", "C": "z", "X": "u"},
+        ]
+        assert_data_equals_with_order(result, expected)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+class TestBulkEditsColumnOrientedData:
+    """Test bulk edits for column-oriented data."""
+
+    def test_remove_start_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = {"A": [2, 3], "B": ["b", "c"], "C": [5, 6]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_middle_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = {"A": [1, 3], "B": ["a", "c"], "C": [4, 6]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_end_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = {"A": [1, 2], "B": ["a", "b"], "C": [4, 5]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_invalid_row(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [
+                {"rowIdx": 3, "type": "remove"},
+                {"rowIdx": -1, "type": "remove"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        expected = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_then_edit(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 0, "columnId": "B", "value": "x"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        expected = {"A": [2, 3], "B": ["x", "c"], "C": [5, 6]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_multiple_rows(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 1, "type": "remove"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        expected = {"A": [2], "B": ["b"], "C": [5]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_rename_column(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 0, "type": "rename", "newName": "D"}]
+        }
+        result = apply_edits(data, edits)
+        expected = {"D": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_column_middle(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"columnIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = {"A": [1, 2, 3], "C": [4, 5, 6]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_remove_column_end(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {"edits": [{"columnIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        expected = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
+        assert_data_equals_with_order(result, expected)
+
+    def test_insert_column_start(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 0, "type": "insert", "newName": "D"}]
+        }
+        result = apply_edits(data, edits)
+        expected = {
+            "D": [None, None, None],
+            "A": [1, 2, 3],
+            "B": ["a", "b", "c"],
+            "C": [4, 5, 6],
+        }
+        assert_data_equals_with_order(result, expected)
+
+    def test_insert_column_middle(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 1, "type": "insert", "newName": "D"}]
+        }
+        result = apply_edits(deepcopy(data), edits)
+        expected = {
+            "A": [1, 2, 3],
+            "D": [None, None, None],
+            "B": ["a", "b", "c"],
+            "C": [4, 5, 6],
+        }
+        assert_data_equals_with_order(result, expected)
+
+        edits = {"edits": [{"columnIdx": 2, "type": "insert", "newName": "D"}]}
+        result = apply_edits(deepcopy(data), edits)
+        expected = {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "c"],
+            "D": [None, None, None],
+            "C": [4, 5, 6],
+        }
+        assert_data_equals_with_order(result, expected)
+
+    def test_insert_column_end(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 3, "type": "insert", "newName": "D"}]
+        }
+        result = apply_edits(data, edits)
+        expected = {
+            "A": [1, 2, 3],
+            "B": ["a", "b", "c"],
+            "C": [4, 5, 6],
+            "D": [None, None, None],
+        }
+        assert_data_equals_with_order(result, expected)
+
+    def test_mixed_edits(self):
+        data = {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        edits: DataEdits = {
+            "edits": [
+                {"columnIdx": 1, "type": "insert", "newName": "D"},
+                {"rowIdx": 0, "type": "remove"},
+            ]
+        }
+        result = apply_edits(data, edits)
+        expected = {
+            "A": [2, 3],
+            "D": [None, None],
+            "B": ["b", "c"],
+            "C": [5, 6],
+        }
+        assert_data_equals_with_order(result, expected)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has() and not DependencyManager.polars.has(),
+    reason="Pandas or Polars not installed",
+)
+class TestBulkEditsDataframe:
+    """Test bulk edits for dataframe data."""
+
+    def test_remove_start_row(self):
+        import pandas as pd
+        import polars as pl
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pd.DataFrame({"A": [2, 3], "B": ["b", "c"]}).equals(result)
+
+        data = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 0, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pl.DataFrame({"A": [2, 3], "B": ["b", "c"]}).equals(result)
+
+    def test_remove_middle_row(self):
+        import pandas as pd
+        import polars as pl
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pd.DataFrame({"A": [1, 3], "B": ["a", "c"]}).equals(result)
+
+        data = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pl.DataFrame({"A": [1, 3], "B": ["a", "c"]}).equals(result)
+
+    def test_remove_end_row(self):
+        import pandas as pd
+        import polars as pl
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pd.DataFrame({"A": [1, 2], "B": ["a", "b"]}).equals(result)
+
+        data = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"rowIdx": 2, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pl.DataFrame({"A": [1, 2], "B": ["a", "b"]}).equals(result)
+
+    def test_insert_column_start(self):
+        import pandas as pd
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 0, "type": "insert", "newName": "D"}]
+        }
+        result = apply_edits(data, edits)
+        assert pd.DataFrame(
+            {"D": [None, None, None], "A": [1, 2, 3], "B": ["a", "b", "c"]}
+        ).equals(result)
+
+    def test_insert_column_middle(self):
+        import pandas as pd
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 1, "type": "insert", "newName": "D"}]
+        }
+        result = apply_edits(data, edits)
+        assert pd.DataFrame(
+            {"A": [1, 2, 3], "D": [None, None, None], "B": ["a", "b", "c"]}
+        ).equals(result)
+
+    def test_insert_column_end(self):
+        import pandas as pd
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 2, "type": "insert", "newName": "D"}]
+        }
+        result = apply_edits(data, edits)
+        assert pd.DataFrame(
+            {"A": [1, 2, 3], "B": ["a", "b", "c"], "D": [None, None, None]}
+        ).equals(result)
+
+    def test_rename_column(self):
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {"A": [1, 2, 3], "B": ["a", "b", "c"], "C": [4, 5, 6]}
+        )
+        edits: DataEdits = {
+            "edits": [{"columnIdx": 1, "type": "rename", "newName": "D"}]
+        }
+        result = apply_edits(data, edits)
+        assert pd.DataFrame(
+            {"A": [1, 2, 3], "D": ["a", "b", "c"], "C": [4, 5, 6]}
+        ).equals(result)
+
+    def test_remove_column(self):
+        import pandas as pd
+
+        data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        edits: DataEdits = {"edits": [{"columnIdx": 1, "type": "remove"}]}
+        result = apply_edits(data, edits)
+        assert pd.DataFrame({"A": [1, 2, 3]}).equals(result)
 
 
 class TestConvertValue:
