@@ -163,21 +163,6 @@ export const GlideDataEditor = <T,>({
             setLocalData((prev) => insertColumn(prev, edit.newName));
             break;
           case BulkEdit.Rename: {
-            // let oldName: string | undefined;
-            // for (const [index, [key]] of Object.entries(
-            //   Object.entries(columnFields),
-            // )) {
-            //   if (Number(index) === edit.columnIdx) {
-            //     oldName = key;
-            //     break;
-            //   }
-            // }
-
-            // const newName = edit.newName;
-            // if (!oldName || !newName) {
-            //   return;
-            // }
-
             const oldName = columns[edit.columnIdx].title;
             const newName = edit.newName;
             if (!oldName || !newName) {

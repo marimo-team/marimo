@@ -61,6 +61,7 @@ export function renameColumn<T>(
   });
 }
 
+// Order of columns is important
 export function modifyColumnFields(
   columnFields: FieldTypes,
   columnIdx: number,
