@@ -867,7 +867,6 @@ class TestCacheDecorator:
                 exec_req.get(
                     """
                     from marimo._save.save import cache
-                    from marimo._save.loaders import MemoryLoader
 
                     @cache
                     def my_cached_func(*args, **kwargs):
@@ -921,7 +920,6 @@ class TestCacheDecorator:
                 exec_req.get(
                     """
                     from marimo._save.save import cache
-                    from marimo._save.loaders import MemoryLoader
 
                     @cache
                     def my_cached_func(*args, **kwargs):
@@ -980,7 +978,6 @@ class TestCacheDecorator:
                 exec_req.get(
                     """
                     from marimo._save.save import cache
-                    from marimo._save.loaders import MemoryLoader
 
                     @cache
                     def my_cached_func(*args, **kwargs):
@@ -1032,7 +1029,6 @@ class TestCacheDecorator:
                 exec_req.get(
                     """
                     from marimo._save.save import cache
-                    from marimo._save.loaders import MemoryLoader
 
                     @cache
                     def my_cached_func(*args, **kwargs):
@@ -1091,7 +1087,6 @@ class TestCacheDecorator:
                 exec_req.get(
                     """
                     from marimo._save.save import cache
-                    from marimo._save.loaders import MemoryLoader
 
                     @cache
                     def my_cached_func(*args, **kwargs):
@@ -1137,6 +1132,61 @@ class TestCacheDecorator:
         # Verify cache hits
         assert k.globals["my_cached_func"].hits == 0
 
+    async def test_persistent_cache_decorator_mixed_signature(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Sanity check that the same code path is captured.
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+                    from marimo._save.loaders import MemoryLoader
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    def mixed_func(arg, *vargs, kw=None, **kwargs):
+                        return arg + sum(vargs) + (kw or 0) + sum(kwargs.values())
+
+                    # Test with mixed arguments
+                    result1 = mixed_func(1, 2, 3, kw=4, extra=5)
+                    hash1 = mixed_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different mixed arguments - should be cache miss
+                    result2 = mixed_func(1, 2, 3, kw=4, extra=7)
+                    hash2 = mixed_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same mixed arguments - should hit cache
+                    result3 = mixed_func(1, 2, 3, kw=4, extra=5)
+                    hash3 = mixed_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 15  # 1 + 2 + 3 + 4 + 5
+        assert k.globals["result2"] == 17  # 1 + 2 + 3 + 4 + 7
+        assert k.globals["result3"] == 15  # 1 + 2 + 3 + 4 + 5
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, "Cache key should change when kwargs change"
+        assert hash1 == hash3, (
+            "Cache key should be same for identical mixed arguments"
+        )
+
+        # Verify cache hits
+        assert k.globals["mixed_func"].hits == 1
+
     async def test_cache_decorator_mixed_signature(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -1145,7 +1195,6 @@ class TestCacheDecorator:
                 exec_req.get(
                     """
                     from marimo._save.save import cache
-                    from marimo._save.loaders import MemoryLoader
 
                     @cache
                     def mixed_func(arg, *vargs, kw=None, **kwargs):
@@ -1199,7 +1248,6 @@ class TestCacheDecorator:
                 exec_req.get(
                     """
                     from marimo._save.save import cache
-                    from marimo._save.loaders import MemoryLoader
 
                     @cache
                     def pos_only_func(pos1, pos2, /, kw1=None, *, kwonly):

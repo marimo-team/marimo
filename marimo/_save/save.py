@@ -118,18 +118,34 @@ class _cache_call:
         )
 
         self.fn = fn
-        code = fn.__code__
+        sig = inspect.signature(fn)
+        self._args = [
+            param.name
+            for param in sig.parameters.values()
+            if param.kind
+            in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.POSITIONAL_ONLY,
+            )
+        ]
         # Both varargs and kwargs are are lumped under co_flags;
         # So extract them if they exist, and handle them explicitly.
-        has_var_args = bool(code.co_flags & inspect.CO_VARARGS)
-        has_var_kwargs = bool(code.co_flags & inspect.CO_VARKEYWORDS)
-        self._args = list(code.co_varnames)
-        # Reverse order pop from the signature.
-        # i.e. fn(arg1, arg2, *var_args, **var_kwargs)
-        if has_var_kwargs:
-            self._var_kwarg = self._args.pop()
-        if has_var_args:
-            self._var_arg = self._args.pop()
+        self._var_arg = next(
+            (
+                param.name
+                for param in sig.parameters.values()
+                if param.kind == inspect.Parameter.VAR_POSITIONAL
+            ),
+            None,
+        )
+        self._var_kwarg = next(
+            (
+                param.name
+                for param in sig.parameters.values()
+                if param.kind == inspect.Parameter.VAR_KEYWORD
+            ),
+            None,
+        )
 
         # Retrieving frame from the stack: frame is
         #
