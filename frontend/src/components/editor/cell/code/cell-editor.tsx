@@ -10,7 +10,6 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
-import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import {
@@ -38,6 +37,7 @@ import { invariant } from "@/utils/invariant";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
 import { HideCodeButton } from "../../code/readonly-python-code";
+import { useCellEditorNavigationProps } from "../../focus/focus";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { LanguageToggles } from "./language-toggle";
@@ -65,7 +65,7 @@ export interface CellEditorProps
   // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
   editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
-  temporarilyShowCode: (opts?: { focus?: boolean }) => void;
+  showHiddenCode: (opts?: { focus?: boolean }) => void;
 }
 
 const CellEditorInternal = ({
@@ -83,13 +83,12 @@ const CellEditorInternal = ({
   editorViewParentRef,
   hidden,
   hasOutput,
-  temporarilyShowCode,
+  showHiddenCode,
   languageAdapter,
   setLanguageAdapter,
   showLanguageToggles = true,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
-  const setLastFocusedCellId = useSetLastFocusedCellId();
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
 
@@ -207,7 +206,7 @@ const CellEditorInternal = ({
           );
 
           if (hasSelection) {
-            temporarilyShowCode({ focus: false });
+            showHiddenCode({ focus: false });
           }
         }
       }),
@@ -219,6 +218,7 @@ const CellEditorInternal = ({
     userConfig.keymap,
     userConfig.completion,
     userConfig.language_servers,
+    userConfig.display,
     userConfig.diagnostics,
     aiEnabled,
     theme,
@@ -231,7 +231,7 @@ const CellEditorInternal = ({
     setAiCompletionCell,
     afterToggleMarkdown,
     setLanguageAdapter,
-    temporarilyShowCode,
+    showHiddenCode,
     saveOrNameNotebook,
   ]);
 
@@ -373,6 +373,8 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
+  const navigationProps = useCellEditorNavigationProps(cellId);
+
   // Completely hide the editor & icons if it's markdown and hidden. If there is output, we show.
   const showHideButton =
     (hidden && !isMarkdown) || (hidden && isMarkdown && !hasOutput);
@@ -416,15 +418,12 @@ const CellEditorInternal = ({
         setAiCompletionCell(null);
       })}
     >
-      <div
-        className="relative w-full"
-        onFocus={() => setLastFocusedCellId(cellId)}
-      >
+      <div className="relative w-full" {...navigationProps}>
         {showHideButton && (
           <HideCodeButton
             tooltip="Edit code"
             className="absolute inset-0 z-10"
-            onClick={temporarilyShowCode}
+            onClick={showHiddenCode}
           />
         )}
         <CellCodeMirrorEditor

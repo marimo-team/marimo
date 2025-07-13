@@ -143,7 +143,7 @@ export const ScratchPad: React.FC = () => {
               ref.current = ev;
             }}
             hidden={false}
-            temporarilyShowCode={Functions.NOOP}
+            showHiddenCode={Functions.NOOP}
             languageAdapter={languageAdapter}
             setLanguageAdapter={setLanguageAdapter}
           />

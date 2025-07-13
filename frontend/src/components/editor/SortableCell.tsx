@@ -147,7 +147,7 @@ const SortableCellInternal = React.forwardRef(
         className={cn(
           props.className,
           isMoving && "is-moving",
-          "outline-offset-4 outline-primary/40 rounded-lg",
+          "outline-none rounded-lg",
         )}
         style={style}
       >

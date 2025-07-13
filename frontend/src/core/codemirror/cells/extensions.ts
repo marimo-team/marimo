@@ -244,9 +244,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
             ev.contentDOM.blur();
             // Focus on the parent element
             // https://github.com/marimo-team/marimo/issues/2941
-            document
-              .getElementById(HTMLCellId.create(cellId))
-              ?.parentElement?.focus();
+            document.getElementById(HTMLCellId.create(cellId))?.focus();
           } else {
             ev.contentDOM.focus();
           }

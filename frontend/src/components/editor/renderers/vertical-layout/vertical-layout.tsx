@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
@@ -39,6 +39,7 @@ import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
+import { cellDomProps } from "../../common";
 import type { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
@@ -331,8 +332,6 @@ const VerticalCell = memo(
       },
     );
 
-    const HTMLId = HTMLCellId.create(cellId);
-
     // Read mode and show code
     if ((mode === "read" && showCode) || kioskFull) {
       const outputArea = (
@@ -351,11 +350,9 @@ const VerticalCell = memo(
       return (
         <div
           tabIndex={-1}
-          id={HTMLId}
           ref={cellRef}
           className={className}
-          data-cell-id={cellId}
-          data-cell-name={name}
+          {...cellDomProps(cellId, name)}
         >
           {cellOutputArea === "above" && outputArea}
           {/* Hide code if it's empty or pure markdown */}
@@ -389,11 +386,9 @@ const VerticalCell = memo(
     return (
       <div
         tabIndex={-1}
-        id={HTMLId}
         ref={cellRef}
         className={className}
-        data-cell-id={cellId}
-        data-cell-name={name}
+        {...cellDomProps(cellId, name)}
       >
         <OutputArea
           allowExpand={mode === "edit"}
