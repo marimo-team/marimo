@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { TestUtils } from "@/__tests__/test-helpers";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { NotebookScopedLocalStorage } from "../localStorage";
@@ -68,7 +69,7 @@ describe("NotebookScopedLocalStorage", () => {
     // Change filename and verify key updates
     store.set(filenameAtom, "other.py");
     // Force a small delay to allow the subscription to process
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await TestUtils.nextTick();
 
     expect(storage.createScopedKey(KEY, "other.py")).toEqual("test:other.py");
     expect(storage.get(KEY)).toEqual({ name: "Jane Doe", age: 25 });

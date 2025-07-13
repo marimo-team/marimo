@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable @typescript-eslint/unbound-method */
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { PyodideRouter } from "../router";
 
