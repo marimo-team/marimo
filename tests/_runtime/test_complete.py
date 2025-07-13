@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from inspect import signature
 from types import ModuleType
 from typing import Any
+from unittest import mock
 
 import jedi
 import pytest
 
 import marimo
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.complete import _build_docstring_cached
+from marimo._runtime.complete import (
+    _build_docstring_cached,
+    _maybe_get_key_options,
+)
 from marimo._runtime.patches import patch_jedi_parameter_completion
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
+HAS_PANDAS = DependencyManager.pandas.has()
 
 
 def test_build_docstring_function_no_init():
@@ -205,3 +211,120 @@ def test_parameter_descriptions(obj: Any, runtime_inference: bool):
         assert "NoneType" not in docstring, (
             f"NoneType found in docstring: {call}{param_name}"
         )
+
+
+def cases_key_completions_code() -> tuple[tuple[str, bool], ...]:
+    return (
+        ("obj['", True),
+        ('obj["', True),
+        ("assigned = obj['", True),
+        ("multiline = 'foo'\nobj['", True),
+        ("for i in iterator:\n\tobj['", True),
+        # shouldn't trigger on the following notations
+        ("obj.", False),
+        ("obj", False),
+    )
+
+
+def cases_objects_supporting_key_completion() -> tuple[
+    tuple[Any, list[str]], ...
+]:
+    """Returns globals dictionary containing objects support key completions"""
+
+    class IPythonImplemented:
+        def __init__(self):
+            self._table = {
+                "foo": [0, 1],
+                "bar": [1.0, 3.0],
+            }
+
+        @property
+        def a_property(self) -> str:
+            """This is a property"""
+            return "prop value"
+
+        def __getitem__(self, key: str) -> list:
+            """Returns a mock column"""
+            return self._table[key]
+
+        def _ipython_key_completions_(self) -> list[str]:
+            return list(self._table.keys())
+
+    class CustomMapping(Mapping):
+        def __init__(self):
+            self._data = {
+                "foo": [0, 1],
+                "bar": [1.0, 3.0],
+            }
+
+        def __iter__(self):
+            return iter(self._data.keys())
+
+        def __getitem__(self, key):
+            raise NotImplementedError
+
+        def __len__(self):
+            raise NotImplementedError
+
+    return (
+        ({"foo": [0, 1], "bar": [1.0, 3.0]}, ["foo", "bar"]),
+        (IPythonImplemented(), ["foo", "bar"]),
+        (CustomMapping(), ["foo", "bar"]),
+    )
+
+
+@pytest.mark.parametrize(
+    "code_and_expects_completions", cases_key_completions_code()
+)
+@pytest.mark.parametrize(
+    "obj_and_expected_completions", cases_objects_supporting_key_completion()
+)
+def test_get_key_completions(
+    code_and_expects_completions: tuple[str, bool],
+    obj_and_expected_completions: tuple[Any, list[str]],
+):
+    code, expects_completions = code_and_expects_completions
+    obj, expected_completions = obj_and_expected_completions
+
+    glbls = {"obj": obj, "other": 10}
+    script = jedi.Script(code=code)
+    mock_request = mock.MagicMock()
+    mock_request.document = code
+
+    completions = _maybe_get_key_options(
+        request=mock_request, script=script, glbls=glbls
+    )
+
+    if expects_completions is True:
+        assert [c.name for c in completions] == expected_completions
+    else:
+        assert completions == []
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed.")
+@pytest.mark.parametrize(
+    "code_and_expects_completions", cases_key_completions_code()
+)
+def test_get_key_completions_pandas_dataframe(
+    code_and_expects_completions: tuple[str, bool],
+):
+    import pandas as pd
+
+    glbls = {
+        "obj": pd.DataFrame({"foo": [0, 1], "bar": [9.0, 2.0]}),
+        "other": 10,
+    }
+    code, expects_completions = code_and_expects_completions
+    expected_completions = ["foo", "bar"]
+    mock_request = mock.MagicMock()
+    mock_request.document = code
+
+    script = jedi.Script(code=code)
+    completions = _maybe_get_key_options(
+        request=mock_request, script=script, glbls=glbls
+    )
+
+    if expects_completions is True:
+        assert [c.name for c in completions] == expected_completions
+    else:
+        assert completions == []

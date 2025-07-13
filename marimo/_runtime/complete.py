@@ -4,11 +4,11 @@ from __future__ import annotations
 import html
 import threading
 import time
+from collections.abc import Mapping
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, cast
 
 import jedi  # type: ignore # noqa: F401
-import jedi.api  # type: ignore # noqa: F401
 
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -344,6 +344,65 @@ def _get_completions_with_interpreter(
     return script, completions
 
 
+def _get_key_options(
+    script: jedi.Script, glbls: dict[str, Any]
+) -> list[CompletionOption]:
+    """Get completion values for trigger `["` or `['`. Values are meant to be
+    passed to `.__getitem__()`
+
+    This implementation assumes that marimo's `CompletionRequest.document`
+    only includes current line, up to the completion trigger.
+    """
+    names = script.get_names(
+        references=True, definitions=False, all_scopes=False
+    )
+    if len(names) == 0:
+        LOGGER.debug(
+            f"Retrieved no `names` for completion request: `{script._code}`"
+        )
+        return []
+
+    obj_name = names[-1].name
+    obj = glbls.get(obj_name)
+    if obj is None:
+        LOGGER.debug(f"Failed to find `{obj_name=:}` in `glbls`")
+        return []
+
+    # TODO refactor handler to separate metho as complexicty grows
+    if getattr(obj, "_ipython_key_completions_", False):
+        keys = obj._ipython_key_completions_()
+    elif isinstance(obj, Mapping):
+        keys = obj.keys()
+    # for instance, pandas.DataFrame doesn't inherit from Mapping
+    elif getattr(obj, "keys", False):
+        keys = obj.keys()
+    else:
+        LOGGER.debug(
+            f"No matching handlers found to retrieve keys from type `{type(obj)}`"
+        )
+        keys = []
+
+    # TODO currently unreliable for non-string keys, even if stringified
+    # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
+    return [
+        CompletionOption(
+            name=str(key), type="property", completion_info="property"
+        )
+        for key in keys
+    ]
+
+
+def _maybe_get_key_options(
+    request: CodeCompletionRequest, script: jedi.Script, glbls: dict[str, Any]
+) -> list[CompletionOption]:
+    """Call key completions methods if the request contains the trigger"""
+    triggers = ('["', "['")  # explicitly handle both quotation characters
+    if request.document[-2:] in triggers:
+        return _get_key_options(script, glbls)
+
+    return []
+
+
 def _get_completions(
     codes: list[str],
     document: str,
@@ -411,6 +470,11 @@ def complete(
         prefix_length: int = (
             completions[0].get_completion_prefix_length() if completions else 0
         )
+        prefix = request.document[-prefix_length:]
+
+        # TODO we can probably return early if we have key completion;
+        # it has different triggers and retrieval should never overlap with attribute completion
+        key_options = _maybe_get_key_options(request, script, glbls)
 
         if (
             prefix_length == 0
@@ -443,12 +507,11 @@ def complete(
                 )
                 return
 
-        if not completions:
+        if not completions and not key_options:
             # If there are still no completions, then bail.
             _write_no_completions(stream, request.id)
             return
 
-        prefix = request.document[-prefix_length:]
         if timeout is None and isinstance(script, jedi.Interpreter):
             # We're holding the globals lock; set a short timeout so we don't
             # block the kernel
@@ -468,7 +531,7 @@ def complete(
             stream=stream,
             completion_id=request.id,
             prefix_length=prefix_length,
-            options=options,
+            options=key_options + options,
         )
     except Exception as e:
         # jedi failed to provide completion
