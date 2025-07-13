@@ -34,7 +34,7 @@ export const Mocks = {
     readText: vi.fn(),
   }),
 
-  clipboardItem: (data: Record<string, any>) => ({
+  clipboardItem: (data: Record<string, string>) => ({
     types: Object.keys(data),
     getType: vi
       .fn()
