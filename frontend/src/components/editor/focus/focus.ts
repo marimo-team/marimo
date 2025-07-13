@@ -88,11 +88,6 @@ export function useCellEditorNavigationProps(cellId: CellId) {
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
-      if (Events.fromInput(evt)) {
-        evt.continuePropagation();
-        return;
-      }
-
       if (evt.key === "Escape") {
         setTemporarilyShownCode(false);
         focusManager.focusCell(cellId);
