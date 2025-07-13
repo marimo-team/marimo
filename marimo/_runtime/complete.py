@@ -9,6 +9,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any, cast
 
 import jedi  # type: ignore # noqa: F401
+import jedi.api  # type: ignore # noqa: F401
 
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
