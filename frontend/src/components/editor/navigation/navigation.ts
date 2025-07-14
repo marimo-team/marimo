@@ -154,6 +154,11 @@ export function useCellNavigationProps(
           actions.focusCell({ cellId, before: true });
           return;
         }
+        if (evt.key === "i" && !Events.hasModifier(evt)) {
+          setTemporarilyShownCode(true);
+          focusCellEditor(store, cellId);
+          evt.preventDefault();
+          return;
       }
 
       // Down arrow moves to the next cell.
