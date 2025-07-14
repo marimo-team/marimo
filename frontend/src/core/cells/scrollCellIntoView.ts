@@ -48,12 +48,11 @@ export function focusAndScrollCellIntoView({
   } else {
     const editor = cell.current?.editorView;
     if (!editor) {
-      console.warn("scrollCellIntoView: editor not found", cellId);
+      Logger.warn("scrollCellIntoView: editor not found", cellId);
       return;
     }
     // If already focused, do nothing.
     if (editor.hasFocus) {
-      console.warn("scrollCellIntoView: editor already focused", cellId);
       return;
     }
 
