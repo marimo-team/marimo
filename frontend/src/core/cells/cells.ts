@@ -40,6 +40,7 @@ import {
   type CellData,
   type CellRuntimeState,
   createCell,
+  createCellConfig,
   createCellRuntimeState,
 } from "./types";
 import {
@@ -101,6 +102,12 @@ export interface NotebookState {
    * Logs of all cell messages
    */
   cellLogs: CellLog[];
+  /**
+   * Set of cells that have been created that are initialized with `hide_code`.
+   *
+   * These start temporarily open until their first blur event.
+   */
+  untouchedNewCells: Set<CellId>;
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
@@ -125,7 +132,7 @@ function withScratchCell(notebookState: NotebookState): NotebookState {
 /**
  * Initial state of the notebook.
  */
-function initialNotebookState(): NotebookState {
+export function initialNotebookState(): NotebookState {
   return withScratchCell({
     cellIds: MultiColumn.from([]),
     cellData: {},
@@ -134,6 +141,7 @@ function initialNotebookState(): NotebookState {
     history: [],
     scrollKey: null,
     cellLogs: [],
+    untouchedNewCells: new Set<CellId>(),
   });
 }
 
@@ -169,6 +177,8 @@ const {
       autoFocus?: boolean;
       /** If true, skip creation if code already exists */
       skipIfCodeExists?: boolean;
+      /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
+      hideCode?: boolean;
     },
   ) => {
     const {
@@ -179,6 +189,7 @@ const {
       lastExecutionTime = null,
       autoFocus = true,
       skipIfCodeExists = false,
+      hideCode = false,
     } = action;
 
     let columnId: CellColumnId;
@@ -222,6 +233,7 @@ const {
           id: newCellId,
           code,
           lastCodeRun,
+          config: createCellConfig({ hide_code: hideCode }),
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),
@@ -235,6 +247,9 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
+      untouchedNewCells: hideCode
+        ? new Set([...state.untouchedNewCells, newCellId])
+        : state.untouchedNewCells,
     };
   },
   moveCell: (
@@ -412,7 +427,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: focusCellId,
       cell: state.cellHandles[focusCellId],
-      config: state.cellData[focusCellId].config,
+      isCodeHidden: isCellCodeHidden(state, focusCellId),
       codeFocus: before ? "bottom" : "top",
       variableName: undefined,
     });
@@ -429,7 +444,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -447,7 +462,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -986,10 +1001,24 @@ const {
       focusAndScrollCellIntoView({
         cellId: nextCellId,
         cell: state.cellHandles[nextCellId],
-        config: state.cellData[nextCellId].config,
+        isCodeHidden: isCellCodeHidden(state, nextCellId),
         codeFocus: before ? "bottom" : "top",
         variableName: undefined,
       });
+    }
+
+    return state;
+  },
+  markTouched: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+
+    if (state.untouchedNewCells.has(cellId)) {
+      const nextUntouchedNewCells = new Set(state.untouchedNewCells);
+      nextUntouchedNewCells.delete(cellId);
+      return {
+        ...state,
+        untouchedNewCells: nextUntouchedNewCells,
+      };
     }
 
     return state;
@@ -1010,7 +1039,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -1330,6 +1359,13 @@ const {
   },
 });
 
+function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
+  return (
+    state.cellData[cellId].config.hide_code &&
+    !state.untouchedNewCells.has(cellId)
+  );
+}
+
 // Helper function to update a cell in the array
 function updateCellRuntimeState({
   state,
@@ -1587,6 +1623,10 @@ export function flattenTopLevelNotebookCells(
   );
 }
 
+export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {
+  return atom((get) => get(notebookAtom).untouchedNewCells.has(cellId));
+}
+
 export function createTracebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
@@ -1647,4 +1687,5 @@ export const exportedForTesting = {
   reducer,
   createActions,
   initialNotebookState,
+  isCellCodeHidden,
 };

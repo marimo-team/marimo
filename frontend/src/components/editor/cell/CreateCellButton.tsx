@@ -28,7 +28,7 @@ export const CreateCellButton = ({
 }: {
   connectionState: WebSocketState;
   tooltipContent: React.ReactNode;
-  onClick: ((opts: { code: string }) => void) | undefined;
+  onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
 }) => {
   const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
@@ -66,7 +66,7 @@ export const CreateCellButton = ({
 };
 
 const CreateCellButtonContextMenu = (props: {
-  onClick: ((opts: { code: string }) => void) | undefined;
+  onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
   children: React.ReactNode;
 }) => {
   const { children, onClick } = props;
@@ -102,7 +102,10 @@ const CreateCellButtonContextMenu = (props: {
           onSelect={(evt) => {
             evt.stopPropagation();
             maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
-            onClick({ code: new MarkdownLanguageAdapter().defaultCode });
+            onClick({
+              code: new MarkdownLanguageAdapter().defaultCode,
+              hideCode: true,
+            });
           }}
         >
           <div className="mr-3 text-muted-foreground">

@@ -3,12 +3,11 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Mocks, partialImplementation } from "@/__mocks__/common";
+import { Mocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
 import type { CellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { useCellEditorNavigationProps, useCellNavigationProps } from "../focus";
-import type { CellFocusManager } from "../focus-manager";
 
 // Mock only the essential dependencies that we need to control
 vi.mock("@/core/cells/cells", () => ({
@@ -32,7 +31,8 @@ vi.mock("../clipboard", () => ({
 }));
 
 vi.mock("../focus-manager", () => ({
-  useCellFocusManager: vi.fn(),
+  focusCellEditor: vi.fn(),
+  focusCell: vi.fn(),
 }));
 
 // Get mocked functions
@@ -51,9 +51,8 @@ const mockUseRunCell = vi.mocked(
 const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
-const mockUseCellFocusManager = vi.mocked(
-  await import("../focus-manager"),
-).useCellFocusManager;
+
+import { focusCell, focusCellEditor } from "../focus-manager";
 
 describe("useCellNavigationProps", () => {
   const mockCellId = "test-cell-id" as CellId;
@@ -71,10 +70,6 @@ describe("useCellNavigationProps", () => {
     focusBottomCell: vi.fn(),
     createNewCell: vi.fn(),
   });
-  const mockFocusManager = partialImplementation<CellFocusManager>({
-    focusCellEditor: vi.fn(),
-    focusCell: vi.fn(),
-  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,7 +83,6 @@ describe("useCellNavigationProps", () => {
     mockUseCellActions.mockReturnValue(
       mockCellActions as unknown as CellActions,
     );
-    mockUseCellFocusManager.mockReturnValue(mockFocusManager);
     mockUseRunCell.mockReturnValue(mockRunCell);
     mockUseCellClipboard.mockReturnValue({
       copyCell: mockCopyCell,
@@ -173,7 +167,10 @@ describe("useCellNavigationProps", () => {
         }
       });
 
-      expect(mockFocusManager.focusCellEditor).toHaveBeenCalledWith(mockCellId);
+      expect(focusCellEditor).toHaveBeenCalledWith(
+        expect.anything(),
+        mockCellId,
+      );
       expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
 
@@ -351,14 +348,9 @@ describe("useCellNavigationProps", () => {
 
 describe("useCellEditorNavigationProps", () => {
   const mockCellId = "test-cell-id" as CellId;
-  const mockFocusManager = partialImplementation<CellFocusManager>({
-    focusCellEditor: vi.fn(),
-    focusCell: vi.fn(),
-  });
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseCellFocusManager.mockReturnValue(mockFocusManager);
   });
 
   describe("keyboard shortcuts", () => {
@@ -375,7 +367,7 @@ describe("useCellEditorNavigationProps", () => {
         }
       });
 
-      expect(mockFocusManager.focusCell).toHaveBeenCalledWith(mockCellId);
+      expect(focusCell).toHaveBeenCalledWith(mockCellId);
       expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
     });
 
@@ -392,7 +384,7 @@ describe("useCellEditorNavigationProps", () => {
         }
       });
 
-      expect(mockFocusManager.focusCell).not.toHaveBeenCalled();
+      expect(focusCell).not.toHaveBeenCalled();
       expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
     });
   });
