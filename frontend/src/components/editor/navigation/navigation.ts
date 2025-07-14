@@ -159,6 +159,7 @@ export function useCellNavigationProps(
           focusCellEditor(store, cellId);
           evt.preventDefault();
           return;
+        }
       }
 
       // Down arrow moves to the next cell.
