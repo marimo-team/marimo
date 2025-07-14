@@ -387,13 +387,31 @@ const DEFAULT_HOT_KEY = {
     name: "Create a cell before current cell",
     group: "Command",
     key: "a",
-    editable: false,
   },
   "command.createCellAfter": {
     name: "Create a cell after current cell",
     group: "Command",
     key: "b",
-    editable: false,
+  },
+  "command.copyCell": {
+    name: "Copy cell",
+    group: "Command",
+    key: "c",
+  },
+  "command.pasteCell": {
+    name: "Paste cell",
+    group: "Command",
+    key: "v",
+  },
+  "command.moveToTopCell": {
+    name: "Move to top cell",
+    group: "Command",
+    key: "Mod-ArrowUp",
+  },
+  "command.moveToBottomCell": {
+    name: "Move to bottom cell",
+    group: "Command",
+    key: "Mod-ArrowDown",
   },
 } satisfies Record<string, Hotkey>;
 

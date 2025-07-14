@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseShortcut } from "../shortcuts";
 
 describe("parseShortcut", () => {
@@ -31,6 +31,26 @@ describe("parseShortcut", () => {
     const shortcut = parseShortcut("ArrowRight");
     const event = new KeyboardEvent("keydown", { key: "ArrowRight" });
     expect(shortcut(event)).toBe(true);
+  });
+
+  it("should recognize Mod key shortcuts", () => {
+    const shortcut = parseShortcut("Mod-ArrowRight");
+    const event = new KeyboardEvent("keydown", {
+      key: "ArrowRight",
+      metaKey: true,
+      ctrlKey: false,
+    });
+    expect(shortcut(event)).toBe(true);
+
+    const shortcut2 = parseShortcut("Mod-ArrowRight");
+    const event2 = new KeyboardEvent("keydown", {
+      key: "ArrowRight",
+      ctrlKey: true,
+      metaKey: false,
+    });
+    expect(shortcut2(event2)).toBe(true);
+
+    vi.restoreAllMocks();
   });
 
   it("should recognize Space key shortcuts", () => {

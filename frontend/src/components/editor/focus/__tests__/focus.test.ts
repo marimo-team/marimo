@@ -246,10 +246,10 @@ describe("useCellNavigationProps", () => {
       });
     });
 
-    it("should move to top cell when Cmd+ArrowUp is pressed", () => {
+    it("should move to top cell when Cmd+ArrowUp is pressed (or Ctrl)", () => {
       const { result } = renderHook(() => useCellNavigationProps(mockCellId));
 
-      const mockEvent = Mocks.keyboardEvent({ key: "ArrowUp", metaKey: true });
+      const mockEvent = Mocks.keyboardEvent({ key: "ArrowUp", ctrlKey: true });
 
       act(() => {
         if (result.current.onKeyDown) {
@@ -260,12 +260,12 @@ describe("useCellNavigationProps", () => {
       expect(mockCellActions.focusTopCell).toHaveBeenCalled();
     });
 
-    it("should move to bottom cell when Cmd+ArrowDown is pressed", () => {
+    it("should move to bottom cell when Cmd+ArrowDown is pressed (or Ctrl)", () => {
       const { result } = renderHook(() => useCellNavigationProps(mockCellId));
 
       const mockEvent = Mocks.keyboardEvent({
         key: "ArrowDown",
-        metaKey: true,
+        ctrlKey: true,
       });
 
       act(() => {

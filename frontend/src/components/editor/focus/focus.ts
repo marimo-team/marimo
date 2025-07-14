@@ -6,6 +6,8 @@ import { useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { hotkeysAtom, keymapPresetAtom } from "@/core/config/config";
+import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
 import { useRunCell } from "../cell/useRunCells";
@@ -30,8 +32,13 @@ export function useCellNavigationProps(cellId: CellId) {
   const focusManager = useCellFocusManager();
   const runCell = useRunCell(cellId);
   const keymapPreset = useAtomValue(keymapPresetAtom);
-  const hotkeys = useAtomValue(hotkeysAtom);
   const { copyCell, pasteCell } = useCellClipboard();
+  const hotkeys = useAtomValue(hotkeysAtom);
+
+  const isShortcutPressed = (
+    shortcut: HotkeyAction,
+    evt: React.KeyboardEvent<HTMLElement>,
+  ) => parseShortcut(hotkeys.getHotkey(shortcut).key)(evt.nativeEvent || evt);
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -54,29 +61,27 @@ export function useCellNavigationProps(cellId: CellId) {
       }
 
       // Copy cell
-      if (evt.key === "c") {
+      if (isShortcutPressed("command.copyCell", evt)) {
         copyCell(cellId);
         evt.preventDefault();
         return;
       }
 
       // Paste cell
-      if (evt.key === "v") {
+      if (isShortcutPressed("command.pasteCell", evt)) {
         pasteCell(cellId);
         evt.preventDefault();
         return;
       }
 
       // Mod+Up/Down moves to the top/bottom of the notebook.
-      if (Events.isMetaOrCtrl(evt)) {
-        if (evt.key === "ArrowUp") {
-          actions.focusTopCell();
-          return;
-        }
-        if (evt.key === "ArrowDown") {
-          actions.focusBottomCell();
-          return;
-        }
+      if (isShortcutPressed("command.moveToTopCell", evt)) {
+        actions.focusTopCell();
+        return;
+      }
+      if (isShortcutPressed("command.moveToBottomCell", evt)) {
+        actions.focusBottomCell();
+        return;
       }
       // Down arrow moves to the next cell.
       if (evt.key === "ArrowDown" && !Events.hasModifier(evt)) {
@@ -90,7 +95,7 @@ export function useCellNavigationProps(cellId: CellId) {
       }
 
       // Shift-Enter will run the cell and move to the next cell.
-      if (evt.key === "Enter" && evt.shiftKey) {
+      if (isShortcutPressed("cell.runAndNewBelow", evt)) {
         runCell();
         actions.focusCell({ cellId, before: false });
         evt.preventDefault();
@@ -114,7 +119,7 @@ export function useCellNavigationProps(cellId: CellId) {
 
       // Create cell before
       if (
-        hotkeys.getHotkey("command.createCellBefore").key &&
+        isShortcutPressed("command.createCellBefore", evt) &&
         !Events.hasModifier(evt)
       ) {
         actions.createNewCell({
@@ -125,7 +130,7 @@ export function useCellNavigationProps(cellId: CellId) {
       }
       // Create cell after
       if (
-        hotkeys.getHotkey("command.createCellAfter").key &&
+        isShortcutPressed("command.createCellAfter", evt) &&
         !Events.hasModifier(evt)
       ) {
         actions.createNewCell({
