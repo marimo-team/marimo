@@ -259,12 +259,30 @@ export function useCellNavigationProps(
           return true;
         },
         "cell.moveUp": addSingleHandler((cellIds) => {
+          // If moving up, make sure the first cell is not at the top of the notebook
+          const firstCellId = cellIds[0];
+          const notebook = store.get(notebookAtom);
+          const isFirst =
+            notebook.cellIds.findWithId(firstCellId).first() === firstCellId;
+          if (isFirst) {
+            return false;
+          }
+
           cellIds.forEach((cellId) => {
             actions.moveCell({ cellId, before: true });
           });
           return true;
         }),
         "cell.moveDown": addSingleHandler((cellIds) => {
+          // If moving down, make sure the last cell is not at the bottom of the notebook
+          const lastCellId = cellIds[cellIds.length - 1];
+          const notebook = store.get(notebookAtom);
+          const isLast =
+            notebook.cellIds.findWithId(lastCellId).last() === lastCellId;
+          if (isLast) {
+            return false;
+          }
+
           // Move cells in the appropriate order to maintain relative positions
           [...cellIds].reverse().forEach((cellId) => {
             actions.moveCell({ cellId, before: false });

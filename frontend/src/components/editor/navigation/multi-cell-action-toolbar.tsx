@@ -28,12 +28,14 @@ import {
 import {
   getCellEditorView,
   hasOnlyOneCellAtom,
+  notebookAtom,
   useCellActions,
 } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { saveCellConfig } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
+import { store } from "@/core/state/jotai";
 import { useEventListener } from "@/hooks/useEventListener";
 import type { ActionButton } from "../actions/types";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
@@ -106,6 +108,28 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
 
   const moveSelectedCells = useEvent(
     (cellIds: CellId[], direction: "up" | "down") => {
+      /// If moving down, make sure the last cell is not at the bottom of the notebook
+      if (direction === "down") {
+        const lastCellId = cellIds[cellIds.length - 1];
+        const notebook = store.get(notebookAtom);
+        const isLast =
+          notebook.cellIds.findWithId(lastCellId).last() === lastCellId;
+        if (isLast) {
+          return;
+        }
+      }
+
+      // If moving up, make sure the first cell is not at the top of the notebook
+      if (direction === "up") {
+        const firstCellId = cellIds[0];
+        const notebook = store.get(notebookAtom);
+        const isFirst =
+          notebook.cellIds.findWithId(firstCellId).first() === firstCellId;
+        if (isFirst) {
+          return;
+        }
+      }
+
       // Move cells in the appropriate order to maintain relative positions
       const sortedCells = direction === "up" ? cellIds : [...cellIds].reverse();
       sortedCells.forEach((cellId) => {

@@ -585,7 +585,8 @@ const EditableCellComponent = ({
     stopped: stopped,
     disabled: cellConfig.disabled,
     stale: status === "disabled-transitively",
-    borderless: isMarkdownCodeHidden && hasOutput,
+    borderless:
+      isMarkdownCodeHidden && hasOutput && !navigationProps["data-selected"],
   });
 
   const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
