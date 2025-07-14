@@ -1,44 +1,58 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { EditorView } from "@codemirror/view";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
-import { useCellActions } from "@/core/cells/cells";
+import { aiCompletionCellAtom } from "@/core/ai/state";
+import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { hotkeysAtom, keymapPresetAtom } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
+import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
+import { derefNotNull } from "@/utils/dereference";
 import { Events } from "@/utils/events";
+import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useRunCell } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
 import { focusCell, focusCellEditor } from "./focus-manager";
 import { temporarilyShownCodeAtom } from "./state";
 
-/**
- * Props for cell keyboard navigation,
- * to manage focus and selection.
- *
- * Handles both keyboard and mouse navigation.
- *
- * Includes some relevant Jupyter command mode:
- * https://jupyter-notebook.readthedocs.io/en/stable/examples/Notebook/Notebook%20Basics.html#Keyboard-Navigation
- */
-export function useCellNavigationProps(cellId: CellId) {
-  const setLastFocusedCellId = useSetLastFocusedCellId();
-  const { saveOrNameNotebook } = useSaveNotebook();
-  const actions = useCellActions();
-  const store = useStore();
-  const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
-  const runCell = useRunCell(cellId);
-  const keymapPreset = useAtomValue(keymapPresetAtom);
-  const { copyCell, pasteCell } = useCellClipboard();
-  const hotkeys = useAtomValue(hotkeysAtom);
+interface HotkeyHandler {
+  handle: (cellId: CellId) => boolean;
+  bulkHandle: (cellIds: CellId[]) => boolean;
+}
 
-  const isShortcutPressed = (
-    shortcut: HotkeyAction,
-    evt: React.KeyboardEvent<HTMLElement>,
-  ) => parseShortcut(hotkeys.getHotkey(shortcut).key)(evt.nativeEvent || evt);
+/**
+ * Wraps a hotkey handler to support bulk handling.
+ *
+ * If a handler fails mid-way, the bulk handling will stop.
+ */
+function supportBulkHandle(handler: HotkeyHandler["handle"]): HotkeyHandler {
+  return {
+    handle: (cellId) => {
+      return handler(cellId);
+    },
+    bulkHandle: (cellIds) => {
+      let success = true;
+      try {
+        for (const cellId of cellIds) {
+          success = success && handler(cellId);
+        }
+        return success;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
+function useCellFocusProps(cellId: CellId) {
+  const setLastFocusedCellId = useSetLastFocusedCellId();
+  const actions = useCellActions();
+  const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -53,25 +67,53 @@ export function useCellNavigationProps(cellId: CellId) {
     },
   });
 
+  return focusWithinProps;
+}
+
+/**
+ * Props for cell keyboard navigation,
+ * to manage focus and selection.
+ *
+ * Handles both keyboard and mouse navigation.
+ *
+ * Includes some relevant Jupyter command mode:
+ * https://jupyter-notebook.readthedocs.io/en/stable/examples/Notebook/Notebook%20Basics.html#Keyboard-Navigation
+ */
+export function useCellNavigationProps(
+  cellId: CellId,
+  {
+    canMoveX,
+    editorView,
+    cellActionDropdownRef,
+  }: {
+    canMoveX: boolean;
+    editorView: React.RefObject<EditorView | null>;
+    cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>;
+  },
+) {
+  const { saveOrNameNotebook } = useSaveNotebook();
+  const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
+  const actions = useCellActions();
+  const store = useStore();
+  const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
+  const runCell = useRunCell(cellId);
+  const keymapPreset = useAtomValue(keymapPresetAtom);
+  const { copyCell, pasteCell } = useCellClipboard();
+  const hotkeys = useAtomValue(hotkeysAtom);
+
+  const isShortcutPressed = (
+    shortcut: HotkeyAction,
+    evt: React.KeyboardEvent<HTMLElement>,
+  ) => parseShortcut(hotkeys.getHotkey(shortcut).key)(evt.nativeEvent || evt);
+
+  // Callbacks occur at the cell level and descedants.
+  const focusWithinProps = useCellFocusProps(cellId);
+
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
       // Event came from an input, do nothing.
       if (Events.fromInput(evt)) {
         evt.continuePropagation();
-        return;
-      }
-
-      // Copy cell
-      if (isShortcutPressed("command.copyCell", evt)) {
-        copyCell(cellId);
-        evt.preventDefault();
-        return;
-      }
-
-      // Paste cell
-      if (isShortcutPressed("command.pasteCell", evt)) {
-        pasteCell(cellId);
-        evt.preventDefault();
         return;
       }
 
@@ -86,6 +128,34 @@ export function useCellNavigationProps(cellId: CellId) {
           return;
         }
       }
+
+      // Enter will focus the cell editor.
+      if (evt.key === "Enter" && !Events.hasModifier(evt)) {
+        setTemporarilyShownCode(true);
+        focusCellEditor(store, cellId);
+        // Prevent default to prevent an new line from being created.
+        evt.preventDefault();
+        return;
+      }
+
+      // Saving
+      if (evt.key === "s" && !Events.hasModifier(evt)) {
+        saveOrNameNotebook();
+        return;
+      }
+
+      // j/k movement in vim mode.
+      if (keymapPreset === "vim") {
+        if (evt.key === "j" && !Events.hasModifier(evt)) {
+          actions.focusCell({ cellId, before: false });
+          return;
+        }
+        if (evt.key === "k" && !Events.hasModifier(evt)) {
+          actions.focusCell({ cellId, before: true });
+          return;
+        }
+      }
+
       // Down arrow moves to the next cell.
       if (evt.key === "ArrowDown" && !Events.hasModifier(evt)) {
         actions.focusCell({ cellId, before: false });
@@ -97,60 +167,157 @@ export function useCellNavigationProps(cellId: CellId) {
         return;
       }
 
-      // Shift-Enter will run the cell and move to the next cell.
-      if (isShortcutPressed("cell.runAndNewBelow", evt)) {
-        runCell();
-        actions.focusCell({ cellId, before: false });
-        evt.preventDefault();
-        return;
-      }
-
-      // Enter will focus the cell editor.
-      if (evt.key === "Enter") {
-        setTemporarilyShownCode(true);
-        focusCellEditor(store, cellId);
-        // Prevent default to prevent an new line from being created.
-        evt.preventDefault();
-        return;
-      }
-
-      // Saving
-      if (evt.key === "s") {
-        saveOrNameNotebook();
-        return;
-      }
-
-      // Create cell before
-      if (
-        isShortcutPressed("command.createCellBefore", evt) &&
-        !Events.hasModifier(evt)
-      ) {
-        actions.createNewCell({
-          cellId,
-          before: true,
-          autoFocus: true,
-        });
-      }
-      // Create cell after
-      if (
-        isShortcutPressed("command.createCellAfter", evt) &&
-        !Events.hasModifier(evt)
-      ) {
-        actions.createNewCell({
-          cellId,
-          before: false,
-          autoFocus: true,
-        });
-      }
-
-      // j/k movement in vim mode.
-      if (keymapPreset === "vim") {
-        if (evt.key === "j" && !Events.hasModifier(evt)) {
+      // Shortcuts
+      const shortcuts: Partial<
+        Record<HotkeyAction, HotkeyHandler["handle"] | HotkeyHandler>
+      > = {
+        // Cell actions
+        "cell.run": () => {
+          runCell();
+          return true;
+        },
+        "cell.runAndNewBelow": (cellId) => {
+          runCell();
+          actions.moveToNextCell({ cellId, before: false });
+          return true;
+        },
+        "cell.runAndNewAbove": () => {
+          runCell();
+          actions.moveToNextCell({ cellId, before: true });
+          return true;
+        },
+        "cell.createAbove": (cellId) => {
+          actions.createNewCell({ cellId, before: true });
+          return true;
+        },
+        "cell.createBelow": (cellId) => {
+          actions.createNewCell({ cellId, before: false });
+          return true;
+        },
+        "cell.moveUp": (cellId) => {
+          actions.moveCell({ cellId, before: true });
+          return true;
+        },
+        "cell.moveDown": (cellId) => {
+          actions.moveCell({ cellId, before: false });
+          return true;
+        },
+        "cell.moveLeft": (cellId) => {
+          if (canMoveX) {
+            actions.moveCell({ cellId, direction: "left" });
+            return true;
+          }
+          return false;
+        },
+        "cell.moveRight": (cellId) => {
+          if (canMoveX) {
+            actions.moveCell({ cellId, direction: "right" });
+            return true;
+          }
+          return false;
+        },
+        "cell.hideCode": supportBulkHandle((cellId) => {
+          const cellConfig = store.get(notebookAtom).cellData[cellId]?.config;
+          if (!cellConfig) {
+            return false;
+          }
+          const nextHideCode = !cellConfig.hide_code;
+          // Fire-and-forget
+          void saveCellConfig({
+            configs: { [cellId]: { hide_code: nextHideCode } },
+          });
+          actions.updateCellConfig({
+            cellId,
+            config: { hide_code: nextHideCode },
+          });
           actions.focusCell({ cellId, before: false });
-          return;
-        }
-        if (evt.key === "k" && !Events.hasModifier(evt)) {
+          if (nextHideCode) {
+            // Move focus from the editor to the cell
+            editorView.current?.contentDOM.blur();
+            focusCell(cellId);
+          } else {
+            focusCellEditor(store, cellId);
+          }
+          return true;
+        }),
+        "cell.focusDown": (cellId) => {
+          actions.focusCell({ cellId, before: false });
+          return true;
+        },
+        "cell.focusUp": (cellId) => {
           actions.focusCell({ cellId, before: true });
+          return true;
+        },
+        "cell.sendToBottom": (cellId) => {
+          actions.sendToBottom({ cellId });
+          return true;
+        },
+        "cell.sendToTop": (cellId) => {
+          actions.sendToTop({ cellId });
+          return true;
+        },
+        "cell.aiCompletion": (cellId) => {
+          let closed = false;
+          setAiCompletionCell((v) => {
+            // Toggle close
+            if (v?.cellId === cellId) {
+              closed = true;
+              return null;
+            }
+            return { cellId };
+          });
+          if (closed) {
+            derefNotNull(editorView).focus();
+          }
+          return true;
+        },
+        "cell.cellActions": () => {
+          cellActionDropdownRef.current?.toggle();
+          return true;
+        },
+
+        // Command mode
+        "command.copyCell": () => {
+          copyCell(cellId);
+          return true;
+        },
+        "command.pasteCell": () => {
+          pasteCell(cellId);
+          return true;
+        },
+        "command.createCellBefore": (cellId) => {
+          if (Events.hasModifier(evt)) {
+            return false;
+          }
+          actions.createNewCell({ cellId, before: true, autoFocus: true });
+          return true;
+        },
+        "command.createCellAfter": (cellId) => {
+          if (Events.hasModifier(evt)) {
+            return false;
+          }
+          actions.createNewCell({ cellId, before: false, autoFocus: true });
+          return true;
+        },
+      };
+
+      // Handle the shortcut
+      for (const [shortcut, handler] of Object.entries(shortcuts)) {
+        if (isShortcutPressed(shortcut as HotkeyAction, evt)) {
+          if (handler instanceof Function) {
+            const success = handler(cellId);
+            if (success) {
+              evt.preventDefault();
+              return;
+            }
+          } else {
+            // TODO: Support bulk handling once we have multi-select.
+            const success = handler.handle(cellId);
+            if (success) {
+              evt.preventDefault();
+              return;
+            }
+          }
           return;
         }
       }
