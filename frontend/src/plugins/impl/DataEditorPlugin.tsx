@@ -12,7 +12,11 @@ import { DATA_TYPES } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
-import type { DataEditorProps, Edits } from "./data-editor/types";
+import {
+  BulkEdit,
+  type DataEditorProps,
+  type Edits,
+} from "./data-editor/types";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
@@ -48,7 +52,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           ]),
         )
         .nullish(),
-      columnSizingMode: z.enum(["auto", "fit"]).default("auto"),
+      columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
   )
   .withFunctions({})
@@ -116,7 +120,7 @@ const LoadingDataEditor = (props: Props) => {
     <LazyDataEditor
       data={data}
       fieldTypes={props.fieldTypes}
-      edits={props.edits.edits}
+      edits={props.edits.edits} // TODO: This is returning old edits upon refresh
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}
@@ -129,6 +133,36 @@ const LoadingDataEditor = (props: Props) => {
           })),
         );
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...newEdits] }));
+      }}
+      onDeleteRows={(rowIndexes) => {
+        props.onEdits((v) => {
+          const newEdits = rowIndexes.map((rowIdx, index) => ({
+            rowIdx: rowIdx - index,
+            type: BulkEdit.Remove,
+          }));
+          return {
+            ...v,
+            edits: [...v.edits, ...newEdits],
+          };
+        });
+      }}
+      onRenameColumn={(columnIdx: number, newName: string) => {
+        props.onEdits((v) => ({
+          ...v,
+          edits: [...v.edits, { columnIdx, newName, type: BulkEdit.Rename }],
+        }));
+      }}
+      onDeleteColumn={(columnIdx: number) => {
+        props.onEdits((v) => ({
+          ...v,
+          edits: [...v.edits, { columnIdx, type: BulkEdit.Remove }],
+        }));
+      }}
+      onAddColumn={(columnIdx: number, newName: string) => {
+        props.onEdits((v) => ({
+          ...v,
+          edits: [...v.edits, { columnIdx, newName, type: BulkEdit.Insert }],
+        }));
       }}
     />
   );
