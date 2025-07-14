@@ -43,6 +43,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "PyWCSTools": "astLib",
         "Pyxides": "astro-pyxis",
         "pysideuic": "PySide",
+        "psycopg2": "psycopg2-binary",
         "S3": "s3cmd",
         "SCons": "pystick",
         "Stemmer": "PyStemmer",
