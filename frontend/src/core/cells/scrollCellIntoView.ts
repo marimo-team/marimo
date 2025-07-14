@@ -4,7 +4,7 @@ import type { CellHandle } from "@/components/editor/Cell";
 import {
   isAnyCellFocused,
   tryFocus,
-} from "@/components/editor/focus/focus-manager";
+} from "@/components/editor/navigation/focus-utils";
 import { retryWithTimeout } from "@/utils/timeout";
 import { Logger } from "../../utils/Logger";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";

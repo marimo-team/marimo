@@ -1,16 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 // @vitest-environment jsdom
 
+import type { EditorView } from "@codemirror/view";
 import { act, renderHook } from "@testing-library/react";
+import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
 import type { CellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { useCellEditorNavigationProps, useCellNavigationProps } from "../focus";
+import type { CellActionsDropdownHandle } from "../../cell/cell-actions";
+import {
+  useCellEditorNavigationProps,
+  useCellNavigationProps,
+} from "../navigation";
 
 // Mock only the essential dependencies that we need to control
-vi.mock("@/core/cells/cells", () => ({
+vi.mock("@/core/cells/cells", async (importOriginal) => ({
+  ...(await importOriginal()),
   useCellActions: vi.fn(),
 }));
 
@@ -30,7 +37,7 @@ vi.mock("../clipboard", () => ({
   useCellClipboard: vi.fn(),
 }));
 
-vi.mock("../focus-manager", () => ({
+vi.mock("../focus-utils", () => ({
   focusCellEditor: vi.fn(),
   focusCell: vi.fn(),
 }));
@@ -52,7 +59,7 @@ const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
 
-import { focusCell, focusCellEditor } from "../focus-manager";
+import { focusCell, focusCellEditor } from "../focus-utils";
 
 describe("useCellNavigationProps", () => {
   const mockCellId = "test-cell-id" as CellId;
@@ -90,9 +97,17 @@ describe("useCellNavigationProps", () => {
     });
   });
 
+  const options = {
+    canMoveX: false,
+    editorView: createRef<EditorView>(),
+    cellActionDropdownRef: createRef<CellActionsDropdownHandle>(),
+  };
+
   describe("keyboard shortcuts", () => {
     it("should copy cell when 'c' key is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "c" });
 
@@ -108,7 +123,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should paste cell when 'v' key is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "v" });
 
@@ -123,7 +140,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should move to next cell when ArrowDown is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "ArrowDown" });
 
@@ -140,7 +159,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should move to previous cell when ArrowUp is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "ArrowUp" });
 
@@ -157,7 +178,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should focus cell editor when Enter is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Enter", shiftKey: false });
 
@@ -175,7 +198,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should run cell and move to next when Shift+Enter is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Enter", shiftKey: true });
 
@@ -186,7 +211,7 @@ describe("useCellNavigationProps", () => {
       });
 
       expect(mockRunCell).toHaveBeenCalled();
-      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+      expect(mockCellActions.moveToNextCell).toHaveBeenCalledWith({
         cellId: mockCellId,
         before: false,
       });
@@ -194,7 +219,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should save notebook when 's' key is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "s" });
 
@@ -208,7 +235,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should create cell before when 'a' key is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "a" });
 
@@ -226,7 +255,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should create cell after when 'b' key is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "b" });
 
@@ -244,7 +275,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should move to top cell when Cmd+ArrowUp is pressed (or Ctrl)", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "ArrowUp", ctrlKey: true });
 
@@ -258,7 +291,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should move to bottom cell when Cmd+ArrowDown is pressed (or Ctrl)", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({
         key: "ArrowDown",
@@ -275,7 +310,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should move to top cell when Ctrl+ArrowUp is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({ key: "ArrowUp", ctrlKey: true });
 
@@ -289,7 +326,9 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should move to bottom cell when Ctrl+ArrowDown is pressed", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({
         key: "ArrowDown",
@@ -308,7 +347,9 @@ describe("useCellNavigationProps", () => {
 
   describe("input event handling", () => {
     it("should ignore events from input elements", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({
         key: "c",
@@ -328,7 +369,9 @@ describe("useCellNavigationProps", () => {
 
   describe("unknown keys", () => {
     it("should continue propagation for unknown keys", () => {
-      const { result } = renderHook(() => useCellNavigationProps(mockCellId));
+      const { result } = renderHook(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
 
       const mockEvent = Mocks.keyboardEvent({
         key: "x",

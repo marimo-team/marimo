@@ -2,7 +2,7 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
-import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ScopeProvider } from "jotai-scope";
 import {
   HelpCircleIcon,
@@ -33,9 +33,8 @@ import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
-import { saveCellConfig, sendStdin } from "@/core/network/requests";
+import { sendStdin } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
-import { useHotkeysOnElement } from "@/hooks/useHotkey";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
 import type { Milliseconds, Seconds } from "@/utils/time";
@@ -73,9 +72,9 @@ import { RunButton } from "./cell/RunButton";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
-import { useCellNavigationProps } from "./focus/focus";
-import { focusCell, focusCellEditor } from "./focus/focus-manager";
-import { temporarilyShownCodeAtom } from "./focus/state";
+import { useCellNavigationProps } from "./navigation/navigation";
+
+import { temporarilyShownCodeAtom } from "./navigation/state";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
@@ -132,93 +131,6 @@ function useCellCompletion(
     closeCompletionHandler,
     resumeCompletionHandler,
   };
-}
-
-/**
- * Hook for handling cell hotkeys
- */
-function useCellHotkeys({
-  cellRef,
-  cellId,
-  runCell,
-  actions,
-  canMoveX,
-  cellConfig,
-  editorView,
-  setAiCompletionCell,
-  cellActionDropdownRef,
-}: {
-  cellRef: React.RefObject<HTMLDivElement | null> | null;
-  cellId: CellId;
-  runCell: () => void;
-  actions: CellComponentActions;
-  canMoveX: boolean;
-  cellConfig: CellConfig;
-  editorView: React.RefObject<EditorView | null>;
-  setAiCompletionCell: ReturnType<
-    typeof useSetAtom<typeof aiCompletionCellAtom>
-  >;
-  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>;
-}) {
-  const store = useStore();
-  useHotkeysOnElement(cellRef, {
-    "cell.run": runCell,
-    "cell.runAndNewBelow": () => {
-      runCell();
-      actions.moveToNextCell({ cellId, before: false });
-    },
-    "cell.runAndNewAbove": () => {
-      runCell();
-      actions.moveToNextCell({ cellId, before: true });
-    },
-    "cell.createAbove": () => actions.createNewCell({ cellId, before: true }),
-    "cell.createBelow": () => actions.createNewCell({ cellId, before: false }),
-    "cell.moveUp": () => actions.moveCell({ cellId, before: true }),
-    "cell.moveDown": () => actions.moveCell({ cellId, before: false }),
-    "cell.moveLeft": () =>
-      canMoveX ? actions.moveCell({ cellId, direction: "left" }) : undefined,
-    "cell.moveRight": () =>
-      canMoveX ? actions.moveCell({ cellId, direction: "right" }) : undefined,
-    "cell.hideCode": () => {
-      const nextHideCode = !cellConfig.hide_code;
-      // Fire-and-forget
-      void saveCellConfig({
-        configs: { [cellId]: { hide_code: nextHideCode } },
-      });
-      actions.updateCellConfig({ cellId, config: { hide_code: nextHideCode } });
-      actions.focusCell({ cellId, before: false });
-      if (nextHideCode) {
-        // Move focus from the editor to the cell
-        editorView.current?.contentDOM.blur();
-        focusCell(cellId);
-      } else {
-        focusCellEditor(store, cellId);
-      }
-    },
-    "cell.focusDown": () =>
-      actions.moveToNextCell({ cellId, before: false, noCreate: true }),
-    "cell.focusUp": () =>
-      actions.moveToNextCell({ cellId, before: true, noCreate: true }),
-    "cell.sendToBottom": () => actions.sendToBottom({ cellId }),
-    "cell.sendToTop": () => actions.sendToTop({ cellId }),
-    "cell.aiCompletion": () => {
-      let closed = false;
-      setAiCompletionCell((v) => {
-        // Toggle close
-        if (v?.cellId === cellId) {
-          closed = true;
-          return null;
-        }
-        return { cellId };
-      });
-      if (closed) {
-        derefNotNull(editorView).focus();
-      }
-    },
-    "cell.cellActions": () => {
-      cellActionDropdownRef.current?.toggle();
-    },
-  });
 }
 
 /**
@@ -590,20 +502,12 @@ const EditableCellComponent = ({
     editorViewParentRef,
   });
 
-  // Hotkey listeners
-  useCellHotkeys({
-    cellRef,
-    cellId,
-    runCell,
-    actions,
+  // Hotkey and focus props
+  const navigationProps = useCellNavigationProps(cellId, {
     canMoveX,
-    cellConfig,
     editorView,
-    setAiCompletionCell,
     cellActionDropdownRef,
   });
-
-  const navigationProps = useCellNavigationProps(cellId);
   const canCollapse = canCollapseOutline(outline);
   const hasOutput = !isOutputEmpty(output);
   const hasConsoleOutput = consoleOutputs.length > 0;
@@ -1140,20 +1044,12 @@ const SetupCellComponent = ({
     editorView,
   );
 
-  // Hotkey listeners
-  useCellHotkeys({
-    cellRef,
-    cellId,
-    runCell,
-    actions,
+  // Hotkeys and focus props
+  const navigationProps = useCellNavigationProps(cellId, {
     canMoveX,
-    cellConfig,
     editorView,
-    setAiCompletionCell,
     cellActionDropdownRef,
   });
-
-  const navigationProps = useCellNavigationProps(cellId);
   const hasOutput = !isOutputEmpty(output);
   const hasConsoleOutput = consoleOutputs.length > 0;
   const isErrorOutput = isErrorMime(output?.mimetype);
