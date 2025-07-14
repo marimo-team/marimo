@@ -444,7 +444,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -462,7 +462,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });

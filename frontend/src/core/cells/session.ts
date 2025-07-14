@@ -5,6 +5,7 @@ import { mergeArray } from "@/utils/edit-distance";
 import { MultiColumn } from "@/utils/id-tree";
 import { Logger } from "@/utils/Logger";
 import { parseOutline } from "../dom/outline";
+import type { NotebookState } from "./cells";
 import { CellId } from "./ids";
 import {
   type CellData,
@@ -238,7 +239,7 @@ function createCellRuntimeFromSession(
 export function notebookStateFromSession(
   session: api.Session["NotebookSessionV1"] | null | undefined,
   notebook: api.Notebook["NotebookV1"] | null | undefined,
-) {
+): NotebookState | null {
   // Merge session and notebook cells using edit distance
   const { cellIds, sessionCellData, notebookCellData } =
     mergeSessionAndNotebookCells(session, notebook);
