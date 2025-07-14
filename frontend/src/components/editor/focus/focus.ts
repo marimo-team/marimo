@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
@@ -12,7 +12,7 @@ import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
 import { useRunCell } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
-import { useCellFocusManager } from "./focus-manager";
+import { focusCell, focusCellEditor } from "./focus-manager";
 import { temporarilyShownCodeAtom } from "./state";
 
 /**
@@ -28,8 +28,8 @@ export function useCellNavigationProps(cellId: CellId) {
   const setLastFocusedCellId = useSetLastFocusedCellId();
   const { saveOrNameNotebook } = useSaveNotebook();
   const actions = useCellActions();
+  const store = useStore();
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
-  const focusManager = useCellFocusManager();
   const runCell = useRunCell(cellId);
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const { copyCell, pasteCell } = useCellClipboard();
@@ -49,6 +49,7 @@ export function useCellNavigationProps(cellId: CellId) {
     onBlurWithin: () => {
       // On blur, hide the code if it was temporarily shown.
       setTemporarilyShownCode(false);
+      actions.markTouched({ cellId });
     },
   });
 
@@ -107,7 +108,7 @@ export function useCellNavigationProps(cellId: CellId) {
       // Enter will focus the cell editor.
       if (evt.key === "Enter") {
         setTemporarilyShownCode(true);
-        focusManager.focusCellEditor(cellId);
+        focusCellEditor(store, cellId);
         // Prevent default to prevent an new line from being created.
         evt.preventDefault();
         return;
@@ -169,13 +170,12 @@ export function useCellNavigationProps(cellId: CellId) {
  */
 export function useCellEditorNavigationProps(cellId: CellId) {
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
-  const focusManager = useCellFocusManager();
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
       if (evt.key === "Escape") {
         setTemporarilyShownCode(false);
-        focusManager.focusCell(cellId);
+        focusCell(cellId);
       }
 
       evt.continuePropagation();

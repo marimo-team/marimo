@@ -2,7 +2,7 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { ScopeProvider } from "jotai-scope";
 import {
   HelpCircleIcon,
@@ -16,6 +16,7 @@ import {
   memo,
   useCallback,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -38,7 +39,11 @@ import { useHotkeysOnElement } from "@/hooks/useHotkey";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
 import type { Milliseconds, Seconds } from "@/utils/time";
-import { type CellActions, SETUP_CELL_ID } from "../../core/cells/cells";
+import {
+  type CellActions,
+  createUntouchedCellAtom,
+  SETUP_CELL_ID,
+} from "../../core/cells/cells";
 import type { CellId } from "../../core/cells/ids";
 import type { CellData, CellRuntimeState } from "../../core/cells/types";
 import { isUninstantiated } from "../../core/cells/utils";
@@ -69,7 +74,7 @@ import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
 import { useCellNavigationProps } from "./focus/focus";
-import { useCellFocusManager } from "./focus/focus-manager";
+import { focusCell, focusCellEditor } from "./focus/focus-manager";
 import { temporarilyShownCodeAtom } from "./focus/state";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
@@ -155,8 +160,7 @@ function useCellHotkeys({
   >;
   cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>;
 }) {
-  const focusManager = useCellFocusManager();
-
+  const store = useStore();
   useHotkeysOnElement(cellRef, {
     "cell.run": runCell,
     "cell.runAndNewBelow": () => {
@@ -182,12 +186,13 @@ function useCellHotkeys({
         configs: { [cellId]: { hide_code: nextHideCode } },
       });
       actions.updateCellConfig({ cellId, config: { hide_code: nextHideCode } });
+      actions.focusCell({ cellId, before: false });
       if (nextHideCode) {
         // Move focus from the editor to the cell
         editorView.current?.contentDOM.blur();
-        focusManager.focusCell(cellId);
+        focusCell(cellId);
       } else {
-        focusManager.focusCellEditor(cellId);
+        focusCellEditor(store, cellId);
       }
     },
     "cell.focusDown": () =>
@@ -217,13 +222,20 @@ function useCellHotkeys({
 }
 
 /**
- * Hook for handling hidden cell logic
+ * Hook for handling hidden cell logic.
+ *
+ * The code is shown if:
+ * - hide_code is false
+ * - the cell-editor is focused (temporarily shown)
+ * - the cell is newly created (untouched)
  */
 function useCellHiddenLogic({
+  cellId,
   cellConfig,
   languageAdapter,
   editorView,
 }: {
+  cellId: CellId;
   cellConfig: CellConfig;
   languageAdapter: LanguageAdapterType | undefined;
   editorView: React.RefObject<EditorView | null>;
@@ -232,9 +244,13 @@ function useCellHiddenLogic({
   const [temporarilyVisible, setTemporarilyVisible] = useAtom(
     temporarilyShownCodeAtom,
   );
+  const isUntouched = useAtomValue(
+    useMemo(() => createUntouchedCellAtom(cellId), [cellId]),
+  );
 
   // The cell code is shown if the cell is not configured to be hidden or if the code is temporarily visible (i.e. when focused).
-  const isCellCodeShown = !cellConfig.hide_code || temporarilyVisible;
+  const isCellCodeShown =
+    !cellConfig.hide_code || temporarilyVisible || isUntouched;
   const isMarkdown = languageAdapter === "markdown";
   const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
 
@@ -567,6 +583,7 @@ const EditableCellComponent = ({
     showHiddenCode,
     showHiddenCodeIfMarkdown,
   } = useCellHiddenLogic({
+    cellId,
     cellConfig,
     languageAdapter,
     editorView,
@@ -943,11 +960,13 @@ const CellLeftSideActions = (props: {
 }) => {
   const { className, connectionState, actions, cellId } = props;
 
-  const createBelow = useEvent((opts: { code?: string } = {}) =>
-    actions.createNewCell({ cellId, before: false, ...opts }),
+  const createBelow = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: false, ...opts }),
   );
-  const createAbove = useEvent((opts: { code?: string } = {}) =>
-    actions.createNewCell({ cellId, before: true, ...opts }),
+  const createAbove = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: true, ...opts }),
   );
 
   const isConnected = isAppConnected(connectionState);

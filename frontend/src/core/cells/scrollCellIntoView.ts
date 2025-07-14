@@ -5,21 +5,21 @@ import {
   isAnyCellFocused,
   tryFocus,
 } from "@/components/editor/focus/focus-manager";
+import { retryWithTimeout } from "@/utils/timeout";
 import { Logger } from "../../utils/Logger";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
-import type { CellConfig } from "../network/types";
 import { type CellId, HTMLCellId } from "./ids";
 
 export function focusAndScrollCellIntoView({
   cellId,
   cell,
-  config,
+  isCodeHidden,
   codeFocus,
   variableName,
 }: {
   cellId: CellId;
   cell: RefObject<CellHandle | null>;
-  config: CellConfig;
+  isCodeHidden: boolean;
   codeFocus: "top" | "bottom" | undefined;
   variableName: string | undefined;
 }) {
@@ -41,21 +41,34 @@ export function focusAndScrollCellIntoView({
   }
 
   // If the cell's code is hidden, just focus the cell and not the editor.
-  if (config.hide_code) {
+  if (isCodeHidden) {
     // Focus the parent element, as this is the one with the event handlers.
     // https://github.com/marimo-team/marimo/issues/2940
     tryFocus(element);
   } else {
     const editor = cell.current?.editorView;
     if (!editor) {
+      console.warn("scrollCellIntoView: editor not found", cellId);
       return;
     }
     // If already focused, do nothing.
     if (editor.hasFocus) {
+      console.warn("scrollCellIntoView: editor already focused", cellId);
       return;
     }
 
-    editor.focus();
+    // Try to focus a few times
+    retryWithTimeout(
+      () => {
+        editor.focus();
+        return editor.hasFocus;
+      },
+      {
+        retries: 5,
+        delay: 20,
+      },
+    );
+
     if (codeFocus === "top") {
       // If codeFocus is top, move the cursor to the top of the editor.
       editor.dispatch({
