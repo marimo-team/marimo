@@ -329,16 +329,6 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
           ))}
           <Separator />
           <CellStateDropdown actions={moreActions} cellIds={cellIds} />
-          <Separator />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => selectionActions.clear()}
-            className="h-8 px-2"
-            title="Clear selection"
-          >
-            Clear
-          </Button>
         </div>
       </div>
     </div>

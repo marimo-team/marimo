@@ -324,28 +324,48 @@ export function useCellNavigationProps(
           }
           return false;
         }),
-        "cell.hideCode": addBulkHandler((cellId) => {
-          const cellConfig = store.get(notebookAtom).cellData[cellId]?.config;
-          if (!cellConfig) {
-            return false;
-          }
-          const nextHideCode = !cellConfig.hide_code;
+        "cell.hideCode": addSingleHandler((cellIds) => {
+          // Get the cell configs
+          const cellConfigs = cellIds.map((cellId) => {
+            const cellConfig = store.get(notebookAtom).cellData[cellId]?.config;
+            if (!cellConfig) {
+              return null;
+            }
+            return cellConfig;
+          });
+
+          // Toggle to the same value for all cells
+          const nextHideCode = !cellConfigs.every(
+            (config) => config?.hide_code,
+          );
+
           // Fire-and-forget
           void saveCellConfig({
-            configs: { [cellId]: { hide_code: nextHideCode } },
+            configs: Object.fromEntries(
+              cellIds.map((cellId) => [cellId, { hide_code: nextHideCode }]),
+            ),
           });
-          actions.updateCellConfig({
-            cellId,
-            config: { hide_code: nextHideCode },
-          });
-          actions.focusCell({ cellId, before: false });
-          if (nextHideCode) {
-            // Move focus from the editor to the cell
-            editorView.current?.contentDOM.blur();
-            focusCell(cellId);
-          } else {
-            focusCellEditor(store, cellId);
+
+          for (const cellId of cellIds) {
+            actions.updateCellConfig({
+              cellId,
+              config: { hide_code: nextHideCode },
+            });
           }
+
+          // Only focus if it is a single cell
+          if (cellIds.length === 1) {
+            const cellId = cellIds[0];
+            actions.focusCell({ cellId, before: false });
+            if (nextHideCode) {
+              // Move focus from the editor to the cell
+              editorView.current?.contentDOM.blur();
+              focusCell(cellId);
+            } else {
+              focusCellEditor(store, cellId);
+            }
+          }
+
           return true;
         }),
         "cell.focusDown": (cellId) => {
