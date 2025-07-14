@@ -156,9 +156,7 @@ export function useCellNavigationProps(
         }
       }
 
-      // --- Selection ---
-      // Shift-Up/Down extends the selection.
-      if (evt.key === "ArrowUp" && evt.shiftKey) {
+      const handleSelectUp = () => {
         // Select self
         const allCellIds = store.get(cellIdsAtom);
         selectionActions.extend({ cellId, allCellIds });
@@ -170,8 +168,8 @@ export function useCellNavigationProps(
         // Focus the cell
         actions.focusCell({ cellId, before: true });
         return;
-      }
-      if (evt.key === "ArrowDown" && evt.shiftKey) {
+      };
+      const handleSelectDown = () => {
         // Select self
         const allCellIds = store.get(cellIdsAtom);
         selectionActions.extend({ cellId, allCellIds });
@@ -182,6 +180,27 @@ export function useCellNavigationProps(
         }
         // Focus the cell
         actions.focusCell({ cellId, before: false });
+        return;
+      };
+      const handleMoveUp = () => {
+        actions.focusCell({ cellId, before: true });
+        selectionActions.clear();
+        return;
+      };
+      const handleMoveDown = () => {
+        actions.focusCell({ cellId, before: false });
+        selectionActions.clear();
+        return;
+      };
+
+      // --- Selection ---
+      // Shift-Up/Down extends the selection.
+      if (evt.key === "ArrowUp" && evt.shiftKey) {
+        handleSelectUp();
+        return;
+      }
+      if (evt.key === "ArrowDown" && evt.shiftKey) {
+        handleSelectDown();
         return;
       }
       if (evt.key === "Escape") {
@@ -209,23 +228,33 @@ export function useCellNavigationProps(
       // j/k movement in vim mode.
       if (keymapPreset === "vim") {
         if (evt.key === "j" && !Events.hasModifier(evt)) {
-          actions.focusCell({ cellId, before: false });
+          handleMoveDown();
           return;
         }
         if (evt.key === "k" && !Events.hasModifier(evt)) {
-          actions.focusCell({ cellId, before: true });
+          handleMoveUp();
+          return;
+        }
+
+        // Shift-j/k extends the selection.
+        if (evt.key === "J" && evt.shiftKey) {
+          handleSelectDown();
+          return;
+        }
+        if (evt.key === "K" && evt.shiftKey) {
+          handleSelectUp();
           return;
         }
       }
 
       // Down arrow moves to the next cell.
       if (evt.key === "ArrowDown" && !Events.hasModifier(evt)) {
-        actions.focusCell({ cellId, before: false });
+        handleMoveDown();
         return;
       }
       // Up arrow moves to the previous cell.
       if (evt.key === "ArrowUp" && !Events.hasModifier(evt)) {
-        actions.focusCell({ cellId, before: true });
+        handleMoveUp();
         return;
       }
 

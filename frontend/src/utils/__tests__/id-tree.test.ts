@@ -551,8 +551,8 @@ describe("CollapsibleTree", () => {
     expect(tree.before("three")).toBe("two");
     expect(tree.before("four")).toBe("three");
 
-    // Edge case - first node wraps around to last (using Array.at(-1))
-    expect(tree.before("one")).toBe("four");
+    // Edge case - first node should return undefined
+    expect(tree.before("one")).toBeUndefined();
 
     // Edge case - non-existent node should throw
     expect(() => tree.before("nonexistent")).toThrow(
@@ -566,7 +566,7 @@ describe("CollapsibleTree", () => {
     // Should return previous top-level node
     expect(collapsed.before("two")).toBe("one");
     expect(collapsed.before("four")).toBe("two");
-    expect(collapsed.before("one")).toBe("four");
+    expect(collapsed.before("one")).toBeUndefined();
 
     // Should throw for collapsed children that aren't top-level
     expect(() => collapsed.before("three")).toThrow();
@@ -581,7 +581,7 @@ describe("CollapsibleTree", () => {
   it("handles after/before on single element tree", () => {
     const singleTree = CollapsibleTree.from(["single"]);
     expect(singleTree.after("single")).toBeUndefined();
-    expect(singleTree.before("single")).toBe("single"); // wraps around to itself
+    expect(singleTree.before("single")).toBeUndefined();
   });
 
   it("handles split correctly", () => {

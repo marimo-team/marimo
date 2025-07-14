@@ -436,18 +436,24 @@ export class CollapsibleTree<T> {
   }
 
   /**
-   * Get the next node after the given node
+   * Get the next node after the given node, does not wrap.
    */
   after(id: T): T | undefined {
     const index = this.indexOfOrThrow(id);
+    if (index === this.nodes.length - 1) {
+      return undefined;
+    }
     return this.at(index + 1);
   }
 
   /**
-   * Get the previous node before the given node
+   * Get the previous node before the given node, does not wrap.
    */
   before(id: T): T | undefined {
     const index = this.indexOfOrThrow(id);
+    if (index === 0) {
+      return undefined;
+    }
     return this.at(index - 1);
   }
 
