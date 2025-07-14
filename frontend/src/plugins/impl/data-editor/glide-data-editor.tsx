@@ -462,6 +462,8 @@ export const GlideDataEditor = <T,>({
     }
   };
 
+  const isLastColumn = menu?.col === columns.length - 1;
+
   // There is a guarantee that only one column's menu is open (as interaction is disabled outside of the menu)
   const isMenuOpen = menu !== undefined;
   const iconClassName = "mr-2 h-3.5 w-3.5";
@@ -548,13 +550,16 @@ export const GlideDataEditor = <T,>({
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem
-              onClick={handleDeleteColumn}
-              className="text-destructive focus:text-destructive"
-            >
-              <TrashIcon className={iconClassName} />
-              Delete column
-            </DropdownMenuItem>
+            {/* There is a bug `undefined (reading 'headerRowMarkerDisabled')` when deleting the last column. So we temporarily disable it. */}
+            {!isLastColumn && (
+              <DropdownMenuItem
+                onClick={handleDeleteColumn}
+                className="text-destructive focus:text-destructive"
+              >
+                <TrashIcon className={iconClassName} />
+                Delete column
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
