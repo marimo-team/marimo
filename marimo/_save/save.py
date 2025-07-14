@@ -67,7 +67,7 @@ if TYPE_CHECKING:
 
 
 class _cache_call:
-    """Like functools.cache but notebook-aware. See `cache` docstring`"""
+    """Like functools.cache but notebook-aware. See `cache` docstring"""
 
     base_block: BlockHasher
     scope: dict[str, Any]
