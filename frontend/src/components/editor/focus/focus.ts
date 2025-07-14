@@ -5,7 +5,7 @@ import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
-import { keymapPresetAtom } from "@/core/config/config";
+import { hotkeysAtom, keymapPresetAtom } from "@/core/config/config";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
 import { useRunCell } from "../cell/useRunCells";
@@ -30,6 +30,7 @@ export function useCellNavigationProps(cellId: CellId) {
   const focusManager = useCellFocusManager();
   const runCell = useRunCell(cellId);
   const keymapPreset = useAtomValue(keymapPresetAtom);
+  const hotkeys = useAtomValue(hotkeysAtom);
   const { copyCell, pasteCell } = useCellClipboard();
 
   // This occurs at the cell level and descedants.
@@ -112,7 +113,10 @@ export function useCellNavigationProps(cellId: CellId) {
       }
 
       // Create cell before
-      if (evt.key === "a" && !Events.hasModifier(evt)) {
+      if (
+        hotkeys.getHotkey("command.createCellBefore").key &&
+        !Events.hasModifier(evt)
+      ) {
         actions.createNewCell({
           cellId,
           before: true,
@@ -120,7 +124,10 @@ export function useCellNavigationProps(cellId: CellId) {
         });
       }
       // Create cell after
-      if (evt.key === "b" && !Events.hasModifier(evt)) {
+      if (
+        hotkeys.getHotkey("command.createCellAfter").key &&
+        !Events.hasModifier(evt)
+      ) {
         actions.createNewCell({
           cellId,
           before: false,

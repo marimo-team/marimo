@@ -42,6 +42,7 @@ export type HotkeyGroup =
   | "Navigation"
   | "Editing"
   | "Markdown"
+  | "Command"
   | "Other";
 
 const DEFAULT_HOT_KEY = {
@@ -379,6 +380,20 @@ const DEFAULT_HOT_KEY = {
     name: "Move completion selection up",
     group: "Editing",
     key: "Ctrl-k",
+  },
+
+  // Command mode (edit a cell, not the editor)
+  "command.createCellBefore": {
+    name: "Create a cell before current cell",
+    group: "Command",
+    key: "a",
+    editable: false,
+  },
+  "command.createCellAfter": {
+    name: "Create a cell after current cell",
+    group: "Command",
+    key: "b",
+    editable: false,
   },
 } satisfies Record<string, Hotkey>;
 

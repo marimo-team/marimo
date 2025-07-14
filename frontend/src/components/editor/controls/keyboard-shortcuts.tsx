@@ -235,16 +235,26 @@ export const KeyboardShortcuts: React.FC = () => {
   };
 
   const groups = hotkeys.getHotkeyGroups();
-  const renderGroup = (group: HotkeyGroup) => {
+  const renderGroup = (group: HotkeyGroup, subHeader?: React.ReactNode) => {
     const items = groups[group];
     return (
       <div className="mb-[40px] gap-2 flex flex-col">
-        <h3 className="text-lg font-medium">{group}</h3>
-
-        {items.map((item) => renderItem(item))}
+        <div>
+          <h3 className="text-lg font-medium">{group}</h3>
+          {subHeader}
+        </div>
+        {items.map(renderItem)}
       </div>
     );
   };
+
+  const renderCommandGroup = (group: HotkeyGroup) =>
+    renderGroup(
+      group,
+      <p className="text-xs text-muted-foreground">
+        Press <kbd>Esc</kbd> in a cell to enter command mode
+      </p>,
+    );
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(open)}>
@@ -268,9 +278,10 @@ export const KeyboardShortcuts: React.FC = () => {
               {renderGroup("Navigation")}
               {renderGroup("Running Cells")}
               {renderGroup("Creation and Ordering")}
+              {renderCommandGroup("Command")}
               {renderGroup("Other")}
               <Button
-                className="mt-4 hover:bg-destructive/10 hover:border-destructive"
+                className="mt-4 hover:bg-destructive/10 border-destructive hover:border-destructive"
                 variant="outline"
                 size="xs"
                 onClick={handleResetAllShortcuts}
