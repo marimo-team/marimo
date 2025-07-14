@@ -553,7 +553,7 @@ describe("useCellNavigationProps - Bulk Selection", () => {
 
     it("should move single cell when no selection", () => {
       const { result } = renderWithProvider(() =>
-        useCellNavigationProps(cellId1, options),
+        useCellNavigationProps(cellId2, options),
       );
 
       const mockEvent = Mocks.keyboardEvent({
@@ -569,10 +569,52 @@ describe("useCellNavigationProps - Bulk Selection", () => {
       });
 
       expect(mockCellActions.moveCell).toHaveBeenCalledWith({
-        cellId: cellId1,
+        cellId: cellId2,
         before: true,
       });
       expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("doesn't move the cell if it's at the top of the notebook", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "9",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        if (result.current.onKeyDown) {
+          result.current.onKeyDown(mockEvent);
+        }
+      });
+
+      expect(mockCellActions.moveCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it("doesn't move the cell if it's at the bottom of the notebook", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId3, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "0",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        if (result.current.onKeyDown) {
+          result.current.onKeyDown(mockEvent);
+        }
+      });
+
+      expect(mockCellActions.moveCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
     });
   });
 

@@ -335,12 +335,17 @@ export function useCellNavigationProps(
           actions.focusCell({ cellId, before: true });
           return true;
         },
-        "cell.sendToBottom": addBulkHandler((cellId) => {
-          actions.sendToBottom({ cellId });
+        "cell.sendToBottom": addSingleHandler((cellIds) => {
+          cellIds.forEach((cellId) => {
+            actions.sendToBottom({ cellId });
+          });
           return true;
         }),
-        "cell.sendToTop": addBulkHandler((cellId) => {
-          actions.sendToTop({ cellId });
+        "cell.sendToTop": addSingleHandler((cellIds) => {
+          // Send in reverse order to maintain relative positions
+          [...cellIds].reverse().forEach((cellId) => {
+            actions.sendToTop({ cellId });
+          });
           return true;
         }),
         "cell.aiCompletion": (cellId) => {
