@@ -415,6 +415,10 @@ describe("useCellNavigationProps", () => {
     });
 
     it("should clear selection when Escape is pressed", () => {
+      // Add selection
+      const selectionActions = setupSelection();
+      selectionActions.select({ cellId: mockCellId });
+
       const { result } = renderWithProvider(() =>
         useCellNavigationProps(mockCellId, options),
       );
@@ -425,9 +429,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      // We can't easily test selectionActions.clear() directly,
-      // but we can test that the event was handled
-      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
 
     it("should set temporarily shown code when Enter is pressed", () => {

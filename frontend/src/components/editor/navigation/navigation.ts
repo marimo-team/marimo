@@ -92,6 +92,8 @@ function useCellFocusProps(cellId: CellId) {
   return focusWithinProps;
 }
 
+type KeymapHandlers = Record<string, () => boolean>;
+
 /**
  * Props for cell keyboard navigation,
  * to manage focus and selection.
@@ -142,120 +144,110 @@ export function useCellNavigationProps(
         return;
       }
 
-      // Mod+Up/Down moves to the top/bottom of the notebook.
-      if (Events.isMetaOrCtrl(evt)) {
-        if (evt.key === "ArrowUp") {
+      const keymaps = {
+        // Move to the top of the notebook.
+        "Mod+ArrowUp": () => {
           actions.focusTopCell();
           selectionActions.clear();
-          return;
-        }
-        if (evt.key === "ArrowDown") {
+          return true;
+        },
+        // Move to the bottom of the notebook.
+        "Mod+ArrowDown": () => {
           actions.focusBottomCell();
           selectionActions.clear();
-          return;
+          return true;
+        },
+        // Move up
+        ArrowUp: () => {
+          actions.focusCell({ cellId, before: true });
+          selectionActions.clear();
+          return true;
+        },
+        // Move down
+        ArrowDown: () => {
+          actions.focusCell({ cellId, before: false });
+          selectionActions.clear();
+          return true;
+        },
+        // Select up
+        "Shift+ArrowUp": () => {
+          // Select self
+          const allCellIds = store.get(cellIdsAtom);
+          selectionActions.extend({ cellId, allCellIds });
+          // Select to where focus is going
+          const beforeCellId = allCellIds.findWithId(cellId).before(cellId);
+          if (beforeCellId) {
+            selectionActions.extend({ cellId: beforeCellId, allCellIds });
+          }
+          // Focus the cell
+          actions.focusCell({ cellId, before: true });
+          return true;
+        },
+        // Select down
+        "Shift+ArrowDown": () => {
+          // Select self
+          const allCellIds = store.get(cellIdsAtom);
+          selectionActions.extend({ cellId, allCellIds });
+          // Select to where focus is going
+          const afterCellId = allCellIds.findWithId(cellId).after(cellId);
+          if (afterCellId) {
+            selectionActions.extend({ cellId: afterCellId, allCellIds });
+          }
+          // Focus the cell
+          actions.focusCell({ cellId, before: false });
+          return true;
+        },
+        // Clear selection
+        Escape: () => {
+          if (isSelected) {
+            selectionActions.clear();
+            return true;
+          }
+          return false;
+        },
+        // Enter will focus the cell editor.
+        Enter: () => {
+          setTemporarilyShownCode(true);
+          focusCellEditor(store, cellId);
+          selectionActions.clear();
+          return true;
+        },
+        // Command mode: Saving
+        s: () => {
+          saveOrNameNotebook();
+          return true;
+        },
+      } satisfies KeymapHandlers;
+
+      // Handle keymaps.
+      for (const [key, handler] of Object.entries(keymaps)) {
+        if (parseShortcut(key)(evt)) {
+          const success = handler();
+          if (success) {
+            evt.preventDefault();
+            return;
+          }
         }
       }
 
-      const handleSelectUp = () => {
-        // Select self
-        const allCellIds = store.get(cellIdsAtom);
-        selectionActions.extend({ cellId, allCellIds });
-        // Select to where focus is going
-        const beforeCellId = allCellIds.findWithId(cellId).before(cellId);
-        if (beforeCellId) {
-          selectionActions.extend({ cellId: beforeCellId, allCellIds });
-        }
-        // Focus the cell
-        actions.focusCell({ cellId, before: true });
-        return;
-      };
-      const handleSelectDown = () => {
-        // Select self
-        const allCellIds = store.get(cellIdsAtom);
-        selectionActions.extend({ cellId, allCellIds });
-        // Select to where focus is going
-        const afterCellId = allCellIds.findWithId(cellId).after(cellId);
-        if (afterCellId) {
-          selectionActions.extend({ cellId: afterCellId, allCellIds });
-        }
-        // Focus the cell
-        actions.focusCell({ cellId, before: false });
-        return;
-      };
-      const handleMoveUp = () => {
-        actions.focusCell({ cellId, before: true });
-        selectionActions.clear();
-        return;
-      };
-      const handleMoveDown = () => {
-        actions.focusCell({ cellId, before: false });
-        selectionActions.clear();
-        return;
-      };
-
-      // --- Selection ---
-      // Shift-Up/Down extends the selection.
-      if (evt.key === "ArrowUp" && evt.shiftKey) {
-        handleSelectUp();
-        return;
-      }
-      if (evt.key === "ArrowDown" && evt.shiftKey) {
-        handleSelectDown();
-        return;
-      }
-      if (evt.key === "Escape") {
-        // Clear selection on Esc
-        selectionActions.clear();
-        return;
-      }
-
-      // Enter will focus the cell editor.
-      if (evt.key === "Enter" && !Events.hasModifier(evt)) {
-        setTemporarilyShownCode(true);
-        focusCellEditor(store, cellId);
-        selectionActions.clear();
-        // Prevent default to prevent an new line from being created.
-        evt.preventDefault();
-        return;
-      }
-
-      // Saving
-      if (evt.key === "s" && !Events.hasModifier(evt)) {
-        saveOrNameNotebook();
-        return;
-      }
-
-      // j/k movement in vim mode.
+      // Keymaps when using vim.
       if (keymapPreset === "vim") {
-        if (evt.key === "j" && !Events.hasModifier(evt)) {
-          handleMoveDown();
-          return;
-        }
-        if (evt.key === "k" && !Events.hasModifier(evt)) {
-          handleMoveUp();
-          return;
-        }
+        const vimKeymaps = {
+          j: keymaps.ArrowDown,
+          k: keymaps.ArrowUp,
+          "Shift+j": keymaps["Shift+ArrowDown"],
+          "Shift+k": keymaps["Shift+ArrowUp"],
+        } satisfies KeymapHandlers;
 
-        // Shift-j/k extends the selection.
-        if (evt.key === "J" && evt.shiftKey) {
-          handleSelectDown();
-          return;
+        for (const [key, handler] of Object.entries(vimKeymaps)) {
+          if (parseShortcut(key)(evt)) {
+            const success = handler();
+            if (success) {
+              evt.preventDefault();
+              return;
+            }
+          }
         }
-        if (evt.key === "K" && evt.shiftKey) {
-          handleSelectUp();
-          return;
-        }
-      }
-
-      // Down arrow moves to the next cell.
-      if (evt.key === "ArrowDown" && !Events.hasModifier(evt)) {
-        handleMoveDown();
-        return;
-      }
-      // Up arrow moves to the previous cell.
-      if (evt.key === "ArrowUp" && !Events.hasModifier(evt)) {
-        handleMoveUp();
-        return;
       }
 
       // Shortcuts

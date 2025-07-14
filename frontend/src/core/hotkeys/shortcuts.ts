@@ -21,7 +21,12 @@ export function isPlatformMac() {
   return /mac/i.test(platform);
 }
 
-function areKeysPressed(keys: string[], e: KeyboardEvent): boolean {
+type IKeyboardEvent = Pick<
+  KeyboardEvent,
+  "key" | "shiftKey" | "ctrlKey" | "metaKey" | "altKey" | "code"
+>;
+
+function areKeysPressed(keys: string[], e: IKeyboardEvent): boolean {
   let satisfied = true;
   for (const key of keys) {
     switch (key) {
@@ -90,7 +95,7 @@ function normalizeKey(key: string): string {
  */
 export function parseShortcut(
   shortcut: string | typeof NOT_SET,
-): (e: KeyboardEvent) => boolean {
+): (e: IKeyboardEvent) => boolean {
   // Handle empty shortcut, e.g. not set
   if (shortcut === NOT_SET || shortcut === "") {
     return () => false;
@@ -98,5 +103,5 @@ export function parseShortcut(
 
   const separator = shortcut.includes("+") ? "+" : "-";
   const keys = shortcut.split(separator).map(normalizeKey);
-  return (e: KeyboardEvent) => areKeysPressed(keys, e);
+  return (e: IKeyboardEvent) => areKeysPressed(keys, e);
 }
