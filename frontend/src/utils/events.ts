@@ -72,4 +72,14 @@ export const Events = {
           e.target.closest(".cm-editor") !== null)) // Add check for CodeMirror editor
     );
   },
+
+  hasModifier: (
+    e: Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
+  ) => {
+    return e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
+  },
+
+  isMetaOrCtrl: (e: Pick<KeyboardEvent, "metaKey" | "ctrlKey">) => {
+    return e.metaKey || e.ctrlKey;
+  },
 };

@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { TestUtils } from "@/__tests__/test-helpers";
 import type { Base64String } from "@/utils/json/base64";
 import {
   type AnyWidgetMessage,
@@ -145,7 +146,7 @@ describe("Model", () => {
       model.send({ test: true }, callback);
 
       expect(sendToWidget).toHaveBeenCalledWith({ content: { test: true } });
-      await new Promise((resolve) => setTimeout(resolve, 0)); // flush
+      await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledWith(null);
     });
 
@@ -219,7 +220,7 @@ describe("Model", () => {
       const callback = vi.fn();
       model.on("change", callback);
       model.updateAndEmitDiffs({ foo: "changed", bar: 456 });
-      await new Promise((resolve) => setTimeout(resolve, 0)); // flush
+      await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledTimes(1);
     });
   });

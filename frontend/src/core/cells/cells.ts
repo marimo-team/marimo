@@ -426,11 +426,13 @@ const {
     }
 
     const cellId = column.first();
-    const cellData = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId];
-    if (!cellData.config.hide_code) {
-      cellHandle.current?.editorView.focus();
-    }
+    focusAndScrollCellIntoView({
+      cellId: cellId,
+      cell: state.cellHandles[cellId],
+      config: state.cellData[cellId].config,
+      codeFocus: undefined,
+      variableName: undefined,
+    });
     scrollToTop();
     return state;
   },
@@ -442,11 +444,13 @@ const {
     }
 
     const cellId = column.last();
-    const cellData = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId];
-    if (!cellData.config.hide_code) {
-      cellHandle.current?.editorView.focus();
-    }
+    focusAndScrollCellIntoView({
+      cellId: cellId,
+      cell: state.cellHandles[cellId],
+      config: state.cellData[cellId].config,
+      codeFocus: undefined,
+      variableName: undefined,
+    });
     scrollToBottom();
     return state;
   },
