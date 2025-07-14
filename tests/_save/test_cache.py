@@ -1295,6 +1295,141 @@ class TestCacheDecorator:
         # Verify cache hits
         assert k.globals["pos_only_func"].hits == 1
 
+    async def test_cache_decorator_method_wrap(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    class MyClass:
+                        def __init__(self, x):
+                            self.x = x
+                        @cache
+                        def method(self, y):
+                            return self.x + y
+
+                    case_a = MyClass(0).method
+                    case_b = MyClass(1).method
+                    case_c = MyClass(1).method
+                    result1 = case_a(2)
+                    hash1 = case_a._last_hash
+                    result2 = case_b(2)
+                    hash2 = case_b._last_hash
+                    result3 = case_c(2)
+                    hash3 = case_c._last_hash
+
+                    base_hash = MyClass.method._last_hash
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stdout.messages, k.stdout.messages
+        assert not k.stderr.messages, k.stderr.messages
+
+        # Verify results
+        assert k.globals["result1"] == 2  # 0 + 2
+        assert k.globals["result2"] == 3  # 1 + 2
+        assert k.globals["result3"] == 3  # 1 + 2
+        assert k.globals["hash1"] != k.globals["hash2"]
+        assert k.globals["hash2"] == k.globals["hash3"]
+        # Since self.loader is shared, the lookup dict is shared.
+        assert k.globals["case_a"].hits == 1
+        assert k.globals["case_b"].hits == 1
+        assert k.globals["case_c"].hits == 1
+        assert k.globals["base_hash"] is None
+
+    async def test_cache_static_decorator_method_wrap(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    class MyClass:
+
+                        @staticmethod
+                        @cache
+                        def static_method(x, y):
+                            return x + y
+
+
+                    case_a = MyClass().static_method
+                    case_b = MyClass().static_method
+                    case_c = MyClass.static_method
+                    result1 = case_a(1, 2)
+                    hash1 = case_a._last_hash
+                    result2 = case_b(2, 1)
+                    hash2 = case_b._last_hash
+                    result3 = case_c(1, 2)
+                    hash3 = case_c._last_hash
+                    base_hash = MyClass.static_method._last_hash
+                    """
+                ),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout.messages
+        assert not k.stderr.messages, k.stderr.messages
+
+        # Verify results
+        assert k.globals["result1"] == 3
+        assert k.globals["result2"] == 3
+        assert k.globals["result3"] == 3
+        assert k.globals["hash1"] != k.globals["hash2"]
+        assert k.globals["hash1"] == k.globals["hash3"]
+        assert k.globals["base_hash"] is not None
+
+    async def test_cache_class_decorator_method_wrap(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    class MyClass:
+                        @classmethod
+                        @cache
+                        def class_method(cls, x, y):
+                            return x + y
+                    case_a = MyClass().class_method
+                    case_b = MyClass().class_method
+                    case_c = MyClass.class_method
+                    result1 = case_a(1, 2)
+                    hash1 = case_a._last_hash
+                    result2 = case_b(2, 1)
+                    hash2 = case_b._last_hash
+                    result3 = case_c(1, 2)
+                    hash3 = case_c._last_hash
+                    base_hash = MyClass.class_method._last_hash
+                    """
+                ),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout.messages
+        assert not k.stderr.messages, k.stderr.messages
+
+        # Verify results
+        assert k.globals["result1"] == 3
+        assert k.globals["result2"] == 3
+        assert k.globals["result3"] == 3
+        assert k.globals["hash1"] != k.globals["hash2"]
+        assert k.globals["hash1"] == k.globals["hash3"]
+        assert k.globals["case_c"]._last_hash is not None
+
+        # NB. base_hash has dfifferent behavior than the others on python 3.13+
+        # 3.13 has base_hash == hash1, while <3.13 has base_hash != None
+        if sys.version_info >= (3, 13):
+            assert k.globals["base_hash"] == k.globals["hash1"]
+        else:
+            assert k.globals["base_hash"] is None
+
     async def test_cross_cell_cache(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
