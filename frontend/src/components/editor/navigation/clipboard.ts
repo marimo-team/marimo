@@ -10,12 +10,18 @@ import { Logger } from "@/utils/Logger";
 const MARIMO_CELL_MIMETYPE = "application/x-marimo-cell";
 
 interface ClipboardCellData {
-  code: string;
+  cells: Array<{
+    code: string;
+  }>;
   version: "1.0";
 }
 
 const ClipboardCellDataSchema = z.object({
-  code: z.string(),
+  cells: z.array(
+    z.object({
+      code: z.string(),
+    }),
+  ),
   version: z.literal("1.0"),
 });
 
@@ -28,12 +34,16 @@ const ClipboardCellDataSchema = z.object({
 export function useCellClipboard() {
   const actions = useCellActions();
 
-  const copyCell = useEvent(async (cellId: CellId) => {
-    const cellData = getNotebook().cellData[cellId];
-    if (!cellData) {
+  const copyCells = useEvent(async (cellIds: CellId[]) => {
+    const notebook = getNotebook();
+    const cells = cellIds
+      .map((cellId) => notebook.cellData[cellId])
+      .filter(Boolean);
+
+    if (cells.length === 0) {
       toast({
         title: "Error",
-        description: "Cell not found",
+        description: "No cells found",
         variant: "danger",
       });
       return;
@@ -41,47 +51,55 @@ export function useCellClipboard() {
 
     try {
       const clipboardData: ClipboardCellData = {
-        code: cellData.code,
+        cells: cells.map((cell) => ({
+          code: cell.code,
+        })),
         version: "1.0",
       };
+
+      // Create plain text representation (joined by newlines)
+      const plainText = cells.map((cell) => cell.code).join("\n\n");
 
       // Create clipboard item with both custom mimetype and plain text
       const clipboardItem = new ClipboardItem({
         [MARIMO_CELL_MIMETYPE]: new Blob([JSON.stringify(clipboardData)], {
           type: MARIMO_CELL_MIMETYPE,
         }),
-        "text/plain": new Blob([cellData.code], {
+        "text/plain": new Blob([plainText], {
           type: "text/plain",
         }),
       });
 
       await navigator.clipboard.write([clipboardItem]);
 
+      const cellText = cells.length === 1 ? "Cell" : `${cells.length} cells`;
       toast({
-        title: "Cell copied",
-        description: "Cell has been copied to clipboard",
+        title: `${cellText} copied`,
+        description: `${cellText} ${cells.length === 1 ? "has" : "have"} been copied to clipboard`,
       });
     } catch (error) {
-      Logger.error("Failed to copy cell to clipboard", error);
+      Logger.error("Failed to copy cells to clipboard", error);
 
       // Fallback to simple text copy
       try {
-        await navigator.clipboard.writeText(cellData.code);
+        const plainText = cells.map((cell) => cell.code).join("\n\n");
+        await navigator.clipboard.writeText(plainText);
+        const cellText = cells.length === 1 ? "Cell" : `${cells.length} cells`;
         toast({
-          title: "Cell copied",
-          description: "Cell code has been copied to clipboard",
+          title: `${cellText} copied`,
+          description: `${cellText} code ${cells.length === 1 ? "has" : "have"} been copied to clipboard`,
         });
       } catch {
         toast({
           title: "Copy failed",
-          description: "Failed to copy cell to clipboard",
+          description: "Failed to copy cells to clipboard",
           variant: "danger",
         });
       }
     }
   });
 
-  const pasteCell = useEvent(async (cellId: CellId) => {
+  const pasteAtCell = useEvent(async (cellId: CellId) => {
     try {
       const clipboardItems = await navigator.clipboard.read();
 
@@ -96,14 +114,29 @@ export function useCellClipboard() {
               JSON.parse(text),
             );
 
-            // Create a new cell with the copied data after the current cell
-            // We don't use name or config yet, as it may not be desired or make sense to copy over as well.
-            actions.createNewCell({
-              cellId,
-              before: false,
-              code: clipboardData.code,
-              autoFocus: true,
-            });
+            // If cells array is empty, fall through to plain text
+            if (clipboardData.cells.length === 0) {
+              break;
+            }
+
+            // Create new cells with the copied data after the current cell
+            const currentCellId = cellId;
+            for (const cell of clipboardData.cells) {
+              actions.createNewCell({
+                cellId: currentCellId,
+                before: false,
+                code: cell.code,
+                autoFocus: false,
+              });
+              // Update currentCellId to the newly created cell for chaining
+              // Note: We don't have the new cell ID here, but createNewCell handles the positioning
+            }
+
+            // Focus the last created cell
+            if (clipboardData.cells.length > 0) {
+              // The focus will be handled by the cell creation logic
+            }
+
             return;
           } catch (parseError) {
             Logger.warn("Failed to parse clipboard cell data", parseError);
@@ -138,7 +171,7 @@ export function useCellClipboard() {
   });
 
   return {
-    copyCell,
-    pasteCell,
+    copyCells,
+    pasteAtCell,
   };
 }

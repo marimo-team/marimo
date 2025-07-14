@@ -231,6 +231,14 @@ export class CollapsibleTree<T> {
   }
 
   /**
+   * Get the top level nodes in the given range.
+   * This does not include descendants.
+   */
+  slice(start: number, end: number): T[] {
+    return this.nodes.slice(start, end).map((n) => n.value);
+  }
+
+  /**
    * Move the given node to the front
    */
   moveToFront(id: T): CollapsibleTree<T> {
@@ -425,6 +433,22 @@ export class CollapsibleTree<T> {
    */
   last(): T {
     return this.atOrThrow(this.nodes.length - 1);
+  }
+
+  /**
+   * Get the next node after the given node
+   */
+  after(id: T): T | undefined {
+    const index = this.indexOfOrThrow(id);
+    return this.at(index + 1);
+  }
+
+  /**
+   * Get the previous node before the given node
+   */
+  before(id: T): T | undefined {
+    const index = this.indexOfOrThrow(id);
+    return this.at(index - 1);
   }
 
   /**

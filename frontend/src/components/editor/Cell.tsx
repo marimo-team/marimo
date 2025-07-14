@@ -73,7 +73,6 @@ import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
 import { useCellNavigationProps } from "./navigation/navigation";
-
 import { temporarilyShownCodeAtom } from "./navigation/state";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
@@ -636,6 +635,7 @@ const EditableCellComponent = ({
             {...navigationProps}
             className={cn(
               className,
+              navigationProps.className,
               "focus:ring-1 focus:ring-[var(--blue-7)] focus:ring-offset-0",
             )}
             ref={cellContainerRef}
@@ -1094,10 +1094,10 @@ const SetupCellComponent = ({
         name={name}
       >
         <div
-          className={className}
           data-status={status}
           ref={cellRef}
           {...mergeProps(navigationProps, {
+            className,
             onBlur: closeCompletionHandler,
             onKeyDown: resumeCompletionHandler,
           })}

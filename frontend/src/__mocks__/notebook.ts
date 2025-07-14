@@ -8,7 +8,10 @@ import { Objects } from "@/utils/objects";
 
 export const MockNotebook = {
   *cellIds() {
-    yield CellId.create();
+    // Some large number to prevent freezing when this function is misused.
+    for (let i = 0; i < 10_000; i++) {
+      yield CellId.create();
+    }
   },
 
   notebookState: (opts?: {

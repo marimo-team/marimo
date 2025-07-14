@@ -42,7 +42,7 @@ export function useRunAllCells() {
 /**
  * Creates a function that runs the given cells.
  */
-function useRunCells() {
+export function useRunCells() {
   const { prepareForRun } = useCellActions();
 
   const runCells = useEvent(async (cellIds: CellId[]) => {

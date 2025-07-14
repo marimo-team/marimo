@@ -481,6 +481,109 @@ describe("CollapsibleTree", () => {
     expect(tree.getDescendants("three")).toMatchInlineSnapshot("[]");
   });
 
+  it("handles slice correctly", () => {
+    // Normal slice in middle
+    expect(tree.slice(1, 3)).toEqual(["two", "three"]);
+
+    // Slice from beginning
+    expect(tree.slice(0, 2)).toEqual(["one", "two"]);
+
+    // Slice to end
+    expect(tree.slice(2, 4)).toEqual(["three", "four"]);
+
+    // Slice entire array
+    expect(tree.slice(0, 4)).toEqual(["one", "two", "three", "four"]);
+
+    // Slice with out-of-bounds end
+    expect(tree.slice(2, 10)).toEqual(["three", "four"]);
+
+    // Slice with negative start (should work like normal array slice)
+    expect(tree.slice(-2, 4)).toEqual(["three", "four"]);
+
+    // Slice with start > end (should return empty array)
+    expect(tree.slice(3, 1)).toEqual([]);
+
+    // Slice with same start and end
+    expect(tree.slice(2, 2)).toEqual([]);
+
+    // Slice single element
+    expect(tree.slice(1, 2)).toEqual(["two"]);
+  });
+
+  it("handles slice with collapsed nodes", () => {
+    const collapsed = tree.collapse("two", "three");
+
+    // Should only return top-level nodes, not descendants
+    expect(collapsed.slice(0, 2)).toEqual(["one", "two"]);
+    expect(collapsed.slice(1, 3)).toEqual(["two", "four"]);
+  });
+
+  it("handles after correctly", () => {
+    // Normal case - get next node
+    expect(tree.after("one")).toBe("two");
+    expect(tree.after("two")).toBe("three");
+    expect(tree.after("three")).toBe("four");
+
+    // Edge case - last node should return undefined
+    expect(tree.after("four")).toBeUndefined();
+
+    // Edge case - non-existent node should throw
+    expect(() => tree.after("nonexistent")).toThrow(
+      "Node nonexistent not found in tree. Valid ids: one,two,three,four",
+    );
+  });
+
+  it("handles after with collapsed nodes", () => {
+    const collapsed = tree.collapse("two", "three");
+
+    // Should return next top-level node
+    expect(collapsed.after("one")).toBe("two");
+    expect(collapsed.after("two")).toBe("four");
+    expect(collapsed.after("four")).toBeUndefined();
+
+    // Should throw for collapsed children that aren't top-level
+    expect(() => collapsed.after("three")).toThrow();
+  });
+
+  it("handles before correctly", () => {
+    // Normal case - get previous node
+    expect(tree.before("two")).toBe("one");
+    expect(tree.before("three")).toBe("two");
+    expect(tree.before("four")).toBe("three");
+
+    // Edge case - first node wraps around to last (using Array.at(-1))
+    expect(tree.before("one")).toBe("four");
+
+    // Edge case - non-existent node should throw
+    expect(() => tree.before("nonexistent")).toThrow(
+      "Node nonexistent not found in tree. Valid ids: one,two,three,four",
+    );
+  });
+
+  it("handles before with collapsed nodes", () => {
+    const collapsed = tree.collapse("two", "three");
+
+    // Should return previous top-level node
+    expect(collapsed.before("two")).toBe("one");
+    expect(collapsed.before("four")).toBe("two");
+    expect(collapsed.before("one")).toBe("four");
+
+    // Should throw for collapsed children that aren't top-level
+    expect(() => collapsed.before("three")).toThrow();
+  });
+
+  it("handles slice on empty tree", () => {
+    const emptyTree = CollapsibleTree.from([]);
+    expect(emptyTree.slice(0, 1)).toEqual([]);
+    expect(emptyTree.slice(0, 0)).toEqual([]);
+  });
+
+  it("handles after/before on single element tree", () => {
+    const singleTree = CollapsibleTree.from(["single"]);
+    expect(singleTree.after("single")).toBeUndefined();
+    expect(singleTree.before("single")).toBe("single"); // wraps around to itself
+  });
+
   it("handles split correctly", () => {
     const [left, right] = tree.split("two");
     expect(left.toString()).toMatchInlineSnapshot(`
