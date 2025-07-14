@@ -184,11 +184,17 @@ export function useCellNavigationProps(
         actions.focusCell({ cellId, before: false });
         return;
       }
+      if (evt.key === "Escape") {
+        // Clear selection on Esc
+        selectionActions.clear();
+        return;
+      }
 
       // Enter will focus the cell editor.
       if (evt.key === "Enter" && !Events.hasModifier(evt)) {
         setTemporarilyShownCode(true);
         focusCellEditor(store, cellId);
+        selectionActions.clear();
         // Prevent default to prevent an new line from being created.
         evt.preventDefault();
         return;
