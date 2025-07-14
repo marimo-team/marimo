@@ -298,7 +298,7 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
       className="fixed bottom-12 justify-center flex w-full left-0 right-0 z-50"
       data-keep-cell-selection={true}
     >
-      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-input rounded-lg shadow-lg p-2 overflow-x-auto overflow-y-hidden mx-20 scrollbar-thin">
+      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-[var(--slate-7)] rounded-lg shadow-lg p-2 overflow-x-auto overflow-y-hidden mx-20 scrollbar-thin">
         <div className="flex items-center gap-1">
           <span className="text-sm font-medium text-muted-foreground px-2 flex-shrink-0">
             {selectedCount} cells selected

@@ -459,7 +459,7 @@ export function useCellNavigationProps(
   return mergeProps(focusWithinProps, keyboardProps, {
     "data-selected": isSelected,
     className:
-      "data-[selected=true]:ring-1 data-[selected=true]:ring-[var(--blue-10)] data-[selected=true]:ring-offset-1",
+      "data-[selected=true]:ring-1 data-[selected=true]:ring-[var(--blue-8)] data-[selected=true]:ring-offset-1",
   });
 }
 
