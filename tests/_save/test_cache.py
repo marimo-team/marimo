@@ -1322,6 +1322,12 @@ class TestCacheDecorator:
                     hash3 = case_c._last_hash
 
                     base_hash = MyClass.method._last_hash
+
+                    obj = MyClass(0)
+                    # __get__ is called in both places.
+                    # Sanity check the functor returned.
+                    get_method_0 = obj.method
+                    get_method_1 = obj.method
                     """
                 ),
             ]
@@ -1341,6 +1347,9 @@ class TestCacheDecorator:
         assert k.globals["case_b"].hits == 1
         assert k.globals["case_c"].hits == 1
         assert k.globals["base_hash"] is None
+
+        # Not per say correct or incorrect; but known, documented behavior.
+        assert k.globals["get_method_0"] != k.globals["get_method_1"]
 
     async def test_cache_static_decorator_method_wrap(
         self, k: Kernel, exec_req: ExecReqProvider

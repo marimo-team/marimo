@@ -69,19 +69,36 @@ if TYPE_CHECKING:
 class _cache_call:
     """Like functools.cache but notebook-aware. See `cache` docstring"""
 
+    __slots__ = (
+        "base_block",
+        "scope",
+        "scoped_refs",
+        "pin_modules",
+        "hash_type",
+        "_args",
+        "_var_arg",
+        "_var_kwarg",
+        "_loader",
+        "_loader_partial",
+        "_bound",
+        "_last_hash",
+        "_frame_offset",
+        "__wrapped__",
+    )
+
     base_block: BlockHasher
     scope: dict[str, Any]
     scoped_refs: set[str]
     pin_modules: bool
     hash_type: str
     _args: list[str]
-    _var_arg: Optional[str] = None
-    _var_kwarg: Optional[str] = None
-    _loader: Optional[State[Loader]] = None
+    _var_arg: Optional[str]
+    _var_kwarg: Optional[str]
+    _loader: Optional[State[Loader]]
     _loader_partial: LoaderPartial
     _bound: Optional[dict[str, Any]]
-    _last_hash: Optional[str] = None
-    _frame_offset: int = 0
+    _last_hash: Optional[str]
+    _frame_offset: int
     # Consistent with functools.cache
     __wrapped__: Optional[Callable[..., Any]]
 
@@ -100,7 +117,10 @@ class _cache_call:
         self.hash_type = hash_type
         self._frame_offset = frame_offset
         self._loader_partial = loader_partial
-        self._last_hash: Optional[str] = None
+        self._last_hash = None
+        self._var_arg = None
+        self._var_kwarg = None
+        self._loader = None
         self._bound = {}
         if _fn is None:
             self.__wrapped__ = None
@@ -214,7 +234,17 @@ class _cache_call:
     def __get__(
         self, instance: Any, _owner: Optional[type] = None
     ) -> _cache_call:
-        if instance is not None:
+        """__get__ is invoked on instance access;
+            e.g. `obj.fn` (__get__ called on `fn`)
+        `instance` is the specific object, while owner is `type(instance)`.
+
+        We check if `bound` is unset as a recursion guard, then create a new
+        instance of _cache_call, copying over the inspection data we have
+        already computed. We notably do not memoize since copying is cheap-
+        additionally updating the parent itself would make the object
+        unpicklable.
+        """
+        if instance is not None and not bool(self._bound):
             if not callable(self.__wrapped__):
                 raise TypeError(
                     f"cache() expected a callable, got {type(self.__wrapped__)} "
