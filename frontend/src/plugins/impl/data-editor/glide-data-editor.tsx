@@ -41,21 +41,18 @@ import {
   isColumnEdit,
   isPositionalEdit,
   isRowEdit,
+  pasteCells,
 } from "./glide-utils";
 import { getGlideTheme } from "./themes";
 import { BulkEdit, type Edits, type ModifiedGridColumn } from "./types";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
-import {
-  copyShortcutPressed,
-  isModifierKey,
-  pasteShortcutPressed,
-} from "@/components/editor/controls/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
+import { Events } from "@/utils/events";
 import {
   insertColumn,
   modifyColumnFields,
@@ -314,28 +311,39 @@ export const GlideDataEditor = <T,>({
   // Paste event does not work so we manually handle it
   const onKeyDown = useCallback(
     (e: GridKeyEventArgs) => {
-      if (dataEditorRef.current) {
-        const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
+      if (!dataEditorRef.current) {
+        return;
+      }
 
-        if (copyShortcutPressed(keyboardEvent)) {
-          dataEditorRef.current.emit("copy");
-        } else if (pasteShortcutPressed(keyboardEvent)) {
-          pasteCells({
-            selection,
-            data,
-            columns,
-            onAddEdits,
-          });
-        }
-      } else if (isModifierKey(keyboardEvent) && keyboardEvent.key === "f") {
+      if (Events.isMetaOrCtrl(e) && e.key === "c") {
+        dataEditorRef.current.emit("copy");
+        return;
+      }
+
+      if (Events.isMetaOrCtrl(e) && e.key === "v") {
+        pasteCells({
+          selection,
+          localData,
+          setLocalData,
+          columns,
+          onAddEdits,
+        });
+        return;
+      }
+
+      if (Events.isMetaOrCtrl(e) && e.key === "f") {
         setShowSearch((prev) => !prev);
         e.stopPropagation();
         e.preventDefault();
-      } else if (keyboardEvent.key === "Escape") {
+        return;
+      }
+
+      if (e.key === "Escape") {
         setShowSearch(false);
+        return;
       }
     },
-    [selection, data, onAddEdits, columns],
+    [columns, localData, onAddEdits, selection],
   );
 
   const onRowAppend = useCallback(() => {
