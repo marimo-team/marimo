@@ -17,7 +17,7 @@ import { Events } from "@/utils/events";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useRunCell } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
-import { focusCell, focusCellEditor } from "./focus-manager";
+import { focusCell, focusCellEditor } from "./focus-utils";
 import { temporarilyShownCodeAtom } from "./state";
 
 interface HotkeyHandler {

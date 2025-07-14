@@ -72,9 +72,9 @@ import { RunButton } from "./cell/RunButton";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
-import { useCellNavigationProps } from "./focus/focus";
+import { useCellNavigationProps } from "./navigation/navigation";
 
-import { temporarilyShownCodeAtom } from "./focus/state";
+import { temporarilyShownCodeAtom } from "./navigation/state";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
