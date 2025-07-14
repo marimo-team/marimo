@@ -128,8 +128,6 @@ class _cache_call:
                 inspect.Parameter.POSITIONAL_ONLY,
             )
         ]
-        # Both varargs and kwargs are are lumped under co_flags;
-        # So extract them if they exist, and handle them explicitly.
         self._var_arg = next(
             (
                 param.name
