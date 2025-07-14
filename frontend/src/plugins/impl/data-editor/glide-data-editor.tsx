@@ -474,8 +474,68 @@ export const GlideDataEditor = <T,>({
     tint: true,
   };
 
-  // For large datasets, we disable smooth scrolling to improve performance
-  const smoothScrolling = !(localData.length > 100_000);
+  const isLargeDataset = localData.length > 100_000;
+
+  const renderDropdownMenu = () => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    const bulkEditItems = (
+      <>
+        <DropdownMenuItem onClick={handleRenameColumn}>
+          <PencilIcon className={iconClassName} />
+          Rename column
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={() => handleAddColumn("left")}>
+          <PlusIcon className={iconClassName} />
+          Add column to the left
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleAddColumn("right")}>
+          <PlusIcon className={iconClassName} />
+          Add column to the right
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        {/* There is a bug `undefined (reading 'headerRowMarkerDisabled')` when deleting the last column. So we temporarily disable it. */}
+        {!isLastColumn && (
+          <DropdownMenuItem
+            onClick={handleDeleteColumn}
+            className="text-destructive focus:text-destructive"
+          >
+            <TrashIcon className={iconClassName} />
+            Delete column
+          </DropdownMenuItem>
+        )}
+      </>
+    );
+
+    return (
+      <DropdownMenu
+        open={isMenuOpen}
+        onOpenChange={(open) => !open && setMenu(undefined)}
+      >
+        <DropdownMenuContent
+          style={{
+            left: menu?.bounds.x ?? 0,
+            top: (menu?.bounds.y ?? 0) + (menu?.bounds.height ?? 0),
+          }}
+          className="fixed w-48"
+        >
+          <DropdownMenuItem onClick={handleCopyColumnName}>
+            <CopyIcon className={iconClassName} />
+            Copy column name
+          </DropdownMenuItem>
+
+          {!isLargeDataset && bulkEditItems}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   return (
     <>
@@ -488,8 +548,8 @@ export const GlideDataEditor = <T,>({
           onGridSelectionChange={setSelection}
           rows={localData.length}
           overscrollX={50} // Adds padding at the end for resizing the last column
-          smoothScrollX={smoothScrolling}
-          smoothScrollY={smoothScrolling}
+          smoothScrollX={!isLargeDataset} // Disable smooth scrolling to improve performance
+          smoothScrollY={!isLargeDataset}
           validateCell={validateCell}
           getCellsForSelection={true}
           onPaste={true}
@@ -514,55 +574,8 @@ export const GlideDataEditor = <T,>({
           maxColumnWidth={600}
         />
       </ErrorBoundary>
+      {renderDropdownMenu()}
 
-      {isMenuOpen && (
-        <DropdownMenu
-          open={isMenuOpen}
-          onOpenChange={(open) => !open && setMenu(undefined)}
-        >
-          <DropdownMenuContent
-            style={{
-              left: menu?.bounds.x ?? 0,
-              top: (menu?.bounds.y ?? 0) + (menu?.bounds.height ?? 0),
-            }}
-            className="fixed w-48"
-          >
-            <DropdownMenuItem onClick={handleCopyColumnName}>
-              <CopyIcon className={iconClassName} />
-              Copy column name
-            </DropdownMenuItem>
-
-            <DropdownMenuItem onClick={handleRenameColumn}>
-              <PencilIcon className={iconClassName} />
-              Rename column
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem onClick={() => handleAddColumn("left")}>
-              <PlusIcon className={iconClassName} />
-              Add column to the left
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleAddColumn("right")}>
-              <PlusIcon className={iconClassName} />
-              Add column to the right
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            {/* There is a bug `undefined (reading 'headerRowMarkerDisabled')` when deleting the last column. So we temporarily disable it. */}
-            {!isLastColumn && (
-              <DropdownMenuItem
-                onClick={handleDeleteColumn}
-                className="text-destructive focus:text-destructive"
-              >
-                <TrashIcon className={iconClassName} />
-                Delete column
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
       <div className="absolute bottom-1 right-2 w-26">
         <Button
           variant="destructive"
