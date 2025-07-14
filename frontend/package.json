@@ -45,7 +45,7 @@
     "@lezer/markdown": "^1.4.3",
     "@lezer/python": "^1.1.18",
     "@marimo-team/codemirror-ai": "^0.1.11",
-    "@marimo-team/codemirror-languageserver": "^1.15.18",
+    "@marimo-team/codemirror-languageserver": "^1.15.19",
     "@marimo-team/marimo-api": "file:../openapi",
     "@marimo-team/react-slotz": "^0.2.0",
     "@mui/material": "^6.4.12",

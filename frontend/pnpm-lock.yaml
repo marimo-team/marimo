@@ -112,8 +112,8 @@ importers:
         specifier: ^0.1.11
         version: 0.1.11(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
       '@marimo-team/codemirror-languageserver':
-        specifier: ^1.15.18
-        version: 1.15.18(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
+        specifier: ^1.15.19
+        version: 1.15.19(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
       '@marimo-team/marimo-api':
         specifier: file:../openapi
         version: file:../openapi
@@ -1601,8 +1601,8 @@ packages:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
 
-  '@marimo-team/codemirror-languageserver@1.15.18':
-    resolution: {integrity: sha512-pPcO5DqBWJR0TJGtqo/j9ILAErsxyqIpa6cPOarirUPzokS1t/Rqbsqo6yJxciQ3deHRI52YER2/gbvNgd2QKw==}
+  '@marimo-team/codemirror-languageserver@1.15.19':
+    resolution: {integrity: sha512-LLozJmWYC+rGqQINpDLcDHY4wxY96d4chmgwjB1DQUbUkCmKJHQS1Im0HgScB5FA289WfkAgQyIC59oYF5+wpw==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -10231,7 +10231,7 @@ snapshots:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.0
 
-  '@marimo-team/codemirror-languageserver@1.15.18(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)':
+  '@marimo-team/codemirror-languageserver@1.15.19(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)':
     dependencies:
       '@codemirror/autocomplete': 6.18.6
       '@codemirror/lint': 6.8.5
