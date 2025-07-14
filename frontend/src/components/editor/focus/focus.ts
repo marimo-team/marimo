@@ -75,13 +75,15 @@ export function useCellNavigationProps(cellId: CellId) {
       }
 
       // Mod+Up/Down moves to the top/bottom of the notebook.
-      if (isShortcutPressed("command.moveToTopCell", evt)) {
-        actions.focusTopCell();
-        return;
-      }
-      if (isShortcutPressed("command.moveToBottomCell", evt)) {
-        actions.focusBottomCell();
-        return;
+      if (Events.isMetaOrCtrl(evt)) {
+        if (evt.key === "ArrowUp") {
+          actions.focusTopCell();
+          return;
+        }
+        if (evt.key === "ArrowDown") {
+          actions.focusBottomCell();
+          return;
+        }
       }
       // Down arrow moves to the next cell.
       if (evt.key === "ArrowDown" && !Events.hasModifier(evt)) {

@@ -403,16 +403,6 @@ const DEFAULT_HOT_KEY = {
     group: "Command",
     key: "v",
   },
-  "command.moveToTopCell": {
-    name: "Move to top cell",
-    group: "Command",
-    key: "Mod-ArrowUp",
-  },
-  "command.moveToBottomCell": {
-    name: "Move to bottom cell",
-    group: "Command",
-    key: "Mod-ArrowDown",
-  },
 } satisfies Record<string, Hotkey>;
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;
