@@ -1423,7 +1423,7 @@ class TestCacheDecorator:
         assert k.globals["hash1"] == k.globals["hash3"]
         assert k.globals["case_c"]._last_hash is not None
 
-        # NB. base_hash has dfifferent behavior than the others on python 3.13+
+        # NB. base_hash has different behavior than the others on python 3.13+
         # 3.13 has base_hash == hash1, while <3.13 has base_hash != None
         if sys.version_info >= (3, 13):
             assert k.globals["base_hash"] == k.globals["hash1"]
