@@ -208,7 +208,7 @@ class AnyProviderConfig:
             return AnyProviderConfig.for_bedrock(config)
         else:
             # OpenAI has a default API that ollama also uses, that is
-            # why it is a catch all at the end here. 
+            # why it is a catch all at the end here.
             return AnyProviderConfig.for_openai(config)
 
 
