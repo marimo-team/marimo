@@ -207,6 +207,8 @@ class AnyProviderConfig:
         elif _model_is_bedrock(model):
             return AnyProviderConfig.for_bedrock(config)
         else:
+            # OpenAI has a default API that ollama also uses, that is
+            # why it is a catch all at the end here. 
             return AnyProviderConfig.for_openai(config)
 
 
@@ -225,6 +227,8 @@ def _get_key(config: Any, name: str) -> str:
         key = config["api_key"]
         if key:
             return cast(str, key)
+    if "http://127.0.0.1:11434/" in config["base_url"]:
+        return "ollama-placeholder"
     raise HTTPException(
         status_code=HTTPStatus.BAD_REQUEST,
         detail=f"{name} API key not configured",
@@ -1030,6 +1034,14 @@ def _model_is_google(model: str) -> bool:
 def _model_is_anthropic(model: str) -> bool:
     return model.startswith("claude")
 
+def _model_is_openai(model: str) -> bool:
+    return model in [  "o3",
+        "o4-mini",
+        "gpt-4.5-preview",
+        "gpt-4.1",
+        "gpt-4o",
+        "gpt-3.5-turbo",
+    ]
 
 def _model_is_bedrock(model: str) -> bool:
     return model.startswith("bedrock/")
