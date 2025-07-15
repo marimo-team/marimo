@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Query } from "compassql/build/src/query";
 import type { VisualizationSpec } from "react-vega";
-import type { NamedData } from "vega-lite/build/src/data";
-import type { FacetedUnitSpec, TopLevel } from "vega-lite/build/src/spec";
+import type { NamedData } from "vega-lite/types_unstable/data.js";
+import type { TopLevel } from "vega-lite/types_unstable/spec/toplevel.js";
+import type { FacetedUnitSpec } from "vega-lite/types_unstable/spec/unit.js";
 import type { EncodingChannel, FieldDefinition } from "../encoding";
 
 export interface PlotFieldInfo {
@@ -27,7 +28,7 @@ export interface Result {
   limit: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-redundant-type-constituents
 export type TopLevelFacetedUnitSpec = TopLevel<FacetedUnitSpec<any, any>> & {
   data: NamedData;
 };

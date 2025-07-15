@@ -1,9 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { Aggregate } from "vega-lite/build/src/aggregate";
-import type { BinParams } from "vega-lite/build/src/bin";
-import type { ColorDef, OffsetDef } from "vega-lite/build/src/channeldef";
-import type { Scale } from "vega-lite/build/src/scale";
+import type { Aggregate } from "vega-lite/types_unstable/aggregate.js";
+import type { BinParams } from "vega-lite/types_unstable/bin.js";
+import type {
+  ColorDef,
+  OffsetDef,
+} from "vega-lite/types_unstable/channeldef.js";
+import type { Scale } from "vega-lite/types_unstable/scale.js";
 import type { z } from "zod";
 import { COUNT_FIELD, DEFAULT_COLOR_SCHEME } from "../constants";
 import type { AxisSchema, BinSchema, ChartSchemaType } from "../schemas";
