@@ -1,58 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
-  type GridCell,
   GridCellKind,
   GridColumnIcon,
   type GridSelection,
 } from "@glideapps/glide-data-grid";
-import { getTabSeparatedValues } from "@/components/data-table/range-focus/utils";
 import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
-import { copyToClipboard } from "@/utils/copy";
-import type { ColumnEdit, Edits, PositionalEdit, RowEdit } from "./types";
-
-// Unused function, but keeping it temporarily if we switch to controlling selection state
-export function copyCells(
-  selection: GridSelection,
-  getCellContent: (cell: [number, number]) => GridCell,
-) {
-  if (!selection.current) {
-    return;
-  }
-
-  const { range } = selection.current;
-  const { x: startCol, y: startRow, width: numCols, height: numRows } = range;
-
-  const cellsToCopy: string[][] = [];
-
-  // Extract cell data from the selected range
-  for (let row = startRow; row < startRow + numRows; row++) {
-    const rowData: string[] = [];
-    for (let col = startCol; col < startCol + numCols; col++) {
-      const cell = getCellContent([col, row]);
-      let cellValue = "";
-
-      switch (cell.kind) {
-        case GridCellKind.Text:
-        case GridCellKind.Number:
-          cellValue = cell.displayData || String(cell.data || "");
-          break;
-        case GridCellKind.Boolean:
-          cellValue = cell.data ? "true" : "false";
-          break;
-        default:
-          cellValue = "data" in cell ? String(cell.data || "") : "";
-      }
-
-      rowData.push(cellValue);
-    }
-    cellsToCopy.push(rowData);
-  }
-
-  const text = getTabSeparatedValues(cellsToCopy);
-  copyToClipboard(text);
-}
+import { Logger } from "@/utils/Logger";
+import type {
+  ColumnEdit,
+  Edits,
+  ModifiedGridColumn,
+  PositionalEdit,
+  RowEdit,
+} from "./types";
 
 export function getColumnKind(fieldType: DataType): GridCellKind {
   switch (fieldType) {
@@ -101,4 +63,129 @@ export function isRowEdit(edit: Edits["edits"][number]): edit is RowEdit {
 
 export function isColumnEdit(edit: Edits["edits"][number]): edit is ColumnEdit {
   return "columnIdx" in edit && "type" in edit;
+}
+
+export function pasteCells<T>(options: {
+  selection: GridSelection;
+  localData: T[];
+  setLocalData: (updater: (prev: T[]) => T[]) => void;
+  columns: ModifiedGridColumn[];
+  onAddEdits: (edits: Edits["edits"]) => void;
+}) {
+  const { selection, localData, setLocalData, onAddEdits, columns } = options;
+  if (!selection.current) {
+    return;
+  }
+
+  const { range } = selection.current;
+  const { x: startCol, y: startRow } = range;
+
+  // Read clipboard data
+  navigator.clipboard
+    .readText()
+    .then((clipboardText) => {
+      if (!clipboardText.trim()) {
+        return;
+      }
+
+      // Parse tab-separated values
+      const rows = clipboardText.split("\n").filter((row) => row.trim());
+      const parsedData: string[][] = [];
+
+      for (const row of rows) {
+        const cells = row.split("\t");
+        parsedData.push(cells);
+      }
+
+      if (parsedData.length === 0) {
+        return;
+      }
+
+      const edits: Edits["edits"] = [];
+
+      for (const [rowIndex, dataRow] of parsedData.entries()) {
+        if (!dataRow) {
+          continue;
+        }
+
+        const targetRowIdx = startRow + rowIndex;
+
+        // Check if we've exceeded the data bounds
+        if (targetRowIdx >= localData.length) {
+          break;
+        }
+
+        for (const [colIndex, cellValue] of dataRow.entries()) {
+          if (cellValue === undefined) {
+            continue;
+          }
+
+          const targetColIdx = startCol + colIndex;
+
+          // Check if we've exceeded the column bounds
+          if (!columns || targetColIdx >= columns.length) {
+            break;
+          }
+
+          const columnType = columns[targetColIdx].dataType;
+
+          // Convert the value based on the cell type
+          let convertedValue: unknown = cellValue;
+
+          switch (columnType) {
+            case "integer":
+            case "number": {
+              const numValue = Number(cellValue);
+              if (Number.isNaN(numValue)) {
+                continue;
+              }
+              convertedValue = numValue;
+              break;
+            }
+            case "boolean": {
+              const boolValue = cellValue.toLowerCase();
+              convertedValue = boolValue === "true" || boolValue === "1";
+              break;
+            }
+          }
+
+          // Get the column ID from the columns array using the title
+          const columnId = columns[targetColIdx].title;
+
+          edits.push({
+            rowIdx: targetRowIdx,
+            columnId,
+            value: convertedValue,
+          });
+        }
+      }
+
+      if (edits.length > 0) {
+        onAddEdits(edits);
+
+        setLocalData((prev: T[]) => {
+          const newData = [...prev];
+
+          // Apply all edits to the data
+          for (const edit of edits) {
+            if (isPositionalEdit(edit)) {
+              const rowIdx = edit.rowIdx;
+              const columnId = edit.columnId;
+
+              if (rowIdx < newData.length) {
+                const row = newData[rowIdx] as Record<string, unknown>;
+                if (columnId in row) {
+                  row[columnId] = edit.value;
+                }
+              }
+            }
+          }
+
+          return newData;
+        });
+      }
+    })
+    .catch((error) => {
+      Logger.error("Failed to read clipboard data", error);
+    });
 }

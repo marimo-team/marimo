@@ -41,21 +41,18 @@ import {
   isColumnEdit,
   isPositionalEdit,
   isRowEdit,
+  pasteCells,
 } from "./glide-utils";
 import { getGlideTheme } from "./themes";
 import { BulkEdit, type Edits, type ModifiedGridColumn } from "./types";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
-import {
-  copyShortcutPressed,
-  isModifierKey,
-  pasteShortcutPressed,
-} from "@/components/editor/controls/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
+import { Events } from "@/utils/events";
 import {
   insertColumn,
   modifyColumnFields,
@@ -310,25 +307,44 @@ export const GlideDataEditor = <T,>({
     [columnFields, columns],
   );
 
-  // Hack to emit copy and paste events as these events aren't triggered automatically in shadow DOM
-  // TODO: Paste does not work
-  const onKeyDown = useCallback((e: GridKeyEventArgs) => {
-    if (dataEditorRef.current) {
-      const keyboardEvent = e as unknown as React.KeyboardEvent<HTMLElement>;
+  // Hack to emit copy event as these events aren't triggered automatically in shadow DOM
+  // Paste event does not work so we manually handle it
+  const onKeyDown = useCallback(
+    (e: GridKeyEventArgs) => {
+      if (!dataEditorRef.current) {
+        return;
+      }
 
-      if (copyShortcutPressed(keyboardEvent)) {
+      if (Events.isMetaOrCtrl(e) && e.key === "c") {
         dataEditorRef.current.emit("copy");
-      } else if (pasteShortcutPressed(keyboardEvent)) {
-        dataEditorRef.current.emit("paste");
-      } else if (isModifierKey(keyboardEvent) && keyboardEvent.key === "f") {
+        return;
+      }
+
+      if (Events.isMetaOrCtrl(e) && e.key === "v") {
+        pasteCells({
+          selection,
+          localData,
+          setLocalData,
+          columns,
+          onAddEdits,
+        });
+        return;
+      }
+
+      if (Events.isMetaOrCtrl(e) && e.key === "f") {
         setShowSearch((prev) => !prev);
         e.stopPropagation();
         e.preventDefault();
-      } else if (keyboardEvent.key === "Escape") {
-        setShowSearch(false);
+        return;
       }
-    }
-  }, []);
+
+      if (e.key === "Escape") {
+        setShowSearch(false);
+        return;
+      }
+    },
+    [columns, localData, onAddEdits, selection],
+  );
 
   const onRowAppend = useCallback(() => {
     const newRow = Object.fromEntries(
