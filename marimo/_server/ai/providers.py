@@ -1032,8 +1032,10 @@ class BedrockProvider(
 def _model_is_google(model: str) -> bool:
     return model.startswith("google") or model.startswith("gemini")
 
+
 def _model_is_anthropic(model: str) -> bool:
     return model.startswith("claude")
+
 
 def _model_is_bedrock(model: str) -> bool:
     return model.startswith("bedrock/")
