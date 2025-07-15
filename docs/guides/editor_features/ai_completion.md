@@ -244,6 +244,17 @@ api_key = "gho_..."
 base_url = "https://api.githubcopilot.com/"
 ```
 
+??? question "My token starts with `ghp_` instead of `gho_`?"
+
+    This usually happens when you previously authenticated `gh` by pasting a _personal_ access token (`ghp_...`). However, GitHub Copilot is not available through `ghp_...`, and you will encounter errors such as:
+
+    > bad request: Personal Access Tokens are not supported for this endpoint
+
+    To resolve this issue, you could switch to an _OAuth_ access token (`gho_...`):
+    
+    1. Re-authenticate by running `gh auth login`.
+    2. Choose _Login with a web browser_ (instead of _Paste an authentication token_) this time.
+
 #### Local models with Ollama { #using-ollama }
 
 Ollama allows you to run open-source LLMs on your local machine. To integrate Ollama with marimo:
