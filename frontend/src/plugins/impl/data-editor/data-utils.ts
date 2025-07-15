@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { FieldTypes } from "@/components/data-table/types";
+import type { DataType } from "@/core/kernel/messages";
 import { Logger } from "@/utils/Logger";
 
 /**
@@ -62,15 +63,18 @@ export function renameColumn<T>(
 }
 
 // Order of columns is important
-export function modifyColumnFields(
-  columnFields: FieldTypes,
-  columnIdx: number,
-  type: "insert" | "remove" | "rename",
-  newName?: string,
-): FieldTypes {
+export function modifyColumnFields(opts: {
+  columnFields: FieldTypes;
+  columnIdx: number;
+  type: "insert" | "remove" | "rename";
+  dataType?: DataType;
+  newColumnName?: string;
+}): FieldTypes {
+  const { columnFields, columnIdx, type, dataType, newColumnName } = opts;
+
   switch (type) {
     case "insert": {
-      if (!newName) {
+      if (!newColumnName) {
         Logger.error("newName is required for insert");
         return columnFields;
       }
@@ -78,7 +82,7 @@ export function modifyColumnFields(
       const entries = Object.entries(columnFields);
       const newEntries = [
         ...entries.slice(0, columnIdx),
-        [newName, "string"], // Default to string type for new columns
+        [newColumnName, dataType || "string"],
         ...entries.slice(columnIdx),
       ];
       return Object.fromEntries(newEntries);
@@ -97,7 +101,7 @@ export function modifyColumnFields(
       return columnFields;
     }
     case "rename": {
-      if (!newName) {
+      if (!newColumnName) {
         Logger.error("newName is required for rename");
         return columnFields;
       }
@@ -110,7 +114,7 @@ export function modifyColumnFields(
       const entries = Object.entries(columnFields);
       const newEntries = [
         ...entries.slice(0, columnIdx),
-        [newName, "string"],
+        [newColumnName, dataType || "string"],
         ...entries.slice(columnIdx + 1),
       ];
       return Object.fromEntries(newEntries);

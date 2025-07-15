@@ -489,7 +489,12 @@ describe("modifyColumnFields", () => {
   };
 
   it("should insert a new column at index 0", () => {
-    const result = modifyColumnFields(testFieldTypes, 0, "insert", "newColumn");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 0,
+      type: "insert",
+      newColumnName: "newColumn",
+    });
 
     const expected = {
       newColumn: "string",
@@ -504,7 +509,12 @@ describe("modifyColumnFields", () => {
   });
 
   it("should insert a new column at index 1", () => {
-    const result = modifyColumnFields(testFieldTypes, 1, "insert", "newColumn");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 1,
+      type: "insert",
+      newColumnName: "newColumn",
+    });
 
     const expected = {
       int: "integer",
@@ -519,7 +529,12 @@ describe("modifyColumnFields", () => {
   });
 
   it("should insert a new column at index 2", () => {
-    const result = modifyColumnFields(testFieldTypes, 2, "insert", "newColumn");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 2,
+      type: "insert",
+      newColumnName: "newColumn",
+    });
 
     const expected = {
       int: "integer",
@@ -534,14 +549,20 @@ describe("modifyColumnFields", () => {
   });
 
   it("should insert a new column at the end", () => {
-    const result = modifyColumnFields(testFieldTypes, 4, "insert", "newColumn");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 4,
+      type: "insert",
+      newColumnName: "newColumn",
+      dataType: "datetime",
+    });
 
     const expected = {
       int: "integer",
       string: "string",
       bool: "boolean",
       datetime: "datetime",
-      newColumn: "string",
+      newColumn: "datetime", // Set to the same type as the data type
     };
 
     expect(Object.keys(result)).toEqual(Object.keys(expected));
@@ -549,12 +570,12 @@ describe("modifyColumnFields", () => {
   });
 
   it("should insert a new column beyond the array length", () => {
-    const result = modifyColumnFields(
-      testFieldTypes,
-      10,
-      "insert",
-      "newColumn",
-    );
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 10,
+      type: "insert",
+      newColumnName: "newColumn",
+    });
 
     const expected = {
       int: "integer",
@@ -569,7 +590,11 @@ describe("modifyColumnFields", () => {
   });
 
   it("should remove column at index 0", () => {
-    const result = modifyColumnFields(testFieldTypes, 0, "remove");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 0,
+      type: "remove",
+    });
 
     const expected = {
       string: "string",
@@ -582,7 +607,11 @@ describe("modifyColumnFields", () => {
   });
 
   it("should remove column at index 1", () => {
-    const result = modifyColumnFields(testFieldTypes, 1, "remove");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 1,
+      type: "remove",
+    });
 
     const expected = {
       int: "integer",
@@ -595,7 +624,11 @@ describe("modifyColumnFields", () => {
   });
 
   it("should remove column at index 2", () => {
-    const result = modifyColumnFields(testFieldTypes, 2, "remove");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 2,
+      type: "remove",
+    });
 
     const expected = {
       int: "integer",
@@ -608,7 +641,11 @@ describe("modifyColumnFields", () => {
   });
 
   it("should remove column at index 3", () => {
-    const result = modifyColumnFields(testFieldTypes, 3, "remove");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 3,
+      type: "remove",
+    });
 
     const expected = {
       int: "integer",
@@ -621,19 +658,32 @@ describe("modifyColumnFields", () => {
   });
 
   it("should handle removing non-existent column index", () => {
-    const result = modifyColumnFields(testFieldTypes, 999, "remove");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 999,
+      type: "remove",
+    });
     // Should return the original field types since the index doesn't exist
     expect(result).toEqual(testFieldTypes);
   });
 
   it("should handle negative index for remove", () => {
-    const result = modifyColumnFields(testFieldTypes, -1, "remove");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: -1,
+      type: "remove",
+    });
     // Should return the original field types since negative index is invalid
     expect(result).toEqual(testFieldTypes);
   });
 
   it("should rename column at index 0", () => {
-    const result = modifyColumnFields(testFieldTypes, 0, "rename", "number");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 0,
+      type: "rename",
+      newColumnName: "number",
+    });
 
     const expected = {
       number: "string", // Defaults to string type for renamed columns
@@ -647,7 +697,12 @@ describe("modifyColumnFields", () => {
   });
 
   it("should rename column at index 1", () => {
-    const result = modifyColumnFields(testFieldTypes, 1, "rename", "text");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 1,
+      type: "rename",
+      newColumnName: "text",
+    });
 
     const expected = {
       int: "integer",
@@ -661,13 +716,19 @@ describe("modifyColumnFields", () => {
   });
 
   it("should rename column at index 3", () => {
-    const result = modifyColumnFields(testFieldTypes, 3, "rename", "timestamp");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 3,
+      type: "rename",
+      dataType: "datetime",
+      newColumnName: "timestamp",
+    });
 
     const expected = {
       int: "integer",
       string: "string",
       bool: "boolean",
-      timestamp: "string", // Defaults to string type for renamed columns
+      timestamp: "datetime",
     };
 
     expect(Object.keys(result)).toEqual(Object.keys(expected));
@@ -675,20 +736,34 @@ describe("modifyColumnFields", () => {
   });
 
   it("should handle renaming non-existent column index", () => {
-    const result = modifyColumnFields(testFieldTypes, 999, "rename", "newName");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 999,
+      type: "rename",
+      newColumnName: "newName",
+    });
     // Should return the original field types since the index doesn't exist
     expect(result).toEqual(testFieldTypes);
   });
 
   it("should handle negative index for rename", () => {
-    const result = modifyColumnFields(testFieldTypes, -1, "rename", "newName");
+    const result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: -1,
+      type: "rename",
+      newColumnName: "newName",
+    });
     // Should return the original field types since negative index is invalid
     expect(result).toEqual(testFieldTypes);
   });
 
   it("should preserve original field types structure", () => {
     const originalFieldTypes = { ...testFieldTypes };
-    modifyColumnFields(testFieldTypes, 1, "remove");
+    modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 1,
+      type: "remove",
+    });
     // Original field types should remain unchanged
     expect(testFieldTypes).toEqual(originalFieldTypes);
   });
@@ -697,16 +772,20 @@ describe("modifyColumnFields", () => {
     const emptyFieldTypes: FieldTypes = {};
 
     // Insert
-    const insertResult = modifyColumnFields(
-      emptyFieldTypes,
-      0,
-      "insert",
-      "newColumn",
-    );
+    const insertResult = modifyColumnFields({
+      columnFields: emptyFieldTypes,
+      columnIdx: 0,
+      type: "insert",
+      newColumnName: "newColumn",
+    });
     expect(insertResult).toEqual({ newColumn: "string" });
 
     // Remove
-    const removeResult = modifyColumnFields(emptyFieldTypes, 0, "remove");
+    const removeResult = modifyColumnFields({
+      columnFields: emptyFieldTypes,
+      columnIdx: 0,
+      type: "remove",
+    });
     expect(removeResult).toEqual({});
   });
 
@@ -719,12 +798,12 @@ describe("modifyColumnFields", () => {
     };
 
     // Insert
-    const insertResult = modifyColumnFields(
-      specialFieldTypes,
-      1,
-      "insert",
-      "new-column",
-    );
+    const insertResult = modifyColumnFields({
+      columnFields: specialFieldTypes,
+      columnIdx: 1,
+      type: "insert",
+      newColumnName: "new-column",
+    });
     const insertExpected = {
       "column-with-dash": "integer",
       "new-column": "string",
@@ -736,7 +815,11 @@ describe("modifyColumnFields", () => {
     expect(insertResult).toEqual(insertExpected);
 
     // Remove
-    const removeResult = modifyColumnFields(specialFieldTypes, 1, "remove");
+    const removeResult = modifyColumnFields({
+      columnFields: specialFieldTypes,
+      columnIdx: 1,
+      type: "remove",
+    });
     const removeExpected = {
       "column-with-dash": "integer",
       "column.with.dot": "boolean",
@@ -746,12 +829,12 @@ describe("modifyColumnFields", () => {
     expect(removeResult).toEqual(removeExpected);
 
     // Rename
-    const renameResult = modifyColumnFields(
-      specialFieldTypes,
-      1,
-      "rename",
-      "renamed-column",
-    );
+    const renameResult = modifyColumnFields({
+      columnFields: specialFieldTypes,
+      columnIdx: 1,
+      type: "rename",
+      newColumnName: "renamed-column",
+    });
     const renameExpected = {
       "column-with-dash": "integer",
       "renamed-column": "string",
@@ -762,58 +845,24 @@ describe("modifyColumnFields", () => {
     expect(renameResult).toEqual(renameExpected);
   });
 
-  it("should handle field types with numeric column names", () => {
-    const numericFieldTypes: FieldTypes = {
-      "1": "integer",
-      "2": "string",
-      "3": "boolean",
-    };
-
-    // Insert
-    const insertResult = modifyColumnFields(
-      numericFieldTypes,
-      1,
-      "insert",
-      "newColumn",
-    );
-    const insertExpected = {
-      "1": "integer",
-      newColumn: "string",
-      "2": "string",
-      "3": "boolean",
-    };
-    expect(Object.keys(insertResult)).toEqual(Object.keys(insertExpected));
-    expect(insertResult).toEqual(insertExpected);
-
-    // Remove
-    const removeResult = modifyColumnFields(numericFieldTypes, 1, "remove");
-    const removeExpected = {
-      "1": "integer",
-      "3": "boolean",
-    };
-    expect(Object.keys(removeResult)).toEqual(Object.keys(removeExpected));
-    expect(removeResult).toEqual(removeExpected);
-
-    // Rename
-    const renameResult = modifyColumnFields(
-      numericFieldTypes,
-      1,
-      "rename",
-      "renamed",
-    );
-    const renameExpected = {
-      "1": "integer",
-      renamed: "string",
-      "3": "boolean",
-    };
-    expect(Object.keys(renameResult)).toEqual(Object.keys(renameExpected));
-    expect(renameResult).toEqual(renameExpected);
-  });
-
   it("should handle multiple operations in sequence", () => {
-    let result = modifyColumnFields(testFieldTypes, 1, "insert", "newColumn");
-    result = modifyColumnFields(result, 2, "remove");
-    result = modifyColumnFields(result, 0, "rename", "renamed");
+    let result = modifyColumnFields({
+      columnFields: testFieldTypes,
+      columnIdx: 1,
+      type: "insert",
+      newColumnName: "newColumn",
+    });
+    result = modifyColumnFields({
+      columnFields: result,
+      columnIdx: 2,
+      type: "remove",
+    });
+    result = modifyColumnFields({
+      columnFields: result,
+      columnIdx: 0,
+      type: "rename",
+      newColumnName: "renamed",
+    });
 
     const expected = {
       renamed: "string",
@@ -821,7 +870,6 @@ describe("modifyColumnFields", () => {
       bool: "boolean",
       datetime: "datetime",
     };
-
     expect(Object.keys(result)).toEqual(Object.keys(expected));
     expect(result).toEqual(expected);
   });

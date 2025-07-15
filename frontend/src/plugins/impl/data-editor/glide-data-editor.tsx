@@ -151,12 +151,21 @@ export const GlideDataEditor = <T,>({
             // Remove the column from the data
             setLocalData((prev) => removeColumn(prev, edit.columnIdx));
             setColumnFields((prev) =>
-              modifyColumnFields(prev, edit.columnIdx, "remove"),
+              modifyColumnFields({
+                columnFields: prev,
+                columnIdx: edit.columnIdx,
+                type: "remove",
+              }),
             );
             break;
           case BulkEdit.Insert:
             setColumnFields((prev) =>
-              modifyColumnFields(prev, edit.columnIdx, "insert", edit.newName),
+              modifyColumnFields({
+                columnFields: prev,
+                columnIdx: edit.columnIdx,
+                type: "insert",
+                newColumnName: edit.newName,
+              }),
             );
             setLocalData((prev) => insertColumn(prev, edit.newName));
             break;
@@ -168,7 +177,12 @@ export const GlideDataEditor = <T,>({
             }
 
             setColumnFields((prev) =>
-              modifyColumnFields(prev, edit.columnIdx, "rename", newName),
+              modifyColumnFields({
+                columnFields: prev,
+                columnIdx: edit.columnIdx,
+                type: "rename",
+                newColumnName: newName,
+              }),
             );
 
             setLocalData((prev) => renameColumn(prev, oldName, newName));
@@ -426,9 +440,17 @@ export const GlideDataEditor = <T,>({
           return;
         }
 
+        const dataType = columns[menu.col].dataType;
+
         onRenameColumn(menu.col, newName);
         setColumnFields((prev) =>
-          modifyColumnFields(prev, menu.col, "rename", newName),
+          modifyColumnFields({
+            columnFields: prev,
+            columnIdx: menu.col,
+            type: "rename",
+            dataType,
+            newColumnName: newName,
+          }),
         );
 
         // Update the data
@@ -441,7 +463,13 @@ export const GlideDataEditor = <T,>({
   const handleDeleteColumn = () => {
     if (menu) {
       onDeleteColumn(menu.col);
-      setColumnFields((prev) => modifyColumnFields(prev, menu.col, "remove"));
+      setColumnFields((prev) =>
+        modifyColumnFields({
+          columnFields: prev,
+          columnIdx: menu.col,
+          type: "remove",
+        }),
+      );
 
       setLocalData((prev) => removeColumn(prev, menu.col));
       setMenu(undefined);
@@ -468,7 +496,13 @@ export const GlideDataEditor = <T,>({
       onAddColumn(clampedColumnIdx, newName);
 
       setColumnFields((prev) =>
-        modifyColumnFields(prev, clampedColumnIdx, "insert", newName),
+        modifyColumnFields({
+          columnFields: prev,
+          columnIdx: clampedColumnIdx,
+          type: "insert",
+          dataType: "string",
+          newColumnName: newName,
+        }),
       );
 
       // Update the data - add the new column to all rows,
