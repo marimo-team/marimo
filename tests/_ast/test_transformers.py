@@ -529,3 +529,27 @@ def func():
     code_result = ast.unparse(result)
     assert code_result.strip() == code.strip()
     assert not transformer.made_changes
+
+
+def test_name_transformer_function_def() -> None:
+    """Test NameTransformer with function definitions."""
+    code = """
+def old_func():
+    pass
+
+async def old_async_func():
+    pass
+"""
+    tree = ast.parse(code)
+
+    transformer = NameTransformer(
+        {"old_func": "new_func", "old_async_func": "new_async_func"}
+    )
+    result = transformer.visit(tree)
+
+    code_result = ast.unparse(result)
+    assert "def new_func():" in code_result
+    assert "async def new_async_func():" in code_result
+    assert "def old_func():" not in code_result
+    assert "async def old_async_func():" not in code_result
+    assert transformer.made_changes

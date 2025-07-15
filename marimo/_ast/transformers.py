@@ -126,6 +126,20 @@ class NameTransformer(ast.NodeTransformer):
             )
         return node
 
+    def visit_AsyncFunctionDef(
+        self, node: ast.AsyncFunctionDef
+    ) -> ast.AsyncFunctionDef:
+        self.generic_visit(node)
+        if node.name in self._name_substitutions:
+            self.made_changes = True
+            return ast.AsyncFunctionDef(
+                **{
+                    **node.__dict__,
+                    "name": self._name_substitutions[node.name],
+                }
+            )
+        return node
+
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
         self.generic_visit(node)
         if node.name in self._name_substitutions:
