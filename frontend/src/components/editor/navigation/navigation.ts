@@ -228,12 +228,6 @@ export function useCellNavigationProps(
             return;
           }
         }
-        if (evt.key === "i" && !Events.hasModifier(evt)) {
-          setTemporarilyShownCode(true);
-          focusCellEditor(store, cellId);
-          evt.preventDefault();
-          return;
-        }
       }
 
       // Keymaps when using vim.
@@ -243,6 +237,7 @@ export function useCellNavigationProps(
           k: keymaps.ArrowUp,
           "Shift+j": keymaps["Shift+ArrowDown"],
           "Shift+k": keymaps["Shift+ArrowUp"],
+          i: keymaps.Enter,
         } satisfies KeymapHandlers;
 
         for (const [key, handler] of Object.entries(vimKeymaps)) {
