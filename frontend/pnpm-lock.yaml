@@ -276,6 +276,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.1.6(@types/react@19.1.8))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      codemirror-helix:
+        specifier: ^0.3.1
+        version: 0.3.1(@codemirror/commands@6.8.1)(@codemirror/language@6.11.2)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.0)
       compassql:
         specifier: ^0.21.2
         version: 0.21.2(vega@5.33.0)
@@ -13747,13 +13750,13 @@ snapshots:
 
   code-point-at@1.1.0: {}
 
-  codemirror-helix@0.3.1(@codemirror/commands@6.8.1)(@codemirror/language@6.11.0)(@codemirror/search@6.5.10)(@codemirror/state@6.5.2)(@codemirror/view@6.36.6):
+  codemirror-helix@0.3.1(@codemirror/commands@6.8.1)(@codemirror/language@6.11.2)(@codemirror/search@6.5.11)(@codemirror/state@6.5.2)(@codemirror/view@6.38.0):
     dependencies:
       '@codemirror/commands': 6.8.1
-      '@codemirror/language': 6.11.0
-      '@codemirror/search': 6.5.10
+      '@codemirror/language': 6.11.2
+      '@codemirror/search': 6.5.11
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.6
+      '@codemirror/view': 6.38.0
 
   codemirror-lang-mermaid@0.5.0:
     dependencies:
