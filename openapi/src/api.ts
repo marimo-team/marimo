@@ -3247,6 +3247,7 @@ export interface components {
         auto_instantiate: boolean;
         /** @enum {string} */
         auto_reload: "off" | "lazy" | "autorun";
+        default_auto_download?: ("html" | "markdown" | "ipynb")[];
         /** @enum {string} */
         default_sql_output:
           | "polars"

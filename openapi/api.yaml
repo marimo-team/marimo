@@ -1674,6 +1674,14 @@ components:
               - lazy
               - autorun
               type: string
+            default_auto_download:
+              items:
+                enum:
+                - html
+                - markdown
+                - ipynb
+                type: string
+              type: array
             default_sql_output:
               enum:
               - polars
