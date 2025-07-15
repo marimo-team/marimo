@@ -14,15 +14,16 @@ app = marimo.App(width="medium")
 
 @app.cell
 def __():
-    import marimo as mo
     import altair as alt
+
+    import marimo as mo
+
     return alt, mo
 
 
 @app.cell
 def __():
     import polars as pl
-
 
     df = pl.DataFrame(
         {"year": [2020, 2021, 2022], "population": [1000, 2000, 3000]}
@@ -42,7 +43,7 @@ def __(alt, df, mo):
         )
     )
     chart
-    return chart,
+    return (chart,)
 
 
 @app.cell

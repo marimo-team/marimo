@@ -6,9 +6,10 @@ app = marimo.App(width="medium")
 
 @app.cell
 def __():
-    import marimo as mo
     import altair as alt
     import pandas as pd
+
+    import marimo as mo
 
     # data
     test_counts = pd.DataFrame(
