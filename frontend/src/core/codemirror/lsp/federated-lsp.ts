@@ -201,7 +201,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
         return result;
       }
     }
-    throw new Error("No hover provider found");
+    return { contents: [] };
   }
 }
 
