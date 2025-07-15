@@ -260,8 +260,7 @@ describe("NotebookLanguageServerClient", () => {
       expect(result).toBeDefined();
       expect(result?.contents).toEqual({
         kind: "markdown",
-        value:
-          '<div class="docs-documentation mo-cm-tooltip">\ntest hover\n</div>',
+        value: "test hover",
       });
     });
 

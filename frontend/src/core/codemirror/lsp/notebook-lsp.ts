@@ -473,7 +473,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     if (typeof hover.contents === "object" && "kind" in hover.contents) {
       hover.contents = {
         kind: "markdown",
-        value: `<div class="docs-documentation mo-cm-tooltip">\n${hover.contents.value}\n</div>`,
+        value: hover.contents.value,
       };
     }
 
