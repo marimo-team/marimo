@@ -572,7 +572,7 @@ export const GlideDataEditor = <T,>({
   };
 
   return (
-    <>
+    <div className="relative">
       <ErrorBoundary>
         <DataEditor
           ref={dataEditorRef}
@@ -595,7 +595,6 @@ export const GlideDataEditor = <T,>({
           width={"100%"}
           rowMarkers={{
             kind: "both",
-            headerDisabled: true,
           }}
           rowSelectionMode={"multi"}
           onCellEdited={onCellEdited}
@@ -615,13 +614,13 @@ export const GlideDataEditor = <T,>({
           variant="destructive"
           size="sm"
           disabled={selection.rows.length === 0}
-          className="bottom-1 right-2 h-7"
+          className="right-2 h-7"
           onClick={handleDeleteRows}
         >
           {selection.rows.length <= 1 ? "Delete row" : "Delete rows"}
         </Button>
       </div>
-    </>
+    </div>
   );
 };
 
