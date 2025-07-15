@@ -208,7 +208,7 @@ class AnyProviderConfig:
             return AnyProviderConfig.for_bedrock(config)
         else:
             # OpenAI has a default API that ollama also uses, that is
-            # why it is a catch all at the end here. 
+            # why it is a catch all at the end here.
             return AnyProviderConfig.for_openai(config)
 
 
@@ -1034,14 +1034,17 @@ def _model_is_google(model: str) -> bool:
 def _model_is_anthropic(model: str) -> bool:
     return model.startswith("claude")
 
+
 def _model_is_openai(model: str) -> bool:
-    return model in [  "o3",
+    return model in [
+        "o3",
         "o4-mini",
         "gpt-4.5-preview",
         "gpt-4.1",
         "gpt-4o",
         "gpt-3.5-turbo",
     ]
+
 
 def _model_is_bedrock(model: str) -> bool:
     return model.startswith("bedrock/")
