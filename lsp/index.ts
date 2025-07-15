@@ -61,6 +61,7 @@ class WebSocketAdapter implements IWebSocket {
   send(content: string): void {
     try {
       this.webSocket.send(content);
+      this.logger.debug("Sent message:", content);
     } catch (error) {
       this.logger.error("Failed to send message:", error);
     }
@@ -69,8 +70,8 @@ class WebSocketAdapter implements IWebSocket {
   onMessage(callback: (data: Data) => void): void {
     this.webSocket.onmessage = (event: MessageEvent) => {
       try {
-        this.logger.debug("Received message:", event.data);
         callback(event.data);
+        this.logger.debug("Received message:", event.data);
       } catch (error) {
         this.logger.error("Error handling message:", error);
       }

@@ -3065,6 +3065,7 @@ export interface components {
       capabilities: {
         pylsp: boolean;
         terminal: boolean;
+        ty: boolean;
       };
       cell_ids: string[];
       codes: string[];
@@ -3236,6 +3237,9 @@ export interface components {
           enable_pyflakes?: boolean;
           enable_pylint?: boolean;
           enable_ruff?: boolean;
+          enabled?: boolean;
+        };
+        ty?: {
           enabled?: boolean;
         };
       };

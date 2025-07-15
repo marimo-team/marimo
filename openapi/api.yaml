@@ -1284,9 +1284,12 @@ components:
               type: boolean
             terminal:
               type: boolean
+            ty:
+              type: boolean
           required:
           - terminal
           - pylsp
+          - ty
           type: object
         cell_ids:
           items:
@@ -1647,6 +1650,11 @@ components:
                   type: boolean
                 enable_ruff:
                   type: boolean
+                enabled:
+                  type: boolean
+              type: object
+            ty:
+              properties:
                 enabled:
                   type: boolean
               type: object

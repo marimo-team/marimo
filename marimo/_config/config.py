@@ -333,6 +333,18 @@ class PythonLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class TyLanguageServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Ty Language Server.
+
+    ty handles completion, hover, go-to-definition, and diagnostics,
+    but we only use it for diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class LanguageServersConfig(TypedDict, total=False):
     """Configuration options for language servers.
 
@@ -342,6 +354,7 @@ class LanguageServersConfig(TypedDict, total=False):
     """
 
     pylsp: PythonLanguageServerConfig
+    ty: TyLanguageServerConfig
 
 
 @dataclass
