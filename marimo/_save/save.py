@@ -63,23 +63,44 @@ UNEXPECTED_FAILURE_BOILERPLATE = (
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
-    from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.stores import Store
 
 
 class _cache_call:
-    """Like functools.cache but notebook-aware. See `cache` docstring`"""
+    """Like functools.cache but notebook-aware. See `cache` docstring"""
 
-    graph: DirectedGraph
-    cell_id: str
-    module: ast.Module
+    __slots__ = (
+        "base_block",
+        "scope",
+        "scoped_refs",
+        "pin_modules",
+        "hash_type",
+        "_args",
+        "_var_arg",
+        "_var_kwarg",
+        "_loader",
+        "_loader_partial",
+        "_bound",
+        "_last_hash",
+        "_frame_offset",
+        "__wrapped__",
+    )
+
+    base_block: BlockHasher
+    scope: dict[str, Any]
+    scoped_refs: set[str]
+    pin_modules: bool
+    hash_type: str
     _args: list[str]
-    _var_arg: Optional[str] = None
-    _var_kwarg: Optional[str] = None
-    _loader: Optional[State[Loader]] = None
+    _var_arg: Optional[str]
+    _var_kwarg: Optional[str]
+    _loader: Optional[State[Loader]]
     _loader_partial: LoaderPartial
-    name: str
-    fn: Optional[Callable[..., Any]]
+    _bound: Optional[dict[str, Any]]
+    _last_hash: Optional[str]
+    _frame_offset: int
+    # Consistent with functools.cache
+    __wrapped__: Optional[Callable[..., Any]]
 
     def __init__(
         self,
@@ -96,9 +117,13 @@ class _cache_call:
         self.hash_type = hash_type
         self._frame_offset = frame_offset
         self._loader_partial = loader_partial
-        self._last_hash: Optional[str] = None
+        self._last_hash = None
+        self._var_arg = None
+        self._var_kwarg = None
+        self._loader = None
+        self._bound = {}
         if _fn is None:
-            self.fn = None
+            self.__wrapped__ = None
         else:
             self._set_context(_fn)
 
@@ -117,7 +142,7 @@ class _cache_call:
             f"{UNEXPECTED_FAILURE_BOILERPLATE}"
         )
 
-        self.fn = fn
+        self.__wrapped__ = fn
         sig = inspect.signature(fn)
         self._args = [
             param.name
@@ -178,7 +203,7 @@ class _cache_call:
 
         graph = ctx.graph
         cell_id = ctx.cell_id or ctx.execution_context.cell_id
-        module = strip_function(self.fn)
+        module = strip_function(self.__wrapped__)
 
         self.base_block = BlockHasher(
             module=module,
@@ -192,7 +217,7 @@ class _cache_call:
         )
 
         # Load global cache from state
-        name = self.fn.__name__
+        name = self.__wrapped__.__name__
         # Note, that if the function name shadows a global variable, the
         # lifetime of the cache will be tied to the global variable.
         # We can invalidate that by making an invalid namespace.
@@ -206,9 +231,51 @@ class _cache_call:
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         return self._loader()
 
+    def __get__(
+        self, instance: Any, _owner: Optional[type] = None
+    ) -> _cache_call:
+        """__get__ is invoked on instance access;
+            e.g. `obj.fn` (__get__ called on `fn`)
+        `instance` is the specific object, while owner is `type(instance)`.
+
+        We check if `bound` is unset as a recursion guard, then create a new
+        instance of _cache_call, copying over the inspection data we have
+        already computed. We notably do not memoize since copying is cheap-
+        additionally updating the parent itself would make the object
+        unpicklable.
+        """
+        if instance is not None and not bool(self._bound):
+            if not callable(self.__wrapped__):
+                raise TypeError(
+                    f"cache() expected a callable, got {type(self.__wrapped__)} "
+                    "(have you wrapped a function?)"
+                )
+            # Bind to the instance
+            copy = _cache_call(
+                None,
+                self._loader_partial,
+                pin_modules=self.pin_modules,
+                hash_type=self.hash_type,
+            )
+            # Manually set context, since we have lost frame context.
+            # Safe to not copy because data is RO.
+            copy.__wrapped__ = functools.partial(self.__wrapped__, instance)
+            copy._var_arg = self._var_arg
+            copy._var_kwarg = self._var_kwarg
+            copy._loader = self._loader
+            copy.base_block = self.base_block
+            copy.scope = self.scope
+            copy.scoped_refs = self.scoped_refs
+            # Except _args, which is is different.
+            copy._args = self._args.copy()
+            # Remove the first arg, which is 'self' or otherwise bound.
+            copy._bound = {f"{ARG_PREFIX}{copy._args.pop(0)}": instance}
+            return copy
+        return self
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         # Capture the deferred call case
-        if self.fn is None:
+        if self.__wrapped__ is None:
             if len(args) != 1:
                 raise TypeError(
                     "cache() takes at most 1 argument (expecting function)"
@@ -236,6 +303,7 @@ class _cache_call:
             **ctx.globals,
             **arg_dict,
             **kwargs_copy,
+            **(self._bound or {}),
         }
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         attempt = content_cache_attempt_from_base(
@@ -253,7 +321,7 @@ class _cache_call:
             if attempt.hit:
                 attempt.restore(scope)
                 return attempt.meta["return"]
-            response = self.fn(*args, **kwargs)
+            response = self.__wrapped__(*args, **kwargs)
             # stateful variables may be global
             scope = {
                 k: v for k, v in scope.items() if k in attempt.stateful_refs
