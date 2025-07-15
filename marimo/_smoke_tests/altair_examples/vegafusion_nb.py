@@ -19,6 +19,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -30,8 +31,8 @@ def _(mo):
 
 @app.cell
 def _():
-    import pandas as pd
     import altair as alt
+    import pandas as pd
     import vegafusion as vf
 
     # Comment out to disable duckdb connection
@@ -144,6 +145,7 @@ def _(alt):
             .transform_calculate("time", "hours(datum.date)")
             .repeat(column=["distance", "delay", "time"])
         )
+
     return (make_cross_filter_chart,)
 
 
@@ -189,6 +191,7 @@ def _(alt):
         )
 
         return alt.layer(bars, line, data=source).properties(height=200)
+
     return (make_average_chart,)
 
 
@@ -257,6 +260,7 @@ def _(alt):
             bar,
             rect + circ,
         ).resolve_legend(color="independent", size="independent")
+
     return (make_movie_chart,)
 
 

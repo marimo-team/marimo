@@ -6,9 +6,10 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    from vega_datasets import data
-    import marimo as mo
     import altair as alt
+    from vega_datasets import data
+
+    import marimo as mo
 
     cars = data.cars()
 
@@ -27,7 +28,6 @@ def _():
         _chart,
         alt.vconcat(_chart, alt.vconcat(_chart, _chart)),
     )
-
 
     mo.ui.altair_chart(stacked_chart)
     return (stacked_chart,)

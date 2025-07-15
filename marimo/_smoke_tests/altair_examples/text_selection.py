@@ -1,4 +1,3 @@
-
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
@@ -17,6 +16,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -28,8 +28,8 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    from vega_datasets import data
     import altair as alt
+    from vega_datasets import data
 
     chart = (
         alt.Chart(data.cars())
@@ -125,7 +125,9 @@ def _(alt, data, mo):
         alt.Chart(_source)
         .mark_text(align="right", dx=-5)
         .encode(
-            x="min(temp_min):Q", y=alt.Y("month(date):O"), text="min(temp_min):Q"
+            x="min(temp_min):Q",
+            y=alt.Y("month(date):O"),
+            text="min(temp_min):Q",
         )
     )
 
@@ -133,7 +135,9 @@ def _(alt, data, mo):
         alt.Chart(_source)
         .mark_text(align="left", dx=5)
         .encode(
-            x="max(temp_max):Q", y=alt.Y("month(date):O"), text="max(temp_max):Q"
+            x="max(temp_max):Q",
+            y=alt.Y("month(date):O"),
+            text="max(temp_max):Q",
         )
     )
 

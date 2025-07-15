@@ -6,10 +6,11 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    import marimo as mo
     import altair as alt
     import pandas as pd
     import polars as pl
+
+    import marimo as mo
 
     df = pd.DataFrame(
         {
@@ -32,7 +33,6 @@ def _():
         .encode(x="state:O", y="date:T")
         .properties(width=200)
     )
-
 
     mo.hstack([pd_chart, pl_chart])
     return alt, df, mo, pd, pd_chart, pl, pl_chart, pl_df
