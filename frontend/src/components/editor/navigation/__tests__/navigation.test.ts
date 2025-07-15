@@ -8,6 +8,7 @@ import React, { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
 import { configOverridesAtom, userConfigAtom } from "@/core/config/config";
@@ -45,6 +46,10 @@ vi.mock("../focus-utils", () => ({
   focusCell: vi.fn(),
 }));
 
+vi.mock("@/core/network/requests", () => ({
+  saveCellConfig: vi.fn(),
+}));
+
 // Get mocked functions
 const mockUseCellActions = vi.mocked(
   await import("@/core/cells/cells"),
@@ -61,6 +66,7 @@ const mockUseCellClipboard = vi.mocked(
 ).useCellClipboard;
 
 import { defaultUserConfig } from "@/core/config/config-schema";
+import { saveCellConfig } from "@/core/network/requests";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
   type CellSelectionState,
@@ -96,6 +102,8 @@ const mockCellActions = MockNotebook.cellActions({
   updateCellConfig: vi.fn(),
   markTouched: vi.fn(),
 });
+
+const mockSaveCellConfig = vi.mocked(saveCellConfig);
 
 // Helper to setup selection
 const setupSelection = () => {
@@ -142,12 +150,24 @@ describe("useCellNavigationProps", () => {
     // Setup notebook state with test cells - cellId1 first, cellId3 last for bulk selection tests
     const notebookState = MockNotebook.notebookState({
       cellData: {
-        [cellId1]: { id: cellId1 },
-        [cellId2]: { id: cellId2 },
-        [cellId3]: { id: cellId3 },
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false },
+        },
+        [cellId2]: {
+          id: cellId2,
+          config: { hide_code: false, disabled: false },
+        },
+        [cellId3]: {
+          id: cellId3,
+          config: { hide_code: true, disabled: false },
+        },
       },
     });
     store.set(notebookAtom, notebookState);
+
+    // Clear AI completion state
+    store.set(aiCompletionCellAtom, null);
 
     // Clear selection
     const selectionActions = setupSelection();
@@ -158,6 +178,17 @@ describe("useCellNavigationProps", () => {
     canMoveX: false,
     editorView: createRef<EditorView>(),
     cellActionDropdownRef: createRef<CellActionsDropdownHandle>(),
+  };
+
+  // Add a mock EditorView for tests that need it
+  const mockEditorView = {
+    focus: vi.fn(),
+    contentDOM: { blur: vi.fn() },
+  } as unknown as EditorView;
+
+  const optionsWithMockEditor = {
+    ...options,
+    editorView: { current: mockEditorView } as React.RefObject<EditorView>,
   };
 
   describe("keyboard shortcuts", () => {
@@ -527,6 +558,24 @@ describe("useCellNavigationProps", () => {
         cellId: mockCellId,
         before: true,
       });
+    });
+
+    it("should focus cell editor when 'i' key is pressed in vim mode", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "i" });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(focusCellEditor).toHaveBeenCalledWith(
+        expect.anything(),
+        mockCellId,
+      );
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
   });
 
@@ -965,6 +1014,402 @@ describe("useCellNavigationProps", () => {
         useCellSelectionState(),
       );
       expect(selectionResult.current.selected.size).toBe(0);
+    });
+  });
+
+  describe("cell hide code functionality", () => {
+    it("should toggle hide code when shortcut is pressed", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "h", ctrlKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+        configs: {
+          [cellId1]: { hide_code: true },
+        },
+      });
+      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
+        cellId: cellId1,
+        config: { hide_code: true },
+      });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("should toggle hide code to false when cell already has hide_code true", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId3, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "h", ctrlKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+        configs: {
+          [cellId3]: { hide_code: false },
+        },
+      });
+      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
+        cellId: cellId3,
+        config: { hide_code: false },
+      });
+    });
+
+    it("should toggle hide code for multiple selected cells", () => {
+      // Set up selection of multiple cells
+      const selectionActions = setupSelection();
+      selectionActions.select({ cellId: cellId1 });
+      selectionActions.extend({
+        cellId: cellId2,
+        allCellIds: store.get(notebookAtom).cellIds,
+      });
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "h", ctrlKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+        configs: {
+          [cellId1]: { hide_code: true },
+          [cellId2]: { hide_code: true },
+        },
+      });
+      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
+        cellId: cellId1,
+        config: { hide_code: true },
+      });
+      expect(mockCellActions.updateCellConfig).toHaveBeenCalledWith({
+        cellId: cellId2,
+        config: { hide_code: true },
+      });
+    });
+  });
+
+  describe("AI completion functionality", () => {
+    it("should toggle AI completion when shortcut is pressed", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithMockEditor),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "e",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(store.get(aiCompletionCellAtom)).toEqual({ cellId: cellId1 });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("should close AI completion when already open for same cell", () => {
+      // Set AI completion to be open for cellId1
+      store.set(aiCompletionCellAtom, { cellId: cellId1 });
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithMockEditor),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "e",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(store.get(aiCompletionCellAtom)).toBeNull();
+      expect(mockEditorView.focus).toHaveBeenCalled();
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("should switch AI completion to different cell when already open", () => {
+      // Set AI completion to be open for cellId1
+      store.set(aiCompletionCellAtom, { cellId: cellId1 });
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId2, optionsWithMockEditor),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "e",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(store.get(aiCompletionCellAtom)).toEqual({ cellId: cellId2 });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+  });
+
+  describe("cell actions dropdown", () => {
+    it("should toggle cell actions dropdown when shortcut is pressed", () => {
+      const mockToggle = vi.fn();
+      const optionsWithDropdown = {
+        ...options,
+        cellActionDropdownRef: {
+          current: { toggle: mockToggle },
+        } as React.RefObject<CellActionsDropdownHandle>,
+      };
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithDropdown),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "p", ctrlKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockToggle).toHaveBeenCalled();
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("should handle null cell actions dropdown ref", () => {
+      const optionsWithNullDropdown = {
+        ...options,
+        cellActionDropdownRef: {
+          current: null,
+        } as unknown as React.RefObject<CellActionsDropdownHandle>,
+      };
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithNullDropdown),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "p", ctrlKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+  });
+
+  describe("move left/right functionality", () => {
+    it("should move cell left when shortcut is pressed and canMoveX is true", () => {
+      const optionsWithMoveX = { ...options, canMoveX: true };
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithMoveX),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "7",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.moveCell).toHaveBeenCalledWith({
+        cellId: cellId1,
+        direction: "left",
+      });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("should move cell right when shortcut is pressed and canMoveX is true", () => {
+      const optionsWithMoveX = { ...options, canMoveX: true };
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithMoveX),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "8",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.moveCell).toHaveBeenCalledWith({
+        cellId: cellId1,
+        direction: "right",
+      });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("should not move cell left when canMoveX is false", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "7",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.moveCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it("should not move cell right when canMoveX is false", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "8",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.moveCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it("should move multiple cells left when multiple cells selected", () => {
+      const optionsWithMoveX = { ...options, canMoveX: true };
+
+      // Set up selection of multiple cells
+      const selectionActions = setupSelection();
+      selectionActions.select({ cellId: cellId1 });
+      selectionActions.extend({
+        cellId: cellId2,
+        allCellIds: store.get(notebookAtom).cellIds,
+      });
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithMoveX),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "7",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.moveCell).toHaveBeenCalledWith({
+        cellId: cellId1,
+        direction: "left",
+      });
+      expect(mockCellActions.moveCell).toHaveBeenCalledWith({
+        cellId: cellId2,
+        direction: "left",
+      });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+  });
+
+  describe("focus up/down functionality", () => {
+    it("should focus cell down when shortcut is pressed", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "j",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId1,
+        before: false,
+      });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("should focus cell up when shortcut is pressed", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({
+        key: "k",
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId1,
+        before: true,
+      });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+  });
+
+  describe("create cell shortcuts with modifier keys", () => {
+    it("should not create cell before when 'a' key is pressed with modifier", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "a", ctrlKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.createNewCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it("should not create cell after when 'b' key is pressed with modifier", () => {
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "b", shiftKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.createNewCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
     });
   });
 });

@@ -12,7 +12,6 @@ import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
-import { derefNotNull } from "@/utils/dereference";
 import { Events } from "@/utils/events";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useRunCells } from "../cell/useRunCells";
@@ -228,12 +227,6 @@ export function useCellNavigationProps(
             return;
           }
         }
-        if (evt.key === "i" && !Events.hasModifier(evt)) {
-          setTemporarilyShownCode(true);
-          focusCellEditor(store, cellId);
-          evt.preventDefault();
-          return;
-        }
       }
 
       // Keymaps when using vim.
@@ -243,6 +236,7 @@ export function useCellNavigationProps(
           k: keymaps.ArrowUp,
           "Shift+j": keymaps["Shift+ArrowDown"],
           "Shift+k": keymaps["Shift+ArrowUp"],
+          i: keymaps.Enter,
         } satisfies KeymapHandlers;
 
         for (const [key, handler] of Object.entries(vimKeymaps)) {
@@ -406,7 +400,7 @@ export function useCellNavigationProps(
             return { cellId };
           });
           if (closed) {
-            derefNotNull(editorView).focus();
+            editorView.current?.focus();
           }
           return true;
         },
