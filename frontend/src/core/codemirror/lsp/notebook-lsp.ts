@@ -491,8 +491,6 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   public async textDocumentCompletion(params: LSP.CompletionParams) {
-    // This LSP method has no version, so lets sync and then get the latest snapshot
-    await this.sync();
     const { lens } = this.snapshotter.getLatestSnapshot();
     const cellId = CellDocumentUri.parse(params.textDocument.uri);
 

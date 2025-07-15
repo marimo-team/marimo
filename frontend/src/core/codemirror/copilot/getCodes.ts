@@ -40,9 +40,18 @@ export function getOtherCellsCode(otherCode: string) {
   return codes;
 }
 
-const notebookDataAtom = atom((get) => {
+const notebookCellCodes = atom((get) => {
   const notebook = get(notebookAtom);
-  return notebook.cellData;
+  const codes = Objects.fromEntries(
+    notebook.cellIds.inOrderIds.map((id) => {
+      const handle = notebook.cellHandles[id];
+      return [
+        id,
+        handle?.current ? getEditorCodeAsPython(handle.current.editorView) : "",
+      ];
+    }),
+  );
+  return codes;
 });
 const inOrderCellIdsAtom = atom((get) => {
   const notebook = get(notebookAtom);
@@ -56,13 +65,7 @@ const topologicalCellIdsAtom = atom((get) => {
 
 export const topologicalCodesAtom = atom((get) => {
   const sortedCellIds = get(topologicalCellIdsAtom);
-  const notebookData = get(notebookDataAtom);
-  const codes = Objects.fromEntries(
-    sortedCellIds.map((id) => {
-      return [id, notebookData[id]?.code ?? ""];
-    }),
-  );
-
+  const codes = get(notebookCellCodes);
   return { cellIds: sortedCellIds, codes };
 });
 
