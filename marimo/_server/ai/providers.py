@@ -228,8 +228,8 @@ def _get_key(config: Any, name: str) -> str:
         if key:
             return cast(str, key)
     if "http://127.0.0.1:11434/" in config.get("base_url", ""):
-        # Ollama can be configured and in that case the api key is not needed. 
-        # We send a placeholder value to prevent the user from being confused. 
+        # Ollama can be configured and in that case the api key is not needed.
+        # We send a placeholder value to prevent the user from being confused.
         return "ollama-placeholder"
     raise HTTPException(
         status_code=HTTPStatus.BAD_REQUEST,
