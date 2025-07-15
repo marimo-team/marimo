@@ -39,9 +39,12 @@ class Dependency:
     ) -> bool:
         if not self.has(quiet=quiet):
             return False
+        version = self.get_version()
+        if version is None:
+            return
         return _version_check(
             pkg=self.pkg,
-            v=self.get_version(),
+            v=version,
             min_v=min_version,
             max_v=max_version,
             quiet=quiet,
@@ -100,28 +103,37 @@ class Dependency:
     ) -> None:
         self.require(why)
 
+        version = self.get_version()
+        if version is None:
+            return
         _version_check(
             pkg=self.pkg,
-            v=self.get_version(),
+            v=version,
             min_v=min_version,
             max_v=max_version,
             raise_error=True,
         )
 
-    def get_version(self) -> str:
+    def get_version(self) -> str | None:
         try:
             return importlib.metadata.version(self.pkg)
         except importlib.metadata.PackageNotFoundError:
-            return f"{__import__(self.pkg).__version__}"
+            try:
+                return f"{__import__(self.pkg).__version__}"
+            except AttributeError:
+                return None
 
     def warn_if_mismatch_version(
         self,
         min_version: str | None = None,
         max_version: str | None = None,
     ) -> bool:
+        version = self.get_version()
+        if version is None:
+            return False
         return _version_check(
             pkg=self.pkg,
-            v=self.get_version(),
+            v=version,
             min_v=min_version,
             max_v=max_version,
             raise_error=False,
