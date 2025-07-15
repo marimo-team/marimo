@@ -12,7 +12,7 @@ import DataEditor, {
   type Item,
   type Rectangle,
 } from "@glideapps/glide-data-grid";
-import { CopyIcon, PencilIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { CopyIcon, TrashIcon } from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -49,10 +49,12 @@ import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting 
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import type { DataType } from "@/core/kernel/messages";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
 import { Events } from "@/utils/events";
+import { AddColumnSub, RenameColumnSub } from "./components";
 import {
   insertColumn,
   modifyColumnFields,
@@ -428,35 +430,32 @@ export const GlideDataEditor = <T,>({
     });
   }
 
-  const handleRenameColumn = () => {
+  const handleRenameColumn = (newName: string) => {
     if (menu) {
-      const newName = prompt("Enter new column name");
-      if (newName) {
-        const oldColumnName = columns[menu.col].title;
+      const oldColumnName = columns[menu.col].title;
 
-        // Validate the new column name
-        if (columnFields[newName]) {
-          toastColumnExists(newName);
-          return;
-        }
-
-        const dataType = columns[menu.col].dataType;
-
-        onRenameColumn(menu.col, newName);
-        setColumnFields((prev) =>
-          modifyColumnFields({
-            columnFields: prev,
-            columnIdx: menu.col,
-            type: "rename",
-            dataType,
-            newColumnName: newName,
-          }),
-        );
-
-        // Update the data
-        setLocalData((prev) => renameColumn(prev, oldColumnName, newName));
-        setMenu(undefined);
+      // Validate the new column name
+      if (columnFields[newName]) {
+        toastColumnExists(newName);
+        return;
       }
+
+      const dataType = columns[menu.col].dataType;
+
+      onRenameColumn(menu.col, newName);
+      setColumnFields((prev) =>
+        modifyColumnFields({
+          columnFields: prev,
+          columnIdx: menu.col,
+          type: "rename",
+          dataType,
+          newColumnName: newName,
+        }),
+      );
+
+      // Update the data
+      setLocalData((prev) => renameColumn(prev, oldColumnName, newName));
+      setMenu(undefined);
     }
   };
 
@@ -476,38 +475,39 @@ export const GlideDataEditor = <T,>({
     }
   };
 
-  const handleAddColumn = (direction: "left" | "right") => {
+  const handleAddColumn = (options: {
+    direction: "left" | "right";
+    columnName: string;
+    dataType: DataType;
+  }) => {
+    const { direction, columnName, dataType } = options;
+
     if (menu) {
       const columnIdx = menu.col + (direction === "left" ? 0 : 1);
       // Clamp to 0 and length of columns
       const clampedColumnIdx = Math.max(0, Math.min(columnIdx, columns.length));
 
-      const newName = prompt("Enter new column name");
-      if (!newName) {
-        return;
-      }
-
       // Validate the new column name
-      if (columnFields[newName]) {
-        toastColumnExists(newName);
+      if (columnFields[columnName]) {
+        toastColumnExists(columnName);
         return;
       }
 
-      onAddColumn(clampedColumnIdx, newName);
+      onAddColumn(clampedColumnIdx, columnName);
 
       setColumnFields((prev) =>
         modifyColumnFields({
           columnFields: prev,
           columnIdx: clampedColumnIdx,
           type: "insert",
-          dataType: "string",
-          newColumnName: newName,
+          dataType,
+          newColumnName: columnName,
         }),
       );
 
       // Update the data - add the new column to all rows,
       // ordering does not matter as we call getCellContent based on columnTitle
-      setLocalData((prev) => insertColumn(prev, newName));
+      setLocalData((prev) => insertColumn(prev, columnName));
       setMenu(undefined);
     }
   };
@@ -533,21 +533,29 @@ export const GlideDataEditor = <T,>({
 
     const bulkEditItems = (
       <>
-        <DropdownMenuItem onClick={handleRenameColumn}>
-          <PencilIcon className={iconClassName} />
-          Rename column
-        </DropdownMenuItem>
+        <RenameColumnSub
+          currentColumnName={columns[menu.col].title}
+          onRename={handleRenameColumn}
+          onCancel={() => setMenu(undefined)}
+        />
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem onClick={() => handleAddColumn("left")}>
-          <PlusIcon className={iconClassName} />
-          Add column to the left
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleAddColumn("right")}>
-          <PlusIcon className={iconClassName} />
-          Add column to the right
-        </DropdownMenuItem>
+        <AddColumnSub
+          direction="left"
+          onAdd={(columnName, dataType) =>
+            handleAddColumn({ direction: "left", columnName, dataType })
+          }
+          onCancel={() => setMenu(undefined)}
+        />
+
+        <AddColumnSub
+          direction="right"
+          onAdd={(columnName, dataType) =>
+            handleAddColumn({ direction: "right", columnName, dataType })
+          }
+          onCancel={() => setMenu(undefined)}
+        />
 
         <DropdownMenuSeparator />
 
@@ -574,7 +582,7 @@ export const GlideDataEditor = <T,>({
             left: menu?.bounds.x ?? 0,
             top: (menu?.bounds.y ?? 0) + (menu?.bounds.height ?? 0),
           }}
-          className="fixed w-48"
+          className="fixed w-52"
         >
           <DropdownMenuItem onClick={handleCopyColumnName}>
             <CopyIcon className={iconClassName} />
