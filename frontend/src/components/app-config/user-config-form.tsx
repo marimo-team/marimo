@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import React, { useRef } from "react";
 import { type FieldPath, useForm } from "react-hook-form";
-import { arrayToggle } from "@/utils/arrays";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -46,6 +45,7 @@ import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
+import { arrayToggle } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
@@ -978,9 +978,7 @@ export const UserConfigForm: React.FC = () => {
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel>
-                      Auto output formats
-                    </FormLabel>
+                    <FormLabel>Auto output formats</FormLabel>
                     <FormControl>
                       <div className="flex gap-4">
                         <div className="flex items-center space-x-2">
