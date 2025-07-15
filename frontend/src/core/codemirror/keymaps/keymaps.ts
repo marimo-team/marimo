@@ -14,13 +14,12 @@ import {
   keymap,
 } from "@codemirror/view";
 import { getCM, vim } from "@replit/codemirror-vim";
+import { helix } from "codemirror-helix";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { logNever } from "@/utils/assertNever";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../cells/state";
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { helix } from "codemirror-helix";
 import { vimKeymapExtension } from "./vim";
 
 export const KEYMAP_PRESETS = ["default", "vim", "helix"] as const;
