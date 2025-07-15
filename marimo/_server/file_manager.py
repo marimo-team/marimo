@@ -12,7 +12,7 @@ from marimo._ast import codegen, load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
-from marimo._config.config import SqlOutputType, WidthType
+from marimo._config.config import ExportType, SqlOutputType, WidthType
 from marimo._convert.converters import MarimoConvert
 from marimo._runtime.layout.layout import (
     LayoutConfig,
@@ -37,10 +37,14 @@ class AppFileManager:
         filename: Optional[Union[str, Path]],
         *,
         default_width: WidthType | None = None,
+        default_auto_download: list[ExportType] | None = None,
         default_sql_output: SqlOutputType | None = None,
     ) -> None:
         self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
+        self._default_auto_download: list[ExportType] | None = (
+            default_auto_download
+        )
         self._default_sql_output: SqlOutputType | None = default_sql_output
         self.app = self._load_app(self.path)
 
@@ -196,6 +200,8 @@ class AppFileManager:
             # Add defaults if it is a new file
             if self._default_width is not None:
                 kwargs["width"] = self._default_width
+            if self._default_auto_download is not None:
+                kwargs["auto_download"] = self._default_auto_download
             if self._default_sql_output is not None:
                 kwargs["sql_output"] = self._default_sql_output
 
