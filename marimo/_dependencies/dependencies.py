@@ -39,12 +39,9 @@ class Dependency:
     ) -> bool:
         if not self.has(quiet=quiet):
             return False
-        version = self.get_version()
-        if version is None:
-            return
         return _version_check(
             pkg=self.pkg,
-            v=version,
+            v=self.get_version(),
             min_v=min_version,
             max_v=max_version,
             quiet=quiet,
@@ -103,12 +100,9 @@ class Dependency:
     ) -> None:
         self.require(why)
 
-        version = self.get_version()
-        if version is None:
-            return
         _version_check(
             pkg=self.pkg,
-            v=version,
+            v=self.get_version(),
             min_v=min_version,
             max_v=max_version,
             raise_error=True,
@@ -128,12 +122,9 @@ class Dependency:
         min_version: str | None = None,
         max_version: str | None = None,
     ) -> bool:
-        version = self.get_version()
-        if version is None:
-            return False
         return _version_check(
             pkg=self.pkg,
-            v=version,
+            v=self.get_version(),
             min_v=min_version,
             max_v=max_version,
             raise_error=False,
@@ -156,12 +147,15 @@ class Dependency:
 def _version_check(
     *,
     pkg: str,
-    v: str,
+    v: str | None,
     min_v: str | None = None,
     max_v: str | None = None,
     raise_error: bool = False,
     quiet: bool = False,
 ) -> bool:
+    if v is None:
+        return False
+
     if min_v is None and max_v is None:
         return True
 
