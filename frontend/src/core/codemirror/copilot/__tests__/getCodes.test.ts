@@ -67,12 +67,7 @@ function createMockEditorView(code: string) {
 describe("getTopologicalCellIds", () => {
   it("should return topologically sorted cell IDs", () => {
     // Setup mock data
-    store.set(notebookAtom, {
-      ...initialNotebookState(),
-      cellIds: MultiColumn.from([
-        [Cells.cell1, Cells.cell2, Cells.cell3, Cells.cell4],
-      ]),
-    });
+    const cellIds = [Cells.cell1, Cells.cell2, Cells.cell3, Cells.cell4];
     const variables: Variables = {
       [Variables.var1]: {
         name: Variables.var1,
@@ -90,10 +85,8 @@ describe("getTopologicalCellIds", () => {
         usedBy: [],
       },
     };
-    store.set(variablesAtom, variables);
 
-    // Call the function
-    const result = getTopologicalCellIds();
+    const result = getTopologicalCellIds(cellIds, variables);
 
     // Assert the result
     expect(result).toEqual(["cell1", "cell2", "cell3", "cell4"]);

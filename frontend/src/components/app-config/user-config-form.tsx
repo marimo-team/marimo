@@ -427,6 +427,18 @@ export const UserConfigForm: React.FC = () => {
               />
             </SettingGroup>
             <SettingGroup title="Language Servers">
+              <FormDescription>
+                See the{" "}
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
+                  docs
+                </ExternalLink>{" "}
+                for more information about language server support.
+              </FormDescription>
+              <FormDescription>
+                <strong>Note:</strong> When using multiple language servers,
+                different features may conflict.
+              </FormDescription>
+
               <FormField
                 control={form.control}
                 name="language_servers.pylsp.enabled"
@@ -439,7 +451,7 @@ export const UserConfigForm: React.FC = () => {
                         </Badge>
                         Python Language Server (
                         <ExternalLink href="https://github.com/python-lsp/python-lsp-server">
-                          pylsp
+                          docs
                         </ExternalLink>
                         )
                       </FormLabel>
@@ -482,7 +494,7 @@ export const UserConfigForm: React.FC = () => {
                         </Badge>
                         ty (
                         <ExternalLink href="https://github.com/astral-sh/ty">
-                          ty
+                          docs
                         </ExternalLink>
                         )
                       </FormLabel>
@@ -512,14 +524,6 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
-              <FormDescription>
-                See the{" "}
-                <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
-                  docs
-                </ExternalLink>{" "}
-                for more information about language server support.
-              </FormDescription>
-
               <FormField
                 control={form.control}
                 name="diagnostics.enabled"
