@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { Controls } from "@/components/editor/controls/Controls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { FilenameForm } from "@/components/editor/header/filename-form";
+import { MultiCellActionToolbar } from "@/components/editor/navigation/multi-cell-action-toolbar";
 import { sendComponentValues, sendInterrupt } from "@/core/network/requests";
 import { cn } from "@/utils/cn";
 import { Paths } from "@/utils/paths";
@@ -168,6 +169,8 @@ export const EditApp: React.FC<AppProps> = ({
             {editableCellsArray}
           </CellsRenderer>
         )}
+
+        <MultiCellActionToolbar />
       </AppContainer>
       {!hideControls && (
         <TooltipProvider>

@@ -1,14 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { createRef } from "react";
 import { vi } from "vitest";
 import type { CellActions, NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import type { CellData } from "@/core/cells/types";
+import { type CellData, createCellRuntimeState } from "@/core/cells/types";
 import { MultiColumn } from "@/utils/id-tree";
 import { Objects } from "@/utils/objects";
 
 export const MockNotebook = {
   *cellIds() {
-    yield CellId.create();
+    // Some large number to prevent freezing when this function is misused.
+    for (let i = 0; i < 10_000; i++) {
+      yield CellId.create();
+    }
   },
 
   notebookState: (opts?: {
@@ -33,8 +38,10 @@ export const MockNotebook = {
         ...data,
       })),
       cellIds: MultiColumn.from([Object.keys(cellData) as CellId[]]),
-      cellRuntime: {},
-      cellHandles: {},
+      cellRuntime: Objects.mapValues(cellData, (_data) =>
+        createCellRuntimeState({}),
+      ),
+      cellHandles: Objects.mapValues(cellData, (_data) => createRef()),
       cellLogs: [],
       history: [],
       scrollKey: null,

@@ -50,3 +50,38 @@ export function useDeleteCellCallback() {
     }
   });
 }
+
+export function useDeleteManyCellsCallback() {
+  const { deleteCell, undoDeleteCell } = useCellActions();
+
+  return useEvent(async (opts: { cellIds: CellId[] }) => {
+    // Can't delete the last cell
+    if (store.get(hasOnlyOneCellAtom)) {
+      return;
+    }
+
+    const { cellIds } = opts;
+    for (const cellId of cellIds) {
+      await sendDeleteCell({ cellId }).then(() => {
+        deleteCell({ cellId });
+      });
+    }
+
+    const { dismiss } = toast({
+      title: "Cells deleted",
+      action: (
+        <UndoButton
+          data-testid="undo-delete-button"
+          onClick={() => {
+            for (const _cellId of cellIds) {
+              // This function does not take a cellId,
+              // so we just undo the number of cells that were deleted
+              undoDeleteCell();
+            }
+            dismiss();
+          }}
+        />
+      ),
+    });
+  });
+}
