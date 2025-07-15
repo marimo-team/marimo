@@ -23,6 +23,7 @@ import {
   useIsCellSelected,
 } from "./selection";
 import { temporarilyShownCodeAtom } from "./state";
+import { handleVimKeybinding } from "./vim-bindings";
 
 interface HotkeyHandler {
   handle: (cellId: CellId) => boolean;
@@ -230,24 +231,20 @@ export function useCellNavigationProps(
       }
 
       // Keymaps when using vim.
-      if (keymapPreset === "vim") {
-        const vimKeymaps = {
+      if (
+        keymapPreset === "vim" &&
+        handleVimKeybinding(evt.nativeEvent || evt, {
           j: keymaps.ArrowDown,
           k: keymaps.ArrowUp,
-          "Shift+j": keymaps["Shift+ArrowDown"],
-          "Shift+k": keymaps["Shift+ArrowUp"],
           i: keymaps.Enter,
-        } satisfies KeymapHandlers;
-
-        for (const [key, handler] of Object.entries(vimKeymaps)) {
-          if (parseShortcut(key)(evt)) {
-            const success = handler();
-            if (success) {
-              evt.preventDefault();
-              return;
-            }
-          }
-        }
+          "shift+j": keymaps["Shift+ArrowDown"],
+          "shift+k": keymaps["Shift+ArrowUp"],
+          "g g": keymaps["Mod+ArrowUp"],
+          "shift+g": keymaps["Mod+ArrowDown"],
+        })
+      ) {
+        evt.preventDefault();
+        return;
       }
 
       // Shortcuts
