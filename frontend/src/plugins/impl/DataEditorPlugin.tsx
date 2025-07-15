@@ -2,10 +2,11 @@
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import React from "react";
+import React, { useState } from "react";
 import { z } from "zod";
+import { inferFieldTypes } from "@/components/data-table/columns";
 import { LoadingTable } from "@/components/data-table/loading-table";
-import { toFieldTypes } from "@/components/data-table/types";
+import { type FieldTypes, toFieldTypes } from "@/components/data-table/types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { DATA_TYPES } from "@/core/kernel/messages";
@@ -80,20 +81,26 @@ interface Props
 }
 
 const LoadingDataEditor = (props: Props) => {
-  // Load the data
-  const { data, error } = useAsyncData(async () => {
-    // If we already have the data, return it
-    if (Array.isArray(props.data)) {
-      return props.data;
-    }
+  const [data, setData] = useState<unknown[]>([]);
+  const [columnFields, setColumnFields] = useState<FieldTypes>({});
 
+  // Load the data
+  const { error } = useAsyncData(async () => {
     const withoutExternalTypes = toFieldTypes(props.fieldTypes ?? []);
 
+    // If we already have the data, return it
     // Otherwise, load the data from the URL
-    return await vegaLoadData(
-      props.data,
-      { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
-      { handleBigIntAndNumberLike: true },
+    const localData = Array.isArray(props.data)
+      ? props.data
+      : await vegaLoadData(
+          props.data,
+          { type: "csv", parse: getVegaFieldTypes(withoutExternalTypes) },
+          { handleBigIntAndNumberLike: true },
+        );
+
+    setData(localData);
+    setColumnFields(
+      toFieldTypes(props.fieldTypes ?? inferFieldTypes(localData)),
     );
   }, [props.fieldTypes, props.data]);
 
@@ -119,7 +126,9 @@ const LoadingDataEditor = (props: Props) => {
   return (
     <LazyDataEditor
       data={data}
-      fieldTypes={props.fieldTypes}
+      setData={setData}
+      columnFields={columnFields}
+      setColumnFields={setColumnFields}
       edits={props.edits.edits} // TODO: This is returning old edits upon refresh
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));

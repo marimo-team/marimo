@@ -67,12 +67,12 @@ export function isColumnEdit(edit: Edits["edits"][number]): edit is ColumnEdit {
 
 export function pasteCells<T>(options: {
   selection: GridSelection;
-  localData: T[];
-  setLocalData: (updater: (prev: T[]) => T[]) => void;
+  data: T[];
+  setData: (updater: (prev: T[]) => T[]) => void;
   columns: ModifiedGridColumn[];
   onAddEdits: (edits: Edits["edits"]) => void;
 }) {
-  const { selection, localData, setLocalData, onAddEdits, columns } = options;
+  const { selection, data, setData, onAddEdits, columns } = options;
   if (!selection.current) {
     return;
   }
@@ -111,7 +111,7 @@ export function pasteCells<T>(options: {
         const targetRowIdx = startRow + rowIndex;
 
         // Check if we've exceeded the data bounds
-        if (targetRowIdx >= localData.length) {
+        if (targetRowIdx >= data.length) {
           break;
         }
 
@@ -163,7 +163,7 @@ export function pasteCells<T>(options: {
       if (edits.length > 0) {
         onAddEdits(edits);
 
-        setLocalData((prev: T[]) => {
+        setData((prev: T[]) => {
           const newData = [...prev];
 
           // Apply all edits to the data

@@ -81,8 +81,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -102,8 +102,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -122,8 +122,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -145,8 +145,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -168,8 +168,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -191,8 +191,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -213,8 +213,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -241,8 +241,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(), // Only 3 rows
-      setLocalData: mockSetLocalData,
+      data: createMockData(), // Only 3 rows
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -270,8 +270,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(), // Only 3 columns
       onAddEdits: mockOnAddEdits,
     });
@@ -293,8 +293,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(1, 1), // Start at column 1, row 1
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -316,8 +316,8 @@ describe("pasteCells", () => {
         rows: CompactSelection.empty(),
         columns: CompactSelection.empty(),
       },
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -341,8 +341,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -363,8 +363,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
@@ -393,8 +393,8 @@ describe("pasteCells", () => {
 
     pasteCells({
       selection: createMockSelection(0, 0),
-      localData: createMockData(),
-      setLocalData: mockSetLocalData,
+      data: createMockData(),
+      setData: mockSetLocalData,
       columns: createMockColumns(),
       onAddEdits: mockOnAddEdits,
     });
