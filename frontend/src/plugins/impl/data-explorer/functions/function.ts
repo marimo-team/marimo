@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-base-to-string */
 import type { FieldQuery } from "compassql/build/src/query/encoding";
-import { isAggregateOp } from "vega-lite/build/src/aggregate";
+import { isAggregateOp } from "vega-lite/types_unstable/aggregate.js";
 import type { FieldFunction, TimeUnitOp } from "./types";
 
 // This code is adapted and simplified from https://github.com/vega/voyager

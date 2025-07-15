@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { PositionDef } from "vega-lite/build/src/channeldef";
+import type { PositionDef } from "vega-lite/types_unstable/channeldef.js";
 import { describe, expect, it } from "vitest";
 import { invariant } from "@/utils/invariant";
 import {

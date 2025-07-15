@@ -146,7 +146,7 @@ export const CIRCLE_CHART: VegaLiteSpec = {
 };
 
 export const CIRCLE_2_CHART: VegaLiteSpec = {
-  $schema: "https://vega.github.io/schema/vega-lite/v5.14.1.json",
+  $schema: "https://vega.github.io/schema/vega-lite/v6.json",
   config: {
     view: { continuousHeight: 300, continuousWidth: 300 },
     scale: { bandPaddingInner: 0.2 },

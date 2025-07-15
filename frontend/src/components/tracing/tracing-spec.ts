@@ -34,7 +34,7 @@ export function createGanttBaseSpec(
   // @ts-expect-error - Supported by vega/vega-lite but invalid "TimeUnit" option from exported type
   const timeUnit: TimeUnit = "hoursminutessecondsmilliseconds";
   return {
-    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    $schema: "https://vega.github.io/schema/vega-lite/v6.json",
     background: theme === "dark" ? "black" : undefined,
     mark: {
       type: "bar",

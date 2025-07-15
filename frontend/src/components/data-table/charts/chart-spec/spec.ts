@@ -6,10 +6,10 @@ import type {
   Field,
   PolarDef,
   PositionDef,
-} from "vega-lite/build/src/channeldef";
-import type { Encoding } from "vega-lite/build/src/encoding";
-import type { Resolve } from "vega-lite/build/src/resolve";
-import type { FacetFieldDef } from "vega-lite/build/src/spec/facet";
+} from "vega-lite/types_unstable/channeldef.js";
+import type { Encoding } from "vega-lite/types_unstable/encoding.js";
+import type { Resolve } from "vega-lite/types_unstable/resolve.js";
+import type { FacetFieldDef } from "vega-lite/types_unstable/spec/facet.js";
 import type { z } from "zod";
 import type { ResolvedTheme } from "@/theme/useTheme";
 import type { TypedString } from "@/utils/typed";
@@ -285,7 +285,7 @@ function getBaseSpec(
   }
 
   return {
-    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    $schema: "https://vega.github.io/schema/vega-lite/v6.json",
     background: theme === "dark" ? "dark" : "white",
     title: title,
     data: { values: [] },
