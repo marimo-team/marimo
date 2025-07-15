@@ -152,15 +152,15 @@ describe("useCellNavigationProps", () => {
       cellData: {
         [cellId1]: {
           id: cellId1,
-          config: { hide_code: false },
+          config: { hide_code: false, disabled: false },
         },
         [cellId2]: {
           id: cellId2,
-          config: { hide_code: false },
+          config: { hide_code: false, disabled: false },
         },
         [cellId3]: {
           id: cellId3,
-          config: { hide_code: true },
+          config: { hide_code: true, disabled: false },
         },
       },
     });
@@ -1194,7 +1194,7 @@ describe("useCellNavigationProps", () => {
         ...options,
         cellActionDropdownRef: {
           current: null,
-        } as React.RefObject<CellActionsDropdownHandle>,
+        } as unknown as React.RefObject<CellActionsDropdownHandle>,
       };
 
       const { result } = renderWithProvider(() =>
