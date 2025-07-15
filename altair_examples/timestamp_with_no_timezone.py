@@ -48,6 +48,7 @@ def __(StringIO, date_format, pd):
         ]
 
         return res
+
     return (build_df,)
 
 
@@ -75,11 +76,14 @@ def __():
 
 @app.cell
 def __():
-    import marimo as mo
+    from io import StringIO
+
+    import altair as alt
     import numpy as np
     import pandas as pd
-    from io import StringIO
-    import altair as alt
+
+    import marimo as mo
+
     return StringIO, alt, mo, np, pd
 
 

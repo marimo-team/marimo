@@ -7,14 +7,17 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _():
-    import polars as pl
-    import altair as alt
     from datetime import date
+
+    import altair as alt
+    import polars as pl
+
     return alt, date, pl
 
 

@@ -6,10 +6,12 @@ app = marimo.App(width="medium")
 
 @app.cell
 def __():
-    import polars as pl
-    import pandas as pd
     import altair as alt
+    import pandas as pd
+    import polars as pl
+
     import marimo as mo
+
     return alt, mo, pd, pl
 
 
@@ -29,7 +31,9 @@ def __(mo, pd, pl):
 def __(alt, df_selection, mo):
     df = df_selection.value
     chart = mo.ui.altair_chart(
-        alt.Chart(df).mark_point().encode(x="sepal_length:Q", y="sepal_width:Q")
+        alt.Chart(df)
+        .mark_point()
+        .encode(x="sepal_length:Q", y="sepal_width:Q")
     )
     chart
     return chart, df

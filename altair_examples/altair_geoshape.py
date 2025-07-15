@@ -17,14 +17,15 @@ app = marimo.App(width="medium")
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+
+    return (mo,)
 
 
 @app.cell
 def __():
     import altair as alt
-    from vega_datasets import data
     import geopandas as gpd
+    from vega_datasets import data
 
     url = "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip"
     gdf_ne = gpd.read_file(url)  # zipped shapefile
@@ -35,7 +36,7 @@ def __():
 @app.cell
 def __(gdf_ne):
     gdf_sel = gdf_ne.query("CONTINENT == 'Africa'")
-    return gdf_sel,
+    return (gdf_sel,)
 
 
 @app.cell
@@ -45,7 +46,7 @@ def __(alt, gdf_sel):
         .mark_geoshape(stroke="white", strokeWidth=1.5)
         .encode(fill="NAME:N")
     )
-    return chart,
+    return (chart,)
 
 
 @app.cell
@@ -64,7 +65,7 @@ def __(chart):
 def __(chart, mo):
     mo_chart = mo.ui.altair_chart(chart)
     mo_chart
-    return mo_chart,
+    return (mo_chart,)
 
 
 @app.cell
