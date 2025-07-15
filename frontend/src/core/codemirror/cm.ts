@@ -3,17 +3,16 @@ import {
   acceptCompletion,
   closeBrackets,
   closeBracketsKeymap,
-  startCompletion,
-  moveCompletionSelection,
   completionStatus,
+  moveCompletionSelection,
+  startCompletion,
 } from "@codemirror/autocomplete";
 import {
   history,
   historyKeymap,
-  indentWithTab,
   indentMore,
+  indentWithTab,
 } from "@codemirror/commands";
-import { lintGutter } from "@codemirror/lint";
 import {
   bracketMatching,
   defaultHighlightStyle,
@@ -23,52 +22,54 @@ import {
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
+import { lintGutter } from "@codemirror/lint";
+import { EditorState, type Extension, Prec } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
+  EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
   highlightSpecialChars,
-  lineNumbers,
   keymap,
+  lineNumbers,
   rectangularSelection,
   tooltips,
-  EditorView,
 } from "@codemirror/view";
-
-import { EditorState, type Extension, Prec } from "@codemirror/state";
+import { aiExtension } from "@marimo-team/codemirror-ai";
+import type { Theme } from "../../theme/useTheme";
+import type { CellId } from "../cells/ids";
 import type {
   CompletionConfig,
   DiagnosticsConfig,
+  DisplayConfig,
   KeymapConfig,
   LSPConfig,
 } from "../config/config-schema";
-import type { Theme } from "../../theme/useTheme";
-
-import { findReplaceBundle } from "./find-replace/extension";
-import { cellBundle } from "./cells/extensions";
-import type { CellId } from "../cells/ids";
-import { keymapBundle } from "./keymaps/keymaps";
-import { scrollActiveLineIntoView } from "./extensions";
-import { copilotBundle } from "./copilot/extension";
-import { hintTooltip } from "./completion/hints";
-import { adaptiveLanguageConfiguration } from "./language/extension";
-import { historyCompartment } from "./editing/extensions";
-import { goToDefinitionBundle } from "./go-to-definition/extension";
-import type { HotkeyProvider } from "../hotkeys/hotkeys";
-import { lightTheme } from "./theme/light";
-import { darkTheme } from "./theme/dark";
-import { dndBundle } from "./misc/dnd";
-import { jupyterHelpExtension } from "./compat/jupyter";
-import { pasteBundle } from "./misc/paste";
-
-import { requestEditCompletion } from "./ai/request";
-import { getCurrentLanguageAdapter } from "./language/commands";
-import { aiExtension } from "@marimo-team/codemirror-ai";
 import { getFeatureFlag } from "../config/feature-flag";
+import type { HotkeyProvider } from "../hotkeys/hotkeys";
+import { store } from "../state/jotai";
+import { requestEditCompletion } from "./ai/request";
+import { cellBundle } from "./cells/extensions";
 import type { CodemirrorCellActions } from "./cells/state";
-import { cellConfigExtension } from "./config/extension";
+import { jupyterHelpExtension } from "./compat/jupyter";
+import { hintTooltip } from "./completion/hints";
 import { completionKeymap } from "./completion/keymap";
+import { cellConfigExtension } from "./config/extension";
+import { copilotBundle } from "./copilot/extension";
+import { historyCompartment } from "./editing/extensions";
+import { scrollActiveLineIntoView } from "./extensions";
+import { findReplaceBundle } from "./find-replace/extension";
+import { goToDefinitionBundle } from "./go-to-definition/extension";
+import { keymapBundle } from "./keymaps/keymaps";
+import { getCurrentLanguageAdapter } from "./language/commands";
+import { adaptiveLanguageConfiguration } from "./language/extension";
+import { dndBundle } from "./misc/dnd";
+import { pasteBundle } from "./misc/paste";
+import { reactiveReferencesBundle } from "./reactive-references/extension";
+import { dynamicReadonly } from "./readonly/extension";
+import { darkTheme } from "./theme/dark";
+import { lightTheme } from "./theme/light";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -81,6 +82,7 @@ export interface CodeMirrorSetupOpts {
   hotkeys: HotkeyProvider;
   lspConfig: LSPConfig;
   diagnosticsConfig: DiagnosticsConfig;
+  displayConfig: Pick<DisplayConfig, "reference_highlighting">;
 }
 
 function getPlaceholderType(opts: CodeMirrorSetupOpts) {
@@ -101,6 +103,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     completionConfig,
     lspConfig,
     diagnosticsConfig,
+    displayConfig,
   } = opts;
   const placeholderType = getPlaceholderType(opts);
 
@@ -111,13 +114,13 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     pasteBundle(),
     jupyterHelpExtension(),
     // Cell editing
-    cellConfigExtension(
+    cellConfigExtension({
       completionConfig,
       hotkeys,
       placeholderType,
       lspConfig,
       diagnosticsConfig,
-    ),
+    }),
     cellBundle(cellId, hotkeys, cellActions),
     // Comes last so that it can be overridden
     basicBundle(opts),
@@ -138,6 +141,13 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
           },
         })
       : [],
+    // Readonly extension
+    dynamicReadonly(store),
+    // Reactive references highlighting
+    reactiveReferencesBundle(
+      cellId,
+      displayConfig.reference_highlighting ?? false,
+    ),
   ];
 };
 

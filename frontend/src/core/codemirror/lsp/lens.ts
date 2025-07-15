@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type * as LSP from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
-import type * as LSP from "vscode-languageserver-protocol";
 
 export interface NotebookLens {
   /** The ids of the cells in the notebook */

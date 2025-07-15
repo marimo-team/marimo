@@ -1,20 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
-  describe,
-  beforeEach,
-  it,
-  expect,
-  vi,
   afterAll,
   beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
 } from "vitest";
+import { TestUtils } from "@/__tests__/test-helpers";
+import type { Base64String } from "@/utils/json/base64";
 import {
-  Model,
-  handleWidgetMessage,
   type AnyWidgetMessage,
+  handleWidgetMessage,
+  Model,
   visibleForTesting,
 } from "../model";
-import type { Base64String } from "@/utils/json/base64";
 
 const { ModelManager } = visibleForTesting;
 
@@ -145,7 +146,7 @@ describe("Model", () => {
       model.send({ test: true }, callback);
 
       expect(sendToWidget).toHaveBeenCalledWith({ content: { test: true } });
-      await new Promise((resolve) => setTimeout(resolve, 0)); // flush
+      await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledWith(null);
     });
 
@@ -219,7 +220,7 @@ describe("Model", () => {
       const callback = vi.fn();
       model.on("change", callback);
       model.updateAndEmitDiffs({ foo: "changed", bar: 456 });
-      await new Promise((resolve) => setTimeout(resolve, 0)); // flush
+      await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledTimes(1);
     });
   });
@@ -278,11 +279,15 @@ describe("Model", () => {
 
 describe("ModelManager", () => {
   let modelManager = new ModelManager(50);
-  const handle = (
-    modelId: string,
-    message: AnyWidgetMessage,
-    buffers: Base64String[],
-  ) => {
+  const handle = ({
+    modelId,
+    message,
+    buffers,
+  }: {
+    modelId: string;
+    message: AnyWidgetMessage;
+    buffers: Base64String[];
+  }) => {
     return handleWidgetMessage(modelId, message, buffers, modelManager);
   };
 
@@ -318,7 +323,7 @@ describe("ModelManager", () => {
       buffer_paths: [],
     };
 
-    await handle("test-id", openMessage, []);
+    await handle({ modelId: "test-id", message: openMessage, buffers: [] });
     const model = await modelManager.get("test-id");
     expect(model.get("count")).toBe(0);
 
@@ -328,7 +333,7 @@ describe("ModelManager", () => {
       buffer_paths: [],
     };
 
-    await handle("test-id", updateMessage, []);
+    await handle({ modelId: "test-id", message: updateMessage, buffers: [] });
     expect(model.get("count")).toBe(1);
   });
 
@@ -336,7 +341,11 @@ describe("ModelManager", () => {
     const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
     modelManager.set("test-id", model);
 
-    await handle("test-id", { method: "close" }, []);
+    await handle({
+      modelId: "test-id",
+      message: { method: "close" },
+      buffers: [],
+    });
     await expect(modelManager.get("test-id")).rejects.toThrow();
   });
 });

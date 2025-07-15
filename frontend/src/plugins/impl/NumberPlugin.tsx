@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
-
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { Labeled } from "./common/labeled";
+import { NumberField } from "@/components/ui/number-field";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
-import { NumberField } from "@/components/ui/number-field";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { Labeled } from "./common/labeled";
 
 type T = number;
 

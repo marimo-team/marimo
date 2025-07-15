@@ -1,56 +1,51 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type Extension, Prec } from "@codemirror/state";
-import type { LanguageAdapter } from "../types";
+
+import { autocompletion } from "@codemirror/autocomplete";
 import {
-  pythonLanguage,
-  localCompletionSource,
   globalCompletion,
+  localCompletionSource,
+  pythonLanguage,
 } from "@codemirror/lang-python";
 import {
-  foldNodeProp,
   foldInside,
+  foldNodeProp,
   LanguageSupport,
 } from "@codemirror/language";
+import { type Extension, Prec } from "@codemirror/state";
+import {
+  documentUri,
+  LanguageServerClient,
+  languageServerWithClient,
+} from "@marimo-team/codemirror-languageserver";
+import type { CellId } from "@/core/cells/ids";
+import { hasCapability } from "@/core/config/capabilities";
 import type {
   CompletionConfig,
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { PlaceholderType } from "../../config/types";
-import {
-  smartPlaceholderExtension,
-  clickablePlaceholderExtension,
-} from "../../placeholder/extensions";
-import {
-  LanguageServerClient,
-  languageServerWithClient,
-  documentUri,
-} from "@marimo-team/codemirror-languageserver";
-import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
-import { WebSocketTransport } from "@open-rpc/client-js";
-import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
-import { once } from "@/utils/once";
-import { autocompletion } from "@codemirror/autocomplete";
-import { pythonCompletionSource } from "../../completion/completer";
-import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
-import { Paths } from "@/utils/paths";
-import type { CellId } from "@/core/cells/ids";
-import { cellActionsState } from "../../cells/state";
 import { openFile } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
-import { CellDocumentUri } from "../../lsp/types";
-import { hasCapability } from "@/core/config/capabilities";
+import { once } from "@/utils/once";
+import { cellActionsState } from "../../cells/state";
+import { pythonCompletionSource } from "../../completion/completer";
+import type { PlaceholderType } from "../../config/types";
+import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
+import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
+import { createTransport } from "../../lsp/transports";
+import { CellDocumentUri, type ILanguageServerClient } from "../../lsp/types";
+import { getLSPDocumentRootUri } from "../../lsp/utils";
+import {
+  clickablePlaceholderExtension,
+  smartPlaceholderExtension,
+} from "../../placeholder/extensions";
+import type { LanguageAdapter } from "../types";
 
-const pylspTransport = once(() => {
-  const transport = new WebSocketTransport(resolveToWsUrl("/lsp/pylsp"));
-  return transport;
-});
-
-const lspClient = once((lspConfig: LSPConfig) => {
+const pylspClient = once((lspConfig: LSPConfig) => {
   const lspClientOpts = {
-    transport: pylspTransport(),
-    rootUri: `file://${Paths.dirname(getFilenameFromDOM() ?? "/")}`,
+    transport: createTransport("pylsp"),
+    rootUri: getLSPDocumentRootUri(),
     workspaceFolders: [],
   };
   const config = lspConfig?.pylsp;
@@ -120,6 +115,10 @@ const lspClient = once((lspConfig: LSPConfig) => {
             ...ignoredRuffRules,
           ],
         },
+        signature: {
+          formatter: config?.enable_ruff ? "ruff" : "black",
+          line_length: 88,
+        },
       },
     },
   };
@@ -132,6 +131,25 @@ const lspClient = once((lspConfig: LSPConfig) => {
       autoClose: false,
     }),
     settings,
+  );
+});
+
+const tyLspClient = once((_: LSPConfig) => {
+  const lspClientOpts = {
+    transport: createTransport("ty"),
+    rootUri: getLSPDocumentRootUri(),
+    workspaceFolders: [],
+  };
+
+  // We wrap the client in a NotebookLanguageServerClient to add some
+  // additional functionality to handle multiple cells
+  return new NotebookLanguageServerClient(
+    new LanguageServerClient({
+      ...lspClientOpts,
+      autoClose: false,
+      getWorkspaceConfiguration: (_) => [{ disableLanguageServices: true }],
+    }),
+    {},
   );
 });
 
@@ -178,12 +196,26 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
         // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
         closeOnBlur: false,
       };
+
       const hoverOptions = {
         hideOnChange: true,
       };
 
+      const clients: ILanguageServerClient[] = [];
+
       if (lspConfig?.pylsp?.enabled && hasCapability("pylsp")) {
-        const client = lspClient(lspConfig);
+        clients.push(pylspClient(lspConfig));
+      }
+      if (lspConfig?.ty?.enabled && hasCapability("ty")) {
+        clients.push(tyLspClient(lspConfig));
+      }
+
+      if (clients.length > 0) {
+        const client =
+          clients.length === 1
+            ? (clients[0] as NotebookLanguageServerClient)
+            : new FederatedLanguageServerClient(clients);
+
         return [
           languageServerWithClient({
             client: client as unknown as LanguageServerClient,

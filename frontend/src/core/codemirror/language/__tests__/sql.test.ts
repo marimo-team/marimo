@@ -1,21 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it, afterEach, beforeEach } from "vitest";
+
+import { PostgreSQL } from "@codemirror/lang-sql";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  dataSourceConnectionsAtom,
+  setLatestEngineSelected,
+} from "@/core/datasets/data-source-connections";
+import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
+import { datasetsAtom } from "@/core/datasets/state";
+import type { DatasetsState } from "@/core/datasets/types";
+import type { DataSourceConnection } from "@/core/kernel/messages";
+import { store } from "@/core/state/jotai";
 import {
   SQLCompletionStore,
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
 } from "../languages/sql";
-import { store } from "@/core/state/jotai";
-import {
-  dataSourceConnectionsAtom,
-  DUCKDB_ENGINE,
-  setLatestEngineSelected,
-  type ConnectionName,
-} from "@/core/datasets/data-source-connections";
-import type { DataSourceConnection } from "@/core/kernel/messages";
-import { PostgreSQL } from "@codemirror/lang-sql";
-import { datasetsAtom } from "@/core/datasets/state";
-import type { DatasetsState } from "@/core/datasets/types";
 
 const adapter = new SQLLanguageAdapter();
 

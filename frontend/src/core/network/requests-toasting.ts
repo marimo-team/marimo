@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toast } from "@/components/ui/use-toast";
-import type { EditRequests, RequestKey, RunRequests } from "./types";
-import { Logger } from "@/utils/Logger";
 import { prettyError } from "@/utils/errors";
+import { Logger } from "@/utils/Logger";
+import type { EditRequests, RequestKey, RunRequests } from "./types";
 
 export function createErrorToastingRequests(
   delegate: EditRequests & RunRequests,
@@ -58,8 +58,10 @@ export function createErrorToastingRequests(
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
+    getDependencyTree: "Failed to get dependency tree",
     listSecretKeys: "Failed to fetch secrets",
     writeSecret: "Failed to write secret",
+    invokeAiTool: "Failed to invoke AI tool",
   };
 
   const handlers = {} as EditRequests & RunRequests;

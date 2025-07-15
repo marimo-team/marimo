@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { Schema } from "compassql/build/src/schema";
 import { BarChartBigIcon } from "lucide-react";
 import React, { useState } from "react";
-import { PRIMITIVE_TYPE_ICON } from "./icons";
-import type { Schema } from "compassql/build/src/schema";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/utils/cn";
 import {
   Select,
   SelectContent,
@@ -13,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/utils/cn";
+import { PRIMITIVE_TYPE_ICON } from "./icons";
 
 interface Props {
   schema: Schema;

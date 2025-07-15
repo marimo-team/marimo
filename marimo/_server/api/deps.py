@@ -97,6 +97,10 @@ class AppStateBase:
     def skew_protection_token(self) -> SkewProtectionToken:
         return self.session_manager.skew_protection_token
 
+    @property
+    def remote_url(self) -> Optional[str]:
+        return getattr(self.state, "remote_url", None)
+
 
 class AppState(AppStateBase):
     """The app state with a request."""

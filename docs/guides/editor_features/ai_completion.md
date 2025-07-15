@@ -8,6 +8,11 @@ marimo is an AI-native editor, with support for full-cell AI code generation:
 
 as well as inline copilots (like GitHub Copilot).
 
+marimo's AI assistant is specialized for working with data: unlike traditional
+assistants that only have access to the text of your program, marimo's assistant
+has access to the values of variables in memory, letting it code against
+your dataframe and database schemas.
+
 This guide provides an overview of these features and how to configure them.
 
 !!! tip "Locating your marimo.toml config file"
@@ -16,6 +21,10 @@ This guide provides an overview of these features and how to configure them.
     file. Locate this file with `marimo config show | head`.
 
 ## Generating cells with AI
+
+<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+  <source src="/_static/readme-generate-with-ai.mp4" type="video/mp4">
+</video>
 
 marimo has built-in support for generating and refactoring code with LLMs.
 marimo works with hosted AI providers, such as OpenAI, Anthropic, and Google,
@@ -208,12 +217,12 @@ If you're using an AWS named profile different from your default, specify the pr
 To use Google AI with marimo:
 
 1. Sign up for an account at [Google AI Studio](https://aistudio.google.com/app/apikey) and obtain your API key.
-2. Install the Google AI Python client: `pip install google-generativeai`
+2. Install the Google AI Python client: `pip install google-genai`
 3. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
-model = "gemini-1.5-flash"
+model = "gemini-2.5-flash-preview-05-20"
 # or any model from https://ai.google.dev/gemini-api/docs/models/gemini
 
 [ai.google]
@@ -264,13 +273,15 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
 !!! note "Port already in use"
     If you get a "port already in use" error, you may need to close an existing Ollama instance. On Windows, click the up arrow in the taskbar, find the Ollama icon, and select "Quit". This is a known issue (see [Ollama Issue #3575](https://github.com/ollama/ollama/issues/3575)). Once you've closed the existing Ollama instance, you should be able to run `ollama serve` successfully.
 
-5. Open a new terminal and start marimo:
+5. Open a new terminal and install the openai client (e.g. `pip install openai`, `uv add openai`)
+
+6. Start marimo:
 
    ```bash
    marimo edit notebook.py
    ```
 
-6. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
+7. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
 [ai.open_ai]
@@ -324,55 +335,27 @@ marimo using `pip`/`uv` if you need Copilot._
 
 ### Windsurf Copilot
 
-Windsurf (formerly codeium) provides a free coding copilot. You can try
-setting up Windsurf with the following:
+[Windsurf](https://windsurf.com/) (formerly codeium) provides tab-completion tooling that can also be used from within marimo. 
 
-1. Go to the Windsurf website and sign up for an account: <https://windsurf.com/>
-2. Try the method from: <https://github.com/leona/helix-gpt/discussions/60>
+To set up Windsurf:
 
-Add your key to your marimo.toml file (or configure in the UI settings in the editor):
+1. Go to [windsurf.com](https://windsurf.com/) website and sign up for an account.
+2. Download the [Windsurf app](https://windsurf.com/download).
+3. After installing Windsurf and authenticating, open up the command palette, via <kbd>cmd</kbd>+<kbd>shift</kbd>+<kbd>p</kbd>, and ask it to copy the api key to your clipboard. 
+
+![Copy Windsurf API key](/_static/windsurf-api.png)
+
+4a. Configure the UI settings in the editor to use Windsurf. 
+
+![Paste Windsurf API key](/_static/windsurf-settings.png)
+
+4b. Alternatively you can also configure the api key from the marimo config file. 
 
 ```toml title="marimo.toml"
 [completion]
 copilot = "codeium"
 codeium_api_key = ""
 ```
-
-For official support, please ping the Windsurf team and ask them to support marimo.
-
-??? note "Alternative: Obtain Windsurf API key using VS Code"
-
-    1. Go to the Codeium website and sign up for an account: <https://codeium.com/>
-    2. Install the [Codeium Visual Studio Code extension](vscode:extension/codeium.codeium) (see [here](https://codeium.com/vscode_tutorial) for complete guide)
-    3. Sign in to your Codeium account in the VS Code extension
-    4. Select the Codeium icon on the Activity bar (left side), which opens the Codeium pane
-    5. Select the **Settings** button (gear icon) in the top-right corner of the Codeium pane
-
-    <div align="center">
-      <figure>
-        <img src="/_static/docs-ai-completion-codeium-vscode.png"/>
-        <figcaption>Open Codeium settings</figcaption>
-    </figure>
-    </div>
-
-    6. Click the **Download** link under the **Extension Diagnostics** section
-    7. Open the diagnostic file and search for `apiKey`
-
-    <div align="center">
-      <figure>
-        <img src="/_static/docs-ai-completion-codeium-vscode-download-diagnostics.png"/>
-        <figcaption>Download diagnostics file with API key</figcaption>
-      </figure>
-    </div>
-
-    8. Copy the value of the `apiKey` to `$XDG_CONFIG_HOME/marimo/marimo.toml`:
-
-    ```toml title="marimo.toml"
-    [completion]
-    codeium_api_key = "a1e8..."  # <-- paste your API key here
-    copilot = "codeium"
-    activate_on_typing = true
-    ```
 
 ### Custom copilots
 

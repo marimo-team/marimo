@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { paths, components } from "@marimo-team/marimo-api";
+import type { components, paths } from "@marimo-team/marimo-api";
 import type { CellId } from "../cells/ids";
 
 export type schemas = components["schemas"];
@@ -45,6 +45,9 @@ export type InstallMissingPackagesRequest =
 export type AddPackageRequest = schemas["AddPackageRequest"];
 export type RemovePackageRequest = schemas["RemovePackageRequest"];
 export type ListPackagesResponse = schemas["ListPackagesResponse"];
+export type DependencyTreeResponse = schemas["DependencyTreeResponse"];
+export type DependencyTreeNode = schemas["DependencyTreeNode"];
+
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
 export type InstantiateRequest = schemas["InstantiateRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
@@ -91,6 +94,8 @@ export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
 export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
+export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
+export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 
 /**
  * Requests sent to the BE during run/edit mode.
@@ -168,6 +173,7 @@ export interface EditRequests {
   autoExportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<null>;
   // Package requests
   getPackageList: () => Promise<ListPackagesResponse>;
+  getDependencyTree: () => Promise<DependencyTreeResponse>;
   addPackage: (request: AddPackageRequest) => Promise<PackageOperationResponse>;
   removePackage: (
     request: RemovePackageRequest,
@@ -175,6 +181,8 @@ export interface EditRequests {
   // Secrets requests
   listSecretKeys: (request: ListSecretKeysRequest) => Promise<null>;
   writeSecret: (request: CreateSecretRequest) => Promise<null>;
+  // AI Tool requests
+  invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

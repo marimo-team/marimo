@@ -1,15 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type {
+  Column,
+  OnChangeFn,
+  RowSelectionState,
+} from "@tanstack/react-table";
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  SearchIcon,
   ChevronsLeft,
   ChevronsRight,
-  AlertTriangle,
   Info,
+  SearchIcon,
 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ColumnName } from "@/components/datasources/components";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -18,30 +28,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { useState, useRef } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useKeydownOnElement } from "@/hooks/useHotkey";
+import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
+import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
+import { NAMELESS_COLUMN_PREFIX, renderCellValue } from "../columns";
+import { prettifyRowCount } from "../pagination";
 import {
+  type FieldTypesWithExternalType,
   INDEX_COLUMN_NAME,
   SELECT_COLUMN_ID,
   TOO_MANY_ROWS,
   type TooManyRows,
-  type FieldTypesWithExternalType,
 } from "../types";
-import { prettifyRowCount } from "../pagination";
-import type { GetRowResult } from "@/plugins/impl/DataTablePlugin";
-import { NAMELESS_COLUMN_PREFIX } from "../columns";
-import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
-import type {
-  Column,
-  RowSelectionState,
-  OnChangeFn,
-} from "@tanstack/react-table";
-import { renderCellValue } from "../columns";
-import { useKeydownOnElement } from "@/hooks/useHotkey";
-import { ColumnName } from "@/components/datasources/components";
-import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 
 export interface RowViewerPanelProps {
   rowIdx: number;
@@ -190,7 +189,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           {fieldTypes?.map(([columnName, [dataType, externalType]]) => {
             const columnValue = rowValues[columnName];
 
-            if (!inSearchQuery(columnName, columnValue, searchQuery)) {
+            if (!inSearchQuery({ columnName, columnValue, searchQuery })) {
               return null;
             }
 
@@ -331,11 +330,15 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
   );
 };
 
-export function inSearchQuery(
-  columnName: string,
-  columnValue: unknown,
-  searchQuery: string,
-) {
+export function inSearchQuery({
+  columnName,
+  columnValue,
+  searchQuery,
+}: {
+  columnName: string;
+  columnValue: unknown;
+  searchQuery: string;
+}) {
   const colName = columnName.toLowerCase();
   const searchQueryLower = searchQuery.toLowerCase();
 

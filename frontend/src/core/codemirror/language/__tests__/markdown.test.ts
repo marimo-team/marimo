@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   MarkdownLanguageAdapter,
   type MarkdownLanguageAdapterMetadata,
@@ -429,31 +429,67 @@ describe("MarkdownLanguageAdapter", () => {
 
 describe("getQuotePrefix", () => {
   it("should return the correct quote prefix when checked", () => {
-    expect(getQuotePrefix("", true, "r")).toBe("r");
-    expect(getQuotePrefix("", true, "f")).toBe("f");
-    expect(getQuotePrefix("r", true, "f")).toBe("rf");
-    expect(getQuotePrefix("f", true, "r")).toBe("rf");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "", checked: true, prefix: "r" }),
+    ).toBe("r");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "", checked: true, prefix: "f" }),
+    ).toBe("f");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "r", checked: true, prefix: "f" }),
+    ).toBe("rf");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "f", checked: true, prefix: "r" }),
+    ).toBe("rf");
   });
 
   it("should return the correct quote prefix when unchecked", () => {
-    expect(getQuotePrefix("r", false, "r")).toBe("");
-    expect(getQuotePrefix("f", false, "f")).toBe("");
-    expect(getQuotePrefix("rf", false, "r")).toBe("f");
-    expect(getQuotePrefix("rf", false, "f")).toBe("r");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "r", checked: false, prefix: "r" }),
+    ).toBe("");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "f", checked: false, prefix: "f" }),
+    ).toBe("");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "rf", checked: false, prefix: "r" }),
+    ).toBe("f");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "rf", checked: false, prefix: "f" }),
+    ).toBe("r");
   });
 
   it("should return the correct quote prefix even when not possible to toggle", () => {
-    expect(getQuotePrefix("", false, "r")).toBe("");
-    expect(getQuotePrefix("", false, "f")).toBe("");
-    expect(getQuotePrefix("r", false, "f")).toBe("r");
-    expect(getQuotePrefix("f", false, "r")).toBe("f");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "", checked: false, prefix: "r" }),
+    ).toBe("");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "", checked: false, prefix: "f" }),
+    ).toBe("");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "r", checked: false, prefix: "f" }),
+    ).toBe("r");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "f", checked: false, prefix: "r" }),
+    ).toBe("f");
 
-    expect(getQuotePrefix("rf", true, "r")).toBe("rf");
-    expect(getQuotePrefix("rf", true, "f")).toBe("rf");
-    expect(getQuotePrefix("f", true, "f")).toBe("f");
-    expect(getQuotePrefix("r", true, "r")).toBe("r");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "rf", checked: true, prefix: "r" }),
+    ).toBe("rf");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "rf", checked: true, prefix: "f" }),
+    ).toBe("rf");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "f", checked: true, prefix: "f" }),
+    ).toBe("f");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "r", checked: true, prefix: "r" }),
+    ).toBe("r");
 
-    expect(getQuotePrefix("", false, "")).toBe("");
-    expect(getQuotePrefix("", true, "")).toBe("");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "", checked: false, prefix: "" }),
+    ).toBe("");
+    expect(
+      getQuotePrefix({ currentQuotePrefix: "", checked: true, prefix: "" }),
+    ).toBe("");
   });
 });

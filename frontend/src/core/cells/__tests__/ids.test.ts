@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { CellId, CellOutputId, HTMLCellId, findCellId } from "../ids";
+import { describe, expect, it } from "vitest";
+import { CellId, CellOutputId, findCellId, HTMLCellId } from "../ids";
 
 describe("CellId", () => {
   it("create", () => {

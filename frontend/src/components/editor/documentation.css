@@ -53,6 +53,10 @@
     @apply border px-1 rounded font-mono bg-[var(--slate-2)] text-sm mb-4 mt-2;
   }
 
+  code:empty {
+    display: none;
+  }
+
   h1,
   h2 {
     font-weight: 600;

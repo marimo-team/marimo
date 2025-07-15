@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { get, set } from "lodash-es";
-import { Logger } from "./Logger";
-import { type ByteString, typedAtob, type Base64String } from "./json/base64";
 import { invariant } from "./invariant";
+import { type Base64String, type ByteString, typedAtob } from "./json/base64";
+import { Logger } from "./Logger";
 
 /**
  * Update the object with DataView buffers at the specified paths.

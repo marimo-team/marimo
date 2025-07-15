@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Logger } from "@/utils/Logger";
+
 import { atom, useSetAtom } from "jotai";
 import type { Reducer } from "react";
+import { Logger } from "@/utils/Logger";
 
 export type NoInfer<T> = [T][T extends any ? 0 : never];
 

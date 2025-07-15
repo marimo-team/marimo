@@ -1,13 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useId, useState } from "react";
+import { type JSX, useEffect, useId, useState } from "react";
 import { z } from "zod";
-
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { Slider } from "../../components/ui/slider";
-import { Labeled } from "./common/labeled";
+import { NumberField } from "@/components/ui/number-field";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
-import { NumberField } from "@/components/ui/number-field";
+import { Slider } from "../../components/ui/slider";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { Labeled } from "./common/labeled";
 
 type T = number;
 

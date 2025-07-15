@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { describe, expect, it } from "vitest";
 import {
-  normalizeName,
   DEFAULT_CELL_NAME,
-  getValidName,
   displayCellName,
+  getValidName,
+  normalizeName,
 } from "../names";
-import { expect, describe, it } from "vitest";
 
 describe("normalizeName", () => {
   it("should return the default cell name for empty input", () => {

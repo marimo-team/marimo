@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { Message as AIMessage } from "@ai-sdk/react";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import type { CellId } from "../cells/ids";
-import type { Message as AIMessage } from "@ai-sdk/react";
 
-const KEY = "marimo:ai:chatState:v2";
+const KEY = "marimo:ai:chatState:v3";
 
 export const aiCompletionCellAtom = atom<{
   cellId: CellId;
@@ -13,6 +14,7 @@ export const aiCompletionCellAtom = atom<{
 export const includeOtherCellsAtom = atom<boolean>(false);
 
 export interface Message {
+  id: string;
   role: "user" | "assistant" | "data" | "system";
   content: string;
   timestamp: number;

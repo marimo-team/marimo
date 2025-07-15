@@ -1,9 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import mimetypes
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -50,6 +52,7 @@ from marimo._server.templates.templates import (
 )
 from marimo._server.tokens import SkewProtectionToken
 from marimo._types.ids import CellId_t
+from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path
@@ -103,7 +106,9 @@ class Exporter:
         config = deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
 
-        session_snapshot = serialize_session_view(session_view)
+        session_snapshot = serialize_session_view(
+            session_view, cell_ids=file_manager.app.cell_manager.cell_ids()
+        )
         notebook_snapshot = serialize_notebook(
             session_view, file_manager.app.cell_manager
         )
@@ -476,57 +481,67 @@ class Exporter:
 class AutoExporter:
     EXPORT_DIR = "__marimo__"
 
-    def save_html(self, file_manager: AppFileManager, html: str) -> None:
-        # get filename
-        directory = Path(get_filename(file_manager.filename)).parent
-        filename = get_download_filename(file_manager.filename, "html")
+    def __init__(self) -> None:
+        # Cache directories we've already created to avoid redundant checks
+        self._created_dirs: set[Path] = set()
+        # Thread pool for blocking I/O operations
+        self._executor = ThreadPoolExecutor(
+            max_workers=4, thread_name_prefix="export"
+        )
 
-        # make directory if it doesn't exist
-        self._make_export_dir(directory)
+    async def _save_file(
+        self, file_manager: AppFileManager, content: str, extension: str
+    ) -> None:
+        directory = Path(get_filename(file_manager.filename)).parent
+        filename = get_download_filename(file_manager.filename, extension)
+
+        await self._ensure_export_dir_async(directory)
         filepath = directory / self.EXPORT_DIR / filename
 
-        # save html to .marimo directory
-        filepath.write_text(html, encoding="utf-8")
+        # Run blocking file I/O in thread pool
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            self._executor, self._write_file_sync, filepath, content
+        )
 
-    def save_md(self, file_manager: AppFileManager, markdown: str) -> None:
-        # get filename
-        directory = Path(get_filename(file_manager.filename)).parent
-        filename = get_download_filename(file_manager.filename, "md")
+    async def save_html(self, file_manager: AppFileManager, html: str) -> None:
+        await self._save_file(file_manager, html, "html")
 
-        # make directory if it doesn't exist
-        self._make_export_dir(directory)
-        filepath = directory / self.EXPORT_DIR / filename
+    async def save_md(
+        self, file_manager: AppFileManager, markdown: str
+    ) -> None:
+        await self._save_file(file_manager, markdown, "md")
 
-        # save md to .marimo directory
-        filepath.write_text(markdown, encoding="utf-8")
+    async def save_ipynb(
+        self, file_manager: AppFileManager, ipynb: str
+    ) -> None:
+        await self._save_file(file_manager, ipynb, "ipynb")
 
-    def save_ipynb(self, file_manager: AppFileManager, ipynb: str) -> None:
-        # get filename
-        directory = Path(get_filename(file_manager.filename)).parent
-        filename = get_download_filename(file_manager.filename, "ipynb")
+    def _write_file_sync(self, filepath: Path, content: str) -> None:
+        """Synchronous file write (runs in thread pool)"""
+        if content == "":
+            return
+        filepath.write_text(content, encoding="utf-8")
 
-        # make directory if it doesn't exist
-        self._make_export_dir(directory)
-        filepath = directory / self.EXPORT_DIR / filename
+    async def _ensure_export_dir_async(self, directory: Path) -> None:
+        """Async directory creation with caching to avoid redundant checks"""
+        export_dir = directory / self.EXPORT_DIR
 
-        # save ipynb to .marimo directory
-        filepath.write_text(ipynb, encoding="utf-8")
+        # Fast path: already created this directory
+        if export_dir in self._created_dirs:
+            return
 
-    def _make_export_dir(self, directory: Path) -> None:
-        # make .marimo dir if it doesn't exist
-        # don't make the other directories
         if not directory.exists():
             raise FileNotFoundError(f"Directory {directory} does not exist")
 
-        export_dir = directory / self.EXPORT_DIR
-        if not export_dir.exists():
-            export_dir.mkdir(parents=True, exist_ok=True)
+        export_dir.mkdir(parents=True, exist_ok=True)
 
+        # Cache that we've created this directory
+        self._created_dirs.add(export_dir)
 
-def hash_code(code: str) -> str:
-    import hashlib
-
-    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+    def cleanup(self) -> None:
+        """Cleanup resources"""
+        self._executor.shutdown(wait=False)
 
 
 def _create_notebook_cell(
@@ -554,15 +569,14 @@ def _create_notebook_cell(
 
 def get_html_contents() -> str:
     if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
-        import urllib.request
+        import marimo._utils.requests as requests
 
         # Fetch from a CDN
         LOGGER.info(
             "Fetching index.html from jsdelivr because in development mode"
         )
         url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist/index.html"
-        with urllib.request.urlopen(url) as response:
-            return cast(str, response.read().decode("utf-8"))
+        return requests.get(url).text()
 
     index_html = Path(ROOT) / "index.html"
     return index_html.read_text(encoding="utf-8")

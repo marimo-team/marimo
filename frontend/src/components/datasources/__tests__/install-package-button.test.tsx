@@ -1,19 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InstallPackageButton } from "../install-package-button";
 
-const mockToggleApplication = vi.fn();
+const mockOpenApplication = vi.fn();
 vi.mock("@/components/editor/chrome/state", () => ({
   useChromeActions: () => ({
-    toggleApplication: mockToggleApplication,
+    openApplication: mockOpenApplication,
   }),
-}));
-
-const mockSetPackagesToInstall = vi.fn();
-vi.mock("jotai", () => ({
-  atom: () => ({}),
-  useSetAtom: () => mockSetPackagesToInstall,
 }));
 
 vi.mock("@/components/editor/chrome/panels/packages-state", () => ({
@@ -55,13 +50,13 @@ describe("InstallPackageButton", () => {
     expect(screen.getByText("Install altair, pandas")).toBeInTheDocument();
   });
 
-  it("should open the packages panel when clicked", () => {
-    render(<InstallPackageButton packages={["altair"]} />);
-
-    fireEvent.click(screen.getByText("Install altair"));
-
-    expect(mockSetPackagesToInstall).toHaveBeenCalledWith("altair");
-
-    expect(mockToggleApplication).toHaveBeenCalledWith("packages");
+  it("should render correct package names when showMaxPackages is set", () => {
+    render(
+      <InstallPackageButton
+        packages={["altair", "pandas"]}
+        showMaxPackages={1}
+      />,
+    );
+    expect(screen.getByText("Install altair")).toBeInTheDocument();
   });
 });

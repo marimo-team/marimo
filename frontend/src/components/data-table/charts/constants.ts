@@ -1,33 +1,36 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
-  LineChartIcon,
-  BarChartIcon,
-  PieChartIcon,
-  SigmaIcon,
-  HashIcon,
-  BaselineIcon,
   AlignCenterVerticalIcon,
+  AreaChartIcon,
   ArrowDownToLineIcon,
   ArrowUpToLineIcon,
+  BarChartIcon,
+  BaselineIcon,
+  ChartColumn,
+  ChartNoAxesColumn,
   ChartScatterIcon,
+  HashIcon,
+  LineChartIcon,
+  PieChartIcon,
+  RulerDimensionLine,
+  SigmaIcon,
   SquareFunctionIcon,
   TableIcon,
-  AreaChartIcon,
-  ChartNoAxesColumn,
-  ChartColumn,
-  RulerDimensionLine,
 } from "lucide-react";
-import type { ColorScheme } from "vega";
 import type {
   AggregationFn,
   ChartType,
+  ColorScheme,
   SelectableDataType,
   TimeUnit,
+  ValidAggregationFn,
 } from "./types";
 
 export const COUNT_FIELD = "__count__";
 export const DEFAULT_COLOR_SCHEME = "default";
+export const DEFAULT_TIME_UNIT = "yearmonthdate";
+export const DEFAULT_MAX_BINS_FACET = 6;
 
 // Set a field to this to reflect that it is not set
 export const EMPTY_VALUE = "";
@@ -41,6 +44,7 @@ export const CHART_TYPE_ICON: Record<ChartType, React.ElementType> = {
   area: AreaChartIcon,
 };
 
+export const DEFAULT_AGGREGATION: ValidAggregationFn = "mean"; // For y-axis, we default to mean
 export const AGGREGATION_TYPE_ICON: Record<AggregationFn, React.ElementType> = {
   none: SquareFunctionIcon,
   count: HashIcon,

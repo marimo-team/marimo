@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-import type { IPlugin, IPluginProps, Setter } from "../types";
 
-import { Labeled } from "./common/labeled";
-import { type Theme, useTheme } from "@/theme/useTheme";
-import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useState, useMemo, useEffect } from "react";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { EditorView } from "@codemirror/view";
+import { type JSX, useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { z } from "zod";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { type Theme, useTheme } from "@/theme/useTheme";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
+import { Labeled } from "./common/labeled";
 
 type T = string;
 

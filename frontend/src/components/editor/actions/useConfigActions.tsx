@@ -1,13 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
-import type { ActionButton } from "./types";
+
+import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
-import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
-import { useTheme } from "@/theme/useTheme";
+import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
+import type { ActionButton } from "./types";
 
 export function useConfigActions() {
-  const { theme } = useTheme();
   const [config, setConfig] = useResolvedMarimoConfig();
   const [appConfig, setAppConfig] = useAppConfig();
 
@@ -36,21 +35,43 @@ export function useConfigActions() {
         },
       })),
     {
-      label: "Config > Toggle dark mode",
+      label: "Config > Set theme: dark",
       handle: () => {
         handleUserConfig({
           ...config,
           display: {
-            // We don't use the config from the setting since
-            // we want to resolve 'system' to it's current value.
             ...config.display,
-            theme: theme === "dark" ? "light" : "dark",
+            theme: "dark",
           },
         });
       },
     },
     {
-      label: "Config > Switch keymap to  VIM",
+      label: "Config > Set theme: light",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            theme: "light",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set theme: system",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            theme: "system",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Switch keymap to VIM",
       hidden: config.keymap.preset === "vim",
       handle: () => {
         handleUserConfig({
@@ -101,6 +122,58 @@ export function useConfigActions() {
         });
       },
       hidden: config.completion.copilot === "github",
+    },
+    {
+      label: "Config > Disable reference highlighting",
+      hidden: !config.display.reference_highlighting,
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            reference_highlighting: false,
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Enable reference highlighting",
+      hidden: config.display.reference_highlighting,
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            reference_highlighting: true,
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set cell output area: above",
+      hidden: config.display.cell_output === "above",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            cell_output: "above",
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Set cell output area: below",
+      hidden: config.display.cell_output === "below",
+      handle: () => {
+        handleUserConfig({
+          ...config,
+          display: {
+            ...config.display,
+            cell_output: "below",
+          },
+        });
+      },
     },
   ];
 

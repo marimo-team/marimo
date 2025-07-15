@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import pytest
 
@@ -18,6 +19,8 @@ from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
+    TableSearchError,
+    get_default_table_max_columns,
     get_default_table_page_size,
 )
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
@@ -979,6 +982,7 @@ def test_show_column_summaries_modes():
     assert summaries_default.is_disabled is False
     assert summaries_default.data is not None
     assert len(summaries_default.stats) > 0
+    assert table_default._component_args["show-column-summaries"] is True
 
 
 def test_table_with_frozen_columns() -> None:
@@ -1046,7 +1050,6 @@ def test_show_column_summaries_default():
     # explicitly set to True
     table_true = ui.table(large_data, show_column_summaries=True)
     assert table_true._show_column_summaries is True
-    assert table_true._component_args["show-column-summaries"] is True
 
 
 def test_data_with_rich_components():
@@ -1286,7 +1289,10 @@ def test_column_clamping():
     assert len(table._manager.get_column_names()) == 100
     assert table._component_args["total-columns"] == 100
     assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
-    assert len(json.loads(table._component_args["data"])[0].keys()) == 50
+    assert (
+        len(json.loads(table._component_args["data"])[0].keys())
+        == DEFAULT_MAX_COLUMNS
+    )
     assert table._component_args["field-types"] is None
 
     # Test custom max_columns
@@ -1392,7 +1398,7 @@ def test_column_clamping_with_more_than_max_columns():
     # Check that the table is clamped
     assert len(table._manager.get_column_names()) == 60
     assert table._component_args["total-columns"] == 60
-    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
+    assert table._component_args["max-columns"] == 50
     assert len(json.loads(table._component_args["data"])[0].keys()) == 50
     assert table._component_args["field-types"] is None
 
@@ -1403,7 +1409,7 @@ def test_column_clamping_with_no_columns():
     # Check that the table handles no columns gracefully
     assert len(table._manager.get_column_names()) == 1
     assert table._component_args["total-columns"] == 1
-    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
+    assert table._component_args["max-columns"] == 50
     assert len(json.loads(table._component_args["data"])) == 0
     assert table._component_args["field-types"] is None
 
@@ -1415,7 +1421,7 @@ def test_column_clamping_with_single_column():
     # Check that the table handles a single column gracefully
     assert len(table._manager.get_column_names()) == 1
     assert table._component_args["total-columns"] == 1
-    assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
+    assert table._component_args["max-columns"] == 50
     assert len(json.loads(table._component_args["data"])[0].keys()) == 1
     assert table._component_args["field-types"] is None
 
@@ -1435,7 +1441,7 @@ def test_column_clamping_with_polars():
     assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
-    assert len(headers) == 50  # 50 columns
+    assert len(headers) == DEFAULT_MAX_COLUMNS  # 50 columns
     # Field types are not clamped
     assert len(table._component_args["field-types"]) == 60
 
@@ -1518,6 +1524,62 @@ def test_cell_style_of_next_page():
     assert "a" in cell_styles["2"]
     assert "backgroundColor" in cell_styles["2"]["a"]
     assert "green" in cell_styles["2"]["a"]["backgroundColor"]
+
+
+def test_cell_style_last_page():
+    def always_green(_row, _col, _value):
+        return {"backgroundColor": "green"}
+
+    data = [{"a": 1}, {"a": 2}, {"a": 3}]
+    table = ui.table(data, page_size=2, style_cell=always_green)
+    last_page = table._search(SearchTableArgs(page_size=2, page_number=1))
+    cell_styles = last_page.cell_styles
+    assert len(cell_styles) == 1
+    assert "2" in cell_styles
+    assert "a" in cell_styles["2"]
+    assert "backgroundColor" in cell_styles["2"]["a"]
+    assert "green" in cell_styles["2"]["a"]["backgroundColor"]
+
+
+def test_cell_style_edge_cases():
+    """Test cell styling with various edge cases around page sizes and row IDs."""
+
+    def style_cell(row: str, _col: str, _value: Any) -> dict[str, Any]:
+        return {"backgroundColor": "red" if int(row) % 2 == 0 else "blue"}
+
+    # Test with empty data
+    table = ui.table([], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {}
+
+    # Test with single row
+    table = ui.table([{"a": 1}], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {"0": {"a": {"backgroundColor": "red"}}}
+
+    # Test with page size larger than total rows
+    table = ui.table([{"a": 1}, {"a": 2}], style_cell=style_cell)
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {
+        "0": {"a": {"backgroundColor": "red"}},
+        "1": {"a": {"backgroundColor": "blue"}},
+    }
+
+    # Test with skip beyond total rows
+    response = table._search(SearchTableArgs(page_size=10, page_number=1))
+    assert response.cell_styles == {}
+
+    # Test with "too_many" total rows
+    table = ui.table(
+        [{"a": 1}, {"a": 2}],
+        style_cell=style_cell,
+        _internal_total_rows="too_many",
+    )
+    response = table._search(SearchTableArgs(page_size=10, page_number=0))
+    assert response.cell_styles == {
+        "0": {"a": {"backgroundColor": "red"}},
+        "1": {"a": {"backgroundColor": "blue"}},
+    }
 
 
 @pytest.mark.skipif(
@@ -1656,6 +1718,9 @@ def test_lazy_dataframe() -> None:
         assert table._component_args["total-columns"] == 0
         assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
         assert table._component_args["field-types"] is None
+        assert table._component_args["show-page-size-selector"] is False
+        assert table._component_args["show-column-explorer"] is False
+        assert table._component_args["show-chart-builder"] is False
 
         # Verify that search response indicates "too_many" for total_rows
         # but returns the preview rows
@@ -1743,6 +1808,10 @@ def test_default_table_page_size():
     assert get_default_table_page_size() == 10
 
 
+def test_default_table_max_columns():
+    assert get_default_table_max_columns() == DEFAULT_MAX_COLUMNS
+
+
 def test_calculate_top_k_rows():
     table = ui.table({"A": [1, 3, 3, None, None]})
     result = table._calculate_top_k_rows(
@@ -1785,19 +1854,19 @@ def test_max_columns_not_provided():
     data = {f"col{i}": [1, 2, 3] for i in range(100)}
     table = ui.table(data)
 
-    # Test default behavior (should use DEFAULT_MAX_COLUMNS=50)
+    # Test default behavior
     search_args = SearchTableArgs(
         page_size=10, page_number=0, max_columns=MAX_COLUMNS_NOT_PROVIDED
     )
     response = table._search(search_args)
     result_data = json.loads(response.data)
-    assert len(result_data[0].keys()) == 50
+    assert len(result_data[0].keys()) == DEFAULT_MAX_COLUMNS
 
     # Test when not set (uses MAX_COLUMNS_NOT_PROVIDED as the default)
     search_args = SearchTableArgs(page_size=10, page_number=0)
     response = table._search(search_args)
     result_data = json.loads(response.data)
-    assert len(result_data[0].keys()) == 50
+    assert len(result_data[0].keys()) == DEFAULT_MAX_COLUMNS
 
     # Test with explicit max_columns
     search_args = SearchTableArgs(page_size=10, page_number=0, max_columns=20)
@@ -1828,7 +1897,7 @@ def test_max_columns_not_provided_with_sort():
     )
     response = table._search(search_args)
     result_data = json.loads(response.data)
-    assert len(result_data[0].keys()) == 50
+    assert len(result_data[0].keys()) == DEFAULT_MAX_COLUMNS
 
     # Test sort with explicit max_columns
     search_args = SearchTableArgs(
@@ -1896,3 +1965,68 @@ def test_max_columns_not_provided_with_filters():
     response = table._search(search_args)
     result_data = json.loads(response.data)
     assert len(result_data[0].keys()) == 101  # +1 for marimo_row_id
+
+
+def test_show_page_size_selector_property():
+    """Test the show_page_size_selector property behavior."""
+    data = {"a": list(range(20))}  # 20 rows to ensure pagination
+
+    # Test default behavior
+    table_default = ui.table(data)
+    assert table_default._component_args["show-page-size-selector"] is True
+
+    # Test with small dataset (should disable automatically)
+    small_data = {"a": [1, 2, 3, 4]}  # Less than 5 rows
+    table_small = ui.table(small_data)
+    assert table_small._component_args["show-page-size-selector"] is False
+
+
+def test_show_toggles_app_mode():
+    data = {"a": [1, 2, 3], "b": [4, 5, 6]}
+
+    with patch("marimo._plugins.ui._impl.table.get_mode", return_value="edit"):
+        table_default = ui.table(data)
+        assert table_default._component_args["show-column-explorer"] is True
+        assert table_default._component_args["show-chart-builder"] is True
+
+    with patch("marimo._plugins.ui._impl.table.get_mode", return_value="run"):
+        table_default = ui.table(data)
+        assert table_default._component_args["show-column-explorer"] is False
+        assert table_default._component_args["show-chart-builder"] is False
+
+
+def test_base_exception_handling():
+    """Test that BaseException is caught and re-raised as TableSearchError."""
+    table = ui.table({"col": [1]})
+
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        query="test",
+        sort=None,
+        filters=None,
+    )
+
+    with patch(
+        "marimo._plugins.ui._impl.tables.default_table.DefaultTableManager.to_json_str"
+    ) as mock_to_json_str:
+        mock_to_json_str.side_effect = BaseException("to json panic")
+
+        # Should catch BaseException and re-raise as TableSearchError
+        with pytest.raises(TableSearchError) as exc_info:
+            table._search(search_args)
+
+    # Verify the error message is preserved
+    assert "to json panic" in str(exc_info.value)
+    assert exc_info.value.error == str(exc_info.value)
+
+
+def test_table_uses_default_max_columns():
+    # Create data with many columns
+    data = {f"col{i}": [1, 2, 3] for i in range(100)}
+
+    # Create table without specifying max_columns
+    table = ui.table(data)
+
+    # Should use the default max_columns (50)
+    assert table._max_columns == DEFAULT_MAX_COLUMNS

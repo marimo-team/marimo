@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -13,6 +13,7 @@ from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.prompts import FILL_ME_TAG
 from marimo._server.ai.providers import (
+    AnyProviderConfig,
     OpenAIProvider,
     without_wrapping_backticks,
 )
@@ -55,6 +56,7 @@ class Delta:
 @dataclass
 class Choice:
     delta: Delta
+    finish_reason: Optional[str] = None
 
 
 # OpenAI
@@ -432,7 +434,7 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_google_ai_completion_with_code(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -441,9 +443,12 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.predict.return_value = MagicMock(
-            text="import pandas as pd"
-        )
+        google_client.models.generate_content_stream.return_value = [
+            MagicMock(
+                text="import pandas as pd",
+                thought=None,
+            )
+        ]
 
         with google_ai_config(user_config_manager):
             response = client.post(
@@ -457,14 +462,18 @@ class TestGoogleAiEndpoints:
             )
             assert response.status_code == 200, response.text
             # Assert the prompt it was called with
-            prompt = google_client.generate_content.call_args.kwargs[
-                "contents"
-            ]
-            assert prompt[0]["parts"][0] == "Help me create a dataframe"
+            prompt = (
+                google_client.models.generate_content_stream.call_args.kwargs[
+                    "contents"
+                ]
+            )
+            assert (
+                prompt[0]["parts"][0]["text"] == "Help me create a dataframe"
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_google_ai_completion_without_token(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -488,7 +497,7 @@ class TestGoogleAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_google_ai_inline_completion(
         client: TestClient, google_ai_mock: Any
     ) -> None:
@@ -497,9 +506,12 @@ class TestGoogleAiEndpoints:
         google_client = MagicMock()
         google_ai_mock.return_value = google_client
 
-        google_client.predict.return_value = MagicMock(
-            text="df = pd.DataFrame()"
-        )
+        google_client.models.generate_content_stream.return_value = [
+            MagicMock(
+                text="df = pd.DataFrame()",
+                thought=None,
+            )
+        ]
 
         with google_ai_config(user_config_manager):
             response = client.post(
@@ -513,11 +525,13 @@ class TestGoogleAiEndpoints:
             )
             assert response.status_code == 200, response.text
             # Assert the prompt it was called with
-            prompt = google_client.generate_content.call_args.kwargs[
-                "contents"
-            ]
+            prompt = (
+                google_client.models.generate_content_stream.call_args.kwargs[
+                    "contents"
+                ]
+            )
             assert (
-                prompt[0]["parts"][0]
+                prompt[0]["parts"][0]["text"]
                 == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
             )
 
@@ -770,7 +784,8 @@ def test_chat_with_code(client: TestClient) -> None:
 
 class TestGetContent(unittest.TestCase):
     def test_extract_content_with_none_delta(self) -> None:
-        provider = OpenAIProvider(model="gpt-4o", config={})
+        config = AnyProviderConfig(base_url=None, api_key="test-key")
+        provider = OpenAIProvider(model="gpt-4o", config=config)
         # Create a mock response with choices but delta is None
         mock_response = Mock()
         mock_response.choices = [Mock()]
@@ -793,12 +808,84 @@ class TestGetContent(unittest.TestCase):
         mock_response.choices[0].delta.content = "Test content"
 
         # Call get_content with the mock response
-        provider = OpenAIProvider(model="gpt-4o", config={})
+        config = AnyProviderConfig(base_url=None, api_key="test-key")
+        provider = OpenAIProvider(model="gpt-4o", config=config)
         result_text, result_type = provider.extract_content(mock_response)
 
         # Assert that the result is the expected content
         assert result_text == "Test content"
         assert result_type == "text"
+
+
+class TestGetFinishReason(unittest.TestCase):
+    def test_get_finish_reason_with_no_choices(self) -> None:
+        config = AnyProviderConfig(base_url=None, api_key="test-key")
+        provider = OpenAIProvider(model="gpt-4o", config=config)
+        # Create a mock response with no choices
+        mock_response = Mock()
+        mock_response.choices = []
+
+        # Call get_finish_reason with the mock response
+        result = provider.get_finish_reason(mock_response)
+
+        # Assert that the result is None
+        assert result is None
+
+    def test_get_finish_reason_with_none_finish_reason(self) -> None:
+        config = AnyProviderConfig(base_url=None, api_key="test-key")
+        provider = OpenAIProvider(model="gpt-4o", config=config)
+        # Create a mock response with choices but finish_reason is None
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].finish_reason = None
+
+        # Call get_finish_reason with the mock response
+        result = provider.get_finish_reason(mock_response)
+
+        # Assert that the result is None
+        assert result is None
+
+    def test_get_finish_reason_with_tool_calls(self) -> None:
+        config = AnyProviderConfig(base_url=None, api_key="test-key")
+        provider = OpenAIProvider(model="gpt-4o", config=config)
+        # Create a mock response with choices and finish_reason = "tool_calls"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].finish_reason = "tool_calls"
+
+        # Call get_finish_reason with the mock response
+        result = provider.get_finish_reason(mock_response)
+
+        # Assert that the result is "tool_calls"
+        assert result == "tool_calls"
+
+    def test_get_finish_reason_with_stop(self) -> None:
+        config = AnyProviderConfig(base_url=None, api_key="test-key")
+        provider = OpenAIProvider(model="gpt-4o", config=config)
+        # Create a mock response with choices and finish_reason = "stop"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].finish_reason = "stop"
+
+        # Call get_finish_reason with the mock response
+        result = provider.get_finish_reason(mock_response)
+
+        # Assert that the result is "stop"
+        assert result == "stop"
+
+    def test_get_finish_reason_with_other_reason(self) -> None:
+        config = AnyProviderConfig(base_url=None, api_key="test-key")
+        provider = OpenAIProvider(model="gpt-4o", config=config)
+        # Create a mock response with choices and finish_reason = "length"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].finish_reason = "length"
+
+        # Call get_finish_reason with the mock response
+        result = provider.get_finish_reason(mock_response)
+
+        # Assert that the result is "stop" (fallback for non-tool_calls reasons)
+        assert result == "stop"
 
 
 @pytest.mark.parametrize(
@@ -862,3 +949,303 @@ class TestGetContent(unittest.TestCase):
 def test_without_wrapping_backticks(chunks: list[str], expected: str) -> None:
     result = list(without_wrapping_backticks(iter(chunks)))
     assert "".join(result) == expected
+
+
+# Tool invocation tests (provider-agnostic)
+class TestInvokeToolEndpoint:
+    """Tests for the /invoke_tool endpoint."""
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("marimo._server.api.endpoints.ai.get_tool_manager")
+    def test_invoke_tool_success(
+        client: TestClient, mock_get_tool_manager: Any
+    ) -> None:
+        """Test successful tool invocation."""
+        from marimo._server.ai.tools import ToolResult
+
+        # Mock the tool manager and its response
+        mock_tool_manager = MagicMock()
+        mock_get_tool_manager.return_value = mock_tool_manager
+
+        # Mock successful tool result as a coroutine
+        async def mock_invoke_tool(
+            _tool_name: str, _arguments: dict
+        ) -> ToolResult:
+            return ToolResult(
+                tool_name="test_tool",
+                result={
+                    "message": "Tool executed successfully",
+                    "data": [1, 2, 3],
+                },
+                error=None,
+            )
+
+        mock_tool_manager.invoke_tool = mock_invoke_tool
+
+        response = client.post(
+            "/api/ai/invoke_tool",
+            headers=HEADERS,
+            json={
+                "tool_name": "test_tool",
+                "arguments": {"param1": "value1", "param2": 42},
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+
+        # Verify response structure
+        assert response_data["success"] is True
+        assert response_data["tool_name"] == "test_tool"
+        assert response_data["result"] == {
+            "message": "Tool executed successfully",
+            "data": [1, 2, 3],
+        }
+        assert response_data["error"] is None
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("marimo._server.api.endpoints.ai.get_tool_manager")
+    def test_invoke_tool_with_error(
+        client: TestClient, mock_get_tool_manager: Any
+    ) -> None:
+        """Test tool invocation with error."""
+        from marimo._server.ai.tools import ToolResult
+
+        # Mock the tool manager and its response
+        mock_tool_manager = MagicMock()
+        mock_get_tool_manager.return_value = mock_tool_manager
+
+        # Mock tool result with error as a coroutine
+        async def mock_invoke_tool(
+            _tool_name: str, _arguments: dict
+        ) -> ToolResult:
+            return ToolResult(
+                tool_name="failing_tool",
+                result=None,
+                error="Tool execution failed: Invalid parameter",
+            )
+
+        mock_tool_manager.invoke_tool = mock_invoke_tool
+
+        response = client.post(
+            "/api/ai/invoke_tool",
+            headers=HEADERS,
+            json={
+                "tool_name": "failing_tool",
+                "arguments": {"invalid_param": "bad_value"},
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+
+        # Verify response structure for error case
+        assert response_data["success"] is False
+        assert response_data["tool_name"] == "failing_tool"
+        assert response_data["result"] is None
+        assert (
+            response_data["error"]
+            == "Tool execution failed: Invalid parameter"
+        )
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("marimo._server.api.endpoints.ai.get_tool_manager")
+    def test_invoke_tool_not_found(
+        client: TestClient, mock_get_tool_manager: Any
+    ) -> None:
+        """Test tool invocation when tool doesn't exist."""
+        from marimo._server.ai.tools import ToolResult
+
+        # Mock the tool manager and its response
+        mock_tool_manager = MagicMock()
+        mock_get_tool_manager.return_value = mock_tool_manager
+
+        # Mock tool result for non-existent tool as a coroutine
+        async def mock_invoke_tool(
+            _tool_name: str, _arguments: dict
+        ) -> ToolResult:
+            return ToolResult(
+                tool_name="nonexistent_tool",
+                result=None,
+                error="Tool 'nonexistent_tool' not found. Available tools: get_server_debug_info",
+            )
+
+        mock_tool_manager.invoke_tool = mock_invoke_tool
+
+        response = client.post(
+            "/api/ai/invoke_tool",
+            headers=HEADERS,
+            json={"tool_name": "nonexistent_tool", "arguments": {}},
+        )
+
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+
+        # Verify response structure for not found case
+        assert response_data["success"] is False
+        assert response_data["tool_name"] == "nonexistent_tool"
+        assert response_data["result"] is None
+        assert "not found" in response_data["error"]
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("marimo._server.api.endpoints.ai.get_tool_manager")
+    def test_invoke_tool_validation_error(
+        client: TestClient, mock_get_tool_manager: Any
+    ) -> None:
+        """Test tool invocation with validation error."""
+        from marimo._server.ai.tools import ToolResult
+
+        # Mock the tool manager and its response
+        mock_tool_manager = MagicMock()
+        mock_get_tool_manager.return_value = mock_tool_manager
+
+        # Mock tool result with validation error as a coroutine
+        async def mock_invoke_tool(
+            _tool_name: str, _arguments: dict
+        ) -> ToolResult:
+            return ToolResult(
+                tool_name="test_tool",
+                result=None,
+                error="Invalid arguments for tool 'test_tool': Missing required parameter 'required_param'",
+            )
+
+        mock_tool_manager.invoke_tool = mock_invoke_tool
+
+        response = client.post(
+            "/api/ai/invoke_tool",
+            headers=HEADERS,
+            json={
+                "tool_name": "test_tool",
+                "arguments": {"optional_param": "value"},
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+
+        # Verify response structure for validation error
+        assert response_data["success"] is False
+        assert response_data["tool_name"] == "test_tool"
+        assert response_data["result"] is None
+        assert "Invalid arguments" in response_data["error"]
+        assert "required_param" in response_data["error"]
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("marimo._server.api.endpoints.ai.get_tool_manager")
+    def test_invoke_tool_complex_arguments(
+        client: TestClient, mock_get_tool_manager: Any
+    ) -> None:
+        """Test tool invocation with complex argument types."""
+        from marimo._server.ai.tools import ToolResult
+
+        # Mock the tool manager and its response
+        mock_tool_manager = MagicMock()
+        mock_get_tool_manager.return_value = mock_tool_manager
+
+        # Mock successful tool result with complex data as a coroutine
+        async def mock_invoke_tool(
+            _tool_name: str, _arguments: dict
+        ) -> ToolResult:
+            return ToolResult(
+                tool_name="complex_tool",
+                result={
+                    "processed_data": [
+                        {"id": 1, "value": "a"},
+                        {"id": 2, "value": "b"},
+                    ],
+                    "summary": {"total": 2, "success": True},
+                    "metadata": {"timestamp": "2024-01-01T00:00:00Z"},
+                },
+                error=None,
+            )
+
+        mock_tool_manager.invoke_tool = mock_invoke_tool
+
+        complex_args = {
+            "string_param": "test string",
+            "number_param": 42,
+            "boolean_param": True,
+            "array_param": [1, 2, 3, "four"],
+            "object_param": {
+                "nested_string": "nested value",
+                "nested_number": 3.14,
+                "nested_array": ["a", "b", "c"],
+            },
+        }
+
+        response = client.post(
+            "/api/ai/invoke_tool",
+            headers=HEADERS,
+            json={"tool_name": "complex_tool", "arguments": complex_args},
+        )
+
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+
+        # Verify response structure
+        assert response_data["success"] is True
+        assert response_data["tool_name"] == "complex_tool"
+        assert "processed_data" in response_data["result"]
+        assert "summary" in response_data["result"]
+        assert "metadata" in response_data["result"]
+        assert response_data["error"] is None
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    def test_invoke_tool_without_session(client: TestClient) -> None:
+        """Test tool invocation without valid session."""
+        response = client.post(
+            "/api/ai/invoke_tool",
+            headers={
+                "Authorization": "Bearer fake-token"
+            },  # No session header
+            json={"tool_name": "test_tool", "arguments": {}},
+        )
+
+        # Should fail without proper session
+        assert response.status_code in [400, 401, 403], response.text
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("marimo._server.api.endpoints.ai.get_tool_manager")
+    def test_invoke_tool_empty_arguments(
+        client: TestClient, mock_get_tool_manager: Any
+    ) -> None:
+        """Test tool invocation with empty arguments."""
+        from marimo._server.ai.tools import ToolResult
+
+        # Mock the tool manager and its response
+        mock_tool_manager = MagicMock()
+        mock_get_tool_manager.return_value = mock_tool_manager
+
+        # Mock successful tool result with empty arguments
+        async def mock_invoke_tool(
+            tool_name: str, _arguments: dict
+        ) -> ToolResult:
+            return ToolResult(
+                tool_name=tool_name,
+                result={"message": "Tool executed with empty args"},
+                error=None,
+            )
+
+        mock_tool_manager.invoke_tool = mock_invoke_tool
+
+        response = client.post(
+            "/api/ai/invoke_tool",
+            headers=HEADERS,
+            json={
+                "tool_name": "test_tool",
+                "arguments": {},  # Empty arguments
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["tool_name"] == "test_tool"
+        assert data["result"]["message"] == "Tool executed with empty args"
+        assert data["error"] is None

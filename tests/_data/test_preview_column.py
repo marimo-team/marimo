@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, time
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
 from marimo._data.preview_column import (
+    _sanitize_dtypes,
     get_column_preview_dataset,
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
@@ -265,8 +267,6 @@ def test_get_column_preview_for_duckdb_categorical() -> None:
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_date() -> None:
-    import datetime
-
     import duckdb
 
     # Test preview for a date column
@@ -288,8 +288,8 @@ def test_get_column_preview_for_duckdb_date() -> None:
     assert result_date.stats.total == 100
     assert result_date.stats.unique == 100
     assert result_date.stats.nulls == 0
-    assert result_date.stats.min == datetime.datetime(2023, 1, 1, 0, 0)
-    assert result_date.stats.max == datetime.datetime(2023, 4, 10, 0, 0)
+    assert result_date.stats.min == datetime(2023, 1, 1, 0, 0)
+    assert result_date.stats.max == datetime(2023, 4, 10, 0, 0)
     assert result_date.chart_spec is not None
 
     # No chart_spec snapshot because of date timezone
@@ -315,8 +315,6 @@ def test_get_column_preview_for_duckdb_date() -> None:
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_datetime() -> None:
-    import datetime
-
     import duckdb
 
     # Test preview for a datetime column
@@ -341,8 +339,8 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
     assert result_datetime.stats.total == 100
     assert result_datetime.stats.unique == 100
     assert result_datetime.stats.nulls == 0
-    assert result_datetime.stats.min == datetime.datetime(2023, 1, 1, 0, 0)
-    assert result_datetime.stats.max == datetime.datetime(2023, 4, 10, 3, 39)
+    assert result_datetime.stats.min == datetime(2023, 1, 1, 0, 0)
+    assert result_datetime.stats.max == datetime(2023, 4, 10, 3, 39)
     assert result_datetime.chart_spec is not None
 
     # Not implemented yet
@@ -368,8 +366,6 @@ def test_get_column_preview_for_duckdb_datetime() -> None:
 )
 @pytest.mark.skipif(is_windows(), reason="Windows encodes base64 differently")
 def test_get_column_preview_for_duckdb_time() -> None:
-    import datetime
-
     import duckdb
 
     # Test preview for a time column
@@ -393,8 +389,8 @@ def test_get_column_preview_for_duckdb_time() -> None:
     assert result_time.stats.total == 100
     assert result_time.stats.unique == 100
     assert result_time.stats.nulls == 0
-    assert result_time.stats.min == datetime.time(0, 0)
-    assert result_time.stats.max == datetime.time(23, 47)
+    assert result_time.stats.min == time(0, 0)
+    assert result_time.stats.max == time(23, 47)
 
     # Time is not handled yet
     assert result_time.chart_spec is None
@@ -467,9 +463,33 @@ def test_get_column_preview_for_duckdb_over_limit() -> None:
 
     assert result is not None
     assert result.stats is not None
-    assert result.error is None
-    assert result.chart_max_rows_errors is True
+    assert (
+        result.error == "Too many rows, vegafusion required to render charts"
+    )
+    assert result.missing_packages == ["vegafusion", "vl_convert_python"]
     assert result.chart_spec is None
 
     # Not implemented yet
     assert result.chart_code is None
+
+
+@pytest.mark.skipif(
+    not DependencyManager.narwhals.has() or not DependencyManager.polars.has(),
+    reason="narwhals and polars not installed",
+)
+def test_sanitize_dtypes() -> None:
+    import narwhals as nw
+    import polars as pl
+
+    df = pl.DataFrame(
+        {"int128_col": [1, 2, 3], "cat_col": ["A", "B", "A"]},
+        schema={"int128_col": pl.Int128, "cat_col": pl.Categorical},
+    )
+    nw_df = nw.from_native(df)
+
+    # Sanitize the dtypes
+    result = _sanitize_dtypes(nw_df, "cat_col")
+    assert result.schema["cat_col"] == nw.String
+
+    result = _sanitize_dtypes(nw_df, "int128_col")
+    assert result.schema["int128_col"] == nw.Int64

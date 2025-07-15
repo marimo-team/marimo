@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { beforeEach, expect, describe, test } from "vitest";
-import { serializeBlob, deserializeBlob } from "../blob";
+import { beforeEach, describe, expect, test } from "vitest";
+import { deserializeBlob, serializeBlob } from "../blob";
 
 describe("Blob serialization and deserialization", () => {
   const testString = "Hello, world!";

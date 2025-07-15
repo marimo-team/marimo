@@ -1,9 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { toast } from "@/components/ui/use-toast";
-import { sendCreateFileOrFolder } from "@/core/network/requests";
-import { filenameAtom } from "@/core/saving/file-state";
-import { store } from "@/core/state/jotai";
-import { Paths, type FilePath } from "@/utils/paths";
+
 import {
   EditorSelection,
   type SelectionRange,
@@ -11,16 +7,25 @@ import {
   Transaction,
 } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { toast } from "@/components/ui/use-toast";
+import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/file-state";
+import { store } from "@/core/state/jotai";
+import { type FilePath, Paths } from "@/utils/paths";
 
 function hasSelection(view: EditorView) {
   return !view.state.selection.main.empty;
 }
 
-function toggleAllLines(
-  view: EditorView,
-  selection: SelectionRange,
-  markup: string,
-) {
+function toggleAllLines({
+  view,
+  selection,
+  markup,
+}: {
+  view: EditorView;
+  selection: SelectionRange;
+  markup: string;
+}) {
   const changes = [];
   let allLinesHaveMarkup = true;
 
@@ -66,12 +71,17 @@ function toggleAllLines(
   return changes;
 }
 
-function wrapWithMarkup(
-  view: EditorView,
-  range: SelectionRange,
-  markupBefore: string,
-  markupAfter: string,
-) {
+function wrapWithMarkup({
+  view,
+  range,
+  markupAfter,
+  markupBefore,
+}: {
+  view: EditorView;
+  range: SelectionRange;
+  markupBefore: string;
+  markupAfter: string;
+}) {
   if (range.empty) {
     const wordRange = view.state.wordAt(range.head);
     if (wordRange) {
@@ -132,7 +142,11 @@ export function insertBlockquote(view: EditorView) {
 
   const markup = "> ";
 
-  const changes = toggleAllLines(view, view.state.selection.main, markup);
+  const changes = toggleAllLines({
+    view,
+    selection: view.state.selection.main,
+    markup,
+  });
 
   if (changes.length > 0) {
     view.dispatch(
@@ -159,7 +173,12 @@ export function insertBoldMarker(view: EditorView) {
       }
     }
 
-    return wrapWithMarkup(view, range, "**", "**");
+    return wrapWithMarkup({
+      view,
+      range,
+      markupBefore: "**",
+      markupAfter: "**",
+    });
   });
 
   view.dispatch(
@@ -193,7 +212,12 @@ export function insertCodeMarker(view: EditorView) {
     const fenceBefore = isMultiline ? "```\n" : "`";
     const fenceAfter = isMultiline ? "\n```" : "`";
 
-    return wrapWithMarkup(view, range, fenceBefore, fenceAfter);
+    return wrapWithMarkup({
+      view,
+      range,
+      markupBefore: fenceBefore,
+      markupAfter: fenceAfter,
+    });
   });
 
   view.dispatch(
@@ -219,7 +243,7 @@ export function insertItalicMarker(view: EditorView) {
       }
     }
 
-    return wrapWithMarkup(view, range, "_", "_");
+    return wrapWithMarkup({ view, range, markupBefore: "_", markupAfter: "_" });
   });
 
   view.dispatch(
@@ -414,7 +438,7 @@ export function insertUL(view: EditorView) {
 
     return {
       range,
-      changes: toggleAllLines(view, range, rangeText),
+      changes: toggleAllLines({ view, selection: range, markup: rangeText }),
     };
   });
 
@@ -438,7 +462,7 @@ export function insertOL(view: EditorView) {
     const markup = "1. ";
     return {
       range,
-      changes: toggleAllLines(view, range, markup),
+      changes: toggleAllLines({ view, selection: range, markup }),
     };
   });
 

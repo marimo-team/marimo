@@ -1,30 +1,31 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useCompletion } from "@ai-sdk/react";
+import { EditorView } from "@codemirror/view";
+import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
-import { useCompletion } from "@ai-sdk/react";
-import { API } from "@/core/network/api";
-import { EditorView } from "@codemirror/view";
-import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 
 import "./merge-editor.css";
-import { cn } from "@/utils/cn";
-import { toast } from "@/components/ui/use-toast";
-import { prettyError } from "@/utils/errors";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { useAtom } from "jotai";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useAtom } from "jotai";
+import { toast } from "@/components/ui/use-toast";
 import { includeOtherCellsAtom } from "@/core/ai/state";
-import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { useTheme } from "@/theme/useTheme";
-import { asURL } from "@/utils/url";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { selectAllText } from "@/core/codemirror/utils";
+import { useRuntimeManager } from "@/core/runtime/config";
+import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { prettyError } from "@/utils/errors";
+import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import { getAICompletionBody } from "./completion-utils";
-import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { selectAllText } from "@/core/codemirror/utils";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -68,6 +69,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
     includeOtherCellsAtom,
   );
 
+  const runtimeManager = useRuntimeManager();
+
   const {
     completion,
     input,
@@ -77,8 +80,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
     setInput,
     handleSubmit,
   } = useCompletion({
-    api: asURL("api/ai/completion").toString(),
-    headers: API.headers(),
+    api: runtimeManager.getAiURL("completion").toString(),
+    headers: runtimeManager.headers(),
     initialInput: initialPrompt,
     streamProtocol: "text",
     // Throttle the messages and data updates to 100ms
@@ -105,12 +108,20 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   // Focus the input
   useEffect(() => {
-    const input = inputRef.current;
-    if (enabled && input) {
-      requestAnimationFrame(() => {
-        input.view?.focus();
-      });
-      selectAllText(inputRef.current.view);
+    if (enabled) {
+      retryWithTimeout(
+        () => {
+          const input = inputRef.current;
+          if (input?.view) {
+            input.view.focus();
+            return true;
+          }
+          return false;
+        },
+        { retries: 3, delay: 100, initialDelay: 100 },
+      ); // Wait for animation to complete
+
+      selectAllText(inputRef.current?.view);
     }
   }, [enabled]);
 

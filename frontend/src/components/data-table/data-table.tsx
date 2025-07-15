@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
+
 // tanstack/table is not compatible with React compiler
 // https://github.com/TanStack/table/issues/5567
 
-import React, { memo } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -18,27 +18,29 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+import React, { memo } from "react";
 
 import { Table } from "@/components/ui/table";
-import type { DownloadActionProps } from "./download-actions";
+import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import { FilterPills } from "./filter-pills";
-import { useColumnPinning } from "./hooks/use-column-pinning";
-import { renderTableHeader, renderTableBody } from "./renderers";
-import { SearchBar } from "./SearchBar";
-import { TableActions } from "./TableActions";
-import { ColumnFormattingFeature } from "./column-formatting/feature";
-import { ColumnWrappingFeature } from "./column-wrapping/feature";
-import type { DataTableSelection, TooManyRows } from "./types";
+import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { CellSelectionFeature } from "./cell-selection/feature";
 import type { CellSelectionState } from "./cell-selection/types";
-import type { GetRowIds } from "@/plugins/impl/DataTablePlugin";
 import { CellStylingFeature } from "./cell-styling/feature";
 import type { CellStyleState } from "./cell-styling/types";
+import { ColumnFormattingFeature } from "./column-formatting/feature";
+import { ColumnWrappingFeature } from "./column-wrapping/feature";
 import { CopyColumnFeature } from "./copy-column/feature";
+import type { DownloadActionProps } from "./download-actions";
+import { FilterPills } from "./filter-pills";
 import { FocusRowFeature } from "./focus-row/feature";
+import { useColumnPinning } from "./hooks/use-column-pinning";
+import { CellSelectionProvider } from "./range-focus/provider";
+import { DataTableBody, renderTableHeader } from "./renderers";
+import { SearchBar } from "./SearchBar";
+import { TableActions } from "./TableActions";
+import type { DataTableSelection, TooManyRows } from "./types";
 import { getStableRowId } from "./utils";
-import type { PanelType } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
@@ -80,7 +82,9 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   viewedRowIdx?: number;
   onViewedRowChange?: OnChangeFn<number>;
   // Others
-  chartsFeatureEnabled?: boolean;
+  showChartBuilder?: boolean;
+  showPageSizeSelector?: boolean;
+  showColumnExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
 }
@@ -117,21 +121,43 @@ const DataTableInternal = <TData,>({
   freezeColumnsLeft,
   freezeColumnsRight,
   toggleDisplayHeader,
-  chartsFeatureEnabled,
+  showChartBuilder,
+  showPageSizeSelector,
+  showColumnExplorer,
   togglePanel,
   isPanelOpen,
   viewedRowIdx,
   onViewedRowChange,
 }: DataTableProps<TData>) => {
   const [isSearchEnabled, setIsSearchEnabled] = React.useState<boolean>(false);
+  const [showLoadingBar, setShowLoadingBar] = React.useState<boolean>(false);
 
   const { columnPinning, setColumnPinning } = useColumnPinning(
     freezeColumnsLeft,
     freezeColumnsRight,
   );
 
+  // Show loading bar only after a short delay to prevent flickering
+  React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (reloading) {
+      timeoutId = setTimeout(() => {
+        setShowLoadingBar(true);
+      }, 300);
+    } else {
+      setShowLoadingBar(false);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [reloading]);
+
   // Returns the row index, accounting for pagination
-  function getPaginatedRowIndex(row: TData, idx: number): number {
+  function getPaginatedRowIndex(_row: TData, idx: number): number {
     if (!paginationState) {
       return idx;
     }
@@ -229,15 +255,20 @@ const DataTableInternal = <TData,>({
             reloading={reloading}
           />
         )}
-        <Table>
-          {renderTableHeader(table)}
-          {renderTableBody(
-            table,
-            columns,
-            rowViewerPanelOpen,
-            getPaginatedRowIndex,
-            viewedRowIdx,
+        <Table className="relative">
+          {showLoadingBar && (
+            <div className="absolute top-0 left-0 h-[3px] w-1/2 bg-primary animate-slide" />
           )}
+          {renderTableHeader(table)}
+          <CellSelectionProvider>
+            <DataTableBody
+              table={table}
+              columns={columns}
+              rowViewerPanelOpen={rowViewerPanelOpen}
+              getRowIndex={getPaginatedRowIndex}
+              viewedRowIdx={viewedRowIdx}
+            />
+          </CellSelectionProvider>
         </Table>
       </div>
       <TableActions
@@ -253,9 +284,12 @@ const DataTableInternal = <TData,>({
         downloadAs={downloadAs}
         getRowIds={getRowIds}
         toggleDisplayHeader={toggleDisplayHeader}
-        chartsFeatureEnabled={chartsFeatureEnabled}
+        showChartBuilder={showChartBuilder}
+        showPageSizeSelector={showPageSizeSelector}
+        showColumnExplorer={showColumnExplorer}
         togglePanel={togglePanel}
         isPanelOpen={isPanelOpen}
+        tableLoading={reloading}
       />
     </div>
   );

@@ -18,20 +18,20 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.44.0
+    rev: v0.45.0
     hooks:
       - id: markdownlint-fix
         args: [-c, configs/.markdownlint.yaml, --fix, --disable, MD028]
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.31.1
+    rev: v1
     hooks:
       - id: typos
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.6
+    rev: v0.12.3
     hooks:
       # Run the linter
       - id: ruff
@@ -40,11 +40,11 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v1.9.4
+    rev: v2.1.1
     hooks:
       - id: biome-check
-        args: [--config-path, biome.json, --diagnostic-level, warn]
-        additional_dependencies: ['@biomejs/biome@1.9.4']
+        args: [--config-path, biome.jsonc, --diagnostic-level, warn]
+        additional_dependencies: ['@biomejs/biome@2.0.0-beta.6']
         exclude: |
           (?x)^(
             docs/_static/.*|

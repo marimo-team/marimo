@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
+import { DATA_TYPES } from "@/core/kernel/messages";
 import {
-  vegaLoadData,
-  vegaLoader,
   exportedForTesting,
   parseCsvData,
+  vegaLoadData,
+  vegaLoader,
 } from "../loader";
-import { DATA_TYPES } from "@/core/kernel/messages";
 
 const { ZERO_WIDTH_SPACE, replacePeriodsInColumnNames, uniquifyColumnNames } =
   exportedForTesting;

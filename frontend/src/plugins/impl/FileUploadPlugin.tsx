@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-import { useDropzone } from "react-dropzone";
-import { Upload, MousePointerSquareDashedIcon } from "lucide-react";
 
-import { cn } from "@/utils/cn";
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { filesToBase64 } from "../../utils/fileToBase64";
-import { buttonVariants } from "../../components/ui/button";
-import { renderHTML } from "../core/RenderHTML";
-import { toast } from "@/components/ui/use-toast";
+import { MousePointerSquareDashedIcon, Upload } from "lucide-react";
+import type { JSX } from "react";
+import { useDropzone } from "react-dropzone";
+import { z } from "zod";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/use-toast";
+import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { buttonVariants } from "../../components/ui/button";
+import { filesToBase64 } from "../../utils/fileToBase64";
+import { renderHTML } from "../core/RenderHTML";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 
 type FileUploadType = "button" | "area";
 
@@ -72,7 +73,7 @@ function groupFileTypesByMIMEType(extensions: string[]) {
   const filesByMIMEType: Record<string, string[]> = {};
 
   const appendExt = (mimetype: string, extension: string) => {
-    if (Object.hasOwnProperty.call(filesByMIMEType, mimetype)) {
+    if (Object.hasOwn(filesByMIMEType, mimetype)) {
       filesByMIMEType[mimetype].push(extension);
     } else {
       filesByMIMEType[mimetype] = [extension];
@@ -184,7 +185,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     const label = props.label ?? "Upload";
     return (
       <TooltipProvider>
-        <div className="flex flex-row items-center justify-start flex-grow gap-2">
+        <div className="flex flex-row items-center justify-start gap-2">
           <button
             data-testid="marimo-plugin-file-upload-button"
             {...getRootProps({})}
@@ -213,6 +214,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
                   "text-xs cursor-pointer text-destructive hover:underline",
                 )}
                 onClick={() => setValue([])}
+                type="button"
               >
                 Click to clear files.
               </button>
@@ -287,6 +289,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
               <button
                 className={cn("text-destructive", "hover:underline")}
                 onClick={() => setValue([])}
+                type="button"
               >
                 Click to clear {multiple ? "files" : "file"}.
               </button>

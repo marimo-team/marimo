@@ -1,11 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useEffect, useRef, useState } from "react";
-import { Terminal } from "@xterm/xterm";
+
 import { AttachAddon } from "@xterm/addon-attach";
 import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import React, { useEffect, useRef, useState } from "react";
 import "@xterm/xterm/css/xterm.css";
 import "./xterm.css";
-import { resolveToWsUrl } from "@/core/websocket/createWsUrl";
+import { waitForConnectionOpen } from "@/core/network/connection";
+import { useRuntimeManager } from "@/core/runtime/config";
+import { Logger } from "@/utils/Logger";
 
 const TerminalComponent: React.FC<{
   visible: boolean;
@@ -25,6 +28,7 @@ const TerminalComponent: React.FC<{
     return { terminal: term, fitAddon };
   });
   const [initialized, setInitialized] = React.useState(false);
+  const runtimeManager = useRuntimeManager();
 
   // Websocket Connection
   useEffect(() => {
@@ -32,20 +36,31 @@ const TerminalComponent: React.FC<{
       return;
     }
 
-    const socket = new WebSocket(resolveToWsUrl("terminal/ws"));
-    const attachAddon = new AttachAddon(socket);
-    terminal.loadAddon(attachAddon);
+    const connectTerminal = async () => {
+      try {
+        await waitForConnectionOpen();
 
-    const handleDisconnect = () => {
-      onClose();
-      // Reset
-      attachAddon.dispose();
-      terminal.clear();
-      setInitialized(false);
+        const socket = new WebSocket(runtimeManager.getTerminalWsURL());
+        const attachAddon = new AttachAddon(socket);
+        terminal.loadAddon(attachAddon);
+
+        const handleDisconnect = () => {
+          onClose();
+          // Reset
+          attachAddon.dispose();
+          terminal.clear();
+          setInitialized(false);
+        };
+
+        socket.addEventListener("close", handleDisconnect);
+        setInitialized(true);
+      } catch (error) {
+        Logger.error("Runtime health check failed for terminal", error);
+        onClose();
+      }
     };
 
-    socket.addEventListener("close", handleDisconnect);
-    setInitialized(true);
+    connectTerminal();
 
     return () => {
       // noop

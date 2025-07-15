@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { groupCellsByColumn } from "../vertical-layout";
 
 describe("groupCellsByColumn", () => {

@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { BotMessageSquareIcon } from "lucide-react";
+import React from "react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 interface ReasoningAccordionProps {
   reasoning: string;
@@ -37,11 +38,11 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
           </span>
         </AccordionTrigger>
         <AccordionContent className="pb-2 px-2">
-          <ScrollArea className="max-h-[200px] w-full">
-            <div className="bg-muted/30 border border-muted rounded-md p-3 text-xs font-mono whitespace-pre-wrap text-muted-foreground">
-              {reasoning}
+          <div className="bg-muted/30 border border-muted/50 rounded-md p-3 italic text-muted-foreground/90 relative">
+            <div className="pr-6">
+              <MarkdownRenderer content={reasoning} />
             </div>
-          </ScrollArea>
+          </div>
         </AccordionContent>
       </AccordionItem>
     </Accordion>

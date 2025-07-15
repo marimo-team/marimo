@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { GridLayout } from "@/components/editor/renderers/grid-layout/types";
-import type { LayoutType } from "@/components/editor/renderers/types";
+
 import { useAtomValue } from "jotai";
-import { createReducerAndAtoms } from "@/utils/createReducer";
+import type { GridLayout } from "@/components/editor/renderers/grid-layout/types";
 import { cellRendererPlugins } from "@/components/editor/renderers/plugins";
+import type { LayoutType } from "@/components/editor/renderers/types";
+import { createReducerAndAtoms } from "@/utils/createReducer";
+import { Logger } from "@/utils/Logger";
 import { getNotebook } from "../cells/cells";
 import { notebookCells } from "../cells/utils";
 import { store } from "../state/jotai";
-import { Logger } from "@/utils/Logger";
 
 export type LayoutData = GridLayout | undefined;
 

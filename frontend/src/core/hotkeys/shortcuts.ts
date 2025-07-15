@@ -25,6 +25,10 @@ function areKeysPressed(keys: string[], e: KeyboardEvent): boolean {
   let satisfied = true;
   for (const key of keys) {
     switch (key) {
+      case "mod":
+        // Accept both meta and ctrl
+        satisfied &&= e.metaKey || e.ctrlKey;
+        break;
       case "ctrl":
         satisfied &&= e.ctrlKey;
         break;
@@ -50,13 +54,14 @@ function areKeysPressed(keys: string[], e: KeyboardEvent): boolean {
     }
   }
 
+  // If the shortcut does not include a modifier, ensure the modifier is not pressed
   if (!keys.includes("shift")) {
     satisfied &&= !e.shiftKey;
   }
-  if (!keys.includes("ctrl")) {
+  if (!keys.includes("ctrl") && !keys.includes("mod")) {
     satisfied &&= !e.ctrlKey;
   }
-  if (!keys.includes("meta")) {
+  if (!keys.includes("meta") && !keys.includes("mod")) {
     satisfied &&= !e.metaKey;
   }
   if (!keys.includes("alt")) {
@@ -77,6 +82,12 @@ function normalizeKey(key: string): string {
   return specialKeys[key.toLowerCase()] || key.toLowerCase();
 }
 
+/**
+ * Returns a function that checks if a shortcut is pressed.
+ *
+ * @param shortcut - The shortcut to check.
+ * @returns A function that checks if the shortcut is pressed.
+ */
 export function parseShortcut(
   shortcut: string | typeof NOT_SET,
 ): (e: KeyboardEvent) => boolean {

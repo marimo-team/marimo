@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { switchLanguage } from "@/core/codemirror/language/extension";
+
 import type { EditorView } from "@codemirror/view";
+import { DatabaseIcon } from "lucide-react";
 import type React from "react";
-import { MarkdownIcon, PythonIcon } from "./icons";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import type { LanguageAdapter } from "@/core/codemirror/language/types";
-import { DatabaseIcon } from "lucide-react";
-import { useMemo } from "react";
+import { switchLanguage } from "@/core/codemirror/language/extension";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import type { LanguageAdapter } from "@/core/codemirror/language/types";
 import { Functions } from "@/utils/functions";
+import { MarkdownIcon, PythonIcon } from "./icons";
 
 interface LanguageTogglesProps {
   editorView: EditorView | null;
@@ -111,7 +112,7 @@ export const LanguageToggle: React.FC<Props> = ({
     if (!editorView) {
       return;
     }
-    switchLanguage(editorView, toType);
+    switchLanguage(editorView, { language: toType });
     onAfterToggle();
   };
 

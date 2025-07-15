@@ -60,9 +60,9 @@ export function extractTimezone(dtype: string | undefined): string | undefined {
   if (!dtype) {
     return undefined;
   }
-  // Check for datetime[X,Y] format
+  // Check for datetime[X,Y] and datetime64[X,Y] format
   // We do this for any timezone-aware datetime type
   // not just UTC (as this is what Polars does by default)
-  const match = /^datetime\[[^,]+,([^,]+)]$/.exec(dtype);
+  const match = /^datetime(?:64)?\[[^,]+,([^,]+)]$/.exec(dtype);
   return match?.[1]?.trim();
 }

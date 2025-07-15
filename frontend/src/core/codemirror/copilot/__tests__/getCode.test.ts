@@ -1,19 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { getTopologicalCellIds } from "../getCodes";
-import { notebookAtom } from "@/core/cells/cells";
-import { variablesAtom } from "@/core/variables/state";
-import { store } from "@/core/state/jotai";
-import { MultiColumn } from "@/utils/id-tree";
-import type { CellId } from "@/core/cells/ids";
-import type { VariableName, Variables } from "@/core/variables/types";
-import { getCodes } from "../getCodes";
+
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-
+import { describe, expect, it } from "vitest";
+import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { store } from "@/core/state/jotai";
+import { variablesAtom } from "@/core/variables/state";
+import type { VariableName, Variables } from "@/core/variables/types";
+import { MultiColumn } from "@/utils/id-tree";
 import { cellConfigExtension } from "../../config/extension";
 import { adaptiveLanguageConfiguration } from "../../language/extension";
+import { getCodes, getTopologicalCellIds } from "../getCodes";
+
 const Cells = {
   cell1: "cell1" as CellId,
   cell2: "cell2" as CellId,
@@ -43,17 +43,17 @@ function createMockEditorView(code: string) {
           placeholderType: "marimo-import",
           lspConfig: {},
         }),
-        cellConfigExtension(
-          {
+        cellConfigExtension({
+          completionConfig: {
             copilot: false,
             activate_on_typing: true,
             codeium_api_key: null,
           },
-          new OverridingHotkeyProvider({}),
-          "marimo-import",
-          {},
-          {},
-        ),
+          hotkeys: new OverridingHotkeyProvider({}),
+          placeholderType: "marimo-import",
+          lspConfig: {},
+          diagnosticsConfig: {},
+        }),
       ],
     }),
   });
@@ -68,15 +68,10 @@ describe("getTopologicalCellIds", () => {
   it("should return topologically sorted cell IDs", () => {
     // Setup mock data
     store.set(notebookAtom, {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([
         [Cells.cell1, Cells.cell2, Cells.cell3, Cells.cell4],
       ]),
-      cellData: {},
-      cellRuntime: {},
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
     });
     const variables: Variables = {
       [Variables.var1]: {
@@ -108,13 +103,7 @@ describe("getTopologicalCellIds", () => {
 describe("getCodes", () => {
   it("should return only the otherCode when there are no other cells", () => {
     store.set(notebookAtom, {
-      cellIds: MultiColumn.from([[]]),
-      cellData: {},
-      cellRuntime: {},
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
+      ...initialNotebookState(),
     });
     const otherCode = "print('Hello World')";
     const result = getCodes(otherCode);
@@ -128,16 +117,12 @@ describe("getCodes", () => {
       createMockEditorView("x = 1"),
     ];
     store.set(notebookAtom, {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
-      cellData: {},
-      cellRuntime: {},
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
       },
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
     });
     const result = getCodes(otherCode);
     expect(result).toEqual("import os\nx = 1\nprint('Hello World')");
@@ -150,16 +135,12 @@ describe("getCodes", () => {
       createMockEditorView("import os"),
     ];
     store.set(notebookAtom, {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2]]),
-      cellData: {},
-      cellRuntime: {},
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
       },
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
     });
     const result = getCodes(otherCode);
     expect(result).toEqual("import os\nx = 1\nprint('Hello World')");
@@ -173,17 +154,13 @@ describe("getCodes", () => {
       createMockEditorView("y = x + 1"),
     ];
     store.set(notebookAtom, {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([[Cells.cell1, Cells.cell2, Cells.cell3]]),
-      cellData: {},
-      cellRuntime: {},
       cellHandles: {
         [Cells.cell1]: { current: mockEditorViews[0] },
         [Cells.cell2]: { current: mockEditorViews[1] },
         [Cells.cell3]: { current: mockEditorViews[2] },
       },
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
     });
     store.set(variablesAtom, {
       [Variables.var1]: {

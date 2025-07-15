@@ -1,25 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React, { type PropsWithChildren, useEffect } from "react";
-import { Swiper, SwiperSlide, type SwiperRef } from "swiper/react";
+import React, { type JSX, type PropsWithChildren, useEffect } from "react";
 import {
-  Virtual,
   Keyboard,
-  Pagination,
-  Zoom,
   Navigation,
+  Pagination,
+  Virtual,
+  Zoom,
 } from "swiper/modules";
+import { Swiper, type SwiperRef, SwiperSlide } from "swiper/react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/utils/cn";
 import { useEventListener } from "@/hooks/useEventListener";
+import { cn } from "@/utils/cn";
 
 import "./slides.css";
-import "swiper/css";
-import "swiper/css/virtual";
-import "swiper/css/keyboard";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
-import "swiper/css/scrollbar";
 
 interface SlidesComponentProps {
   className?: string;

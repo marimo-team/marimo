@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
+import { HourglassIcon, LockIcon, UnlinkIcon } from "lucide-react";
+import React from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
 import { viewStateAtom } from "@/core/mode";
 import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
-import { useAtomValue } from "jotai";
-import { UnlinkIcon, HourglassIcon, LockIcon } from "lucide-react";
-import React from "react";
 
 export const StatusOverlay: React.FC<{
   connection: ConnectionStatus;

@@ -1,10 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 
-import React, { useRef } from "react";
-import { type FieldPath, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { get } from "lodash-es";
+import {
+  BrainIcon,
+  CpuIcon,
+  EditIcon,
+  FlaskConicalIcon,
+  FolderCog2,
+  MonitorIcon,
+  PackageIcon,
+} from "lucide-react";
+import React, { useRef } from "react";
+import { type FieldPath, useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -15,45 +26,34 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { NumberField } from "@/components/ui/number-field";
-import { Kbd } from "@/components/ui/kbd";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 import { configOverridesAtom, useUserConfig } from "@/core/config/config";
 import {
-  UserConfigSchema,
   PackageManagerNames,
   type UserConfig,
+  UserConfigSchema,
 } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
+import { marimoVersionAtom } from "@/core/meta/state";
 import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
-import { THEMES } from "@/theme/useTheme";
-import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  EditIcon,
-  MonitorIcon,
-  PackageIcon,
-  CpuIcon,
-  BrainIcon,
-  FlaskConicalIcon,
-  FolderCog2,
-} from "lucide-react";
-import { ExternalLink } from "../ui/links";
-import { cn } from "@/utils/cn";
-import { KNOWN_AI_MODELS, AWS_REGIONS } from "./constants";
-import { Textarea } from "../ui/textarea";
-import { get } from "lodash-es";
-import { Tooltip } from "../ui/tooltip";
-import { Badge } from "../ui/badge";
-import { capabilitiesAtom } from "@/core/config/capabilities";
 import { Banner } from "@/plugins/impl/common/error-banner";
+import { THEMES } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
+import { Badge } from "../ui/badge";
+import { ExternalLink } from "../ui/links";
+import { Textarea } from "../ui/textarea";
+import { Tooltip } from "../ui/tooltip";
+import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
+import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
 import { OptionalFeatures } from "./optional-features";
-import { marimoVersionAtom } from "@/core/meta/state";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -141,8 +141,8 @@ export const UserConfigForm: React.FC = () => {
       return (
         <>
           <p className="text-sm text-muted-secondary">
-            To get a Codeium API key, follow{" "}
-            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#codeium-copilot">
+            To get a Windsurf API key, follow{" "}
+            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#windsurf-copilot">
               these instructions
             </ExternalLink>
             .
@@ -470,6 +470,48 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="language_servers.ty.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        ty (
+                        <ExternalLink href="https://github.com/astral-sh/ty">
+                          ty
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="ty-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.ty.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.ty && (
+                      <Banner kind="danger">
+                        ty is not available in your current environment. Please
+                        install <Kbd className="inline">ty</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
               <FormDescription>
                 See the{" "}
                 <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
@@ -659,6 +701,34 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="display.reference_highlighting"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Reference highlighting</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="reference-highlighting-checkbox"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.reference_highlighting"
+                      />
+                    </FormItem>
+
+                    <FormDescription>
+                      Visually emphasizes variables in a cell that are defined
+                      elsewhere in the notebook.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Outputs">
               <FormField
@@ -765,6 +835,42 @@ export const UserConfigForm: React.FC = () => {
                     <FormDescription>
                       The default number of rows displayed in dataframes and SQL
                       results.
+                    </FormDescription>
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="display.default_table_max_columns"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Default table max columns</FormLabel>
+                      <FormControl>
+                        <NumberField
+                          data-testid="default-table-max-columns-input"
+                          className="m-0 w-24"
+                          {...field}
+                          value={field.value}
+                          minValue={1}
+                          step={1}
+                          onChange={(value) => {
+                            field.onChange(value);
+                            if (!Number.isNaN(value)) {
+                              onSubmit(form.getValues());
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="display.default_table_max_columns"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      The default maximum number of columns displayed in
+                      dataframes and SQL results.
                     </FormDescription>
                   </div>
                 )}
@@ -1416,28 +1522,6 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.table_charts"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Table Charts</FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="data-table-plugin-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormDescription>
-                    Enable experimental charting feature on tables. Data is
-                    saved in local storage. May not be performant.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="experimental.rtc_v2"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
@@ -1529,7 +1613,10 @@ export const UserConfigForm: React.FC = () => {
 const SettingGroup = ({
   title,
   children,
-}: { title: string; children: React.ReactNode }) => {
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
   return (
     <div className="flex flex-col gap-4 pb-4">
       <SettingSubtitle>{title}</SettingSubtitle>

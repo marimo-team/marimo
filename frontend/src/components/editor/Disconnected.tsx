@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { ArrowRightSquareIcon } from "lucide-react";
 import { API } from "@/core/network/api";
-import { Button } from "../ui/button";
-import { toast } from "../ui/use-toast";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import { prettyError } from "@/utils/errors";
 import { reloadSafe } from "@/utils/reload-safe";
-import { ArrowRightSquareIcon } from "lucide-react";
-import { Banner } from "@/plugins/impl/common/error-banner";
+import { Button } from "../ui/button";
+import { toast } from "../ui/use-toast";
 
 interface DisconnectedProps {
   reason: string;

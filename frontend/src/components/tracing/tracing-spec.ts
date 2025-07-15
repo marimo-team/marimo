@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { TopLevelSpec } from "vega-lite";
 import type { CellId } from "@/core/cells/ids";
 import type { CellRun } from "@/core/cells/runs";
 import type { ResolvedTheme } from "@/theme/useTheme";
-import type { TimeUnit } from "vega";
-import type { TopLevelSpec } from "vega-lite";
 
 export const REACT_HOVERED_CELLID = "hoveredCellId";
 export const VEGA_HOVER_SIGNAL = "cellHover";
@@ -29,7 +29,7 @@ export function createGanttBaseSpec(
   hiddenInputElementId: string,
   chartPosition: ChartPosition,
   theme: ResolvedTheme,
-): TopLevelSpec {
+): Readonly<TopLevelSpec> {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     background: theme === "dark" ? "black" : undefined,
@@ -52,12 +52,12 @@ export function createGanttBaseSpec(
         },
       },
     ],
-    height: { step: chartPosition === "above" ? 21 : 26 },
+    height: { step: 23 },
     encoding: {
       y: {
         field: cellNumField,
         scale: { paddingInner: 0.2 },
-        sort: { field: startTimestampField },
+        sort: { field: "sortPriority" },
         title: "cell",
         axis: chartPosition === "sideBySide" ? null : undefined,
       },
@@ -74,19 +74,21 @@ export function createGanttBaseSpec(
         {
           field: startTimestampField,
           type: "temporal",
-          timeUnit: "hoursminutessecondsmilliseconds" as TimeUnit,
+          // @ts-expect-error - Supported by vega/vega-lite but invalid "TimeUnit" option from exported type
+          timeUnit: "hoursminutessecondsmilliseconds",
           title: "Start",
         },
         {
           field: endTimestampField,
           type: "temporal",
-          timeUnit: "hoursminutessecondsmilliseconds" as TimeUnit,
+          // @ts-expect-error - Supported by vega/vega-lite but invalid "TimeUnit" option from exported type
+          timeUnit: "hoursminutessecondsmilliseconds",
           title: "End",
         },
       ],
       size: {
         value: {
-          expr: `${REACT_HOVERED_CELLID} == toString(datum.cell) ? 19.5 : 18`,
+          expr: `${REACT_HOVERED_CELLID} == toString(datum.${cellField}) ? 19.5 : 18`,
         },
       },
       color: {
@@ -98,6 +100,13 @@ export function createGanttBaseSpec(
     data: {
       values: chartValues,
     },
+    transform: [
+      {
+        // Sort queued cells to the bottom
+        calculate: `datum.${statusField} === 'queued' ? 9999999999999 : datum.${startTimestampField}`,
+        as: "sortPriority",
+      },
+    ],
     config: {
       view: {
         stroke: "transparent",

@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type Plugin, defineConfig } from "vite";
+
 import fs from "node:fs";
-import wasm from "vite-plugin-wasm";
-import topLevelAwait from "vite-plugin-top-level-await";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
+import { defineConfig, type Plugin } from "vite";
+import topLevelAwait from "vite-plugin-top-level-await";
+import wasm from "vite-plugin-wasm";
 import tsconfigPaths from "vite-tsconfig-paths";
 import packageJson from "../package.json";
 
@@ -24,7 +25,7 @@ const htmlDevPlugin = (): Plugin => {
 };
 
 const ReactCompilerConfig = {
-  target: "18",
+  target: "19",
 };
 
 // https://vitejs.dev/config/
@@ -40,7 +41,6 @@ export default defineConfig({
     "process.env": {
       NODE_ENV: JSON.stringify(process.env.NODE_ENV),
     },
-    "import.meta.env.VITE_MARIMO_ISLANDS": JSON.stringify(true),
     // Precedence: VITE_MARIMO_VERSION > package.json version > "latest"
     "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
       ? JSON.stringify(process.env.VITE_MARIMO_VERSION)

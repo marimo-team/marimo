@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { assertExists } from "@/utils/assertExists";
-import type { UIElementRegistry } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
-import { isWasm } from "../wasm/utils";
+import { isIslands } from "../islands/utils";
 import { PyodideRouter } from "../wasm/router";
+import { isWasm } from "../wasm/utils";
+import type { UIElementRegistry } from "./uiregistry";
 
 /**
  * Parse an attribute value as JSON.
@@ -50,6 +51,10 @@ export function serializeInitialValue(value: unknown) {
 }
 
 export function getFilenameFromDOM() {
+  // If running in Islands, just return the window title.
+  if (isIslands()) {
+    return document.title || null;
+  }
   // If we are running in WASM, we can get the filename from the URL
   if (isWasm()) {
     const filename = PyodideRouter.getFilename();

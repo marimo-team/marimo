@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo } from "react";
-import { mergeRefs } from "../../../utils/mergeRefs";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, X } from "lucide-react";
-import type { CellColumnId } from "@/utils/id-tree";
-import { useCellActions } from "@/core/cells/cells";
-import { cn } from "@/utils/cn";
+import React, { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useCellActions } from "@/core/cells/cells";
+import { cn } from "@/utils/cn";
+import type { CellColumnId } from "@/utils/id-tree";
+import { mergeRefs } from "../../../utils/mergeRefs";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   columnId: CellColumnId;

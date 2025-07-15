@@ -4,12 +4,14 @@ from __future__ import annotations
 import html
 import json
 import os
+from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._convert.converters import MarimoConvert
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
@@ -39,6 +41,7 @@ def _get_mount_config(
     show_app_code: bool = True,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
+    remote_url: Optional[str] = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
@@ -59,6 +62,7 @@ def _get_mount_config(
         },
         "notebook": notebook_snapshot,
         "session": session_snapshot,
+        "runtime_config": [{"url": remote_url}] if remote_url else None,
     }
 
     return """{{
@@ -72,6 +76,7 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
+            "runtimeConfig": {runtime_config},
         }}
 """.format(
         **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
@@ -89,6 +94,14 @@ def home_page_template(
     html = html.replace("{{ title }}", "marimo")
     html = html.replace("{{ filename }}", "")
 
+    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
+    html = html.replace("{{ version }}", get_version())
+    html = html.replace(
+        "{{ user_config }}", _html_escape(json.dumps(user_config))
+    )
+    html = html.replace("{{ server_token }}", str(server_token))
+    # /TODO
+
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
@@ -98,6 +111,7 @@ def home_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=None,
+            remote_url=None,
         ),
     )
 
@@ -116,10 +130,30 @@ def notebook_page_template(
     app_config: _AppConfig,
     filename: Optional[str],
     mode: SessionMode,
+    remote_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
+    # When we have a remote URL, let's pre-populate the index.html page
+    # with a view of the notebook.
+    notebook_snapshot = None
+    if remote_url and filename:
+        filepath = Path(filename)
+        if filepath.exists():
+            notebook_snapshot = MarimoConvert.from_py(
+                filepath.read_text(encoding="utf-8")
+            ).to_notebook_v1()
+
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
+
+    # TODO(Trevor): Legacy, required by VS Code plugin. Remove when plugin is updated (see frontend/index.html)
+    html = html.replace("{{ version }}", get_version())
+    html = html.replace(
+        "{{ user_config }}", _html_escape(json.dumps(user_config))
+    )
+    html = html.replace("{{ server_token }}", str(server_token))
+    # /TODO
+
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
@@ -129,6 +163,8 @@ def notebook_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=app_config,
+            remote_url=remote_url,
+            notebook_snapshot=notebook_snapshot,
         ),
     )
 
@@ -201,6 +237,7 @@ def static_notebook_template(
             app_config=app_config,
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
+            remote_url=None,
         ),
     )
 
@@ -325,6 +362,7 @@ def wasm_notebook_template(
             app_config=app_config,
             version=version,
             show_app_code=show_code,
+            remote_url=None,
         ),
     )
 

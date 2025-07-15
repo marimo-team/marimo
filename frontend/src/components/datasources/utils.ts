@@ -1,8 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  type SQLTableContext,
-  DUCKDB_ENGINE,
-} from "@/core/datasets/data-source-connections";
+import type { SQLTableContext } from "@/core/datasets/data-source-connections";
+import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import type { DataTable, DataType } from "@/core/kernel/messages";
 import type { ColumnHeaderStatsKey } from "../data-table/types";
 
@@ -11,11 +9,15 @@ export function isSchemaless(schemaName: string) {
   return schemaName === "";
 }
 
-export function sqlCode(
-  table: DataTable,
-  columnName: string,
-  sqlTableContext?: SQLTableContext,
-) {
+export function sqlCode({
+  table,
+  columnName,
+  sqlTableContext,
+}: {
+  table: DataTable;
+  columnName: string;
+  sqlTableContext?: SQLTableContext;
+}) {
   if (sqlTableContext) {
     const { engine, schema, defaultSchema, defaultDatabase, database } =
       sqlTableContext;

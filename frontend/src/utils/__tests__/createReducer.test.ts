@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
 import { createReducer, createReducerAndAtoms } from "../createReducer";
 

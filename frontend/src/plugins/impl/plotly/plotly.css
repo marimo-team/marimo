@@ -98,7 +98,6 @@
   cursor: ne-resize;
 }
 .js-plotly-plot .plotly .cursor-grab {
-  cursor: -webkit-grab;
   cursor: grab;
 }
 .js-plotly-plot .plotly .modebar {
@@ -254,7 +253,6 @@
   border: 1px solid #fff;
   z-index: 3000;
   margin: 0;
-  background-color: #8c97af;
   background-color: rgba(140, 151, 175, 0.9);
   color: #fff;
   padding: 10px;

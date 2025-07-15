@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { Completion } from "@codemirror/autocomplete";
 import { getVariableCompletions } from "@/core/codemirror/completion/variable-completions";
 import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 import type { Variables } from "@/core/variables/types";
-import type { Completion } from "@codemirror/autocomplete";
 
 const Boosts = {
   LOCAL_TABLE: 5,

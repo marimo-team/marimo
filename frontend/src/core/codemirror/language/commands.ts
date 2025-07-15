@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { getEditorCodeAsPython } from "./utils";
 import { languageAdapterState, switchLanguage } from "./extension";
 import { LanguageAdapters } from "./LanguageAdapters";
 import type { LanguageAdapterType } from "./types";
+import { getEditorCodeAsPython } from "./utils";
 
 /**
  * Get the current mode of the editor view.
@@ -53,7 +53,7 @@ export function toggleToLanguage(
     return false;
   }
 
-  switchLanguage(editorView, language);
+  switchLanguage(editorView, { language });
 
   return language;
 }

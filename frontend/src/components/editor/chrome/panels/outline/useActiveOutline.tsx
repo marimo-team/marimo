@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useEffect, useRef, useState } from "react";
 import type { OutlineItem } from "@/core/cells/outline";
 import { headingToIdentifier } from "@/core/dom/outline";
 import { getInitialAppMode } from "@/core/mode";
 import { Logger } from "@/utils/Logger";
-import { useEffect, useRef, useState } from "react";
 
 function getRootScrollableElement() {
   // HACK: this is a bit leaky
@@ -22,8 +23,15 @@ export function useActiveOutline(
   const [activeHeaderId, setActiveHeaderId] = useState<string | undefined>(
     undefined,
   );
+  const [activeOccurrences, setActiveOccurrences] = useState<
+    number | undefined
+  >(undefined);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const topmostHeader = useRef<HTMLElement | null>(null);
+
+  const occurrences = useRef<Map<HTMLElement, number>>(
+    new Map<HTMLElement, number>(),
+  );
 
   useEffect(() => {
     if (headerElements.length === 0) {
@@ -54,6 +62,7 @@ export function useActiveOutline(
         const identifier = headingToIdentifier(topmostHeader.current);
         const id = "id" in identifier ? identifier.id : identifier.path;
         setActiveHeaderId(id);
+        setActiveOccurrences(occurrences.current.get(topmostHeader.current));
       }
     };
 
@@ -65,6 +74,16 @@ export function useActiveOutline(
 
     headerElements.forEach((element) => {
       if (element) {
+        const identifier: OutlineItem["by"] = headingToIdentifier(element[0]);
+        const idxOfEl: number = headerElements
+          .map(([el]: readonly [HTMLElement, string]) => el)
+          .filter((el: HTMLElement) =>
+            "id" in identifier
+              ? el.id === identifier.id
+              : el.textContent === element[0].textContent,
+          )
+          .indexOf(element[0]);
+        occurrences.current.set(element[0], idxOfEl);
         observerRef.current?.observe(element[0]);
       }
     });
@@ -77,7 +96,7 @@ export function useActiveOutline(
     };
   }, [headerElements]);
 
-  return { activeHeaderId };
+  return { activeHeaderId, activeOccurrences };
 }
 
 /**

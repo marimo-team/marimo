@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { fromUnixTime } from "date-fns";
+import { toast } from "@/components/ui/use-toast";
 import { invariant } from "@/utils/invariant";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
-import type { CellId } from "./ids";
-import { fromUnixTime } from "date-fns";
 import { isErrorMime } from "../mime";
-import { toast } from "@/components/ui/use-toast";
+import type { CellId } from "./ids";
 
 export interface CellLog {
   timestamp: number;

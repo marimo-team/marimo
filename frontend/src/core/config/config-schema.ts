@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
+import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import type { MarimoConfig } from "../network/types";
-import { invariant } from "@/utils/invariant";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [
@@ -102,6 +102,7 @@ export const UserConfigSchema = z
         cell_output: z.enum(["above", "below"]).default("above"),
         dataframes: z.enum(["rich", "plain"]).default("rich"),
         default_table_page_size: z.number().default(10),
+        default_table_max_columns: z.number().default(50),
         default_width: z
           .enum(VALID_APP_WIDTHS)
           .default("medium")
@@ -111,6 +112,7 @@ export const UserConfigSchema = z
             }
             return width;
           }),
+        reference_highlighting: z.boolean().default(false),
       })
       .passthrough()
       .default({}),
@@ -123,6 +125,7 @@ export const UserConfigSchema = z
     ai: z
       .object({
         rules: z.string().default(""),
+        mode: z.enum(["manual", "ask"]).default("manual"),
         open_ai: z
           .object({
             api_key: z.string().optional(),
@@ -161,6 +164,13 @@ export const UserConfigSchema = z
       .passthrough()
       .default({}),
     server: z.object({}).passthrough().default({}),
+    sharing: z
+      .object({
+        html: z.boolean().optional(),
+        wasm: z.boolean().optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   // Pass through so that we don't remove any extra keys that the user has added
   .passthrough()
@@ -175,6 +185,7 @@ export const UserConfigSchema = z
     server: {},
     ai: {
       rules: "",
+      mode: "manual",
       open_ai: {},
     },
   });
@@ -184,6 +195,7 @@ export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 export type LSPConfig = UserConfig["language_servers"];
 export type DiagnosticsConfig = UserConfig["diagnostics"];
+export type DisplayConfig = UserConfig["display"];
 
 export const AppTitleSchema = z.string();
 export const SqlOutputSchema = z.enum(VALID_SQL_OUTPUT_FORMATS).default("auto");

@@ -19,7 +19,10 @@ from marimo._runtime.packages.package_manager import (
     PackageDescription,
 )
 from marimo._runtime.packages.utils import split_packages
+from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.platform import is_pyodide
+from marimo._utils.uv import find_uv_bin
+from marimo._utils.uv_tree import parse_uv_tree
 
 PY_EXE = sys.executable
 
@@ -135,14 +138,21 @@ class UvPackageManager(PypiPackageManager):
     name = "uv"
     docs_url = "https://docs.astral.sh/uv/"
 
+    @cached_property
+    def _uv_bin(self) -> str:
+        return find_uv_bin()
+
+    def is_manager_installed(self) -> bool:
+        return self._uv_bin != "uv" or super().is_manager_installed()
+
     async def _install(self, package: str, *, upgrade: bool) -> bool:
         install_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Installing in {package} with 'uv add'")
-            install_cmd = ["uv", "add"]
+            install_cmd = [self._uv_bin, "add"]
         else:
             LOGGER.info(f"Installing in {package} with 'uv pip install'")
-            install_cmd = ["uv", "pip", "install"]
+            install_cmd = [self._uv_bin, "pip", "install"]
 
         if upgrade:
             install_cmd.append("--upgrade")
@@ -291,14 +301,14 @@ class UvPackageManager(PypiPackageManager):
         upgrade: bool,
     ) -> None:
         if packages_to_add:
-            cmd = ["uv", "--quiet", "add", "--script", filepath]
+            cmd = [self._uv_bin, "--quiet", "add", "--script", filepath]
             if upgrade:
                 cmd.append("--upgrade")
             cmd.extend(packages_to_add)
             self.run(cmd)
         if packages_to_remove:
             self.run(
-                ["uv", "--quiet", "remove", "--script", filepath]
+                [self._uv_bin, "--quiet", "remove", "--script", filepath]
                 + packages_to_remove
             )
 
@@ -352,10 +362,10 @@ class UvPackageManager(PypiPackageManager):
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
-            uninstall_cmd = ["uv", "remove"]
+            uninstall_cmd = [self._uv_bin, "remove"]
         else:
             LOGGER.info(f"Uninstalling {package} with 'uv pip uninstall'")
-            uninstall_cmd = ["uv", "pip", "uninstall"]
+            uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
 
         return self.run(
             uninstall_cmd + [*split_packages(package), "-p", PY_EXE]
@@ -363,8 +373,41 @@ class UvPackageManager(PypiPackageManager):
 
     def list_packages(self) -> list[PackageDescription]:
         LOGGER.info("Listing packages with 'uv pip list'")
-        cmd = ["uv", "pip", "list", "--format=json", "-p", PY_EXE]
+        cmd = [self._uv_bin, "pip", "list", "--format=json", "-p", PY_EXE]
         return self._list_packages_from_cmd(cmd)
+
+    def dependency_tree(
+        self, filename: Optional[str] = None
+    ) -> Optional[DependencyTreeNode]:
+        """Return the project’s dependency tree using the `uv tree` command."""
+
+        # Skip if not a script and not inside a uv-managed project
+        if filename is None and not self.is_in_uv_project:
+            return None
+
+        tree_cmd = [self._uv_bin, "tree", "--no-dedupe"]
+        if filename:
+            tree_cmd += ["--script", filename]
+
+        try:
+            result = subprocess.run(
+                tree_cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            tree = parse_uv_tree(result.stdout)
+
+            # If in a uv project and the only top-level item is the project itself,
+            # return its dependencies directly
+            if filename is None and len(tree.dependencies) == 1:
+                return tree.dependencies[0]
+
+            return tree
+
+        except subprocess.CalledProcessError:
+            LOGGER.error(f"Failed to get dependency tree for {filename}")
+            return None
 
 
 class RyePackageManager(PypiPackageManager):

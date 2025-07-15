@@ -73,7 +73,7 @@ markdown_extensions:
   - pymdownx.tilde
   - mkdocs-click
 nav:
-  - Marimo: index.md
+  - marimo: index.md
   - Getting Started:
       - Getting Started: getting_started/index.md
       - Installation: getting_started/installation.md
@@ -108,6 +108,7 @@ nav:
           - Generate with AI: guides/generate_with_ai/index.md
           - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
           - AI-assisted coding: guides/editor_features/ai_completion.md
+          - Prompts for the marimo editor: guides/generate_with_ai/prompts.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
@@ -241,6 +242,7 @@ nav:
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
   - FAQ: faq.md
+  - Readings & Videos: reading.md
   - Community:
       - Community: community.md
       - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md

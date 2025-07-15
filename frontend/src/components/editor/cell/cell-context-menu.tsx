@@ -1,18 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { Fragment } from "react";
-import {
-  type CellActionButtonProps,
-  useCellActionButtons,
-} from "../actions/useCellActionButton";
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-} from "@/components/ui/context-menu";
-import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
-import type { ActionButton } from "../actions/types";
+
 import {
   ClipboardCopyIcon,
   ClipboardPasteIcon,
@@ -21,13 +8,27 @@ import {
   ScissorsIcon,
   SearchIcon,
 } from "lucide-react";
-import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
-import { CellOutputId } from "@/core/cells/ids";
-import { Logger } from "@/utils/Logger";
-import { copyToClipboard } from "@/utils/copy";
-import { toast } from "@/components/ui/use-toast";
-import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
+import React, { Fragment } from "react";
+import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Tooltip } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/use-toast";
+import { CellOutputId } from "@/core/cells/ids";
+import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
+import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
+import { copyToClipboard } from "@/utils/copy";
+import { Logger } from "@/utils/Logger";
+import type { ActionButton } from "../actions/types";
+import {
+  type CellActionButtonProps,
+  useCellActionButtons,
+} from "../actions/useCellActionButton";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;

@@ -74,6 +74,8 @@ class _cache_call:
     cell_id: str
     module: ast.Module
     _args: list[str]
+    _var_arg: Optional[str] = None
+    _var_kwarg: Optional[str] = None
     _loader: Optional[State[Loader]] = None
     _loader_partial: LoaderPartial
     name: str
@@ -116,7 +118,33 @@ class _cache_call:
         )
 
         self.fn = fn
-        self._args = list(self.fn.__code__.co_varnames)
+        sig = inspect.signature(fn)
+        self._args = [
+            param.name
+            for param in sig.parameters.values()
+            if param.kind
+            in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.POSITIONAL_ONLY,
+            )
+        ]
+        self._var_arg = next(
+            (
+                param.name
+                for param in sig.parameters.values()
+                if param.kind == inspect.Parameter.VAR_POSITIONAL
+            ),
+            None,
+        )
+        self._var_kwarg = next(
+            (
+                param.name
+                for param in sig.parameters.values()
+                if param.kind == inspect.Parameter.VAR_KEYWORD
+            ),
+            None,
+        )
+
         # Retrieving frame from the stack: frame is
         #
         # 0  _set_context ->
@@ -194,6 +222,13 @@ class _cache_call:
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
         kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
+        # If the function has varargs, we need to capture them as well.
+        if self._var_arg is not None:
+            arg_dict[f"{ARG_PREFIX}{self._var_arg}"] = args[len(self._args) :]
+        if self._var_kwarg is not None:
+            # NB: kwargs are always a dict, so we can just copy them.
+            arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = kwargs.copy()
+
         # Capture the call case
         ctx = get_context()
         scope = {

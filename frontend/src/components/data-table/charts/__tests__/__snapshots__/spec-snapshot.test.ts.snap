@@ -4,18 +4,22 @@ exports[`create vega spec > should create and augment a spec 1`] = `
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
   "background": "white",
+  "config": {
+    "axis": {
+      "grid": false,
+    },
+  },
   "data": {
     "values": [],
   },
   "encoding": {
     "color": undefined,
-    "column": undefined,
-    "row": undefined,
     "tooltip": undefined,
     "x": {
       "aggregate": undefined,
       "bin": undefined,
       "field": "category",
+      "sort": undefined,
       "stack": undefined,
       "timeUnit": undefined,
       "title": undefined,
@@ -26,6 +30,7 @@ exports[`create vega spec > should create and augment a spec 1`] = `
       "aggregate": undefined,
       "bin": undefined,
       "field": "value",
+      "sort": undefined,
       "stack": undefined,
       "timeUnit": undefined,
       "title": undefined,

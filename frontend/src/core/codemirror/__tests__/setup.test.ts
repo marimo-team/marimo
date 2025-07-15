@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, test, vi } from "vitest";
-import { type CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
+
 import { EditorState, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
+import { describe, expect, test, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
-import { Objects } from "@/utils/objects";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { PythonLanguageAdapter } from "../language/languages/python";
+import { Objects } from "@/utils/objects";
 import type { CodemirrorCellActions } from "../cells/state";
+import { type CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
+import { PythonLanguageAdapter } from "../language/languages/python";
 
 vi.mock("@/core/config/config", async (importOriginal) => {
   const original = await importOriginal<{}>();
@@ -65,6 +66,7 @@ function getOpts() {
     diagnosticsConfig: {},
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
+    displayConfig: { reference_highlighting: false },
   } as const;
 }
 

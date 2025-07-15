@@ -5,7 +5,6 @@ import base64
 import mimetypes
 import os
 import platform
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -14,6 +13,7 @@ from typing import Literal, Optional, Union
 from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
+from marimo._utils.files import natural_sort
 
 LOGGER = _loggers.marimo_logger()
 
@@ -84,17 +84,21 @@ class OSFileSystem(FileSystem):
         )
 
     def get_details(
-        self, path: str, encoding: str | None = None
+        self,
+        path: str,
+        encoding: str | None = None,
+        contents: str | None = None,
     ) -> FileDetailsResponse:
         file_info = self._get_file_info(path)
-        contents = (
-            self.open_file(path, encoding=encoding)
-            if not file_info.is_directory
-            else None
-        )
+        if file_info.is_directory:
+            actual_contents = None
+        elif contents is not None:
+            actual_contents = contents
+        else:
+            actual_contents = self.open_file(path, encoding=encoding)
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
-            file=file_info, contents=contents, mime_type=mime_type
+            file=file_info, contents=actual_contents, mime_type=mime_type
         )
 
     def _is_marimo_file(self, path: str) -> bool:
@@ -105,13 +109,12 @@ class OSFileSystem(FileSystem):
         return b"app = marimo.App(" in file_path.read_bytes()
 
     def open_file(self, path: str, encoding: str | None = None) -> str:
+        file_path = Path(path)
         try:
-            with open(path, encoding=encoding) as file:
-                return file.read()
+            return file_path.read_text(encoding=encoding)
         except UnicodeDecodeError:
             # If its a UnicodeDecodeError, try as bytes and convert to base64
-            with open(path, mode="rb") as file:
-                return base64.b64encode(file.read()).decode("utf-8")
+            return base64.b64encode(file_path.read_bytes()).decode("utf-8")
 
     def create_file_or_directory(
         self,
@@ -148,11 +151,17 @@ class OSFileSystem(FileSystem):
             full_path.write_bytes(contents or b"")
         # encoding latin-1 to get an invertible representation of the
         # bytes as a string ...
-        return self.get_details(str(full_path), encoding="latin-1").file
+        return self.get_details(
+            str(full_path),
+            encoding="latin-1",
+            contents=(
+                contents.decode("latin-1") if contents is not None else None
+            ),
+        ).file
 
     def delete_file_or_directory(self, path: str) -> bool:
         if os.path.isdir(path):
-            shutil.rmtree(path)
+            safe_rmtree(path)
         else:
             os.remove(path)
         return True
@@ -162,14 +171,18 @@ class OSFileSystem(FileSystem):
         # Disallow renaming to . or ..
         if file_name in DISALLOWED_NAMES:
             raise ValueError(f"Cannot rename to {new_path}")
-
-        shutil.move(path, new_path)
+        # Disallow moving to an existing path or directory
+        if os.path.exists(new_path) or os.path.isdir(new_path):
+            raise ValueError(
+                f"Destination path {new_path} already exists or is a directory"
+            )
+        safe_move(path, new_path)
         return self.get_details(new_path).file
 
     def update_file(self, path: str, contents: str) -> FileInfo:
         file_path = Path(path)
         file_path.write_text(contents)
-        return self.get_details(path).file
+        return self.get_details(path, contents=contents).file
 
     def open_in_editor(self, path: str) -> bool:
         try:
@@ -206,16 +219,6 @@ def natural_sort_file(file: FileInfo) -> list[Union[int, str]]:
     return natural_sort(file.name)
 
 
-def natural_sort(filename: str) -> list[Union[int, str]]:
-    def convert(text: str) -> Union[int, str]:
-        return int(text) if text.isdigit() else text.lower()
-
-    def alphanum_key(key: str) -> list[Union[int, str]]:
-        return [convert(c) for c in re.split("([0-9]+)", key)]
-
-    return alphanum_key(filename)
-
-
 def _is_terminal_editor(editor: str) -> bool:
     return any(
         ed in editor.lower()
@@ -230,3 +233,50 @@ def _is_terminal_editor(editor: str) -> bool:
             "micro",
         ]
     )
+
+
+def safe_rmtree(path: str) -> None:
+    """
+    Remove a directory tree. If shutil.rmtree fails, recursively delete all files from the leaves up.
+
+    This is so we can be compatible with https://github.com/awslabs/mountpoint-s3.
+    """
+    try:
+        shutil.rmtree(path)
+    except PermissionError:
+        # Fallback: manual post-order traversal
+        p = Path(path)
+        for sub in sorted(
+            p.rglob("*"), key=lambda x: -x.as_posix().count("/")
+        ):
+            try:
+                if sub.is_file() or sub.is_symlink():
+                    sub.unlink()
+                elif sub.is_dir():
+                    sub.rmdir()
+            except Exception as inner_e:
+                LOGGER.warning("Failed to delete %s: %s", sub, inner_e)
+        try:
+            p.rmdir()
+        except Exception as final_e:
+            LOGGER.warning("Failed to delete directory %s: %s", p, final_e)
+
+
+def safe_move(src: str, dst: str) -> None:
+    """
+    Move a file or directory, but if it fails due to permissions,
+    copy the file or directory and then delete the original.
+
+    This is so we can be compatible with https://github.com/awslabs/mountpoint-s3.
+    """
+    try:
+        shutil.move(src, dst)
+    except PermissionError:
+        # Fallback: copy then delete
+        src_path = Path(src)
+        if src_path.is_dir():
+            shutil.copytree(src, dst)
+            safe_rmtree(src)
+        else:
+            shutil.copy2(src, dst)
+            src_path.unlink()

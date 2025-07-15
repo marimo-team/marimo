@@ -1,31 +1,48 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { historyField } from "@codemirror/commands";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
-import { type ReducerWithoutAction, createRef } from "react";
-import type { CellMessage } from "../kernel/messages";
+import { selectAtom, splitAtom } from "jotai/utils";
+import { isEqual, zip } from "lodash-es";
+import { createRef, type ReducerWithoutAction } from "react";
+import type { CellHandle } from "@/components/editor/Cell";
 import {
-  type CellRuntimeState,
-  type CellData,
-  createCell,
-  createCellRuntimeState,
-} from "./types";
-import {
-  scrollToBottom,
-  scrollToTop,
-  focusAndScrollCellIntoView,
-} from "./scrollCellIntoView";
-import { CellId } from "./ids";
-import { prepareCellForExecution, transitionCell } from "./cell";
-import { createDeepEqualAtom, store } from "../state/jotai";
+  type CellColumnId,
+  type CellIndex,
+  MultiColumn,
+} from "@/utils/id-tree";
+import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
+import { clamp } from "@/utils/math";
+import { Objects } from "@/utils/objects";
+import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
+import {
+  splitEditor,
+  updateEditorCodeFromPython,
+} from "../codemirror/language/utils";
 import { findCollapseRange, mergeOutlines } from "../dom/outline";
-import type { CellHandle } from "@/components/editor/Cell";
-import { Logger } from "@/utils/Logger";
-import { Objects } from "@/utils/objects";
-import { splitAtom, selectAtom } from "jotai/utils";
+import type { CellMessage } from "../kernel/messages";
+import { isErrorMime } from "../mime";
+import type { CellConfig } from "../network/types";
+import { isRtcEnabled } from "../rtc/state";
+import { createDeepEqualAtom, store } from "../state/jotai";
+import { prepareCellForExecution, transitionCell } from "./cell";
+import { CellId } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
-import { historyField } from "@codemirror/commands";
-import { clamp } from "@/utils/math";
+import {
+  focusAndScrollCellIntoView,
+  scrollToBottom,
+  scrollToTop,
+} from "./scrollCellIntoView";
+import {
+  type CellData,
+  type CellRuntimeState,
+  createCell,
+  createCellConfig,
+  createCellRuntimeState,
+} from "./types";
 import {
   canUndoDeletes,
   disabledCellIds,
@@ -34,21 +51,6 @@ import {
   notebookNeedsRun,
   notebookQueueOrRunningCount,
 } from "./utils";
-import {
-  splitEditor,
-  updateEditorCodeFromPython,
-} from "../codemirror/language/utils";
-import { invariant } from "@/utils/invariant";
-import type { CellConfig } from "../network/types";
-import {
-  type CellColumnId,
-  type CellIndex,
-  MultiColumn,
-} from "@/utils/id-tree";
-import { isEqual, zip } from "lodash-es";
-import { isErrorMime } from "../mime";
-import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
-import { isRtcEnabled } from "../rtc/state";
 
 export const SCRATCH_CELL_ID = "__scratch__" as CellId;
 export const SETUP_CELL_ID = "setup" as CellId;
@@ -76,7 +78,7 @@ export interface NotebookState {
   /**
    * Cell handlers
    */
-  cellHandles: Record<CellId, React.RefObject<CellHandle>>;
+  cellHandles: Record<CellId, React.RefObject<CellHandle | null>>;
   /**
    * Array of deleted cells (with their data and index) so that cell deletion can be undone
    *
@@ -100,6 +102,12 @@ export interface NotebookState {
    * Logs of all cell messages
    */
   cellLogs: CellLog[];
+  /**
+   * Set of cells that have been created that are initialized with `hide_code`.
+   *
+   * These start temporarily open until their first blur event.
+   */
+  untouchedNewCells: Set<CellId>;
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
@@ -124,7 +132,7 @@ function withScratchCell(notebookState: NotebookState): NotebookState {
 /**
  * Initial state of the notebook.
  */
-function initialNotebookState(): NotebookState {
+export function initialNotebookState(): NotebookState {
   return withScratchCell({
     cellIds: MultiColumn.from([]),
     cellData: {},
@@ -133,6 +141,7 @@ function initialNotebookState(): NotebookState {
     history: [],
     scrollKey: null,
     cellLogs: [],
+    untouchedNewCells: new Set<CellId>(),
   });
 }
 
@@ -168,6 +177,8 @@ const {
       autoFocus?: boolean;
       /** If true, skip creation if code already exists */
       skipIfCodeExists?: boolean;
+      /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
+      hideCode?: boolean;
     },
   ) => {
     const {
@@ -178,6 +189,7 @@ const {
       lastExecutionTime = null,
       autoFocus = true,
       skipIfCodeExists = false,
+      hideCode = false,
     } = action;
 
     let columnId: CellColumnId;
@@ -221,6 +233,7 @@ const {
           id: newCellId,
           code,
           lastCodeRun,
+          config: createCellConfig({ hide_code: hideCode }),
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),
@@ -234,6 +247,9 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
+      untouchedNewCells: hideCode
+        ? new Set([...state.untouchedNewCells, newCellId])
+        : state.untouchedNewCells,
     };
   },
   moveCell: (
@@ -411,7 +427,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: focusCellId,
       cell: state.cellHandles[focusCellId],
-      config: state.cellData[focusCellId].config,
+      isCodeHidden: isCellCodeHidden(state, focusCellId),
       codeFocus: before ? "bottom" : "top",
       variableName: undefined,
     });
@@ -425,11 +441,13 @@ const {
     }
 
     const cellId = column.first();
-    const cellData = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId];
-    if (!cellData.config.hide_code) {
-      cellHandle.current?.editorView.focus();
-    }
+    focusAndScrollCellIntoView({
+      cellId: cellId,
+      cell: state.cellHandles[cellId],
+      isCodeHidden: isCellCodeHidden(state, cellId),
+      codeFocus: undefined,
+      variableName: undefined,
+    });
     scrollToTop();
     return state;
   },
@@ -441,21 +459,23 @@ const {
     }
 
     const cellId = column.last();
-    const cellData = state.cellData[cellId];
-    const cellHandle = state.cellHandles[cellId];
-    if (!cellData.config.hide_code) {
-      cellHandle.current?.editorView.focus();
-    }
+    focusAndScrollCellIntoView({
+      cellId: cellId,
+      cell: state.cellHandles[cellId],
+      isCodeHidden: isCellCodeHidden(state, cellId),
+      codeFocus: undefined,
+      variableName: undefined,
+    });
     scrollToBottom();
     return state;
   },
-  sendToTop: (state, action: { cellId: CellId }) => {
+  sendToTop: (state, action: { cellId: CellId; scroll?: boolean }) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId } = action;
+    const { cellId, scroll = true } = action;
     const cellIndex = column.indexOfOrThrow(cellId);
     if (cellIndex === 0) {
       return state;
@@ -464,16 +484,16 @@ const {
     return {
       ...state,
       cellIds: state.cellIds.moveWithinColumn(column.id, cellIndex, 0),
-      scrollKey: cellId,
+      scrollKey: scroll ? cellId : null,
     };
   },
-  sendToBottom: (state, action: { cellId: CellId }) => {
+  sendToBottom: (state, action: { cellId: CellId; scroll?: boolean }) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId } = action;
+    const { cellId, scroll = true } = action;
     const cellIndex = column.indexOfOrThrow(cellId);
     const newIndex = column.length - 1;
 
@@ -484,7 +504,7 @@ const {
     return {
       ...state,
       cellIds: state.cellIds.moveWithinColumn(column.id, cellIndex, newIndex),
-      scrollKey: cellId,
+      scrollKey: scroll ? cellId : null,
     };
   },
   addColumn: (state, action: { columnId: CellColumnId }) => {
@@ -622,11 +642,15 @@ const {
   },
   clearSerializedEditorState: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    return updateCellData(state, cellId, (cell) => {
-      return {
-        ...cell,
-        serializedEditorState: null,
-      };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          serializedEditorState: null,
+        };
+      },
     });
   },
   updateCellCode: (
@@ -646,29 +670,37 @@ const {
       return state;
     }
 
-    return updateCellData(state, cellId, (cell) => {
-      // Formatting-only change means we can re-use the last code run
-      // if it was not previously edited. And we don't change the edited state.
-      return formattingChange
-        ? {
-            ...cell,
-            code: code,
-            lastCodeRun: cell.edited ? cell.lastCodeRun : code,
-          }
-        : {
-            ...cell,
-            code: code,
-            edited: code.trim() !== cell.lastCodeRun,
-          };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        // Formatting-only change means we can re-use the last code run
+        // if it was not previously edited. And we don't change the edited state.
+        return formattingChange
+          ? {
+              ...cell,
+              code: code,
+              lastCodeRun: cell.edited ? cell.lastCodeRun : code,
+            }
+          : {
+              ...cell,
+              code: code,
+              edited: code.trim() !== cell.lastCodeRun,
+            };
+      },
     });
   },
   updateCellName: (state, action: { cellId: CellId; name: string }) => {
     const { cellId, name } = action;
-    return updateCellData(state, cellId, (cell) => {
-      return {
-        ...cell,
-        name: name,
-      };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          name: name,
+        };
+      },
     });
   },
   updateCellConfig: (
@@ -676,29 +708,45 @@ const {
     action: { cellId: CellId; config: Partial<CellConfig> },
   ) => {
     const { cellId, config } = action;
-    return updateCellData(state, cellId, (cell) => {
-      return {
-        ...cell,
-        config: { ...cell.config, ...config },
-      };
+    return updateCellData({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          config: { ...cell.config, ...config },
+        };
+      },
     });
   },
   prepareForRun: (state, action: { cellId: CellId }) => {
-    const newState = updateCellRuntimeState(state, action.cellId, (cell) => {
-      return prepareCellForExecution(cell);
+    const newState = updateCellRuntimeState({
+      state,
+      cellId: action.cellId,
+      cellReducer: (cell) => {
+        return prepareCellForExecution(cell);
+      },
     });
-    return updateCellData(newState, action.cellId, (cell) => {
-      return {
-        ...cell,
-        edited: false,
-        lastCodeRun: cell.code.trim(),
-      };
+    return updateCellData({
+      state: newState,
+      cellId: action.cellId,
+      cellReducer: (cell) => {
+        return {
+          ...cell,
+          edited: false,
+          lastCodeRun: cell.code.trim(),
+        };
+      },
     });
   },
   handleCellMessage: (state, message: CellMessage) => {
     const cellId = message.cell_id as CellId;
-    const nextState = updateCellRuntimeState(state, cellId, (cell) => {
-      return transitionCell(cell, message);
+    const nextState = updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        return transitionCell(cell, message);
+      },
     });
     return {
       ...nextState,
@@ -747,11 +795,15 @@ const {
 
     let nextState = { ...state };
 
-    const cellReducer = (
-      cell: CellData | undefined,
-      code: string,
-      cellId: CellId,
-    ) => {
+    const cellReducer = ({
+      cell,
+      code,
+      cellId,
+    }: {
+      cell: CellData | undefined;
+      code: string;
+      cellId: CellId;
+    }) => {
       if (!cell) {
         return createCell({
           id: cellId,
@@ -804,7 +856,11 @@ const {
         ...nextState,
         cellData: {
           ...nextState.cellData,
-          [cellId]: cellReducer(nextState.cellData[cellId], code, cellId),
+          [cellId]: cellReducer({
+            cell: nextState.cellData[cellId],
+            code,
+            cellId,
+          }),
         },
       };
     }
@@ -816,27 +872,31 @@ const {
     action: { cellId: CellId; response: string; outputIndex: number },
   ) => {
     const { cellId, response, outputIndex } = action;
-    return updateCellRuntimeState(state, cellId, (cell) => {
-      const consoleOutputs = [...cell.consoleOutputs];
-      const stdinOutput = consoleOutputs[outputIndex];
-      if (stdinOutput.channel !== "stdin") {
-        Logger.warn("Expected stdin output");
-        return cell;
-      }
+    return updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => {
+        const consoleOutputs = [...cell.consoleOutputs];
+        const stdinOutput = consoleOutputs[outputIndex];
+        if (stdinOutput.channel !== "stdin") {
+          Logger.warn("Expected stdin output");
+          return cell;
+        }
 
-      consoleOutputs[outputIndex] = {
-        channel: "stdin",
-        mimetype: stdinOutput.mimetype,
-        data: stdinOutput.data,
-        timestamp: stdinOutput.timestamp,
-        response,
-      };
+        consoleOutputs[outputIndex] = {
+          channel: "stdin",
+          mimetype: stdinOutput.mimetype,
+          data: stdinOutput.data,
+          timestamp: stdinOutput.timestamp,
+          response,
+        };
 
-      return {
-        ...cell,
-        interrupted: false,
-        consoleOutputs,
-      };
+        return {
+          ...cell,
+          interrupted: false,
+          consoleOutputs,
+        };
+      },
     });
   },
   setCells: (state, cells: CellData[]) => {
@@ -881,9 +941,12 @@ const {
     const column = state.cellIds.findWithId(cellId);
     const index = column.indexOfOrThrow(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
-    // Create a new cell at the end; no need to update scrollKey,
-    // because cell will be created with autoScrollIntoView
-    if (nextCellIndex === column.length && !noCreate) {
+
+    const isPastLastCell = nextCellIndex === column.length;
+    const isBeforeFirstCell = nextCellIndex === -1;
+
+    // Create a new cell at the end and set scrollKey to focus it
+    if (isPastLastCell && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -900,12 +963,11 @@ const {
           ...state.cellHandles,
           [newCellId]: createRef(),
         },
+        scrollKey: newCellId,
       };
-      // Create a new cell at the beginning; again, no need to update
-      // scrollKey
     }
 
-    if (nextCellIndex === -1 && !noCreate) {
+    if (isBeforeFirstCell && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -922,21 +984,43 @@ const {
           ...state.cellHandles,
           [newCellId]: createRef(),
         },
+        scrollKey: newCellId,
       };
     }
 
-    if (nextCellIndex !== -1) {
-      // Don't wrap around from top to bottom
+    if ((isPastLastCell || isBeforeFirstCell) && noCreate) {
+      // Trying to move past the last cell or before the first cell
+      // with noCreate=true - do nothing
+      return state;
+    }
+
+    if (nextCellIndex >= 0 && nextCellIndex < column.length) {
+      // Move to valid cell within bounds
       const nextCellId = column.atOrThrow(nextCellIndex);
       // Just focus, no state change
       focusAndScrollCellIntoView({
         cellId: nextCellId,
         cell: state.cellHandles[nextCellId],
-        config: state.cellData[nextCellId].config,
+        isCodeHidden: isCellCodeHidden(state, nextCellId),
         codeFocus: before ? "bottom" : "top",
         variableName: undefined,
       });
     }
+
+    return state;
+  },
+  markTouched: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+
+    if (state.untouchedNewCells.has(cellId)) {
+      const nextUntouchedNewCells = new Set(state.untouchedNewCells);
+      nextUntouchedNewCells.delete(cellId);
+      return {
+        ...state,
+        untouchedNewCells: nextUntouchedNewCells,
+      };
+    }
+
     return state;
   },
   scrollToTarget: (state) => {
@@ -955,7 +1039,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -1192,21 +1276,29 @@ const {
   },
   clearCellOutput: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    return updateCellRuntimeState(state, cellId, (cell) => ({
-      ...cell,
-      output: null,
-      consoleOutputs: [],
-    }));
+    return updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => ({
+        ...cell,
+        output: null,
+        consoleOutputs: [],
+      }),
+    });
   },
   clearCellConsoleOutput: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
-    return updateCellRuntimeState(state, cellId, (cell) => ({
-      ...cell,
-      // Remove everything except unresponsed stdin
-      consoleOutputs: cell.consoleOutputs.filter(
-        (output) => output.channel === "stdin" && output.response == null,
-      ),
-    }));
+    return updateCellRuntimeState({
+      state,
+      cellId,
+      cellReducer: (cell) => ({
+        ...cell,
+        // Remove everything except unresponsed stdin
+        consoleOutputs: cell.consoleOutputs.filter(
+          (output) => output.channel === "stdin" && output.response == null,
+        ),
+      }),
+    });
   },
   clearAllCellOutputs: (state) => {
     const newCellRuntime = { ...state.cellRuntime };
@@ -1228,11 +1320,15 @@ const {
     // First check if setup cell already exists
     if (SETUP_CELL_ID in state.cellData) {
       // Update existing setup cell
-      return updateCellData(state, SETUP_CELL_ID, (cell) => ({
-        ...cell,
-        code,
-        edited: code.trim() !== cell.lastCodeRun?.trim(),
-      }));
+      return updateCellData({
+        state,
+        cellId: SETUP_CELL_ID,
+        cellReducer: (cell) => ({
+          ...cell,
+          code,
+          edited: code.trim() !== cell.lastCodeRun?.trim(),
+        }),
+      });
     }
 
     return {
@@ -1263,12 +1359,23 @@ const {
   },
 });
 
+function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
+  return (
+    state.cellData[cellId].config.hide_code &&
+    !state.untouchedNewCells.has(cellId)
+  );
+}
+
 // Helper function to update a cell in the array
-function updateCellRuntimeState(
-  state: NotebookState,
-  cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellRuntimeState>,
-) {
+function updateCellRuntimeState({
+  state,
+  cellId,
+  cellReducer,
+}: {
+  state: NotebookState;
+  cellId: CellId;
+  cellReducer: ReducerWithoutAction<CellRuntimeState>;
+}) {
   if (!(cellId in state.cellRuntime)) {
     Logger.warn(`Cell ${cellId} not found in state`);
     return state;
@@ -1283,11 +1390,15 @@ function updateCellRuntimeState(
   };
 }
 
-function updateCellData(
-  state: NotebookState,
-  cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellData>,
-) {
+function updateCellData({
+  state,
+  cellId,
+  cellReducer,
+}: {
+  state: NotebookState;
+  cellId: CellId;
+  cellReducer: ReducerWithoutAction<CellData>;
+}) {
   if (!(cellId in state.cellData)) {
     Logger.warn(`Cell ${cellId} not found in state`);
     return state;
@@ -1491,7 +1602,7 @@ export const columnIdsAtom = atom((get) =>
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
   return cellIds.inOrderIds
-    .map((cellId) => cellHandles[cellId].current?.editorView)
+    .map((cellId) => cellHandles[cellId]?.current?.editorView)
     .filter(Boolean);
 };
 
@@ -1510,6 +1621,10 @@ export function flattenTopLevelNotebookCells(
       ...cellRuntime[cellId],
     })),
   );
+}
+
+export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {
+  return atom((get) => get(notebookAtom).untouchedNewCells.has(cellId));
 }
 
 export function createTracebackInfoAtom(
@@ -1572,4 +1687,5 @@ export const exportedForTesting = {
   reducer,
   createActions,
   initialNotebookState,
+  isCellCodeHidden,
 };

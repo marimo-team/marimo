@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { renderHook, act, render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { useResizeHandle } from "../useResizeHandle";
-import { describe, it, expect, vi } from "vitest";
 
 describe("useResizeHandle", () => {
   it("should initialize with correct refs and style", () => {

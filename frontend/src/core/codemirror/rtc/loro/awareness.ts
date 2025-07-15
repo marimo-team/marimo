@@ -1,13 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import {
-  EditorView,
-  type PluginValue,
-  type ViewUpdate,
-  layer,
-  type LayerMarker,
-  type Rect,
+  Annotation,
+  EditorSelection,
+  type Extension,
+  type SelectionRange,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
+import {
   Direction,
+  EditorView,
+  type LayerMarker,
+  layer,
+  type PluginValue,
+  type Rect,
   RectangleMarker,
+  type ViewUpdate,
 } from "@codemirror/view";
 import {
   type Awareness,
@@ -18,14 +27,6 @@ import {
   type PeerID,
   type Subscription,
 } from "loro-crdt";
-import {
-  Annotation,
-  EditorSelection,
-  type Extension,
-  type SelectionRange,
-  StateEffect,
-  StateField,
-} from "@codemirror/state";
 import type { TypedString } from "@/utils/typed";
 
 export type ScopeId = TypedString<"loro:scope">;
@@ -400,12 +401,12 @@ export class AwarenessPlugin implements PluginValue {
     }
     const selection = update.state.selection.main;
     if (this.view.hasFocus && !this.doc.isDetached()) {
-      const cursorState = getCursorState(
-        this.doc,
-        this.getTextFromDoc,
-        selection.anchor,
-        selection.head,
-      );
+      const cursorState = getCursorState({
+        doc: this.doc,
+        getTextFromDoc: this.getTextFromDoc,
+        anchor: selection.anchor,
+        head: selection.head,
+      });
       this.awareness.setLocalState({
         type: "update",
         uid: this.getUserId ? this.getUserId() : this.doc.peerIdStr,
@@ -464,12 +465,17 @@ export class RemoteAwarenessPlugin implements PluginValue {
   }
 }
 
-const getCursorState = (
-  doc: LoroDoc,
-  getTextFromDoc: (doc: LoroDoc) => LoroText,
-  anchor: number,
-  head: number | undefined,
-) => {
+const getCursorState = ({
+  doc,
+  getTextFromDoc,
+  anchor,
+  head,
+}: {
+  doc: LoroDoc;
+  getTextFromDoc: (doc: LoroDoc) => LoroText;
+  anchor: number;
+  head: number | undefined;
+}) => {
   if (anchor === head) {
     head = undefined;
   }
@@ -478,7 +484,7 @@ const getCursorState = (
   if (!anchorCursor) {
     throw new Error("cursor head not found");
   }
-  let headCursor = undefined;
+  let headCursor: Uint8Array | undefined;
   if (head !== undefined) {
     headCursor = getTextFromDoc(doc).getCursor(head)?.encode();
   }

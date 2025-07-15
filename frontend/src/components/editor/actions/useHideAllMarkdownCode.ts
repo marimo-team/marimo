@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useCellActions } from "@/core/cells/cells";
-import { getNotebook } from "@/core/cells/cells";
-import { saveCellConfig } from "@/core/network/requests";
-import { useCallback } from "react";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+
+import { useCallback } from "react"; /* Copyright 2024 Marimo. All rights reserved. */
+import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { saveCellConfig } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";
 

@@ -1,5 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
+import type { UserConfig } from "@/core/config/config-schema";
+import type { OperationMessage } from "@/core/kernel/messages";
+import type { JsonString } from "@/utils/json/base64";
 import type {
   CodeCompletionRequest,
   CopyNotebookRequest,
@@ -22,9 +25,6 @@ import type {
   SaveUserConfigurationRequest,
   Snippets,
 } from "../../network/types";
-import type { OperationMessage } from "@/core/kernel/messages";
-import type { JsonString } from "@/utils/json/base64";
-import type { UserConfig } from "@/core/config/config-schema";
 
 export interface WasmController {
   /**

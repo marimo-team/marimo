@@ -1,10 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { DataType } from "@/core/kernel/messages";
-import { ChartType, type SelectableDataType } from "../types";
 import type { StandardType } from "vega-lite/build/src/type";
-import { logNever } from "@/utils/assertNever";
+import type { DataType } from "@/core/kernel/messages";
 import type { Mark } from "@/plugins/impl/vega/types";
+import { logNever } from "@/utils/assertNever";
+import { ChartType, type SelectableDataType } from "../types";
+
+export interface BaseSpec {
+  $schema: string;
+  background: string;
+  title: string | undefined;
+  data: { values: object[] };
+  height: number;
+  width: number | "container";
+  config: {
+    axis: {
+      grid: boolean;
+    };
+  };
+}
 
 export function convertDataTypeToVega(
   dataType: DataType | SelectableDataType,

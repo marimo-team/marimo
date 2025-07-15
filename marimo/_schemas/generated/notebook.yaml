@@ -6,6 +6,9 @@ components:
         code:
           nullable: true
           type: string
+        code_hash:
+          nullable: true
+          type: string
         config:
           properties:
             column:
@@ -27,6 +30,7 @@ components:
       required:
       - id
       - code
+      - code_hash
       - name
       - config
       type: object

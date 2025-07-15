@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+
 import { defaultKeymap as originalDefaultKeymap } from "@codemirror/commands";
-import { visibleForTesting } from "../keymaps";
+import { describe, expect, it } from "vitest";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { visibleForTesting } from "../keymaps";
 
 const { defaultKeymap, defaultVimKeymap, overrideKeymap, OVERRIDDEN_COMMANDS } =
   visibleForTesting;

@@ -1,28 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { atom, useAtom, useAtomValue } from "jotai";
+import { EditIcon, XIcon } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
+import type { UserConfig } from "@/core/config/config-schema";
+import {
+  getDefaultHotkey,
+  type HotkeyAction,
+  type HotkeyGroup,
+} from "@/core/hotkeys/hotkeys";
+import { isPlatformMac } from "@/core/hotkeys/shortcuts";
+import { saveUserConfig } from "@/core/network/requests";
 import { useHotkey } from "../../../hooks/useHotkey";
+import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import {
   Dialog,
   DialogContent,
-  DialogPortal,
-  DialogOverlay,
   DialogHeader,
+  DialogOverlay,
+  DialogPortal,
   DialogTitle,
 } from "../../ui/dialog";
-import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
-import {
-  type HotkeyAction,
-  type HotkeyGroup,
-  getDefaultHotkey,
-} from "@/core/hotkeys/hotkeys";
-import { atom, useAtom, useAtomValue } from "jotai";
-import { useState } from "react";
-import { EditIcon, XIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
-import { saveUserConfig } from "@/core/network/requests";
-import { isPlatformMac } from "@/core/hotkeys/shortcuts";
-import { Button } from "@/components/ui/button";
-import type { UserConfig } from "@/core/config/config-schema";
 
 export const keyboardShortcutsAtom = atom(false);
 
@@ -234,16 +235,26 @@ export const KeyboardShortcuts: React.FC = () => {
   };
 
   const groups = hotkeys.getHotkeyGroups();
-  const renderGroup = (group: HotkeyGroup) => {
+  const renderGroup = (group: HotkeyGroup, subHeader?: React.ReactNode) => {
     const items = groups[group];
     return (
       <div className="mb-[40px] gap-2 flex flex-col">
-        <h3 className="text-lg font-medium">{group}</h3>
-
-        {items.map((item) => renderItem(item))}
+        <div>
+          <h3 className="text-lg font-medium">{group}</h3>
+          {subHeader}
+        </div>
+        {items.map(renderItem)}
       </div>
     );
   };
+
+  const renderCommandGroup = (group: HotkeyGroup) =>
+    renderGroup(
+      group,
+      <p className="text-xs text-muted-foreground">
+        Press <kbd>Esc</kbd> in a cell to enter command mode
+      </p>,
+    );
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(open)}>
@@ -267,9 +278,10 @@ export const KeyboardShortcuts: React.FC = () => {
               {renderGroup("Navigation")}
               {renderGroup("Running Cells")}
               {renderGroup("Creation and Ordering")}
+              {renderCommandGroup("Command")}
               {renderGroup("Other")}
               <Button
-                className="mt-4 hover:bg-destructive/10 hover:border-destructive"
+                className="mt-4 hover:bg-destructive/10 border-destructive hover:border-destructive"
                 variant="outline"
                 size="xs"
                 onClick={handleResetAllShortcuts}

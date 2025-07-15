@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { JSX } from "react";
 import { FilenameInput } from "@/components/editor/header/filename-input";
 import { useUpdateFilename } from "@/core/saving/filename";
 import { Paths } from "@/utils/paths";
@@ -12,7 +14,7 @@ export const FilenameForm = ({
   return (
     <FilenameInput
       placeholderText={
-        filename ? Paths.basename(filename) : "untitled marimo app"
+        filename ? Paths.basename(filename) : "untitled marimo notebook"
       }
       initialValue={filename}
       onNameChange={setFilename}

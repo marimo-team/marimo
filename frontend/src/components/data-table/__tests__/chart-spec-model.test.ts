@@ -1,7 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ColumnChartSpecModel } from "../chart-spec-model";
 import type { ColumnHeaderStats, ColumnName, FieldTypes } from "../types";
+
+// Mock the runtime config
+vi.mock("@/core/runtime/config", () => ({
+  asRemoteURL: vi.fn((path: string) => {
+    if (path.startsWith("http")) {
+      return new URL(path);
+    }
+    return new URL(path, "http://localhost:8080/");
+  }),
+}));
 
 describe("ColumnChartSpecModel", () => {
   const mockData = "http://example.com/data.json";
@@ -134,6 +144,115 @@ describe("ColumnChartSpecModel", () => {
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
+    });
+  });
+
+  describe("file URL handling", () => {
+    it("should handle marimo file URLs with ./@file prefix", () => {
+      const model = new ColumnChartSpecModel(
+        "./@file/data.csv",
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.url).toBe("http://localhost:8080/@file/data.csv");
+    });
+
+    it("should handle marimo file URLs with /@file prefix", () => {
+      const model = new ColumnChartSpecModel(
+        "/@file/data.csv",
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.url).toBe("http://localhost:8080/@file/data.csv");
+    });
+
+    it("should handle absolute HTTP URLs", () => {
+      const model = new ColumnChartSpecModel(
+        "https://external.com/data.csv",
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.url).toBeUndefined();
+    });
+
+    it("should handle data URLs", () => {
+      const dataUrl = "data:text/csv;base64,YSxiLGMKMSwyLDMKNCw1LDY=";
+      const model = new ColumnChartSpecModel(
+        dataUrl,
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // Data URLs should be handled by parseCsvData, not as URL
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toBeDefined();
+    });
+
+    it("should handle CSV string data", () => {
+      const csvString = "a,b,c\n1,2,3\n4,5,6";
+      const model = new ColumnChartSpecModel(
+        csvString,
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // CSV strings should be parsed, not treated as URLs
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toBeDefined();
+    });
+
+    it("should handle arrow data", () => {
+      const arrowData = "ARROW1\n";
+      const model = new ColumnChartSpecModel(
+        `data:text/plain;base64,${btoa(arrowData)}`,
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+      const spec = model.getHeaderSummary("date").spec;
+      expect(spec).toMatchSnapshot();
+      expect(spec?.data?.format?.type).toBe("arrow");
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toBeDefined();
+    });
+
+    it("should handle array data", () => {
+      const arrayData = [
+        { a: 1, b: 2, c: 3 },
+        { a: 4, b: 5, c: 6 },
+      ];
+      const model = new ColumnChartSpecModel(
+        arrayData,
+        mockFieldTypes,
+        mockStats,
+        { includeCharts: true },
+      );
+
+      const summary = model.getHeaderSummary("date");
+      expect(summary.spec).toBeDefined();
+      // @ts-expect-error accessing internal dataSpec
+      expect(model.dataSpec?.values).toEqual(arrayData);
     });
   });
 });

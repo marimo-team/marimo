@@ -50,6 +50,7 @@ def watch_and_export(
     output: Optional[Path],
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
+    force: bool,
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -68,8 +69,9 @@ def watch_and_export(
 
     if output:
         output_path = Path(output)
-        if not prompt_to_overwrite(output_path):
-            return
+        if not force:
+            if not prompt_to_overwrite(output_path):
+                return
 
     # No watch, just run once
     if not watch:
@@ -148,6 +150,13 @@ Optionally pass CLI args to the notebook:
     type=bool,
     help=_sandbox_message,
 )
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force overwrite of the output file if it already exists.",
+)
 @click.argument(
     "name",
     required=True,
@@ -160,6 +169,7 @@ def html(
     output: Path,
     watch: bool,
     sandbox: Optional[bool],
+    force: bool,
     args: tuple[str],
 ) -> None:
     """Run a notebook and export it as an HTML file."""
@@ -189,7 +199,9 @@ def html(
             )
         )
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -230,16 +242,20 @@ Watch for changes and regenerate the script on modification:
     type=bool,
     help=_sandbox_message,
 )
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force overwrite of the output file if it already exists.",
+)
 @click.argument(
     "name",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def script(
-    name: str,
-    output: Path,
-    watch: bool,
-    sandbox: Optional[bool],
+    name: str, output: Path, watch: bool, sandbox: Optional[bool], force: bool
 ) -> None:
     """
     Export a marimo notebook as a flat script, in topological order.
@@ -261,7 +277,9 @@ def script(
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_script(file_path)
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -302,16 +320,20 @@ Watch for changes and regenerate the script on modification:
     type=bool,
     help=_sandbox_message,
 )
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force overwrite of the output file if it already exists.",
+)
 @click.argument(
     "name",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def md(
-    name: str,
-    output: Path,
-    watch: bool,
-    sandbox: Optional[bool],
+    name: str, output: Path, watch: bool, sandbox: Optional[bool], force: bool
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
@@ -333,7 +355,9 @@ def md(
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return export_as_md(file_path, new_filename=output)
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -390,6 +414,13 @@ Requires nbformat to be installed.
     type=bool,
     help=_sandbox_message,
 )
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force overwrite of the output file if it already exists.",
+)
 @click.argument(
     "name",
     required=True,
@@ -402,6 +433,7 @@ def ipynb(
     sort: Literal["top-down", "topological"],
     include_outputs: bool,
     sandbox: Optional[bool],
+    force: bool,
 ) -> None:
     """
     Export a marimo notebook as a Jupyter notebook in topological order.
@@ -441,7 +473,9 @@ def ipynb(
             )
         return export_as_ipynb(file_path, sort_mode=sort)
 
-    return watch_and_export(MarimoPath(name), output, watch, export_callback)
+    return watch_and_export(
+        MarimoPath(name), output, watch, export_callback, force
+    )
 
 
 @click.command(
@@ -511,6 +545,13 @@ and cannot be opened directly from the file system (e.g. file://).
     type=bool,
     help=_sandbox_message,
 )
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force overwrite of the output file if it already exists.",
+)
 @click.argument(
     "name",
     required=True,
@@ -524,6 +565,7 @@ def html_wasm(
     show_code: bool,
     include_cloudflare: bool,
     sandbox: Optional[bool],
+    force: bool,
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
     import sys
@@ -583,7 +625,9 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
-    return watch_and_export(MarimoPath(name), outfile, watch, export_callback)
+    return watch_and_export(
+        MarimoPath(name), outfile, watch, export_callback, force
+    )
 
 
 export.add_command(html)

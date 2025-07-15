@@ -15,7 +15,7 @@ Components that are used to build the charts. Groups together common form fields
 
 ## Context
 
-To keep each component light and avoid prop drilling, we can either use react-hook-form's `useFormContext` or `useContext` to access shared state (`context.ts`).
+To keep each component light and avoid prop drilling, we can either use react-hook-form's `useFormContext` or `use` to access shared state (`context.ts`).
 
 
 Layouts:

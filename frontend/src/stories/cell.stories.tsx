@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { defaultUserConfig } from "@/core/config/config-schema";
+import { WebSocketState } from "@/core/websocket/types";
+import { Logger } from "@/utils/Logger";
+import type { Milliseconds, Seconds } from "@/utils/time";
 import { Cell, type CellProps } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 import type { CellId } from "../core/cells/ids";
-import { Logger } from "@/utils/Logger";
-import type { Milliseconds, Seconds } from "@/utils/time";
-import { defaultUserConfig } from "@/core/config/config-schema";
 
 const meta: Meta<typeof Cell> = {
   title: "Cell",
@@ -35,9 +36,8 @@ const props: CellProps = {
   serializedEditorState: null,
   mode: "edit",
   name: "cell_1",
-  appClosed: false,
+  connectionState: WebSocketState.OPEN,
   canDelete: true,
-  allowFocus: false,
   debuggerActive: false,
   isCollapsed: false,
   collapseCount: 0,

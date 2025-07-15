@@ -1,36 +1,56 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { DatabaseIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/editor/inputs/Inputs";
-import { Tooltip } from "../../ui/tooltip";
 import {
   ContextMenu,
-  ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { MarkdownIcon, PythonIcon } from "./code/icons";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import type { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { Tooltip } from "../../ui/tooltip";
+import { MarkdownIcon, PythonIcon } from "./code/icons";
 
 export const CreateCellButton = ({
-  appClosed,
+  connectionState,
   onClick,
   tooltipContent,
 }: {
-  appClosed: boolean;
+  connectionState: WebSocketState;
   tooltipContent: React.ReactNode;
-  onClick: ((opts: { code: string }) => void) | undefined;
+  onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
 }) => {
+  const baseTooltipContent =
+    getConnectionTooltip(connectionState) || tooltipContent;
+  const finalTooltipContent = isAppInteractionDisabled(connectionState) ? (
+    baseTooltipContent
+  ) : (
+    <div className="flex flex-col gap-4">
+      <div>{baseTooltipContent}</div>
+      <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border">
+        Right-click for cell types
+      </div>
+    </div>
+  );
+
   return (
     <CreateCellButtonContextMenu onClick={onClick}>
-      <Tooltip content={tooltipContent} usePortal={false}>
+      <Tooltip content={finalTooltipContent}>
         <Button
           onClick={() => onClick?.({ code: "" })}
           className={cn(
             "shoulder-button hover-action",
-            appClosed && " inactive-button",
+            isAppInteractionDisabled(connectionState) && " inactive-button",
           )}
           onMouseDown={Events.preventFocus}
           shape="circle"
@@ -46,15 +66,20 @@ export const CreateCellButton = ({
 };
 
 const CreateCellButtonContextMenu = (props: {
-  onClick: ((opts: { code: string }) => void) | undefined;
+  onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
   children: React.ReactNode;
 }) => {
   const { children, onClick } = props;
+  const { createNewCell } = useCellActions();
 
   if (!onClick) {
     return children;
   }
 
+  // NB: When adding the marimo import for markdown and SQL, we run it
+  // automatically regardless of whether autoinstantiate or lazy execution is
+  // enabled; the user experience is confusing otherwise (how does the user
+  // know they need to run import marimo as mo. first?).
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
@@ -76,7 +101,11 @@ const CreateCellButtonContextMenu = (props: {
           key="markdown"
           onSelect={(evt) => {
             evt.stopPropagation();
-            onClick({ code: new MarkdownLanguageAdapter().defaultCode });
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+            onClick({
+              code: new MarkdownLanguageAdapter().defaultCode,
+              hideCode: true,
+            });
           }}
         >
           <div className="mr-3 text-muted-foreground">
@@ -88,6 +117,7 @@ const CreateCellButtonContextMenu = (props: {
           key="sql"
           onSelect={(evt) => {
             evt.stopPropagation();
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
             onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >

@@ -9,6 +9,7 @@ export interface components {
   schemas: {
     NotebookCell: {
       code: string | null;
+      code_hash: string | null;
       config: {
         column?: number | null;
         disabled?: boolean | null;

@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { store } from "@/core/state/jotai";
+
 import { atom, useAtomValue } from "jotai";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { isIslands } from "@/core/islands/utils";
+import { store } from "@/core/state/jotai";
 
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";

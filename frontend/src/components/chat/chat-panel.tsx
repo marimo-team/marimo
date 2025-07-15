@@ -1,55 +1,68 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useChat } from "@ai-sdk/react";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import type { Message } from "ai/react";
 import { useAtom, useAtomValue } from "jotai";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   BotMessageSquareIcon,
   ClockIcon,
   Loader2,
   PlusIcon,
+  SendIcon,
+  SettingsIcon,
+  SquareIcon,
 } from "lucide-react";
 import {
-  chatStateAtom,
+  type Dispatch,
+  memo,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { addMessageToChat } from "@/core/ai/chat-utils";
+import {
   activeChatAtom,
   type Chat,
   type ChatState,
+  chatStateAtom,
 } from "@/core/ai/state";
-import {
-  useState,
-  useRef,
-  type SetStateAction,
-  type Dispatch,
-  memo,
-  useEffect,
-  useMemo,
-} from "react";
-import { generateUUID } from "@/utils/uuid";
-import type { Message } from "ai/react";
-import { useChat } from "@ai-sdk/react";
-import { PromptInput } from "../editor/ai/add-cell-with-ai";
-import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { Tooltip, TooltipProvider } from "../ui/tooltip";
-import { asURL } from "@/utils/url";
-import { API } from "@/core/network/api";
-import { cn } from "@/utils/cn";
-import { MarkdownRenderer } from "./markdown-renderer";
-import { Logger } from "@/utils/Logger";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { getAICompletionBody } from "../editor/ai/completion-utils";
-import { addMessageToChat } from "@/core/ai/chat-utils";
+import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
+import type { UserConfig } from "@/core/config/config-schema";
+import { invokeAiTool, saveUserConfig } from "@/core/network/requests";
+import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
-import { aiAtom, aiEnabledAtom } from "@/core/config/config";
+import { cn } from "@/utils/cn";
+import { timeAgo } from "@/utils/dates";
+import { Logger } from "@/utils/Logger";
+import { generateUUID } from "@/utils/uuid";
+import { KNOWN_AI_MODELS } from "../app-config/constants";
 import { useOpenSettingsToTab } from "../app-config/state";
+import { PromptInput } from "../editor/ai/add-cell-with-ai";
+import { getAICompletionBody } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
-import { timeAgo } from "@/utils/dates";
+import { Tooltip, TooltipProvider } from "../ui/tooltip";
+import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
+import { ToolCallAccordion } from "./tool-call-accordion";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -64,66 +77,67 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   setActiveChat,
   chats,
 }) => {
-  const ai = useAtomValue(aiAtom);
   const { handleClick } = useOpenSettingsToTab();
-  const model = ai?.open_ai?.model || "gpt-4-turbo";
 
   return (
     <div className="flex border-b px-2 py-1 justify-between flex-shrink-0 items-center">
+      <Tooltip content="New chat">
+        <Button variant="text" size="icon" onClick={onNewChat}>
+          <PlusIcon className="h-4 w-4" />
+        </Button>
+      </Tooltip>
       <div className="flex items-center gap-2">
-        <Tooltip content="New chat">
-          <Button variant="text" size="icon" onClick={onNewChat}>
-            <PlusIcon className="h-4 w-4" />
+        <Tooltip content="AI Settings">
+          <Button
+            variant="text"
+            size="xs"
+            className="hover:bg-foreground/10 py-2"
+            onClick={() => handleClick("ai")}
+          >
+            <SettingsIcon className="h-4 w-4" />
           </Button>
         </Tooltip>
-        <Button
-          variant="text"
-          size="xs"
-          className="hover:bg-foreground/10 py-2"
-          onClick={() => handleClick("ai")}
-        >
-          {model}
-        </Button>
+        <Popover>
+          <Tooltip content="Previous chats">
+            <PopoverTrigger asChild={true}>
+              <Button variant="text" size="icon">
+                <ClockIcon className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+          </Tooltip>
+          <PopoverContent className="w-[520px] p-0" align="start" side="right">
+            <ScrollArea className="h-[500px] p-4">
+              <div className="space-y-4">
+                {chats.length === 0 && (
+                  <PanelEmptyState
+                    title="No chats yet"
+                    description="Start a new chat to get started"
+                    icon={<BotMessageSquareIcon />}
+                  />
+                )}
+                {chats.map((chat) => (
+                  <button
+                    key={chat.id}
+                    className={cn(
+                      "w-full p-3 rounded-md cursor-pointer hover:bg-accent text-left",
+                      chat.id === activeChatId && "bg-accent",
+                    )}
+                    onClick={() => {
+                      setActiveChat(chat.id);
+                    }}
+                    type="button"
+                  >
+                    <div className="font-medium">{chat.title}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {timeAgo(chat.updatedAt)}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
       </div>
-      <Popover>
-        <Tooltip content="Previous chats">
-          <PopoverTrigger asChild={true}>
-            <Button variant="text" size="icon">
-              <ClockIcon className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-        </Tooltip>
-        <PopoverContent className="w-[520px] p-0" align="start" side="right">
-          <ScrollArea className="h-[500px] p-4">
-            <div className="space-y-4">
-              {chats.length === 0 && (
-                <PanelEmptyState
-                  title="No chats yet"
-                  description="Start a new chat to get started"
-                  icon={<BotMessageSquareIcon />}
-                />
-              )}
-              {chats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={cn(
-                    "p-3 rounded-md cursor-pointer hover:bg-accent",
-                    chat.id === activeChatId && "bg-accent",
-                  )}
-                  onClick={() => {
-                    setActiveChat(chat.id);
-                  }}
-                >
-                  <div className="font-medium">{chat.title}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {timeAgo(chat.updatedAt)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </PopoverContent>
-      </Popover>
     </div>
   );
 };
@@ -140,16 +154,7 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = memo(
-  ({
-    message,
-    index,
-    theme,
-    onEdit,
-    setChatState,
-    chatState,
-    isStreamingReasoning,
-    totalMessages,
-  }) => (
+  ({ message, index, theme, onEdit, isStreamingReasoning, totalMessages }) => (
     <div
       className={cn(
         "flex group relative",
@@ -166,21 +171,11 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             onChange={() => {
               // noop
             }}
-            onSubmit={(e, newValue) => {
+            onSubmit={(_e, newValue) => {
               if (!newValue.trim()) {
                 return;
               }
               onEdit(index, newValue);
-              if (chatState.activeChatId) {
-                setChatState((prev: ChatState) =>
-                  addMessageToChat(
-                    prev,
-                    chatState.activeChatId,
-                    "user",
-                    newValue,
-                  ),
-                );
-              }
             }}
             onClose={() => {
               // noop
@@ -188,23 +183,42 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
           />
         </div>
       ) : (
-        <div className="w-[95%]">
+        <div className="w-[95%] break-words">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={message.content} />
           </div>
           {message.parts?.map((part, i) => {
             switch (part.type) {
               case "text":
-                return <MarkdownRenderer content={part.text} />;
+                return <MarkdownRenderer key={i} content={part.text} />;
 
               case "reasoning":
                 return (
                   <ReasoningAccordion
                     reasoning={part.reasoning}
+                    key={i}
                     index={i}
                     isStreaming={
-                      index === totalMessages - 1 && isStreamingReasoning
+                      index === totalMessages - 1 &&
+                      isStreamingReasoning &&
+                      // If there are multiple reasoning parts, only show the last one
+                      i === (message.parts?.length || 0) - 1
                     }
+                  />
+                );
+
+              case "tool-invocation":
+                return (
+                  <ToolCallAccordion
+                    key={i}
+                    index={i}
+                    toolName={part.toolInvocation.toolName}
+                    result={
+                      part.toolInvocation.state === "result"
+                        ? part.toolInvocation.result
+                        : null
+                    }
+                    state={part.toolInvocation.state}
                   />
                 );
 
@@ -220,27 +234,173 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
 );
 ChatMessage.displayName = "ChatMessage";
 
+interface ChatInputFooterProps {
+  input: string;
+  onSendClick: () => void;
+  isLoading: boolean;
+  onStop: () => void;
+}
+
+const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
+  ({ input, onSendClick, isLoading, onStop }) => {
+    const ai = useAtomValue(aiAtom);
+    const [userConfig, setUserConfig] = useAtom(userConfigAtom);
+    // const currentMode = ai?.mode || "manual";
+    const currentModel = ai?.open_ai?.model || "o4-mini";
+
+    // const modeOptions = [
+    //   {
+    //     value: "ask",
+    //     label: "Ask",
+    //     subtitle: "Read-only tools",
+    //   },
+    //   {
+    //     value: "manual",
+    //     label: "Manual",
+    //     subtitle: "No tools",
+    //   },
+    // ];
+
+    // const handleModeChange = async (newMode: "ask" | "manual") => {
+    //   const newConfig: UserConfig = {
+    //     ...userConfig,
+    //     ai: {
+    //       ...userConfig.ai,
+    //       mode: newMode,
+    //     },
+    //   };
+    //   saveConfig(newConfig);
+    // };
+
+    const handleModelChange = async (newModel: string) => {
+      const newConfig: UserConfig = {
+        ...userConfig,
+        ai: {
+          ...userConfig.ai,
+          open_ai: {
+            ...userConfig.ai?.open_ai,
+            model: newModel,
+          },
+        },
+      };
+      saveConfig(newConfig);
+    };
+
+    const saveConfig = async (newConfig: UserConfig) => {
+      await saveUserConfig({ config: newConfig }).then(() => {
+        setUserConfig(newConfig);
+      });
+    };
+
+    return (
+      <div className="px-3 py-2 border-t border-border/20 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* TODO: ADD BACK ONCE THERE ARE TOOLS FOR ASK MODE */}
+          {/* <Select value={currentMode} onValueChange={handleModeChange}>
+            <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
+              <SelectValue placeholder="manual" />
+            </SelectTrigger>
+            <SelectContent>
+              {modeOptions.map((option) => (
+                <SelectItem
+                  key={option.value}
+                  value={option.value}
+                  className="text-xs"
+                  subtitle={
+                    <div className="text-muted-foreground text-xs pl-2">
+                      {option.subtitle}
+                    </div>
+                  }
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select> */}
+          <Select value={currentModel} onValueChange={handleModelChange}>
+            <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
+              <SelectValue placeholder="Model" />
+            </SelectTrigger>
+            <SelectContent>
+              {/* Show current model if it's not in the known models list */}
+              {!(KNOWN_AI_MODELS as readonly string[]).includes(
+                currentModel,
+              ) && (
+                <SelectItem
+                  key={currentModel}
+                  value={currentModel}
+                  className="text-sm"
+                >
+                  {currentModel}
+                </SelectItem>
+              )}
+              {KNOWN_AI_MODELS.map((model) => (
+                <SelectItem key={model} value={model} className="text-sm">
+                  {model}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 hover:bg-muted/30"
+          onClick={isLoading ? onStop : onSendClick}
+          disabled={isLoading ? false : !input.trim()}
+        >
+          {isLoading ? (
+            <SquareIcon className="h-3 w-3 fill-current" />
+          ) : (
+            <SendIcon className="h-3 w-3" />
+          )}
+        </Button>
+      </div>
+    );
+  },
+);
+
+ChatInputFooter.displayName = "ChatInputFooter";
+
 interface ChatInputProps {
   input: string;
   setInput: (value: string) => void;
   onSubmit: (e: KeyboardEvent | undefined, value: string) => void;
   theme: ResolvedTheme;
-  inputRef: React.RefObject<ReactCodeMirrorRef>;
+  inputRef: React.RefObject<ReactCodeMirrorRef | null>;
+  isLoading: boolean;
+  onStop: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = memo(
-  ({ input, setInput, onSubmit, theme, inputRef }) => (
-    <div className="px-2 py-3 border-t relative flex-shrink-0 min-h-[80px]">
-      <PromptInput
-        value={input}
-        onChange={setInput}
-        onSubmit={onSubmit}
-        onClose={() => inputRef.current?.editor?.blur()}
-        theme={theme}
-        placeholder="Type your message..."
-      />
-    </div>
-  ),
+  ({ input, setInput, onSubmit, theme, inputRef, isLoading, onStop }) => {
+    const handleSendClick = () => {
+      if (input.trim()) {
+        onSubmit(undefined, input);
+      }
+    };
+
+    return (
+      <div className="border-t relative flex-shrink-0 min-h-[80px] flex flex-col">
+        <div className="px-2 py-3 flex-1">
+          <PromptInput
+            value={input}
+            onChange={setInput}
+            onSubmit={onSubmit}
+            onClose={() => inputRef.current?.editor?.blur()}
+            theme={theme}
+            placeholder="Type your message..."
+          />
+        </div>
+        <ChatInputFooter
+          input={input}
+          onSendClick={handleSendClick}
+          isLoading={isLoading}
+          onStop={onStop}
+        />
+      </div>
+    );
+  },
 );
 
 ChatInput.displayName = "ChatInput";
@@ -276,6 +436,7 @@ const ChatPanelBody = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
+  const runtimeManager = useRuntimeManager();
 
   const {
     messages,
@@ -290,21 +451,13 @@ const ChatPanelBody = () => {
     stop,
   } = useChat({
     id: activeChat?.id,
-    initialMessages: useMemo(() => {
-      return activeChat
-        ? activeChat.messages.map(({ role, content, timestamp, parts }) => ({
-            role,
-            content,
-            id: timestamp.toString(),
-            parts,
-          }))
-        : [];
-    }, [activeChat]),
+    maxSteps: 10,
+    initialMessages: activeChat?.messages || [],
     keepLastMessageOnError: true,
     // Throttle the messages and data updates to 100ms
-    experimental_throttle: 100,
-    api: asURL("api/ai/chat").toString(),
-    headers: API.headers(),
+    // experimental_throttle: 100,
+    api: runtimeManager.getAiURL("chat").toString(),
+    headers: runtimeManager.headers(),
     experimental_prepareRequestBody: (options) => {
       return {
         ...options,
@@ -315,15 +468,30 @@ const ChatPanelBody = () => {
       };
     },
     onFinish: (message) => {
-      setChatState((prev) =>
-        addMessageToChat(
+      setChatState((prev) => {
+        return addMessageToChat(
           prev,
           prev.activeChatId,
+          message.id,
           "assistant",
           message.content,
           message.parts,
-        ),
-      );
+        );
+      });
+    },
+    onToolCall: async ({ toolCall }) => {
+      try {
+        const response = await invokeAiTool({
+          toolName: toolCall.toolName,
+          arguments: toolCall.args as Record<string, never>,
+        });
+
+        // This response triggers the onFinish callback
+        return response.result || response.error;
+      } catch (error) {
+        Logger.error("Tool call failed:", error);
+        return `Error: ${error instanceof Error ? error.message : String(error)}`;
+      }
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
@@ -334,6 +502,51 @@ const ChatPanelBody = () => {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  // Sync user messages from useChat to storage when they become available
+  useEffect(() => {
+    if (!chatState.activeChatId || messages.length === 0) {
+      return;
+    }
+
+    // Only sync if the last message is from a user
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role !== "user") {
+      return;
+    }
+
+    const currentChat = chatState.chats.find(
+      (c) => c.id === chatState.activeChatId,
+    );
+    if (!currentChat) {
+      return;
+    }
+
+    const storedMessageIds = new Set(currentChat.messages.map((m) => m.id));
+
+    // Find user messages from useChat that aren't in storage yet
+    const missingUserMessages = messages.filter(
+      (m) => m.role === "user" && !storedMessageIds.has(m.id),
+    );
+
+    if (missingUserMessages.length > 0) {
+      setChatState((prev) => {
+        let result = prev;
+
+        for (const userMessage of missingUserMessages) {
+          result = addMessageToChat(
+            result,
+            prev.activeChatId,
+            userMessage.id,
+            "user",
+            userMessage.content,
+          );
+        }
+
+        return result;
+      });
+    }
+  }, [messages, chatState.activeChatId, chatState.chats, setChatState]);
 
   const isLastMessageReasoning = (messages: Message[]): boolean => {
     if (messages.length === 0) {
@@ -376,30 +589,36 @@ const ChatPanelBody = () => {
   }, [chatState.activeChatId]);
 
   const createNewThread = (initialMessage: string) => {
+    const CURRENT_TIME = Date.now();
     const newChat: Chat = {
       id: generateUUID(),
-      title: `${initialMessage.slice(0, 30)}...`,
-      messages: [
-        {
-          role: "user",
-          content: initialMessage,
-          timestamp: Date.now(),
-        },
-      ],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      title:
+        initialMessage.length > 50
+          ? `${initialMessage.slice(0, 50)}...`
+          : initialMessage,
+      messages: [], // Don't pre-populate - let useChat handle it and sync back
+      createdAt: CURRENT_TIME,
+      updatedAt: CURRENT_TIME,
     };
 
-    setChatState((prev) => ({
-      chats: [...prev.chats, newChat],
-      activeChatId: newChat.id,
-    }));
+    // Create new chat and set as active
+    setChatState((prev) => {
+      const newState = {
+        ...prev,
+        chats: [...prev.chats, newChat],
+        activeChatId: newChat.id,
+      };
+      return newState;
+    });
 
-    setInput("");
+    // Trigger AI conversation with append
+    const MESSAGE_ID = generateUUID();
     append({
+      id: MESSAGE_ID,
       role: "user",
       content: initialMessage,
     });
+    setInput("");
   };
 
   const handleNewChat = () => {
@@ -409,7 +628,23 @@ const ChatPanelBody = () => {
   };
 
   const handleMessageEdit = (index: number, newValue: string) => {
+    // Truncate both useChat and storage
     setMessages((messages) => messages.slice(0, index));
+    if (chatState.activeChatId) {
+      setChatState((prev) => ({
+        ...prev,
+        chats: prev.chats.map((chat) =>
+          chat.id === chatState.activeChatId
+            ? {
+                ...chat,
+                messages: chat.messages.slice(0, index),
+                updatedAt: Date.now(),
+              }
+            : chat,
+        ),
+      }));
+    }
+
     append({
       role: "user",
       content: newValue,
@@ -424,11 +659,6 @@ const ChatPanelBody = () => {
       return;
     }
     handleSubmit(e);
-    if (chatState.activeChatId) {
-      setChatState((prev) =>
-        addMessageToChat(prev, chatState.activeChatId, "user", newValue),
-      );
-    }
   };
 
   const handleReload = () => {
@@ -448,7 +678,7 @@ const ChatPanelBody = () => {
           onNewChat={handleNewChat}
           activeChatId={activeChat?.id}
           setActiveChat={setActiveChat}
-          chats={chatState.chats}
+          chats={[...chatState.chats].sort((a, b) => b.updatedAt - a.updatedAt)}
         />
       </TooltipProvider>
 
@@ -457,15 +687,23 @@ const ChatPanelBody = () => {
         ref={scrollContainerRef}
       >
         {(!messages || messages.length === 0) && (
-          <div className="flex rounded-md border px-1 bg-background">
-            <PromptInput
-              key="new-thread-input"
-              value={newThreadInput}
-              placeholder="Ask anything, @ to include context about tables or dataframes"
-              theme={theme}
-              onClose={handleOnCloseThread}
-              onChange={setNewThreadInput}
-              onSubmit={handleNewThreadSubmit}
+          <div className="flex flex-col rounded-md border bg-background">
+            <div className="px-1">
+              <PromptInput
+                key="new-thread-input"
+                value={newThreadInput}
+                placeholder="Ask anything, @ to include context about tables or dataframes"
+                theme={theme}
+                onClose={handleOnCloseThread}
+                onChange={setNewThreadInput}
+                onSubmit={handleNewThreadSubmit}
+              />
+            </div>
+            <ChatInputFooter
+              input={newThreadInput}
+              onSendClick={handleNewThreadSubmit}
+              isLoading={isLoading}
+              onStop={stop}
             />
           </div>
         )}
@@ -517,6 +755,8 @@ const ChatPanelBody = () => {
           onSubmit={handleChatInputSubmit}
           theme={theme}
           inputRef={newMessageInputRef}
+          isLoading={isLoading}
+          onStop={stop}
         />
       )}
     </div>

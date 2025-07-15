@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-empty-interface */
-import type { DataType } from "@/core/kernel/messages";
+
 import type { OnChangeFn, RowData } from "@tanstack/react-table";
+import type { DataType } from "@/core/kernel/messages";
 
 // define all format options
 export const formatOptions = {

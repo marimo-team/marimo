@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useContext } from "react";
-import { ColumnChartSpecModel } from "./chart-spec-model";
-import { useTheme } from "@/theme/useTheme";
-import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
-import { prettyDate } from "@/utils/dates";
-import { DelayMount } from "../utils/delay-mount";
-import { ChartSkeleton } from "../charts/chart-skeleton";
-import { logNever } from "@/utils/assertNever";
-import { DatePopover } from "./date-popover";
+import React, { Suspense } from "react";
 import { createBatchedLoader } from "@/plugins/impl/vega/batched";
+import { useTheme } from "@/theme/useTheme";
+import { logNever } from "@/utils/assertNever";
+import { prettyDate } from "@/utils/dates";
+import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
+import { ChartSkeleton } from "../charts/chart-skeleton";
+import { DelayMount } from "../utils/delay-mount";
+import { ColumnChartSpecModel } from "./chart-spec-model";
+import { DatePopover } from "./date-popover";
 
 export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>
@@ -29,28 +29,31 @@ const batchedLoader = createBatchedLoader();
 export const TableColumnSummary = <TData, TValue>({
   columnId,
 }: Props<TData, TValue>) => {
-  const chartSpecModel = useContext(ColumnChartContext);
+  const chartSpecModel = React.use(ColumnChartContext);
   const { theme } = useTheme();
   const { spec, type, stats } = chartSpecModel.getHeaderSummary(columnId);
   let chart: React.ReactNode = null;
   if (spec) {
+    const skeleton = <ChartSkeleton seed={columnId} width={80} height={40} />;
     chart = (
       <DelayMount
         milliseconds={200}
         visibility={true}
         rootMargin="200px"
-        fallback={<ChartSkeleton seed={columnId} width={80} height={40} />}
+        fallback={skeleton}
       >
-        <LazyVegaLite
-          spec={spec}
-          width={70}
-          height={30}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          loader={batchedLoader as any}
-          style={{ minWidth: "unset", maxHeight: "40px" }}
-          actions={false}
-          theme={theme === "dark" ? "dark" : "vox"}
-        />
+        <Suspense fallback={skeleton}>
+          <LazyVegaLite
+            spec={spec}
+            width={70}
+            height={30}
+            // @ts-expect-error - Our `loader.load` method is broader than VegaLite's typings but is functionally supported.
+            loader={batchedLoader}
+            style={{ minWidth: "unset", maxHeight: "40px" }}
+            actions={false}
+            theme={theme === "dark" ? "dark" : "vox"}
+          />
+        </Suspense>
       </DelayMount>
     );
   }

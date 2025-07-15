@@ -1,4 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { findEncodedFields, makeEncodingInteractive } from "./encodings";
+import { Marks } from "./marks";
+import { Params } from "./params";
 import type {
   GenericVegaSpec,
   Mark,
@@ -6,9 +10,6 @@ import type {
   VegaLiteSpec,
   VegaLiteUnitSpec,
 } from "./types";
-import { findEncodedFields, makeEncodingInteractive } from "./encodings";
-import { Params } from "./params";
-import { Marks } from "./marks";
 
 export function makeSelectable<T extends VegaLiteSpec>(
   spec: T,

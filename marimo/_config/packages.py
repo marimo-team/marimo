@@ -14,6 +14,11 @@ PackageManagerKind = Literal["pip", "rye", "uv", "poetry", "pixi"]
 def infer_package_manager() -> PackageManagerKind:
     """Infer the package manager from the current project."""
 
+    # `uv run` sets `UV` to the uv executable path
+    # https://github.com/astral-sh/uv/issues/8775
+    if os.environ.get("UV") is not None:
+        return "uv"
+
     try:
         # Get the project root by looking for common project files
         current_dir = Path.cwd()

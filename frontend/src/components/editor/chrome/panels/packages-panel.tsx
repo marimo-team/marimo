@@ -1,17 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
-import { BoxIcon, HelpCircleIcon } from "lucide-react";
-import { PanelEmptyState } from "./empty-state";
-
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { useResolvedMarimoConfig } from "@/core/config/config";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
-  addPackage,
-  getPackageList,
-  removePackage,
-} from "@/core/network/requests";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+  BoxIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  HelpCircleIcon,
+} from "lucide-react";
+import React from "react";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Spinner } from "@/components/icons/spinner";
+import { SearchInput } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,96 +18,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SearchInput } from "@/components/ui/input";
-import { toast } from "@/components/ui/use-toast";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/utils/cn";
-import { Kbd } from "@/components/ui/kbd";
-import { Events } from "@/utils/events";
-import { copyToClipboard } from "@/utils/copy";
-import { PACKAGES_INPUT_ID } from "./constants";
-import { useOpenSettingsToTab } from "@/components/app-config/state";
-import { packagesToInstallAtom } from "./packages-state";
-import { useAtomValue, useSetAtom } from "jotai";
+import { toast } from "@/components/ui/use-toast";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import {
+  addPackage,
+  getDependencyTree,
+  getPackageList,
+  removePackage,
+} from "@/core/network/requests";
+import type { DependencyTreeNode } from "@/core/network/types";
+import {
+  showRemovePackageToast,
+  showUpgradePackageToast,
+} from "@/core/packages/toast-components";
+import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { isWasm } from "@/core/wasm/utils";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { Events } from "@/utils/events";
+import { PACKAGES_INPUT_ID } from "./constants";
+import { PanelEmptyState } from "./empty-state";
+import { packagesToInstallAtom } from "./packages-state";
 
-const showAddPackageToast = (packageName: string, error?: string | null) => {
-  if (error) {
-    toast({
-      title: "Failed to add package",
-      description: error,
-      variant: "danger",
-    });
-  } else {
-    toast({
-      title: "Package added",
-      description: (
-        <div>
-          <div>
-            The package <Kbd className="inline">{packageName}</Kbd> and its
-            dependencies has been added to your environment.
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Some Python packages may require a kernel restart to see changes.
-          </div>
-        </div>
-      ),
-    });
-  }
-};
-
-const showUpgradePackageToast = (
-  packageName: string,
-  error?: string | null,
-) => {
-  if (error) {
-    toast({
-      title: "Failed to upgrade package",
-      description: error,
-      variant: "danger",
-    });
-  } else {
-    toast({
-      title: "Package upgraded",
-      description: (
-        <div>
-          <div>
-            The package <Kbd className="inline">{packageName}</Kbd> has been
-            upgraded.
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Some Python packages may require a kernel restart to see changes.
-          </div>
-        </div>
-      ),
-    });
-  }
-};
-
-const showRemovePackageToast = (packageName: string, error?: string | null) => {
-  if (error) {
-    toast({
-      title: "Failed to remove package",
-      description: error,
-      variant: "danger",
-    });
-  } else {
-    toast({
-      title: "Package removed",
-      description: (
-        <div>
-          <div>
-            The package <Kbd className="inline">{packageName}</Kbd> has been
-            removed from your environment.
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Some Python packages may require a kernel restart to see changes.
-          </div>
-        </div>
-      ),
-    });
-  }
-};
+type ViewMode = "tree" | "list";
 
 const PackageActionButton: React.FC<{
   onClick: () => void;
@@ -139,13 +73,26 @@ const PackageActionButton: React.FC<{
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { data, loading, error, reload } = useAsyncData(
-    () => getPackageList(),
-    [packageManager],
-  );
+
+  const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
+  const {
+    data: dependencies,
+    error,
+    refetch,
+    isPending,
+  } = useAsyncData(async () => {
+    const [listPackagesResponse, dependencyTreeResponse] = await Promise.all([
+      getPackageList(),
+      getDependencyTree(),
+    ]);
+    return {
+      list: listPackagesResponse.packages,
+      tree: dependencyTreeResponse.tree,
+    };
+  }, [packageManager]);
 
   // Only show on the first load
-  if (loading && !data) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 
@@ -153,12 +100,68 @@ export const PackagesPanel: React.FC = () => {
     return <ErrorBanner error={error} />;
   }
 
-  const packages = data?.packages || [];
+  const isTreeSupported = dependencies.tree != null;
+  const viewMode = resolveViewMode(userViewMode, isTreeSupported);
+  const name = dependencies.tree?.name;
+  const version = dependencies?.tree?.version;
+  const isSandbox = name === "<root>"; // name is the project name otherwise
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <InstallPackageForm packageManager={packageManager} onSuccess={reload} />
-      <PackagesList packages={packages} onSuccess={reload} />
+      <InstallPackageForm packageManager={packageManager} onSuccess={refetch} />
+      {isTreeSupported && (
+        <div className="flex items-center justify-between px-2 py-1 border-b">
+          <div className="flex gap-1">
+            <button
+              type="button"
+              className={cn(
+                "px-2 py-1 text-xs rounded",
+                viewMode === "list"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setUserViewMode("list")}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "px-2 py-1 text-xs rounded",
+                viewMode === "tree"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setUserViewMode("tree")}
+            >
+              Tree
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
+              title={isSandbox ? "sandbox" : "project"}
+            >
+              {isSandbox ? "sandbox" : "project"}
+            </div>
+            {name && !isSandbox && (
+              <span className="text-xs text-muted-foreground">
+                {name}
+                {version && ` v${version}`}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      {viewMode === "list" ? (
+        <PackagesList packages={dependencies.list} onSuccess={refetch} />
+      ) : (
+        <DependencyTree
+          tree={dependencies.tree}
+          error={error}
+          onSuccess={refetch}
+        />
+      )}
     </div>
   );
 };
@@ -168,7 +171,6 @@ const InstallPackageForm: React.FC<{
   onSuccess: () => void;
 }> = ({ onSuccess, packageManager }) => {
   const [input, setInput] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
   const { handleClick: openSettings } = useOpenSettingsToTab();
 
   // Get the packages to install from the atom
@@ -184,20 +186,17 @@ const InstallPackageForm: React.FC<{
     }
   }, [packagesToInstall, setPackagesToInstall]);
 
-  const handleAddPackage = async () => {
-    try {
-      setLoading(true);
-      const response = await addPackage({ package: input });
-      if (response.success) {
-        onSuccess();
-        showAddPackageToast(input);
-      } else {
-        showAddPackageToast(input, response.error);
-      }
-    } finally {
-      setInput("");
-      setLoading(false);
-    }
+  const { loading, handleInstallPackages } = useInstallPackages();
+  const onSuccessInstallPackages = () => {
+    onSuccess();
+    setInput("");
+  };
+
+  const installPackages = () => {
+    handleInstallPackages(
+      input.split(",").map((p) => p.trim()),
+      onSuccessInstallPackages,
+    );
   };
 
   return (
@@ -225,7 +224,7 @@ const InstallPackageForm: React.FC<{
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            handleAddPackage();
+            installPackages();
           }
         }}
         onChange={(e) => setInput(e.target.value)}
@@ -292,7 +291,7 @@ const InstallPackageForm: React.FC<{
           input && "bg-accent text-accent-foreground",
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
-        onClick={handleAddPackage}
+        onClick={installPackages}
         disabled={!input}
       >
         Add
@@ -412,3 +411,227 @@ const RemoveButton: React.FC<{
     </PackageActionButton>
   );
 };
+
+const DependencyTree: React.FC<{
+  tree?: DependencyTreeNode;
+  error?: Error | null;
+  onSuccess: () => void;
+}> = ({ tree, error, onSuccess }) => {
+  const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(
+    new Set(),
+  );
+
+  // Reset tree to collapsed state when tree data changes (including refetches)
+  React.useEffect(() => {
+    setExpandedNodes(new Set());
+  }, [tree]);
+
+  if (error) {
+    return <ErrorBanner error={error} />;
+  }
+
+  if (!tree) {
+    return <Spinner size="medium" centered={true} />;
+  }
+
+  if (tree.dependencies.length === 0) {
+    return (
+      <PanelEmptyState
+        title="No dependencies"
+        description="No package dependencies found in this environment."
+        icon={<BoxIcon />}
+      />
+    );
+  }
+
+  const toggleNode = (nodeId: string) => {
+    setExpandedNodes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
+  };
+
+  return (
+    <div className="flex-1 overflow-auto">
+      <div>
+        {tree.dependencies.map((dep, index) => (
+          <div key={`${dep.name}-${index}`} className="border-b">
+            <DependencyTreeNode
+              nodeId={`root-${index}`}
+              node={dep}
+              level={0}
+              isTopLevel={true}
+              expandedNodes={expandedNodes}
+              onToggle={toggleNode}
+              onSuccess={onSuccess}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const DependencyTreeNode: React.FC<{
+  nodeId: string;
+  node: DependencyTreeNode;
+  level: number;
+  isTopLevel?: boolean;
+  expandedNodes: Set<string>;
+  onToggle: (nodeId: string) => void;
+  onSuccess: () => void;
+}> = ({
+  nodeId,
+  node,
+  level,
+  isTopLevel = false,
+  expandedNodes,
+  onToggle,
+  onSuccess,
+}) => {
+  const hasChildren = node.dependencies.length > 0;
+  const isExpanded = expandedNodes.has(nodeId);
+  const indent = isTopLevel ? 0 : 16 + level * 16; // Top-level uses CSS padding, children use calculated indent
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (hasChildren) {
+        onToggle(nodeId);
+      }
+    }
+    // Allow arrow keys to bubble up for tree navigation
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasChildren) {
+      onToggle(nodeId);
+    }
+  };
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "flex items-center group cursor-pointer text-sm whitespace-nowrap",
+          "hover:bg-[var(--slate-2)] focus:bg-[var(--slate-2)] focus:outline-none",
+          hasChildren && "select-none",
+          isTopLevel ? "px-2 py-0.5" : "",
+        )}
+        style={isTopLevel ? {} : { paddingLeft: `${indent}px` }}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="treeitem"
+        aria-selected={false}
+        aria-expanded={hasChildren ? isExpanded : undefined}
+      >
+        {/* Expand/collapse arrow */}
+        {hasChildren ? (
+          isExpanded ? (
+            <ChevronDownIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+          ) : (
+            <ChevronRightIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+          )
+        ) : (
+          <div className="w-4 mr-2 flex-shrink-0" />
+        )}
+
+        {/* Package info */}
+        <div className="flex items-center gap-2 flex-1 min-w-0 py-1.5">
+          <span className="font-medium truncate">{node.name}</span>
+          {node.version && (
+            <span className="text-muted-foreground text-xs">
+              v{node.version}
+            </span>
+          )}
+        </div>
+
+        {/* Tags */}
+        <div className="flex items-center gap-1 ml-2">
+          {node.tags.map((tag, index) => {
+            if (tag.kind === "cycle") {
+              return (
+                <div
+                  key={index}
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300"
+                  title="cycle"
+                >
+                  cycle
+                </div>
+              );
+            }
+            if (tag.kind === "extra") {
+              return (
+                <div
+                  key={index}
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300"
+                  title={tag.value}
+                >
+                  {tag.value}
+                </div>
+              );
+            }
+            if (tag.kind === "group") {
+              return (
+                <div
+                  key={index}
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-green-300 dark:border-green-700 text-green-700 dark:text-green-300"
+                  title={tag.value}
+                >
+                  {tag.value}
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
+
+        {/* Actions for top-level packages */}
+        {isTopLevel && (
+          <div className="flex gap-1 invisible group-hover:visible">
+            <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
+            <RemoveButton packageName={node.name} onSuccess={onSuccess} />
+          </div>
+        )}
+      </div>
+
+      {/* Children */}
+      {hasChildren && isExpanded && (
+        <div role="group">
+          {node.dependencies.map((child, index) => (
+            <DependencyTreeNode
+              key={`${child.name}-${index}`}
+              nodeId={`${nodeId}-${index}`}
+              node={child}
+              level={level + 1}
+              isTopLevel={false}
+              expandedNodes={expandedNodes}
+              onToggle={onToggle}
+              onSuccess={onSuccess}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+function resolveViewMode(
+  userViewMode: ViewMode | null,
+  isTreeSupported: boolean,
+): ViewMode {
+  if (userViewMode === "list") {
+    return "list";
+  }
+  if (isTreeSupported) {
+    return userViewMode || "tree";
+  }
+  return "list";
+}

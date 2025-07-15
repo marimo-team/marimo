@@ -16,6 +16,7 @@ with app.setup:
         # Session
         s.TimeMetadata,
         s.StreamOutput,
+        s.StreamMediaOutput,
         s.ErrorOutput,
         s.DataOutput,
         s.Cell,

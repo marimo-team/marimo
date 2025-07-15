@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
-import { cn } from "@/utils/cn";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
+import { cn } from "@/utils/cn";
 
 const TooltipProvider = ({
   delayDuration = 400,

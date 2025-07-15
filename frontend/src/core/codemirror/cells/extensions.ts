@@ -1,23 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { type Extension, Prec } from "@codemirror/state";
-import { formatKeymapExtension } from "../extensions";
-import { getEditorCodeAsPython } from "../language/utils";
-import { formattingChangeEffect } from "../format";
+
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
-import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
+import { type Extension, Prec } from "@codemirror/state";
+import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
+import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { store } from "@/core/state/jotai";
+import { createObservable } from "@/core/state/observable";
+import { formatKeymapExtension } from "../extensions";
+import { formattingChangeEffect } from "../format";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
+import { getEditorCodeAsPython } from "../language/utils";
+import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import {
+  type CodemirrorCellActions,
   cellActionsState,
   cellIdState,
-  type CodemirrorCellActions,
 } from "./state";
-import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
 import { errorLineHighlighter } from "./traceback-decorations";
-import { createObservable } from "@/core/state/observable";
-import { store } from "@/core/state/jotai";
 
 /**
  * Extensions for cell actions
@@ -243,9 +244,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
             ev.contentDOM.blur();
             // Focus on the parent element
             // https://github.com/marimo-team/marimo/issues/2941
-            document
-              .getElementById(HTMLCellId.create(cellId))
-              ?.parentElement?.focus();
+            document.getElementById(HTMLCellId.create(cellId))?.focus();
           } else {
             ev.contentDOM.focus();
           }

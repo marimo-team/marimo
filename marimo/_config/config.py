@@ -167,6 +167,8 @@ class DisplayConfig(TypedDict):
     - `dataframes`: `"rich"` or `"plain"`
     - `custom_css`: list of paths to custom CSS files
     - `default_table_page_size`: default number of rows to display in tables
+    - `default_table_max_columns`: default maximum number of columns to display in tables
+    - `reference_highlighting`: if `True`, highlight reactive variable references
     """
 
     theme: Theme
@@ -176,6 +178,8 @@ class DisplayConfig(TypedDict):
     dataframes: Literal["rich", "plain"]
     custom_css: NotRequired[list[str]]
     default_table_page_size: int
+    default_table_max_columns: int
+    reference_highlighting: NotRequired[bool]
 
 
 @mddoc
@@ -219,6 +223,9 @@ class PackageManagementConfig(TypedDict):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
+CopilotMode = Literal["ask", "manual"]
+
+
 @dataclass
 class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
@@ -227,6 +234,7 @@ class AiConfig(TypedDict, total=False):
 
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
+    - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
@@ -235,6 +243,7 @@ class AiConfig(TypedDict, total=False):
 
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
+    mode: NotRequired[CopilotMode]
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig
@@ -324,6 +333,18 @@ class PythonLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class TyLanguageServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Ty Language Server.
+
+    ty handles completion, hover, go-to-definition, and diagnostics,
+    but we only use it for diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class LanguageServersConfig(TypedDict, total=False):
     """Configuration options for language servers.
 
@@ -333,6 +354,7 @@ class LanguageServersConfig(TypedDict, total=False):
     """
 
     pylsp: PythonLanguageServerConfig
+    ty: TyLanguageServerConfig
 
 
 @dataclass
@@ -378,6 +400,21 @@ class DatasourcesConfig(TypedDict):
 
 @mddoc
 @dataclass
+class SharingConfig(TypedDict):
+    """Configuration for sharing features.
+
+    **Keys.**
+
+    - `html`: if `False`, HTML sharing options will be hidden from the UI
+    - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+    """
+
+    html: NotRequired[bool]
+    wasm: NotRequired[bool]
+
+
+@mddoc
+@dataclass
 class MarimoConfig(TypedDict):
     """Configuration for the marimo editor"""
 
@@ -395,6 +432,7 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
 
 
 @mddoc
@@ -416,6 +454,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -427,6 +466,8 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_width": "medium",
         "dataframes": "rich",
         "default_table_page_size": 10,
+        "default_table_max_columns": 50,
+        "reference_highlighting": False,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},

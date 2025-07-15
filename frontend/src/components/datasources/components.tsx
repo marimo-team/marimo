@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
-import { DATA_TYPE_COLOR, DATA_TYPE_ICON } from "../datasets/icons";
-import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
+import { DATA_TYPE_ICON, getDataTypeColor } from "../datasets/icons";
 
 export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
   isExpanded,
@@ -86,11 +87,13 @@ export const ColumnName = ({
   dataType: DataType;
 }) => {
   const Icon = DATA_TYPE_ICON[dataType];
-  const color = DATA_TYPE_COLOR[dataType];
+  const color = getDataTypeColor(dataType);
 
   return (
     <div className="flex flex-row items-center gap-1.5">
-      <Icon className={`w-4 h-4 p-0.5 rounded-sm stroke-black ${color}`} />
+      <Icon
+        className={`w-4 h-4 p-0.5 rounded-sm stroke-card-foreground ${color}`}
+      />
       {columnName}
     </div>
   );

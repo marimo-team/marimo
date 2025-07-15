@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { prettyError } from "@/utils/errors";
+
+import { cva, type VariantProps } from "class-variance-authority";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -10,7 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/utils/cn";
-import { type VariantProps, cva } from "class-variance-authority";
+import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 
 export const ErrorBanner = ({
@@ -44,7 +45,7 @@ export const ErrorBanner = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="text-error">Error</AlertDialogTitle>
           </AlertDialogHeader>
-          <pre className="text-error text-sm p-2 font-mono overflow-auto">
+          <pre className="text-error text-sm p-2 font-mono overflow-auto whitespace-pre-wrap">
             {message}
           </pre>
           <AlertDialogFooter>

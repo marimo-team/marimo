@@ -4,10 +4,10 @@ import { z } from "zod";
 import type { IPlugin, IPluginProps } from "@/plugins/types";
 import type { VegaLiteSpec } from "./types";
 
-import type { VegaComponentState, Data } from "./vega-component";
+import type { Data, VegaComponentState } from "./vega-component";
 
 import "./vega.css";
-import React from "react";
+import React, { type JSX } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const LazyVegaComponent = React.lazy(() => import("./vega-component"));

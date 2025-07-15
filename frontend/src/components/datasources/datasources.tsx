@@ -1,40 +1,46 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
+import { CommandList } from "cmdk";
+import { atom, useAtomValue, useSetAtom } from "jotai";
+import { sortBy } from "lodash-es";
 import {
   DatabaseIcon,
-  PlusIcon,
-  PaintRollerIcon,
-  PlusSquareIcon,
-  XIcon,
-  Table2Icon,
   EyeIcon,
+  PaintRollerIcon,
+  PlusIcon,
+  PlusSquareIcon,
   RefreshCwIcon,
+  Table2Icon,
+  XIcon,
 } from "lucide-react";
+import React from "react";
+import { dbDisplayName } from "@/components/databases/display";
+import { EngineVariable } from "@/components/databases/engine-variable";
+import { DatabaseLogo } from "@/components/databases/icon";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { Button } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
-import { CommandList } from "cmdk";
-
-import { cn } from "@/utils/cn";
+import { Tooltip } from "@/components/ui/tooltip";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import { autoInstantiateAtom } from "@/core/config/config";
+import {
+  dataConnectionsMapAtom,
+  type SQLTableContext,
+  useDataSourceActions,
+} from "@/core/datasets/data-source-connections";
+import { DUCKDB_ENGINE, INTERNAL_SQL_ENGINES } from "@/core/datasets/engines";
+import {
+  PreviewSQLTable,
+  PreviewSQLTableList,
+} from "@/core/datasets/request-registry";
 import {
   closeAllColumnsAtom,
   datasetTablesAtom,
   expandedColumnsAtom,
   useDatasets,
 } from "@/core/datasets/state";
-import { Button } from "@/components/ui/button";
-import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
-import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { Tooltip } from "@/components/ui/tooltip";
-import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { previewDataSourceConnection } from "@/core/network/requests";
-import { Events } from "@/utils/events";
-import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
-import {
-  maybeAddAltairImport,
-  maybeAddMarimoImport,
-} from "@/core/cells/add-missing-import";
-import { autoInstantiateAtom } from "@/core/config/config";
 import type {
   Database,
   DatabaseSchema,
@@ -42,23 +48,19 @@ import type {
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
+import { previewDataSourceConnection } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
-import { sortBy } from "lodash-es";
-import { logNever } from "@/utils/assertNever";
-import { DatabaseLogo } from "@/components/databases/icon";
-import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
-import { dbDisplayName } from "@/components/databases/display";
-import { AddDatabaseDialog } from "../editor/database/add-database-form";
-import {
-  dataConnectionsMapAtom,
-  DUCKDB_ENGINE,
-  INTERNAL_SQL_ENGINES,
-  type SQLTableContext,
-  useDataSourceActions,
-} from "@/core/datasets/data-source-connections";
-import { PythonIcon } from "../editor/cell/code/icons";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { logNever } from "@/utils/assertNever";
+import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
+import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
+import { PythonIcon } from "../editor/cell/code/icons";
+import { useAddCodeToNewCell } from "../editor/cell/useAddCell";
+import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
+import { AddDatabaseDialog } from "../editor/database/add-database-form";
+import { DatasetColumnPreview } from "./column-preview";
 import {
   ColumnName,
   DatasourceLabel,
@@ -68,11 +70,6 @@ import {
   RotatingChevron,
 } from "./components";
 import { isSchemaless, sqlCode } from "./utils";
-import {
-  PreviewSQLTableList,
-  PreviewSQLTable,
-} from "@/core/datasets/request-registry";
-import { DatasetColumnPreview } from "./column-preview";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -434,7 +431,7 @@ const TableList: React.FC<{
   // useAsyncData's loading state may return false before data has propagated
   const [tablesLoading, setTablesLoading] = React.useState(false);
 
-  const { loading, error } = useAsyncData(async () => {
+  const { isPending, error } = useAsyncData(async () => {
     if (tables.length === 0 && sqlTableContext && !tablesRequested) {
       setTablesRequested(true);
       setTablesLoading(true);
@@ -459,7 +456,7 @@ const TableList: React.FC<{
     }
   }, [tables.length, sqlTableContext, tablesRequested]);
 
-  if (loading || tablesLoading) {
+  if (isPending || tablesLoading) {
     return <LoadingState message="Loading tables..." className="pl-12" />;
   }
 
@@ -504,7 +501,7 @@ const DatasetTableItem: React.FC<{
     React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
-  const { loading, error } = useAsyncData(async () => {
+  const { isFetching, isPending, error } = useAsyncData(async () => {
     if (
       isExpanded &&
       !tableDetailsExist &&
@@ -534,9 +531,14 @@ const DatasetTableItem: React.FC<{
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
+  const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
-    maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell,
+      fromCellId: lastFocusedCellId,
+    });
     const getCode = () => {
       if (table.source_type === "catalog") {
         const identifier = sqlTableContext?.database
@@ -546,7 +548,7 @@ const DatasetTableItem: React.FC<{
       }
 
       if (sqlTableContext) {
-        return sqlCode(table, "*", sqlTableContext);
+        return sqlCode({ table, columnName: "*", sqlTableContext });
       }
 
       switch (table.source_type) {
@@ -554,18 +556,14 @@ const DatasetTableItem: React.FC<{
           return `mo.ui.table(${table.name})`;
         case "duckdb":
         case "connection":
-          return sqlCode(table, "*", sqlTableContext);
+          return sqlCode({ table, columnName: "*", sqlTableContext });
         default:
           logNever(table.source_type);
           return "";
       }
     };
 
-    createNewCell({
-      code: getCode(),
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    addCodeToNewCell(getCode());
   };
 
   const renderRowsByColumns = () => {
@@ -591,7 +589,7 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    if (loading) {
+    if (isPending || isFetching) {
       return <LoadingState message="Loading columns..." className="pl-12" />;
     }
 
@@ -694,23 +692,14 @@ const DatasetColumnItem: React.FC<{
     });
   }
 
-  const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell } = useCellActions();
+  const addCodeToNewCell = useAddCodeToNewCell();
 
   const { columnsPreviews } = useDatasets();
   const isPrimaryKey = table.primary_keys?.includes(column.name) || false;
   const isIndexed = table.indexes?.includes(column.name) || false;
 
   const handleAddColumn = (chartCode: string) => {
-    if (chartCode.includes("alt")) {
-      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    }
-    createNewCell({
-      code: chartCode,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    addCodeToNewCell(chartCode);
   };
 
   const renderItemSubtext = ({

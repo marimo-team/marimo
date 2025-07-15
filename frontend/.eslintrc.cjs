@@ -13,8 +13,6 @@ module.exports = {
     "plugin:@typescript-eslint/recommended-type-checked",
     "plugin:@typescript-eslint/stylistic-type-checked",
     "plugin:@typescript-eslint/strict-type-checked",
-    // Accessibility
-    "plugin:jsx-a11y/strict",
     // React
     "plugin:react-hooks/recommended-legacy",
     "plugin:react/recommended",
@@ -84,10 +82,6 @@ module.exports = {
     "@typescript-eslint/consistent-indexed-object-style": "off",
     "@typescript-eslint/require-await": "off",
     "@typescript-eslint/restrict-template-expressions": "off",
-    "jsx-a11y/no-autofocus": "off",
-    "jsx-a11y/no-static-element-interactions": "off",
-    "jsx-a11y/no-noninteractive-element-interactions": "off",
-    "jsx-a11y/click-events-have-key-events": "off",
     "storybook/no-redundant-story-name": "off",
     // Turn of unicorn rules that don't have autofixes or that we don't want
     "unicorn/prefer-string-raw": "off",
@@ -174,6 +168,7 @@ module.exports = {
         "@typescript-eslint/require-await": "off",
         "@typescript-eslint/no-unsafe-member-access": "off",
         "@typescript-eslint/no-unsafe-return": "off",
+        "no-console": "off",
       },
     },
     {
@@ -185,6 +180,7 @@ module.exports = {
         "@typescript-eslint/no-unsafe-call": "off",
         "@typescript-eslint/require-await": "off",
         "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/unbound-method": "off",
         "typescript-eslint/no-unsafe-return": "off",
       },
     },

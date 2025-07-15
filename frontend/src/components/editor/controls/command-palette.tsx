@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { atom, useAtom, useAtomValue } from "jotai";
 import {
   CommandDialog,
   CommandEmpty,
@@ -9,24 +11,23 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
+import { lastFocusedCellAtom } from "@/core/cells/focus";
+import { hotkeysAtom } from "@/core/config/config";
+import { type HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
+import { parseShortcut } from "@/core/hotkeys/shortcuts";
+import { useEventListener } from "@/hooks/useEventListener";
+import { Objects } from "@/utils/objects";
 import { useRegisteredActions } from "../../../core/hotkeys/actions";
 import { useRecentCommands } from "../../../hooks/useRecentCommands";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
-import { type HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
-import { atom, useAtom, useAtomValue } from "jotai";
-import { useNotebookActions } from "../actions/useNotebookActions";
-import { Objects } from "@/utils/objects";
-import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import {
-  isParentAction,
-  flattenActions,
   type ActionButton,
+  flattenActions,
+  isParentAction,
 } from "../actions/types";
 import { useCellActionButtons } from "../actions/useCellActionButton";
-import { lastFocusedCellAtom } from "@/core/cells/focus";
 import { useConfigActions } from "../actions/useConfigActions";
-import { hotkeysAtom } from "@/core/config/config";
-import { useEventListener } from "@/hooks/useEventListener";
+import { useNotebookActions } from "../actions/useNotebookActions";
 
 export const commandPaletteAtom = atom(false);
 
@@ -100,12 +101,17 @@ export const CommandPalette = () => {
     );
   };
 
-  const renderCommandItem = (
-    label: string,
-    handle: () => void,
-    props: { disabled?: boolean; tooltip?: React.ReactNode } = {},
-    hotkey?: HotkeyAction,
-  ) => {
+  const renderCommandItem = ({
+    label,
+    handle,
+    props = {},
+    hotkey,
+  }: {
+    label: string;
+    handle: () => void;
+    props?: { disabled?: boolean; tooltip?: React.ReactNode };
+    hotkey?: HotkeyAction;
+  }) => {
     return (
       <CommandItem
         disabled={props.disabled}
@@ -151,11 +157,14 @@ export const CommandPalette = () => {
                 }
                 // Other action
                 if (action && !isParentAction(action)) {
-                  return renderCommandItem(
-                    action.label,
-                    action.handleHeadless || action.handle,
-                    { disabled: action.disabled, tooltip: action.tooltip },
-                  );
+                  return renderCommandItem({
+                    label: action.label,
+                    handle: action.handleHeadless || action.handle,
+                    props: {
+                      disabled: action.disabled,
+                      tooltip: action.tooltip,
+                    },
+                  });
                 }
                 return null;
               })}
@@ -178,21 +187,21 @@ export const CommandPalette = () => {
             if (recentCommandsSet.has(action.label)) {
               return null; // Don't show recent commands in the main list
             }
-            return renderCommandItem(
-              action.label,
-              action.handleHeadless || action.handle,
-              { disabled: action.disabled, tooltip: action.tooltip },
-            );
+            return renderCommandItem({
+              label: action.label,
+              handle: action.handleHeadless || action.handle,
+              props: { disabled: action.disabled, tooltip: action.tooltip },
+            });
           })}
           {cellActions.map((action) => {
             if (recentCommandsSet.has(action.label)) {
               return null; // Don't show recent commands in the main list
             }
-            return renderCommandItem(
-              `Cell > ${action.label}`,
-              action.handleHeadless || action.handle,
-              { disabled: action.disabled, tooltip: action.tooltip },
-            );
+            return renderCommandItem({
+              label: `Cell > ${action.label}`,
+              handle: action.handleHeadless || action.handle,
+              props: { disabled: action.disabled, tooltip: action.tooltip },
+            });
           })}
         </CommandGroup>
       </CommandList>

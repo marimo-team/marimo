@@ -382,7 +382,7 @@ class TestExportHTML:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "uv run --isolated" in output
+        assert "run --isolated" in output
         html = normalize_index_html(output)
         # Remove folder path
         dirname = path.dirname(temp_marimo_file)
@@ -402,6 +402,53 @@ class TestExportHTML:
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
+
+    @staticmethod
+    def test_cli_export_html_force_overwrite(temp_marimo_file: str) -> None:
+        """
+        Test that the --force/-f flag allows overwriting an existing file
+        using a simple, error-free notebook.
+        """
+
+        p1 = subprocess.run(
+            ["marimo", "export", "html", temp_marimo_file],
+            capture_output=True,
+        )
+        assert p1.returncode == 0, p1.stderr.decode()
+        html = normalize_index_html(p1.stdout.decode())
+
+        dirname = path.dirname(temp_marimo_file)
+        html = html.replace(dirname, "path")
+        assert '<marimo-code hidden=""></marimo-code>' not in html
+        output_path = Path(temp_marimo_file).parent / "output.html"
+
+        p2 = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
+            ],
+            capture_output=True,
+            input=b"n\n",
+        )
+        assert p2.returncode == 0, "Expected a graceful exit with no errors"
+
+        p3 = subprocess.run(
+            [
+                "marimo",
+                "export",
+                "html",
+                temp_marimo_file,
+                "-o",
+                str(output_path),
+                "--force",
+            ],
+            capture_output=True,
+        )
+        assert p3.returncode == 0, p3.stderr.decode()
 
 
 class TestExportHtmlSmokeTests:
@@ -921,7 +968,7 @@ class TestExportIpynb:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "uv run --isolated" in output
+        assert "run --isolated" in output
 
     @staticmethod
     @pytest.mark.skipif(

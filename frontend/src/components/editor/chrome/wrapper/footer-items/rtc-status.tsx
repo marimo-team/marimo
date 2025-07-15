@@ -1,18 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { connectedDocAtom } from "@/core/codemirror/rtc/extension";
-import { useAtomValue, useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { UsersIcon } from "lucide-react";
 import type React from "react";
-import { FooterItem } from "../footer-item";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { connectedDocAtom } from "@/core/codemirror/rtc/extension";
 import { isRtcEnabled, usernameAtom } from "@/core/rtc/state";
+import { FooterItem } from "../footer-item";
 
 export const RTCStatus: React.FC = () => {
   const connectedDoc = useAtomValue(connectedDocAtom);
@@ -34,7 +34,11 @@ export const RTCStatus: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild={true}>
-        <FooterItem tooltip={tooltip} selected={false}>
+        <FooterItem
+          tooltip={tooltip}
+          selected={false}
+          data-testid="footer-rtc-status"
+        >
           <UsersIcon className="w-4 h-4" />
         </FooterItem>
       </PopoverTrigger>

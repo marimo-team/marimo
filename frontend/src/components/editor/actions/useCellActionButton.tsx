@@ -1,65 +1,66 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { downloadCellOutput } from "@/components/export/export-output-button";
-import { Switch } from "@/components/ui/switch";
-import { formatEditorViews } from "@/core/codemirror/format";
-import { toggleToLanguage } from "@/core/codemirror/language/commands";
-import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+
+import type { EditorView } from "@codemirror/view";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
-  ImageIcon,
-  Code2Icon,
-  ZapIcon,
-  PlusCircleIcon,
-  ChevronUpIcon,
   ChevronDownIcon,
-  ChevronsUpIcon,
-  ChevronsDownIcon,
-  Trash2Icon,
-  ZapOffIcon,
-  PlayIcon,
-  TextCursorInputIcon,
-  EyeIcon,
-  EyeOffIcon,
-  SparklesIcon,
-  DatabaseIcon,
-  Columns2Icon,
-  XCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ScissorsIcon,
+  ChevronsDownIcon,
+  ChevronsUpIcon,
+  ChevronUpIcon,
+  Code2Icon,
+  Columns2Icon,
+  DatabaseIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ImageIcon,
   LinkIcon,
+  PlayIcon,
+  PlusCircleIcon,
+  ScissorsIcon,
+  SparklesIcon,
+  TextCursorInputIcon,
+  Trash2Icon,
+  XCircleIcon,
+  ZapIcon,
+  ZapOffIcon,
 } from "lucide-react";
-import type { ActionButton } from "./types";
+import { downloadCellOutput } from "@/components/export/export-output-button";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import type { CellData } from "@/core/cells/types";
-import type { CellId } from "@/core/cells/ids";
-import { saveCellConfig } from "@/core/network/requests";
-import type { EditorView } from "@codemirror/view";
-import { useRunCell } from "../cell/useRunCells";
-import { NameCellInput } from "./name-cell-input";
-import { useAtomValue, useSetAtom } from "jotai";
-import { aiCompletionCellAtom } from "@/core/ai/state";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
   DialogContent,
-  DialogTitle,
   DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "@/components/ui/use-toast";
+import { aiCompletionCellAtom } from "@/core/ai/state";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import type { CellData } from "@/core/cells/types";
+import { formatEditorViews } from "@/core/codemirror/format";
+import { toggleToLanguage } from "@/core/codemirror/language/commands";
+import { switchLanguage } from "@/core/codemirror/language/extension";
 import {
   aiEnabledAtom,
   appWidthAtom,
   autoInstantiateAtom,
 } from "@/core/config/config";
-import { useDeleteCellCallback } from "../cell/useDeleteCell";
-import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { kioskModeAtom } from "@/core/mode";
-import { switchLanguage } from "@/core/codemirror/language/extension";
-import { useSplitCellCallback } from "../cell/useSplitCell";
+import { saveCellConfig } from "@/core/network/requests";
+import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
-import { toast } from "@/components/ui/use-toast";
+import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
+import { useDeleteCellCallback } from "../cell/useDeleteCell";
+import { useRunCell } from "../cell/useRunCells";
+import { useSplitCellCallback } from "../cell/useSplitCell";
+import { NameCellInput } from "./name-cell-input";
+import type { ActionButton } from "./types";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -272,8 +273,11 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport(autoInstantiate, createCell);
-          switchLanguage(editorView, "markdown", { keepCodeAsIs: false });
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
+          switchLanguage(editorView, {
+            language: "markdown",
+            keepCodeAsIs: false,
+          });
         },
       },
       {
@@ -284,8 +288,11 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport(autoInstantiate, createCell);
-          switchLanguage(editorView, "sql", { keepCodeAsIs: false });
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
+          switchLanguage(editorView, {
+            language: "markdown",
+            keepCodeAsIs: false,
+          });
         },
       },
       {
@@ -296,7 +303,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport(autoInstantiate, createCell);
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           toggleToLanguage(editorView, "python", { force: true });
         },
       },
@@ -356,13 +363,17 @@ export function useCellActionButtons({ cell }: Props) {
         icon: <ChevronsUpIcon size={13} strokeWidth={1.5} />,
         label: "Send to top",
         hotkey: "cell.sendToTop",
-        handle: () => sendToTop({ cellId }),
+        // When using the cell menu, likely the user doesn't want to scroll
+        // and instead just wants to get the cell out of the way
+        handle: () => sendToTop({ cellId, scroll: false }),
       },
       {
         icon: <ChevronsDownIcon size={13} strokeWidth={1.5} />,
         label: "Send to bottom",
         hotkey: "cell.sendToBottom",
-        handle: () => sendToBottom({ cellId }),
+        // When using the cell menu, likely the user doesn't want to scroll
+        // and instead just wants to get the cell out of the way
+        handle: () => sendToBottom({ cellId, scroll: false }),
       },
       {
         icon: <Columns2Icon size={13} strokeWidth={1.5} />,

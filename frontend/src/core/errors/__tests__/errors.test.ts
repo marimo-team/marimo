@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { getAutoFixes, getImportCode } from "../errors";
+import { describe, expect, it } from "vitest";
 import type { MarimoError } from "@/core/kernel/messages";
+import { getAutoFixes, getImportCode } from "../errors";
 
 describe("getImportCode", () => {
   it("returns simple import for same name", () => {

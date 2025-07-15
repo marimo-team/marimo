@@ -57,6 +57,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
 from marimo._utils.narwhals_utils import (
@@ -70,6 +71,12 @@ if TYPE_CHECKING:
     from narwhals.typing import IntoLazyFrame
 
 LOGGER = _loggers.marimo_logger()
+
+
+class TableSearchError(Exception):
+    def __init__(self, error: str):
+        self.error = error
+        super().__init__(error)
 
 
 @dataclass
@@ -90,6 +97,8 @@ DEFAULT_MAX_COLUMNS = 50
 
 MaxColumnsNotProvided = Literal["inherit"]
 MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
+
+MaxColumnsType = Union[int, None, MaxColumnsNotProvided]
 
 
 @dataclass(frozen=True)
@@ -158,6 +167,16 @@ def get_default_table_page_size() -> int:
         return 10
     else:
         return ctx.marimo_config["display"]["default_table_page_size"]
+
+
+def get_default_table_max_columns() -> int:
+    """Get the default maximum number of columns to display in a table."""
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return DEFAULT_MAX_COLUMNS
+    else:
+        return ctx.marimo_config["display"]["default_table_max_columns"]
 
 
 @mddoc
@@ -300,8 +319,8 @@ class table(
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
         style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
-        max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
-            Set to None to show all columns.
+        max_columns (int, optional): Maximum number of columns to display. Defaults to the
+            configured default_table_max_columns (50 by default). Set to None to show all columns.
         label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
@@ -354,7 +373,7 @@ class table(
             label="",
             on_change=None,
             style_cell=None,
-            max_columns=DEFAULT_MAX_COLUMNS,
+            max_columns=MAX_COLUMNS_NOT_PROVIDED,
             _internal_column_charts_row_limit=None,
             _internal_summary_row_limit=None,
             _internal_total_rows="too_many",
@@ -391,7 +410,7 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
-        max_columns: Optional[int] = DEFAULT_MAX_COLUMNS,
+        max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
         label: str = "",
         on_change: Optional[
@@ -423,6 +442,8 @@ class table(
         validate_page_size(page_size)
         self._lazy = _internal_lazy
         self._page_size = page_size
+        self._max_columns: Optional[int] = None
+        max_columns_arg: Union[int, str]
 
         has_stable_row_id = False
         if selection is not None:
@@ -433,8 +454,17 @@ class table(
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
-        self._max_columns = max_columns
-        max_columns_arg = "all" if max_columns is None else max_columns
+
+        # Handle max_columns: use config default if not provided, None means "all"
+        if max_columns == MAX_COLUMNS_NOT_PROVIDED:
+            self._max_columns = get_default_table_max_columns()
+            max_columns_arg = self._max_columns
+        elif max_columns is None:
+            self._max_columns = None
+            max_columns_arg = "all"
+        else:
+            self._max_columns = max_columns
+            max_columns_arg = max_columns
 
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows
@@ -472,6 +502,15 @@ class table(
             self._column_summary_row_limit = (
                 TableManager.DEFAULT_SUMMARY_STATS_ROW_LIMIT
             )
+
+        app_mode = get_mode()
+        # These panels are not as useful in non-edit mode and require an external dependency
+        show_column_explorer = app_mode == "edit"
+        show_chart_builder = app_mode == "edit"
+
+        show_page_size_selector = True
+        if (isinstance(total_rows, int) and total_rows <= 5) or _internal_lazy:
+            show_page_size_selector = False
 
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
@@ -602,6 +641,9 @@ class table(
                 "show-download": show_download
                 and self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
+                "show-page-size-selector": show_page_size_selector,
+                "show-column-explorer": show_column_explorer,
+                "show-chart-builder": show_chart_builder,
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
@@ -920,37 +962,39 @@ class table(
         )
         return column_preview
 
-    def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
+    def _style_cells(
+        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+    ) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
             return None
+
+        def do_style_cell(row: str, col: str) -> dict[str, Any]:
+            selected_cells = self._searched_manager.select_cells(
+                [TableCoordinate(row_id=row, column_name=col)]
+            )
+            if not selected_cells or self._style_cell is None:
+                return {}
+            return self._style_cell(row, col, selected_cells[0].value)
+
+        columns = self._searched_manager.get_column_names()
+        response = self._get_row_ids(EmptyArgs())
+
+        # Clamp the take to the total number of rows
+        if total_rows != "too_many" and skip + take > total_rows:
+            take = total_rows - skip
+
+        # Determine row range
+        row_ids: Union[list[int], range]
+        if response.all_rows or response.error:
+            row_ids = range(skip, skip + take)
         else:
+            row_ids = response.row_ids[skip : skip + take]
 
-            def do_style_cell(row: str, col: str) -> dict[str, Any]:
-                selected_cells = self._searched_manager.select_cells(
-                    [TableCoordinate(row_id=row, column_name=col)]
-                )
-                if len(selected_cells) == 0 or self._style_cell is None:
-                    return dict()
-                else:
-                    return self._style_cell(row, col, selected_cells[0].value)
-
-            columns = self._searched_manager.get_column_names()
-            response = self._get_row_ids(EmptyArgs())
-
-            row_ids: Union[list[int], range]
-            if response.all_rows is True or response.error is not None:
-                # TODO: Handle sorted rows, they have reverse order of row_ids
-                row_ids = range(skip, skip + take)
-            else:
-                row_ids = response.row_ids[skip : skip + take]
-
-            return {
-                str(row): {
-                    col: do_style_cell(str(row), col) for col in columns
-                }
-                for row in row_ids
-            }
+        return {
+            str(row): {col: do_style_cell(str(row), col) for col in columns}
+            for row in row_ids
+        }
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
@@ -988,7 +1032,13 @@ class table(
             # Do not clamp if max_columns is None
             if max_columns is not None and len(column_names) > max_columns:
                 data = data.select_columns(column_names[:max_columns])
-            return data.to_json_str(self._format_mapping)
+
+            try:
+                return data.to_json_str(self._format_mapping)
+            except BaseException as e:
+                # Catch and re-raise the error as a non-BaseException
+                # to avoid crashing the kernel
+                raise TableSearchError(str(e)) from e
 
         # If no query or sort, return nothing
         # The frontend will just show the original data
@@ -1003,13 +1053,8 @@ class table(
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=total_rows,
-                # The __init__ will just call this with an arbitrary offset,
-                # we need to check this is not larger than our actual number of rows.
                 cell_styles=self._style_cells(
-                    offset,
-                    min(total_rows, args.page_size)
-                    if total_rows != "too_many"
-                    else args.page_size,
+                    offset, args.page_size, total_rows
                 ),
             )
 
@@ -1035,7 +1080,7 @@ class table(
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,
-            cell_styles=self._style_cells(offset, args.page_size),
+            cell_styles=self._style_cells(offset, args.page_size, total_rows),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:

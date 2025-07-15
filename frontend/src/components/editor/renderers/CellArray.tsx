@@ -1,58 +1,58 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect } from "react";
-import { Cell } from "@/components/editor/Cell";
+
 import {
-  type ConnectionStatus,
-  WebSocketState,
-} from "../../../core/websocket/types";
-import {
-  useNotebook,
-  type CellActions,
-  columnIdsAtom,
-  type NotebookState,
-  useCellActions,
-  SETUP_CELL_ID,
-} from "../../../core/cells/cells";
-import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
-import type { AppMode } from "../../../core/mode";
-import { useHotkey } from "../../../hooks/useHotkey";
-import { formatAll } from "../../../core/codemirror/format";
-import { type Theme, useTheme } from "../../../theme/useTheme";
-import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
-import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
-import { useChromeActions } from "../chrome/state";
-import { Functions } from "@/utils/functions";
-import { NotebookBanner } from "../notebook-banner";
-import { PackageAlert } from "@/components/editor/package-alert";
-import { useDeleteCellCallback } from "../cell/useDeleteCell";
-import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/button";
+  horizontalListSortingStrategy,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useAtomValue } from "jotai";
 import {
   DatabaseIcon,
   SparklesIcon,
   SquareCodeIcon,
   SquareMIcon,
 } from "lucide-react";
-import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
-import { useAtomValue } from "jotai";
-import { useBoolean } from "@/hooks/useBoolean";
-import { AddCellWithAI } from "../ai/add-cell-with-ai";
-import type { Milliseconds } from "@/utils/time";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
-import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { Tooltip } from "@/components/ui/tooltip";
-import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
-import {
-  horizontalListSortingStrategy,
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { useEffect } from "react";
+import { Cell } from "@/components/editor/Cell";
+import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
-import { Column } from "../columns/cell-column";
-import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import type { CellId } from "@/core/cells/ids";
+import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { aiEnabledAtom } from "@/core/config/config";
+import { isConnectedAtom } from "@/core/network/connection";
+import { useBoolean } from "@/hooks/useBoolean";
+import { cn } from "@/utils/cn";
+import { Functions } from "@/utils/functions";
+import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
+import type { Milliseconds } from "@/utils/time";
+import {
+  type CellActions,
+  columnIdsAtom,
+  type NotebookState,
+  SETUP_CELL_ID,
+  useCellActions,
+  useNotebook,
+} from "../../../core/cells/cells";
+import { formatAll } from "../../../core/codemirror/format";
+import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
+import type { AppMode } from "../../../core/mode";
+import type { ConnectionStatus } from "../../../core/websocket/types";
+import { useHotkey } from "../../../hooks/useHotkey";
+import { type Theme, useTheme } from "../../../theme/useTheme";
+import { AddCellWithAI } from "../ai/add-cell-with-ai";
+import { ConnectingAlert } from "../alerts/connecting-alert";
+import { useDeleteCellCallback } from "../cell/useDeleteCell";
+import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
+import { useChromeActions } from "../chrome/state";
+import { Column } from "../columns/cell-column";
+import { NotebookBanner } from "../notebook-banner";
 import { StdinBlockingAlert } from "../stdin-blocking-alert";
+import { useFocusFirstEditor } from "./vertical-layout/useFocusFirstEditor";
+import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
 
 interface CellArrayProps {
   mode: AppMode;
@@ -88,7 +88,9 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   const actions = useCellActions();
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
-  const { invisible } = useDelayVisibility(notebook.cellIds.idLength, mode);
+
+  // Side-effects
+  useFocusFirstEditor();
 
   // HOTKEYS
   useHotkey("global.focusTop", actions.focusTopCell);
@@ -122,12 +124,13 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
     <VerticalLayoutWrapper
       // 'pb' allows the user to put the cell in the middle of the screen
       className="pb-[40vh]"
-      invisible={invisible}
+      invisible={false}
       appConfig={appConfig}
       innerClassName="pr-4" // For the floating actions
     >
       <PackageAlert />
       <StdinBlockingAlert />
+      <ConnectingAlert />
       <NotebookBanner width={appConfig.width} />
       <div
         className={cn(
@@ -149,7 +152,6 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
             actions={actions}
             theme={theme}
             hasOnlyOneCell={hasOnlyOneCell}
-            invisible={invisible}
             hasSetupCell={hasSetupCell}
             onDeleteCell={onDeleteCell}
           />
@@ -175,7 +177,6 @@ const CellColumn: React.FC<{
   actions: CellActions;
   theme: Theme;
   hasOnlyOneCell: boolean;
-  invisible: boolean;
   hasSetupCell: boolean;
   onDeleteCell: (payload: { cellId: CellId }) => void;
 }> = ({
@@ -190,11 +191,10 @@ const CellColumn: React.FC<{
   actions,
   theme,
   hasOnlyOneCell,
-  invisible,
   hasSetupCell,
   onDeleteCell,
 }) => {
-  const appClosed = connStatus.state !== WebSocketState.OPEN;
+  const connectionState = connStatus.state;
 
   return (
     <Column
@@ -225,7 +225,6 @@ const CellColumn: React.FC<{
             key={SETUP_CELL_ID}
             theme={theme}
             showPlaceholder={false}
-            allowFocus={!invisible}
             {...notebook.cellData[SETUP_CELL_ID]}
             {...notebook.cellRuntime[SETUP_CELL_ID]}
             {...actions}
@@ -236,7 +235,7 @@ const CellColumn: React.FC<{
             }
             canDelete={true}
             mode={mode}
-            appClosed={appClosed}
+            connectionState={connectionState}
             ref={notebook.cellHandles[SETUP_CELL_ID]}
             userConfig={userConfig}
             isCollapsed={false}
@@ -260,7 +259,6 @@ const CellColumn: React.FC<{
               key={cellData.id.toString()}
               theme={theme}
               showPlaceholder={hasOnlyOneCell}
-              allowFocus={!invisible}
               {...cellData}
               {...cellRuntime}
               runElapsedTimeMs={
@@ -269,7 +267,7 @@ const CellColumn: React.FC<{
               }
               canDelete={!hasOnlyOneCell}
               mode={mode}
-              appClosed={appClosed}
+              connectionState={connectionState}
               ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
               config={cellData.config}
@@ -292,9 +290,9 @@ const AddCellButtons: React.FC<{
   className?: string;
 }> = ({ columnId, className }) => {
   const { createNewCell } = useCellActions();
-  const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
+  const isConnected = useAtomValue(isConnectedAtom);
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
@@ -312,6 +310,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
+          disabled={!isConnected}
           onClick={() =>
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -326,13 +325,15 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
+          disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport(autoInstantiate, createNewCell);
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
             createNewCell({
               cellId: { type: "__end__", columnId },
               before: false,
               code: new MarkdownLanguageAdapter().defaultCode,
+              hideCode: true,
             });
           }}
         >
@@ -343,8 +344,9 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
+          disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport(autoInstantiate, createNewCell);
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -367,7 +369,7 @@ const AddCellButtons: React.FC<{
             className={buttonClass}
             variant="text"
             size="sm"
-            disabled={!aiEnabled}
+            disabled={!aiEnabled || !isConnected}
             onClick={isAiButtonOpenActions.toggle}
           >
             <SparklesIcon className="mr-2 size-4 flex-shrink-0" />

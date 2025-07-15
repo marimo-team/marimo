@@ -1,38 +1,37 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { Atom } from "jotai";
+import { MapPinIcon } from "lucide-react";
+import React, { type PropsWithChildren, useEffect, useState } from "react";
+import useEvent from "react-use-event-hook";
 import ReactFlow, {
-  useEdgesState,
-  useNodesState,
-  Controls,
   Background,
   BackgroundVariant,
-  type Node,
-  type Edge,
   ControlButton,
+  Controls,
+  type Edge,
+  type Node,
+  useEdgesState,
+  useNodesState,
   useReactFlow,
 } from "reactflow";
-
-import React, { type PropsWithChildren, useEffect, useState } from "react";
 import {
   EdgeMarkerContext,
   nodeTypes,
 } from "@/components/dependency-graph/custom-node";
-import type { Variables } from "@/core/variables/types";
+import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import type { CellData } from "@/core/cells/types";
-import type { Atom } from "jotai";
-
-import { type NodeData, TreeElementsBuilder } from "./elements";
-import { layoutElements } from "./utils/layout";
-import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
-import useEvent from "react-use-event-hook";
-import { scrollAndHighlightCell } from "../editor/links/cell-link";
-import { GraphSelectionPanel } from "./panels";
-import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
-import { MapPinIcon } from "lucide-react";
 import { store } from "@/core/state/jotai";
-import { lastFocusedCellIdAtom } from "@/core/cells/focus";
-import { Tooltip } from "../ui/tooltip";
+import type { Variables } from "@/core/variables/types";
 import { Events } from "@/utils/events";
+import { scrollAndHighlightCell } from "../editor/links/cell-link";
+import { Tooltip } from "../ui/tooltip";
+import { type NodeData, TreeElementsBuilder } from "./elements";
+import { GraphSelectionPanel } from "./panels";
+import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
+import { layoutElements } from "./utils/layout";
+import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 
 interface Props {
   cellIds: CellId[];
@@ -60,7 +59,9 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
       variables,
       settings.hidePureMarkdown,
     );
-    elements = layoutElements(elements.nodes, elements.edges, {
+    elements = layoutElements({
+      nodes: elements.nodes,
+      edges: elements.edges,
       direction: layoutDirection,
     });
 
@@ -75,7 +76,9 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   const syncChanges = useEvent(
     (elements: { nodes: Array<Node<NodeData>>; edges: Edge[] }) => {
       // Layout the elements
-      const result = layoutElements(elements.nodes, elements.edges, {
+      const result = layoutElements({
+        nodes: elements.nodes,
+        edges: elements.edges,
         direction: layoutDirection,
       });
       setNodes(result.nodes);
@@ -103,7 +106,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   };
 
   return (
-    <EdgeMarkerContext.Provider value={layoutDirection}>
+    <EdgeMarkerContext value={layoutDirection}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -173,6 +176,6 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         />
         {children}
       </ReactFlow>
-    </EdgeMarkerContext.Provider>
+    </EdgeMarkerContext>
   );
 };

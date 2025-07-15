@@ -1,15 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { notebookStateFromSession } from "../session";
-import { Logger } from "@/utils/Logger";
-import { parseOutline } from "@/core/dom/outline";
-import { MultiColumn } from "@/utils/id-tree";
 import type * as api from "@marimo-team/marimo-api";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { parseOutline } from "@/core/dom/outline";
+import { MultiColumn, visibleForTesting } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
 import type { CellId } from "../ids";
-import { visibleForTesting } from "@/utils/id-tree";
+import { notebookStateFromSession } from "../session";
 
 // Mock dependencies
 vi.mock("@/utils/Logger", () => ({
@@ -41,9 +40,10 @@ describe("notebookStateFromSession", () => {
     id: string,
     outputs: SessionCell["outputs"] = [],
     console: SessionCell["console"] = [],
+    code_hash: string | null = null,
   ): SessionCell => ({
     id,
-    code_hash: null,
+    code_hash,
     outputs,
     console,
   });
@@ -53,9 +53,11 @@ describe("notebookStateFromSession", () => {
     code: string | null = null,
     name: string | null = null,
     config: NotebookCell["config"] | null = null,
+    code_hash: string | null = null,
   ): NotebookCell => ({
     id,
     code,
+    code_hash: code_hash,
     name,
     config: {
       column: config?.column ?? null,
@@ -83,9 +85,6 @@ describe("notebookStateFromSession", () => {
   describe("validation", () => {
     it("logs error for both session and notebook null/undefined", () => {
       const result = notebookStateFromSession(null, null);
-      expect(Logger.error).toHaveBeenCalledWith(
-        "Both session and notebook are null/undefined",
-      );
       expect(result).toBeNull();
     });
 
@@ -95,10 +94,15 @@ describe("notebookStateFromSession", () => {
 
       const result = notebookStateFromSession(session, notebook);
 
-      expect(Logger.error).toHaveBeenCalledWith(
-        "Session and notebook must have the same cells if both are provided",
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "Session and notebook have different cells, attempted merge.",
       );
-      expect(result).toBeNull();
+      // Should have the same cell structure as notebook
+      expect(result).not.toBeNull();
+      invariant(result, "result is null");
+      expect(result.cellIds.inOrderIds).toEqual(
+        MultiColumn.from([["cell-2"]]).inOrderIds,
+      );
     });
   });
 
@@ -129,7 +133,7 @@ describe("notebookStateFromSession", () => {
       expect(result.cellIds.inOrderIds).toEqual(
         MultiColumn.from([[CELL_1]]).inOrderIds,
       );
-      expect(result.cellData[CELL_1]).toBeUndefined();
+      expect(result.cellData[CELL_1].code).toBe("");
       expect(result.cellRuntime[CELL_1]).toBeDefined();
     });
 
@@ -145,7 +149,10 @@ describe("notebookStateFromSession", () => {
       expect(result.cellIds.inOrderIds).toEqual(
         MultiColumn.from([["cell-1", "cell-2"]]).inOrderIds,
       );
-      expect(Object.keys((result as any).cellData)).toEqual([]);
+      expect(Object.keys((result as any).cellData)).toEqual([
+        "cell-1",
+        "cell-2",
+      ]);
       expect(Object.keys((result as any).cellRuntime)).toEqual([
         "cell-1",
         "cell-2",
@@ -314,6 +321,7 @@ describe("notebookStateFromSession", () => {
         id: "cell-1",
         code: null,
         name: null,
+        code_hash: null,
         config: {
           hide_code: null,
           disabled: null,
@@ -555,6 +563,195 @@ describe("notebookStateFromSession", () => {
       expect(result.history).toEqual([]);
       expect(result.scrollKey).toBeNull();
       expect(result.cellLogs).toEqual([]);
+    });
+  });
+
+  describe("session and notebook merge with code values abcdef", () => {
+    it("merges session and notebook with code values a-f and correct hashes", () => {
+      // md5 hashes for 'a' through 'f'
+      const hashes = {
+        a: "0cc175b9c0f1b6a831c399e269772661",
+        b: "92eb5ffee6ae2fec3ad71c777531578f",
+        c: "4a8a08f09d37b73795649038408b5f33",
+        d: "8277e0910d750195b448797616e091ad",
+        e: "e1671797c52e15f763380b45e841ec32",
+        f: "8fa14cdd754f91cc6554c9e71929cce7",
+      };
+      // Create notebook cells with code values 'a' through 'f'
+      const notebookCells = [
+        createNotebookCell("cell-a", "a", null, null, hashes.a),
+        createNotebookCell("cell-b", "b", null, null, hashes.b),
+        createNotebookCell("cell-c", "c", null, null, hashes.c),
+        createNotebookCell("cell-d", "d", null, null, hashes.d),
+        createNotebookCell("cell-e", "e", null, null, hashes.e),
+        createNotebookCell("cell-f", "f", null, null, hashes.f),
+      ];
+      // Create session cells with matching code_hashes
+      const sessionCells = [
+        createSessionCell(
+          "cell-a",
+          [{ type: "data", data: { "text/plain": "A!" } }],
+          [],
+          hashes.a,
+        ),
+        createSessionCell(
+          "cell-b",
+          [{ type: "data", data: { "text/plain": "B!" } }],
+          [],
+          hashes.b,
+        ),
+        createSessionCell(
+          "cell-c",
+          [{ type: "data", data: { "text/plain": "C!" } }],
+          [],
+          hashes.c,
+        ),
+        createSessionCell(
+          "cell-d",
+          [{ type: "data", data: { "text/plain": "D!" } }],
+          [],
+          hashes.d,
+        ),
+        createSessionCell(
+          "cell-e",
+          [{ type: "data", data: { "text/plain": "E!" } }],
+          [],
+          hashes.e,
+        ),
+        createSessionCell(
+          "cell-f",
+          [{ type: "data", data: { "text/plain": "F!" } }],
+          [],
+          hashes.f,
+        ),
+      ];
+      const session = createSession(sessionCells);
+      const notebook = createNotebook(notebookCells);
+      const result = notebookStateFromSession(session, notebook);
+      expect(result).not.toBeNull();
+      invariant(result, "result is null");
+      // Should have all cell IDs in order
+      expect(result.cellIds.inOrderIds).toEqual(
+        MultiColumn.from([
+          ["cell-a", "cell-b", "cell-c", "cell-d", "cell-e", "cell-f"],
+        ]).inOrderIds,
+      );
+      // Should have correct code and output for each cell
+      for (const code of ["a", "b", "c", "d", "e", "f"]) {
+        const cellId = `cell-${code}` as CellId;
+        expect(result.cellData[cellId].code).toBe(code);
+        expect(result.cellRuntime[cellId].output).toEqual({
+          channel: "output",
+          data: `${code.toUpperCase()}!`,
+          mimetype: "text/plain",
+          timestamp: 0,
+        });
+      }
+    });
+
+    it("merges session and notebook with abcde -> aczeg edit distance scenario", () => {
+      // md5 hashes for the codes
+      const hashes = {
+        a: "0cc175b9c0f1b6a831c399e269772661",
+        b: "92eb5ffee6ae2fec3ad71c777531578f",
+        c: "4a8a08f09d37b73795649038408b5f33",
+        d: "8277e0910d750195b448797616e091ad",
+        e: "e1671797c52e15f763380b45e841ec32",
+        z: "fbade9e36a3f36d3d676c1b808451dd7", // hash for 'z'
+        g: "b2f5ff47436671b6e533d8dc3614845d", // hash for 'g'
+      };
+
+      // Session has cells with code 'a', 'b', 'c', 'd', 'e'
+      const sessionCells = [
+        createSessionCell(
+          "cell-a",
+          [{ type: "data", data: { "text/plain": "A!" } }],
+          [],
+          hashes.a,
+        ),
+        createSessionCell(
+          "cell-b",
+          [{ type: "data", data: { "text/plain": "B!" } }],
+          [],
+          hashes.b,
+        ),
+        createSessionCell(
+          "cell-c",
+          [{ type: "data", data: { "text/plain": "C!" } }],
+          [],
+          hashes.c,
+        ),
+        createSessionCell(
+          "cell-d",
+          [{ type: "data", data: { "text/plain": "D!" } }],
+          [],
+          hashes.d,
+        ),
+        createSessionCell(
+          "cell-e",
+          [{ type: "data", data: { "text/plain": "E!" } }],
+          [],
+          hashes.e,
+        ),
+      ];
+
+      // Notebook has cells with code 'a', 'c', 'z', 'e', 'g'
+      const notebookCells = [
+        createNotebookCell("cell-a", "a", null, null, hashes.a),
+        createNotebookCell("cell-c", "c", null, null, hashes.c),
+        createNotebookCell("cell-z", "z", null, null, hashes.z),
+        createNotebookCell("cell-e", "e", null, null, hashes.e),
+        createNotebookCell("cell-g", "g", null, null, hashes.g),
+      ];
+
+      const session = createSession(sessionCells);
+      const notebook = createNotebook(notebookCells);
+      const result = notebookStateFromSession(session, notebook);
+
+      expect(result).not.toBeNull();
+      invariant(result, "result is null");
+
+      // Should have notebook cell IDs in order (notebook is canonical)
+      expect(result.cellIds.inOrderIds).toEqual(
+        MultiColumn.from([["cell-a", "cell-c", "cell-z", "cell-e", "cell-g"]])
+          .inOrderIds,
+      );
+
+      // Should have correct code for each cell
+      expect(result.cellData["cell-a" as CellId].code).toBe("a");
+      expect(result.cellData["cell-c" as CellId].code).toBe("c");
+      expect(result.cellData["cell-z" as CellId].code).toBe("z");
+      expect(result.cellData["cell-e" as CellId].code).toBe("e");
+      expect(result.cellData["cell-g" as CellId].code).toBe("g");
+
+      // Should have session outputs for matching cells (a, c, e)
+      expect(result.cellRuntime["cell-a" as CellId].output).toEqual({
+        channel: "output",
+        data: "A!",
+        mimetype: "text/plain",
+        timestamp: 0,
+      });
+      expect(result.cellRuntime["cell-c" as CellId].output).toEqual({
+        channel: "output",
+        data: "C!",
+        mimetype: "text/plain",
+        timestamp: 0,
+      });
+      expect(result.cellRuntime["cell-e" as CellId].output).toEqual({
+        channel: "output",
+        data: "E!",
+        mimetype: "text/plain",
+        timestamp: 0,
+      });
+
+      // Should have no output for new cells (z, g) - they get stub session cells
+      expect(result.cellRuntime["cell-z" as CellId].output).toBeNull();
+      expect(result.cellRuntime["cell-g" as CellId].output).toBeNull();
+
+      // Should log warning about different cells
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "Session and notebook have different cells, attempted merge.",
+      );
     });
   });
 });

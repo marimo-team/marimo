@@ -1,23 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
-import { SQLLanguageAdapter } from "../languages/sql";
+import { InfoIcon, PaintRollerIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { normalizeName } from "@/core/cells/names";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
-import { InfoIcon, PaintRollerIcon } from "lucide-react";
-
 import { formatSQL } from "../../format";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { languageAdapterState } from "../extension";
 import { MarkdownLanguageAdapter } from "../languages/markdown";
-import type { QuotePrefixKind } from "../utils/quotes";
-import { Checkbox } from "@/components/ui/checkbox";
+import { SQLLanguageAdapter } from "../languages/sql";
 import {
   type LanguageMetadata,
   languageMetadataField,
   updateLanguageMetadata,
 } from "../metadata";
 import type { LanguageMetadataOf } from "../types";
-import { languageAdapterState } from "../extension";
+import type { QuotePrefixKind } from "../utils/quotes";
 import { getQuotePrefix, MarkdownQuotePrefixTooltip } from "./markdown";
 import { SQLEngineSelect } from "./sql";
 
@@ -45,8 +44,8 @@ export const LanguagePanelComponent: React.FC<{
   };
 
   if (languageAdapter instanceof SQLLanguageAdapter) {
-    type Metadata = LanguageMetadataOf<SQLLanguageAdapter>;
-    const metadata = view.state.field(languageMetadataField) as Metadata;
+    type Metadata1 = LanguageMetadataOf<SQLLanguageAdapter>;
+    const metadata = view.state.field(languageMetadataField) as Metadata1;
 
     showDivider = true;
 
@@ -57,7 +56,7 @@ export const LanguagePanelComponent: React.FC<{
       const name = normalizeName(e.currentTarget.value, false);
       e.currentTarget.value = name;
 
-      triggerUpdate<Metadata>({
+      triggerUpdate<Metadata1>({
         dataframeName: name,
       });
     };
@@ -85,7 +84,7 @@ export const LanguagePanelComponent: React.FC<{
         <SQLEngineSelect
           selectedEngine={metadata.engine}
           onChange={(engine) => {
-            triggerUpdate<Metadata>({ engine });
+            triggerUpdate<Metadata1>({ engine });
           }}
         />
         <div className="flex items-center gap-2 ml-auto">
@@ -105,7 +104,7 @@ export const LanguagePanelComponent: React.FC<{
             <input
               type="checkbox"
               onChange={(e) => {
-                triggerUpdate<Metadata>({
+                triggerUpdate<Metadata1>({
                   showOutput: !e.target.checked,
                 });
               }}
@@ -121,14 +120,14 @@ export const LanguagePanelComponent: React.FC<{
   if (languageAdapter instanceof MarkdownLanguageAdapter) {
     showDivider = true;
 
-    type Metadata = LanguageMetadataOf<MarkdownLanguageAdapter>;
-    const metadata = view.state.field(languageMetadataField) as Metadata;
+    type Metadata2 = LanguageMetadataOf<MarkdownLanguageAdapter>;
+    const metadata = view.state.field(languageMetadataField) as Metadata2;
     let { quotePrefix } = metadata;
 
     // Handle the case where the quote prefix is not set
     if (quotePrefix === undefined) {
       quotePrefix = "r";
-      triggerUpdate<Metadata>({ quotePrefix });
+      triggerUpdate<Metadata2>({ quotePrefix });
     }
 
     const togglePrefix = (
@@ -138,8 +137,12 @@ export const LanguagePanelComponent: React.FC<{
       if (typeof checked !== "boolean") {
         return;
       }
-      const newPrefix = getQuotePrefix(quotePrefix, checked, prefix);
-      triggerUpdate<Metadata>({
+      const newPrefix = getQuotePrefix({
+        currentQuotePrefix: quotePrefix,
+        checked,
+        prefix,
+      });
+      triggerUpdate<Metadata2>({
         quotePrefix: newPrefix,
       });
     };

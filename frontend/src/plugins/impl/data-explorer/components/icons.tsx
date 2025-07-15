@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { PrimitiveType } from "compassql/build/src/schema";
 import {
-  ToggleLeftIcon,
   CalendarIcon,
   HashIcon,
-  TypeIcon,
   ListOrderedIcon,
+  ToggleLeftIcon,
+  TypeIcon,
 } from "lucide-react";
 
 /**

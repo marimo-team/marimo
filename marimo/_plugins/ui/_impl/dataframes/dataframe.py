@@ -27,6 +27,7 @@ from marimo._plugins.ui._impl.table import (
     SearchTableArgs,
     SearchTableResponse,
     SortArgs,
+    TableSearchError,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
@@ -256,7 +257,13 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         )
 
         # Save the manager to be used for selection
-        data = result.take(args.page_size, offset).to_json_str()
+        try:
+            data = result.take(args.page_size, offset).to_json_str()
+        except BaseException as e:
+            # Catch and re-raise the error as a non-BaseException
+            # to avoid crashing the kernel
+            raise TableSearchError(str(e)) from e
+
         return SearchTableResponse(
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,

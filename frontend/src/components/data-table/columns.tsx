@@ -1,36 +1,38 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
+import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { DataTableColumnHeader } from "./column-header";
-import { Checkbox } from "../ui/checkbox";
-import { getMimeValues, MimeCell } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import { cn } from "@/utils/cn";
+import { exactDateTime } from "@/utils/dates";
+import { Logger } from "@/utils/Logger";
+import { Maps } from "@/utils/maps";
+import { Objects } from "@/utils/objects";
+import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
+import { JsonOutput } from "../editor/output/JsonOutput";
+import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import type { ColumnChartSpecModel } from "./chart-spec-model";
+import { DataTableColumnHeader } from "./column-header";
 import { TableColumnSummary } from "./column-summary";
+import { DatePopover } from "./date-popover";
 import type { FilterType } from "./filters";
+import { getMimeValues, MimeCell } from "./mime-cell";
 import {
   type DataTableSelection,
-  INDEX_COLUMN_NAME,
-  type FieldTypesWithExternalType,
   extractTimezone,
+  type FieldTypesWithExternalType,
+  INDEX_COLUMN_NAME,
 } from "./types";
-import { parseContent, UrlDetector } from "./url-detector";
-import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
-import { DatePopover } from "./date-popover";
-import { Objects } from "@/utils/objects";
-import { Maps } from "@/utils/maps";
-import { exactDateTime } from "@/utils/dates";
-import { JsonOutput } from "../editor/output/JsonOutput";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
-import { PopoverClose } from "@radix-ui/react-popover";
-import { Button } from "../ui/button";
-import type { ColumnChartSpecModel } from "./chart-spec-model";
-import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import { parseContent, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
+const SELECT_ID = "__select__";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -67,12 +69,12 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
   // This can be slow for large datasets,
   // so only sample 10 evenly distributed rows
   uniformSample(items, 10).forEach((item) => {
-    if (typeof item !== "object") {
+    if (typeof item !== "object" || item === null) {
       return;
     }
     // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
-    Object.entries(item as object).forEach(([key, value], idx) => {
+    Object.entries(item).forEach(([key, value]) => {
       const currentValue = fieldTypes[key];
       if (!currentValue) {
         // Set for the first time
@@ -151,8 +153,7 @@ export function generateColumns<T>({
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
       accessorFn: (row) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (row as any)[key];
+        return row[key as keyof T];
       },
 
       header: ({ column }) => {
@@ -245,7 +246,7 @@ export function generateColumns<T>({
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
-      id: "__select__",
+      id: SELECT_ID,
       maxSize: 40,
       header: ({ table }) =>
         selection === "multi" ? (
@@ -266,6 +267,10 @@ export function generateColumns<T>({
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
           className="mx-2"
+          onMouseDown={(e) => {
+            // Prevent cell underneath from being selected
+            e.stopPropagation();
+          }}
         />
       ),
       enableSorting: false,
@@ -294,7 +299,14 @@ const PopoutColumn = ({
   return (
     <EmotionCacheProvider container={null}>
       <Popover>
-        <PopoverTrigger className={cellStyles} onClick={selectCell}>
+        <PopoverTrigger
+          className={cn(cellStyles, "w-fit outline-none")}
+          onClick={selectCell}
+          onMouseDown={(e) => {
+            // Prevent cell underneath from being selected
+            e.stopPropagation();
+          }}
+        >
           <span
             className="cursor-pointer hover:text-link"
             title={rawStringValue}
@@ -302,7 +314,11 @@ const PopoutColumn = ({
             {rawStringValue}
           </span>
         </PopoverTrigger>
-        <PopoverContent className={contentClassName}>
+        <PopoverContent
+          className={contentClassName}
+          align="start"
+          alignOffset={10}
+        >
           <PopoverClose className="absolute top-2 right-2">
             <Button variant="link" size="xs">
               {buttonText ?? "Close"}
@@ -380,6 +396,20 @@ function renderAny(value: unknown): string {
   }
 }
 
+function renderDate(
+  value: Date,
+  dataType?: DataType,
+  dtype?: string,
+): React.ReactNode {
+  const type = dataType === "date" ? "date" : "datetime";
+  const timezone = extractTimezone(dtype);
+  return (
+    <DatePopover date={value} type={type}>
+      {exactDateTime(value, timezone)}
+    </DatePopover>
+  );
+}
+
 export function renderCellValue<TData, TValue>(
   column: Column<TData, TValue>,
   renderValue: () => TValue | null,
@@ -389,6 +419,23 @@ export function renderCellValue<TData, TValue>(
 ) {
   const value = getValue();
   const format = column.getColumnFormatting?.();
+
+  const dataType = column.columnDef.meta?.dataType;
+  const dtype = column.columnDef.meta?.dtype;
+
+  if (dataType === "datetime" && typeof value === "string") {
+    try {
+      const date = new Date(value);
+      return renderDate(date, dataType, dtype);
+    } catch (error) {
+      Logger.error("Error parsing datetime, fallback to string", error);
+    }
+  }
+
+  if (value instanceof Date) {
+    // e.g. 2010-10-07 17:15:00
+    return renderDate(value, dataType, dtype);
+  }
 
   if (typeof value === "string") {
     const stringValue = format
@@ -431,20 +478,6 @@ export function renderCellValue<TData, TValue>(
     return (
       <div onClick={selectCell} className={cellStyles}>
         {rendered == null ? "" : String(rendered)}
-      </div>
-    );
-  }
-
-  if (value instanceof Date) {
-    // e.g. 2010-10-07 17:15:00
-    const type =
-      column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
-    const timezone = extractTimezone(column.columnDef.meta?.dtype);
-    return (
-      <div onClick={selectCell} className={cellStyles}>
-        <DatePopover date={value} type={type}>
-          {exactDateTime(value, timezone)}
-        </DatePopover>
       </div>
     );
   }

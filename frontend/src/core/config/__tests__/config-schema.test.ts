@@ -1,14 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, test } from "vitest";
+
 import { createStore } from "jotai";
+import { expect, test } from "vitest";
+import {
+  configOverridesAtom,
+  resolvedMarimoConfigAtom,
+  userConfigAtom,
+} from "../config";
 import {
   AppConfigSchema,
   type UserConfig,
   UserConfigSchema,
 } from "../config-schema";
-import { resolvedMarimoConfigAtom } from "../config";
-import { userConfigAtom } from "../config";
-import { configOverridesAtom } from "../config";
 
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
@@ -41,6 +44,7 @@ test("default UserConfig - empty", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "mode": "manual",
         "rules": "",
       },
       "completion": {
@@ -51,8 +55,10 @@ test("default UserConfig - empty", () => {
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",
+        "default_table_max_columns": 50,
         "default_table_page_size": 10,
         "default_width": "medium",
+        "reference_highlighting": false,
         "theme": "light",
       },
       "experimental": {},
@@ -96,6 +102,7 @@ test("default UserConfig - one level", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "mode": "manual",
         "rules": "",
       },
       "completion": {
@@ -106,8 +113,10 @@ test("default UserConfig - one level", () => {
         "cell_output": "above",
         "code_editor_font_size": 14,
         "dataframes": "rich",
+        "default_table_max_columns": 50,
         "default_table_page_size": 10,
         "default_width": "medium",
+        "reference_highlighting": false,
         "theme": "light",
       },
       "experimental": {},

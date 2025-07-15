@@ -66,9 +66,9 @@ def python_print_pandas(
             )
         elif operator in [">", ">=", "<", "<="]:
             return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
-        elif operator == "is_nan":
+        elif operator == "is_null":
             return f"{df_name}[{_as_literal(column_id)}].isna()"
-        elif operator == "is_not_nan":
+        elif operator == "is_not_null":
             return f"{df_name}[{_as_literal(column_id)}].notna()"
         elif operator == "is_true":
             return f"{df_name}[{_as_literal(column_id)}].eq(True)"
@@ -211,9 +211,9 @@ def python_print_polars(
             return f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
         elif operator in [">", ">=", "<", "<="]:
             return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"  # noqa: E501
-        elif operator == "is_nan":
+        elif operator == "is_null":
             return f"pl.col({_as_literal(column_id)}).is_null()"
-        elif operator == "is_not_nan":
+        elif operator == "is_not_null":
             return f"pl.col({_as_literal(column_id)}).is_not_null()"
         elif operator == "is_true":
             return f"pl.col({_as_literal(column_id)}) == True"
@@ -367,9 +367,9 @@ def python_print_ibis(
             return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
         elif operator in [">", ">=", "<", "<="]:
             return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
-        elif operator == "is_nan":
+        elif operator == "is_null":
             return f"{df_name}[{_as_literal(column_id)}].isnull()"
-        elif operator == "is_not_nan":
+        elif operator == "is_not_null":
             return f"{df_name}[{_as_literal(column_id)}].notnull()"
         elif operator == "is_true":
             return f"{df_name}[{_as_literal(column_id)}] == True"

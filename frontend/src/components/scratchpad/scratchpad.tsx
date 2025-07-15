@@ -1,44 +1,45 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type React from "react";
-import { useResolvedMarimoConfig } from "@/core/config/config";
-import { useRef, useState } from "react";
-import { useTheme } from "@/theme/useTheme";
-import { CellEditor } from "../editor/cell/code/cell-editor";
-import { HTMLCellId } from "@/core/cells/ids";
-import { Functions } from "@/utils/functions";
+
 import type { EditorView } from "@codemirror/view";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  BetweenHorizontalStartIcon,
+  EraserIcon,
+  HistoryIcon,
+  PlayIcon,
+} from "lucide-react";
+import type React from "react";
+import { Suspense, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { sendRunScratchpad } from "@/core/network/requests";
-import { OutputArea } from "../editor/Output";
-import { ConsoleOutput } from "../editor/output/ConsoleOutput";
 import {
   SCRATCH_CELL_ID,
   useCellActions,
   useNotebook,
 } from "@/core/cells/cells";
-import { DEFAULT_CELL_NAME } from "@/core/cells/names";
-import { Button } from "../ui/button";
-import { Tooltip } from "../ui/tooltip";
-import { renderShortcut } from "../shortcuts/renderShortcut";
-import {
-  BetweenHorizontalStartIcon,
-  EraserIcon,
-  PlayIcon,
-  HistoryIcon,
-} from "lucide-react";
-import { HideInKioskMode } from "../editor/kiosk-mode";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import { Spinner } from "../icons/spinner";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import {
-  addToHistoryAtom,
-  scratchpadHistoryAtom,
-  historyVisibleAtom,
-} from "./scratchpad-history";
-import { cn } from "@/utils/cn";
+import { HTMLCellId } from "@/core/cells/ids";
+import { DEFAULT_CELL_NAME } from "@/core/cells/names";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import { sendRunScratchpad } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
-import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { useTheme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { Functions } from "@/utils/functions";
+import { CellEditor } from "../editor/cell/code/cell-editor";
+import { HideInKioskMode } from "../editor/kiosk-mode";
+import { OutputArea } from "../editor/Output";
+import { ConsoleOutput } from "../editor/output/ConsoleOutput";
+import { Spinner } from "../icons/spinner";
+import { renderShortcut } from "../shortcuts/renderShortcut";
+import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
+import {
+  addToHistoryAtom,
+  historyVisibleAtom,
+  scratchpadHistoryAtom,
+} from "./scratchpad-history";
 
 const scratchpadCellConfig: CellConfig = {
   hide_code: false,
@@ -66,7 +67,7 @@ export const ScratchPad: React.FC = () => {
   const history = useAtomValue(scratchpadHistoryAtom);
 
   const handleRun = useEvent(() => {
-    sendRunScratchpad({ code });
+    void sendRunScratchpad({ code });
     addToHistory(code);
   });
 
@@ -87,7 +88,7 @@ export const ScratchPad: React.FC = () => {
       code: "",
       formattingChange: false,
     });
-    sendRunScratchpad({ code: "" });
+    void sendRunScratchpad({ code: "" });
     const ev = ref.current;
     if (ev) {
       ev.dispatch({
@@ -129,7 +130,6 @@ export const ScratchPad: React.FC = () => {
         <div className="overflow-auto flex-shrink-0 max-h-[40%]">
           <CellEditor
             theme={theme}
-            allowFocus={false}
             showPlaceholder={false}
             id={cellId}
             code={code}
@@ -143,7 +143,7 @@ export const ScratchPad: React.FC = () => {
               ref.current = ev;
             }}
             hidden={false}
-            temporarilyShowCode={Functions.NOOP}
+            showHiddenCode={Functions.NOOP}
             languageAdapter={languageAdapter}
             setLanguageAdapter={setLanguageAdapter}
           />
@@ -186,17 +186,19 @@ export const ScratchPad: React.FC = () => {
               className="border rounded-md hover:shadow-sm cursor-pointer hover:border-input overflow-hidden"
               onClick={() => handleSelectHistoryItem(item)}
             >
-              <LazyAnyLanguageCodeMirror
-                language="python"
-                theme={theme}
-                basicSetup={{
-                  highlightActiveLine: false,
-                  highlightActiveLineGutter: false,
-                }}
-                value={item.trim()}
-                editable={false}
-                readOnly={true}
-              />
+              <Suspense>
+                <LazyAnyLanguageCodeMirror
+                  language="python"
+                  theme={theme}
+                  basicSetup={{
+                    highlightActiveLine: false,
+                    highlightActiveLineGutter: false,
+                  }}
+                  value={item.trim()}
+                  editable={false}
+                  readOnly={true}
+                />
+              </Suspense>
             </div>
           ))}
         </div>

@@ -1,9 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
-  deserializeBase64,
   type Base64String,
+  type ByteString,
+  base64ToDataURL,
+  byteStringToBinary,
+  type DataURLString,
+  deserializeBase64,
+  extractBase64FromDataURL,
+  isDataURLString,
   type JsonString,
+  typedAtob,
+  typedBtoa,
 } from "../base64";
 
 describe("base64Utils", () => {
@@ -31,6 +39,57 @@ describe("base64Utils", () => {
     const base64Encoded = serializeJsonToBase64(testData);
     const jsonDecoded = deserializeBase64(base64Encoded);
     expect(JSON.parse(jsonDecoded)).toEqual(testData);
+  });
+
+  test("base64ToDataURL should create proper data URL", () => {
+    const base64 = "SGVsbG8=" as Base64String;
+    const result = base64ToDataURL(base64, "text/plain");
+    expect(result).toBe("data:text/plain;base64,SGVsbG8=");
+  });
+
+  test("typedAtob and typedBtoa should be reversible", () => {
+    const original = "hello world" as ByteString;
+    const encoded = typedBtoa(original);
+    const decoded = typedAtob(encoded);
+    expect(decoded).toBe(original);
+  });
+
+  test.each([
+    ["data:text/plain;base64,SGVsbG8=", true],
+    ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA", true],
+    ["not-a-data-url", false],
+    ["base64,SGVsbG8=", false],
+  ])("isDataURLString(%s) should return %s", (input, expected) => {
+    expect(isDataURLString(input)).toBe(expected);
+  });
+
+  test("isDataURLString should reject data URLs without base64", () => {
+    expect(isDataURLString("data:text/plain,hello")).toBe(false);
+    expect(isDataURLString("data:text/plain;charset=utf-8,hello")).toBe(false);
+  });
+
+  test.each([
+    ["data:text/plain;base64,SGVsbG8=", "SGVsbG8="],
+    [
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA",
+      "iVBORw0KGgoAAAANSUhEUgA",
+    ],
+    ["data:application/json;base64,", ""],
+    ["data:text/html;charset=utf-8;base64,PGh0bWw+", "PGh0bWw+"],
+  ])("extractBase64FromDataURL(%s) should return %s", (dataUrl, expected) => {
+    expect(extractBase64FromDataURL(dataUrl as DataURLString)).toBe(expected);
+  });
+
+  test("byteStringToBinary should convert to Uint8Array", () => {
+    const bytes = "ABC" as ByteString;
+    const result = byteStringToBinary(bytes);
+    expect(result).toEqual(new Uint8Array([65, 66, 67]));
+  });
+
+  test("byteStringToBinary should handle empty string", () => {
+    const bytes = "" as ByteString;
+    const result = byteStringToBinary(bytes);
+    expect(result).toEqual(new Uint8Array([]));
   });
 });
 

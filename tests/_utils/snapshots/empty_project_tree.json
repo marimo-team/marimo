@@ -1,0 +1,13 @@
+{
+  "name": "<root>",
+  "version": null,
+  "tags": [],
+  "dependencies": [
+    {
+      "name": "blah",
+      "version": "0.1.0",
+      "tags": [],
+      "dependencies": []
+    }
+  ]
+}

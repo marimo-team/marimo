@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
-import { createPlugin } from "@/plugins/core/builder";
-import { rpc } from "@/plugins/core/rpc";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { ErrorBanner } from "../impl/common/error-banner";
-import { renderHTML } from "../core/RenderHTML";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { Loader2Icon } from "lucide-react";
+import type { JSX } from "react";
+import { z } from "zod";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { createPlugin } from "@/plugins/core/builder";
+import { rpc } from "@/plugins/core/rpc";
+import { renderHTML } from "../core/RenderHTML";
+import { ErrorBanner } from "../impl/common/error-banner";
 
 interface Data {
   showLoadingIndicator: boolean;
@@ -70,7 +71,7 @@ const LazyComponent = ({
   // We could improve performance if the BE was able to know if the same
   // mo.lazy has already been loaded, and when re-rendering it would
   // include the 'lazy' content by default (unlazily)
-  const { data, loading, error } = useAsyncData(
+  const { data, error, isPending } = useAsyncData(
     (ctx) => {
       if (!value) {
         ctx.previous();
@@ -87,7 +88,7 @@ const LazyComponent = ({
 
   return (
     <div ref={ref} className="min-h-4">
-      {loading && !data && showLoadingIndicator ? (
+      {isPending && showLoadingIndicator ? (
         <Loader2Icon className="w-12 h-12 animate-spin text-primary my-4 mx-4" />
       ) : (
         data && renderHTML({ html: data.html })

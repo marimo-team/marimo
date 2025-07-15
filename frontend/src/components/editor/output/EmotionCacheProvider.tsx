@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type PropsWithChildren, useMemo } from "react";
+
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
+import { type PropsWithChildren, useMemo } from "react";
 
 /**
  * Custom Emotion cache provider that works in shadow roots.

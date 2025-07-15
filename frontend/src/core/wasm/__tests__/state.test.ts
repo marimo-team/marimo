@@ -1,20 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { store } from "@/core/state/jotai";
-import { hasAnyOutputAtom } from "../state";
-import { notebookAtom } from "@/core/cells/cells";
-import type { NotebookState } from "@/core/cells/cells";
-import { MultiColumn, CollapsibleTree } from "@/utils/id-tree";
-import type { OutputMessage } from "@/core/kernel/messages";
-import type { CellId } from "@/core/cells/ids";
+
 import { createRef } from "react";
-import { createCellRuntimeState } from "@/core/cells/types";
-import { createCell } from "@/core/cells/types";
+import { describe, expect, it } from "vitest";
+import type { NotebookState } from "@/core/cells/cells";
+import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { createCell, createCellRuntimeState } from "@/core/cells/types";
+import type { OutputMessage } from "@/core/kernel/messages";
+import { store } from "@/core/state/jotai";
+import { CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import { hasAnyOutputAtom } from "../state";
 
 describe("hasAnyOutputAtom", () => {
   const createNotebookState = (
     outputs: Array<OutputMessage | null>,
   ): NotebookState => ({
+    ...initialNotebookState(),
     cellIds: new MultiColumn([
       CollapsibleTree.from(outputs.map((_, i) => `${i}` as CellId)),
     ]),
@@ -37,9 +38,6 @@ describe("hasAnyOutputAtom", () => {
     cellHandles: Object.fromEntries(
       outputs.map((_, i) => [`${i}` as CellId, createRef()]),
     ),
-    cellLogs: [],
-    scrollKey: null,
-    history: [],
   });
 
   it("should return false when there are no outputs", () => {

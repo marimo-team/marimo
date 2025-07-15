@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { assertNever } from "@/utils/assertNever";
-import { DatabaseConnectionSchema, type DatabaseConnection } from "./schemas";
-// @ts-expect-error: no declaration file
+
 import dedent from "string-dedent";
+import { assertNever } from "@/utils/assertNever";
+import { type DatabaseConnection, DatabaseConnectionSchema } from "./schemas";
 import { isSecret, unprefixSecret } from "./secrets";
 
 export type ConnectionLibrary =

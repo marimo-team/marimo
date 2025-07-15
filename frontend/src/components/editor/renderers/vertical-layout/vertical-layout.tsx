@@ -1,15 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type React from "react";
-import { memo, useRef, useState } from "react";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { OutputArea } from "@/components/editor/Output";
-import type { ICellRendererPlugin, ICellRendererProps } from "../types";
-import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
-import { z } from "zod";
-import { useDelayVisibility } from "./useDelayVisibility";
-import { type AppMode, kioskModeAtom } from "@/core/mode";
-import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+
+import { useAtomValue } from "jotai";
 import {
   Check,
   Code2Icon,
@@ -17,29 +8,41 @@ import {
   ImageIcon,
   MoreHorizontalIcon,
 } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/button";
-import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
-import { isStaticNotebook } from "@/core/static/static-state";
+import type React from "react";
+import { memo, useRef, useState } from "react";
+import { z } from "zod";
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+import { OutputArea } from "@/components/editor/Output";
 import { ConsoleOutput } from "@/components/editor/output/ConsoleOutput";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
-  DropdownMenuItem,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuTrigger,
+  DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { downloadHTMLAsImage } from "@/utils/download";
-import { downloadAsHTML } from "@/core/static/download-html";
-import { isWasm } from "@/core/wasm/utils";
-import type { CellConfig } from "@/core/network/types";
-import { useAtomValue } from "jotai";
-import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
-import { KnownQueryParams } from "@/core/constants";
-import { useResolvedMarimoConfig } from "@/core/config/config";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
+import type { CellId } from "@/core/cells/ids";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { isErrorMime } from "@/core/mime";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import { KnownQueryParams } from "@/core/constants";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
+import { isErrorMime } from "@/core/mime";
+import { type AppMode, kioskModeAtom } from "@/core/mode";
+import type { CellConfig } from "@/core/network/types";
+import { downloadAsHTML } from "@/core/static/download-html";
+import { isStaticNotebook } from "@/core/static/static-state";
+import { isWasm } from "@/core/wasm/utils";
+import { cn } from "@/utils/cn";
+import { downloadHTMLAsImage } from "@/utils/download";
+import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
+import { cellDomProps } from "../../common";
+import type { ICellRendererPlugin, ICellRendererProps } from "../types";
+import { useDelayVisibility } from "./useDelayVisibility";
+import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -123,6 +126,19 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
               {columnCells.map(renderCell)}
             </div>
           ))}
+        </div>
+      );
+    }
+
+    if (cells.length === 0 && !invisible) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center py-8">
+          <Alert variant="info">
+            <AlertTitle>Empty Notebook</AlertTitle>
+            <AlertDescription>
+              This notebook has no code or outputs.
+            </AlertDescription>
+          </Alert>
         </div>
       );
     }
@@ -316,8 +332,6 @@ const VerticalCell = memo(
       },
     );
 
-    const HTMLId = HTMLCellId.create(cellId);
-
     // Read mode and show code
     if ((mode === "read" && showCode) || kioskFull) {
       const outputArea = (
@@ -336,11 +350,9 @@ const VerticalCell = memo(
       return (
         <div
           tabIndex={-1}
-          id={HTMLId}
           ref={cellRef}
           className={className}
-          data-cell-id={cellId}
-          data-cell-name={name}
+          {...cellDomProps(cellId, name)}
         >
           {cellOutputArea === "above" && outputArea}
           {/* Hide code if it's empty or pure markdown */}
@@ -374,11 +386,9 @@ const VerticalCell = memo(
     return (
       <div
         tabIndex={-1}
-        id={HTMLId}
         ref={cellRef}
         className={className}
-        data-cell-id={cellId}
-        data-cell-name={name}
+        {...cellDomProps(cellId, name)}
       >
         <OutputArea
           allowExpand={mode === "edit"}

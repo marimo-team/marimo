@@ -1,27 +1,28 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { VegaLite, type SignalListeners, type View } from "react-vega";
-import { makeSelectable } from "./make-selectable";
-import { useMemo, useRef, useState } from "react";
-import { getSelectionParamNames, ParamNames } from "./params";
-import type { VegaLiteSpec } from "./types";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
-import { debounce } from "lodash-es";
-import useEvent from "react-use-event-hook";
-import { Logger } from "@/utils/Logger";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { fixRelativeUrl } from "./fix-relative-url";
-import { useTheme } from "@/theme/useTheme";
-import { Objects } from "@/utils/objects";
-import { resolveVegaSpecData } from "./resolve-data";
-import { Events } from "@/utils/events";
-import { ErrorBanner } from "../common/error-banner";
-import { Tooltip } from "@/components/ui/tooltip";
-import { HelpCircleIcon } from "lucide-react";
+
 import { isValid } from "date-fns";
+import { debounce } from "lodash-es";
+import { HelpCircleIcon } from "lucide-react";
+import { type JSX, useMemo, useRef, useState } from "react";
+import useEvent from "react-use-event-hook";
+import { type SignalListeners, VegaLite, type View } from "react-vega";
 // @ts-expect-error vega-typings does not include formats
-import { formats } from "vega";
+import { formats } from "vega-loader";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
+import { useTheme } from "@/theme/useTheme";
+import { Events } from "@/utils/events";
+import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
+import { ErrorBanner } from "../common/error-banner";
+import { fixRelativeUrl } from "./fix-relative-url";
 import { arrow } from "./formats";
+import { makeSelectable } from "./make-selectable";
+import { getSelectionParamNames, ParamNames } from "./params";
+import { resolveVegaSpecData } from "./resolve-data";
+import type { VegaLiteSpec } from "./types";
 
 // register arrow reader under type 'arrow'
 formats("arrow", arrow);
@@ -93,7 +94,7 @@ const LoadedVegaComponent = ({
   spec,
 }: VegaComponentProps<VegaComponentState>): JSX.Element => {
   const { theme } = useTheme();
-  const vegaView = useRef<View>();
+  const vegaView = useRef<View>(undefined);
   const [error, setError] = useState<Error>();
 
   // Aggressively memoize the spec, so Vega doesn't re-render/re-mount the component

@@ -108,9 +108,6 @@ class openai(ChatModel):
             AzureOpenAI,
             OpenAI,
         )
-        from openai.types.chat import (  # type: ignore[import-not-found]
-            ChatCompletionMessageParam,
-        )
 
         # Azure OpenAI clients are instantiated slightly differently
         # To check if we're using Azure, we check the base_url for the format
@@ -140,7 +137,7 @@ class openai(ChatModel):
         )
         response = client.chat.completions.create(
             model=self.model,
-            messages=cast(list[ChatCompletionMessageParam], openai_messages),
+            messages=openai_messages,
             max_completion_tokens=config.max_tokens,
             temperature=config.temperature,
             top_p=config.top_p,
@@ -218,9 +215,6 @@ class anthropic(ChatModel):
             NOT_GIVEN,
             Anthropic,
         )
-        from anthropic.types.message_param import (  # type: ignore[import-not-found]
-            MessageParam,
-        )
 
         client = Anthropic(
             api_key=self._require_api_key,
@@ -232,7 +226,7 @@ class anthropic(ChatModel):
             model=self.model,
             system=self.system_message,
             max_tokens=config.max_tokens or 4096,
-            messages=cast(list[MessageParam], anthropic_messages),
+            messages=anthropic_messages,
             top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
             top_k=config.top_k if config.top_k is not None else NOT_GIVEN,
             stream=False,
@@ -305,26 +299,26 @@ class google(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
-            "chat model requires google. `pip install google-generativeai`"
+            "chat model requires google. `pip install google-genai`"
         )
-        import google.generativeai as genai  # type: ignore[import-not-found]
+        from google import genai  # type: ignore[import-not-found]
 
-        genai.configure(api_key=self._require_api_key)
-        client = genai.GenerativeModel(
-            model_name=self.model,
-            system_instruction=self.system_message,
-            generation_config=genai.GenerationConfig(
-                max_output_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                top_k=config.top_k,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-            ),
-        )
+        client = genai.Client(api_key=self._require_api_key)
 
         google_messages = convert_to_google_messages(messages)
-        response = client.generate_content(google_messages)
+        response = client.models.generate_content(
+            model=self.model,
+            contents=google_messages,
+            config={
+                "system_instruction": self.system_message,
+                "max_output_tokens": config.max_tokens,
+                "temperature": config.temperature,
+                "top_p": config.top_p,
+                "top_k": config.top_k,
+                "frequency_penalty": config.frequency_penalty,
+                "presence_penalty": config.presence_penalty,
+            },
+        )
 
         content = response.text
         return content or ""

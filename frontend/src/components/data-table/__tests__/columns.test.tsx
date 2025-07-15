@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { render } from "@testing-library/react";
 import { describe, expect, it, test } from "vitest";
+import { generateColumns, inferFieldTypes } from "../columns";
+import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
+import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
 import { parseContent, UrlDetector } from "../url-detector";
-import { render } from "@testing-library/react";
-import { generateColumns, inferFieldTypes } from "../columns";
-import type { FieldTypesWithExternalType } from "../types";
-import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 
 test("uniformSample", () => {
   const items = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
@@ -224,7 +225,9 @@ describe("generateColumns", () => {
     // Assuming getCellStyleClass is a function that returns a class name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cell = (columns[0].cell as any)({
-      column: columns[0],
+      column: {
+        columnDef: columns[0],
+      },
       renderValue: () => "John",
       getValue: () => "John",
     });

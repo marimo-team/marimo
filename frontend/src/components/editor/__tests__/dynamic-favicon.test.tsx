@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { render } from "@testing-library/react";
-import { DynamicFavicon } from "../dynamic-favicon";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCellErrors } from "@/core/cells/cells";
+import { DynamicFavicon } from "../dynamic-favicon";
 
 // Mock useCellErrors hook
 vi.mock("@/core/cells/cells", () => ({

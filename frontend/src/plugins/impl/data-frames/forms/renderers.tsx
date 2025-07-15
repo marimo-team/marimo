@@ -1,29 +1,32 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import React, { useEffect } from "react";
 import {
+  type FieldValues,
   type Path,
   type UseFormReturn,
-  type FieldValues,
   useWatch,
 } from "react-hook-form";
 import { z } from "zod";
-import { renderZodSchema, type FormRenderer } from "@/components/forms/form";
+import { type FormRenderer, renderZodSchema } from "@/components/forms/form";
 import { FieldOptions } from "@/components/forms/options";
-import { useContext, useEffect } from "react";
 import {
-  ColumnInfoContext,
-  ColumnNameContext,
-  ColumnFetchValuesContext,
-} from "./context";
+  ensureStringArray,
+  SwitchableMultiSelect,
+  TextAreaMultiSelect,
+} from "@/components/forms/switchable-multi-select";
+import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import {
+  FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormDescription,
-  FormControl,
   FormMessage,
   FormMessageTooltip,
 } from "@/components/ui/form";
+import { DebouncedInput } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,21 +35,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTypeIcon } from "./datatype-icon";
-import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import {
-  SwitchableMultiSelect,
-  TextAreaMultiSelect,
-  ensureStringArray,
-} from "@/components/forms/switchable-multi-select";
-import { DebouncedInput } from "@/components/ui/input";
 import { cn } from "@/utils/cn";
 import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
-import React from "react";
-import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
 import type { ColumnId } from "../types";
+import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
+import {
+  ColumnFetchValuesContext,
+  ColumnInfoContext,
+  ColumnNameContext,
+} from "./context";
+import { DataTypeIcon } from "./datatype-icon";
 
 export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
   T,
@@ -57,7 +57,7 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
     return special === "column_id";
   },
   Component: ({ schema, form, path }) => {
-    const columns = useContext(ColumnInfoContext);
+    const columns = React.use(ColumnInfoContext);
     const { label, description } = FieldOptions.parse(schema._def.description);
 
     return (
@@ -68,7 +68,6 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormDescription>{description}</FormDescription>
-            <StyledFormMessage />
             <FormControl>
               <Select
                 data-testid="marimo-plugin-data-frames-column-select"
@@ -82,9 +81,13 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
                   field.onChange(realValue);
                 }}
               >
-                <SelectTrigger className="min-w-[180px]">
-                  <SelectValue placeholder="--" />
-                </SelectTrigger>
+                <div className="flex items-center gap-1">
+                  <SelectTrigger className="min-w-[180px]">
+                    <SelectValue placeholder="--" />
+                  </SelectTrigger>
+                  <StyledFormMessage />
+                </div>
+
                 <SelectContent>
                   <SelectGroup>
                     {[...columns.entries()].map(([name, dtype]) => (
@@ -154,7 +157,7 @@ const MultiColumnFormField = ({
   path: Path<any>;
   itemLabel?: string;
 }) => {
-  const columns = useContext(ColumnInfoContext);
+  const columns = React.use(ColumnInfoContext);
   const { description } = FieldOptions.parse(schema._def.description);
   const placeholder = itemLabel
     ? `Select ${itemLabel.toLowerCase()}`
@@ -220,16 +223,16 @@ export const columnValuesRenderer = <T extends FieldValues>(): FormRenderer<
     const { label, description, placeholder } = FieldOptions.parse(
       schema._def.description,
     );
-    const column = useContext(ColumnNameContext);
-    const fetchValues = useContext(ColumnFetchValuesContext);
-    const { data, loading } = useAsyncData(
+    const column = React.use(ColumnNameContext);
+    const fetchValues = React.use(ColumnFetchValuesContext);
+    const { data, isPending } = useAsyncData(
       () => fetchValues({ column }),
       [column],
     );
 
     const options = data?.values || [];
 
-    if (options.length === 0 && !loading) {
+    if (options.length === 0 && !isPending) {
       return (
         <FormField
           control={form.control}
@@ -297,16 +300,16 @@ export const multiColumnValuesRenderer = <
     return special === "column_values" && schema instanceof z.ZodArray;
   },
   Component: ({ schema, form, path }) => {
-    const column = useContext(ColumnNameContext);
-    const fetchValues = useContext(ColumnFetchValuesContext);
-    const { data, loading } = useAsyncData(
+    const column = React.use(ColumnNameContext);
+    const fetchValues = React.use(ColumnFetchValuesContext);
+    const { data, isPending } = useAsyncData(
       () => fetchValues({ column }),
       [column],
     );
 
     const options = data?.values || [];
 
-    if (options.length === 0 && !loading) {
+    if (options.length === 0 && !isPending) {
       return (
         <FormField
           control={form.control}
@@ -353,10 +356,7 @@ export const multiColumnValuesRenderer = <
 const StyledFormMessage = ({ className }: { className?: string }) => {
   return (
     <FormMessageTooltip
-      className={cn(
-        "absolute -left-6 bottom-0 text-destructive text-xs w-[16px]",
-        className,
-      )}
+      className={cn("text-destructive text-xs w-[16px]", className)}
     />
   );
 };
@@ -393,7 +393,7 @@ const ColumnFilterForm = <T extends FieldValues>({
   path: Path<any>;
 }) => {
   const { description } = FieldOptions.parse(schema._def.description);
-  const columns = useContext(ColumnInfoContext);
+  const columns = React.use(ColumnInfoContext);
 
   const columnIdSchema = Objects.entries(schema._def.shape()).find(
     ([key]) => key === "column_id",
@@ -437,7 +437,7 @@ const ColumnFilterForm = <T extends FieldValues>({
           className="text-muted-foreground text-xs font-semibold"
         >
           <FormLabel className="whitespace-pre"> </FormLabel>
-          <div>This column type does not support filtering.</div>
+          <p>This column type does not support filtering.</p>
         </div>,
       );
     } else {

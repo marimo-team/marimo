@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import React from "react";
-import { SELECT_COLUMN_ID } from "../types";
 import type { ColumnPinningState } from "@tanstack/react-table";
-import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { isEqual } from "lodash-es";
+import React from "react";
+import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
+import { SELECT_COLUMN_ID } from "../types";
 
 interface UseColumnPinningResult {
   columnPinning: ColumnPinningState;

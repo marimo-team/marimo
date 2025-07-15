@@ -332,7 +332,7 @@ _base_chart = (
 )
 
 _bar_chart = _base_chart.mark_bar(color="#8ec8f6")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+_text_chart = _base_chart.mark_text(align="left", dx=3, color="black").encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
 
@@ -375,7 +375,7 @@ _base_chart = (
 )
 
 _bar_chart = _base_chart.mark_bar(color="#8ec8f6")
-_text_chart = _base_chart.mark_text(align="left", dx=3).encode(
+_text_chart = _base_chart.mark_text(align="left", dx=3, color="black").encode(
     text=alt.Text("percentage:Q", format=".2%")
 )
 

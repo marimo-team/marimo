@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { kioskModeAtom } from "@/core/mode";
+
 import { useAtomValue } from "jotai";
 import React from "react";
+import { kioskModeAtom } from "@/core/mode";
 
 interface Props {
   children: React.ReactNode;

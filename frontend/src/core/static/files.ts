@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { StaticVirtualFiles } from "./types";
-import { getStaticVirtualFiles } from "./static-state";
-import { Logger } from "@/utils/Logger";
 import type { Loader } from "@/plugins/impl/vega/vega-loader";
+import { Logger } from "@/utils/Logger";
+import { getStaticVirtualFiles } from "./static-state";
+import type { StaticVirtualFiles } from "./types";
 
 /**
  * Patch fetch to resolve virtual files

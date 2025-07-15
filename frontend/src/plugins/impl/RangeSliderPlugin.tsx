@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useId, useState } from "react";
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { RangeSlider } from "../../components/ui/range-slider";
-import { Labeled } from "./common/labeled";
+import { isEqual } from "lodash-es";
+import { type JSX, useEffect, useId, useState } from "react";
+import { z } from "zod";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
-import { isEqual } from "lodash-es";
+import { RangeSlider } from "../../components/ui/range-slider";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { Labeled } from "./common/labeled";
 
 type T = number[];
 

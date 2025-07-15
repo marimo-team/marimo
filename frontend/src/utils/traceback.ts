@@ -1,8 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-
+import parse, { type DOMNode, Element, Text } from "html-react-parser";
 import type { CellId } from "@/core/cells/ids";
-import { type DOMNode, Element, Text } from "html-react-parser";
-import parse from "html-react-parser";
 
 /**
  * Check if a DOM node matches a selector.

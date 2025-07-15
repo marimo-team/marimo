@@ -1,18 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { history } from "@codemirror/commands";
 import {
   Compartment,
   EditorSelection,
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import type { LanguageAdapter } from "./types";
 import { type EditorView, keymap, showPanel } from "@codemirror/view";
-import { clamp } from "@/utils/math";
+import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { clamp } from "@/utils/math";
 import {
   cellIdState,
   completionConfigState,
@@ -22,16 +25,14 @@ import {
 } from "../config/extension";
 import type { PlaceholderType } from "../config/types";
 import { historyCompartment } from "../editing/extensions";
-import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
-import { getEditorCodeAsPython } from "./utils";
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import { createPanel } from "../react-dom/createPanel";
-import { LanguagePanelComponent } from "./panel/panel";
-import type { CellId } from "@/core/cells/ids";
+import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
 import type { LanguageMetadata } from "./metadata";
 import { languageMetadataField, setLanguageMetadata } from "./metadata";
+import { LanguagePanelComponent } from "./panel/panel";
+import type { LanguageAdapter } from "./types";
+import { getEditorCodeAsPython } from "./utils";
 
 /**
  * Compartment to keep track of the current language and extension.
@@ -101,8 +102,12 @@ function languageToggleKeymaps() {
             return false;
           }
 
-          updateLanguageAdapterAndCode(cm, nextLanguage, {
-            keepCodeAsIs: false,
+          updateLanguageAdapterAndCode({
+            view: cm,
+            nextLanguage,
+            opts: {
+              keepCodeAsIs: false,
+            },
           });
           return true;
         },
@@ -111,11 +116,15 @@ function languageToggleKeymaps() {
   ];
 }
 
-function updateLanguageAdapterAndCode(
-  view: EditorView,
-  nextLanguage: LanguageAdapter,
-  opts: { keepCodeAsIs: boolean },
-) {
+function updateLanguageAdapterAndCode({
+  view,
+  nextLanguage,
+  opts,
+}: {
+  view: EditorView;
+  nextLanguage: LanguageAdapter;
+  opts: { keepCodeAsIs: boolean };
+}) {
   const currentLanguage = view.state.field(languageAdapterState);
   const code = view.state.doc.toString();
   const completionConfig = view.state.facet(completionConfigState);
@@ -253,17 +262,23 @@ export function languageAdapterFromCode(doc: string): LanguageAdapter {
  */
 export function switchLanguage(
   view: EditorView,
-  language: LanguageAdapter["type"],
-  opts: { keepCodeAsIs?: boolean } = {},
+  opts: {
+    language: LanguageAdapter["type"];
+    keepCodeAsIs?: boolean;
+  },
 ) {
   // If the existing language is the same as the new language, do nothing
   const currentLanguage = view.state.field(languageAdapterState);
-  if (currentLanguage.type === language) {
+  if (currentLanguage.type === opts.language) {
     return;
   }
 
-  updateLanguageAdapterAndCode(view, LanguageAdapters[language], {
-    keepCodeAsIs: opts.keepCodeAsIs ?? false,
+  updateLanguageAdapterAndCode({
+    view,
+    nextLanguage: LanguageAdapters[opts.language],
+    opts: {
+      keepCodeAsIs: opts.keepCodeAsIs ?? false,
+    },
   });
 }
 
@@ -276,9 +291,15 @@ export function switchLanguage(
  */
 export function reconfigureLanguageEffect(
   view: EditorView,
-  completionConfig: CompletionConfig,
-  hotkeysProvider: HotkeyProvider,
-  lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig },
+  {
+    completionConfig,
+    hotkeysProvider,
+    lspConfig,
+  }: {
+    completionConfig: CompletionConfig;
+    hotkeysProvider: HotkeyProvider;
+    lspConfig: LSPConfig & { diagnostics?: DiagnosticsConfig };
+  },
 ) {
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);

@@ -296,6 +296,7 @@ def create_asgi_app(
     quiet: bool = False,
     include_code: bool = False,
     token: Optional[str] = None,
+    skew_protection: bool = False,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -305,6 +306,8 @@ def create_asgi_app(
         include_code (bool, optional): Include notebook code in the app
         token (str, optional): Auth token to use for the app.
             If not provided, an empty token is used.
+        skew_protection (bool, optional): Enable skew protection middleware to prevent version mismatch issues.
+            e.g. if the server is updated, the client will be prompted to reload.
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -477,6 +480,7 @@ def create_asgi_app(
                 ),
                 enable_auth=not AuthToken.is_empty(auth_token),
                 allow_origins=("*",),
+                skew_protection=skew_protection,
             )
             app.state.session_manager = session_manager
             app.state.base_url = base_url

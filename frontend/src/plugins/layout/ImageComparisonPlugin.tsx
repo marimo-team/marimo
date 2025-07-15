@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { type JSX } from "react";
 import { z } from "zod";
+import type { ImageComparisonData } from "../impl/image-comparison/ImageComparisonComponent";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import type { ImageComparisonData } from "../impl/image-comparison/ImageComparisonComponent";
 
 const LazyImageComparisonComponent = React.lazy(
   () => import("../impl/image-comparison/ImageComparisonComponent"),

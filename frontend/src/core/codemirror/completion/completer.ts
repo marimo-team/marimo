@@ -4,12 +4,11 @@ import type {
   CompletionResult,
   CompletionSource,
 } from "@codemirror/autocomplete";
-
-import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
-import { Logger } from "../../../utils/Logger";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { store } from "@/core/state/jotai";
 import { documentationAtom } from "@/core/documentation/state";
+import { store } from "@/core/state/jotai";
+import { Logger } from "../../../utils/Logger";
+import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 
 /**
  * Completion source for Python, using Jedi.

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { CellMessage } from "../kernel/messages";
 import type { TypedString } from "@/utils/typed";
+import type { CellMessage } from "../kernel/messages";
 import type { CellId } from "./ids";
 export type RunId = TypedString<"RunId">;
 

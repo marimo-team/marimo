@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { CellId } from "../cells/ids";
 import type { TypedString } from "../../utils/typed";
+import type { CellId } from "../cells/ids";
 
 export type VariableName = TypedString<"VariableName">;
 

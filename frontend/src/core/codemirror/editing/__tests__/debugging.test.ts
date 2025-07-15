@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
+import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { python } from "@codemirror/lang-python";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { insertDebuggerAtLine } from "../debugging";
 
 describe("insertDebuggerAtLine", () => {

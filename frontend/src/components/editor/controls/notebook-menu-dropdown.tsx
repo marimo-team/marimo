@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Button } from "@/components/editor/inputs/Inputs";
+
 import { MenuIcon } from "lucide-react";
 import React from "react";
+import { Button } from "@/components/editor/inputs/Inputs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,14 +14,38 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MinimalShortcut } from "../../shortcuts/renderShortcut";
-import { useNotebookActions } from "../actions/useNotebookActions";
-import type { ActionButton } from "../actions/types";
-import { getMarimoVersion } from "@/core/meta/globals";
 import { Tooltip } from "@/components/ui/tooltip";
+import { getMarimoVersion } from "@/core/meta/globals";
+import {
+  MinimalShortcut,
+  renderShortcut,
+} from "../../shortcuts/renderShortcut";
+import type { ActionButton } from "../actions/types";
+import { useNotebookActions } from "../actions/useNotebookActions";
 
-export const NotebookMenuDropdown: React.FC = () => {
+interface Props {
+  disabled?: boolean;
+  tooltip?: string;
+}
+
+export const NotebookMenuDropdown: React.FC<Props> = ({
+  disabled = false,
+  tooltip = "Actions",
+}) => {
   const actions = useNotebookActions();
+
+  // Create tooltip content with keyboard shortcut decoration
+  const tooltipContent = (
+    <div className="flex flex-col gap-2">
+      <div>{tooltip}</div>
+      {!disabled && (
+        <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border flex items-center gap-2">
+          <span>Open command palette</span>
+          {renderShortcut("global.commandPalette", false)}
+        </div>
+      )}
+    </div>
+  );
 
   const button = (
     <Button
@@ -29,9 +54,12 @@ export const NotebookMenuDropdown: React.FC = () => {
       size="small"
       className="h-[27px] w-[27px]"
       data-testid="notebook-menu-dropdown"
-      color="hint-green"
+      disabled={disabled}
+      color={disabled ? "disabled" : "hint-green"}
     >
-      <MenuIcon strokeWidth={1.8} />
+      <Tooltip content={tooltipContent}>
+        <MenuIcon strokeWidth={1.8} />
+      </Tooltip>
     </Button>
   );
 
@@ -79,7 +107,9 @@ export const NotebookMenuDropdown: React.FC = () => {
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild={true} disabled={disabled}>
+        {button}
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="no-print w-[240px]">
         {actions.map((action) => {
           if (action.hidden) {

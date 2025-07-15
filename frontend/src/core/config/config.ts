@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { merge } from "lodash-es";
+import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
+import { store } from "../state/jotai";
 import {
   type AppConfig,
-  type UserConfig,
   parseAppConfig,
   parseUserConfig,
+  type UserConfig,
 } from "./config-schema";
-import { store } from "../state/jotai";
-import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
-import { merge } from "lodash-es";
 
 /**
  * Atom for storing the user config.
@@ -42,6 +42,10 @@ export const autoSaveConfigAtom = atom((get) => {
 
 export const aiAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).ai;
+});
+
+export const keymapPresetAtom = atom((get) => {
+  return get(resolvedMarimoConfigAtom).keymap.preset;
 });
 
 /**

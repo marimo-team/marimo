@@ -1,18 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { z } from "zod";
 
-import type { IPluginProps } from "@/plugins/types";
+import { useEvent } from "@dnd-kit/utilities";
 import { useEffect, useRef, useState } from "react";
-import { createPlugin } from "@/plugins/core/builder";
-import { rpc } from "@/plugins/core/rpc";
+import { z } from "zod";
+import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import {
   type HTMLElementNotDerivedFromRef,
   useEventListener,
 } from "@/hooks/useEventListener";
-import { MarimoIncomingMessageEvent } from "@/core/dom/events";
-import { MessageSchema, extractBuffers, EventBuffer } from "./utils";
-import { useEvent } from "@dnd-kit/utilities";
+import { createPlugin } from "@/plugins/core/builder";
+import { rpc } from "@/plugins/core/rpc";
+import type { IPluginProps } from "@/plugins/types";
+import { EventBuffer, extractBuffers, MessageSchema } from "./utils";
 
 interface BokehDocument {
   create_json_patch: (events: unknown[]) => unknown;
@@ -76,9 +76,10 @@ type T = Record<string, unknown>;
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
-  send_to_widget: <T>(req: { message?: any; buffers?: any }) => Promise<
-    null | undefined
-  >;
+  send_to_widget: <T>(req: {
+    message?: any;
+    buffers?: any;
+  }) => Promise<null | undefined>;
 };
 
 export const PanelPlugin = createPlugin<T>("marimo-panel")

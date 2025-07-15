@@ -1,10 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect } from "vitest";
-import { getCellConfigs, type NotebookState } from "@/core/cells/cells";
+import { describe, expect, it } from "vitest";
+import {
+  getCellConfigs,
+  initialNotebookState,
+  type NotebookState,
+} from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import { MultiColumn } from "@/utils/id-tree";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import { MultiColumn } from "@/utils/id-tree";
 import {
   disabledCellIds,
   enabledCellIds,
@@ -22,6 +26,7 @@ describe("getCellConfigs", () => {
 
     // Create a mock NotebookState
     const mockState: NotebookState = {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([
         [cellId1, cellId2],
         [cellId3, cellId4],
@@ -45,10 +50,6 @@ describe("getCellConfigs", () => {
         } as CellData,
       },
       cellRuntime: {} as Record<CellId, CellRuntimeState>,
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
     };
 
     // Call the function
@@ -84,6 +85,7 @@ describe("getCellConfigs", () => {
   it("should handle single column", () => {
     const cellId1 = CellId.create();
     const mockState: NotebookState = {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([[cellId1]]),
       cellData: {
         [cellId1]: {
@@ -91,11 +93,7 @@ describe("getCellConfigs", () => {
           config: { hide_code: false, disabled: false },
         } as CellData,
       },
-      cellRuntime: {},
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
+      untouchedNewCells: new Set(),
     };
 
     const result = getCellConfigs(mockState);
@@ -105,16 +103,7 @@ describe("getCellConfigs", () => {
   });
 
   it("should handle empty notebook state", () => {
-    const mockState: NotebookState = {
-      cellIds: MultiColumn.from([]),
-      cellData: {},
-      cellRuntime: {},
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
-    };
-
+    const mockState: NotebookState = initialNotebookState();
     const result = getCellConfigs(mockState);
 
     expect(result).toEqual([]);
@@ -403,17 +392,13 @@ describe("disabledCellIds", () => {
     const cellId3 = CellId.create();
 
     const state: NotebookState = {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([[cellId1, cellId2, cellId3]]),
       cellData: {
         [cellId1]: { id: cellId1, config: { disabled: true } } as CellData,
         [cellId2]: { id: cellId2, config: { disabled: false } } as CellData,
         [cellId3]: { id: cellId3, config: { disabled: true } } as CellData,
       },
-      cellRuntime: {} as Record<CellId, CellRuntimeState>,
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
     };
 
     const result = disabledCellIds(state);
@@ -428,17 +413,13 @@ describe("enabledCellIds", () => {
     const cellId3 = CellId.create();
 
     const state: NotebookState = {
+      ...initialNotebookState(),
       cellIds: MultiColumn.from([[cellId1, cellId2, cellId3]]),
       cellData: {
         [cellId1]: { id: cellId1, config: { disabled: true } } as CellData,
         [cellId2]: { id: cellId2, config: { disabled: false } } as CellData,
         [cellId3]: { id: cellId3, config: { disabled: false } } as CellData,
       },
-      cellRuntime: {} as Record<CellId, CellRuntimeState>,
-      cellHandles: {},
-      history: [],
-      scrollKey: null,
-      cellLogs: [],
     };
 
     const result = enabledCellIds(state);

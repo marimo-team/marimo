@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { defineConfig, type Plugin } from "vite";
-import wasm from "vite-plugin-wasm";
-import topLevelAwait from "vite-plugin-top-level-await";
-import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
+
 import { codecovVitePlugin } from "@codecov/vite-plugin";
+import react from "@vitejs/plugin-react";
 import { JSDOM } from "jsdom";
+import { defineConfig, type Plugin } from "vite";
+import topLevelAwait from "vite-plugin-top-level-await";
+import wasm from "vite-plugin-wasm";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -184,7 +185,7 @@ If the server is already running, make sure it is using port ${SERVER_PORT} with
 };
 
 const ReactCompilerConfig = {
-  target: "18",
+  target: "19",
 };
 
 // https://vitejs.dev/config/

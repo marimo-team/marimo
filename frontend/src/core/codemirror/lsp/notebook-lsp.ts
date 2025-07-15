@@ -1,13 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import type * as LSP from "vscode-languageserver-protocol";
-import { getTopologicalCodes } from "../copilot/getCodes";
-import { createNotebookLens } from "./lens";
-import { CellDocumentUri, type ILanguageServerClient } from "./types";
+import type { CellId } from "@/core/cells/ids";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
-import type { CellId } from "@/core/cells/ids";
-import type { EditorView } from "@codemirror/view";
+import { getTopologicalCodes } from "../copilot/getCodes";
+import { createNotebookLens } from "./lens";
+import {
+  CellDocumentUri,
+  type ILanguageServerClient,
+  isClientWithNotify,
+  isClientWithPlugins,
+} from "./types";
 import { getLSPDocument } from "./utils";
 
 export class NotebookLanguageServerClient implements ILanguageServerClient {
@@ -41,12 +46,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     // Handle configuration after initialization
     this.initializePromise.then(() => {
       invariant(
-        "notify" in this.client,
+        isClientWithNotify(this.client),
         "notify is not a method on the client",
       );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.client as any).notify("workspace/didChangeConfiguration", {
+      this.client.notify("workspace/didChangeConfiguration", {
         settings: initialSettings,
       });
     });
@@ -202,9 +205,13 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     const newEdits = lens.getEditsForNewText(edit.newText);
     const editsToNewCode = new Map(newEdits.map((e) => [e.cellId, e.text]));
 
+    invariant(
+      isClientWithPlugins(this.client),
+      "Expected client with plugins.",
+    );
+
     // Update the code in the plugins manually
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const plugin of (this.client as any).plugins) {
+    for (const plugin of this.client.plugins) {
       const documentUri: string = plugin.documentUri;
       if (!CellDocumentUri.is(documentUri)) {
         Logger.warn("Invalid cell document URI", documentUri);
@@ -218,16 +225,19 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         continue;
       }
 
-      const view: EditorView = plugin.view;
-      if (!view) {
+      if (!plugin.view) {
         Logger.warn("No view for plugin", plugin);
         continue;
       }
 
       // Only update if it has changed
-      if (view.state.doc.toString() !== newCode) {
-        view.dispatch({
-          changes: { from: 0, to: view.state.doc.length, insert: newCode },
+      if (plugin.view.state.doc.toString() !== newCode) {
+        plugin.view.dispatch({
+          changes: {
+            from: 0,
+            to: plugin.view.state.doc.length,
+            insert: newCode,
+          },
         });
       }
     }

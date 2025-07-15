@@ -1,29 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useCallback, useEffect, useId, useMemo, useState } from "react";
-import { z } from "zod";
-import { DataTable } from "../../components/data-table/data-table";
-import {
-  generateColumns,
-  inferFieldTypes,
-} from "../../components/data-table/columns";
-import { Labeled } from "./common/labeled";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { rpc } from "../core/rpc";
-import { createPlugin } from "../core/builder";
-import { Banner } from "./common/error-banner";
-import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
-import { ColumnChartContext } from "@/components/data-table/column-summary";
-import { Logger } from "@/utils/Logger";
 
-import {
-  type DataTableSelection,
-  toFieldTypes,
-  type ColumnHeaderStats,
-  type FieldTypesWithExternalType,
-  type TooManyRows,
-  TOO_MANY_ROWS,
-  type ColumnName,
-} from "@/components/data-table/types";
+import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 import type {
   ColumnFiltersState,
   OnChangeFn,
@@ -31,40 +9,69 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
+import { Provider } from "jotai";
+import { Table2Icon } from "lucide-react";
+import type { JSX } from "react";
+/* Copyright 2024 Marimo. All rights reserved. */
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from "react";
 import useEvent from "react-use-event-hook";
-import { Functions } from "@/utils/functions";
-import { ConditionSchema, type ConditionType } from "./data-frames/schema";
-import React from "react";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { Arrays } from "@/utils/arrays";
-import { LoadingTable } from "@/components/data-table/loading-table";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
-import { DelayMount } from "@/components/utils/delay-mount";
-import { DATA_TYPES } from "@/core/kernel/messages";
-import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
+import { z } from "zod";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
-import { Button } from "@/components/ui/button";
-import { Table2Icon } from "lucide-react";
+import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { TablePanel } from "@/components/data-table/charts/charts";
-import { getFeatureFlag } from "@/core/config/feature-flag";
-import {
-  filterToFilterCondition,
-  type ColumnFilterValue,
-} from "@/components/data-table/filters";
-import { isStaticNotebook } from "@/core/static/static-state";
-import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
-import { type CellId, findCellId } from "@/core/cells/ids";
-import { slotsController } from "@/core/slots/slots";
-import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
-import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
-import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
-import { Provider } from "jotai";
-import { store } from "@/core/state/jotai";
-import { loadTableData } from "@/components/data-table/utils";
 import { hasChart } from "@/components/data-table/charts/storage";
 import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
+import { ColumnChartContext } from "@/components/data-table/column-summary";
+import {
+  type ColumnFilterValue,
+  filterToFilterCondition,
+} from "@/components/data-table/filters";
+import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-ownership";
+import { LoadingTable } from "@/components/data-table/loading-table";
+import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
+import {
+  type ColumnHeaderStats,
+  type ColumnName,
+  type DataTableSelection,
+  type FieldTypesWithExternalType,
+  TOO_MANY_ROWS,
+  type TooManyRows,
+  toFieldTypes,
+} from "@/components/data-table/types";
+import { loadTableData } from "@/components/data-table/utils";
+import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { DelayMount } from "@/components/utils/delay-mount";
+import { type CellId, findCellId } from "@/core/cells/ids";
+import { DATA_TYPES } from "@/core/kernel/messages";
+import { slotsController } from "@/core/slots/slots";
+import { store } from "@/core/state/jotai";
+import { isStaticNotebook } from "@/core/static/static-state";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
+import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
+import { Arrays } from "@/utils/arrays";
+import { Functions } from "@/utils/functions";
+import { Logger } from "@/utils/Logger";
+import {
+  generateColumns,
+  inferFieldTypes,
+} from "../../components/data-table/columns";
+import { DataTable } from "../../components/data-table/data-table";
+import { createPlugin } from "../core/builder";
+import { rpc } from "../core/rpc";
+import { Banner } from "./common/error-banner";
+import { Labeled } from "./common/labeled";
+import { ConditionSchema, type ConditionType } from "./data-frames/schema";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
@@ -94,7 +101,6 @@ export type CalculateTopKRows = <T>(req: {
 
 export type PreviewColumn = (opts: { column: string }) => Promise<{
   chart_spec: string | null;
-  chart_max_rows_errors: boolean;
   chart_code: string | null;
   error: string | null;
   missing_packages: string[] | null;
@@ -139,6 +145,9 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
+  showPageSizeSelector: boolean;
+  showColumnExplorer: boolean;
+  showChartBuilder: boolean;
   rowHeaders: string[];
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
@@ -199,6 +208,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnSummaries: z
         .union([z.boolean(), z.enum(["stats", "chart"])])
         .default(true),
+      showPageSizeSelector: z.boolean().default(true),
+      showColumnExplorer: z.boolean().default(true),
+      showChartBuilder: z.boolean().default(true),
       rowHeaders: z.array(z.string()),
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
@@ -215,14 +227,14 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         )
         .nullish(),
       totalColumns: z.number(),
-      maxColumns: z.union([z.number(), z.literal("all")]),
+      maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
       cellStyles: z.record(z.record(z.object({}).passthrough())).optional(),
       // Whether to load the data lazily.
-      lazy: z.boolean(),
+      lazy: z.boolean().default(false),
       // If lazy, this will preload the first page of data
       // without user confirmation.
-      preload: z.boolean(),
+      preload: z.boolean().default(false),
     }),
   )
   .withFunctions<DataTableFunctions>({
@@ -283,7 +295,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     preview_column: rpc.input(z.object({ column: z.string() })).output(
       z.object({
         chart_spec: z.string().nullable(),
-        chart_max_rows_errors: z.boolean(),
         chart_code: z.string().nullable(),
         error: z.string().nullable(),
         missing_packages: z.array(z.string()).nullable(),
@@ -306,7 +317,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
-            experimentalChartsEnabled={true}
           />
         </LazyDataTableComponent>
       </TableProviders>
@@ -347,9 +357,7 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
-  experimentalChartsEnabled?: boolean;
   toggleDisplayHeader?: () => void;
-  chartsFeatureEnabled?: boolean;
   host: HTMLElement;
   cellId?: CellId | null;
 }
@@ -392,7 +400,7 @@ export const LoadingDataTableComponent = memo(
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
     const [displayHeader, setDisplayHeader] = useState(() => {
       // Show the header if a single chart is configured
-      if (!getFeatureFlag("table_charts") || !cellId) {
+      if (!props.showChartBuilder || !cellId) {
         return false;
       }
       return hasChart(cellId);
@@ -409,16 +417,11 @@ export const LoadingDataTableComponent = memo(
 
     // If pageSize changes, reset pagination state
     useEffect(() => {
-      if (paginationState.pageSize !== props.pageSize) {
-        setPaginationState({
-          pageIndex: 0,
-          pageSize: props.pageSize,
-        });
-      }
-    }, [props.pageSize, paginationState.pageSize]);
+      setPaginationState({ pageIndex: 0, pageSize: props.pageSize });
+    }, [props.pageSize]);
 
     // Data loading
-    const { data, loading, error } = useAsyncData<{
+    const { data, error, isPending, isFetching } = useAsyncData<{
       rows: T[];
       totalRows: number | TooManyRows;
       cellStyles: CellStyleState | undefined | null;
@@ -433,6 +436,8 @@ export const LoadingDataTableComponent = memo(
       let totalRows = props.totalRows;
       let cellStyles = props.cellStyles;
 
+      const pageSizeChanged = paginationState.pageSize !== props.pageSize;
+
       // If it is just the first page and no search query,
       // we can show the initial page.
       const canShowInitialPage =
@@ -440,7 +445,8 @@ export const LoadingDataTableComponent = memo(
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
         sorting.length === 0 &&
-        !props.lazy;
+        !props.lazy &&
+        !pageSizeChanged;
 
       if (sorting.length > 1) {
         Logger.warn("Multiple sort columns are not supported");
@@ -559,7 +565,7 @@ export const LoadingDataTableComponent = memo(
       }
     }, [columnSummariesError]);
 
-    if (loading && !data) {
+    if (isPending) {
       return (
         <DelayMount milliseconds={200}>
           <LoadingTable
@@ -590,9 +596,6 @@ export const LoadingDataTableComponent = memo(
       setDisplayHeader(!displayHeader);
     };
 
-    const chartsFeatureEnabled =
-      getFeatureFlag("table_charts") && props.experimentalChartsEnabled;
-
     const dataTable = (
       <DataTableComponent
         {...props}
@@ -604,13 +607,12 @@ export const LoadingDataTableComponent = memo(
         setSearchQuery={setSearchQuery}
         filters={filters}
         setFilters={setFilters}
-        reloading={loading}
+        reloading={isFetching && !isPending}
         totalRows={data?.totalRows ?? props.totalRows}
         paginationState={paginationState}
         setPaginationState={setPaginationState}
         cellStyles={data?.cellStyles ?? props.cellStyles}
         toggleDisplayHeader={toggleDisplayHeader}
-        chartsFeatureEnabled={chartsFeatureEnabled}
         getRow={getRow}
         cellId={cellId}
       />
@@ -619,7 +621,7 @@ export const LoadingDataTableComponent = memo(
     return (
       <>
         {errorComponent}
-        {chartsFeatureEnabled ? (
+        {props.showChartBuilder ? (
           <TablePanel
             displayHeader={displayHeader}
             dataTable={dataTable}
@@ -646,6 +648,9 @@ const DataTableComponent = ({
   value,
   showFilters,
   showDownload,
+  showPageSizeSelector,
+  showColumnExplorer,
+  showChartBuilder,
   rowHeaders,
   fieldTypes,
   paginationState,
@@ -670,7 +675,6 @@ const DataTableComponent = ({
   get_row_ids,
   cellStyles,
   toggleDisplayHeader,
-  chartsFeatureEnabled,
   calculate_top_k_rows,
   preview_column,
   getRow,
@@ -786,6 +790,8 @@ const DataTableComponent = ({
   );
 
   const isSelectable = selection === "multi" || selection === "single";
+  const showColExplorer =
+    showColumnExplorer && preview_column && isPanelOpen("column-explorer");
 
   return (
     <>
@@ -826,18 +832,19 @@ const DataTableComponent = ({
           />
         </ContextAwarePanelItem>
       )}
-      {isPanelOpen("column-explorer") && preview_column && (
+      {showColExplorer && (
         <ContextAwarePanelItem>
           <ColumnExplorerPanel
             previewColumn={preview_column}
             fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows}
             totalColumns={totalColumns}
+            tableId={id}
           />
         </ContextAwarePanelItem>
       )}
 
-      <ColumnChartContext.Provider value={chartSpecModel}>
+      <ColumnChartContext value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
             data={data}
@@ -870,14 +877,16 @@ const DataTableComponent = ({
             onCellSelectionChange={handleCellSelectionChange}
             getRowIds={get_row_ids}
             toggleDisplayHeader={toggleDisplayHeader}
-            chartsFeatureEnabled={chartsFeatureEnabled}
+            showChartBuilder={showChartBuilder}
+            showPageSizeSelector={showPageSizeSelector}
+            showColumnExplorer={showColumnExplorer}
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
             viewedRowIdx={viewedRowIdx}
             onViewedRowChange={(rowIdx) => setViewedRowIdx(rowIdx)}
           />
         </Labeled>
-      </ColumnChartContext.Provider>
+      </ColumnChartContext>
     </>
   );
 };

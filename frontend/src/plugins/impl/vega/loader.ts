@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { DataFormat } from "./types";
-import { isNumber } from "lodash-es";
-import { typeParsers, read, type DataType } from "./vega-loader";
-import { Objects } from "@/utils/objects";
-import { Logger } from "@/utils/Logger";
+
 import { tableFromIPC } from "@uwdata/flechette";
+import { isNumber } from "lodash-es";
+import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
 import { batchedArrowLoader, createBatchedLoader } from "./batched";
+import type { DataFormat } from "./types";
+import { type DataType, read, typeParsers } from "./vega-loader";
 
 type Unsubscribe = () => void;
 type Middleware = () => Unsubscribe;

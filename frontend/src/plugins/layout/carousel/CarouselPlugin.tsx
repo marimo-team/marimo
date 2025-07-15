@@ -1,17 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import React, { type JSX } from "react";
+import swiperCssKeyboard from "swiper/css/keyboard?inline";
+import swiperCssNavigation from "swiper/css/navigation?inline";
+import swiperCssPagination from "swiper/css/pagination?inline";
+import swiperCssScrollbar from "swiper/css/scrollbar?inline";
+import swiperCssVirtual from "swiper/css/virtual?inline";
+import swiperCss from "swiper/css?inline";
 import { z } from "zod";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../../stateless-plugin";
-
-import swiperCss from "swiper/css?inline";
-import swiperCssVirtual from "swiper/css/virtual?inline";
-import swiperCssKeyboard from "swiper/css/keyboard?inline";
-import swiperCssNavigation from "swiper/css/navigation?inline";
-import swiperCssPagination from "swiper/css/pagination?inline";
-import swiperCssScrollbar from "swiper/css/scrollbar?inline";
-import React from "react";
 
 interface Data {
   index?: string | null;
