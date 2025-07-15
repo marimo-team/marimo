@@ -141,7 +141,7 @@ class RuntimeConfig(TypedDict):
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
-    - `default_auto_download`: an Optional list of export types to automatically:
+    - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
        `html`, `markdown`, `ipynb`.
        The default is None.
     """
