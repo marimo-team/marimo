@@ -327,6 +327,23 @@ class CacheExtractWithBlock(ExtractWithBlock):
         name = kwargs.pop("name", "cache")
         super().__init__(line, (ast.With, ast.If), *arg, name=name, **kwargs)
 
+    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
+        pre_block, with_block = super().generic_visit(node)
+        # We should fail if the first node in with_block is a try.
+        if isinstance(with_block.body[0], ast.Try):
+            raise BlockException(
+                "As a limitation of caching context, the first statement "
+                "cannot be a try block."
+                "\n"
+                "Please move the cache block inside of the try, or use a start "
+                "the block with a different statement."
+                "\n"
+                "Note, exceptions have cache invalidating consequences (by "
+                "virtue of side effects), and handling exceptions in the "
+                "cache block may lead to unexpected behavior."
+            )
+        return (pre_block, with_block)
+
 
 class ContainedExtractWithBlock(ExtractWithBlock):
     def __init__(self, line: int, *arg: Any, **kwargs: Any) -> None:
