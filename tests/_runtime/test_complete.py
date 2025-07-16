@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from collections.abc import Mapping
 from inspect import signature
 from types import ModuleType
@@ -287,30 +288,19 @@ def test_get_key_completions(
     obj, expected_completions = obj_and_expected_completions
 
     glbls = {"obj": obj, "other": 10}
+    lock = threading.RLock()
     script = jedi.Script(code=code)
     mock_request = mock.MagicMock()
     mock_request.document = code
 
     completions = _maybe_get_key_options(
-        request=mock_request, script=script, glbls=glbls, glbls_lock=glbls_lock
+        request=mock_request, script=script, glbls=glbls, glbls_lock=lock
     )
 
     if expects_completions is True:
         assert [c.name for c in completions] == expected_completions
     else:
         assert completions == []
-
-
-def random_dict():
-    """This can't be statically inferred."""
-    import random
-    
-    d = {}
-    for _ in range(5):
-        value = random.randint(0, 100)
-        d[str(value)] = value
-
-    return d
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed.")
@@ -326,6 +316,7 @@ def test_get_key_completions_pandas_dataframe(
         "obj": pd.DataFrame({"foo": [0, 1], "bar": [9.0, 2.0]}),
         "other": 10,
     }
+    lock = threading.RLock()
     code, expects_completions = code_and_expects_completions
     expected_completions = ["foo", "bar"]
     mock_request = mock.MagicMock()
@@ -333,7 +324,10 @@ def test_get_key_completions_pandas_dataframe(
 
     script = jedi.Script(code=code)
     completions = _maybe_get_key_options(
-        request=mock_request, script=script, glbls=glbls
+        request=mock_request,
+        script=script,
+        glbls=glbls,
+        glbls_lock=lock,
     )
 
     if expects_completions is True:

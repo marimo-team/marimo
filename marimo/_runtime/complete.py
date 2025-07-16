@@ -7,7 +7,6 @@ import threading
 import time
 from collections.abc import Mapping
 from functools import lru_cache
-from types import ModuleType
 from typing import TYPE_CHECKING, Any, cast
 
 import jedi  # type: ignore # noqa: F401
@@ -28,6 +27,7 @@ from marimo._utils.rst_to_html import convert_rst_to_html
 
 if TYPE_CHECKING:
     import threading
+    from types import ModuleType
 
 LOGGER = loggers.marimo_logger()
 
@@ -346,14 +346,24 @@ def _get_completions_with_interpreter(
         completions = script.complete()
     return script, completions
 
+
 # TODO move this to a global utility module
 def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
+    """Check if an object is an instance of a class reference defined by a string.
+    Allows to define and do `isinstance()` checks without importing 3rd party libraries
+
+    Example:
+        ```python
+        df = pd.DataFrame(...)
+        _isinstance_external(df, class_ref="pandas.DataFrame")
+        ```
+    """
     import_parts = class_ref.split(".")
     module_name = import_parts[0]
 
     if module_name not in sys.modules:
         return False
-    
+
     module: ModuleType = sys.modules[module_name]
     target_class: Any = module
     for part in import_parts:
@@ -375,13 +385,18 @@ def _key_options_from_pandas(obj: Any) -> list[str]:
 
 
 def _key_options_dispatcher(obj: Any) -> list[str]:
+    """Tries to get key completion suggestions from `obj`
+    based on its methods and type.
+
+    Returns a list of strings to later create marimo `CompletionOption`
+    """
     if getattr(obj, "_ipython_key_completions_", False):
         return _key_options_from_ipython_method(obj)
     elif isinstance(obj, Mapping):
         return _key_options_from_mapping(obj)
     elif _isinstance_external(obj, class_ref="pandas.DataFrame"):
         return _key_options_from_pandas(obj)
-        
+
     LOGGER.debug(
         f"No matching handlers found to retrieve keys from type `{type(obj)}`"
     )
@@ -416,25 +431,31 @@ def _get_key_options(
     # TODO currently unreliable for non-string keys, even if stringified
     # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
     return [
-        CompletionOption(
-            name=str(key), type="property", completion_info="property"
-        )
+        CompletionOption(name=key, type="property", completion_info="property")
         for key in keys
     ]
 
 
 def _maybe_get_key_options(
-    request: CodeCompletionRequest, script: jedi.Script, glbls: dict[str, Any], glbls_lock
+    request: CodeCompletionRequest,
+    script: jedi.Script,
+    glbls: dict[str, Any],
+    glbls_lock: threading.RLock,
 ) -> list[CompletionOption]:
     """Call key completions methods if the request contains the trigger"""
     triggers = ('["', "['")  # explicitly handle both quotation characters
-    if request.document[-2:] in triggers:
-        locked = False
-        completions: list[jedi.api.classes.Completion] = []
-        locked = glbls_lock.acquire(blocking=False)
-        return _get_key_options(script, glbls, locked)
+    if request.document[-2:] not in triggers:
+        return []
 
-    return []
+    # TODO ideally, we don't acquire the lock twice with `_get_completions_with_interpreter()` and `_maybe_get_key_options`
+    # however, the two functions are applied on different triggers
+    # also, this other function returns Jedi `Completion` while this returns native `CompletionOption`
+    locked = False
+    locked = glbls_lock.acquire(blocking=False)
+    if locked:
+        return _get_key_options(script, glbls)
+    else:
+        return []
 
 
 def _get_completions(
