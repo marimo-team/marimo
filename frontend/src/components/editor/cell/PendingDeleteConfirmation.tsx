@@ -57,21 +57,17 @@ const PendingDeleteInformationInternal: React.FC<
   const isExpensiveOrHasDeps = hasExpensiveExecution || hasDependencies;
   const isMultiPending = pendingCells.size > 1;
 
+  const autoDelete = !isMultiPending && !isExpensiveOrHasDeps;
+
   // Auto-delete if not expensive and not multi-pending
   useEffect(() => {
-    if (!isMultiPending && !isExpensiveOrHasDeps) {
+    if (autoDelete) {
       deleteCell({ cellId });
       setPendingCells(new Set());
     }
-  }, [
-    isMultiPending,
-    isExpensiveOrHasDeps,
-    cellId,
-    deleteCell,
-    setPendingCells,
-  ]);
+  }, [cellId, deleteCell, setPendingCells, autoDelete]);
 
-  if (!isMultiPending && !isExpensiveOrHasDeps) {
+  if (autoDelete) {
     return null;
   }
 
