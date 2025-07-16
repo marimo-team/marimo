@@ -8,7 +8,11 @@ import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
-import { hotkeysAtom, keymapPresetAtom } from "@/core/config/config";
+import {
+  hotkeysAtom,
+  keymapPresetAtom,
+  userConfigAtom,
+} from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { saveCellConfig } from "@/core/network/requests";
@@ -136,6 +140,8 @@ export function useCellNavigationProps(
   const { copyCells, pasteAtCell } = useCellClipboard();
   const selectionActions = useCellSelectionActions();
   const isSelected = useIsCellSelected(cellId);
+  const setPendingCells = useSetAtom(pendingDeleteCellsAtom);
+  const userConfig = useAtomValue(userConfigAtom);
 
   const hotkeys = useAtomValue(hotkeysAtom);
 
@@ -241,27 +247,24 @@ export function useCellNavigationProps(
         }
       }
 
-      // Keymaps when using vim.
-      if (
-        keymapPreset === "vim" &&
-        handleVimKeybinding(evt.nativeEvent || evt, {
-          j: keymaps.ArrowDown,
-          k: keymaps.ArrowUp,
-          i: keymaps.Enter,
-          "shift+j": keymaps["Shift+ArrowDown"],
-          "shift+k": keymaps["Shift+ArrowUp"],
-          "g g": keymaps["Mod+ArrowUp"],
-          "shift+g": keymaps["Mod+ArrowDown"],
-        })
-      ) {
-        evt.preventDefault();
-        return;
-      }
-
       // Shortcuts
-      const shortcuts: Partial<
-        Record<HotkeyAction, HotkeyHandler["handle"] | HotkeyHandler>
-      > = {
+      const shortcuts = {
+        "cell.delete": (cellId) => {
+          // Only handle if destructive_delete is enabled
+          if (!userConfig.keymap.destructive_delete) {
+            return false;
+          }
+          // Cannot delete running cells
+          const notebook = store.get(notebookAtom);
+          const cellData = notebook.cellRuntime[cellId];
+          const hasRunningCell =
+            cellData.status === "running" || cellData.status === "queued";
+          if (hasRunningCell) {
+            return false;
+          }
+          setPendingCells(new Set([cellId]));
+          return true;
+        },
         // Cell actions
         "cell.run": addSingleHandler((cellIds) => {
           runCells(cellIds);
@@ -440,7 +443,27 @@ export function useCellNavigationProps(
           actions.createNewCell({ cellId, before: false, autoFocus: true });
           return true;
         },
-      };
+      } satisfies Partial<
+        Record<HotkeyAction, HotkeyHandler["handle"] | HotkeyHandler>
+      >;
+
+      // Keymaps when using vim.
+      if (
+        keymapPreset === "vim" &&
+        handleVimKeybinding(evt.nativeEvent || evt, {
+          j: keymaps.ArrowDown,
+          k: keymaps.ArrowUp,
+          i: keymaps.Enter,
+          "shift+j": keymaps["Shift+ArrowDown"],
+          "shift+k": keymaps["Shift+ArrowUp"],
+          "g g": keymaps["Mod+ArrowUp"],
+          "shift+g": keymaps["Mod+ArrowDown"],
+          "d d": () => shortcuts["cell.delete"](cellId),
+        })
+      ) {
+        evt.preventDefault();
+        return;
+      }
 
       const selectedCells = getSelectedCells(store);
 
