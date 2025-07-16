@@ -3222,6 +3222,7 @@ export interface components {
         line_length: number;
       };
       keymap: {
+        destructive_delete?: boolean;
         overrides?: {
           [key: string]: string;
         };

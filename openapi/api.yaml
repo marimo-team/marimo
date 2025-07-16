@@ -1619,6 +1619,8 @@ components:
           type: object
         keymap:
           properties:
+            destructive_delete:
+              type: boolean
             overrides:
               additionalProperties:
                 type: string
@@ -2738,7 +2740,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.10
+  version: 0.14.11
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
