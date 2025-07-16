@@ -345,7 +345,7 @@ class ExtractSkippableWithBlock(ExtractWithBlock):
                 "As a limitation of caching context, the first statement "
                 "cannot be a try block."
                 "\n"
-                "Please move the cache block inside of the try, or use a start "
+                "Please move the cache block inside of the try, or start "
                 "the block with a different statement."
                 "\n"
                 "Note, exceptions have cache invalidating consequences (by "
