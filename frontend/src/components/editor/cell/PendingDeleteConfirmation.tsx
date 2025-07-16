@@ -6,7 +6,6 @@ import React, { useEffect } from "react";
 import { formatElapsedTime } from "@/components/editor/cell/CellStatus";
 import { CellLink } from "@/components/editor/links/cell-link";
 import { Button } from "@/components/ui/button";
-import { useCellNames } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
 import { variablesAtom } from "@/core/variables/state";
@@ -38,28 +37,18 @@ const PendingDeleteInformationInternal: React.FC<
   PendingDeleteInformationProps
 > = ({ cellId, executionTimeMs }) => {
   const variables = useAtomValue(variablesAtom);
-  const cellNames = useCellNames();
   const [pendingCells, setPendingCells] = useAtom(pendingDeleteCellsAtom);
   const deleteCell = useDeleteCellCallback();
 
-  const defs: VariableName[] = [];
-  const downstream = new Set<CellId>();
+  const defs = new Map<VariableName, readonly CellId[]>();
   for (const variable of Object.values(variables)) {
-    if (variable.declaredBy.includes(cellId)) {
-      defs.push(variable.name);
-      for (const id of variable.usedBy) {
-        downstream.add(id);
-      }
+    if (variable.declaredBy.includes(cellId) && variable.usedBy.length > 0) {
+      defs.set(variable.name, variable.usedBy);
     }
   }
 
-  const downstreamCells = [...downstream].map((id) => ({
-    cellId: id,
-    name: cellNames[id] || id,
-  }));
-
   const hasExpensiveExecution = executionTimeMs > 2000;
-  const hasDependencies = downstreamCells.length > 0;
+  const hasDependencies = defs.size > 0;
   const isExpensiveOrHasDeps = hasExpensiveExecution || hasDependencies;
   const isMultiPending = pendingCells.size > 1;
 
@@ -129,28 +118,21 @@ const PendingDeleteInformationInternal: React.FC<
             </p>
 
             {hasDependencies &&
-              defs.map((def) => (
-                <div key={def}>
+              [...defs.entries()].map(([varName, cells]) => (
+                <div key={varName}>
                   <p className="text-[var(--amber-11)] mt-2">
-                    '<span className="font-mono">{def}</span>' is referenced by:
+                    '<span className="font-mono">{varName}</span>' is referenced
+                    by:
                   </p>
                   <ul className="list-disc">
-                    {downstreamCells
-                      .filter(({ cellId: id }) => {
-                        // Check if this cell actually uses this specific variable
-                        const variable = Object.values(variables).find(
-                          (v) => v.name === def,
-                        );
-                        return variable?.usedBy.includes(id);
-                      })
-                      .map(({ cellId: id }) => (
-                        <li
-                          key={id}
-                          className="my-0.5 ml-8 text-[var(--amber-11)]/60"
-                        >
-                          <CellLink cellId={id} />
-                        </li>
-                      ))}
+                    {cells.map((id) => (
+                      <li
+                        key={id}
+                        className="my-0.5 ml-8 text-[var(--amber-11)]/60"
+                      >
+                        <CellLink cellId={id} />
+                      </li>
+                    ))}
                   </ul>
                 </div>
               ))}
