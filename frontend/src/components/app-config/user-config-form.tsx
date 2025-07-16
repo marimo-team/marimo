@@ -974,7 +974,7 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="runtime.default_auto_download"
+              name={"runtime.default_auto_download" as FieldPath<UserConfig>}
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
@@ -984,9 +984,15 @@ export const UserConfigForm: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id="html-checkbox"
-                            checked={field.value.includes("html")}
+                            checked={
+                              Array.isArray(field.value) &&
+                              field.value.includes("html")
+                            }
                             onCheckedChange={() => {
-                              field.onChange(arrayToggle(field.value, "html"));
+                              const currentValue = Array.isArray(field.value)
+                                ? field.value
+                                : [];
+                              field.onChange(arrayToggle(currentValue, "html"));
                             }}
                           />
                           <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
@@ -994,9 +1000,17 @@ export const UserConfigForm: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id="ipynb-checkbox"
-                            checked={field.value.includes("ipynb")}
+                            checked={
+                              Array.isArray(field.value) &&
+                              field.value.includes("ipynb")
+                            }
                             onCheckedChange={() => {
-                              field.onChange(arrayToggle(field.value, "ipynb"));
+                              const currentValue = Array.isArray(field.value)
+                                ? field.value
+                                : [];
+                              field.onChange(
+                                arrayToggle(currentValue, "ipynb"),
+                              );
                             }}
                           />
                           <FormLabel htmlFor="ipynb-checkbox">IPYNB</FormLabel>
@@ -1006,7 +1020,9 @@ export const UserConfigForm: React.FC = () => {
                     <FormMessage />
                     <IsOverridden
                       userConfig={config}
-                      name="runtime.default_auto_download"
+                      name={
+                        "runtime.default_auto_download" as FieldPath<UserConfig>
+                      }
                     />
                   </FormItem>
                   <FormDescription>
