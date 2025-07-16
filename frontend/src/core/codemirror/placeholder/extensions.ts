@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
+import { isEditorReadonly } from "../readonly/extension";
 
 /**
  * A placeholder that will be shown when the editor is empty and support
@@ -25,6 +26,10 @@ export function smartPlaceholderExtension(text: string): Extension[] {
 }
 
 function acceptPlaceholder(cm: EditorView, text: string) {
+  if (isEditorReadonly(cm.state)) {
+    return false;
+  }
+
   // if empty, insert the placeholder
   const docLength = cm.state.doc.length;
   if (docLength === 0) {
