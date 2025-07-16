@@ -217,13 +217,13 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
     [
       {
         icon: <EyeOffIcon size={13} strokeWidth={1.5} />,
-        label: "Hide cells",
+        label: "Hide code",
         handle: (cellIds) =>
           toggleSelectedCellsProperty(cellIds, "hide_code", true),
       },
       {
         icon: <EyeIcon size={13} strokeWidth={1.5} />,
-        label: "Show cells",
+        label: "Show code",
         handle: (cellIds) =>
           toggleSelectedCellsProperty(cellIds, "hide_code", false),
       },
