@@ -128,7 +128,7 @@
     "pyodide": "0.27.7",
     "react-arborist": "^3.4.3",
     "react-aria": "^3.41.1",
-    "react-aria-components": "^1.8.0",
+    "react-aria-components": "^1.10.1",
     "react-codemirror-merge": "4.23.14",
     "react-dropzone": "^14.3.8",
     "react-error-boundary": "^5.0.0",
