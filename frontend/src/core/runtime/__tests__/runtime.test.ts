@@ -244,6 +244,7 @@ describe("RuntimeManager", () => {
           "Authorization": "Bearer test-token",
           "Marimo-Server-Token": "",
           "Marimo-Session-Id": "test-session-id",
+          "x-runtime-url": "https://example.com/",
         }
       `);
     });
@@ -255,6 +256,7 @@ describe("RuntimeManager", () => {
       expect(headers).toEqual({
         "Marimo-Session-Id": "test-session-id",
         "Marimo-Server-Token": "",
+        "x-runtime-url": "http://localhost:8080/",
       });
     });
   });

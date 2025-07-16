@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import Html
+from marimo._plugins.stateless.mpl._mpl import (
+    _convert_scheme_to_ws,
+    _get_remote_url,
+    _template,
+)
 from marimo._runtime.requests import DeleteCellRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -80,3 +85,132 @@ def test_patch_javascript() -> None:
     javascript = patch_javascript(javascript)
     assert javascript.count("// canvas.focus();") == 1
     assert javascript.count("// canvas_div.focus();") == 1
+
+
+def test_get_remote_url_with_request() -> None:
+    """Test _get_remote_url when request and headers exist"""
+
+    # Mock the app_meta function and request
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = "https://example.com/path/"
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = mock_request
+
+        result = _get_remote_url()
+
+        assert result == "https://example.com/path"
+        mock_request.headers.get.assert_called_once_with("x-runtime-url")
+
+
+def test_get_remote_url_no_request() -> None:
+    """Test _get_remote_url when no request exists"""
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = None
+
+        result = _get_remote_url()
+
+        assert result == ""
+
+
+def test_get_remote_url_no_header() -> None:
+    """Test _get_remote_url when x-runtime-url header is missing"""
+
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = None
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = mock_request
+
+        result = _get_remote_url()
+
+        assert result == ""
+
+
+def test_get_remote_url_empty_header() -> None:
+    """Test _get_remote_url when x-runtime-url header is empty"""
+
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = ""
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = mock_request
+
+        result = _get_remote_url()
+
+        assert result == ""
+
+
+def test_convert_scheme_to_ws_http() -> None:
+    """Test _convert_scheme_to_ws with http URL"""
+
+    result = _convert_scheme_to_ws("http://example.com/path")
+    assert result == "ws://example.com/path"
+
+
+def test_convert_scheme_to_ws_https() -> None:
+    """Test _convert_scheme_to_ws with https URL"""
+
+    result = _convert_scheme_to_ws("https://example.com/path")
+    assert result == "wss://example.com/path"
+
+
+def test_convert_scheme_to_ws_other_scheme() -> None:
+    """Test _convert_scheme_to_ws with non-http/https URL"""
+
+    result = _convert_scheme_to_ws("ftp://example.com/path")
+    assert result == "ftp://example.com/path"
+
+
+def test_convert_scheme_to_ws_no_scheme() -> None:
+    """Test _convert_scheme_to_ws with URL without scheme"""
+
+    result = _convert_scheme_to_ws("example.com/path")
+    assert result == "example.com/path"
+
+
+def test_template_with_remote_url() -> None:
+    """Test _template function with remote URL"""
+
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = "https://example.com"
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = mock_request
+
+        result = _template("test_fig", 8080)
+
+        assert "wss://example.com/mpl/8080/ws?figure=test_fig" in result
+        assert "test_fig" in result
+        assert "https://example.com/mpl/8080" in result
+
+
+def test_template_without_remote_url() -> None:
+    """Test _template function without remote URL"""
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = None
+
+        result = _template("test_fig", 8080)
+
+        assert "/mpl/8080/ws?figure=test_fig" in result
+        assert "test_fig" in result
+        assert "/mpl/8080" in result
+
+
+def test_template_contains_html_structure() -> None:
+    """Test _template function contains proper HTML structure"""
+
+    with patch("marimo._plugins.stateless.mpl._mpl.app_meta") as mock_app_meta:
+        mock_app_meta.return_value.request = None
+
+        result = _template("12345", 9000)
+
+        assert "<!DOCTYPE html>" in result
+        assert '<html lang="en">' in result
+        assert "<head>" in result
+        assert "<body>" in result
+        assert '<div id="figure"></div>' in result
+        assert "12345" in result
+        assert "9000" in result
