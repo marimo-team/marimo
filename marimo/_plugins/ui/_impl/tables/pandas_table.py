@@ -244,27 +244,33 @@ class PandasTableManagerFactory(TableManagerFactory):
                 else:
                     dtype = str(dtype)
 
-                if dtype.startswith("interval"):
+                lower_dtype = dtype.lower()
+
+                if lower_dtype.startswith("interval"):
                     return ("string", dtype)
-                if dtype.startswith("int") or dtype.startswith("uint"):
+                if lower_dtype.startswith("int") or lower_dtype.startswith(
+                    "uint"
+                ):
                     return ("integer", dtype)
-                if dtype.startswith("float"):
+                if lower_dtype.startswith("float"):
                     return ("number", dtype)
-                if dtype == "object":
+                if lower_dtype == "object":
                     return ("string", dtype)
-                if dtype == "bool":
+                if lower_dtype == "bool":
                     return ("boolean", dtype)
-                if dtype.startswith("datetime"):
+                if lower_dtype.startswith("datetime"):
                     return ("datetime", dtype)
-                if dtype == "date":
+                if lower_dtype == "date":
                     return ("date", dtype)
-                if dtype == "time":
+                if lower_dtype == "time":
                     return ("time", dtype)
-                if dtype == "timedelta64[ns]":
+                if lower_dtype == "timedelta64[ns]":
                     return ("string", dtype)
-                if dtype == "category":
+                if lower_dtype == "category":
                     return ("string", dtype)
-                if dtype.startswith("complex"):
+                if lower_dtype == "string":
+                    return ("string", dtype)
+                if lower_dtype.startswith("complex"):
                     return ("unknown", dtype)
                 return ("unknown", dtype)
 
