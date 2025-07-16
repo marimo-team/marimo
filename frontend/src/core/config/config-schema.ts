@@ -37,6 +37,11 @@ const VALID_SQL_OUTPUT_FORMATS = [
 ] as const;
 export type SqlOutputType = (typeof VALID_SQL_OUTPUT_FORMATS)[number];
 
+/**
+ * Export types for auto download
+ */
+const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
+
 export const UserConfigSchema = z
   .object({
     completion: z
@@ -91,10 +96,10 @@ export const UserConfigSchema = z
         on_cell_change: z.enum(["lazy", "autorun"]).default("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).default("off"),
         watcher_on_save: z.enum(["lazy", "autorun"]).default("lazy"),
-        default_auto_download: z
-          .array(z.enum(["html", "markdown", "ipynb"]))
-          .default([]),
         default_sql_output: z.enum(VALID_SQL_OUTPUT_FORMATS).default("auto"),
+        default_auto_download: z
+          .array(z.enum(AUTO_DOWNLOAD_FORMATS))
+          .default([]),
       })
       .passthrough()
       .default({}),
@@ -217,7 +222,7 @@ export const AppConfigSchema = z
     app_title: AppTitleSchema.nullish(),
     css_file: z.string().nullish(),
     html_head_file: z.string().nullish(),
-    auto_download: z.array(z.enum(["html", "markdown", "ipynb"])).default([]),
+    auto_download: z.array(z.enum(AUTO_DOWNLOAD_FORMATS)).default([]),
     sql_output: SqlOutputSchema,
   })
   .default({ width: "medium", auto_download: [] });
