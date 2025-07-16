@@ -292,13 +292,25 @@ def test_get_key_completions(
     mock_request.document = code
 
     completions = _maybe_get_key_options(
-        request=mock_request, script=script, glbls=glbls
+        request=mock_request, script=script, glbls=glbls, glbls_lock=glbls_lock
     )
 
     if expects_completions is True:
         assert [c.name for c in completions] == expected_completions
     else:
         assert completions == []
+
+
+def random_dict():
+    """This can't be statically inferred."""
+    import random
+    
+    d = {}
+    for _ in range(5):
+        value = random.randint(0, 100)
+        d[str(value)] = value
+
+    return d
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed.")

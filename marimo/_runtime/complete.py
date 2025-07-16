@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import html
+import sys
 import threading
 import time
 from collections.abc import Mapping
 from functools import lru_cache
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, cast
 
 import jedi  # type: ignore # noqa: F401
@@ -344,6 +346,47 @@ def _get_completions_with_interpreter(
         completions = script.complete()
     return script, completions
 
+# TODO move this to a global utility module
+def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
+    import_parts = class_ref.split(".")
+    module_name = import_parts[0]
+
+    if module_name not in sys.modules:
+        return False
+    
+    module: ModuleType = sys.modules[module_name]
+    target_class: Any = module
+    for part in import_parts:
+        target_class = getattr(target_class, part)
+
+    return isinstance(obj, target_class)
+
+
+def _key_options_from_ipython_method(obj: Any) -> list[str]:
+    return obj._ipython_key_completions_()
+
+
+def _key_options_from_mapping(obj: Mapping) -> list[str]:
+    return [str(key) for key in obj.keys()]
+
+
+def _key_options_from_pandas(obj: Any) -> list[str]:
+    return _key_options_from_mapping(obj)
+
+
+def _key_options_dispatcher(obj: Any) -> list[str]:
+    if getattr(obj, "_ipython_key_completions_", False):
+        return _key_options_from_ipython_method(obj)
+    elif isinstance(obj, Mapping):
+        return _key_options_from_mapping(obj)
+    elif _isinstance_external(obj, class_ref="pandas.DataFrame"):
+        return _key_options_from_pandas(obj)
+        
+    LOGGER.debug(
+        f"No matching handlers found to retrieve keys from type `{type(obj)}`"
+    )
+    return []
+
 
 def _get_key_options(
     script: jedi.Script, glbls: dict[str, Any]
@@ -369,20 +412,7 @@ def _get_key_options(
         LOGGER.debug(f"Failed to find `{obj_name=:}` in `glbls`")
         return []
 
-    # TODO refactor handler to separate metho as complexicty grows
-    if getattr(obj, "_ipython_key_completions_", False):
-        keys = obj._ipython_key_completions_()
-    elif isinstance(obj, Mapping):
-        keys = obj.keys()
-    # for instance, pandas.DataFrame doesn't inherit from Mapping
-    elif getattr(obj, "keys", False):
-        keys = obj.keys()
-    else:
-        LOGGER.debug(
-            f"No matching handlers found to retrieve keys from type `{type(obj)}`"
-        )
-        keys = []
-
+    keys = _key_options_dispatcher(obj)
     # TODO currently unreliable for non-string keys, even if stringified
     # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
     return [
@@ -394,12 +424,15 @@ def _get_key_options(
 
 
 def _maybe_get_key_options(
-    request: CodeCompletionRequest, script: jedi.Script, glbls: dict[str, Any]
+    request: CodeCompletionRequest, script: jedi.Script, glbls: dict[str, Any], glbls_lock
 ) -> list[CompletionOption]:
     """Call key completions methods if the request contains the trigger"""
     triggers = ('["', "['")  # explicitly handle both quotation characters
     if request.document[-2:] in triggers:
-        return _get_key_options(script, glbls)
+        locked = False
+        completions: list[jedi.api.classes.Completion] = []
+        locked = glbls_lock.acquire(blocking=False)
+        return _get_key_options(script, glbls, locked)
 
     return []
 
@@ -475,7 +508,12 @@ def complete(
 
         # TODO we can probably return early if we have key completion;
         # it has different triggers and retrieval should never overlap with attribute completion
-        key_options = _maybe_get_key_options(request, script, glbls)
+        key_options = _maybe_get_key_options(
+            request,
+            script,
+            glbls=glbls,
+            glbls_lock=glbls_lock,
+        )
 
         if (
             prefix_length == 0
