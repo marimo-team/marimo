@@ -5,6 +5,7 @@ import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
 import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
@@ -23,7 +24,15 @@ import { errorLineHighlighter } from "./traceback-decorations";
 /**
  * Extensions for cell actions
  */
-function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
+function cellKeymaps({
+  cellId,
+  hotkeys,
+  keymapConfig,
+}: {
+  cellId: CellId;
+  hotkeys: HotkeyProvider;
+  keymapConfig: KeymapConfig;
+}): Extension[] {
   const keybindings: KeyBinding[] = [];
 
   keybindings.push(
@@ -98,8 +107,10 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         preventDefault: true,
         stopPropagation: true,
         run: (cm) => {
-          // Cannot delete non-empty cells for safety
-          if (cm.state.doc.length === 0) {
+          // Can only delete non-empty cells when `destructive_delete` is enabled
+          const canDelete =
+            keymapConfig.destructive_delete || cm.state.doc.length === 0;
+          if (canDelete) {
             const actions = cm.state.facet(cellActionsState);
             actions.deleteCell();
           }
@@ -338,15 +349,21 @@ export function markdownAutoRunExtension({
   });
 }
 
-export function cellBundle(
-  cellId: CellId,
-  hotkeys: HotkeyProvider,
-  cellActions: CodemirrorCellActions,
-): Extension[] {
+export function cellBundle({
+  cellId,
+  hotkeys,
+  cellActions,
+  keymapConfig,
+}: {
+  cellId: CellId;
+  hotkeys: HotkeyProvider;
+  cellActions: CodemirrorCellActions;
+  keymapConfig: KeymapConfig;
+}): Extension[] {
   return [
     cellActionsState.of(cellActions),
     cellIdState.of(cellId),
-    cellKeymaps(cellId, hotkeys),
+    cellKeymaps({ cellId, hotkeys, keymapConfig }),
     cellCodeEditing(hotkeys),
     errorLineHighlighter(
       createObservable(createTracebackInfoAtom(cellId), store),

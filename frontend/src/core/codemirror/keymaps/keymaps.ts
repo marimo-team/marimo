@@ -63,13 +63,16 @@ export function keymapBundle(
             },
           },
         ]),
-        // delete the cell on double press of "d", if the cell is empty
+        // delete the cell on double press of "d", if the cell is empty or destructive_delete is enabled
         Prec.high(
           doubleCharacterListener(
             "d",
-            (view) => view.state.doc.toString() === "",
+            (view) =>
+              config.destructive_delete || view.state.doc.toString() === "",
             (view) => {
-              if (view.state.doc.toString() === "") {
+              const canDelete =
+                config.destructive_delete || view.state.doc.toString() === "";
+              if (canDelete) {
                 const actions = view.state.facet(cellActionsState);
                 actions.deleteCell();
                 return true;

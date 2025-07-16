@@ -87,6 +87,7 @@ export const UserConfigSchema = z
       .object({
         preset: z.enum(["default", "vim"]).default("default"),
         overrides: z.record(z.string()).default({}),
+        destructive_delete: z.boolean().default(true),
       })
       .passthrough()
       .default({}),

@@ -121,7 +121,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
       lspConfig,
       diagnosticsConfig,
     }),
-    cellBundle(cellId, hotkeys, cellActions),
+    cellBundle({ cellId, hotkeys, cellActions, keymapConfig }),
     // Comes last so that it can be overridden
     basicBundle(opts),
     // Underline cmd+clickable placeholder
