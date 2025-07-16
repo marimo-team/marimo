@@ -215,7 +215,7 @@ export class RuntimeManager {
       // Needed for widgets that need absolute URLs when embedding in an iframe
       // e.g. mpl.interactive()
       // We don't prefix with `marimo` since those get stripped internally
-      "X-Runtime-URL": this.httpURL.toString(),
+      "x-runtime-url": this.httpURL.toString(),
     };
 
     if (this.config.authToken) {

@@ -100,7 +100,7 @@ def test_get_remote_url_with_request() -> None:
         result = _get_remote_url()
 
         assert result == "https://example.com/path"
-        mock_request.headers.get.assert_called_once_with("X-Runtime-URL")
+        mock_request.headers.get.assert_called_once_with("x-runtime-url")
 
 
 def test_get_remote_url_no_request() -> None:
@@ -115,7 +115,7 @@ def test_get_remote_url_no_request() -> None:
 
 
 def test_get_remote_url_no_header() -> None:
-    """Test _get_remote_url when X-Runtime-URL header is missing"""
+    """Test _get_remote_url when x-runtime-url header is missing"""
 
     mock_request = MagicMock()
     mock_request.headers.get.return_value = None
@@ -129,7 +129,7 @@ def test_get_remote_url_no_header() -> None:
 
 
 def test_get_remote_url_empty_header() -> None:
-    """Test _get_remote_url when X-Runtime-URL header is empty"""
+    """Test _get_remote_url when x-runtime-url header is empty"""
 
     mock_request = MagicMock()
     mock_request.headers.get.return_value = ""
