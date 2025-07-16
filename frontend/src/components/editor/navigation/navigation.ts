@@ -18,6 +18,7 @@ import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
+import { Sets } from "@/utils/sets";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
@@ -92,15 +93,7 @@ function useCellFocusProps(cellId: CellId) {
       // On blur, hide the code if it was temporarily shown.
       setTemporarilyShownCode(false);
       actions.markTouched({ cellId });
-      setPendingCells((current) => {
-        if (current.has(cellId)) {
-          const next = new Set(current);
-          next.delete(cellId);
-          return next;
-        } else {
-          return current;
-        }
-      });
+      setPendingCells((current) => Sets.delete(current, cellId));
     },
   });
 
