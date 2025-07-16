@@ -337,7 +337,6 @@ class ExtractWithBlock(ast.NodeTransformer):
 
 
 class ExtractSkippableWithBlock(ExtractWithBlock):
-
     def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
         pre_block, with_block = super().generic_visit(node)
         # We should fail if the first node in with_block is a try.
