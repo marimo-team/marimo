@@ -35,6 +35,7 @@ class IbisTableManagerFactory(TableManagerFactory):
         return "ibis"
 
     @staticmethod
+    @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import ibis  # type: ignore
 
