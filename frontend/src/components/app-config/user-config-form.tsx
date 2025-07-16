@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
+  AlertTriangleIcon,
   BrainIcon,
   CpuIcon,
   EditIcon,
@@ -582,6 +583,48 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden userConfig={config} name="keymap.preset" />
                     </FormItem>
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="keymap.destructive_delete"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Destructive delete
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="destructive-delete-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="keymap.destructive_delete"
+                      />
+                    </FormItem>
+                    <FormDescription className="flex items-center gap-1">
+                      Allow deleting non-empty cells
+                      <Tooltip
+                        content={
+                          <div className="max-w-xs">
+                            <strong>Use with caution:</strong> Deleting cells
+                            with code can lose work and computed results since
+                            variables are removed from memory.
+                          </div>
+                        }
+                      >
+                        <AlertTriangleIcon className="w-3 h-3 text-[var(--amber-11)]" />
+                      </Tooltip>
+                    </FormDescription>
 
                     <div>
                       <Button
