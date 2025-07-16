@@ -212,6 +212,10 @@ export class RuntimeManager {
     const headers: Record<string, string> = {
       "Marimo-Session-Id": getSessionId(),
       "Marimo-Server-Token": this.config.serverToken ?? "",
+      // Needed for widgets that need absolute URLs when embedding in an iframe
+      // e.g. mpl.interactive()
+      // We don't prefix with `marimo` since those get stripped internally
+      "X-Runtime-URL": this.httpURL.toString(),
     };
 
     if (this.config.authToken) {

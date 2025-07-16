@@ -6,7 +6,7 @@ import json
 import sys
 import time
 from multiprocessing import Process
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
 import uvicorn
@@ -23,7 +23,10 @@ from marimo._server.api.middleware import (
     _AsyncHTTPClient,
     _URLRequest,
 )
-from marimo._server.main import create_starlette_app
+from marimo._server.main import (
+    _create_mpl_proxy_middleware,
+    create_starlette_app,
+)
 from marimo._server.model import SessionMode
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import find_free_port
@@ -667,3 +670,196 @@ class TestProxyMiddleware:
         assert proxy_calls[-1] == "wss://example.com/proxy/test"
 
         # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
+
+
+class TestMplProxyMiddleware:
+    def test_mpl_proxy_middleware_no_base_url(self):
+        """Test MPL proxy middleware with empty base_url."""
+        middleware = _create_mpl_proxy_middleware("")
+
+        # Check that the middleware is created correctly
+        assert middleware.cls == ProxyMiddleware
+        assert middleware.kwargs["proxy_path"] == "/mpl"
+
+        # Test target_url function
+        target_url_func: Callable[[str], str] = middleware.kwargs["target_url"]
+        assert (
+            target_url_func("/mpl/8080/some/path") == "http://localhost:8080"
+        )
+
+        # Test path_rewrite function
+        path_rewrite_func: Callable[[str], str] = middleware.kwargs[
+            "path_rewrite"
+        ]
+        assert path_rewrite_func("/mpl/8080/some/path") == "/some/path"
+        assert path_rewrite_func("/mpl/8080/") == "/"
+        assert path_rewrite_func("/mpl/8080") == "/"
+
+    def test_mpl_proxy_middleware_with_base_url(self):
+        """Test MPL proxy middleware with base_url."""
+        middleware = _create_mpl_proxy_middleware("/foo")
+
+        # Check that the middleware is created correctly
+        assert middleware.cls == ProxyMiddleware
+        assert middleware.kwargs["proxy_path"] == "/foo/mpl"
+
+        # Test target_url function
+        target_url_func = middleware.kwargs["target_url"]
+        assert (
+            target_url_func("/foo/mpl/8080/some/path")
+            == "http://localhost:8080"
+        )
+
+        # Test path_rewrite function
+        path_rewrite_func: Callable[[str], str] = middleware.kwargs[
+            "path_rewrite"
+        ]
+        assert path_rewrite_func("/foo/mpl/8080/some/path") == "/some/path"
+        assert path_rewrite_func("/foo/mpl/8080/") == "/"
+        assert path_rewrite_func("/foo/mpl/8080") == "/"
+
+    def test_mpl_proxy_middleware_with_base_url_trailing_slash(self):
+        """Test MPL proxy middleware with base_url that has trailing slash."""
+        middleware = _create_mpl_proxy_middleware("/foo/")
+
+        # Check that the middleware is created correctly
+        assert middleware.cls == ProxyMiddleware
+        assert middleware.kwargs["proxy_path"] == "/foo/mpl"
+
+        # Test target_url function
+        target_url_func: Callable[[str], str] = middleware.kwargs["target_url"]
+        assert (
+            target_url_func("/foo/mpl/8080/some/path")
+            == "http://localhost:8080"
+        )
+
+        # Test path_rewrite function
+        path_rewrite_func = middleware.kwargs["path_rewrite"]
+        assert path_rewrite_func("/foo/mpl/8080/some/path") == "/some/path"
+
+    def test_mpl_proxy_middleware_complex_paths(self):
+        """Test MPL proxy middleware with complex paths."""
+        middleware = _create_mpl_proxy_middleware("/api/v1")
+
+        # Check that the middleware is created correctly
+        assert middleware.cls == ProxyMiddleware
+        assert middleware.kwargs["proxy_path"] == "/api/v1/mpl"
+
+        # Test target_url function
+        target_url_func = middleware.kwargs["target_url"]
+        assert (
+            target_url_func("/api/v1/mpl/9000/static/css/style.css")
+            == "http://localhost:9000"
+        )
+
+        # Test path_rewrite function
+        path_rewrite_func: Callable[[str], str] = middleware.kwargs[
+            "path_rewrite"
+        ]
+        assert (
+            path_rewrite_func("/api/v1/mpl/9000/static/css/style.css")
+            == "/static/css/style.css"
+        )
+
+    def test_mpl_proxy_middleware_target_url_errors(self):
+        """Test error cases for target_url function."""
+        middleware = _create_mpl_proxy_middleware("/foo")
+        target_url_func = middleware.kwargs["target_url"]
+
+        # Test with wrong prefix
+        with pytest.raises(
+            ValueError,
+            match="Path /bar/mpl/8080/path does not start with proxy path /foo/mpl",
+        ):
+            target_url_func("/bar/mpl/8080/path")
+
+        # Test with no port
+        with pytest.raises(ValueError, match="Invalid MPL path format"):
+            target_url_func("/foo/mpl/")
+
+        # Test with no slash after proxy_path
+        with pytest.raises(ValueError, match="Invalid MPL path format"):
+            target_url_func("/foo/mpl8080/path")
+
+    def test_mpl_proxy_middleware_path_rewrite_edge_cases(self):
+        """Test edge cases for path_rewrite function."""
+        middleware = _create_mpl_proxy_middleware("/foo")
+        path_rewrite_func: Callable[[str], str] = middleware.kwargs[
+            "path_rewrite"
+        ]
+
+        # Test with wrong prefix - should return "/"
+        assert path_rewrite_func("/bar/mpl/8080/path") == "/"
+
+        # Test with no slash after proxy_path - should return "/"
+        assert path_rewrite_func("/foo/mpl8080/path") == "/"
+
+        # Test with incomplete path - should return "/"
+        assert path_rewrite_func("/foo/mpl/") == "/"
+
+        # Test with just the port - should return "/"
+        assert path_rewrite_func("/foo/mpl/8080") == "/"
+
+    def test_mpl_proxy_middleware_root_base_url(self):
+        """Test MPL proxy middleware with root base_url."""
+        middleware = _create_mpl_proxy_middleware("/")
+
+        # Check that the middleware is created correctly
+        assert middleware.cls == ProxyMiddleware
+        assert middleware.kwargs["proxy_path"] == "/mpl"
+
+        # Test target_url function
+        target_url_func: Callable[[str], str] = middleware.kwargs["target_url"]
+        assert (
+            target_url_func("/mpl/8080/some/path") == "http://localhost:8080"
+        )
+
+        # Test path_rewrite function
+        path_rewrite_func: Callable[[str], str] = middleware.kwargs[
+            "path_rewrite"
+        ]
+        assert path_rewrite_func("/mpl/8080/some/path") == "/some/path"
+
+    def test_mpl_proxy_middleware_integration_with_base_url(self):
+        """Test MPL proxy middleware integration with base_url in a real app."""
+        # Create app with base_url
+        app = create_starlette_app(base_url="/api/v1")
+        app.state.session_manager = get_mock_session_manager()
+        app.state.config_manager = MarimoConfigManager(UserConfigManager())
+
+        # Mock out the server
+        uvicorn_server = uvicorn.Server(uvicorn.Config(app))
+        uvicorn_server.servers = []
+
+        app.state.server = uvicorn_server
+        app.state.host = "localhost"
+        app.state.port = 1234
+        app.state.base_url = "/api/v1"
+
+        client = TestClient(app)
+
+        # Test that regular API routes still work with base_url
+        response = client.get("/api/v1/health")
+        assert response.status_code == 200
+
+        # Test that routes without base_url don't work
+        response = client.get("/health")
+        assert response.status_code == 404
+
+        # Test that the MPL proxy middleware is properly configured by
+        # verifying that it would handle the expected paths correctly
+        middleware = _create_mpl_proxy_middleware("/api/v1")
+        target_url_func: Callable[[str], str] = middleware.kwargs["target_url"]
+        path_rewrite_func: Callable[[str], str] = middleware.kwargs[
+            "path_rewrite"
+        ]
+
+        # These should work with the base_url
+        assert (
+            target_url_func("/api/v1/mpl/8080/static/file.js")
+            == "http://localhost:8080"
+        )
+        assert (
+            path_rewrite_func("/api/v1/mpl/8080/static/file.js")
+            == "/static/file.js"
+        )
