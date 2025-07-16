@@ -10,6 +10,7 @@ import { useCellNames } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
 import { variablesAtom } from "@/core/variables/state";
+import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
 import { useDeleteCellCallback } from "./useDeleteCell";
 
@@ -41,12 +42,17 @@ const PendingDeleteInformationInternal: React.FC<
   const [pendingCells, setPendingCells] = useAtom(pendingDeleteCellsAtom);
   const deleteCell = useDeleteCellCallback();
 
+  const defs: VariableName[] = [];
   const downstream = new Set<CellId>();
-  Object.values(variables).forEach((v) => {
-    if (v.declaredBy.includes(cellId)) {
-      v.usedBy.forEach((id) => downstream.add(id));
+  for (const variable of Object.values(variables)) {
+    if (variable.declaredBy.includes(cellId)) {
+      defs.push(variable.name);
+      for (const id of variable.usedBy) {
+        downstream.add(id);
+      }
     }
-  });
+  }
+
   const downstreamCells = [...downstream].map((id) => ({
     cellId: id,
     name: cellNames[id] || id,
@@ -101,11 +107,6 @@ const PendingDeleteInformationInternal: React.FC<
   } else if (hasDependencies) {
     warningMessage = "This cell contains variables referenced by other cells.";
   }
-
-  // Variables declared by this cell
-  const defs = Object.values(variables)
-    .filter((v) => v.declaredBy.includes(cellId))
-    .map((v) => v.name);
 
   // State 2 & 3: Single cell or multi-cell with warning
   // (For multi-cell, the toast handles the confirmation)
