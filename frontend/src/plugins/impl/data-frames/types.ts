@@ -44,9 +44,11 @@ export const NUMPY_DTYPES = [
   "timedelta64",
 ] as const;
 
-export function numpyTypeToDataType(
-  nptype: (typeof NUMPY_DTYPES)[number],
-): DataType {
+type NumpyType = (typeof NUMPY_DTYPES)[number];
+
+export function numpyTypeToDataType(nptype: NumpyType): DataType {
+  nptype = nptype.toLowerCase() as NumpyType;
+
   switch (nptype) {
     case "int8":
     case "int16":
