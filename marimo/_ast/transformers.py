@@ -126,6 +126,20 @@ class NameTransformer(ast.NodeTransformer):
             )
         return node
 
+    def visit_AsyncFunctionDef(
+        self, node: ast.AsyncFunctionDef
+    ) -> ast.AsyncFunctionDef:
+        self.generic_visit(node)
+        if node.name in self._name_substitutions:
+            self.made_changes = True
+            return ast.AsyncFunctionDef(
+                **{
+                    **node.__dict__,
+                    "name": self._name_substitutions[node.name],
+                }
+            )
+        return node
+
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
         self.generic_visit(node)
         if node.name in self._name_substitutions:
@@ -322,7 +336,26 @@ class ExtractWithBlock(ast.NodeTransformer):
         )
 
 
-class CacheExtractWithBlock(ExtractWithBlock):
+class ExtractSkippableWithBlock(ExtractWithBlock):
+    def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
+        pre_block, with_block = super().generic_visit(node)
+        # We should fail if the first node in with_block is a try.
+        if isinstance(with_block.body[0], ast.Try):
+            raise BlockException(
+                "As a limitation of caching context, the first statement "
+                "cannot be a try block."
+                "\n"
+                "Please move the cache block inside of the try, or start "
+                "the block with a different statement."
+                "\n"
+                "Note, exceptions have cache invalidating consequences (by "
+                "virtue of side effects), and handling exceptions in the "
+                "cache block may lead to unexpected behavior."
+            )
+        return (pre_block, with_block)
+
+
+class CacheExtractWithBlock(ExtractSkippableWithBlock):
     def __init__(self, line: int, *arg: Any, **kwargs: Any) -> None:
         name = kwargs.pop("name", "cache")
         super().__init__(line, (ast.With, ast.If), *arg, name=name, **kwargs)
