@@ -13,6 +13,7 @@ from marimo._utils.health import (
     get_optional_modules_list,
     get_required_modules_list,
 )
+from marimo._utils.versions import is_editable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -48,6 +49,7 @@ def get_system_info() -> dict[str, Union[str, dict[str, Any]]]:
 
     info = {
         "marimo": __version__,
+        "editable": str(is_editable("marimo")),
         "OS": platform.system(),
         "OS Version": os_version,
         # e.g., x86 or arm
