@@ -336,10 +336,7 @@ class ExtractWithBlock(ast.NodeTransformer):
         )
 
 
-class CacheExtractWithBlock(ExtractWithBlock):
-    def __init__(self, line: int, *arg: Any, **kwargs: Any) -> None:
-        name = kwargs.pop("name", "cache")
-        super().__init__(line, (ast.With, ast.If), *arg, name=name, **kwargs)
+class ExtractSkippableWithBlock(ExtractWithBlock):
 
     def generic_visit(self, node: ast.AST) -> tuple[ast.Module, ast.Module]:  # type: ignore[override]
         pre_block, with_block = super().generic_visit(node)
@@ -357,6 +354,12 @@ class CacheExtractWithBlock(ExtractWithBlock):
                 "cache block may lead to unexpected behavior."
             )
         return (pre_block, with_block)
+
+
+class CacheExtractWithBlock(ExtractSkippableWithBlock):
+    def __init__(self, line: int, *arg: Any, **kwargs: Any) -> None:
+        name = kwargs.pop("name", "cache")
+        super().__init__(line, (ast.With, ast.If), *arg, name=name, **kwargs)
 
 
 class ContainedExtractWithBlock(ExtractWithBlock):
