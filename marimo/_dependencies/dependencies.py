@@ -108,11 +108,14 @@ class Dependency:
             raise_error=True,
         )
 
-    def get_version(self) -> str:
+    def get_version(self) -> str | None:
         try:
             return importlib.metadata.version(self.pkg)
         except importlib.metadata.PackageNotFoundError:
-            return f"{__import__(self.pkg).__version__}"
+            try:
+                return f"{__import__(self.pkg).__version__}"
+            except AttributeError:
+                return None
 
     def warn_if_mismatch_version(
         self,
@@ -144,12 +147,15 @@ class Dependency:
 def _version_check(
     *,
     pkg: str,
-    v: str,
+    v: str | None,
     min_v: str | None = None,
     max_v: str | None = None,
     raise_error: bool = False,
     quiet: bool = False,
 ) -> bool:
+    if v is None:
+        return False
+
     if min_v is None and max_v is None:
         return True
 

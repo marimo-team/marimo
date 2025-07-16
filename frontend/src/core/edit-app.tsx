@@ -169,9 +169,8 @@ export const EditApp: React.FC<AppProps> = ({
             {editableCellsArray}
           </CellsRenderer>
         )}
-
-        <MultiCellActionToolbar />
       </AppContainer>
+      <MultiCellActionToolbar />
       {!hideControls && (
         <TooltipProvider>
           <Controls

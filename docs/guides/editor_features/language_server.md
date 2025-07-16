@@ -1,14 +1,5 @@
 # Language Server Protocol (LSP)
 
-!!! warning "Experimental Feature"
-
-    LSP support in marimo is currently an experimental feature. It may have bugs or performance issues. To enable it add the following to your `pyproject.toml` file:
-
-    ```toml title="pyproject.toml"
-    [tool.marimo.experimental]
-    lsp = true
-    ```
-
 The marimo editor supports the Language Server Protocol (LSP) to provide enhanced code intelligence features like:
 
 - Code completion
@@ -42,11 +33,6 @@ You may optionally install other `pylsp` plugins.
 ## Configuration
 
 LSP support can be configured in your `pyproject.toml` file.
-
-```toml title="pyproject.toml"
-[tool.marimo.experimental]
-lsp = true
-```
 
 ```toml title="pyproject.toml"
 

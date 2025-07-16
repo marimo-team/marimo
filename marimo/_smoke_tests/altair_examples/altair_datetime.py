@@ -6,10 +6,12 @@ app = marimo.App(width="medium")
 
 @app.cell
 def __():
-    import marimo as mo
-    import pandas as pd
+    from datetime import datetime, timedelta, timezone
+
     import altair as alt
-    from datetime import datetime, timezone, timedelta
+    import pandas as pd
+
+    import marimo as mo
 
     df = pd.DataFrame(
         [

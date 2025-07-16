@@ -4,6 +4,8 @@ import type { EditorView } from "@codemirror/view";
 import { useAtomValue } from "jotai";
 import {
   ChevronDownIcon,
+  ChevronsDownIcon,
+  ChevronsUpIcon,
   ChevronUpIcon,
   Code2Icon,
   EyeIcon,
@@ -17,6 +19,7 @@ import {
 } from "lucide-react";
 import React from "react";
 import useEvent from "react-use-event-hook";
+import { MinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,6 +36,7 @@ import {
 } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { formatEditorViews } from "@/core/codemirror/format";
+import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { saveCellConfig } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
@@ -44,6 +48,7 @@ import { useCellSelectionActions, useCellSelectionState } from "./selection";
 
 interface MultiCellActionButton extends Omit<ActionButton, "handle"> {
   handle: (selectedCells: CellId[]) => void;
+  hotkey?: HotkeyAction;
 }
 
 const CellStateDropdown: React.FC<{
@@ -71,9 +76,19 @@ const CellStateDropdown: React.FC<{
                 onSelect={() => action.handle(cellIds)}
                 className="flex items-center gap-2"
               >
-                <div className="flex items-center gap-2">
-                  {action.icon}
-                  <span className="text-xs">{action.label}</span>
+                <div className="flex items-center flex-1">
+                  {action.icon && (
+                    <div className="mr-2 w-5 text-muted-foreground">
+                      {action.icon}
+                    </div>
+                  )}
+                  <div className="flex-1">{action.label}</div>
+                  {action.hotkey && (
+                    <MinimalShortcut
+                      shortcut={action.hotkey}
+                      className="ml-4"
+                    />
+                  )}
                 </div>
               </DropdownMenuItem>
             );
@@ -91,7 +106,13 @@ const CellStateDropdown: React.FC<{
 };
 
 export function useMultiCellActionButtons(cellIds: CellId[]) {
-  const { updateCellConfig, moveCell, clearCellOutput } = useCellActions();
+  const {
+    updateCellConfig,
+    moveCell,
+    clearCellOutput,
+    sendToTop,
+    sendToBottom,
+  } = useCellActions();
   const deleteCell = useDeleteManyCellsCallback();
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const selectionActions = useCellSelectionActions();
@@ -138,6 +159,19 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
     },
   );
 
+  const sendSelectedCellsToTop = useEvent((cellIds: CellId[]) => {
+    // Send in reverse order to maintain relative positions
+    [...cellIds].reverse().forEach((cellId) => {
+      sendToTop({ cellId });
+    });
+  });
+
+  const sendSelectedCellsToBottom = useEvent((cellIds: CellId[]) => {
+    cellIds.forEach((cellId) => {
+      sendToBottom({ cellId });
+    });
+  });
+
   const formatSelectedCells = useEvent((cellIds: CellId[]) => {
     const editorViews: Record<CellId, EditorView> = {};
     cellIds.forEach((cellId) => {
@@ -176,6 +210,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
         icon: <PlayIcon size={13} strokeWidth={1.5} />,
         label: "Run cells",
         handle: (cellIds) => runCells(cellIds),
+        hotkey: "cell.run",
       },
     ],
     [
@@ -183,11 +218,13 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
         icon: <ChevronUpIcon size={13} strokeWidth={1.5} />,
         label: "Move up",
         handle: (cellIds) => moveSelectedCells(cellIds, "up"),
+        hotkey: "cell.moveUp",
       },
       {
         icon: <ChevronDownIcon size={13} strokeWidth={1.5} />,
         label: "Move down",
         handle: (cellIds) => moveSelectedCells(cellIds, "down"),
+        hotkey: "cell.moveDown",
       },
     ],
     [
@@ -207,6 +244,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
         icon: <Code2Icon size={13} strokeWidth={1.5} />,
         label: "Format cells",
         handle: formatSelectedCells,
+        hotkey: "cell.format",
       },
       {
         icon: <XCircleIcon size={13} strokeWidth={1.5} />,
@@ -217,15 +255,43 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
     [
       {
         icon: <EyeOffIcon size={13} strokeWidth={1.5} />,
-        label: "Hide cells",
+        label: "Hide code",
         handle: (cellIds) =>
           toggleSelectedCellsProperty(cellIds, "hide_code", true),
+        hotkey: "cell.hideCode",
       },
       {
         icon: <EyeIcon size={13} strokeWidth={1.5} />,
-        label: "Show cells",
+        label: "Show code",
         handle: (cellIds) =>
           toggleSelectedCellsProperty(cellIds, "hide_code", false),
+        hotkey: "cell.hideCode",
+      },
+    ],
+    [
+      {
+        icon: <ChevronUpIcon size={13} strokeWidth={1.5} />,
+        label: "Move up",
+        handle: (cellIds) => moveSelectedCells(cellIds, "up"),
+        hotkey: "cell.moveUp",
+      },
+      {
+        icon: <ChevronDownIcon size={13} strokeWidth={1.5} />,
+        label: "Move down",
+        handle: (cellIds) => moveSelectedCells(cellIds, "down"),
+        hotkey: "cell.moveDown",
+      },
+      {
+        icon: <ChevronsUpIcon size={13} strokeWidth={1.5} />,
+        label: "Send to top",
+        handle: sendSelectedCellsToTop,
+        hotkey: "cell.sendToTop",
+      },
+      {
+        icon: <ChevronsDownIcon size={13} strokeWidth={1.5} />,
+        label: "Send to bottom",
+        handle: sendSelectedCellsToBottom,
+        hotkey: "cell.sendToBottom",
       },
     ],
     [
@@ -295,7 +361,7 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
 
   return (
     <div
-      className="fixed top-12 justify-center flex w-full left-0 right-0 z-50"
+      className="absolute top-12 justify-center flex w-full left-0 right-0 z-50"
       data-keep-cell-selection={true}
     >
       <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-[var(--slate-7)] rounded-lg shadow-lg p-2 overflow-x-auto overflow-y-hidden mx-20 scrollbar-thin">
@@ -317,11 +383,16 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
                   }
                   size="sm"
                   onClick={() => action.handle(cellIds)}
-                  className="h-8 px-2 gap-1 flex-shrink-0"
+                  className="h-8 px-2 gap-1 flex-shrink-0 flex items-center"
                   title={action.label}
                 >
                   {action.icon}
                   <span className="text-xs">{action.label}</span>
+                  {action.hotkey && (
+                    <div className="ml-1 border bg-muted rounded-md px-1">
+                      <MinimalShortcut shortcut={action.hotkey} />
+                    </div>
+                  )}
                 </Button>
               ))}
               {groupIndex < actions.length - 1 && <Separator />}

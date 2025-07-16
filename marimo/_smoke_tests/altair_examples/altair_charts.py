@@ -17,11 +17,14 @@ app = marimo.App(width="full")
 
 @app.cell(hide_code=True)
 def __():
-    import marimo as mo
-    from vega_datasets import data
     import json
-    import pandas as pd
+
     import numpy as np
+    import pandas as pd
+    from vega_datasets import data
+
+    import marimo as mo
+
     return data, json, mo, np, pd
 
 
@@ -84,7 +87,7 @@ def __(alt, cars, chart_selection_value, legend_selection_value, mo):
         legend_selection=legend_selection_value,
         label="Cars",
     )
-    return chart1,
+    return (chart1,)
 
 
 @app.cell
@@ -127,7 +130,9 @@ def __(alt, chart_selection_value, employment, legend_selection_value, mo):
         alt.Chart(employment)
         .mark_area()
         .encode(
-            alt.X("yearmonth(date):T").axis(domain=False, format="%Y", tickSize=0),
+            alt.X("yearmonth(date):T").axis(
+                domain=False, format="%Y", tickSize=0
+            ),
             alt.Y("sum(count):Q").stack("center").axis(None),
             alt.Color("series:N").scale(scheme="category20b"),
             # opacity=alt.condition(_selection, alt.value(1), alt.value(0.9)),
@@ -139,7 +144,7 @@ def __(alt, chart_selection_value, employment, legend_selection_value, mo):
         chart_selection=chart_selection_value,
         legend_selection=legend_selection_value,
     )
-    return chart2,
+    return (chart2,)
 
 
 @app.cell
@@ -207,7 +212,7 @@ def __(alt, chart_selection_value, iris, legend_selection_value, mo):
         chart_selection=chart_selection_value,
         legend_selection=legend_selection_value,
     )
-    return chart3,
+    return (chart3,)
 
 
 @app.cell
@@ -299,7 +304,7 @@ def __(alt, data, mo):
         .mark_bar()
         .encode(x=alt.X("Miles_per_Gallon:Q", bin=True), y="count()")
     )
-    return binned,
+    return (binned,)
 
 
 @app.cell
@@ -312,7 +317,7 @@ def __(alt, cars, mo):
             y="mean(Acceleration):Q",
         )
     )
-    return mean,
+    return (mean,)
 
 
 @app.cell
@@ -329,7 +334,7 @@ def __(alt, data, mo):
         .encode(x=alt.X("Miles_per_Gallon:Q"), y="count()")
     )
     hist = mo.ui.altair_chart(hist)
-    return hist,
+    return (hist,)
 
 
 @app.cell
@@ -392,7 +397,7 @@ def __(alt, data, mo):
         .transform_filter(alt.datum.year == 2000)
         .properties(height=alt.Step(20))
     )
-    return horizontal_bar,
+    return (horizontal_bar,)
 
 
 @app.cell
@@ -415,7 +420,7 @@ def __(alt, mo, pd):
             color="category:N",
         )
     )
-    return pie,
+    return (pie,)
 
 
 @app.cell
@@ -475,7 +480,7 @@ def __(alt, data, mo):
         ),
     )
     multiline_chart
-    return multiline_chart,
+    return (multiline_chart,)
 
 
 @app.cell
@@ -511,7 +516,7 @@ def __(alt, mo, np, pd):
 
     facet_chart = mo.ui.altair_chart(facet_chart, chart_selection="interval")
     facet_chart
-    return facet_chart,
+    return (facet_chart,)
 
 
 @app.cell
@@ -600,7 +605,10 @@ def __(alt, mo, pd):
 @app.cell
 def __(layered_chart, mo):
     mo.vstack(
-        [layered_chart, mo.hstack([layered_chart.value, layered_chart.selections])]
+        [
+            layered_chart,
+            mo.hstack([layered_chart.value, layered_chart.selections]),
+        ]
     )
     return
 

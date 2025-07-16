@@ -6,17 +6,18 @@ app = marimo.App()
 
 @app.cell
 def _():
-    ## BUG: interactive, repeated chart does not work with polars data frame, non interactive one works fine.
+    # BUG: interactive, repeated chart does not work with polars data frame, non interactive one works fine.
     return
 
 
 @app.cell
 def _():
-    import marimo as mo
-    import polars as pl
-    import altair as alt
-
     from datetime import date
+
+    import altair as alt
+    import polars as pl
+
+    import marimo as mo
 
     sample_data = pl.DataFrame(
         {

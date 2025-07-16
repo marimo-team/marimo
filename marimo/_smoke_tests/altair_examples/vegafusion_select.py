@@ -17,9 +17,10 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    import marimo as mo
     import altair as alt
     from vega_datasets import data
+
+    import marimo as mo
 
     alt.data_transformers.enable("vegafusion")
 

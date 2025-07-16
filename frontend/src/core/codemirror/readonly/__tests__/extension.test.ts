@@ -5,8 +5,8 @@ import { EditorView } from "@codemirror/view";
 import { createStore } from "jotai";
 import { describe, expect, it } from "vitest";
 import { WebSocketState } from "@/core/websocket/types";
-import { connectionAtom } from "../../network/connection";
-import { dynamicReadonly, isEditorReadonly } from "./extension";
+import { connectionAtom } from "../../../network/connection";
+import { dynamicReadonly, isEditorReadonly } from "../extension";
 
 function makeStoreWithConnection(
   state: WebSocketState.CONNECTING | WebSocketState.OPEN,

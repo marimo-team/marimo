@@ -785,6 +785,7 @@ class SessionManager:
         def _get_code() -> str:
             app = file_router.get_single_app_file_manager(
                 default_width=self._config_manager.default_width,
+                default_auto_download=self._config_manager.default_auto_download,
                 default_sql_output=self._config_manager.default_sql_output,
             ).app
             return "".join(code for code in app.cell_manager.codes())
@@ -818,6 +819,7 @@ class SessionManager:
         return self.file_router.get_file_manager(
             key,
             default_width=self._config_manager.default_width,
+            default_auto_download=self._config_manager.default_auto_download,
             default_sql_output=self._config_manager.default_sql_output,
         )
 
@@ -834,6 +836,7 @@ class SessionManager:
             app_file_manager = self.file_router.get_file_manager(
                 file_key,
                 default_width=self._config_manager.default_width,
+                default_auto_download=self._config_manager.default_auto_download,
                 default_sql_output=self._config_manager.default_sql_output,
             )
 

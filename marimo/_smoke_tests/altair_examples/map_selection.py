@@ -13,8 +13,9 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     import altair as alt
-    from vega_datasets import data
     import geopandas as gpd
+    from vega_datasets import data
+
     return alt, data, gpd
 
 
@@ -27,7 +28,9 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(data, gpd):
     # load the data
-    us_states = gpd.read_file(data.us_10m.url, driver="TopoJSON", layer="states")
+    us_states = gpd.read_file(
+        data.us_10m.url, driver="TopoJSON", layer="states"
+    )
     us_population = data.population_engineers_hurricanes()[
         ["state", "id", "population"]
     ]
@@ -55,7 +58,9 @@ def _(alt, us_population, us_states):
         # define a pointer selection
         click_state = alt.selection_point(fields=["state"])
         # define a condition on the opacity encoding depending on the selection
-        opacity = alt.when(click_state).then(alt.value(1)).otherwise(alt.value(0.2))
+        opacity = (
+            alt.when(click_state).then(alt.value(1)).otherwise(alt.value(0.2))
+        )
 
         # create a choropleth map using a lookup transform
         choropleth = (
@@ -63,7 +68,9 @@ def _(alt, us_population, us_states):
             .mark_geoshape()
             .transform_lookup(
                 lookup="id",
-                from_=alt.LookupData(us_population, "id", ["population", "state"]),
+                from_=alt.LookupData(
+                    us_population, "id", ["population", "state"]
+                ),
             )
             .encode(
                 color="population:Q",
@@ -89,6 +96,7 @@ def _(alt, us_population, us_states):
         )
 
         return (choropleth & bars).add_params(click_state)
+
     return (population_map,)
 
 
@@ -137,6 +145,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -212,6 +221,7 @@ def _(alt, gdf_quakies, gdf_world):
             type="orthographic", rotate=alt.expr(f"[{rotate0.name}, 0, 0]")
         )
         return comb
+
     return (world_map,)
 
 
@@ -242,7 +252,9 @@ def _(mo, world_map):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Hovering over an element on the map should filter the table below.""")
+    mo.md(
+        """Hovering over an element on the map should filter the table below."""
+    )
     return
 
 

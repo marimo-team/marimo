@@ -461,6 +461,25 @@ class TestPandasTableManager(unittest.TestCase):
             == expected_field_types
         )
 
+    def test_get_field_types_nullables(self) -> None:
+        data = pd.DataFrame(
+            {
+                "A": [1.0, 2.0, 3.0],
+                "B": ["a", "b", "c"],
+            }
+        )
+        float64_cols = data.select_dtypes(include="float64").columns
+        data[float64_cols] = data[float64_cols].astype("Float64")
+        object_cols = data.select_dtypes(include=["object"]).columns
+        data[object_cols] = data[object_cols].astype("string")
+
+        manager = self.factory.create()(data)
+        field_types = manager.get_field_types()
+        assert field_types == [
+            ("A", ("number", "Float64")),
+            ("B", ("string", "string")),
+        ]
+
     @pytest.mark.xfail(
         reason="Narwhals (wrapped pandas) doesn't support duplicate columns",
     )

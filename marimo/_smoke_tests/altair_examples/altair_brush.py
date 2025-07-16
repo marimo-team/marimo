@@ -23,11 +23,11 @@ def __(mo):
 
 @app.cell
 def __():
-    import pandas as pd
-    import numpy as np
     import altair as alt
-    import marimo as mo
+    import numpy as np
+    import pandas as pd
 
+    import marimo as mo
 
     data = {
         "index": np.tile(np.arange(100), 3),
@@ -109,7 +109,7 @@ def __(mo):
 def __(chart_detail, chart_overview):
     combined = chart_overview | chart_detail
     combined
-    return combined,
+    return (combined,)
 
 
 @app.cell

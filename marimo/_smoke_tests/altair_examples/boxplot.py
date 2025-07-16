@@ -33,7 +33,9 @@ def _():
     data_pd = data.to_pandas()
 
     # Create a boxplot
-    boxplot = alt.Chart(data_pd).mark_boxplot().encode(x="category:O", y="value:Q")
+    boxplot = (
+        alt.Chart(data_pd).mark_boxplot().encode(x="category:O", y="value:Q")
+    )
 
     boxplot
     return alt, boxplot, data, data_pd, pl
@@ -76,6 +78,7 @@ def _(boxplot2, mo):
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
