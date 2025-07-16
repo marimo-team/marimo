@@ -1,0 +1,193 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtom, useAtomValue } from "jotai";
+import { AlertTriangleIcon } from "lucide-react";
+import React, { useEffect } from "react";
+import { formatElapsedTime } from "@/components/editor/cell/CellStatus";
+import { CellLink } from "@/components/editor/links/cell-link";
+import { Button } from "@/components/ui/button";
+import { useCellNames } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
+import { variablesAtom } from "@/core/variables/state";
+import { cn } from "@/utils/cn";
+import { useDeleteCellCallback } from "./useDeleteCell";
+
+export const PendingDeleteInformation: React.FC<
+  PendingDeleteInformationProps
+> = ({ executionTimeMs, cellId }) => {
+  const pendingCells = useAtomValue(pendingDeleteCellsAtom);
+  if (!pendingCells.has(cellId)) {
+    return null;
+  }
+  return (
+    <PendingDeleteInformationInternal
+      cellId={cellId}
+      executionTimeMs={executionTimeMs}
+    />
+  );
+};
+
+interface PendingDeleteInformationProps {
+  cellId: CellId;
+  executionTimeMs: number;
+}
+
+const PendingDeleteInformationInternal: React.FC<
+  PendingDeleteInformationProps
+> = ({ cellId, executionTimeMs }) => {
+  const variables = useAtomValue(variablesAtom);
+  const cellNames = useCellNames();
+  const [pendingCells, setPendingCells] = useAtom(pendingDeleteCellsAtom);
+  const deleteCell = useDeleteCellCallback();
+
+  const downstream = new Set<CellId>();
+  Object.values(variables).forEach((v) => {
+    if (v.declaredBy.includes(cellId)) {
+      v.usedBy.forEach((id) => downstream.add(id));
+    }
+  });
+  const downstreamCells = [...downstream].map((id) => ({
+    cellId: id,
+    name: cellNames[id] || id,
+  }));
+
+  const hasExpensiveExecution = executionTimeMs > 2000;
+  const hasDependencies = downstreamCells.length > 0;
+  const isExpensiveOrHasDeps = hasExpensiveExecution || hasDependencies;
+  const isMultiPending = pendingCells.size > 1;
+
+  // Auto-delete if not expensive and not multi-pending
+  useEffect(() => {
+    if (!isMultiPending && !isExpensiveOrHasDeps) {
+      deleteCell({ cellId });
+      setPendingCells(new Set());
+    }
+  }, [
+    isMultiPending,
+    isExpensiveOrHasDeps,
+    cellId,
+    deleteCell,
+    setPendingCells,
+  ]);
+
+  if (!isMultiPending && !isExpensiveOrHasDeps) {
+    return null;
+  }
+
+  // State 1: Part of multi-cell deletion but not expensive/dependent
+  if (isMultiPending && !isExpensiveOrHasDeps) {
+    return (
+      <div
+        className={cn(
+          "px-3 py-1.5",
+          "bg-[var(--amber-2)] border-t border-[var(--amber-6)]",
+          "animate-in slide-in-from-top-2 duration-200",
+        )}
+        data-testid={`pending-delete-${cellId}`}
+      >
+        <div className="flex items-center gap-2">
+          <AlertTriangleIcon className="w-3 h-3 text-[var(--amber-11)] flex-shrink-0" />
+          <span className="text-[var(--amber-11)] text-xs">
+            Pending deletion
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const formattedTime = formatElapsedTime(executionTimeMs);
+  let warningMessage = "Pending deletion";
+  if (hasExpensiveExecution && hasDependencies) {
+    warningMessage = `This cell took ${formattedTime} to run and contains variables referenced by other cells.`;
+  } else if (hasExpensiveExecution) {
+    warningMessage = `This cell took ${formattedTime} to run.`;
+  } else if (hasDependencies) {
+    warningMessage = "This cell contains variables referenced by other cells.";
+  }
+
+  // Variables declared by this cell
+  const defs = Object.values(variables)
+    .filter((v) => v.declaredBy.includes(cellId))
+    .map((v) => v.name);
+
+  // State 2 & 3: Single cell or multi-cell with warning
+  // (For multi-cell, the toast handles the confirmation)
+
+  return (
+    <div
+      className={cn(
+        "px-4 py-3",
+        "bg-[var(--amber-2)] border-t border-[var(--amber-6)]",
+        "animate-in slide-in-from-top-2 duration-200",
+      )}
+      data-testid={`pending-delete-${cellId}`}
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangleIcon className="w-4 h-4 text-[var(--amber-11)] mt-0.5 flex-shrink-0" />
+        <div className="flex-1">
+          <div className="font-code text-sm text-[0.84375rem]">
+            <p className="text-[var(--amber-11)] font-medium">
+              {warningMessage}
+            </p>
+
+            {hasDependencies &&
+              defs.map((def) => (
+                <div key={def}>
+                  <p className="text-[var(--amber-11)] mt-2">
+                    '<span className="font-mono">{def}</span>' is referenced by:
+                  </p>
+                  <ul className="list-disc">
+                    {downstreamCells
+                      .filter(({ cellId: id }) => {
+                        // Check if this cell actually uses this specific variable
+                        const variable = Object.values(variables).find(
+                          (v) => v.name === def,
+                        );
+                        return variable?.usedBy.includes(id);
+                      })
+                      .map(({ cellId: id }) => (
+                        <li
+                          key={id}
+                          className="my-0.5 ml-8 text-[var(--amber-11)]/60"
+                        >
+                          <CellLink cellId={id} />
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ))}
+
+            <p className="text-[var(--amber-11)] mt-2 mb-3">
+              Are you sure you want to delete?
+            </p>
+          </div>
+          {/* Only show buttons for single cell - multi-cell uses toast */}
+          {pendingCells.size === 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => setPendingCells(new Set())}
+                className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="xs"
+                variant="secondary"
+                onClick={() => {
+                  deleteCell({ cellId });
+                  setPendingCells(new Set());
+                }}
+                className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
+              >
+                Delete
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
