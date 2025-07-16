@@ -978,7 +978,7 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name={"runtime.default_auto_download" as FieldPath<UserConfig>}
+              name="runtime.default_auto_download"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
@@ -1024,9 +1024,7 @@ export const UserConfigForm: React.FC = () => {
                     <FormMessage />
                     <IsOverridden
                       userConfig={config}
-                      name={
-                        "runtime.default_auto_download" as FieldPath<UserConfig>
-                      }
+                      name="runtime.default_auto_download"
                     />
                   </FormItem>
                   <FormDescription>
