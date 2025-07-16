@@ -373,10 +373,11 @@ def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
 
 
 def _key_options_from_ipython_method(obj: Any) -> list[str]:
-    return obj._ipython_key_completions_()
+    # convention for `_ipython_key_completions_` is to return a list of strings
+    return [str(key) for key in obj._ipython_key_completions_()]
 
 
-def _key_options_from_mapping(obj: Mapping) -> list[str]:
+def _key_options_from_mapping(obj: Mapping[Any, Any]) -> list[str]:
     return [str(key) for key in obj.keys()]
 
 
