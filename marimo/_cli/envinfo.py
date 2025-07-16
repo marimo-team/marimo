@@ -49,7 +49,7 @@ def get_system_info() -> dict[str, Union[str, dict[str, Any]]]:
 
     info = {
         "marimo": __version__,
-        "editable": str(is_editable("marimo")),
+        "editable": is_editable("marimo"),
         "OS": platform.system(),
         "OS Version": os_version,
         # e.g., x86 or arm
