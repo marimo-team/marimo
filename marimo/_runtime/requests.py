@@ -119,6 +119,39 @@ class HTTPRequest(Mapping[str, Any]):
         )
 
 
+def get_base_url_from_request(request: HTTPRequest) -> str:
+    """Get the base URL of the HTTPRequest."""
+    scheme = (
+        request.headers.get("x-forwarded-proto")
+        or request.headers.get("x-forwarded-protocol")
+        or request.headers.get("x-scheme")
+        or request.headers.get("cloudfront-forwarded-proto")
+        or request.base_url.get("scheme")
+    )
+
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("x-original-host")
+        or request.headers.get("host")
+        or request.base_url.get("hostname")
+    )
+
+    # Handle port if needed
+    port = request.headers.get("x-forwarded-port")
+    if port and port not in ["80", "443"]:
+        if host and ":" not in str(host):
+            host = f"{host}:{port}"
+
+    path = request.base_url.get("path")
+    query = request.base_url.get("query")
+
+    original_url = f"{scheme}://{host}{path}"
+    if query:
+        original_url += f"?{query}"
+
+    return original_url
+
+
 @dataclass
 class PdbRequest:
     cell_id: CellId_t

@@ -1,12 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.18"
+__generated_with = "0.14.11"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _(mo):
+    mo.app_meta().request
+    return
+
+
+@app.cell
+def _():
     import marimo as mo
     import numpy as np
     import matplotlib.pyplot as plt
@@ -14,7 +21,7 @@ def __():
 
 
 @app.cell
-def __(mo, np, plt):
+def _(mo, np, plt):
     def interactive_plot(seed = 42, size=100):
         # Generating random data
         np.random.seed(seed)
@@ -32,31 +39,31 @@ def __(mo, np, plt):
         ax.set_zlabel('Z Label')
 
         return mo.mpl.interactive(fig)
-    return interactive_plot,
+    return (interactive_plot,)
 
 
 @app.cell
-def __(interactive_plot):
+def _(interactive_plot):
     interactive_plot(size=10)
     return
 
 
 @app.cell
-def __(interactive_plot):
+def _(interactive_plot):
     b = interactive_plot(size=20)
     b
-    return b,
+    return
 
 
 @app.cell
-def __(mo, plt):
+def _(mo, plt):
     plt.plot([1, 2])
     mo.mpl.interactive(plt.gca())
     return
 
 
 @app.cell
-def __(plt):
+def _(plt):
     plt.plot([3, 4])
     return
 

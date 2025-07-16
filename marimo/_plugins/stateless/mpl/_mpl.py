@@ -29,6 +29,8 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._runtime.requests import get_base_url_from_request
+from marimo._server.requests import get_base_url
 from marimo._server.utils import find_free_port
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import get_signals
@@ -101,11 +103,13 @@ def _get_secure() -> bool:
     )
 
 
-def _template(fig_id: str, port: int) -> str:
+def _template(*, fig_id: str, port: int, base_url: str) -> str:
+    base_url = base_url.rstrip("/")
     return html_content % {
-        "ws_uri": f"/mpl/{port}/ws?figure={fig_id}",
+        "ws_uri": f"{base_url}/mpl/{port}/ws?figure={fig_id}",
         "fig_id": fig_id,
         "port": port,
+        "base_url": f"{base_url}/mpl/{port}/",
     }
 
 
@@ -125,9 +129,12 @@ def create_application() -> Starlette:
 
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
+        base_url = get_base_url(request)
+        LOGGER.warning("here2!!!")
+        LOGGER.warning(base_url)
         assert figure_id is not None
         port = request.app.state.port
-        content = _template(figure_id, port)
+        content = _template(fig_id=figure_id, port=port, base_url=base_url)
         return HTMLResponse(content=content)
 
     async def mpl_js(request: Request) -> Response:
@@ -389,7 +396,21 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
     ctx.cell_lifecycle_registry.add(CleanupHandle())
     ctx.stream.cell_id = ctx.execution_context.cell_id
 
-    content = _template(str(figure_manager.num), port)
+    base_url: str = ""
+    try:
+        if ctx.request is not None:
+            base_url = get_base_url_from_request(ctx.request)
+    except Exception:
+        LOGGER.warning("Failed to get base URL from context")
+        pass
+    LOGGER.warning("here1!!!")
+    LOGGER.warning(base_url)
+
+    content = _template(
+        fig_id=str(figure_manager.num),
+        port=port,
+        base_url=base_url,
+    )
 
     return Html(
         h.iframe(
@@ -405,13 +426,13 @@ html_content = """
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <base href='/mpl/%(port)s/    ' />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/page.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/boilerplate.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/fbm.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/mpl.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/custom.css" type="text/css" />
-    <script src="/mpl/%(port)s/mpl.js"></script>
+    <base href='%(base_url)s' />
+    <link rel="stylesheet" href="_static/css/page.css" type="text/css" />
+    <link rel="stylesheet" href="_static/css/boilerplate.css" type="text/css" />
+    <link rel="stylesheet" href="_static/css/fbm.css" type="text/css" />
+    <link rel="stylesheet" href="_static/css/mpl.css" type="text/css" />
+    <link rel="stylesheet" href="custom.css" type="text/css" />
+    <script src="mpl.js"></script>
 
     <script>
       function ondownload(figure, format) {
