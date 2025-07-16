@@ -13,6 +13,9 @@ import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
 import { useDeleteCellCallback } from "./useDeleteCell";
 
+const CONFIRMATION_DELAY_MS = 5000;
+const EXPENSIVE_EXECUTION_THRESHOLD = 2000;
+
 export const PendingDeleteInformation: React.FC<
   PendingDeleteInformationProps
 > = ({ executionTimeMs, cellId }) => {
@@ -47,7 +50,7 @@ const PendingDeleteInformationInternal: React.FC<
     }
   }
 
-  const hasExpensiveExecution = executionTimeMs > 2000;
+  const hasExpensiveExecution = executionTimeMs > EXPENSIVE_EXECUTION_THRESHOLD;
   const hasDependencies = defs.size > 0;
   const isExpensiveOrHasDeps = hasExpensiveExecution || hasDependencies;
   const isMultiPending = pendingCells.size > 1;
@@ -61,6 +64,20 @@ const PendingDeleteInformationInternal: React.FC<
       setPendingCells(new Set());
     }
   }, [cellId, deleteCell, setPendingCells, autoDelete]);
+
+  // Clear pending delete after some timeout
+  useEffect(() => {
+    if (!autoDelete && pendingCells.has(cellId)) {
+      const timeout = setTimeout(() => {
+        setPendingCells((current) => {
+          const next = new Set(current);
+          next.delete(cellId);
+          return next;
+        });
+      }, CONFIRMATION_DELAY_MS);
+      return () => clearTimeout(timeout);
+    }
+  }, [cellId, autoDelete, pendingCells, setPendingCells]);
 
   if (autoDelete) {
     return null;
