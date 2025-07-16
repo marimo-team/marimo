@@ -112,7 +112,7 @@ const CellEditorInternal = ({
       userConfig.keymap.destructive_delete === true &&
       pendingDeleteCells.size === 0
     ) {
-      setPendingDeleteCells((prev) => new Set([...prev, cellId]));
+      setPendingDeleteCells(new Set([cellId]));
       return true;
     }
 

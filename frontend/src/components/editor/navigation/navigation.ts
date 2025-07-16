@@ -7,6 +7,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
+import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
 import { hotkeysAtom, keymapPresetAtom } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
@@ -75,6 +76,7 @@ function useCellFocusProps(cellId: CellId) {
   const setLastFocusedCellId = useSetLastFocusedCellId();
   const actions = useCellActions();
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
+  const setPendingCells = useSetAtom(pendingDeleteCellsAtom);
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -86,6 +88,15 @@ function useCellFocusProps(cellId: CellId) {
       // On blur, hide the code if it was temporarily shown.
       setTemporarilyShownCode(false);
       actions.markTouched({ cellId });
+      setPendingCells((current) => {
+        if (current.has(cellId)) {
+          const next = new Set(current);
+          next.delete(cellId);
+          return next;
+        } else {
+          return current;
+        }
+      });
     },
   });
 
