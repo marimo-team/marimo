@@ -1,5 +1,5 @@
 {
-  /* Visit https://aka.ms/tsconfig to read more about this file */
+  "extends": "../tsconfig.json",
   "compilerOptions": {
     "target": "ES2019",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
