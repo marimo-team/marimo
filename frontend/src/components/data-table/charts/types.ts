@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Scale } from "vega-lite/build/src/scale";
+import type { Scale } from "vega-lite/types_unstable/scale.js";
 
 /**
  * Valid string-based color scheme options from

@@ -45,7 +45,7 @@ export function findEncodedFields(spec: VegaLiteSpec): string[] {
     if (!encoding) {
       return [];
     }
-    if (!ALLOWED_ENCODING_TYPES.has(key as EncodingType)) {
+    if (!ALLOWED_ENCODING_TYPES.has(key)) {
       return [];
     }
 
