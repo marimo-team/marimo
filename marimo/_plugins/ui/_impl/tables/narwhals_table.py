@@ -445,36 +445,24 @@ class NarwhalsTableManager(
 
         import warnings
 
-        try:
-            col = (
-                self.data.collect().get_column(column)
-                if is_narwhals_lazyframe(self.data)
-                else self.data.get_column(column)
-            )
-            bin_start = col.min()
-            bin_values = []
+        col = self.as_frame().get_column(column)
+        bin_start = col.min()
+        bin_values = []
 
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="`Series.hist` is being called from the stable API although considered an unstable feature.",
-                    category=UserWarning,
-                )
-                for bin_end, count in col.hist(bin_count=num_bins).iter_rows(
-                    named=False
-                ):
-                    bin_values.append(
-                        BinValue(
-                            bin_start=bin_start, bin_end=bin_end, count=count
-                        )
-                    )
-                    bin_start = bin_end
-            return bin_values
-        except Exception as e:
-            LOGGER.error(
-                "Error getting bin values for column %s. %s", column, e
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="`Series.hist` is being called from the stable API although considered an unstable feature.",
+                category=UserWarning,
             )
-            return []
+            for bin_end, count in col.hist(bin_count=num_bins).iter_rows(
+                named=False
+            ):
+                bin_values.append(
+                    BinValue(bin_start=bin_start, bin_end=bin_end, count=count)
+                )
+                bin_start = bin_end
+        return bin_values
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows

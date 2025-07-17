@@ -4,6 +4,7 @@ import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { arrow } from "@/plugins/impl/vega/formats";
@@ -121,13 +122,15 @@ export class ColumnChartSpecModel<T> {
       return null;
     }
 
+    const usePreComputedValues = getFeatureFlag("performant_table_charts");
     const binValues = this.columnBinValues.get(column);
     const hasBinValues = binValues && binValues.length > 0;
 
-    const base = {
-      data: hasBinValues
-        ? { values: binValues }
-        : (this.dataSpec as TopLevelFacetedUnitSpec["data"]),
+    const base: TopLevelFacetedUnitSpec = {
+      data:
+        hasBinValues && usePreComputedValues
+          ? { values: binValues }
+          : (this.dataSpec as TopLevelFacetedUnitSpec["data"]),
       background: "transparent",
       config: {
         view: {
@@ -138,7 +141,7 @@ export class ColumnChartSpecModel<T> {
         },
       },
       height: 100,
-    };
+    } as TopLevelFacetedUnitSpec;
     const type = this.fieldTypes[column];
 
     // https://github.com/vega/altair/blob/32990a597af7c09586904f40b3f5e6787f752fa5/doc/user_guide/encodings/index.rst#escaping-special-characters-in-column-names
@@ -249,6 +252,11 @@ export class ColumnChartSpecModel<T> {
       case "number": {
         // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
+
+        if (!usePreComputedValues || !hasBinValues) {
+          return getLegacyNumericSpec(column, format, base);
+        }
+
         const stats = this.columnStats.get(column);
 
         return {
@@ -434,4 +442,79 @@ export class ColumnChartSpecModel<T> {
       },
     };
   }
+}
+
+function getLegacyNumericSpec(
+  column: string,
+  format: string,
+  base: TopLevelFacetedUnitSpec,
+): TopLevelFacetedUnitSpec {
+  return {
+    ...base, // Assuming base contains shared configurations
+    // Two layers: one with the visible bars, and one with invisible bars
+    // that provide a larger tooltip area.
+    // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
+    layer: [
+      {
+        mark: {
+          type: "bar",
+          color: mint.mint11,
+        },
+        encoding: {
+          x: {
+            field: column,
+            type: "quantitative",
+            bin: true,
+          },
+          y: {
+            aggregate: "count",
+            type: "quantitative",
+            axis: null,
+          },
+        },
+      },
+
+      // Tooltip layer
+      {
+        mark: {
+          type: "bar",
+          opacity: 0,
+        },
+        encoding: {
+          x: {
+            field: column,
+            type: "quantitative",
+            bin: true,
+            axis: {
+              title: null,
+              labelFontSize: 8.5,
+              labelOpacity: 0.5,
+              labelExpr:
+                "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
+            },
+          },
+          y: {
+            aggregate: "max",
+            type: "quantitative",
+            axis: null,
+          },
+          tooltip: [
+            {
+              field: column,
+              type: "quantitative",
+              bin: true,
+              title: column,
+              format: format,
+            },
+            {
+              aggregate: "count",
+              type: "quantitative",
+              title: "Count",
+              format: ",d",
+            },
+          ],
+        },
+      },
+    ],
+  };
 }
