@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from marimo._data.models import ColumnStats
+from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.ibis_table import (
     IbisTableManagerFactory,
@@ -402,3 +402,35 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         manager = self.factory.create()(table)
         result = manager.calculate_top_k_rows("A", 10)
         assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
+
+    def test_get_bin_values(self) -> None:
+        import ibis
+
+        table = ibis.memtable(
+            {
+                "int": [3, 5, -1, 6, 8, 10, 11, 23, 25],
+                "float": [3.2, 4.8, -1.0, 8.0, 7.5, 9.5, 11.0, None, 24.8],
+                "string": ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+            }
+        )
+        manager = self.factory.create()(table)
+        result = manager.get_bin_values("int", 5)
+        assert result == [
+            BinValue(bin_start=-1.0, bin_end=4.2, count=2),
+            BinValue(bin_start=4.2, bin_end=9.4, count=3),
+            BinValue(bin_start=9.4, bin_end=14.6, count=2),
+            BinValue(bin_start=14.6, bin_end=19.8, count=0),
+            BinValue(bin_start=19.8, bin_end=25.0, count=2),
+        ]
+
+        result = manager.get_bin_values("float", 3)
+        print(result)
+        assert result == [
+            BinValue(bin_start=-1.0, bin_end=7.6, count=4),
+            BinValue(bin_start=7.6, bin_end=16.2, count=3),
+            BinValue(bin_start=16.2, bin_end=24.8, count=1),
+        ]
+
+        # Not supported for other column types
+        result = manager.get_bin_values("string", 3)
+        assert result == []

@@ -135,6 +135,22 @@ class ColumnStats:
 
 
 @dataclass
+class BinValue:
+    """
+    Represents bin values for a column in a data table. This is used for plotting.
+
+    Attributes:
+        bin_start (float): The start of the bin.
+        bin_end (float): The end of the bin.
+        count (int): The count of values in the bin.
+    """
+
+    bin_start: float
+    bin_end: float
+    count: int
+
+
+@dataclass
 class DataSourceConnection:
     """
     Represents a data source connection.

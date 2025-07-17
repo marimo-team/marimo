@@ -18,7 +18,7 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.models import ColumnStats
+from marimo._data.models import BinValue, ColumnStats
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import ColumnPreview
@@ -88,12 +88,14 @@ class DownloadAsArgs:
 class ColumnSummaries:
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
+    bin_values: dict[ColumnName, list[BinValue]]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
 
 
 DEFAULT_MAX_COLUMNS = 50
+DEFAULT_NUM_BINS = 10
 
 MaxColumnsNotProvided = Literal["inherit"]
 MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
@@ -813,6 +815,7 @@ class table(
             return ColumnSummaries(
                 data=None,
                 stats={},
+                bin_values={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -826,6 +829,7 @@ class table(
             return ColumnSummaries(
                 data=None,
                 stats={},
+                bin_values={},
                 is_disabled=True,
             )
 
@@ -845,15 +849,21 @@ class table(
         # or if we are in stats-only mode,
         # we don't return the chart data
         chart_data = None
+        bin_values: dict[ColumnName, list[BinValue]] = {}
         if (
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         ):
             chart_data, _ = self._to_chart_data_url(self._searched_manager)
+            for column in self._manager.get_column_names():
+                bin_values[column] = self._searched_manager.get_bin_values(
+                    column, DEFAULT_NUM_BINS
+                )
 
         return ColumnSummaries(
             data=chart_data,
             stats=stats,
+            bin_values=bin_values,
             is_disabled=False,
         )
 

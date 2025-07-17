@@ -5,7 +5,12 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
-from marimo._data.models import ColumnStats, DataType, ExternalDataType
+from marimo._data.models import (
+    BinValue,
+    ColumnStats,
+    DataType,
+    ExternalDataType,
+)
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
 T = TypeVar("T")
@@ -155,6 +160,10 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_stats(self, column: str) -> ColumnStats:
+        pass
+
+    @abc.abstractmethod
+    def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
         pass
 
     @abc.abstractmethod

@@ -9,7 +9,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import ColumnStats
+from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -922,6 +922,57 @@ def test_get_summary_all_types() -> None:
     assert error_count == 0, (
         f"Got {error_count} errors when getting column summaries"
     )
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "int": [1, 2, 2, 3, 4, 4, 5],
+            "float": [0.8, 1.2, 1.2, 1.6, 2.0, None, 2.4],
+            "string": ["a", "b", "b", "c", "d", "d", "e"],
+            "boolean": [True, False, False, True, False, False, True],
+        },
+        exclude=["ibis", "duckdb"],
+        strict=False,
+    ),
+)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_bin_values(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    bin_values = manager.get_bin_values("int", 3)
+    assert _round_bin_values(bin_values) == [
+        BinValue(bin_start=1, bin_end=2.33, count=3),
+        BinValue(bin_start=2.33, bin_end=3.67, count=1),
+        BinValue(bin_start=3.67, bin_end=5.0, count=3),
+    ]
+
+    bin_values = manager.get_bin_values("float", 5)
+    assert _round_bin_values(bin_values) == [
+        BinValue(bin_start=0.8, bin_end=1.12, count=1),
+        BinValue(bin_start=1.12, bin_end=1.44, count=2),
+        BinValue(bin_start=1.44, bin_end=1.76, count=1),
+        BinValue(bin_start=1.76, bin_end=2.08, count=1),
+        BinValue(bin_start=2.08, bin_end=2.4, count=1),
+    ]
+
+    # Not supported for other column types
+    bin_values = manager.get_bin_values("string", 10)
+    assert bin_values == []
+
+    bin_values = manager.get_bin_values("boolean", 10)
+    assert bin_values == []
+
+
+def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
+    return [
+        BinValue(
+            bin_start=round(bin_value.bin_start, 2),
+            bin_end=round(bin_value.bin_end, 2),
+            count=bin_value.count,
+        )
+        for bin_value in bin_values
+    ]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
