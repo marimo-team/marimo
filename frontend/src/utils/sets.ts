@@ -27,18 +27,4 @@ export const Sets = {
     }
     return true;
   },
-
-  /**
-   * Immutable delete.
-   *
-   * If the item is not in the set, return the set unchanged.
-   */
-  delete<T>(set: Set<T>, item: T): Set<T> {
-    if (!set.has(item)) {
-      return set;
-    }
-    const result = new Set(set);
-    result.delete(item);
-    return result;
-  },
 };
