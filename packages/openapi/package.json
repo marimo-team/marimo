@@ -11,16 +11,14 @@
   ],
   "scripts": {
     "codegen": "pnpm run \"/^codegen:.*/\"",
-    "codegen:api": "npx openapi-typescript ./api.yaml -o ./src/api.ts",
-    "codegen:session": "npx openapi-typescript ../marimo/_schemas/generated/session.yaml -o ./src/session.ts",
-    "codegen:notebook": "npx openapi-typescript ../marimo/_schemas/generated/notebook.yaml -o ./src/notebook.ts"
+    "codegen:api": "openapi-typescript ./api.yaml -o ./src/api.ts",
+    "codegen:session": "openapi-typescript ../../marimo/_schemas/generated/session.yaml -o ./src/session.ts",
+    "codegen:notebook": "openapi-typescript ../../marimo/_schemas/generated/notebook.yaml -o ./src/notebook.ts"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.3.0",
-    "typescript": "^5.8.3"
+    "openapi-typescript": "^7.3.0"
   },
   "dependencies": {
     "openapi-fetch": "0.9.7"
-  },
-  "packageManager": "pnpm@10.12.4"
+  }
 }
