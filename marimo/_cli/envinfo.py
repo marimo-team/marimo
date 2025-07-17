@@ -13,6 +13,7 @@ from marimo._utils.health import (
     get_optional_modules_list,
     get_required_modules_list,
 )
+from marimo._utils.versions import is_editable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -41,13 +42,14 @@ def get_experimental_flags() -> dict[str, bool]:
         return {}
 
 
-def get_system_info() -> dict[str, Union[str, dict[str, Any]]]:
+def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
         os_version = "11"
 
-    info = {
+    info: dict[str, Union[str, bool, dict[str, Any]]] = {
         "marimo": __version__,
+        "editable": is_editable("marimo"),
         "OS": platform.system(),
         "OS Version": os_version,
         # e.g., x86 or arm
