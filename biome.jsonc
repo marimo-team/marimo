@@ -6,13 +6,7 @@
     "frontend/lint/preferObjectParams.grit"
   ],
   "files": {
-    "includes": [
-      "frontend/**/*",
-      "openapi/**/*",
-      "lsp/**/*",
-      "!*.json",
-      "!*.jsonc"
-    ]
+    "includes": ["frontend/**/*", "packages/**/*", "!*.json", "!*.jsonc"]
   },
   "formatter": {
     "indentStyle": "space",

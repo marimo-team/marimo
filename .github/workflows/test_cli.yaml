@@ -44,8 +44,6 @@ jobs:
           fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4

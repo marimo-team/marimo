@@ -57,7 +57,7 @@ type ComboboxValueProps<TValue> =
       chipsClassName?: never;
       value?: TValue | null;
       defaultValue?: TValue | null;
-      onValueChange?(value: TValue | null): void;
+      onValueChange?: (value: TValue | null) => void;
     }
   | {
       multiple: true;
@@ -65,7 +65,7 @@ type ComboboxValueProps<TValue> =
       chipsClassName?: string;
       value?: TValue[] | null;
       defaultValue?: TValue[] | null;
-      onValueChange?(value: TValue[] | null): void;
+      onValueChange?: (value: TValue[] | null) => void;
     };
 
 export type ComboboxProps<TValue> = ComboboxCommonProps<TValue> &
@@ -235,7 +235,7 @@ export interface ComboboxItemProps<TValue>
       React.ComponentProps<typeof CommandItem>,
       keyof ComboboxItemOptions<TValue> | "onSelect" | "role"
     > {
-  onSelect?(value: TValue): void;
+  onSelect?: (value: TValue) => void;
 }
 
 export const ComboboxItem = React.forwardRef(

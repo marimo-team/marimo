@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'marimo/_schemas/**/*.yaml'
-      - 'openapi/api.yaml'
+      - 'packages/openapi/api.yaml'
 
 jobs:
   changes:
@@ -20,7 +20,7 @@ jobs:
         with:
           filters: |
             openapi:
-              - 'openapi/api.yaml'
+              - 'packages/openapi/api.yaml'
             session:
               - 'marimo/_schemas/generated/session.yaml'
             notebook:
@@ -33,7 +33,7 @@ jobs:
       matrix:
         schema:
           - name: openapi
-            path: openapi/api.yaml
+            path: packages/openapi/api.yaml
             display_name: OpenAPI specification
             condition: ${{ needs.changes.outputs.openapi == 'true' }}
           - name: session

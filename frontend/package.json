@@ -47,7 +47,7 @@
     "@lezer/python": "^1.1.18",
     "@marimo-team/codemirror-ai": "^0.1.11",
     "@marimo-team/codemirror-languageserver": "^1.15.24",
-    "@marimo-team/marimo-api": "file:../openapi",
+    "@marimo-team/marimo-api": "workspace:*",
     "@marimo-team/react-slotz": "^0.2.0",
     "@mui/material": "^6.4.12",
     "@open-rpc/client-js": "^1.8.1",
@@ -110,7 +110,7 @@
     "humanize-duration": "^3.33.0",
     "iconify-icon": "^2.3.0",
     "jotai": "^2.12.5",
-    "jotai-scope": "^0.7.3",
+    "jotai-scope": "^0.8.3",
     "js-cookie": "^3.0.5",
     "katex": "^0.16.22",
     "lodash-es": "^4.17.21",
@@ -151,6 +151,7 @@
     "use-resize-observer": "^9.1.0",
     "vega-lite": "^5.23.0",
     "vega-loader": "^4.5.3",
+    "vscode-jsonrpc": "^8.2.1",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^4.2.4",
     "zod": "^3.25.67"
@@ -163,12 +164,11 @@
     "build:watch": "vite build --watch --outDir ../marimo/_static",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "test": "vitest",
-    "typecheck": "tsc --noEmit",
-    "lint": "run-s lint:biome format lint:eslint lint:stylelint",
+    "typecheck": "tsc",
+    "lint": "run-s lint:biome lint:eslint lint:stylelint",
     "lint:biome": "biome lint --diagnostic-level=warn --write .",
     "lint:eslint": "cross-env TIMING=1 eslint src e2e-tests --fix",
     "lint:stylelint": "stylelint src/**/*.css --fix",
-    "format": "biome format --write .",
     "preview": "vite preview",
     "dev:quarto": "VITE_MARIMO_ISLANDS=true vite",
     "dev:islands": "cross-env VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts",
@@ -230,18 +230,10 @@
     "stylelint": "^16.21.0",
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^3.4.17",
-    "turbo": "^2.5.4",
-    "typescript": "^5.8.3",
     "vite": "^6.3.2",
+    "vitest": "^3.2.4",
     "vite-plugin-top-level-await": "^1.5.0",
     "vite-plugin-wasm": "^3.4.1",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4"
-  },
-  "packageManager": "pnpm@10.12.4",
-  "pnpm": {
-    "patchedDependencies": {
-      "react-plotly.js": "patches/react-plotly.js.patch"
-    }
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }
