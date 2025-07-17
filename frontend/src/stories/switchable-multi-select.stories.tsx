@@ -23,7 +23,7 @@ export const Primary: Story = {
           options={["apple", "banana", "blueberry", "grapes", "pineapple"]}
           value={value}
           placeholder="Select a fruit"
-          onChange={(value) => setValue(value)}
+          onChange={(value) => setValue(value ?? [])}
         />
       </TooltipProvider>
     );
