@@ -94,8 +94,6 @@
     "@xterm/addon-attach": "^0.11.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
-    "ag-grid-community": "^32.3.8",
-    "ag-grid-react": "^32.3.8",
     "ai": "^4.3.16",
     "ansi_up": "^6.0.6",
     "class-variance-authority": "^0.7.1",

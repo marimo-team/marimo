@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { get } from "lodash-es";
 import {
   BrainIcon,
   CpuIcon,
@@ -33,7 +32,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
-import { configOverridesAtom, useUserConfig } from "@/core/config/config";
+import { useUserConfig } from "@/core/config/config";
 import {
   PackageManagerNames,
   type UserConfig,
@@ -53,6 +52,7 @@ import { Textarea } from "../ui/textarea";
 import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
+import { useIsConfigOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
@@ -1636,14 +1636,12 @@ const IsOverridden = ({
   userConfig: UserConfig;
   name: FieldPath<UserConfig>;
 }) => {
-  const currentValue = get(userConfig, name);
-  const overrides = useAtomValue(configOverridesAtom);
-  const overriddenValue = get(overrides as UserConfig, name);
-  if (overriddenValue == null) {
-    return null;
-  }
+  const { isOverridden, currentValue, overriddenValue } = useIsConfigOverridden(
+    userConfig,
+    name,
+  );
 
-  if (currentValue === overriddenValue) {
+  if (!isOverridden) {
     return null;
   }
 

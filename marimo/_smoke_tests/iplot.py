@@ -1,12 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.18"
+__generated_with = "0.14.11"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _(mo):
+    mo.app_meta().request
+    return
+
+
+@app.cell
+def _():
     import marimo as mo
     import numpy as np
     import matplotlib.pyplot as plt
@@ -14,8 +21,8 @@ def __():
 
 
 @app.cell
-def __(mo, np, plt):
-    def interactive_plot(seed = 42, size=100):
+def _(mo, np, plt):
+    def interactive_plot(seed=42, size=100):
         # Generating random data
         np.random.seed(seed)
         x = np.random.randint(0, 100, size=size)
@@ -24,39 +31,39 @@ def __(mo, np, plt):
 
         # Creating a 3D scatter plot
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x, y, z, c='r', marker='o')
+        ax = fig.add_subplot(111, projection="3d")
+        ax.scatter(x, y, z, c="r", marker="o")
 
-        ax.set_xlabel('X Label')
-        ax.set_ylabel('Y Label')
-        ax.set_zlabel('Z Label')
+        ax.set_xlabel("X Label")
+        ax.set_ylabel("Y Label")
+        ax.set_zlabel("Z Label")
 
         return mo.mpl.interactive(fig)
-    return interactive_plot,
+    return (interactive_plot,)
 
 
 @app.cell
-def __(interactive_plot):
+def _(interactive_plot):
     interactive_plot(size=10)
     return
 
 
 @app.cell
-def __(interactive_plot):
+def _(interactive_plot):
     b = interactive_plot(size=20)
     b
-    return b,
+    return
 
 
 @app.cell
-def __(mo, plt):
+def _(mo, plt):
     plt.plot([1, 2])
     mo.mpl.interactive(plt.gca())
     return
 
 
 @app.cell
-def __(plt):
+def _(plt):
     plt.plot([3, 4])
     return
 
