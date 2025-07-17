@@ -1,7 +1,9 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "build": {},
+    "build": {
+      "outputs": ["dist/**"]
+    },
     "typecheck": {},
     "test": {},
     "codegen": {},

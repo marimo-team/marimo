@@ -3,14 +3,14 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "outputs": ["frontend/dist/**"],
+      "outputs": ["dist/**"],
       "env": ["VITE_MARIMO_ISLANDS", "NODE_ENV"]
     },
     "build-storybook": {
-      "outputs": ["frontend/storybook-static/**"]
+      "outputs": ["storybook-static/**"]
     },
     "build:islands": {
-      "outputs": ["frontend/dist/**"],
+      "outputs": ["dist/**"],
       "env": ["VITE_MARIMO_ISLANDS", "VITE_MARIMO_VERSION", "NODE_ENV"]
     }
   }
