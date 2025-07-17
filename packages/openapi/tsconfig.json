@@ -3,7 +3,6 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "noUncheckedIndexedAccess": true,
-    "skipLibCheck": true
+    "noUncheckedIndexedAccess": true
   }
 }
