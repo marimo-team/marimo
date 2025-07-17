@@ -66,6 +66,7 @@ test("default UserConfig - empty", () => {
         "line_length": 79,
       },
       "keymap": {
+        "destructive_delete": true,
         "overrides": {},
         "preset": "default",
       },
@@ -125,6 +126,7 @@ test("default UserConfig - one level", () => {
         "line_length": 79,
       },
       "keymap": {
+        "destructive_delete": true,
         "overrides": {},
         "preset": "default",
       },
