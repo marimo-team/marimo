@@ -11,8 +11,7 @@ interface TestData {
 }
 
 describe("DataTable", () => {
-  // TODO: Fix this test. Fails with React not found.
-  it.skip("should maintain selection state when remounted", () => {
+  it("should maintain selection state when remounted", () => {
     const mockOnRowSelectionChange = vi.fn();
     const testData: TestData[] = [
       { id: 1, name: "Test 1" },

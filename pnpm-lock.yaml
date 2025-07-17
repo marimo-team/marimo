@@ -19,6 +19,12 @@ importers:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.6.3
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.1.0(react@19.1.0)
       turbo:
         specifier: ^2.5.4
         version: 2.5.4
@@ -323,8 +329,8 @@ importers:
         specifier: ^2.12.5
         version: 2.12.5(@types/react@19.1.8)(react@19.1.0)
       jotai-scope:
-        specifier: ^0.7.3
-        version: 0.7.5(jotai@2.12.5(@types/react@19.1.8)(react@19.1.0))(react@19.1.0)
+        specifier: ^0.8.3
+        version: 0.8.3(jotai@2.12.5(@types/react@19.1.8)(react@19.1.0))(react@19.1.0)
       js-cookie:
         specifier: ^3.0.5
         version: 3.0.5
@@ -6362,8 +6368,8 @@ packages:
     resolution: {integrity: sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==}
     hasBin: true
 
-  jotai-scope@0.7.5:
-    resolution: {integrity: sha512-hhD5V8U3SkLRe38nOLqVR58RbAWX+rGVxACP6Tm3VOjtZ4MnlpuS9bmDCNfaFq5xWNFlh3dLErdL2roSpVQEqw==}
+  jotai-scope@0.8.3:
+    resolution: {integrity: sha512-DUy89t6O7hizbR2NlhbiKhHQlzghnRzLeqSRWBBz1LflDO82W8QGZILgBEgRTMUj3e87fXmU5vDfamu90+EwRg==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       jotai: '>=2.9.3'
@@ -16448,7 +16454,7 @@ snapshots:
 
   jiti@1.21.7: {}
 
-  jotai-scope@0.7.5(jotai@2.12.5(@types/react@19.1.8)(react@19.1.0))(react@19.1.0):
+  jotai-scope@0.8.3(jotai@2.12.5(@types/react@19.1.8)(react@19.1.0))(react@19.1.0):
     dependencies:
       jotai: 2.12.5(@types/react@19.1.8)(react@19.1.0)
       react: 19.1.0
