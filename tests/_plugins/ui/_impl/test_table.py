@@ -953,6 +953,7 @@ def test_show_column_summaries_modes():
     summaries_stats = table_stats._get_column_summaries(EmptyArgs())
     assert summaries_stats.is_disabled is False
     assert summaries_stats.data is None
+    assert summaries_stats.bin_values == {}
     assert len(summaries_stats.stats) > 0
 
     # Test chart-only mode
@@ -974,6 +975,7 @@ def test_show_column_summaries_modes():
     summaries_disabled = table_disabled._get_column_summaries(EmptyArgs())
     assert summaries_disabled.is_disabled is False
     assert summaries_disabled.data is None
+    assert summaries_disabled.bin_values == {}
     assert len(summaries_disabled.stats) == 0
 
     # Test Default behavior

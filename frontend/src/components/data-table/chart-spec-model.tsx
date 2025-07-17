@@ -15,7 +15,12 @@ import {
   isDataURLString,
   typedAtob,
 } from "@/utils/json/base64";
-import type { ColumnHeaderStats, ColumnName, FieldTypes } from "./types";
+import type {
+  BinValues,
+  ColumnHeaderStats,
+  ColumnName,
+  FieldTypes,
+} from "./types";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
@@ -28,9 +33,11 @@ formats("arrow", arrow);
 
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, ColumnHeaderStats>();
+  private columnBinValues = new Map<ColumnName, BinValues>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
     [],
+    {},
     {},
     {},
     {
@@ -45,6 +52,7 @@ export class ColumnChartSpecModel<T> {
     private readonly data: T[] | string,
     private readonly fieldTypes: FieldTypes,
     readonly stats: Record<ColumnName, ColumnHeaderStats>,
+    readonly binValues: Record<ColumnName, BinValues>,
     private readonly opts: {
       includeCharts: boolean;
     },
@@ -86,6 +94,7 @@ export class ColumnChartSpecModel<T> {
       this.sourceName = "source_0";
     }
 
+    this.columnBinValues = new Map(Object.entries(binValues));
     this.columnStats = new Map(Object.entries(stats));
   }
 
@@ -111,8 +120,14 @@ export class ColumnChartSpecModel<T> {
     if (!this.data) {
       return null;
     }
+
+    const binValues = this.columnBinValues.get(column);
+    const hasBinValues = binValues && binValues.length > 0;
+
     const base = {
-      data: this.dataSpec as TopLevelFacetedUnitSpec["data"],
+      data: hasBinValues
+        ? { values: binValues }
+        : (this.dataSpec as TopLevelFacetedUnitSpec["data"]),
       background: "transparent",
       config: {
         view: {
@@ -234,6 +249,7 @@ export class ColumnChartSpecModel<T> {
       case "number": {
         // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
+        const stats = this.columnStats.get(column);
 
         return {
           ...base, // Assuming base contains shared configurations
@@ -245,17 +261,40 @@ export class ColumnChartSpecModel<T> {
               mark: {
                 type: "bar",
                 color: mint.mint11,
+                stroke: mint.mint11,
+                strokeWidth: 0,
               },
+              params: [
+                {
+                  name: "hover",
+                  select: {
+                    type: "point",
+                    on: "mouseover",
+                  },
+                },
+              ],
               encoding: {
                 x: {
-                  field: column,
+                  field: "bin_start",
                   type: "quantitative",
-                  bin: true,
+                  bin: { binned: true, step: 2 },
+                },
+                x2: {
+                  field: "bin_end",
+                  axis: null,
                 },
                 y: {
-                  aggregate: "count",
+                  field: "count",
                   type: "quantitative",
                   axis: null,
+                },
+                strokeWidth: {
+                  condition: {
+                    param: "hover",
+                    empty: false,
+                    value: 0.5,
+                  },
+                  value: 0,
                 },
               },
             },
@@ -268,16 +307,28 @@ export class ColumnChartSpecModel<T> {
               },
               encoding: {
                 x: {
-                  field: column,
+                  field: "bin_start",
                   type: "quantitative",
-                  bin: true,
+                  bin: { binned: true, step: 2 },
                   axis: {
                     title: null,
                     labelFontSize: 8.5,
                     labelOpacity: 0.5,
                     labelExpr:
                       "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
+                    // TODO: Tick count provides a better UX, but it did not work
+                    values: [
+                      stats?.min,
+                      stats?.p25,
+                      stats?.median,
+                      stats?.p75,
+                      stats?.p95,
+                      stats?.max,
+                    ].filter((value): value is number => value !== undefined),
                   },
+                },
+                x2: {
+                  field: "bin_end",
                 },
                 y: {
                   aggregate: "max",
@@ -286,20 +337,24 @@ export class ColumnChartSpecModel<T> {
                 },
                 tooltip: [
                   {
-                    field: column,
-                    type: "quantitative",
-                    bin: true,
+                    field: "bin_range",
+                    type: "nominal",
                     title: column,
-                    format: format,
                   },
                   {
-                    aggregate: "count",
+                    field: "count",
                     type: "quantitative",
                     title: "Count",
                     format: ",d",
                   },
                 ],
               },
+              transform: [
+                {
+                  calculate: `format(datum.bin_start, '${format}') + ' - ' + format(datum.bin_end, '${format}')`,
+                  as: "bin_range",
+                },
+              ],
             },
           ],
         };

@@ -38,6 +38,7 @@ import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-owner
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import {
+  type BinValues,
   type ColumnHeaderStats,
   type ColumnName,
   type DataTableSelection,
@@ -78,6 +79,7 @@ export type TableData<T> = T[] | CsvURL;
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
+  bin_values: Record<ColumnName, BinValues>;
   is_disabled?: boolean;
 }
 
@@ -128,6 +130,14 @@ const columnStats = z.object({
   p75: maybeNumber,
   p95: maybeNumber,
 });
+
+const binValues = z.array(
+  z.object({
+    bin_start: z.number(),
+    bin_end: z.number(),
+    count: z.number(),
+  }),
+);
 
 /**
  * Arguments for a data table
@@ -247,6 +257,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           .union([z.string(), z.array(z.object({}).passthrough())])
           .nullable(),
         stats: z.record(z.string(), columnStats),
+        bin_values: z.record(z.string(), binValues),
         is_disabled: z.boolean().optional(),
       }),
     ),
@@ -547,7 +558,7 @@ export const LoadingDataTableComponent = memo(
       ColumnSummaries<T>
     >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {} };
+        return { data: null, stats: {}, bin_values: {} };
       }
       return props.get_column_summaries({});
     }, [
@@ -701,6 +712,7 @@ const DataTableComponent = ({
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
+      columnSummaries.bin_values,
       {
         includeCharts: Boolean(columnSummaries.data),
       },

@@ -854,11 +854,16 @@ class table(
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         ):
-            chart_data, _ = self._to_chart_data_url(self._searched_manager)
+            data = self._searched_manager
             for column in self._manager.get_column_names():
-                bin_values[column] = self._searched_manager.get_bin_values(
-                    column, DEFAULT_NUM_BINS
-                )
+                bins = data.get_bin_values(column, DEFAULT_NUM_BINS)
+
+                if len(bins) > 0:
+                    bin_values[column] = bins
+                    # Charts will use bin_values instead of data, so we drop the column
+                    data = data.drop_columns([column])
+
+            chart_data, _ = self._to_chart_data_url(data)
 
         return ColumnSummaries(
             data=chart_data,

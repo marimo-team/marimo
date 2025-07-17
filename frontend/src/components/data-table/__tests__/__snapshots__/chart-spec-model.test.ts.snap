@@ -145,34 +145,58 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
   "layer": [
     {
       "encoding": {
+        "strokeWidth": {
+          "condition": {
+            "empty": false,
+            "param": "hover",
+            "value": 0.5,
+          },
+          "value": 0,
+        },
         "x": {
-          "bin": true,
-          "field": "a",
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
           "type": "quantitative",
         },
-        "y": {
-          "aggregate": "count",
+        "x2": {
           "axis": null,
+          "field": "bin_end",
+        },
+        "y": {
+          "axis": null,
+          "field": "count",
           "type": "quantitative",
         },
       },
       "mark": {
         "color": "#027864",
+        "stroke": "#027864",
+        "strokeWidth": 0,
         "type": "bar",
       },
+      "params": [
+        {
+          "name": "hover",
+          "select": {
+            "on": "mouseover",
+            "type": "point",
+          },
+        },
+      ],
     },
     {
       "encoding": {
         "tooltip": [
           {
-            "bin": true,
-            "field": "a",
-            "format": ".2f",
+            "field": "bin_range",
             "title": "a",
-            "type": "quantitative",
+            "type": "nominal",
           },
           {
-            "aggregate": "count",
+            "field": "count",
             "format": ",d",
             "title": "Count",
             "type": "quantitative",
@@ -184,10 +208,17 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
             "labelFontSize": 8.5,
             "labelOpacity": 0.5,
             "title": null,
+            "values": [],
           },
-          "bin": true,
-          "field": "a",
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
           "type": "quantitative",
+        },
+        "x2": {
+          "field": "bin_end",
         },
         "y": {
           "aggregate": "max",
@@ -199,6 +230,12 @@ exports[`ColumnChartSpecModel > snapshot > array 1`] = `
         "opacity": 0,
         "type": "bar",
       },
+      "transform": [
+        {
+          "as": "bin_range",
+          "calculate": "format(datum.bin_start, '.2f') + ' - ' + format(datum.bin_end, '.2f')",
+        },
+      ],
     },
   ],
 }
@@ -233,34 +270,58 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
   "layer": [
     {
       "encoding": {
+        "strokeWidth": {
+          "condition": {
+            "empty": false,
+            "param": "hover",
+            "value": 0.5,
+          },
+          "value": 0,
+        },
         "x": {
-          "bin": true,
-          "field": "a",
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
           "type": "quantitative",
         },
-        "y": {
-          "aggregate": "count",
+        "x2": {
           "axis": null,
+          "field": "bin_end",
+        },
+        "y": {
+          "axis": null,
+          "field": "count",
           "type": "quantitative",
         },
       },
       "mark": {
         "color": "#027864",
+        "stroke": "#027864",
+        "strokeWidth": 0,
         "type": "bar",
       },
+      "params": [
+        {
+          "name": "hover",
+          "select": {
+            "on": "mouseover",
+            "type": "point",
+          },
+        },
+      ],
     },
     {
       "encoding": {
         "tooltip": [
           {
-            "bin": true,
-            "field": "a",
-            "format": ".2f",
+            "field": "bin_range",
             "title": "a",
-            "type": "quantitative",
+            "type": "nominal",
           },
           {
-            "aggregate": "count",
+            "field": "count",
             "format": ",d",
             "title": "Count",
             "type": "quantitative",
@@ -272,10 +333,17 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
             "labelFontSize": 8.5,
             "labelOpacity": 0.5,
             "title": null,
+            "values": [],
           },
-          "bin": true,
-          "field": "a",
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
           "type": "quantitative",
+        },
+        "x2": {
+          "field": "bin_end",
         },
         "y": {
           "aggregate": "max",
@@ -287,6 +355,12 @@ exports[`ColumnChartSpecModel > snapshot > csv data 1`] = `
         "opacity": 0,
         "type": "bar",
       },
+      "transform": [
+        {
+          "as": "bin_range",
+          "calculate": "format(datum.bin_start, '.2f') + ' - ' + format(datum.bin_end, '.2f')",
+        },
+      ],
     },
   ],
 }
@@ -321,34 +395,58 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
   "layer": [
     {
       "encoding": {
+        "strokeWidth": {
+          "condition": {
+            "empty": false,
+            "param": "hover",
+            "value": 0.5,
+          },
+          "value": 0,
+        },
         "x": {
-          "bin": true,
-          "field": "a",
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
           "type": "quantitative",
         },
-        "y": {
-          "aggregate": "count",
+        "x2": {
           "axis": null,
+          "field": "bin_end",
+        },
+        "y": {
+          "axis": null,
+          "field": "count",
           "type": "quantitative",
         },
       },
       "mark": {
         "color": "#027864",
+        "stroke": "#027864",
+        "strokeWidth": 0,
         "type": "bar",
       },
+      "params": [
+        {
+          "name": "hover",
+          "select": {
+            "on": "mouseover",
+            "type": "point",
+          },
+        },
+      ],
     },
     {
       "encoding": {
         "tooltip": [
           {
-            "bin": true,
-            "field": "a",
-            "format": ".2f",
+            "field": "bin_range",
             "title": "a",
-            "type": "quantitative",
+            "type": "nominal",
           },
           {
-            "aggregate": "count",
+            "field": "count",
             "format": ",d",
             "title": "Count",
             "type": "quantitative",
@@ -360,10 +458,17 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
             "labelFontSize": 8.5,
             "labelOpacity": 0.5,
             "title": null,
+            "values": [],
           },
-          "bin": true,
-          "field": "a",
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
           "type": "quantitative",
+        },
+        "x2": {
+          "field": "bin_end",
         },
         "y": {
           "aggregate": "max",
@@ -375,6 +480,12 @@ exports[`ColumnChartSpecModel > snapshot > csv string 1`] = `
         "opacity": 0,
         "type": "bar",
       },
+      "transform": [
+        {
+          "as": "bin_range",
+          "calculate": "format(datum.bin_start, '.2f') + ' - ' + format(datum.bin_end, '.2f')",
+        },
+      ],
     },
   ],
 }
