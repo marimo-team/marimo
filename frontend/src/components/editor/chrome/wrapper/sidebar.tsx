@@ -79,12 +79,12 @@ const SidebarItem: React.FC<
     {
       selected: boolean;
       tooltip: React.ReactNode;
-    } & React.HTMLAttributes<HTMLDivElement>
+    } & React.HTMLAttributes<HTMLButtonElement>
   >
 > = ({ children, tooltip, selected, className, ...rest }) => {
   return (
     <Tooltip content={tooltip} side="right" delayDuration={200}>
-      <div
+      <button
         className={cn(
           "flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
           !selected && "hover:bg-[var(--sage-3)]",
@@ -94,7 +94,7 @@ const SidebarItem: React.FC<
         {...rest}
       >
         {children}
-      </div>
+      </button>
     </Tooltip>
   );
 };
