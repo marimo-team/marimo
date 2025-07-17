@@ -1,20 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "build": {
-      "outputs": ["frontend/dist/**"],
-      "env": ["VITE_MARIMO_ISLANDS", "NODE_ENV"]
-    },
+    "build": {},
     "typecheck": {},
     "test": {},
+    "codegen": {},
     "lint": {},
-    "build-storybook": {
-      "outputs": ["frontend/storybook-static/**"]
-    },
-    "build:islands": {
-      "outputs": ["frontend/dist/**"],
-      "env": ["VITE_MARIMO_ISLANDS", "VITE_MARIMO_VERSION", "NODE_ENV"]
-    },
     "dev": {
       "cache": false,
       "persistent": true

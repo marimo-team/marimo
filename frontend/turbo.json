@@ -1,0 +1,17 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": ["frontend/dist/**"],
+      "env": ["VITE_MARIMO_ISLANDS", "NODE_ENV"]
+    },
+    "build-storybook": {
+      "outputs": ["frontend/storybook-static/**"]
+    },
+    "build:islands": {
+      "outputs": ["frontend/dist/**"],
+      "env": ["VITE_MARIMO_ISLANDS", "VITE_MARIMO_VERSION", "NODE_ENV"]
+    }
+  }
+}

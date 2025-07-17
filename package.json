@@ -1,12 +1,16 @@
 {
   "scripts": {
-    "typecheck": "pnpm run -r typecheck",
-    "format": "pnpm biome check --write",
-    "lint": "pnpm biome lint && pnpm run -r lint",
+    "typecheck": "pnpm turbo typecheck",
+    "format": "pnpm biome format --write",
+    "test": "pnpm turbo test",
+    "build": "pnpm turbo build",
+    "codegen": "pnpm turbo run codegen",
+    "lint": "pnpm biome check --write && pnpm run -r lint",
     "dev": "pnpm run --filter @marimo-team/frontend dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
+    "@testing-library/jest-dom": "^6.6.3",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

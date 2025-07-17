@@ -6,7 +6,7 @@
 # This script should fail if any intermediate step fails
 set -e
 
-if pnpm --filter @marimo-team/lsp build; then
+if pnpm turbo build --filter @marimo-team/lsp; then
   echo "Removing old lsp files..."
   rm -rf marimo/_lsp/
   echo "Copying new lsp files..."

@@ -24,7 +24,7 @@
     "minimist": "^1.2.8",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
-    "vitest": "^1.6.1",
+    "vitest": "^3.2.4",
     "ws": "^8.18.3"
   },
   "packageManager": "pnpm@10.12.4"
