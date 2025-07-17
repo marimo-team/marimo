@@ -84,11 +84,13 @@ class KeymapConfig(TypedDict):
     - `preset`: one of `"default"` or `"vim"`
     - `overrides`: a dict of keymap actions to their keymap override
     - `vimrc`: path to a vimrc file to load keymaps from
+    - `destructive_delete`: if `True`, allows deleting cells with content.
     """
 
     preset: Literal["default", "vim"]
     overrides: NotRequired[dict[str, str]]
     vimrc: NotRequired[Optional[str]]
+    destructive_delete: NotRequired[bool]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]

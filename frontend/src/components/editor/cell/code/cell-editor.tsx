@@ -10,6 +10,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
+import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import {
@@ -91,6 +92,7 @@ const CellEditorInternal = ({
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
+  const pendingDeleteService = usePendingDeleteService();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -102,6 +104,11 @@ const CellEditorInternal = ({
     // Cannot delete running cells, since we're waiting for their output.
     if (loading) {
       return false;
+    }
+
+    if (pendingDeleteService.idle && userConfig.keymap.destructive_delete) {
+      pendingDeleteService.submit([cellId]);
+      return true;
     }
 
     deleteCell({ cellId });
