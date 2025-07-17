@@ -68,7 +68,7 @@ import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import { CellEditor } from "./cell/code/cell-editor";
 import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { DeleteButton } from "./cell/DeleteButton";
-import { PendingDeleteInformation } from "./cell/PendingDeleteConfirmation";
+import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
 import { RunButton } from "./cell/RunButton";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
@@ -791,10 +791,7 @@ const EditableCellComponent = ({
               cellId={cellId}
               debuggerActive={debuggerActive}
             />
-            <PendingDeleteInformation
-              cellId={cellId}
-              executionTimeMs={runElapsedTimeMs || 0}
-            />
+            <PendingDeleteConfirmation cellId={cellId} />
           </div>
           {isCollapsed && (
             <CollapsedCellBanner

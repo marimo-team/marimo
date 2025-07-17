@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
-import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
+import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import {
   hotkeysAtom,
   keymapPresetAtom,
@@ -18,9 +18,7 @@ import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
-import { Sets } from "@/utils/sets";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
-import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
 import { focusCell, focusCellEditor } from "./focus-utils";
@@ -82,7 +80,7 @@ function useCellFocusProps(cellId: CellId) {
   const setLastFocusedCellId = useSetLastFocusedCellId();
   const actions = useCellActions();
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
-  const setPendingCells = useSetAtom(pendingDeleteCellsAtom);
+  const pendingDeleteService = usePendingDeleteService();
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -94,7 +92,7 @@ function useCellFocusProps(cellId: CellId) {
       // On blur, hide the code if it was temporarily shown.
       setTemporarilyShownCode(false);
       actions.markTouched({ cellId });
-      setPendingCells((current) => Sets.delete(current, cellId));
+      pendingDeleteService.clear();
     },
   });
 
@@ -134,8 +132,7 @@ export function useCellNavigationProps(
   const { copyCells, pasteAtCell } = useCellClipboard();
   const selectionActions = useCellSelectionActions();
   const isSelected = useIsCellSelected(cellId);
-  const [pendingCells, setPendingCells] = useAtom(pendingDeleteCellsAtom);
-  const deleteCell = useDeleteCellCallback();
+  const pendingDeleteService = usePendingDeleteService();
   const userConfig = useAtomValue(userConfigAtom);
 
   const hotkeys = useAtomValue(hotkeysAtom);
@@ -440,12 +437,8 @@ export function useCellNavigationProps(
           if (hasRunningCell) {
             return false;
           }
-          // follows same logic as cell-editor.tsx
-          if (pendingCells.size === 0) {
-            setPendingCells(new Set([cellId]));
-            return true;
-          }
-          deleteCell({ cellId });
+          // Submit cell for deletion
+          pendingDeleteService.submit([cellId]);
           return true;
         },
       } satisfies Partial<
