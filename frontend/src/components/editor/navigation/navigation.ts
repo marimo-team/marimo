@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { useAtomValue, useSetAtom, useStore } from "jotai";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
@@ -20,6 +20,7 @@ import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
 import { Sets } from "@/utils/sets";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
+import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
 import { focusCell, focusCellEditor } from "./focus-utils";
@@ -133,7 +134,8 @@ export function useCellNavigationProps(
   const { copyCells, pasteAtCell } = useCellClipboard();
   const selectionActions = useCellSelectionActions();
   const isSelected = useIsCellSelected(cellId);
-  const setPendingCells = useSetAtom(pendingDeleteCellsAtom);
+  const [pendingCells, setPendingCells] = useAtom(pendingDeleteCellsAtom);
+  const deleteCell = useDeleteCellCallback();
   const userConfig = useAtomValue(userConfigAtom);
 
   const hotkeys = useAtomValue(hotkeysAtom);
@@ -242,22 +244,6 @@ export function useCellNavigationProps(
 
       // Shortcuts
       const shortcuts = {
-        "cell.delete": (cellId) => {
-          // Only handle if destructive_delete is enabled
-          if (!userConfig.keymap.destructive_delete) {
-            return false;
-          }
-          // Cannot delete running cells
-          const notebook = store.get(notebookAtom);
-          const cellData = notebook.cellRuntime[cellId];
-          const hasRunningCell =
-            cellData.status === "running" || cellData.status === "queued";
-          if (hasRunningCell) {
-            return false;
-          }
-          setPendingCells(new Set([cellId]));
-          return true;
-        },
         // Cell actions
         "cell.run": addSingleHandler((cellIds) => {
           runCells(cellIds);
@@ -436,9 +422,37 @@ export function useCellNavigationProps(
           actions.createNewCell({ cellId, before: false, autoFocus: true });
           return true;
         },
+        "cell.delete": (cellId) => {
+          // TODO: support multi-select delete
+          if (selectedCells.size > 1) {
+            return false;
+          }
+
+          // Only handle if destructive_delete is enabled
+          if (!userConfig.keymap.destructive_delete) {
+            return false;
+          }
+          // Cannot delete running cells
+          const notebook = store.get(notebookAtom);
+          const cellData = notebook.cellRuntime[cellId];
+          const hasRunningCell =
+            cellData.status === "running" || cellData.status === "queued";
+          if (hasRunningCell) {
+            return false;
+          }
+          // follows same logic as cell-editor.tsx
+          if (pendingCells.size === 0) {
+            setPendingCells(new Set([cellId]));
+            return true;
+          }
+          deleteCell({ cellId });
+          return true;
+        },
       } satisfies Partial<
         Record<HotkeyAction, HotkeyHandler["handle"] | HotkeyHandler>
       >;
+
+      const selectedCells = getSelectedCells(store);
 
       // Keymaps when using vim.
       if (
@@ -457,8 +471,6 @@ export function useCellNavigationProps(
         evt.preventDefault();
         return;
       }
-
-      const selectedCells = getSelectedCells(store);
 
       // Handle the shortcut
       for (const [shortcut, handler] of Object.entries(shortcuts)) {
