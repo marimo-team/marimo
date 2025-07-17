@@ -14,7 +14,7 @@ import click
 import marimo._cli.cli_validators as validators
 from marimo import __version__, _loggers
 from marimo._ast import codegen
-from marimo._ast.load import notebook_is_openable
+from marimo._ast.load import get_notebook_status
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -57,7 +57,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
 
 def check_app_correctness(filename: str) -> None:
     try:
-        notebook_is_openable(filename)
+        status = get_notebook_status(filename)
     except SyntaxError:
         import traceback
 
@@ -69,6 +69,21 @@ def check_app_correctness(filename: str) -> None:
         # SyntaxError: invalid syntax
         click.echo(f"Failed to parse notebook: {filename}\n", err=True)
         raise click.ClickException(traceback.format_exc(limit=0)) from None
+
+    if status == "invalid":
+        if not click.confirm(
+            "The notebook is invalid. Do you want to open it anyway?",
+            default=False,
+            abort=True,
+        ):
+            raise click.ClickException(
+                "The notebook is invalid. Please fix the errors before opening it."
+            )
+    if status == "has_errors":
+        # Provide a warning, but allow the user to open the notebook
+        _loggers.marimo_logger().warning(
+            "This notebook has errors, saving may lose data. Continuing anyway."
+        )
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
