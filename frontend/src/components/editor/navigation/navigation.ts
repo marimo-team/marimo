@@ -19,6 +19,7 @@ import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
+import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
 import { focusCell, focusCellEditor } from "./focus-utils";
@@ -130,10 +131,27 @@ export function useCellNavigationProps(
   const runCells = useRunCells();
   const keymapPreset = useAtomValue(keymapPresetAtom);
   const { copyCells, pasteAtCell } = useCellClipboard();
-  const selectionActions = useCellSelectionActions();
+  const rawSelectionActions = useCellSelectionActions();
   const isSelected = useIsCellSelected(cellId);
   const pendingDeleteService = usePendingDeleteService();
+  const deleteCells = useDeleteManyCellsCallback();
   const userConfig = useAtomValue(userConfigAtom);
+
+  // Wrap selection actions to clear pending cells on any selection change
+  const selectionActions = {
+    clear: () => {
+      pendingDeleteService.clear();
+      rawSelectionActions.clear();
+    },
+    extend: (args: Parameters<typeof rawSelectionActions.extend>[0]) => {
+      pendingDeleteService.clear();
+      rawSelectionActions.extend(args);
+    },
+    select: (args: Parameters<typeof rawSelectionActions.select>[0]) => {
+      pendingDeleteService.clear();
+      rawSelectionActions.select(args);
+    },
+  };
 
   const hotkeys = useAtomValue(hotkeysAtom);
 
@@ -419,11 +437,10 @@ export function useCellNavigationProps(
           actions.createNewCell({ cellId, before: false, autoFocus: true });
           return true;
         },
-        "cell.delete": (cellId) => {
-          // TODO: support multi-select delete
-          if (selectedCells.size > 1) {
-            return false;
-          }
+        "cell.delete": () => {
+          // TODO: duplicated logic with below
+          const cellIds =
+            selectedCells.size >= 2 ? [...selectedCells] : [cellId];
 
           // Only handle if destructive_delete is enabled
           if (!userConfig.keymap.destructive_delete) {
@@ -431,14 +448,19 @@ export function useCellNavigationProps(
           }
           // Cannot delete running cells
           const notebook = store.get(notebookAtom);
-          const cellData = notebook.cellRuntime[cellId];
-          const hasRunningCell =
-            cellData.status === "running" || cellData.status === "queued";
+          const hasRunningCell = cellIds.some((id) => {
+            const { status } = notebook.cellRuntime[id];
+            return status === "running" || status === "queued";
+          });
           if (hasRunningCell) {
             return false;
           }
-          // Submit cell for deletion
-          pendingDeleteService.submit([cellId]);
+          if (pendingDeleteService.idle) {
+            pendingDeleteService.submit([cellId]);
+            return true;
+          }
+          // user repeated keymap
+          deleteCells({ cellIds });
           return true;
         },
       } satisfies Partial<
@@ -458,7 +480,7 @@ export function useCellNavigationProps(
           "shift+k": keymaps["Shift+ArrowUp"],
           "g g": keymaps["Mod+ArrowUp"],
           "shift+g": keymaps["Mod+ArrowDown"],
-          "d d": () => shortcuts["cell.delete"](cellId),
+          "d d": () => shortcuts["cell.delete"](),
         })
       ) {
         evt.preventDefault();

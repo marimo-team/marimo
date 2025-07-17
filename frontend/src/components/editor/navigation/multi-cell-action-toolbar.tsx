@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
+  AlertTriangleIcon,
   ChevronDownIcon,
   ChevronsDownIcon,
   ChevronsUpIcon,
@@ -35,6 +36,7 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
 import { formatEditorViews } from "@/core/codemirror/format";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { saveCellConfig } from "@/core/network/requests";
@@ -54,7 +56,8 @@ interface MultiCellActionButton extends Omit<ActionButton, "handle"> {
 const CellStateDropdown: React.FC<{
   actions: MultiCellActionButton[][];
   cellIds: CellId[];
-}> = ({ actions, cellIds }) => {
+  disabled?: boolean;
+}> = ({ actions, cellIds, disabled }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild={true}>
@@ -63,6 +66,7 @@ const CellStateDropdown: React.FC<{
           size="sm"
           className="h-8 px-2 gap-1"
           title="More actions"
+          disabled={disabled}
         >
           <MoreHorizontalIcon size={13} strokeWidth={1.5} />
         </Button>
@@ -117,14 +121,21 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
   const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
   const selectionActions = useCellSelectionActions();
   const runCells = useRunCells();
+  const [pendingCells, setPendingCells] = useAtom(pendingDeleteCellsAtom);
 
   const selectedCount = cellIds.length;
 
   const canDelete = !hasOnlyOneCell || selectedCount < cellIds.length;
 
   const deleteSelectedCells = useEvent((cellIds: CellId[]) => {
-    deleteCell({ cellIds });
-    selectionActions.clear();
+    // First click sets pending, second click deletes
+    if (pendingCells.size === 0) {
+      setPendingCells(new Set(cellIds));
+    } else {
+      deleteCell({ cellIds });
+      setPendingCells(new Set());
+      selectionActions.clear();
+    }
   });
 
   const moveSelectedCells = useEvent(
@@ -323,18 +334,92 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
 
 export const MultiCellActionToolbar = () => {
   const selectionState = useCellSelectionState();
+  const pendingCells = useAtomValue(pendingDeleteCellsAtom);
   const selectedCells = [...selectionState.selected];
 
   if (selectedCells.length < 2) {
     return null;
   }
 
-  return <MultiCellActionToolbarInternal cellIds={selectedCells} />;
+  const isPendingDelete =
+    pendingCells.size > 0 &&
+    [...pendingCells].every((id) => selectedCells.includes(id));
+
+  return (
+    <>
+      <MultiCellActionToolbarInternal
+        cellIds={selectedCells}
+        isPendingDelete={isPendingDelete}
+      />
+      {isPendingDelete && <MultiCellPendingDeleteBar cellIds={selectedCells} />}
+    </>
+  );
 };
 
 const Separator = () => <div className="h-4 w-px bg-border mx-1" />;
 
-const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
+const MultiCellPendingDeleteBar: React.FC<{ cellIds: CellId[] }> = ({
+  cellIds,
+}) => {
+  const setPendingCells = useSetAtom(pendingDeleteCellsAtom);
+  const deleteCell = useDeleteManyCellsCallback();
+  const selectionActions = useCellSelectionActions();
+
+  return (
+    <div
+      className="absolute top-12 justify-center flex w-full left-0 right-0 z-50"
+      data-keep-cell-selection={true}
+    >
+      <div className="mx-20">
+        <div className="bg-[var(--amber-2)] border border-[var(--amber-6)] rounded-lg shadow-lg mt-14 px-4 py-3 animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-start gap-3">
+            <AlertTriangleIcon className="w-4 h-4 text-[var(--amber-11)] mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="font-code text-sm text-[0.84375rem]">
+                <p className="text-[var(--amber-11)] font-medium">
+                  Some cells in selection may contain expensive operations.
+                </p>
+                <p className="text-[var(--amber-11)] mt-1">
+                  Are you sure you want to delete?
+                </p>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => setPendingCells(new Set())}
+                  className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => {
+                    deleteCell({ cellIds });
+                    setPendingCells(new Set());
+                    selectionActions.clear();
+                  }}
+                  className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MultiCellActionToolbarInternal = ({
+  cellIds,
+  isPendingDelete,
+}: {
+  cellIds: CellId[];
+  isPendingDelete: boolean;
+}) => {
   const selectionActions = useCellSelectionActions();
   const { actions, moreActions } = useMultiCellActionButtons(cellIds);
 
@@ -385,6 +470,7 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
                   onClick={() => action.handle(cellIds)}
                   className="h-8 px-2 gap-1 flex-shrink-0 flex items-center"
                   title={action.label}
+                  disabled={isPendingDelete && action.label !== "Delete cells"}
                 >
                   {action.icon}
                   <span className="text-xs">{action.label}</span>
@@ -399,7 +485,11 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
             </div>
           ))}
           <Separator />
-          <CellStateDropdown actions={moreActions} cellIds={cellIds} />
+          <CellStateDropdown
+            actions={moreActions}
+            cellIds={cellIds}
+            disabled={isPendingDelete}
+          />
         </div>
       </div>
     </div>

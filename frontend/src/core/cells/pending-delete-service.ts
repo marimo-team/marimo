@@ -26,7 +26,7 @@ type PendingDeleteEntry =
 const pendingDeleteStateAtom = atom<Map<CellId, PendingDeleteEntry>>(new Map());
 
 export function usePendingDeleteService() {
-  const [, setState] = useAtom(pendingDeleteStateAtom);
+  const [state, setState] = useAtom(pendingDeleteStateAtom);
   const notebook = useAtomValue(notebookAtom);
   const variables = useAtomValue(variablesAtom);
 
@@ -77,7 +77,11 @@ export function usePendingDeleteService() {
     setState(new Map());
   }, [setState]);
 
-  return { submit, clear };
+  return {
+    idle: state.size === 0,
+    submit,
+    clear,
+  };
 }
 
 export function usePendingDelete(cellId: CellId) {

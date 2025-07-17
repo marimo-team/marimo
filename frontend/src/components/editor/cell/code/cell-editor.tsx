@@ -106,7 +106,10 @@ const CellEditorInternal = ({
       return false;
     }
 
-    if (userConfig.keymap.destructive_delete === true) {
+    if (
+      pendingDeleteService.idle &&
+      userConfig.keymap.destructive_delete === true
+    ) {
       pendingDeleteService.submit([cellId]);
       return true;
     }
