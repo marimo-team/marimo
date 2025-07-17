@@ -3226,7 +3226,7 @@ export interface components {
           [key: string]: string;
         };
         /** @enum {string} */
-        preset: "default" | "vim";
+        preset: "default" | "vim" | "helix";
         vimrc?: string | null;
       };
       language_servers?: {
