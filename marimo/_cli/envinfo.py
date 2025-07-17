@@ -42,7 +42,7 @@ def get_experimental_flags() -> dict[str, bool]:
         return {}
 
 
-def get_system_info() -> dict[str, Union[str, dict[str, Any]]]:
+def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
     os_version = platform.release()
     if platform.system() == "Windows" and is_win11():
         os_version = "11"
