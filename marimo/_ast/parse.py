@@ -657,8 +657,8 @@ def extract_offsets_post_colon(
 
 
 def is_equal_ast(
-    basis: Optional[Union[ast.expr, list[ast.expr]]],
-    other: Optional[Union[ast.expr, list[ast.expr]]],
+    basis: Optional[Union[ast.AST, list[ast.AST]]],
+    other: Optional[Union[ast.AST, list[ast.AST]]],
 ) -> bool:
     """Compare two AST nodes for equality."""
     if type(basis) is not type(other):
@@ -682,7 +682,7 @@ def is_equal_ast(
         }:
             continue
         other_value = getattr(other, key, None)
-        if isinstance(value, (ast.expr, list, type(None))):
+        if isinstance(value, (ast.AST, list, type(None))):
             return is_equal_ast(value, other_value)
         elif value != other_value:
             return False
