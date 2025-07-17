@@ -486,6 +486,30 @@ export function useCellNavigationProps(
           "g g": keymaps["Mod+ArrowUp"],
           "shift+g": keymaps["Mod+ArrowDown"],
           "d d": () => shortcuts["cell.delete"](),
+          "y y": () => {
+            copyCells(selectedCells.size >= 2 ? [...selectedCells] : [cellId]);
+            return true;
+          },
+          p: () => {
+            pasteAtCell(cellId, { before: false });
+            return true;
+          },
+          "shift+p": () => {
+            pasteAtCell(cellId, { before: true });
+            return true;
+          },
+          o: () => {
+            actions.createNewCell({ cellId, before: false, autoFocus: true });
+            return true;
+          },
+          "shift+o": () => {
+            actions.createNewCell({ cellId, before: true, autoFocus: true });
+            return true;
+          },
+          u: () => {
+            actions.undoDeleteCell();
+            return true;
+          },
         })
       ) {
         evt.preventDefault();

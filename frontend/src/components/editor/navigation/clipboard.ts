@@ -99,7 +99,12 @@ export function useCellClipboard() {
     }
   });
 
-  const pasteAtCell = useEvent(async (cellId: CellId) => {
+  interface PasteOptions {
+    before?: boolean;
+  }
+
+  const pasteAtCell = useEvent(async (cellId: CellId, opts?: PasteOptions) => {
+    const { before = false } = opts ?? {};
     try {
       const clipboardItems = await navigator.clipboard.read();
 
@@ -119,12 +124,12 @@ export function useCellClipboard() {
               break;
             }
 
-            // Create new cells with the copied data after the current cell
+            // Create new cells with the copied data before/after the current cell
             const currentCellId = cellId;
             for (const cell of clipboardData.cells) {
               actions.createNewCell({
                 cellId: currentCellId,
-                before: false,
+                before,
                 code: cell.code,
                 autoFocus: false,
               });
@@ -149,7 +154,7 @@ export function useCellClipboard() {
       if (text.trim()) {
         actions.createNewCell({
           cellId,
-          before: false,
+          before,
           code: text,
           autoFocus: true,
         });
