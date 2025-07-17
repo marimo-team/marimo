@@ -1,11 +1,12 @@
 {
+  "name": "@marimo-team/lsp",
   "main": "dist/index.cjs",
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
     "build:ts": "tsup index.ts --format cjs --minify",
     "build:deps": "cp -LR node_modules/@github/copilot-language-server/dist/ dist/",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc",
     "build": "pnpm run build:ts && pnpm run build:deps",
     "test": "vitest"
   },
