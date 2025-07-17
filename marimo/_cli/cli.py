@@ -71,14 +71,11 @@ def check_app_correctness(filename: str) -> None:
         raise click.ClickException(traceback.format_exc(limit=0)) from None
 
     if status == "invalid":
-        if not click.confirm(
+        click.confirm(
             "The notebook is invalid. Do you want to open it anyway?",
             default=False,
             abort=True,
-        ):
-            raise click.ClickException(
-                "The notebook is invalid. Please fix the errors before opening it."
-            )
+        )
     if status == "has_errors":
         # Provide a warning, but allow the user to open the notebook
         _loggers.marimo_logger().warning(
