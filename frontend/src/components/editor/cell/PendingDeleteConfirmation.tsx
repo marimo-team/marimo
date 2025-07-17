@@ -11,10 +11,8 @@ import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
-import { Sets } from "@/utils/sets";
 import { useDeleteCellCallback } from "./useDeleteCell";
 
-const CONFIRMATION_DELAY_MS = 5000;
 const EXPENSIVE_EXECUTION_THRESHOLD = 2000;
 
 export const PendingDeleteInformation: React.FC<
@@ -65,16 +63,6 @@ const PendingDeleteInformationInternal: React.FC<
       setPendingCells(new Set());
     }
   }, [cellId, deleteCell, setPendingCells, autoDelete]);
-
-  // Clear pending delete after some timeout
-  useEffect(() => {
-    if (!autoDelete && pendingCells.has(cellId)) {
-      const timeout = setTimeout(() => {
-        setPendingCells((current) => Sets.delete(current, cellId));
-      }, CONFIRMATION_DELAY_MS);
-      return () => clearTimeout(timeout);
-    }
-  }, [cellId, autoDelete, pendingCells, setPendingCells]);
 
   if (autoDelete) {
     return null;
