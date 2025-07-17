@@ -239,11 +239,5 @@
     "vite-plugin-wasm": "^3.4.1",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
-  },
-  "packageManager": "pnpm@10.12.4",
-  "pnpm": {
-    "patchedDependencies": {
-      "react-plotly.js": "patches/react-plotly.js.patch"
-    }
   }
 }
