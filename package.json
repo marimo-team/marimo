@@ -1,21 +1,16 @@
 {
   "scripts": {
-    "preinstall": "npx only-allow pnpm",
-    "build": "pnpm run -r build",
     "typecheck": "pnpm run -r typecheck",
-    "lint": "pnpm run -r lint",
-    "test": "pnpm run -r test",
-    "dev": "pnpm run --filter @marimo-team/frontend dev",
-    "fe": "pnpm run --filter @marimo-team/frontend build",
-    "fe-codegen": "pnpm run --filter @marimo-team/marimo-api codegen",
-    "lsp": "pnpm run --filter @marimo-team/lsp build"
+    "format": "pnpm biome check --write",
+    "lint": "pnpm biome lint && pnpm run -r lint",
+    "dev": "pnpm run --filter @marimo-team/frontend dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
     "turbo": "^2.5.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   },
-  "packageManager": "pnpm@10.12.4",
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"
@@ -24,5 +19,6 @@
     "patchedDependencies": {
       "react-plotly.js": "patches/react-plotly.js.patch"
     }
-  }
+  },
+  "packageManager": "pnpm@10.12.4"
 }
