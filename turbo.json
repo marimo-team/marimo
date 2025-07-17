@@ -6,7 +6,9 @@
     },
     "typecheck": {},
     "test": {},
-    "codegen": {},
+    "codegen": {
+      "cache": false
+    },
     "lint": {},
     "dev": {
       "cache": false,
