@@ -20,6 +20,11 @@ help:
 # 🚀 First-time setup: Install all dependencies (frontend & Python)
 install-all: fe py
 
+.PHONY: pnpm-install
+pnpm-install:
+	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
+	pnpm install
+
 .PHONY: check-prereqs
 # ✓ Check if all required tools are installed
 check-prereqs:
@@ -46,13 +51,12 @@ py:
 fe: marimo/_static marimo/_lsp
 
 # 🔧 Install/build frontend if anything under frontend/
-marimo/_static: $(shell find frontend/src) $(wildcard frontend/*)
-	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
-	cd frontend; pnpm install; cd ..; ./scripts/buildfrontend.sh
+marimo/_static: pnpm-install $(shell find frontend/src) $(wildcard frontend/*)
+	./scripts/buildfrontend.sh
 
 # 🔧 Install/build lsp if anything in lsp/ has changed
-marimo/_lsp: $(shell find lsp)
-	cd lsp; pnpm install; cd ..; ./scripts/buildlsp.sh
+marimo/_lsp: pnpm-install $(shell find packages/lsp)
+	./scripts/buildlsp.sh
 
 .PHONY: dev
 dev:
@@ -60,7 +64,7 @@ dev:
 	@# Start both processes, with marimo in background
 	@(trap 'kill %1; exit' INT; \
 	marimo edit --no-token --headless /tmp & \
-	cd frontend && pnpm dev && cd ..)
+	pnpm dev)
 
 #############
 # Testing   #
@@ -80,30 +84,30 @@ fe-check: fe-lint fe-typecheck
 
 .PHONY: fe-test
 # 🧪 Test frontend
-fe-test:
-	cd frontend; CI=true pnpm turbo test
+fe-test: pnpm-install
+	CI=true pnpm turbo --filter @marimo-team/frontend test -- --run
 
 .PHONY: e2e
 # 🧪 Test end-to-end
-e2e:
+e2e: pnpm-install
 	cd frontend; pnpm playwright install; pnpm playwright test
 
 .PHONY: fe-lint
 # 🧹 Lint frontend
 fe-lint:
-	cd frontend/src && hatch run typos && cd - && cd frontend && pnpm lint
+	cd frontend/src && hatch run typos && cd - && pnpm --filter @marimo-team/frontend lint
 
 .PHONY: fe-typecheck
 # 🔍 Typecheck frontend
-fe-typecheck:
-	cd frontend; pnpm turbo typecheck
+fe-typecheck: pnpm-install
+	pnpm turbo --filter @marimo-team/frontend typecheck
 
 .PHONY: fe-codegen
 # 🔄 Generate frontend API
-fe-codegen:
-	uv run ./marimo development openapi > openapi/api.yaml; \
-	cd openapi; pnpm install; pnpm codegen; \
-	biome format --fix src/api.ts;
+fe-codegen: pnpm-install
+	uv run ./marimo development openapi > packages/openapi/api.yaml
+	pnpm run --filter @marimo-team/marimo-api codegen
+	pnpm format packages/openapi/
 
 .PHONY: py-check
 # 🔍 Typecheck, lint, format python
@@ -155,5 +159,5 @@ docs-serve:
 
 .PHONY: storybook
 # 🧩 Start Storybook for UI development
-storybook:
-	cd frontend; pnpm storybook
+storybook: pnpm-install
+	pnpm --filter @marimo-team/frontend storybook
