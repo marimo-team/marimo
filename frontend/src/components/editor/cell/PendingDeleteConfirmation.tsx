@@ -1,75 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue } from "jotai";
 import { AlertTriangleIcon } from "lucide-react";
-import React, { useEffect } from "react";
+import React from "react";
 import { formatElapsedTime } from "@/components/editor/cell/CellStatus";
 import { CellLink } from "@/components/editor/links/cell-link";
 import { Button } from "@/components/ui/button";
 import type { CellId } from "@/core/cells/ids";
-import { pendingDeleteCellsAtom } from "@/core/cells/pending-delete";
-import { variablesAtom } from "@/core/variables/state";
-import type { VariableName } from "@/core/variables/types";
+import { usePendingDelete } from "@/core/cells/pending-delete-service";
 import { cn } from "@/utils/cn";
-import { useDeleteCellCallback } from "./useDeleteCell";
 
-const EXPENSIVE_EXECUTION_THRESHOLD = 2000;
+export const PendingDeleteConfirmation: React.FC<{ cellId: CellId }> = ({
+  cellId,
+}) => {
+  const pendingDelete = usePendingDelete(cellId);
 
-export const PendingDeleteInformation: React.FC<
-  PendingDeleteInformationProps
-> = ({ executionTimeMs, cellId }) => {
-  const pendingCells = useAtomValue(pendingDeleteCellsAtom);
-  if (!pendingCells.has(cellId)) {
-    return null;
-  }
-  return (
-    <PendingDeleteInformationInternal
-      cellId={cellId}
-      executionTimeMs={executionTimeMs}
-    />
-  );
-};
-
-interface PendingDeleteInformationProps {
-  cellId: CellId;
-  executionTimeMs: number;
-}
-
-const PendingDeleteInformationInternal: React.FC<
-  PendingDeleteInformationProps
-> = ({ cellId, executionTimeMs }) => {
-  const variables = useAtomValue(variablesAtom);
-  const [pendingCells, setPendingCells] = useAtom(pendingDeleteCellsAtom);
-  const deleteCell = useDeleteCellCallback();
-
-  const defs = new Map<VariableName, readonly CellId[]>();
-  for (const variable of Object.values(variables)) {
-    if (variable.declaredBy.includes(cellId) && variable.usedBy.length > 0) {
-      defs.set(variable.name, variable.usedBy);
-    }
-  }
-
-  const hasExpensiveExecution = executionTimeMs > EXPENSIVE_EXECUTION_THRESHOLD;
-  const hasDependencies = defs.size > 0;
-  const isExpensiveOrHasDeps = hasExpensiveExecution || hasDependencies;
-  const isMultiPending = pendingCells.size > 1;
-
-  const autoDelete = !isMultiPending && !isExpensiveOrHasDeps;
-
-  // Auto-delete if not expensive and not multi-pending
-  useEffect(() => {
-    if (autoDelete) {
-      deleteCell({ cellId });
-      setPendingCells(new Set());
-    }
-  }, [cellId, deleteCell, setPendingCells, autoDelete]);
-
-  if (autoDelete) {
+  if (!pendingDelete.isPending) {
     return null;
   }
 
-  // State 1: Part of multi-cell deletion but not expensive/dependent
-  if (isMultiPending && !isExpensiveOrHasDeps) {
+  // Non-primary handlers in multi-delete just show pending state
+  if (pendingDelete.type === "simple") {
     return (
       <div
         className={cn(
@@ -89,7 +39,12 @@ const PendingDeleteInformationInternal: React.FC<
     );
   }
 
-  const formattedTime = formatElapsedTime(executionTimeMs);
+  const hasExpensiveExecution = pendingDelete.executionDurationMs !== undefined;
+  const hasDependencies = pendingDelete.defs.size > 0;
+  const formattedTime = formatElapsedTime(
+    pendingDelete.executionDurationMs ?? 0,
+  );
+
   let warningMessage = "Pending deletion";
   if (hasExpensiveExecution && hasDependencies) {
     warningMessage = `This cell took ${formattedTime} to run and contains variables referenced by other cells.`;
@@ -98,9 +53,6 @@ const PendingDeleteInformationInternal: React.FC<
   } else if (hasDependencies) {
     warningMessage = "This cell contains variables referenced by other cells.";
   }
-
-  // State 2 & 3: Single cell or multi-cell with warning
-  // (For multi-cell, the toast handles the confirmation)
 
   return (
     <div
@@ -120,7 +72,7 @@ const PendingDeleteInformationInternal: React.FC<
             </p>
 
             {hasDependencies &&
-              [...defs.entries()].map(([varName, cells]) => (
+              [...pendingDelete.defs.entries()].map(([varName, cells]) => (
                 <div key={varName}>
                   <p className="text-[var(--amber-11)] mt-2">
                     '<span className="font-mono">{varName}</span>' is referenced
@@ -144,12 +96,12 @@ const PendingDeleteInformationInternal: React.FC<
             </p>
           </div>
           {/* Only show buttons for single cell - multi-cell uses toast */}
-          {pendingCells.size === 1 && (
+          {pendingDelete.isPrimaryHandler && (
             <div className="flex items-center gap-2">
               <Button
                 size="xs"
                 variant="ghost"
-                onClick={() => setPendingCells(new Set())}
+                onClick={() => pendingDelete.cancel()}
                 className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
               >
                 Cancel
@@ -157,10 +109,7 @@ const PendingDeleteInformationInternal: React.FC<
               <Button
                 size="xs"
                 variant="secondary"
-                onClick={() => {
-                  deleteCell({ cellId });
-                  setPendingCells(new Set());
-                }}
+                onClick={() => pendingDelete.confirm()}
                 className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
               >
                 Delete
