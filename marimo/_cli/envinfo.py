@@ -47,7 +47,7 @@ def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
     if platform.system() == "Windows" and is_win11():
         os_version = "11"
 
-    info = {
+    info: dict[str, Union[str, bool, dict[str, Any]]] = {
         "marimo": __version__,
         "editable": is_editable("marimo"),
         "OS": platform.system(),
