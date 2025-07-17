@@ -2,6 +2,7 @@
 
 import { AlertTriangleIcon } from "lucide-react";
 import React from "react";
+import { FocusScope } from "react-aria";
 import { formatElapsedTime } from "@/components/editor/cell/CellStatus";
 import { CellLink } from "@/components/editor/links/cell-link";
 import { Button } from "@/components/ui/button";
@@ -97,24 +98,26 @@ export const PendingDeleteConfirmation: React.FC<{ cellId: CellId }> = ({
               <p className="text-[var(--amber-11)] mt-2 mb-3">
                 Are you sure you want to delete?
               </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => pendingDelete.cancel()}
-                  className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="xs"
-                  variant="secondary"
-                  onClick={() => pendingDelete.confirm()}
-                  className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
-                >
-                  Delete
-                </Button>
-              </div>
+              <FocusScope autoFocus={true}>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => pendingDelete.cancel()}
+                    className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    onClick={() => pendingDelete.confirm()}
+                    className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </FocusScope>
             </>
           )}
         </div>
