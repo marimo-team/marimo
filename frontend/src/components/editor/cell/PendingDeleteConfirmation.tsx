@@ -90,31 +90,32 @@ export const PendingDeleteConfirmation: React.FC<{ cellId: CellId }> = ({
                   </ul>
                 </div>
               ))}
-
-            <p className="text-[var(--amber-11)] mt-2 mb-3">
-              Are you sure you want to delete?
-            </p>
           </div>
           {/* Only show buttons for single cell - multi-cell uses toast */}
-          {pendingDelete.isPrimaryHandler && (
-            <div className="flex items-center gap-2">
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => pendingDelete.cancel()}
-                className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="xs"
-                variant="secondary"
-                onClick={() => pendingDelete.confirm()}
-                className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
-              >
-                Delete
-              </Button>
-            </div>
+          {pendingDelete.shouldConfirmDelete && (
+            <>
+              <p className="text-[var(--amber-11)] mt-2 mb-3">
+                Are you sure you want to delete?
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => pendingDelete.cancel()}
+                  className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => pendingDelete.confirm()}
+                  className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
+                >
+                  Delete
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </div>

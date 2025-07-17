@@ -26,7 +26,7 @@ type PendingDeleteEntry =
 const pendingDeleteStateAtom = atom<Map<CellId, PendingDeleteEntry>>(new Map());
 
 export function usePendingDeleteService() {
-  const [, setState] = useAtom(pendingDeleteStateAtom);
+  const [state, setState] = useAtom(pendingDeleteStateAtom);
   const notebook = useAtomValue(notebookAtom);
   const variables = useAtomValue(variablesAtom);
 
@@ -77,7 +77,12 @@ export function usePendingDeleteService() {
     setState(new Map());
   }, [setState]);
 
-  return { submit, clear };
+  return {
+    idle: state.size === 0,
+    shouldConfirmDelete: state.size > 1,
+    submit,
+    clear,
+  };
 }
 
 export function usePendingDelete(cellId: CellId) {
@@ -107,12 +112,12 @@ export function usePendingDelete(cellId: CellId) {
     return { isPending: false as const };
   }
 
-  const isPrimaryHandler = state.size === 1;
+  const canConfirmDelete = state.size === 1;
 
-  if (!isPrimaryHandler) {
+  if (!canConfirmDelete) {
     return {
       isPending: true as const,
-      isPrimaryHandler: false as const,
+      shouldConfirmDelete: false as const,
       ...entry,
     };
   }
@@ -120,7 +125,7 @@ export function usePendingDelete(cellId: CellId) {
   return {
     isPending: true as const,
     ...entry,
-    isPrimaryHandler: true as const,
+    shouldConfirmDelete: true as const,
     confirm: () => {
       deleteManyCells({
         cellIds: [...state.values()].map((e) => e.cellId),
