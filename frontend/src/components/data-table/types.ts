@@ -49,12 +49,6 @@ interface BinValue {
 }
 export type BinValues = BinValue[];
 
-interface ValueCount {
-  value: unknown;
-  count: number;
-}
-export type ValueCounts = ValueCount[];
-
 export const SELECT_COLUMN_ID = "__select__";
 
 export const INDEX_COLUMN_NAME = "_marimo_row_id";
