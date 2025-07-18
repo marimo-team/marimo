@@ -12,8 +12,6 @@ extra:
       link: https://marimo.io/discord?ref=docs
     - icon: material/email-newsletter
       link: https://marimo.io/newsletter
-    - icon: material/forum
-      link: https://community.marimo.io
     - icon: fontawesome/brands/mastodon
       link: https://mastodon.social/@marimo_io
     - icon: fontawesome/brands/twitter
@@ -99,11 +97,11 @@ nav:
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
       - Package management:
-        - Package management: guides/package_management/index.md
-        - Importing packages: guides/package_management/importing_packages.md
-        - Installing packages: guides/package_management/installing_packages.md
-        - Inlining dependencies: guides/package_management/inlining_dependencies.md
-        - Using uv: guides/package_management/using_uv.md
+          - Package management: guides/package_management/index.md
+          - Importing packages: guides/package_management/importing_packages.md
+          - Installing packages: guides/package_management/installing_packages.md
+          - Inlining dependencies: guides/package_management/inlining_dependencies.md
+          - Using uv: guides/package_management/using_uv.md
       - Generate with AI:
           - Generate with AI: guides/generate_with_ai/index.md
           - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
