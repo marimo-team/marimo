@@ -28,9 +28,9 @@ def convert(
     filename: str,
     output: Optional[Path],
 ) -> None:
-    r"""Convert a Jupyter notebook or Markdown file to a marimo notebook.
+    r"""Convert a Jupyter notebook, Markdown file, or unknown Python script to a marimo notebook.
 
-    The argument may be either a path to a local .ipynb/.md file,
+    The argument may be either a path to a local .ipynb/.md/.py file,
     or an .ipynb/.md file hosted on GitHub.
 
     Example usage:
@@ -41,8 +41,18 @@ def convert(
 
         marimo convert your_nb.md -o your_nb.py
 
+    or
+
+        marimo convert script.py -o your_nb.py
+
     Jupyter notebook conversion will strip out all outputs. Markdown cell
-    conversion with occur on the presence of `{python}` code fences.
+    conversion will occur on the presence of `{python}` code fences.
+
+    For .py files:
+    - If the file is already a valid marimo notebook, no conversion is performed
+    - Unknown Python scripts are converted by preserving the header (docstrings/comments)
+      and splitting the code into cells, with __main__ blocks separated
+
     After conversion, you can open the notebook in the editor:
 
         marimo edit your_nb.py
@@ -53,15 +63,41 @@ def convert(
     """
 
     ext = Path(filename).suffix
-    if ext not in (".ipynb", ".md", ".qmd"):
-        raise click.UsageError("File must be an .ipynb or .md file")
+    if ext not in (".ipynb", ".md", ".qmd", ".py"):
+        raise click.UsageError("File must be an .ipynb, .md, or .py file")
 
     text = load_external_file(filename, ext)
     if ext == ".ipynb":
         notebook = MarimoConvert.from_ipynb(text).to_py()
-    else:
-        assert ext in (".md", ".qmd")
+    elif ext in (".md", ".qmd"):
         notebook = MarimoConvert.from_md(text).to_py()
+    else:
+        assert ext == ".py"
+        # First check if it's already a valid marimo notebook
+        from marimo._ast.parse import parse_notebook
+
+        try:
+            parsed = parse_notebook(text)
+        except SyntaxError:
+            # File has syntax errors
+            echo("File cannot be converted. It may have syntax errors.")
+            return
+
+        if parsed and parsed.valid:
+            # Already a valid marimo notebook
+            echo("File is already a valid marimo notebook.")
+            return
+
+        # Check if it has the violation indicating it's an unknown Python script
+        if parsed and any(
+            v.description == "Unknown content beyond header"
+            for v in parsed.violations
+        ):
+            notebook = MarimoConvert.from_unknown_py_script(text).to_py()
+        else:
+            # File has other issues (syntax errors, etc.)
+            echo("File cannot be converted. It may have syntax errors.")
+            return
 
     if output:
         output_path = Path(output)

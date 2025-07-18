@@ -1,0 +1,25 @@
+"""Script with empty main."""
+
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    data = [1, 2, 3, 4, 5]
+    return
+
+
+@app.cell
+def _():
+    def _main_():
+        pass
+
+    _main_()
+    return
+
+
+if __name__ == "__main__":
+    app.run()

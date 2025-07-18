@@ -1,0 +1,16 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    x = 5
+    y = 10
+    print(x + y)
+    return
+
+
+if __name__ == "__main__":
+    app.run()
