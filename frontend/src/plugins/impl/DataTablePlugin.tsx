@@ -726,6 +726,7 @@ const DataTableComponent = ({
       columnSummaries.bin_values,
       {
         includeCharts: Boolean(columnSummaries.data),
+        usePreComputedValues: getFeatureFlag("performant_table_charts"),
       },
     );
   }, [fieldTypes, columnSummaries]);

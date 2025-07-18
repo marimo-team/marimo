@@ -123,13 +123,13 @@ describe("ColumnChartSpecModel", () => {
     ).toBe("column\\.with\\[special\\:chars\\]");
   });
 
-  it("should expect bin values to be used for number and integer columns", () => {
+  it("should expect bin values to be used for number and integer columns when feat flag is true", () => {
     const model = new ColumnChartSpecModel(
       mockData,
       mockFieldTypes,
       mockStats,
       mockBinValues,
-      { includeCharts: true },
+      { includeCharts: true, usePreComputedValues: true },
     );
     const summary = model.getHeaderSummary("number");
     expect(summary.spec).toBeDefined();
@@ -138,6 +138,8 @@ describe("ColumnChartSpecModel", () => {
 
     // @ts-expect-error layer should be available
     const layer = summary.spec?.layer[0];
+
+    expect(summary.spec).toMatchSnapshot();
 
     // field names should be bin_start and bin_end
     expect(layer.encoding?.x?.field).toBe("bin_start");

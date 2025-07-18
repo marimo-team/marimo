@@ -4,7 +4,6 @@ import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { asRemoteURL } from "@/core/runtime/config";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { arrow } from "@/plugins/impl/vega/formats";
@@ -43,6 +42,7 @@ export class ColumnChartSpecModel<T> {
     {},
     {
       includeCharts: false,
+      usePreComputedValues: false,
     },
   );
 
@@ -56,6 +56,7 @@ export class ColumnChartSpecModel<T> {
     readonly binValues: Record<ColumnName, BinValues>,
     private readonly opts: {
       includeCharts: boolean;
+      usePreComputedValues?: boolean;
     },
   ) {
     // Data may come in from a few different sources:
@@ -122,7 +123,7 @@ export class ColumnChartSpecModel<T> {
       return null;
     }
 
-    const usePreComputedValues = getFeatureFlag("performant_table_charts");
+    const usePreComputedValues = this.opts.usePreComputedValues;
     const binValues = this.columnBinValues.get(column);
     const hasBinValues = binValues && binValues.length > 0;
 
