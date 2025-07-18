@@ -838,6 +838,17 @@ def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
                 lineno=1,
             )
         )
+
+        remaining = parser.extractor.contents[len(header.value) :]
+        if len(remaining.strip()) != 0:
+            violations.append(
+                # TODO: Could be more specific if we have violation nums
+                Violation(
+                    _unknown_content_violation_description,
+                    lineno=header.end_lineno + 2 if header.value else 1,
+                )
+            )
+
         return NotebookSerialization(
             header=Header(
                 lineno=0,
@@ -892,4 +903,14 @@ def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
         app=app,
         cells=cells,
         violations=violations,
+    )
+
+
+_unknown_content_violation_description = "Unknown content beyond header"
+
+
+def is_unknown_python_script(notebook: NotebookSerialization) -> bool:
+    return any(
+        (v.description == _unknown_content_violation_description)
+        for v in notebook.violations
     )

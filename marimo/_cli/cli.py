@@ -57,8 +57,21 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
 
 
 def check_app_correctness(filename: str) -> None:
+    from marimo._ast.load import UnknownPythonScriptError
+
     try:
         status = get_notebook_status(filename)
+    except UnknownPythonScriptError:
+        import os
+
+        stem = os.path.splitext(os.path.basename(filename))[0]
+        raise click.ClickException(
+            f"Unknown script - {filename} not recognized as a marimo notebook.\n\n"
+            f"  {green('Tip:')} Try converting with"
+            "\n\n"
+            f"    marimo convert {filename} -o {stem}_nb.py\n\n"
+            f"  then open with marimo edit {stem}_nb.py"
+        ) from None
     except SyntaxError:
         import traceback
 

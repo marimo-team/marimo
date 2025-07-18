@@ -8,7 +8,10 @@ from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
-from marimo._ast.parse import MarimoFileError, parse_notebook
+from marimo._ast.parse import (
+    MarimoFileError,
+    parse_notebook,
+)
 from marimo._schemas.serialization import NotebookSerialization, UnparsableCell
 
 LOGGER = _loggers.marimo_logger()
@@ -87,6 +90,7 @@ def get_notebook_status(filename: str) -> NotebookStatus:
 
     Raises:
         SyntaxError: If the file contains a syntax error
+        UnknownPythonScriptError: If the file is an unrecognized Python script format
     """
     path = Path(filename)
 

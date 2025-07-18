@@ -310,3 +310,66 @@ class TestGetStatus:
             )
             == "has_errors"
         )
+
+    @staticmethod
+    def test_non_marimo_file_error(tmp_path) -> None:
+        """Test loading a marimo Python script raises UnknownPythonScriptError."""
+        regular_python = textwrap.dedent(
+            """
+            import numpy as np
+
+            def main():
+                x = np.array([1, 2, 3])
+                print(x)
+
+            if __name__ == "__main__":
+                main()
+            """
+        ).strip()
+
+        filepath = tmp_path / "regular_script.py"
+        filepath.write_text(regular_python)
+
+        with pytest.raises(
+            load.UnknownPythonScriptError, match="is not a marimo notebook"
+        ):
+            load.get_notebook_status(str(filepath))
+
+    @staticmethod
+    def test_python_script_metadata_and_imports_error(tmp_path) -> None:
+        """Test loading a file with metadata and imports raises UnknownPythonScriptError."""
+        metadata_only = textwrap.dedent(
+            """
+            # /// script
+            # dependencies = ["numpy", "pandas"]
+            # requires-python = ">=3.8"
+            # ///
+
+            import numpy as np
+            """
+        ).strip()
+
+        filepath = tmp_path / "imports_and_metadata_only.py"
+        filepath.write_text(metadata_only)
+
+        with pytest.raises(
+            load.UnknownPythonScriptError, match="is not a marimo notebook"
+        ):
+            load.get_notebook_status(str(filepath))
+
+    @staticmethod
+    def test_script_metadata_only_file(tmp_path) -> None:
+        """Test that files with only script metadata are allowed."""
+        metadata_only = textwrap.dedent(
+            """
+            # /// script
+            # dependencies = ["numpy", "pandas"]
+            # requires-python = ">=3.8"
+            # ///
+            """
+        ).strip()
+
+        filepath = tmp_path / "metadata_only.py"
+        filepath.write_text(metadata_only)
+
+        assert load.get_notebook_status(str(filepath)) == "invalid"
