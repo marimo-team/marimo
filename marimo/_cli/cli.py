@@ -22,7 +22,7 @@ from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import red, green, bold
+from marimo._cli.print import bold, green, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
