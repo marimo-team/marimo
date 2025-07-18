@@ -123,6 +123,134 @@ exports[`ColumnChartSpecModel > file URL handling > should handle arrow data 1`]
 }
 `;
 
+exports[`ColumnChartSpecModel > should expect bin values to be used for number and integer columns when feat flag is true 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "values": [
+      {
+        "bin_end": 10,
+        "bin_start": 0,
+        "count": 10,
+      },
+      {
+        "bin_end": 20,
+        "bin_start": 10,
+        "count": 20,
+      },
+    ],
+  },
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "strokeWidth": {
+          "condition": {
+            "empty": false,
+            "param": "hover",
+            "value": 0.5,
+          },
+          "value": 0,
+        },
+        "x": {
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
+          "type": "quantitative",
+        },
+        "x2": {
+          "axis": null,
+          "field": "bin_end",
+        },
+        "y": {
+          "axis": null,
+          "field": "count",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "#027864",
+        "stroke": "#027864",
+        "strokeWidth": 0,
+        "type": "bar",
+      },
+      "params": [
+        {
+          "name": "hover",
+          "select": {
+            "on": "mouseover",
+            "type": "point",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "tooltip": [
+          {
+            "field": "bin_range",
+            "title": "number",
+            "type": "nominal",
+          },
+          {
+            "field": "count",
+            "format": ",d",
+            "title": "Count",
+            "type": "quantitative",
+          },
+        ],
+        "x": {
+          "axis": {
+            "labelExpr": "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
+            "labelFontSize": 8.5,
+            "labelOpacity": 0.5,
+            "title": null,
+            "values": [
+              0,
+              100,
+            ],
+          },
+          "bin": {
+            "binned": true,
+            "step": 2,
+          },
+          "field": "bin_start",
+          "type": "quantitative",
+        },
+        "x2": {
+          "field": "bin_end",
+        },
+        "y": {
+          "aggregate": "max",
+          "axis": null,
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "opacity": 0,
+        "type": "bar",
+      },
+      "transform": [
+        {
+          "as": "bin_range",
+          "calculate": "format(datum.bin_start, '.2f') + ' - ' + format(datum.bin_end, '.2f')",
+        },
+      ],
+    },
+  ],
+}
+`;
+
 exports[`ColumnChartSpecModel > snapshot > array 1`] = `
 {
   "background": "transparent",

@@ -1,7 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
 import { ColumnChartSpecModel } from "../chart-spec-model";
-import type { ColumnHeaderStats, ColumnName, FieldTypes } from "../types";
+import type {
+  BinValues,
+  ColumnHeaderStats,
+  ColumnName,
+  FieldTypes,
+} from "../types";
 
 // Mock the runtime config
 vi.mock("@/core/runtime/config", () => ({
@@ -29,12 +34,23 @@ describe("ColumnChartSpecModel", () => {
     boolean: { true: 5, false: 5 },
     string: { unique: 20 },
   };
+  const mockBinValues: Record<ColumnName, BinValues> = {
+    number: [
+      { bin_start: 0, bin_end: 10, count: 10 },
+      { bin_start: 10, bin_end: 20, count: 20 },
+    ],
+    integer: [
+      { bin_start: 0, bin_end: 10, count: 10 },
+      { bin_start: 10, bin_end: 20, count: 20 },
+    ],
+  };
 
   it("should create an instance", () => {
     const model = new ColumnChartSpecModel(
       mockData,
       mockFieldTypes,
       mockStats,
+      mockBinValues,
       { includeCharts: true },
     );
     expect(model).toBeInstanceOf(ColumnChartSpecModel);
@@ -50,6 +66,7 @@ describe("ColumnChartSpecModel", () => {
       mockData,
       mockFieldTypes,
       mockStats,
+      mockBinValues,
       { includeCharts: true },
     );
     const dateSummary = model.getHeaderSummary("date");
@@ -63,6 +80,7 @@ describe("ColumnChartSpecModel", () => {
       mockData,
       mockFieldTypes,
       mockStats,
+      mockBinValues,
       { includeCharts: false },
     );
     const numberSummary = model.getHeaderSummary("number");
@@ -76,6 +94,7 @@ describe("ColumnChartSpecModel", () => {
       mockData,
       mockFieldTypes,
       mockStats,
+      mockBinValues,
       { includeCharts: true },
     );
     const stringSummary = model.getHeaderSummary("string");
@@ -84,15 +103,16 @@ describe("ColumnChartSpecModel", () => {
 
   it("should handle special characters in column names", () => {
     const specialFieldTypes: FieldTypes = {
-      "column.with[special:chars]": "number",
+      "column.with[special:chars]": "time",
     };
     const specialStats: Record<ColumnName, ColumnHeaderStats> = {
-      "column.with[special:chars]": { min: 0, max: 100 },
+      "column.with[special:chars]": { min: "2023-01-01", max: "2023-12-31" },
     };
     const model = new ColumnChartSpecModel(
       mockData,
       specialFieldTypes,
       specialStats,
+      mockBinValues,
       { includeCharts: true },
     );
     const summary = model.getHeaderSummary("column.with[special:chars]");
@@ -103,6 +123,34 @@ describe("ColumnChartSpecModel", () => {
     ).toBe("column\\.with\\[special\\:chars\\]");
   });
 
+  it("should expect bin values to be used for number and integer columns when feat flag is true", () => {
+    const model = new ColumnChartSpecModel(
+      mockData,
+      mockFieldTypes,
+      mockStats,
+      mockBinValues,
+      { includeCharts: true, usePreComputedValues: true },
+    );
+    const summary = model.getHeaderSummary("number");
+    expect(summary.spec).toBeDefined();
+    // @ts-expect-error data.values should be available
+    expect(summary.spec?.data?.values).toEqual(mockBinValues.number);
+
+    // @ts-expect-error layer should be available
+    const layer = summary.spec?.layer[0];
+
+    expect(summary.spec).toMatchSnapshot();
+
+    // field names should be bin_start and bin_end
+    expect(layer.encoding?.x?.field).toBe("bin_start");
+    expect(layer.encoding?.x2?.field).toBe("bin_end");
+
+    const summary2 = model.getHeaderSummary("integer");
+    expect(summary2.spec).toBeDefined();
+    // @ts-expect-error data.values should be available
+    expect(summary2.spec?.data?.values).toEqual(mockBinValues.integer);
+  });
+
   describe("snapshot", () => {
     const fieldTypes: FieldTypes = {
       ...mockFieldTypes,
@@ -110,9 +158,13 @@ describe("ColumnChartSpecModel", () => {
     };
 
     it("url data", () => {
-      const model = new ColumnChartSpecModel(mockData, fieldTypes, mockStats, {
-        includeCharts: true,
-      });
+      const model = new ColumnChartSpecModel(
+        mockData,
+        fieldTypes,
+        mockStats,
+        mockBinValues,
+        { includeCharts: true },
+      );
       expect(model.getHeaderSummary("date").spec).toMatchSnapshot();
     });
 
@@ -121,6 +173,7 @@ describe("ColumnChartSpecModel", () => {
         `data:text/csv;base64,${btoa("a,b,c\n1,2,3\n4,5,6")}`,
         fieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
@@ -131,6 +184,7 @@ describe("ColumnChartSpecModel", () => {
         "a,b,c\n1,2,3\n4,5,6",
         fieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
@@ -141,6 +195,7 @@ describe("ColumnChartSpecModel", () => {
         ["a", "b", "c"],
         fieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
       expect(model.getHeaderSummary("a").spec).toMatchSnapshot();
@@ -153,6 +208,7 @@ describe("ColumnChartSpecModel", () => {
         "./@file/data.csv",
         mockFieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
 
@@ -167,6 +223,7 @@ describe("ColumnChartSpecModel", () => {
         "/@file/data.csv",
         mockFieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
 
@@ -181,6 +238,7 @@ describe("ColumnChartSpecModel", () => {
         "https://external.com/data.csv",
         mockFieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
 
@@ -196,6 +254,7 @@ describe("ColumnChartSpecModel", () => {
         dataUrl,
         mockFieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
 
@@ -212,6 +271,7 @@ describe("ColumnChartSpecModel", () => {
         csvString,
         mockFieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
 
@@ -228,6 +288,7 @@ describe("ColumnChartSpecModel", () => {
         `data:text/plain;base64,${btoa(arrowData)}`,
         mockFieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
       const spec = model.getHeaderSummary("date").spec;
@@ -246,6 +307,7 @@ describe("ColumnChartSpecModel", () => {
         arrayData,
         mockFieldTypes,
         mockStats,
+        mockBinValues,
         { includeCharts: true },
       );
 

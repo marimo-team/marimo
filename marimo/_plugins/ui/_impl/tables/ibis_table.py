@@ -4,10 +4,7 @@ from __future__ import annotations
 import functools
 from typing import Any, Optional
 
-from marimo._data.models import (
-    ColumnStats,
-    ExternalDataType,
-)
+from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -157,6 +154,46 @@ class IbisTableManagerFactory(TableManagerFactory):
                     stats.std = col.std().execute()
 
                 return stats
+
+            def get_bin_values(
+                self, column: str, num_bins: int
+            ) -> list[BinValue]:
+                col = self.data[column]
+                if not col.type().is_numeric():
+                    return []
+
+                min_val = col.min().execute()
+                max_val = col.max().execute()
+                bin_width = (max_val - min_val) / num_bins
+
+                # Assign bins and count occurrences
+                data = self.data.mutate(bin=col.histogram(nbins=num_bins))
+                value_counts = data["bin"].value_counts(name="count")
+
+                # Fill in missing bins
+                all_bins = ibis.range(num_bins).unnest().name("bin").as_table()
+                joined = all_bins.left_join(value_counts, "bin").mutate(
+                    count=ibis.coalesce(value_counts["count"], 0)
+                )
+
+                # Compute bin_start and bin_end for each bin
+                # If the last bin, we use the last value for bin_end, else calculate the bin_end
+                result = joined.mutate(
+                    bin_start=min_val + joined["bin"] * bin_width,
+                    bin_end=ibis.cases(
+                        (joined["bin"] == (num_bins - 1), max_val),
+                        else_=min_val + (joined["bin"] + 1) * bin_width,
+                    ),
+                ).order_by("bin")
+
+                return [
+                    BinValue(
+                        bin_start=row.bin_start,
+                        bin_end=row.bin_end,
+                        count=row.count,
+                    )
+                    for row in result.execute().itertuples(index=False)
+                ]
 
             @memoize_last_value
             def get_num_rows(self, force: bool = True) -> Optional[int]:

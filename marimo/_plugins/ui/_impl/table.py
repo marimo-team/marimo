@@ -18,7 +18,7 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.models import ColumnStats
+from marimo._data.models import BinValue, ColumnStats
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import ColumnPreview
@@ -85,15 +85,24 @@ class DownloadAsArgs:
 
 
 @dataclass
+class ColumnSummariesArgs:
+    """If enabled, we will precompute chart values."""
+
+    precompute: bool
+
+
+@dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
+    bin_values: dict[ColumnName, list[BinValue]]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
 
 
 DEFAULT_MAX_COLUMNS = 50
+DEFAULT_NUM_BINS = 9
 
 MaxColumnsNotProvided = Literal["inherit"]
 MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
@@ -663,7 +672,7 @@ class table(
                 ),
                 Function(
                     name="get_column_summaries",
-                    arg_cls=EmptyArgs,
+                    arg_cls=ColumnSummariesArgs,
                     function=self._get_column_summaries,
                 ),
                 Function(
@@ -793,7 +802,9 @@ class table(
                 "Download is not supported for this table format."
             )
 
-    def _get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
+    def _get_column_summaries(
+        self, args: ColumnSummariesArgs
+    ) -> ColumnSummaries:
         """Get statistical summaries for each column in the table.
 
         Calculates summaries like null counts, min/max values, unique counts, etc.
@@ -801,18 +812,19 @@ class table(
         is below the column summary row limit.
 
         Args:
-            args (EmptyArgs): Empty arguments object (unused).
+            args (ColumnSummariesArgs): Arguments specifying whether to precompute
+                the column summaries and bin values.
 
         Returns:
             ColumnSummaries: Object containing column summaries and chart data.
                 If summaries are disabled or row limit is exceeded, returns empty
                 summaries with is_disabled flag set appropriately.
         """
-        del args
         if not self._show_column_summaries:
             return ColumnSummaries(
                 data=None,
                 stats={},
+                bin_values={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -826,13 +838,30 @@ class table(
             return ColumnSummaries(
                 data=None,
                 stats={},
+                bin_values={},
                 is_disabled=True,
             )
 
         # Get column stats if not chart-only mode
+        get_stats = self._show_column_summaries != "chart"
+        get_chart_data = (
+            self._show_column_summaries != "stats"
+            and total_rows <= self._column_charts_row_limit
+        )
+
+        # Get column stats if not chart-only mode
         stats: dict[ColumnName, ColumnStats] = {}
-        if self._show_column_summaries != "chart":
-            for column in self._manager.get_column_names():
+
+        # If we are above the limit to show charts,
+        # or if we are in stats-only mode,
+        # we don't return the chart data
+        chart_data = None
+        bin_values: dict[ColumnName, list[BinValue]] = {}
+
+        data = self._searched_manager
+
+        for column in self._manager.get_column_names():
+            if get_stats:
                 try:
                     statistic = self._searched_manager.get_stats(column)
                     stats[column] = statistic
@@ -841,19 +870,26 @@ class table(
                     # BaseExceptions, which shouldn't crash the kernel
                     LOGGER.warning("Failed to get stats for column %s", column)
 
-        # If we are above the limit to show charts,
-        # or if we are in stats-only mode,
-        # we don't return the chart data
-        chart_data = None
-        if (
-            self._show_column_summaries != "stats"
-            and total_rows <= self._column_charts_row_limit
-        ):
-            chart_data, _ = self._to_chart_data_url(self._searched_manager)
+            if get_chart_data and args.precompute:
+                try:
+                    # TODO: Could optimize further by getting all columns lazily
+                    bins = data.get_bin_values(column, DEFAULT_NUM_BINS)
+                    if len(bins) > 0:
+                        bin_values[column] = bins
+                        # Charts will use bin_values instead of data, so we drop the column
+                        data = data.drop_columns([column])
+                except BaseException:
+                    LOGGER.warning(
+                        "Failed to get bin values for column %s", column
+                    )
+
+        if get_chart_data:
+            chart_data, _ = self._to_chart_data_url(data)
 
         return ColumnSummaries(
             data=chart_data,
             stats=stats,
+            bin_values=bin_values,
             is_disabled=False,
         )
 

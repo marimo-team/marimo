@@ -42,6 +42,13 @@ export function toFieldTypes(
   );
 }
 
+interface BinValue {
+  bin_start: number;
+  bin_end: number;
+  count: number;
+}
+export type BinValues = BinValue[];
+
 export const SELECT_COLUMN_ID = "__select__";
 
 export const INDEX_COLUMN_NAME = "_marimo_row_id";

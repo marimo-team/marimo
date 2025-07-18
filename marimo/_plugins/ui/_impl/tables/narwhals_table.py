@@ -10,7 +10,7 @@ import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
-from marimo._data.models import ColumnStats, ExternalDataType
+from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
@@ -437,6 +437,32 @@ class NarwhalsTableManager(
                 stats_dict[key] = f"{value} {units[key]}"
 
         return ColumnStats(**stats_dict)
+
+    def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
+        dtype = self.nw_schema[column]
+        if column not in self.nw_schema or not dtype.is_numeric():
+            return []
+
+        import warnings
+
+        col = self.as_frame().get_column(column)
+        bin_start = col.min()
+        bin_values = []
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="`Series.hist` is being called from the stable API although considered an unstable feature.",
+                category=UserWarning,
+            )
+            for bin_end, count in col.hist(bin_count=num_bins).iter_rows(
+                named=False
+            ):
+                bin_values.append(
+                    BinValue(bin_start=bin_start, bin_end=bin_end, count=count)
+                )
+                bin_start = bin_end
+        return bin_values
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows

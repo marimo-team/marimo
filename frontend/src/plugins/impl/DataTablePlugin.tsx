@@ -12,7 +12,6 @@ import type {
 import { Provider } from "jotai";
 import { Table2Icon } from "lucide-react";
 import type { JSX } from "react";
-/* Copyright 2024 Marimo. All rights reserved. */
 import React, {
   memo,
   useCallback,
@@ -38,6 +37,7 @@ import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-owner
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import {
+  type BinValues,
   type ColumnHeaderStats,
   type ColumnName,
   type DataTableSelection,
@@ -52,6 +52,7 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId } from "@/core/cells/ids";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { DATA_TYPES } from "@/core/kernel/messages";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
@@ -75,9 +76,15 @@ import { ConditionSchema, type ConditionType } from "./data-frames/schema";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
+
+interface ColumnSummariesArgs {
+  precompute: boolean;
+}
+
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
+  bin_values: Record<ColumnName, BinValues>;
   is_disabled?: boolean;
 }
 
@@ -92,7 +99,7 @@ export type GetDataUrl = (opts: {}) => Promise<{
   format: "csv" | "json" | "arrow";
 }>;
 
-export type CalculateTopKRows = <T>(req: {
+export type CalculateTopKRows = (req: {
   column: string;
   k: number;
 }) => Promise<{
@@ -129,6 +136,14 @@ const columnStats = z.object({
   p95: maybeNumber,
 });
 
+const binValues = z.array(
+  z.object({
+    bin_start: z.number(),
+    bin_end: z.number(),
+    count: z.number(),
+  }),
+);
+
 /**
  * Arguments for a data table
  *
@@ -163,7 +178,9 @@ interface Data<T> {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
   download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
-  get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
+  get_column_summaries: <T>(
+    opts: ColumnSummariesArgs,
+  ) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
       by: string;
@@ -241,15 +258,18 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     download_as: rpc
       .input(z.object({ format: z.enum(["csv", "json", "parquet"]) }))
       .output(z.string()),
-    get_column_summaries: rpc.input(z.object({}).passthrough()).output(
-      z.object({
-        data: z
-          .union([z.string(), z.array(z.object({}).passthrough())])
-          .nullable(),
-        stats: z.record(z.string(), columnStats),
-        is_disabled: z.boolean().optional(),
-      }),
-    ),
+    get_column_summaries: rpc
+      .input(z.object({ precompute: z.boolean() }))
+      .output(
+        z.object({
+          data: z
+            .union([z.string(), z.array(z.object({}).passthrough())])
+            .nullable(),
+          stats: z.record(z.string(), columnStats),
+          bin_values: z.record(z.string(), binValues),
+          is_disabled: z.boolean().optional(),
+        }),
+      ),
     search: rpc
       .input(
         z.object({
@@ -542,14 +562,16 @@ export const LoadingDataTableComponent = memo(
       );
     }, [data?.totalRows]);
 
+    const precompute = getFeatureFlag("performant_table_charts");
+
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
     >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {} };
+        return { data: null, stats: {}, bin_values: {} };
       }
-      return props.get_column_summaries({});
+      return props.get_column_summaries({ precompute });
     }, [
       props.get_column_summaries,
       props.showColumnSummaries,
@@ -701,8 +723,10 @@ const DataTableComponent = ({
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
+      columnSummaries.bin_values,
       {
         includeCharts: Boolean(columnSummaries.data),
+        usePreComputedValues: getFeatureFlag("performant_table_charts"),
       },
     );
   }, [fieldTypes, columnSummaries]);
