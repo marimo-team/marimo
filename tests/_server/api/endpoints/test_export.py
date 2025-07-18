@@ -11,8 +11,10 @@ import pytest
 
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.ops import CellOp
 from marimo._output.utils import uri_encode_component
-from marimo._types.ids import SessionId
+from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
@@ -203,6 +205,16 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     assert session
     assert temp_marimo_file is not None
     session.app_file_manager.filename = temp_marimo_file
+    session.session_view.add_operation(
+        CellOp(
+            cell_id=CellId_t("new_cell"),
+            output=CellOutput(
+                data="hello",
+                mimetype="text/plain",
+                channel=CellChannel.OUTPUT,
+            ),
+        )
+    )
 
     response = client.post(
         "/api/export/auto_export/html",
@@ -241,6 +253,13 @@ def test_auto_export_html_no_code(
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = temp_marimo_file
+    session.session_view.add_operation(
+        CellOp(
+            cell_id=CellId_t("new_cell"),
+            output=None,
+            console=[CellOutput.stdout("hello")],
+        )
+    )
 
     response = client.post(
         "/api/export/auto_export/html",
@@ -270,6 +289,28 @@ def test_auto_export_html_no_code(
     assert os.path.exists(
         os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
     )
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html_no_operations(
+    client: TestClient, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+    assert session.session_view.is_empty()
+
+    response = client.post(
+        "/api/export/auto_export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+    # Not modified response
+    assert response.status_code == 304
 
 
 @with_session(SESSION_ID)

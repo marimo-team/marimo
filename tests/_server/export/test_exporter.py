@@ -37,11 +37,11 @@ HAS_NBFORMAT = DependencyManager.nbformat.has()
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_export_ipynb_empty():
     app = App()
-    file_manager = AppFileManager.from_app(InternalApp(app))
+    internal_app = InternalApp(app)
     exporter = Exporter()
 
     content, filename = exporter.export_as_ipynb(
-        file_manager, sort_mode="top-down"
+        internal_app, None, sort_mode="top-down"
     )
     assert filename == "notebook.ipynb"
     snapshot("empty_notebook.ipynb.txt", content)
@@ -55,11 +55,11 @@ def test_export_ipynb_with_cells():
     def cell_1():
         print("hello")
 
-    file_manager = AppFileManager.from_app(InternalApp(app))
+    internal_app = InternalApp(app)
     exporter = Exporter()
 
     content, filename = exporter.export_as_ipynb(
-        file_manager, sort_mode="top-down"
+        internal_app, None, sort_mode="top-down"
     )
     assert filename == "notebook.ipynb"
     snapshot("notebook_with_cells.ipynb.txt", content)
@@ -84,16 +84,18 @@ def test_export_ipynb_sort_modes():
         y = 1
         return (y,)
 
-    file_manager = AppFileManager.from_app(InternalApp(app))
+    internal_app = InternalApp(app)
     exporter = Exporter()
 
     # Test top-down mode preserves document order
-    content, _ = exporter.export_as_ipynb(file_manager, sort_mode="top-down")
+    content, _ = exporter.export_as_ipynb(
+        internal_app, None, sort_mode="top-down"
+    )
     snapshot("notebook_top_down.ipynb.txt", content)
 
     # Test topological mode respects dependencies
     content, _ = exporter.export_as_ipynb(
-        file_manager, sort_mode="topological"
+        internal_app, None, sort_mode="topological"
     )
     snapshot("notebook_topological.ipynb.txt", content)
 
@@ -108,7 +110,7 @@ HAS_DEPS = (
 
 # ruff: noqa: B018
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-async def test_export_ipynb_with_outputs():
+async def test_export_ipynb_with_outputs(tmp_path: Path):
     app = App()
 
     # stdout
@@ -220,17 +222,20 @@ async def test_export_ipynb_with_outputs():
     #     plt.plot([1, 2])
     #     return (plt,)
 
-    file_manager = AppFileManager.from_app(InternalApp(app))
+    internal_app = InternalApp(app)
     exporter = Exporter()
 
     content, filename = exporter.export_as_ipynb(
-        file_manager, sort_mode="top-down", session_view=None
+        internal_app, None, sort_mode="top-down", session_view=None
     )
     assert filename == "notebook.ipynb"
     assert content is not None
 
+    test_file = tmp_path / "notebook.py"
+    test_file.write_text(InternalApp(app).to_py())
+
     result = await run_app_then_export_as_ipynb(
-        file_manager,
+        MarimoPath(test_file),
         sort_mode="top-down",
         cli_args={},
         argv=None,
@@ -329,10 +334,11 @@ async def test_export_wasm_edit():
     exporter = Exporter()
 
     content, filename = exporter.export_as_wasm(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         display_config=DEFAULT_CONFIG["display"],
         mode="edit",
-        code=file_manager.to_code(),
+        code=file_manager.app.to_py(),
         show_code=True,
     )
 
@@ -353,10 +359,11 @@ async def test_export_wasm_run():
     exporter = Exporter()
 
     content, filename = exporter.export_as_wasm(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         display_config=DEFAULT_CONFIG["display"],
         mode="run",
-        code=file_manager.to_code(),
+        code=file_manager.app.to_py(),
         show_code=True,
     )
 
@@ -552,7 +559,8 @@ def test_export_as_html_with_serialization():
     )
 
     html, filename = exporter.export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
         request=request,
@@ -608,7 +616,8 @@ def test_export_as_html_without_code():
     )
 
     html, filename = exporter.export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
         request=request,
@@ -661,7 +670,8 @@ def test_export_as_html_with_files():
         mock_read.return_value = b"test file content"
 
         html, filename = exporter.export_as_html(
-            file_manager=file_manager,
+            filename=file_manager.filename,
+            app=file_manager.app,
             session_view=session_view,
             display_config=DEFAULT_CONFIG["display"],
             request=request,
@@ -706,7 +716,8 @@ def test_export_as_html_with_cell_configs():
     )
 
     html, filename = exporter.export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
         request=request,
@@ -765,7 +776,8 @@ def test_export_as_html_preserves_output_order():
     )
 
     html, filename = exporter.export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
         request=request,
@@ -821,7 +833,8 @@ def test_export_as_html_with_error_outputs():
     )
 
     html, filename = exporter.export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
         request=request,
@@ -863,7 +876,8 @@ def test_export_as_html_code_hash_consistency():
     )
 
     html_with_code, _ = exporter.export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
         request=request_with_code,
@@ -877,7 +891,8 @@ def test_export_as_html_code_hash_consistency():
     )
 
     html_without_code, _ = exporter.export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
         request=request_without_code,

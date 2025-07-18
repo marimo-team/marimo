@@ -742,6 +742,32 @@ class TestApp:
             InternalApp(app).cell_manager.cell_ids()
         )
 
+    def test_to_py(self) -> None:
+        """Test that InternalApp.to_py() returns the Python code representation."""
+        app = App()
+
+        @app.cell
+        def cell_one():
+            x = 1
+            return (x,)
+
+        @app.cell
+        def cell_two(x):
+            y = x + 1
+            return (y,)
+
+        internal_app = InternalApp(app)
+        python_code = internal_app.to_py()
+
+        # Verify it returns a string containing Python code
+        assert isinstance(python_code, str)
+        assert "import marimo" in python_code
+        assert "app = marimo.App(" in python_code
+        assert "x = 1" in python_code
+        assert "y = x + 1" in python_code
+        assert "cell_one" in python_code
+        assert "cell_two" in python_code
+
 
 class TestInvalidSetup:
     @staticmethod
