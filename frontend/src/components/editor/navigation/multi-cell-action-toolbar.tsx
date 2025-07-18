@@ -19,6 +19,7 @@ import {
   ZapOffIcon,
 } from "lucide-react";
 import React from "react";
+import { FocusScope } from "react-aria";
 import useEvent from "react-use-event-hook";
 import { MinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import { Button } from "@/components/ui/button";
@@ -357,6 +358,7 @@ const MultiCellPendingDeleteBar: React.FC<{ cellIds: CellId[] }> = ({
 }) => {
   const pendingDeleteService = usePendingDeleteService();
   const deleteCell = useDeleteManyCellsCallback();
+  const selectionActions = useCellSelectionActions();
 
   if (!pendingDeleteService.shouldConfirmDelete) {
     return null;
@@ -380,27 +382,36 @@ const MultiCellPendingDeleteBar: React.FC<{ cellIds: CellId[] }> = ({
                   Are you sure you want to delete?
                 </p>
               </div>
-              <div className="flex items-center gap-2 mt-3">
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => pendingDeleteService.clear()}
-                  className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="xs"
-                  variant="secondary"
-                  onClick={() => {
-                    deleteCell({ cellIds });
-                    pendingDeleteService.clear();
+              <FocusScope restoreFocus autoFocus>
+                <div
+                  className="flex items-center gap-2 mt-3"
+                  onKeyDown={(e) => {
+                    // Stop propagation to prevent Cell's resumeCompletionHandler
+                    e.stopPropagation();
                   }}
-                  className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
                 >
-                  Delete
-                </Button>
-              </div>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => pendingDeleteService.clear()}
+                    className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    onClick={() => {
+                      deleteCell({ cellIds });
+                      pendingDeleteService.clear();
+                      selectionActions.clear();
+                    }}
+                    className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </FocusScope>
             </div>
           </div>
         </div>
