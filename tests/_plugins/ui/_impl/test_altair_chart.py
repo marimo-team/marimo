@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import datetime
+import io
 import json
 import sys
+from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
@@ -863,6 +865,33 @@ def test_apply_selection(df: IntoDataFrame):
     filtered_data = marimo_chart.apply_selection(df)
     assert len(filtered_data) == 2
     assert all(filtered_data["category"] == "A")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_value_is_not_available() -> None:
+    import altair as alt
+
+    # inline charts
+    chart_spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+        "data": {"values": [{"x": 1, "y": 1}]},
+        "mark": "point",
+        "encoding": {
+            "x": {"field": "x", "type": "quantitative"},
+            "y": {"field": "y", "type": "quantitative"},
+        },
+    }
+
+    marimo_chart = altair_chart(alt.Chart.from_dict(chart_spec))
+
+    # check if calling marimo_chart.value writes to stderr
+    with io.StringIO() as buf, redirect_stderr(buf):
+        _ = marimo_chart.value
+        stderr_output = buf.getvalue()
+        assert (
+            "Use `.apply_selection(df)` to filter a DataFrame based on the selection."
+            in stderr_output
+        )
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
