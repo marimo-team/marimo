@@ -234,6 +234,11 @@ def get_context() -> RuntimeContext:
     return _THREAD_LOCAL_CONTEXT.runtime_context
 
 
+def safe_get_context() -> Optional[RuntimeContext]:
+    """Return the runtime context if it exists, otherwise None."""
+    return _THREAD_LOCAL_CONTEXT.runtime_context
+
+
 def runtime_context_installed() -> bool:
     try:
         get_context()

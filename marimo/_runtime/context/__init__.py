@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 __all__ = [
     "get_context",
+    "safe_get_context",
     "get_global_context",
     "ContextNotInitializedError",
     "ExecutionContext",
@@ -15,5 +16,6 @@ from marimo._runtime.context.types import (
     get_context,
     get_global_context,
     runtime_context_installed,
+    safe_get_context,
     teardown_context,
 )

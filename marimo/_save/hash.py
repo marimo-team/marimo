@@ -667,7 +667,7 @@ class BlockHasher:
 
             # State relevant to the context, should be dependent on it's value-
             # not the object.
-            value: Optional[State[Any]]
+            value: Optional[State[Any]] = None
             # Prefer actual object over reference.
             # Skip if the reference has already been subbed in, or if it is
             # a shadowed reference.
@@ -692,6 +692,7 @@ class BlockHasher:
                         scope[state_name] = scope[ref]
 
             # Likewise, UI objects should be dependent on their value.
+            ui: Optional[UIElement[Any, Any]] = None
             if ref in scope and isinstance(scope[ref], UIElement):
                 ui = scope[ref]
             elif ctx:
