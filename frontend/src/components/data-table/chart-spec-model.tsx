@@ -117,7 +117,7 @@ export class ColumnChartSpecModel<T> {
     };
   }
 
-  private getVegaSpec<T>(column: string): TopLevelFacetedUnitSpec | null {
+  private getVegaSpec(column: string): TopLevelFacetedUnitSpec | null {
     if (!this.data) {
       return null;
     }
@@ -324,7 +324,7 @@ export class ColumnChartSpecModel<T> {
                     labelOpacity: 0.5,
                     labelExpr:
                       "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
-                    // TODO: Tick count provides a better UX, but it did not work
+                    // TODO: Tick count provides a better UI, but it did not work
                     values: [
                       stats?.min,
                       stats?.p25,
