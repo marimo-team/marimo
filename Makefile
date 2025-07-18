@@ -20,11 +20,6 @@ help:
 # 🚀 First-time setup: Install all dependencies (frontend & Python)
 install-all: fe py
 
-.PHONY: pnpm-install
-pnpm-install:
-	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
-	pnpm install
-
 .PHONY: check-prereqs
 # ✓ Check if all required tools are installed
 check-prereqs:
@@ -51,11 +46,11 @@ py:
 fe: marimo/_static marimo/_lsp
 
 # 🔧 Install/build frontend if anything under frontend/
-marimo/_static: pnpm-install $(shell find frontend/src) $(wildcard frontend/*)
+marimo/_static: $(shell find frontend/src) $(wildcard frontend/*)
 	./scripts/buildfrontend.sh
 
 # 🔧 Install/build lsp if anything in lsp/ has changed
-marimo/_lsp: pnpm-install $(shell find packages/lsp)
+marimo/_lsp: $(shell find packages/lsp)
 	./scripts/buildlsp.sh
 
 .PHONY: dev
@@ -84,12 +79,12 @@ fe-check: fe-lint fe-typecheck
 
 .PHONY: fe-test
 # 🧪 Test frontend
-fe-test: pnpm-install
+fe-test:
 	CI=true pnpm turbo --filter @marimo-team/frontend test -- --run
 
 .PHONY: e2e
 # 🧪 Test end-to-end
-e2e: pnpm-install
+e2e:
 	cd frontend; pnpm playwright install; pnpm playwright test
 
 .PHONY: fe-lint
@@ -99,12 +94,12 @@ fe-lint:
 
 .PHONY: fe-typecheck
 # 🔍 Typecheck frontend
-fe-typecheck: pnpm-install
+fe-typecheck:
 	pnpm turbo --filter @marimo-team/frontend typecheck
 
 .PHONY: fe-codegen
 # 🔄 Generate frontend API
-fe-codegen: pnpm-install
+fe-codegen:
 	uv run ./marimo development openapi > packages/openapi/api.yaml
 	pnpm run --filter @marimo-team/marimo-api codegen
 	pnpm format packages/openapi/
@@ -159,5 +154,5 @@ docs-serve:
 
 .PHONY: storybook
 # 🧩 Start Storybook for UI development
-storybook: pnpm-install
+storybook:
 	pnpm --filter @marimo-team/frontend storybook
