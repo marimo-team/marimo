@@ -198,7 +198,7 @@ const DEFAULT_HOT_KEY = {
     key: "Ctrl-Alt-]",
   },
   "cell.delete": {
-    name: "Delete empty cell",
+    name: "Delete cell",
     group: "Editing",
     key: "Shift-Backspace",
   },
