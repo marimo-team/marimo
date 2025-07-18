@@ -330,7 +330,8 @@ class PyodideBridge:
     def export_html(self, request: str) -> str:
         parsed = parse_raw(json.loads(request), ExportAsHTMLRequest)
         html, _filename = Exporter().export_as_html(
-            file_manager=self.session.app_manager,
+            app=self.session.app_manager.app,
+            filename=self.session.app_manager.filename,
             session_view=self.session.session_view,
             display_config=self.session._initial_user_config["display"],
             request=parsed,

@@ -926,3 +926,44 @@ def test_dataset_filter_by_engine_and_variable() -> None:
     session_view.add_operation(Variables(variables=[]))
     table_names = [t.name for t in session_view.datasets.tables]
     assert table_names == ["table_none"]
+
+
+def test_is_empty() -> None:
+    """Test that SessionView.is_empty() correctly detects empty session views."""
+    session_view = SessionView()
+
+    # Initially empty
+    assert session_view.is_empty()
+
+    # Add a cell operation
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            output=initial_output,
+            status=initial_status,
+        )
+    )
+
+    # No longer empty
+    assert not session_view.is_empty()
+
+    # Clear operations by creating a new session view
+    session_view = SessionView()
+    assert session_view.is_empty()
+
+    # Add multiple operations - should still not be empty
+    session_view.add_operation(
+        CellOp(
+            cell_id="cell1",
+            output=initial_output,
+            status="idle",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id="cell2",
+            output=updated_output,
+            status="idle",
+        )
+    )
+    assert not session_view.is_empty()

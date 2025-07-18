@@ -440,10 +440,8 @@ class SessionCacheManager:
             return self.session_view
 
         if not self.is_cache_hit(notebook_session, key):
-            LOGGER.debug("Session view cache miss")
+            LOGGER.info("Session view cache miss")
             return self.session_view
 
-        self.session_view = deserialize_session(
-            json.loads(cache_file.read_text())
-        )
+        self.session_view = deserialize_session(notebook_session)
         return self.session_view

@@ -16,6 +16,7 @@ from typing import (
 )
 
 from marimo import __version__, _loggers
+from marimo._ast.app import InternalApp
 from marimo._ast.cell import Cell, CellImpl
 from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
 from marimo._ast.visitor import Language
@@ -39,7 +40,6 @@ from marimo._server.export.utils import (
     get_markdown_from_cell,
     get_sql_options_from_cell,
 )
-from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.session.serialize import (
     serialize_notebook,
@@ -70,34 +70,37 @@ class Exporter:
     def export_as_html(
         self,
         *,
-        file_manager: AppFileManager,
+        filename: Optional[str],
+        app: InternalApp,
         session_view: SessionView,
         display_config: DisplayConfig,
         request: ExportAsHTMLRequest,
     ) -> tuple[str, str]:
         index_html = get_html_contents()
 
-        filename = get_filename(file_manager.filename)
+        filename = get_filename(filename)
 
-        files: dict[str, str] = {}
+        virtual_files: dict[str, str] = {}
         for filename_and_length in request.files:
             if filename_and_length.startswith("/@file/"):
-                filename = filename_and_length[7:]
-            try:
-                byte_length, basename = filename.split("-", 1)
-                buffer_contents = read_virtual_file(basename, int(byte_length))
-            except Exception as e:
-                LOGGER.warning(
-                    "File not found in export: %s. Error: %s",
-                    filename_and_length,
-                    e,
+                virtual_file = filename_and_length[7:]
+                try:
+                    byte_length, basename = virtual_file.split("-", 1)
+                    buffer_contents = read_virtual_file(
+                        basename, int(byte_length)
+                    )
+                except Exception as e:
+                    LOGGER.warning(
+                        "File not found in export: %s. Error: %s",
+                        filename_and_length,
+                        e,
+                    )
+                    continue
+                mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
+                virtual_files[filename_and_length] = build_data_url(
+                    cast(KnownMimeType, mime_type),
+                    base64.b64encode(buffer_contents),
                 )
-                continue
-            mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
-            files[filename_and_length] = build_data_url(
-                cast(KnownMimeType, mime_type),
-                base64.b64encode(buffer_contents),
-            )
 
         # We only want pass the display config in the static notebook,
         # since we use:
@@ -107,11 +110,9 @@ class Exporter:
         config["display"] = display_config
 
         session_snapshot = serialize_session_view(
-            session_view, cell_ids=file_manager.app.cell_manager.cell_ids()
+            session_view, cell_ids=app.cell_manager.cell_ids()
         )
-        notebook_snapshot = serialize_notebook(
-            session_view, file_manager.app.cell_manager
-        )
+        notebook_snapshot = serialize_notebook(session_view, app.cell_manager)
         if not request.include_code:
             code = ""
             # Clear code and console outputs
@@ -121,37 +122,36 @@ class Exporter:
             for output in session_snapshot["cells"]:
                 output["console"] = []
         else:
-            code = file_manager.to_code()
+            code = app.to_py()
 
         # We include the code hash regardless of whether we include the code
-        code_hash = hash_code(file_manager.to_code())
+        code_hash = hash_code(app.to_py())
 
         html = static_notebook_template(
             html=index_html,
             user_config=config,
             config_overrides={},
             server_token=SkewProtectionToken("static"),
-            app_config=file_manager.app.config,
-            filepath=file_manager.filename,
+            app_config=app.config,
+            filepath=filename,
             code=code,
             code_hash=code_hash,
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
-            files=files,
+            files=virtual_files,
             asset_url=request.asset_url,
         )
 
-        download_filename = get_download_filename(
-            file_manager.filename, "html"
-        )
+        download_filename = get_download_filename(filename, "html")
         return html, download_filename
 
     def export_as_script(
         self,
-        file_manager: AppFileManager,
+        filename: Optional[str],
+        app: InternalApp,
     ) -> tuple[str, str]:
         # Check if any code is async, if so, raise an error
-        for cell in file_manager.app.cell_manager.cells():
+        for cell in app.cell_manager.cells():
             if not cell:
                 continue
             if cell._is_coroutine:
@@ -161,21 +161,20 @@ class Exporter:
                     "Cannot export a notebook with async code to a flat script"
                 )
 
-        graph = file_manager.app.graph
+        graph = app.graph
         codes: list[str] = [
             "# %%\n" + graph.cells[cid].code
             for cid in dataflow.topological_sort(graph, graph.cells.keys())
         ]
         code = f'\n__generated_with = "{__version__}"\n\n' + "\n\n".join(codes)
 
-        download_filename = get_download_filename(
-            file_manager.filename, "script.py"
-        )
+        download_filename = get_download_filename(filename, "script.py")
         return code, download_filename
 
     def export_as_ipynb(
         self,
-        file_manager: AppFileManager,
+        app: InternalApp,
+        filename: Optional[str],
         sort_mode: Literal["top-down", "topological"],
         session_view: Optional[SessionView] = None,
     ) -> tuple[str, str]:
@@ -186,11 +185,11 @@ class Exporter:
         import nbformat  # type: ignore[import-not-found]
 
         notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
-        graph = file_manager.app.graph
+        graph = app.graph
 
         # Sort cells based on sort_mode
         if sort_mode == "top-down":
-            cell_ids = list(file_manager.app.cell_manager.cell_ids())
+            cell_ids = list(app.cell_manager.cell_ids())
         else:
             cell_ids = dataflow.topological_sort(graph, graph.cells.keys())
 
@@ -221,7 +220,7 @@ class Exporter:
                 marimo_metadata["config"] = (
                     cell.config.asdict_without_defaults()
                 )
-            name = file_manager.app.cell_manager.cell_name(cid)
+            name = app.cell_manager.cell_name(cid)
             if not is_internal_cell_name(name):
                 marimo_metadata["name"] = name
             if marimo_metadata:
@@ -233,9 +232,7 @@ class Exporter:
         stream = io.StringIO()
         nbformat.write(notebook, stream)  # type: ignore[no-untyped-call]
         stream.seek(0)
-        download_filename = get_download_filename(
-            file_manager.filename, "ipynb"
-        )
+        download_filename = get_download_filename(filename, "ipynb")
         return stream.read(), download_filename
 
     def export_as_md(
@@ -390,7 +387,8 @@ class Exporter:
     def export_as_wasm(
         self,
         *,
-        file_manager: AppFileManager,
+        app: InternalApp,
+        filename: Optional[str],
         display_config: DisplayConfig,
         code: str,
         mode: Literal["edit", "run"],
@@ -399,7 +397,7 @@ class Exporter:
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
-        filename = get_filename(file_manager.filename)
+        filename = get_filename(filename)
 
         # We only want to pass the display config in the static notebook
         config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
@@ -414,15 +412,13 @@ class Exporter:
             mode=mode,
             user_config=config,
             config_overrides={},
-            app_config=file_manager.app.config,
+            app_config=app.config,
             code=code,
             asset_url=asset_url,
             show_code=show_code,
         )
 
-        download_filename = get_download_filename(
-            file_manager.filename, "wasm.html"
-        )
+        download_filename = get_download_filename(filename, "wasm.html")
 
         return html, download_filename
 
@@ -490,10 +486,10 @@ class AutoExporter:
         )
 
     async def _save_file(
-        self, file_manager: AppFileManager, content: str, extension: str
+        self, filename: Optional[str], content: str, extension: str
     ) -> None:
-        directory = Path(get_filename(file_manager.filename)).parent
-        filename = get_download_filename(file_manager.filename, extension)
+        directory = Path(get_filename(filename)).parent
+        filename = get_download_filename(filename, extension)
 
         await self._ensure_export_dir_async(directory)
         filepath = directory / self.EXPORT_DIR / filename
@@ -504,18 +500,14 @@ class AutoExporter:
             self._executor, self._write_file_sync, filepath, content
         )
 
-    async def save_html(self, file_manager: AppFileManager, html: str) -> None:
-        await self._save_file(file_manager, html, "html")
+    async def save_html(self, filename: Optional[str], html: str) -> None:
+        await self._save_file(filename, html, "html")
 
-    async def save_md(
-        self, file_manager: AppFileManager, markdown: str
-    ) -> None:
-        await self._save_file(file_manager, markdown, "md")
+    async def save_md(self, filename: Optional[str], markdown: str) -> None:
+        await self._save_file(filename, markdown, "md")
 
-    async def save_ipynb(
-        self, file_manager: AppFileManager, ipynb: str
-    ) -> None:
-        await self._save_file(file_manager, ipynb, "ipynb")
+    async def save_ipynb(self, filename: Optional[str], ipynb: str) -> None:
+        await self._save_file(filename, ipynb, "ipynb")
 
     def _write_file_sync(self, filepath: Path, content: str) -> None:
         """Synchronous file write (runs in thread pool)"""

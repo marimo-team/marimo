@@ -70,7 +70,8 @@ async def export_as_html(
         body.include_code = False
 
     html, filename = Exporter().export_as_html(
-        file_manager=session.app_file_manager,
+        app=session.app_file_manager.app,
+        filename=session.app_file_manager.filename,
         session_view=session.session_view,
         display_config=session.config_manager.get_config()["display"],
         request=body,
@@ -113,6 +114,9 @@ async def auto_export_as_html(
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsHTMLRequest)
     session = app_state.require_current_session()
+
+    # Reload the file manager to get the latest state
+    session.app_file_manager.reload()
     session_view = session.session_view
 
     if not session.app_file_manager.is_notebook_named:
@@ -126,11 +130,14 @@ async def auto_export_as_html(
         LOGGER.debug("Already auto-exported to HTML")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    # Reload the file manager to get the latest state
-    session.app_file_manager.reload()
+    # If session_view is empty (no outputs), don't export
+    if session_view.is_empty():
+        LOGGER.info("No outputs to export")
+        return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
     html, _filename = Exporter().export_as_html(
-        file_manager=session.app_file_manager,
+        app=session.app_file_manager.app,
+        filename=session.app_file_manager.filename,
         session_view=session_view,
         display_config=session.config_manager.get_config()["display"],
         request=body,
@@ -138,7 +145,7 @@ async def auto_export_as_html(
 
     # Save the HTML file to disk, at `.marimo/<filename>.html`
     await auto_exporter.save_html(
-        file_manager=session.app_file_manager,
+        filename=session.app_file_manager.filename,
         html=html,
     )
     session_view.mark_auto_export_html()
@@ -173,7 +180,8 @@ async def export_as_script(
     session = app_state.require_current_session()
 
     python, filename = Exporter().export_as_script(
-        file_manager=session.app_file_manager,
+        app=session.app_file_manager.app,
+        filename=session.app_file_manager.filename,
     )
 
     if body.download:
@@ -286,7 +294,7 @@ async def auto_export_as_markdown(
 
     # Save the Markdown file to disk, at `.marimo/<filename>.md`
     await auto_exporter.save_md(
-        file_manager=session.app_file_manager,
+        filename=session.app_file_manager.filename,
         markdown=markdown,
     )
     session_view.mark_auto_export_md()
@@ -335,14 +343,15 @@ async def auto_export_as_ipynb(
     session.app_file_manager.reload()
 
     ipynb, _filename = Exporter().export_as_ipynb(
-        file_manager=session.app_file_manager,
+        app=session.app_file_manager.app,
+        filename=session.app_file_manager.filename,
         sort_mode="top-down",
         session_view=session_view,
     )
 
     # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
     await auto_exporter.save_ipynb(
-        file_manager=session.app_file_manager,
+        filename=session.app_file_manager.filename,
         ipynb=ipynb,
     )
     session_view.mark_auto_export_ipynb()

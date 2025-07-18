@@ -25,6 +25,7 @@ from uuid import uuid4
 
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.variables import BUILTINS
+from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -826,3 +827,6 @@ class InternalApp:
                 options=self._app._config.asdict(),
             ),
         )
+
+    def to_py(self) -> str:
+        return MarimoConvert.from_ir(self.to_ir()).to_py()
