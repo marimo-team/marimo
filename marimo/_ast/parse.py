@@ -656,6 +656,39 @@ def extract_offsets_post_colon(
     return start_line, col_offset
 
 
+def is_equal_ast(
+    basis: Optional[Union[ast.AST, list[ast.AST]]],
+    other: Optional[Union[ast.AST, list[ast.AST]]],
+) -> bool:
+    """Compare two AST nodes for equality."""
+    if type(basis) is not type(other):
+        return False
+    elif basis is None or other is None:
+        return basis == other
+    elif isinstance(basis, list):
+        assert isinstance(other, list)
+        if len(basis) != len(other):
+            return False
+        return all(is_equal_ast(a, b) for a, b in zip(basis, other))
+
+    for key, value in vars(basis).items():
+        # Scrub positional data not relevant for comparison.
+        if key in {
+            "lineno",
+            "end_lineno",
+            "col_offset",
+            "end_col_offset",
+            "ctx",
+        }:
+            continue
+        other_value = getattr(other, key, None)
+        if isinstance(value, (ast.AST, list, type(None))):
+            return is_equal_ast(value, other_value)
+        elif value != other_value:
+            return False
+    return True
+
+
 def get_valid_decorator(
     node: CellNode,
 ) -> Optional[Union[ast.Attribute, ast.Call]]:
@@ -780,10 +813,8 @@ def is_cell(node: Optional[Node]) -> bool:
 
 
 def is_run_guard(node: Optional[Node]) -> bool:
-    return bool(
-        node
-        and (node == ast.parse('if __name__ == "__main__": app.run()').body[0])
-    )
+    basis = ast.parse('if __name__ == "__main__": app.run()').body[0]
+    return bool(node and is_equal_ast(basis, node))
 
 
 def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
