@@ -25,10 +25,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
+import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
@@ -345,7 +347,8 @@ const VerticalCell = memo(
         />
       );
 
-      const isCodeEmpty = code.trim() === "";
+      // Hide the code if it's pure markdown and there's an output, or if the code is empty
+      const hideCode = shouldHideCode(code, output);
 
       return (
         <div
@@ -355,8 +358,7 @@ const VerticalCell = memo(
           {...cellDomProps(cellId, name)}
         >
           {cellOutputArea === "above" && outputArea}
-          {/* Hide code if it's empty or pure markdown */}
-          {!isPureMarkdown && !isCodeEmpty && (
+          {!hideCode && (
             <div className="tray">
               <ReadonlyCode
                 initiallyHideCode={config.hide_code || kiosk}
@@ -434,4 +436,16 @@ export function groupCellsByColumn(
 
   // Sort columns by index
   return [...cellsByColumn.entries()].sort(([a], [b]) => a - b);
+}
+
+/**
+ * Determine if the code should be hidden.
+ *
+ * This is used to hide the code if it's pure markdown and there's an output,
+ * or if the code is empty.
+ */
+export function shouldHideCode(code: string, output: OutputMessage | null) {
+  const isPureMarkdown = new MarkdownLanguageAdapter().isSupported(code);
+  const hasOutput = output !== null && !isOutputEmpty(output);
+  return (isPureMarkdown && hasOutput) || code.trim() === "";
 }
