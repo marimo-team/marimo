@@ -29,7 +29,8 @@ from marimo._ast.transformers import (
 )
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
-from marimo._runtime.context import get_context
+from marimo._runtime.context import get_context, safe_get_context
+from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._save.cache import Cache, CacheException
@@ -135,12 +136,17 @@ class _cache_call:
 
     def _set_context(self, fn: Callable[..., Any]) -> None:
         assert callable(fn), "the provided function must be callable"
-        ctx = get_context()
-        assert ctx.execution_context is not None, (
-            "Could not resolve context for cache. "
-            "Either @cache is not called from a top level cell or "
-            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
-        )
+        ctx = safe_get_context()
+        if ctx and ctx.execution_context is not None:
+            cell_id = (
+                ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
+            )
+            graph = ctx.graph
+            glbls = ctx.globals
+        else:
+            cell_id = CellId_t("")
+            graph = None
+            glbls = {}
 
         self.__wrapped__ = fn
         sig = inspect.signature(fn)
@@ -180,34 +186,30 @@ class _cache_call:
         # Note, that deeply nested frames may cause issues, however
         # checking a single frame- should be good enough.
         f_locals = inspect.stack()[2 + self._frame_offset][0].f_locals
-        self.scope = {**ctx.globals, **f_locals}
+        self.scope = {**glbls, **f_locals}
 
         # Scoped refs are references particular to this block, that may not be
         # defined out of the context of the block, or the cell.
         # For instance, the args of the invoked function are restricted to the
         # block.
-        cell_id = ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
         self.scoped_refs = set([f"{ARG_PREFIX}{k}" for k in self._args])
         # As are the "locals" not in globals
-        self.scoped_refs |= set(f_locals.keys()) - set(ctx.globals.keys())
+        self.scoped_refs |= set(f_locals.keys()) - set(glbls.keys())
         # Defined in the cell, and currently available in scope
-        self.scoped_refs |= ctx.graph.cells[cell_id].defs & set(
-            ctx.globals.keys()
-        )
+        if graph is not None:
+            self.scoped_refs |= graph.cells[cell_id].defs & set(glbls.keys())
         # The defined private variables of this cell, normalized
         self.scoped_refs |= set(
             unmangle_local(x).name
-            for x in ctx.globals.keys()
+            for x in glbls.keys()
             if is_mangled_local(x, cell_id)
         )
 
-        graph = ctx.graph
-        cell_id = ctx.cell_id or ctx.execution_context.cell_id
         module = strip_function(self.__wrapped__)
 
         self.base_block = BlockHasher(
             module=module,
-            graph=graph,
+            graph=graph or DirectedGraph(),
             cell_id=cell_id,
             scope=self.scope,
             pin_modules=self.pin_modules,
@@ -217,11 +219,11 @@ class _cache_call:
         )
 
         # Load global cache from state
-        name = self.__wrapped__.__name__
+        name = self.__name__
         # Note, that if the function name shadows a global variable, the
         # lifetime of the cache will be tied to the global variable.
         # We can invalidate that by making an invalid namespace.
-        if ctx.globals != f_locals:
+        if glbls != f_locals:
             name = f"{name}*"
 
         self._loader = self._loader_partial.create_or_reconfigure(name)
@@ -230,6 +232,14 @@ class _cache_call:
     def loader(self) -> Loader:
         assert self._loader is not None, UNEXPECTED_FAILURE_BOILERPLATE
         return self._loader()
+
+    @property
+    def __name__(self) -> str:
+        """Return the name of the wrapped function."""
+        # NB. __name__ is expected on introspection in compiler.
+        if self.__wrapped__ is None:
+            return "<cache>"
+        return self.__wrapped__.__name__
 
     def __get__(
         self, instance: Any, _owner: Optional[type] = None
@@ -297,10 +307,13 @@ class _cache_call:
             arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = kwargs.copy()
 
         # Capture the call case
-        ctx = get_context()
+        ctx = safe_get_context()
+        glbls: dict[str, Any] = {}
+        if ctx is not None:
+            glbls = ctx.globals
         scope = {
             **self.scope,
-            **ctx.globals,
+            **glbls,
             **arg_dict,
             **kwargs_copy,
             **(self._bound or {}),
@@ -333,7 +346,7 @@ class _cache_call:
             raise e
         finally:
             # NB. Exceptions raise their own side effects.
-            if not failed:
+            if ctx and not failed:
                 ctx.cell_lifecycle_registry.add(SideEffect(attempt.hash))
         return response
 

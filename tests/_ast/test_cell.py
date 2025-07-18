@@ -397,6 +397,26 @@ class TestDecoratedCells:
             "add"
         }
 
+    @staticmethod
+    def test_cache_wrapped() -> None:
+        app = App()
+        with app.setup:
+            from marimo import cache
+
+        @app.function
+        @cache
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        # Calling with the same app yields the same runner
+        assert add(1, 2) == 3
+        assert add.hits == 0
+        assert add(1, 2) == 3
+        assert add.hits == 1
+        assert app._cell_manager.get_cell_data_by_name("add").cell.defs == {
+            "add"
+        }
+
 
 def help_smoke() -> None:
     app = App()
