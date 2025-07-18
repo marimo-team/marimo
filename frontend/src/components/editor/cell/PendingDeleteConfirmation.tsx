@@ -99,7 +99,13 @@ export const PendingDeleteConfirmation: React.FC<{ cellId: CellId }> = ({
                 Are you sure you want to delete?
               </p>
               <FocusScope autoFocus={true}>
-                <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-2"
+                  onKeyDown={(e) => {
+                    // Stop propagation to prevent Cell's resumeCompletionHandler
+                    e.stopPropagation();
+                  }}
+                >
                   <Button
                     size="xs"
                     variant="ghost"
