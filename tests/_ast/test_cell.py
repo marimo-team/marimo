@@ -427,7 +427,7 @@ class TestDecoratedCells:
         with app.setup:
             import shutil
 
-            # Create a temportary cache directory
+            # Create a temporary cache directory
             import tempfile
 
             from marimo import persistent_cache as cache
