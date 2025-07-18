@@ -843,8 +843,8 @@ class table(
             )
 
         # Get column stats if not chart-only mode
-        get_stats = self._show_column_summaries != "chart"
-        get_chart_data = (
+        should_get_stats = self._show_column_summaries != "chart"
+        should_get_chart_data = (
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         )
@@ -861,7 +861,7 @@ class table(
         data = self._searched_manager
 
         for column in self._manager.get_column_names():
-            if get_stats:
+            if should_get_stats:
                 try:
                     statistic = self._searched_manager.get_stats(column)
                     stats[column] = statistic
@@ -870,7 +870,7 @@ class table(
                     # BaseExceptions, which shouldn't crash the kernel
                     LOGGER.warning("Failed to get stats for column %s", column)
 
-            if get_chart_data and args.precompute:
+            if should_get_chart_data and args.precompute:
                 try:
                     # TODO: Could optimize further by getting all columns lazily
                     bins = data.get_bin_values(column, DEFAULT_NUM_BINS)
@@ -883,7 +883,7 @@ class table(
                         "Failed to get bin values for column %s", column
                     )
 
-        if get_chart_data:
+        if should_get_chart_data:
             chart_data, _ = self._to_chart_data_url(data)
 
         return ColumnSummaries(
