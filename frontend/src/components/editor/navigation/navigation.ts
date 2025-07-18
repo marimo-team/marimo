@@ -81,7 +81,6 @@ function useCellFocusProps(cellId: CellId) {
   const focusActions = useCellFocusActions();
   const actions = useCellActions();
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
-  const pendingDeleteService = usePendingDeleteService();
 
   // This occurs at the cell level and descedants.
   const { focusWithinProps } = useFocusWithin({
@@ -93,7 +92,6 @@ function useCellFocusProps(cellId: CellId) {
       // On blur, hide the code if it was temporarily shown.
       setTemporarilyShownCode(false);
       actions.markTouched({ cellId });
-      pendingDeleteService.clear();
       focusActions.blurCell();
     },
   });
