@@ -63,7 +63,7 @@ async def save_user_config(
     session = app_state.get_current_session()
     if session is not None:
         session.put_control_request(
-            SetUserConfigRequest(body.config),
+            SetUserConfigRequest(config),
             from_consumer_id=ConsumerId(
                 app_state.require_current_session_id()
             ),
