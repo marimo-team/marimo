@@ -11,6 +11,7 @@ import pytest
 
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import CellOp
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import CellId_t, SessionId
@@ -207,7 +208,11 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     session.session_view.add_operation(
         CellOp(
             cell_id=CellId_t("new_cell"),
-            output=None,
+            output=CellOutput(
+                data="hello",
+                mimetype="text/plain",
+                channel=CellChannel.OUTPUT,
+            ),
         )
     )
 
@@ -252,6 +257,7 @@ def test_auto_export_html_no_code(
         CellOp(
             cell_id=CellId_t("new_cell"),
             output=None,
+            console=[CellOutput.stdout("hello")],
         )
     )
 

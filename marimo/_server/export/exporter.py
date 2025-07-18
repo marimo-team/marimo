@@ -82,7 +82,7 @@ class Exporter:
 
         virtual_files: dict[str, str] = {}
         for filename_and_length in request.files:
-            if filename_and_length.startswith("/@file/"):
+            if "@file/" in filename_and_length:
                 virtual_file = filename_and_length[7:]
                 try:
                     byte_length, basename = virtual_file.split("-", 1)

@@ -935,6 +935,14 @@ def test_is_empty() -> None:
     # Initially empty
     assert session_view.is_empty()
 
+    # Add a cell operation without output or console
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            status=initial_status,
+        )
+    )
+
     # Add a cell operation
     session_view.add_operation(
         CellOp(
