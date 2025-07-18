@@ -1,0 +1,29 @@
+"""Script with complex indentation."""
+
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.class_definition
+class Calculator:
+    def add(self, a, b):
+        return a + b
+
+
+@app.cell
+def _():
+    def _main_():
+        calc = Calculator()
+        for i in range(3):
+            for j in range(3):
+                result = calc.add(i, j)
+                print(f"{i} + {j} = {result}")
+
+    _main_()
+    return
+
+
+if __name__ == "__main__":
+    app.run()
