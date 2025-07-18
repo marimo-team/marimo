@@ -1416,6 +1416,9 @@ function updateCellData({
 export function getCellConfigs(state: NotebookState): CellConfig[] {
   const cells = state.cellData;
 
+  // We set to null by default to prevent inconsistencies between undefined & null
+  const defaultCellConfig: Partial<CellConfig> = { column: null };
+
   // Handle the case where there's only one column
   // We don't want to set the column config
   const hasMultipleColumns = state.cellIds.getColumns().length > 1;
@@ -1424,7 +1427,7 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
       return column.inOrderIds.map((cellId) => {
         return {
           ...cells[cellId].config,
-          column: null,
+          ...defaultCellConfig,
         };
       });
     });
@@ -1432,7 +1435,7 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
 
   return state.cellIds.getColumns().flatMap((column, columnIndex) => {
     return column.inOrderIds.map((cellId, cellIndex) => {
-      const config: Partial<CellConfig> = { column: undefined };
+      const config: Partial<CellConfig> = { ...defaultCellConfig };
 
       // Only set the column index for the first cell in the column
       if (cellIndex === 0) {

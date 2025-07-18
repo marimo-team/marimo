@@ -58,9 +58,9 @@ describe("getCellConfigs", () => {
     // Assert the results
     expect(result).toEqual([
       { hide_code: false, disabled: false, column: 0 },
-      { hide_code: true, disabled: false },
+      { hide_code: true, disabled: false, column: null },
       { hide_code: false, disabled: true, column: 1 },
-      { hide_code: true, disabled: true },
+      { hide_code: true, disabled: true, column: null },
     ]);
 
     // Check that the original state was not modified
