@@ -581,7 +581,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             )
         elif isinstance(value, (InlineData, InlineDataset)):
             sys.stderr.write(
-                "The underlying chart data is not available in inline data charts. "
+                "The underlying chart data is not available with inline specification. "
                 "Use `.apply_selection(df)` to filter a DataFrame"
                 " based on the selection.",
             )
