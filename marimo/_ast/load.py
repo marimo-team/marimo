@@ -8,7 +8,11 @@ from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
-from marimo._ast.parse import MarimoFileError, parse_notebook
+from marimo._ast.parse import (
+    MarimoFileError,
+    is_unknown_python_script,
+    parse_notebook,
+)
 from marimo._schemas.serialization import UnparsableCell
 
 LOGGER = _loggers.marimo_logger()
@@ -64,6 +68,11 @@ def _static_load(filepath: Path) -> Optional[App]:
         return None
     notebook = parse_notebook(contents)
     if notebook is None or not notebook.valid:
+        # Check if this is a non-marimo Python file with actual code
+        if notebook and is_unknown_python_script(notebook):
+            raise UnknownPythonScriptError(
+                f"'{filepath}' is not a marimo notebook"
+            )
         return None
     app = App(**notebook.app.options, _filename=str(filepath))
     for cell in notebook.cells:
@@ -85,6 +94,7 @@ def notebook_is_openable(filename: str) -> Literal[True]:
 
     Raises:
         SyntaxError: If the file contains a syntax error
+        UnknownPythonScriptError: If the file is an unrecognized Python script format
     """
     path = Path(filename)
 
@@ -101,7 +111,15 @@ def notebook_is_openable(filename: str) -> Literal[True]:
         return True
 
     if path.suffix == ".py":
-        _ = parse_notebook(contents)
+        notebook = parse_notebook(contents)
+        if (
+            (notebook is None or not notebook.valid)
+            and notebook
+            and is_unknown_python_script(notebook)
+        ):
+            raise UnknownPythonScriptError(
+                f"'{filename}' is not a marimo notebook"
+            )
         # NB. A invalid notebook can still be opened.
         return True
 
@@ -154,3 +172,7 @@ def load_app(filename: Optional[str]) -> Optional[App]:
             "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
         )
         return _app
+
+
+class UnknownPythonScriptError(MarimoFileError):
+    pass
