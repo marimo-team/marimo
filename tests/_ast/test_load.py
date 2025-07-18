@@ -285,3 +285,28 @@ class TestGetCodes:
         from codegen_data.test_with_bad_decorator import hundred
 
         assert hundred == 100
+
+
+class TestGetStatus:
+    @staticmethod
+    def test_get_status_valid() -> None:
+        assert load.get_notebook_status(get_filepath("test_main")) == "valid"
+
+    @staticmethod
+    def test_get_status_empty() -> None:
+        assert load.get_notebook_status(get_filepath("test_empty")) == "empty"
+
+    @staticmethod
+    def test_get_status_invalid() -> None:
+        assert (
+            load.get_notebook_status(get_filepath("test_invalid")) == "invalid"
+        )
+
+    @staticmethod
+    def test_get_status_warn() -> None:
+        assert (
+            load.get_notebook_status(
+                get_filepath("test_get_codes_messy_toplevel")
+            )
+            == "has_errors"
+        )
