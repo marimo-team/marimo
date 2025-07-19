@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import io
 from functools import cached_property
 from typing import Any, Optional, Union
@@ -32,6 +33,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
         return "polars"
 
     @staticmethod
+    @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
 
