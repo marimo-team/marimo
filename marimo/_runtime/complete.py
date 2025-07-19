@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import html
+import sys
 import threading
 import time
+from collections.abc import Mapping
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, cast
 
@@ -25,6 +27,7 @@ from marimo._utils.rst_to_html import convert_rst_to_html
 
 if TYPE_CHECKING:
     import threading
+    from types import ModuleType
 
 LOGGER = loggers.marimo_logger()
 
@@ -344,6 +347,118 @@ def _get_completions_with_interpreter(
     return script, completions
 
 
+# TODO move this to a global utility module
+def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
+    """Check if an object is an instance of a class reference defined by a string.
+    Allows to define and do `isinstance()` checks without importing 3rd party libraries
+
+    Example:
+        ```python
+        df = pd.DataFrame(...)
+        _isinstance_external(df, class_ref="pandas.DataFrame")
+        ```
+    """
+    import_parts = class_ref.split(".")
+    module_name = import_parts[0]
+
+    if module_name not in sys.modules:
+        return False
+
+    module: ModuleType = sys.modules[module_name]
+    target_class: Any = module
+    for part in import_parts:
+        target_class = getattr(target_class, part)
+
+    return isinstance(obj, target_class)
+
+
+def _key_options_from_ipython_method(obj: Any) -> list[str]:
+    # convention for `_ipython_key_completions_` is to return a list of strings
+    return [str(key) for key in obj._ipython_key_completions_()]
+
+
+def _key_options_from_mapping(obj: Mapping[Any, Any]) -> list[str]:
+    return [str(key) for key in obj.keys()]
+
+
+def _key_options_from_pandas(obj: Any) -> list[str]:
+    return _key_options_from_mapping(obj)
+
+
+def _key_options_dispatcher(obj: Any) -> list[str]:
+    """Tries to get key completion suggestions from `obj`
+    based on its methods and type.
+
+    Returns a list of strings to later create marimo `CompletionOption`
+    """
+    if getattr(obj, "_ipython_key_completions_", False):
+        return _key_options_from_ipython_method(obj)
+    elif isinstance(obj, Mapping):
+        return _key_options_from_mapping(obj)
+    elif _isinstance_external(obj, class_ref="pandas.DataFrame"):
+        return _key_options_from_pandas(obj)
+
+    LOGGER.debug(
+        f"No matching handlers found to retrieve keys from type `{type(obj)}`"
+    )
+    return []
+
+
+def _get_key_options(
+    script: jedi.Script, glbls: dict[str, Any]
+) -> list[CompletionOption]:
+    """Get completion values for trigger `["` or `['`. Values are meant to be
+    passed to `.__getitem__()`
+
+    This implementation assumes that marimo's `CompletionRequest.document`
+    only includes current line, up to the completion trigger.
+    """
+    names = script.get_names(
+        references=True, definitions=False, all_scopes=False
+    )
+    if len(names) == 0:
+        LOGGER.debug(
+            f"Retrieved no `names` for completion request: `{script._code}`"
+        )
+        return []
+
+    obj_name = names[-1].name
+    obj = glbls.get(obj_name)
+    if obj is None:
+        LOGGER.debug(f"Failed to find `{obj_name=:}` in `glbls`")
+        return []
+
+    keys = _key_options_dispatcher(obj)
+    # TODO currently unreliable for non-string keys, even if stringified
+    # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
+    return [
+        CompletionOption(name=key, type="property", completion_info="property")
+        for key in keys
+    ]
+
+
+def _maybe_get_key_options(
+    request: CodeCompletionRequest,
+    script: jedi.Script,
+    glbls: dict[str, Any],
+    glbls_lock: threading.RLock,
+) -> list[CompletionOption]:
+    """Call key completions methods if the request contains the trigger"""
+    triggers = ('["', "['")  # explicitly handle both quotation characters
+    if request.document[-2:] not in triggers:
+        return []
+
+    # TODO ideally, we don't acquire the lock twice with `_get_completions_with_interpreter()` and `_maybe_get_key_options`
+    # however, the two functions are applied on different triggers
+    # also, this other function returns Jedi `Completion` while this returns native `CompletionOption`
+    locked = False
+    locked = glbls_lock.acquire(blocking=False)
+    if locked:
+        return _get_key_options(script, glbls)
+    else:
+        return []
+
+
 def _get_completions(
     codes: list[str],
     document: str,
@@ -411,6 +526,16 @@ def complete(
         prefix_length: int = (
             completions[0].get_completion_prefix_length() if completions else 0
         )
+        prefix = request.document[-prefix_length:]
+
+        # TODO we can probably return early if we have key completion;
+        # it has different triggers and retrieval should never overlap with attribute completion
+        key_options = _maybe_get_key_options(
+            request,
+            script,
+            glbls=glbls,
+            glbls_lock=glbls_lock,
+        )
 
         if (
             prefix_length == 0
@@ -443,12 +568,11 @@ def complete(
                 )
                 return
 
-        if not completions:
+        if not completions and not key_options:
             # If there are still no completions, then bail.
             _write_no_completions(stream, request.id)
             return
 
-        prefix = request.document[-prefix_length:]
         if timeout is None and isinstance(script, jedi.Interpreter):
             # We're holding the globals lock; set a short timeout so we don't
             # block the kernel
@@ -468,7 +592,7 @@ def complete(
             stream=stream,
             completion_id=request.id,
             prefix_length=prefix_length,
-            options=options,
+            options=key_options + options,
         )
     except Exception as e:
         # jedi failed to provide completion
