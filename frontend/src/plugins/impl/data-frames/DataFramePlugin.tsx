@@ -8,7 +8,6 @@ import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { Spinner } from "@/components/icons/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DATA_TYPES } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
@@ -21,6 +20,7 @@ import { TransformPanel } from "./panel";
 import {
   ConditionSchema,
   type ConditionType,
+  columnToFieldTypesSchema,
   type Transformations,
 } from "./schema";
 import type { ColumnDataTypes, ColumnId } from "./types";
@@ -45,7 +45,7 @@ type PluginFunctions = {
   get_dataframe: (req: {}) => Promise<{
     url: string;
     total_rows: number;
-    row_headers: string[];
+    row_headers: FieldTypesWithExternalType;
     field_types: FieldTypesWithExternalType | null;
     python_code?: string | null;
     sql_code?: string | null;
@@ -94,10 +94,8 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       z.object({
         url: z.string(),
         total_rows: z.number(),
-        row_headers: z.array(z.string()),
-        field_types: z.array(
-          z.tuple([z.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]),
-        ),
+        row_headers: columnToFieldTypesSchema,
+        field_types: columnToFieldTypesSchema,
         python_code: z.string().nullish(),
         sql_code: z.string().nullish(),
       }),

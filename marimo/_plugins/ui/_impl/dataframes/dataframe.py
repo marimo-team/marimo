@@ -49,9 +49,9 @@ from marimo._utils.parse_dataclass import parse_raw
 class GetDataFrameResponse:
     url: str
     total_rows: Union[int, Literal["too_many"]]
-    # List of column names that are actually row headers
+    # Columns that are actually row headers
     # This really only applies to Pandas, that has special index columns
-    row_headers: list[str]
+    row_headers: FieldTypes
     field_types: FieldTypes
     python_code: Optional[str] = None
     sql_code: Optional[str] = None

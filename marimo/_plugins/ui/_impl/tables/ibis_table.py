@@ -18,6 +18,7 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
+    FieldTypes,
     TableCell,
     TableCoordinate,
     TableManager,
@@ -88,9 +89,7 @@ class IbisTableManagerFactory(TableManagerFactory):
             ) -> TableManager[ibis.Table]:
                 return IbisTableManager(self.data.drop(columns))
 
-            def get_row_headers(
-                self,
-            ) -> list[str]:
+            def get_row_headers(self) -> FieldTypes:
                 return []
 
             @staticmethod

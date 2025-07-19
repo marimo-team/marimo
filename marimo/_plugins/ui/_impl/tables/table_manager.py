@@ -130,7 +130,7 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def get_row_headers(self) -> list[str]:
+    def get_row_headers(self) -> FieldTypes:
         pass
 
     @abc.abstractmethod

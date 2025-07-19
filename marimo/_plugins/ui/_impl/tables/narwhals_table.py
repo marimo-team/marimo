@@ -22,6 +22,7 @@ from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
+    FieldTypes,
     TableCell,
     TableCoordinate,
     TableManager,
@@ -155,9 +156,7 @@ class NarwhalsTableManager(
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.drop(columns, strict=False))
 
-    def get_row_headers(
-        self,
-    ) -> list[str]:
+    def get_row_headers(self) -> FieldTypes:
         return []
 
     @functools.lru_cache(maxsize=5)  # noqa: B019
