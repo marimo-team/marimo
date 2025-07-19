@@ -382,7 +382,7 @@ const MultiCellPendingDeleteBar: React.FC<{ cellIds: CellId[] }> = ({
                   Are you sure you want to delete?
                 </p>
               </div>
-              <FocusScope restoreFocus autoFocus>
+              <FocusScope restoreFocus={true} autoFocus={true}>
                 <div
                   className="flex items-center gap-2 mt-3"
                   onKeyDown={(e) => {
