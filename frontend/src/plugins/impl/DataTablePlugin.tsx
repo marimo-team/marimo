@@ -160,6 +160,7 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
+  showDataTypes: boolean;
   showPageSizeSelector: boolean;
   showColumnExplorer: boolean;
   showChartBuilder: boolean;
@@ -225,6 +226,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnSummaries: z
         .union([z.boolean(), z.enum(["stats", "chart"])])
         .default(true),
+      showDataTypes: z.boolean().default(true),
       showPageSizeSelector: z.boolean().default(true),
       showColumnExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
@@ -673,6 +675,7 @@ const DataTableComponent = ({
   showPageSizeSelector,
   showColumnExplorer,
   showChartBuilder,
+  showDataTypes,
   rowHeaders,
   fieldTypes,
   paginationState,
@@ -747,8 +750,12 @@ const DataTableComponent = ({
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
-  const showDataTypes = Boolean(fieldTypes);
   const shownColumns = memoizedClampedFieldTypes.length;
+
+  // If the field types are not set, we don't show them
+  if (!fieldTypes) {
+    showDataTypes = false;
+  }
 
   const columns = useMemo(
     () =>
