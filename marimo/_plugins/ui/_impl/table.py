@@ -41,7 +41,6 @@ from marimo._plugins.ui._impl.tables.selection import (
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
-    FieldTypes,
     RowId,
     TableCell,
     TableCoordinate,
@@ -601,7 +600,7 @@ class table(
 
         search_result_styles: Optional[CellStyles] = None
         search_result_data: JSONType = []
-        field_types: Optional[FieldTypes] = None
+        field_types = self._manager.get_field_types()
         num_columns = 0
 
         if not _internal_lazy:
@@ -627,8 +626,6 @@ class table(
             _validate_column_formatting(
                 text_justify_columns, wrapped_columns, column_names_set
             )
-
-            field_types = self._manager.get_field_types()
 
         super().__init__(
             component_name=table._name,

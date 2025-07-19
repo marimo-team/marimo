@@ -1744,7 +1744,10 @@ def test_lazy_dataframe() -> None:
         assert table._component_args["data"] == []
         assert table._component_args["total-columns"] == 0
         assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
-        assert table._component_args["field-types"] is None
+        assert table._component_args["field-types"] == [
+            ("col1", ("integer", "i64")),
+            ("col2", ("string", "str")),
+        ]
         assert table._component_args["show-page-size-selector"] is False
         assert table._component_args["show-column-explorer"] is False
         assert table._component_args["show-chart-builder"] is False
