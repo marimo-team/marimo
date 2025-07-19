@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { FieldOptions, randomNumber } from "@/components/forms/options";
+import { DATA_TYPES } from "@/core/kernel/messages";
 import {
   AGGREGATION_FNS,
   type ColumnId,
@@ -12,6 +13,10 @@ import {
   isConditionValueValid,
   type OperatorType,
 } from "./utils/operators";
+
+export const columnToFieldTypesSchema = z.array(
+  z.tuple([z.coerce.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]),
+);
 
 export const column_id = z
   .string()

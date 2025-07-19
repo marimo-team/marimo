@@ -256,7 +256,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ]
         )
 
-    def get_row_headers(self) -> list[str]:
+    def get_row_headers(self) -> FieldTypes:
         return []
 
     @functools.lru_cache(maxsize=5)  # noqa: B019
