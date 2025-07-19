@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView, PluginValue } from "@codemirror/view";
+import { isAnyCellFocused } from "@/components/editor/navigation/focus-utils";
 
 let lastFocusedEditorRef: WeakRef<EditorView> | null = null;
 
@@ -40,8 +41,14 @@ export class VimCursorVisibilityPlugin implements PluginValue {
   update() {
     const vimCursorLayer = this.view.dom.querySelector(".cm-vimCursorLayer");
     if (vimCursorLayer instanceof HTMLElement) {
-      const isLastFocused = lastFocusedEditorRef?.deref() === this.view;
-      vimCursorLayer.style.display = isLastFocused ? "" : "none";
+      // Hide all vim cursors when in command mode
+      if (isAnyCellFocused()) {
+        vimCursorLayer.style.display = "none";
+      } else {
+        // Show cursor only in the last focused editor when in edit mode
+        const isLastFocused = lastFocusedEditorRef?.deref() === this.view;
+        vimCursorLayer.style.display = isLastFocused ? "" : "none";
+      }
     }
   }
 
