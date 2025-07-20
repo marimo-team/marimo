@@ -34,9 +34,12 @@ A non-exhaustive list of settings:
 
 ### Vim keybindings
 
-marimo supports vim keybindings.
+marimo supports vim keybindings for both cell editing and command mode. It
+separates editing _within_ cells from operations _between_ cells. From normal
+mode, press `Esc` to enter command mode for cell-level operations. Press `i` or
+`Enter` focus a cell and drop back down to editing.
 
-**Additional bindings/features:**
+**Additional cell editing features:**
 
 - `gd` - go to definition
 - `dd` - when a cell is empty, delete it
@@ -63,6 +66,30 @@ vimrc = relative/path/.vimrc
 ```
 
 ///
+
+#### Command mode
+
+marimo also supports vim-specific keybindings for command mode, which lets you
+operate on entire cells rather than only edit their contents. Press `Esc` from
+normal mode to enter command mode and perform cell-level operations:
+
+**Navigation:**
+
+- `j` / `k` - next/previous cell
+- `gg` / `G` - first/last cell
+- `Shift+j` / `Shift+k` - create/extend selection
+
+**Cell operations:**
+
+- `dd` - delete cell(s)
+- `yy` - copy cell(s)
+- `p` / `P` - paste below/above
+- `o` / `O` - new cell below/above
+- `u` - undo deletion
+- `i` - edit cell
+- `s` - save notebook
+
+To drop back into cell editing, press `i` or `Enter`.
 
 ## Overview panels
 
