@@ -239,11 +239,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_field_type(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
-                if column_name == self._original_data.index.name:
-                    dtype = self._original_data.index.dtype
-                else:
-                    dtype = self.schema[column_name]
-
+                dtype = self.schema[column_name]
                 return self._map_dtype_to_field_type(dtype)
 
             def _map_dtype_to_field_type(
