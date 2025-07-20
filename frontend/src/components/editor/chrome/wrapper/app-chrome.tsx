@@ -32,6 +32,7 @@ import { SnippetsPanel } from "../panels/snippets-panel";
 import { TracingPanel } from "../panels/tracing-panel";
 import { VariablePanel } from "../panels/variable-panel";
 import { useChromeActions, useChromeState } from "../state";
+import { FloatingMinimap } from "./floating-minimap";
 import { PanelsWrapper } from "./panels";
 import { createStorage } from "./storage";
 import { handleDragging } from "./utils";
@@ -244,6 +245,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         </Panel>
         <ContextAwarePanel />
       </PanelGroup>
+      <FloatingMinimap />
       <ErrorBoundary>
         <TooltipProvider>
           <Footer />
