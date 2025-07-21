@@ -126,9 +126,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   );
 };
 
-export const FloatingMinimap: React.FC<{ className?: string }> = ({
-  className,
-}) => {
+export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
   const notebook = useNotebook();
   const actions = useCellActions();
   const handleCellClick = (cellId: CellId) => {
