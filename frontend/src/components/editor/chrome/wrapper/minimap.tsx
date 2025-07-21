@@ -235,28 +235,35 @@ function UnselectedCell(options: {
   const { cellId, graph, selectedGraph } = options;
   const circleRadius = getCircleRadius(graph);
 
+  const hasAncestors = graph.ancestors.size > 0;
+  const hasDescendants = graph.descendants.size > 0;
+
   if (!selectedGraph) {
-    // if nothing is selected draw the icon centers with
-    // whiskers indicating any upstream/downstream deps
+    // There is no selection, so show all upstream/downstream indicators
     return drawConnectionGlyph({
       circleRadius,
-      leftWisker: graph.ancestors.size > 0,
-      rightWisker: graph.descendants.size > 0,
+      leftWisker: hasAncestors,
+      rightWisker: hasDescendants,
     });
   }
 
   const isAncestorOfSelected = selectedGraph.ancestors.has(cellId);
   const isDescendantOfSelected = selectedGraph.descendants.has(cellId);
+  if (isAncestorOfSelected || isDescendantOfSelected) {
+    // Node is a part of the current selection, need to jitter
+    return drawConnectionGlyph({
+      circleRadius,
+      leftWisker: hasAncestors,
+      rightWisker: hasDescendants,
+      shift: isAncestorOfSelected ? "left" : "right",
+    });
+  }
 
+  // Node is outside of the current selection (keep center & hide upstream/downstream indicators)
   return drawConnectionGlyph({
     circleRadius,
-    leftWisker: isDescendantOfSelected,
-    rightWisker: isAncestorOfSelected,
-    shift: isAncestorOfSelected
-      ? "left"
-      : isDescendantOfSelected
-        ? "right"
-        : undefined,
+    leftWisker: false,
+    rightWisker: false,
   });
 }
 
