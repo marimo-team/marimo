@@ -43,6 +43,7 @@ CREATE TABLE all_types (
     col_varchar VARCHAR,
     col_date DATE,
     col_time TIME,
+    col_timetz TIMETZ,
     col_timestamp TIMESTAMP,
     col_interval INTERVAL,
     col_blob BLOB,
@@ -56,6 +57,7 @@ CREATE TABLE all_types (
     col_text TEXT,
     col_string STRING,
     col_timestamp_ns TIMESTAMP_NS,
+    col_timestamp_ms TIMESTAMP_MS,
     col_timestamptz TIMESTAMPTZ,
     col_datetime DATETIME,
     col_array INTEGER[],
@@ -79,7 +81,7 @@ all_types_tables = [
         source_type="duckdb",
         source="memory",
         num_rows=None,
-        num_columns=37,
+        num_columns=39,
         variable_name=None,
         columns=[
             DataTableColumn(
@@ -179,6 +181,12 @@ all_types_tables = [
                 sample_values=[],
             ),
             DataTableColumn(
+                name="col_timetz",
+                type="time",
+                external_type="TIME WITH TIME ZONE",
+                sample_values=[],
+            ),
+            DataTableColumn(
                 name="col_timestamp",
                 type="datetime",
                 external_type="TIMESTAMP",
@@ -254,6 +262,12 @@ all_types_tables = [
                 name="col_timestamp_ns",
                 type="datetime",
                 external_type="TIMESTAMP_NS",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_timestamp_ms",
+                type="datetime",
+                external_type="TIMESTAMP_MS",
                 sample_values=[],
             ),
             DataTableColumn(
