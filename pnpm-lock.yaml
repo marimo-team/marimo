@@ -477,7 +477,7 @@ importers:
         specifier: ^2.0.9
         version: 2.0.9(postcss@8.5.6)
       '@playwright/test':
-        specifier: ^1.53.1
+        specifier: ^1.54.1
         version: 1.54.1
       '@storybook/addon-docs':
         specifier: ^9.0.14
