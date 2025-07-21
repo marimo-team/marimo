@@ -185,7 +185,21 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     highlightActiveLine(),
     highlightActiveLineGutter(),
     highlightSpecialChars(),
-    lineNumbers(),
+    // Use relative line numbers in vim mode
+    opts.keymapConfig?.preset === "vim"
+      ? lineNumbers({
+          formatNumber: (line, state) => {
+            // Get the main selection's head position
+            const selection = state.selection.main;
+            const cursorLine = state.doc.lineAt(selection.head).number;
+            if (line === cursorLine) {
+              // Vim shows current line as '0' or blank or '•'; here we use '0'
+              return "0";
+            }
+            return Math.abs(line - cursorLine).toString();
+          },
+        })
+      : lineNumbers(),
     rectangularSelection(),
     tooltips({
       // Having fixed position prevents tooltips from being repositioned
