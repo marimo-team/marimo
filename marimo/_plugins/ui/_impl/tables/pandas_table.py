@@ -1,14 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import io
 from functools import cached_property
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import narwhals.stable.v1 as nw
 
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -22,7 +24,22 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManagerFactory,
 )
 
+if TYPE_CHECKING:
+    import pandas as pd
+
 LOGGER = _loggers.marimo_logger()
+
+
+def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
+    # Convert to pandas dataframe since geopandas will fail on
+    # certain operations (like to_json(orient="records"))
+    if DependencyManager.geopandas.has():
+        import geopandas as gpd  # type: ignore
+        import pandas as pd
+
+        if isinstance(data, gpd.GeoDataFrame):
+            return pd.DataFrame(data)
+    return data
 
 
 class PandasTableManagerFactory(TableManagerFactory):
@@ -31,6 +48,7 @@ class PandasTableManagerFactory(TableManagerFactory):
         return "pandas"
 
     @staticmethod
+    @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import pandas as pd
 
@@ -38,6 +56,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
+                data = _maybe_convert_geopandas_to_pandas(data)
                 self._original_data = self._handle_multi_col_indexes(data)
                 super().__init__(nw.from_native(self._original_data))
 
