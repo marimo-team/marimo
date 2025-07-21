@@ -242,6 +242,9 @@ def _get_duckdb_database_names(
 
 
 def _db_type_to_data_type(db_type: str) -> DataType:
+    """Convert a DuckDB type to a Marimo data type.
+    Reference: https://duckdb.org/docs/stable/sql/data_types/overview
+    """
     db_type = db_type.lower()
     # Numeric types
     if db_type in [
@@ -287,16 +290,9 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     # Date and Time types
     if db_type == "date":
         return "date"
-    if db_type == "time":
+    if db_type in ["time", "time with time zone"]:
         return "time"
-    if db_type in [
-        "timestamp",
-        "timestamp_ns",
-        "timestamp with time zone",
-        "timestamptz",
-        "datetime",
-        "interval",
-    ]:
+    if db_type in ["datetime", "interval"] or db_type.startswith("timestamp"):
         return "datetime"
     # Nested types
     if "[]" in db_type:
