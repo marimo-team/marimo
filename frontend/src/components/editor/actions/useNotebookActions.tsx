@@ -289,7 +289,7 @@ export function useNotebookActions() {
     },
     {
       icon: <TextSearchIcon size={14} strokeWidth={1.5} />,
-      label: "View live docs",
+      label: "Helper panel > View live docs",
       description: "Show the documentation helper panel",
       handle: () => toggleApplication("documentation"),
     },
