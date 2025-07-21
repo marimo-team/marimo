@@ -53,7 +53,6 @@ import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId } from "@/core/cells/ids";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { DATA_TYPES } from "@/core/kernel/messages";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -72,7 +71,11 @@ import { createPlugin } from "../core/builder";
 import { rpc } from "../core/rpc";
 import { Banner } from "./common/error-banner";
 import { Labeled } from "./common/labeled";
-import { ConditionSchema, type ConditionType } from "./data-frames/schema";
+import {
+  ConditionSchema,
+  type ConditionType,
+  columnToFieldTypesSchema,
+} from "./data-frames/schema";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
@@ -163,7 +166,7 @@ interface Data<T> {
   showPageSizeSelector: boolean;
   showColumnExplorer: boolean;
   showChartBuilder: boolean;
-  rowHeaders: string[];
+  rowHeaders: FieldTypesWithExternalType;
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
@@ -228,21 +231,14 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showPageSizeSelector: z.boolean().default(true),
       showColumnExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
-      rowHeaders: z.array(z.string()),
+      rowHeaders: columnToFieldTypesSchema,
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
       textJustifyColumns: z
         .record(z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      fieldTypes: z
-        .array(
-          z.tuple([
-            z.coerce.string(),
-            z.tuple([z.enum(DATA_TYPES), z.string()]),
-          ]),
-        )
-        .nullish(),
+      fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),

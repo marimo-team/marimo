@@ -166,7 +166,7 @@ describe("generateColumns", () => {
 
   it("should generate columns with row headers", () => {
     const columns = generateColumns({
-      rowHeaders: ["name"],
+      rowHeaders: [["name", ["string", "text"]]],
       selection: null,
       fieldTypes,
     });
@@ -179,7 +179,7 @@ describe("generateColumns", () => {
 
   it("should generate columns with nameless row headers", () => {
     const columns = generateColumns({
-      rowHeaders: [""],
+      rowHeaders: [["", ["string", "text"]]],
       selection: null,
       fieldTypes,
     });

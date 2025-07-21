@@ -375,7 +375,9 @@ class TestPandasTableManager(unittest.TestCase):
             index=pd.to_datetime(["2021-01-01", "2021-06-01", "2021-09-01"]),
         )
         manager = self.factory.create()(data)
-        assert manager.get_row_headers() == [""]
+        assert manager.get_row_headers() == [
+            ("", ("datetime", "datetime64[ns]"))
+        ]
 
     def test_get_row_headers_timedelta_index(self) -> None:
         data = pd.DataFrame(
@@ -387,7 +389,9 @@ class TestPandasTableManager(unittest.TestCase):
             index=pd.to_timedelta(["1 days", "2 days", "3 days"]),
         )
         manager = self.factory.create()(data)
-        assert manager.get_row_headers() == [""]
+        assert manager.get_row_headers() == [
+            ("", ("string", "timedelta64[ns]"))
+        ]
 
     def test_get_row_headers_multi_index(self) -> None:
         data = pd.DataFrame(
@@ -401,7 +405,10 @@ class TestPandasTableManager(unittest.TestCase):
             ),
         )
         manager = self.factory.create()(data)
-        assert manager.get_row_headers() == ["X", "Y"]
+        assert manager.get_row_headers() == [
+            ("X", ("string", "object")),
+            ("Y", ("integer", "int64")),
+        ]
 
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
@@ -1060,7 +1067,10 @@ class TestPandasTableManager(unittest.TestCase):
             index=[["a", "a", "b", "b"], [1, 2, 1, 2]],
         )
         manager = self.factory.create()(df)
-        assert manager.get_row_headers() == ["", ""]
+        assert manager.get_row_headers() == [
+            ("", ("string", "object")),
+            ("", ("integer", "int64")),
+        ]
         assert manager.get_num_rows() == 4
 
     def test_get_field_types_with_datetime(self):

@@ -20,6 +20,7 @@ from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
+    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
@@ -28,6 +29,9 @@ if TYPE_CHECKING:
     import pandas as pd
 
 LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    from pandas._typing import DtypeObj
 
 
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
@@ -218,10 +222,8 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             # We override the default implementation to use pandas
             # headers
-            def get_row_headers(
-                self,
-            ) -> list[str]:
-                return PandasTableManager._get_row_headers_for_index(
+            def get_row_headers(self) -> FieldTypes:
+                return self._get_row_headers_for_index(
                     self._original_data.index
                 )
 
@@ -229,26 +231,27 @@ class PandasTableManagerFactory(TableManagerFactory):
             def is_type(value: Any) -> bool:
                 return isinstance(value, pd.DataFrame)
 
-            @staticmethod
             def _get_row_headers_for_index(
-                index: pd.Index[Any],
-            ) -> list[str]:
+                self, index: pd.Index[Any]
+            ) -> FieldTypes:
                 # Ignore if it's the default index with no name
                 if index.name is None and isinstance(index, pd.RangeIndex):
                     return []
 
                 if isinstance(index, pd.MultiIndex):
                     # recurse
-                    headers: list[Any] = []
+                    headers: FieldTypes = []
                     for i in range(index.nlevels):
                         headers.extend(
-                            PandasTableManager._get_row_headers_for_index(
+                            self._get_row_headers_for_index(
                                 index.get_level_values(i)
                             )
                         )
                     return headers
 
-                return [str(index.name or "")]
+                dtype = index.dtype
+                field_type = self._map_dtype_to_field_type(dtype)
+                return [(str(index.name or ""), field_type)]
 
             # We override the default implementation to use pandas's
             # internal fields since they get displayed in the UI.
@@ -256,6 +259,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]
+                return self._map_dtype_to_field_type(dtype)
+
+            def _map_dtype_to_field_type(
+                self, dtype: str | pd.DataFrame | DtypeObj
+            ) -> tuple[FieldType, ExternalDataType]:
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns
                 if isinstance(dtype, pd.DataFrame):
