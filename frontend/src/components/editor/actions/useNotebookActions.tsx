@@ -35,6 +35,7 @@ import {
   PresentationIcon,
   SettingsIcon,
   Share2Icon,
+  TextSearchIcon,
   Undo2Icon,
   XCircleIcon,
   YoutubeIcon,
@@ -285,6 +286,12 @@ export function useNotebookActions() {
           handle: () => toggleApplication(type),
         };
       }),
+    },
+    {
+      icon: <TextSearchIcon size={14} strokeWidth={1.5} />,
+      label: "View live docs",
+      description: "Show the documentation helper panel",
+      handle: () => toggleApplication("documentation"),
     },
 
     {
@@ -542,6 +549,12 @@ export function useNotebookActions() {
       label: "Restart kernel",
       variant: "danger",
       handle: restartKernel,
+    },
+    {
+      icon: <MessagesSquareIcon size={14} strokeWidth={1.5} />,
+      label: "Helper panel > Chat with AI",
+      description: "Chat with AI assistant",
+      handle: () => toggleApplication("chat"),
     },
   ];
 
