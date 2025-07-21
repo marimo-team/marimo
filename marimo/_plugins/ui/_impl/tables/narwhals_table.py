@@ -10,7 +10,6 @@ import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
-from marimo._data.charts import TimeUnitOptions
 from marimo._data.models import (
     BinValue,
     ColumnStats,
@@ -31,7 +30,6 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
-    TemporalSummary,
 )
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
@@ -475,20 +473,20 @@ class NarwhalsTableManager(
                 bin_start = bin_end
         return bin_values
 
-    def get_temporal_summary(
+    def get_value_counts(
         self, column: str, sample_size: int
-    ) -> TemporalSummary:
+    ) -> list[ValueCount]:
         if column not in self.nw_schema:
             LOGGER.warning(f"Column {column} not found in schema")
-            return [], None
+            return []
 
         dtype = self.nw_schema[column]
         if not dtype.is_temporal():
-            return [], None
+            return []
 
         data = self.as_frame()
-
         col = data.get_column(column)
+
         min_date = col.min()
         max_date = col.max()
 
@@ -501,7 +499,7 @@ class NarwhalsTableManager(
             return [
                 ValueCount(value=row[0], count=row[1])
                 for row in value_counts.iter_rows(named=False)
-            ], "hoursminutesseconds"
+            ]
 
         # calculate time difference
         time_diff = max_date - min_date
@@ -509,9 +507,22 @@ class NarwhalsTableManager(
             return [], None
 
         days_diff = time_diff.days
-        date_aggregation, time_unit = self._get_agg_and_time_unit(
-            col, dtype, days_diff
-        )
+        date_aggregation = None
+
+        if days_diff > 365 * 10:  # More than 10 years
+            date_aggregation = col.dt.year()
+        elif days_diff > 365:  # More than a year
+            date_aggregation = col.dt.truncate("6mo")
+        elif days_diff > 31:  # More than a month
+            date_aggregation = col.dt.truncate("10d")
+        elif days_diff > 1:  # More than a day
+            if dtype == nw.Date:
+                date_aggregation = col.dt.truncate("1d")
+            else:
+                date_aggregation = col.dt.truncate("4h")
+        else:
+            date_aggregation = col.dt.truncate("30m")
+
         aggregated = (
             data.group_by(date_aggregation).agg(nw.len()).sort(by=column)
         )
@@ -523,35 +534,13 @@ class NarwhalsTableManager(
         return [
             ValueCount(value=row[0], count=row[1])
             for row in aggregated.iter_rows(named=False)
-        ], time_unit
+        ]
 
     def _sample_indexes(self, size: int, total: int) -> list[int]:
         """Sample evenly from a list of length `total`"""
         if total <= size:
             return list(range(total))
         return [round(i * (total - 1) / (size - 1)) for i in range(size)]
-
-    def _get_agg_and_time_unit(
-        self, col: nw.Series[Any], dtype: nw.DType, days_diff: int
-    ) -> tuple[nw.Series[Any], TimeUnitOptions]:
-        if days_diff > 365 * 10:  # More than 10 years
-            return col.dt.year(), "year"
-        elif days_diff > 365:  # More than a year
-            return col.dt.truncate("6mo"), "yearmonth"
-        elif days_diff > 31:  # More than a month
-            return col.dt.truncate("10d"), "yearmonthdate"
-        elif days_diff > 1:  # More than a day
-            if dtype == nw.Date:
-                return col.dt.truncate("1d"), "yearmonthdate"
-            else:
-                return col.dt.truncate("4h"), "yearmonthdatehours"
-        else:
-            agg = col.dt.truncate("30m")
-            if dtype == nw.Date:
-                # Date formats do not have hours, minutes, seconds
-                return agg, "yearmonthdate"
-            else:
-                return agg, "hoursminutesseconds"
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows

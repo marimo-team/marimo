@@ -1004,9 +1004,8 @@ class TestComputedColSummaries:
 
     def test_non_temporal_column(self, df: Any) -> None:
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary("int", 3)
+        value_counts = manager.get_value_counts("int", 3)
         assert value_counts == []
-        assert time_unit is None
 
     def test_time_column(self, df: Any) -> None:
         import pandas as pd
@@ -1016,19 +1015,16 @@ class TestComputedColSummaries:
             return
 
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary("time", 3)
+        value_counts = manager.get_value_counts("time", 3)
         assert value_counts == [
             ValueCount(value=datetime.time(1, 1, 1), count=1),
             ValueCount(value=datetime.time(3, 3, 3), count=1),
             ValueCount(value=datetime.time(5, 5, 5), count=1),
         ]
-        assert time_unit == "hoursminutesseconds"
 
     def test_datetime_1_day_column(self, df: Any) -> None:
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary(
-            "datetime_1_day", 3
-        )
+        value_counts = manager.get_value_counts("datetime_1_day", 3)
         assert value_counts == [
             self.create_expected_value_count(
                 df, datetime.datetime(2021, 1, 1, 1), 1
@@ -1040,31 +1036,19 @@ class TestComputedColSummaries:
                 df, datetime.datetime(2021, 1, 1, 5), 1
             ),
         ]
-        assert time_unit == "hoursminutesseconds"
 
     def test_date_5_days_column(self, df: Any) -> None:
-        import pandas as pd
-
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary(
-            "date_5_days", 3
-        )
+        value_counts = manager.get_value_counts("date_5_days", 3)
         assert value_counts == [
             self.create_expected_value_count(df, datetime.date(2021, 1, 1), 1),
             self.create_expected_value_count(df, datetime.date(2021, 1, 3), 1),
             self.create_expected_value_count(df, datetime.date(2021, 1, 5), 1),
         ]
-        # Pandas treats this as datetime.datetime, so it's a more specific time unit
-        if isinstance(df, pd.DataFrame):
-            assert time_unit == "yearmonthdatehours"
-        else:
-            assert time_unit == "yearmonthdate"
 
     def test_datetime_5_days_column(self, df: Any) -> None:
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary(
-            "datetime_5_days", 3
-        )
+        value_counts = manager.get_value_counts("datetime_5_days", 3)
         assert value_counts == [
             self.create_expected_value_count(
                 df, datetime.datetime(2021, 1, 1, 0), 1
@@ -1076,13 +1060,10 @@ class TestComputedColSummaries:
                 df, datetime.datetime(2021, 1, 5, 4), 1
             ),
         ]
-        assert time_unit == "yearmonthdatehours"
 
     def test_date_5_months_column(self, df: Any) -> None:
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary(
-            "date_5_months", 3
-        )
+        value_counts = manager.get_value_counts("date_5_months", 3)
         assert value_counts == [
             self.create_expected_value_count(
                 df, datetime.date(2020, 12, 24), 1
@@ -1094,47 +1075,31 @@ class TestComputedColSummaries:
                 df, datetime.date(2021, 4, 23), 1
             ),
         ]
-        assert time_unit == "yearmonthdate"
 
     def test_date_5_years_column(self, df: Any) -> None:
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary(
-            "date_5_years", 3
-        )
+        value_counts = manager.get_value_counts("date_5_years", 3)
         assert value_counts == [
             self.create_expected_value_count(df, datetime.date(2021, 1, 1), 1),
             self.create_expected_value_count(df, datetime.date(2023, 1, 1), 1),
             self.create_expected_value_count(df, datetime.date(2025, 1, 1), 1),
         ]
-        assert time_unit == "yearmonth"
 
     def test_date_20_years_column(self, df: Any) -> None:
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary(
-            "date_20_years", 3
-        )
+        value_counts = manager.get_value_counts("date_20_years", 3)
         assert value_counts == [
             ValueCount(value=2021, count=1),
             ValueCount(value=2031, count=1),
             ValueCount(value=2041, count=1),
         ]
-        assert time_unit == "year"
 
     def test_temporal_summary_with_multiple_count(self, df: Any) -> None:
-        import pandas as pd
-
         manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts, time_unit = manager.get_temporal_summary(
-            "multiple_count", 3
-        )
+        value_counts = manager.get_value_counts("multiple_count", 3)
         assert value_counts == [
             self.create_expected_value_count(df, datetime.date(2021, 1, 1), 5),
         ]
-        if isinstance(df, pd.DataFrame):
-            assert time_unit == "hoursminutesseconds"
-        else:
-            # Due to datetime.date, we can't get a more specific time unit
-            assert time_unit == "yearmonthdate"
 
 
 @pytest.mark.parametrize(

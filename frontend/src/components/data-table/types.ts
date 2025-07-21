@@ -2,7 +2,6 @@
 
 import type { DataType } from "@/core/kernel/messages";
 import { Objects } from "@/utils/objects";
-import type { TimeUnitTooltip } from "./charts/types";
 
 export type ColumnName = string;
 
@@ -54,10 +53,7 @@ interface ValueCount {
   value: unknown;
   count: number;
 }
-export interface TemporalColumnSummary {
-  value_counts: ValueCount[];
-  time_unit: TimeUnitTooltip | null;
-}
+export type ValueCounts = ValueCount[];
 
 export const SELECT_COLUMN_ID = "__select__";
 

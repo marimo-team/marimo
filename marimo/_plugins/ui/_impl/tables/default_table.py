@@ -7,7 +7,12 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Optional, Union, cast
 
-from marimo._data.models import BinValue, ColumnStats, ExternalDataType
+from marimo._data.models import (
+    BinValue,
+    ColumnStats,
+    ExternalDataType,
+    ValueCount,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
@@ -30,7 +35,6 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
-    TemporalSummary,
 )
 
 JsonTableData = Union[
@@ -333,11 +337,11 @@ class DefaultTableManager(TableManager[JsonTableData]):
         del column, num_bins
         return []
 
-    def get_temporal_summary(
+    def get_value_counts(
         self, column: str, sample_size: int
-    ) -> TemporalSummary:
+    ) -> list[ValueCount]:
         del column, sample_size
-        return ([], None)
+        return []
 
     def get_num_rows(self, force: bool = True) -> int:
         del force

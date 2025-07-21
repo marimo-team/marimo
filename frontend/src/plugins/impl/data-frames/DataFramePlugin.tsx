@@ -299,6 +299,6 @@ function getColumnSummaries() {
     stats: {},
     data: null,
     bin_values: {},
-    temporal_values: {},
+    value_counts: {},
   });
 }

@@ -17,7 +17,6 @@ import {
   typedAtob,
 } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
-import { TIME_UNIT_TOOLTIPS } from "./charts/types";
 import {
   getLegacyNumericSpec,
   getLegacyTemporalSpec,
@@ -27,7 +26,7 @@ import type {
   ColumnHeaderStats,
   ColumnName,
   FieldTypes,
-  TemporalColumnSummary,
+  ValueCounts,
 } from "./types";
 
 // We rely on vega's built-in binning to determine bar widths.
@@ -42,7 +41,7 @@ formats("arrow", arrow);
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, ColumnHeaderStats>();
   private columnBinValues = new Map<ColumnName, BinValues>();
-  private columnTemporalValues = new Map<ColumnName, TemporalColumnSummary>();
+  private columnValueCounts = new Map<ColumnName, ValueCounts>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
     [],
@@ -64,7 +63,7 @@ export class ColumnChartSpecModel<T> {
     private readonly fieldTypes: FieldTypes,
     readonly stats: Record<ColumnName, ColumnHeaderStats>,
     readonly binValues: Record<ColumnName, BinValues>,
-    readonly temporalValues: Record<ColumnName, TemporalColumnSummary>,
+    readonly valueCounts: Record<ColumnName, ValueCounts>,
     private readonly opts: {
       includeCharts: boolean;
       usePreComputedValues?: boolean;
@@ -109,7 +108,7 @@ export class ColumnChartSpecModel<T> {
 
     this.columnBinValues = new Map(Object.entries(binValues));
     this.columnStats = new Map(Object.entries(stats));
-    this.columnTemporalValues = new Map(Object.entries(temporalValues));
+    this.columnValueCounts = new Map(Object.entries(valueCounts));
   }
 
   public getColumnStats(column: string) {
@@ -138,16 +137,15 @@ export class ColumnChartSpecModel<T> {
     const usePreComputedValues = this.opts.usePreComputedValues;
     const binValues = this.columnBinValues.get(column);
     const hasBinValues = binValues && binValues.length > 0;
-    const temporalValues = this.columnTemporalValues.get(column);
-    const hasTemporalValues =
-      temporalValues && temporalValues.value_counts.length > 0;
+    const valueCounts = this.columnValueCounts.get(column);
+    const hasValueCounts = valueCounts && valueCounts.length > 0;
 
     let data = this.dataSpec as TopLevelFacetedUnitSpec["data"];
     if (usePreComputedValues) {
       if (hasBinValues) {
         data = { values: binValues, name: "bin_values" };
-      } else if (hasTemporalValues) {
-        data = { values: temporalValues.value_counts, name: "value_counts" };
+      } else if (hasValueCounts) {
+        data = { values: valueCounts, name: "value_counts" };
       }
     }
 
@@ -180,41 +178,19 @@ export class ColumnChartSpecModel<T> {
       case "date":
       case "datetime":
       case "time": {
-        if (!usePreComputedValues || !hasTemporalValues) {
+        if (!usePreComputedValues || !hasValueCounts) {
           return getLegacyTemporalSpec(column, type, base, scale);
         }
 
         // TODO: This chart raises a warning on hover - WARN: Infinite extent for field "value": [Infinity, -Infinity]
-
-        if (
-          temporalValues.time_unit &&
-          !TIME_UNIT_TOOLTIPS.includes(temporalValues.time_unit)
-        ) {
-          Logger.warn(
-            `Temporal value counts for column ${column} have an unrecognized time unit: ${temporalValues.time_unit}`,
-          );
-        }
-
         const xField = "value";
         const yField = "count";
-
-        const nonTemporalUnit =
-          temporalValues.time_unit === "year" || !temporalValues.time_unit;
 
         const tooltips: Array<StringFieldDef<string>> = [
           {
             field: xField,
             title: column,
-            // Hack with year time unit, we don't specify for this case as it bugs out
-            timeUnit:
-              nonTemporalUnit || !temporalValues.time_unit
-                ? undefined
-                : temporalValues.time_unit,
-            type: nonTemporalUnit ? undefined : "temporal",
-            format:
-              temporalValues.time_unit === "hoursminutesseconds"
-                ? "%I:%M:%S %p"
-                : undefined,
+            ...getPartialTimeTooltip(valueCounts),
           },
           {
             field: yField,
@@ -225,7 +201,7 @@ export class ColumnChartSpecModel<T> {
         ];
 
         // If there is only one value, we show bar chart instead
-        if (temporalValues.value_counts.length === 1) {
+        if (valueCounts.length === 1) {
           return {
             ...base,
             mark: {
@@ -530,4 +506,77 @@ export class ColumnChartSpecModel<T> {
       },
     };
   }
+}
+
+const readableTimeFormat = "%-I:%M:%S %p"; // e.g., 1:02:30 AM (no leading zero on hour)
+
+function getPartialTimeTooltip(
+  values: ValueCounts,
+): Partial<StringFieldDef<string>> {
+  if (values.length === 0) {
+    return {};
+  }
+
+  // Find non-null value
+  const value = values.find((v) => v.value !== null)?.value;
+  if (!value) {
+    return {};
+  }
+
+  // If value is a year (2019, 2020, etc), we return empty as it bugs out when we return a time unit
+  if (typeof value === "number" && value.toString().length === 4) {
+    return {};
+  }
+
+  // If value is just time (00:00:00, 01:00:00, etc)
+  if (typeof value === "string" && value.length === 8) {
+    return {
+      type: "temporal",
+      timeUnit: "hoursminutesseconds",
+      format: readableTimeFormat,
+    };
+  }
+
+  // If value is a date (2019-01-01, 2020-01-01, etc)
+  if (typeof value === "string" && value.length === 10) {
+    return {
+      type: "temporal",
+      timeUnit: "yearmonthdate",
+    };
+  }
+
+  // If value is a datetime (2019-01-01 00:00:00, 2020-01-01 00:00:00, 2023-05-15T01:00:00 etc)
+  if (typeof value === "string" && value.length === 19) {
+    const minimumValue = value; // non-null value
+    const maximumValue = values[values.length - 1].value;
+
+    try {
+      const minimumDate = new Date(minimumValue);
+      const maximumDate = new Date(maximumValue as string);
+      const timeDifference = maximumDate.getTime() - minimumDate.getTime();
+
+      // If time difference is less than 1 day, we use hoursminutesseconds
+      if (timeDifference < 1000 * 60 * 60 * 24) {
+        return {
+          type: "temporal",
+          timeUnit: "hoursminutesseconds",
+          format: readableTimeFormat,
+        };
+      }
+    } catch (error) {
+      Logger.debug("Error parsing date", error);
+    }
+
+    return {
+      type: "temporal",
+      timeUnit: "yearmonthdatehoursminutes",
+    };
+  }
+
+  Logger.debug("Unknown time unit", value);
+
+  return {
+    type: "temporal",
+    timeUnit: "yearmonthdate",
+  };
 }

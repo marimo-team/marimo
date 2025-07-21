@@ -42,10 +42,10 @@ import {
   type ColumnName,
   type DataTableSelection,
   type FieldTypesWithExternalType,
-  type TemporalColumnSummary,
   TOO_MANY_ROWS,
   type TooManyRows,
   toFieldTypes,
+  type ValueCounts,
 } from "@/components/data-table/types";
 import { loadTableData } from "@/components/data-table/utils";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
@@ -86,7 +86,7 @@ interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
   bin_values: Record<ColumnName, BinValues>;
-  temporal_values: Record<ColumnName, TemporalColumnSummary>;
+  value_counts: Record<ColumnName, ValueCounts>;
   is_disabled?: boolean;
 }
 
@@ -146,15 +146,12 @@ const binValues = z.array(
   }),
 );
 
-const temporalValues = z.object({
-  value_counts: z.array(
-    z.object({
-      value: z.any(),
-      count: z.number(),
-    }),
-  ),
-  time_unit: z.string().nullable(),
-}) as z.ZodType<TemporalColumnSummary>;
+const valueCounts = z.array(
+  z.object({
+    value: z.any(),
+    count: z.number(),
+  }),
+) as z.ZodType<ValueCounts>;
 
 /**
  * Arguments for a data table
@@ -279,7 +276,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .nullable(),
           stats: z.record(z.string(), columnStats),
           bin_values: z.record(z.string(), binValues),
-          temporal_values: z.record(z.string(), temporalValues),
+          value_counts: z.record(z.string(), valueCounts),
           is_disabled: z.boolean().optional(),
         }),
       ),
@@ -582,7 +579,7 @@ export const LoadingDataTableComponent = memo(
       ColumnSummaries<T>
     >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {}, bin_values: {}, temporal_values: {} };
+        return { data: null, stats: {}, bin_values: {}, value_counts: {} };
       }
       return props.get_column_summaries({ precompute });
     }, [
@@ -737,7 +734,7 @@ const DataTableComponent = ({
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
       columnSummaries.bin_values,
-      columnSummaries.temporal_values,
+      columnSummaries.value_counts,
       {
         includeCharts: Boolean(columnSummaries.data),
         usePreComputedValues: getFeatureFlag("performant_table_charts"),

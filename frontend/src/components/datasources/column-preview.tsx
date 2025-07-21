@@ -20,6 +20,7 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { type Theme, useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { prettyNumber } from "@/utils/numbers";
+import type { ColumnHeaderStatsKey } from "../data-table/types";
 import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
@@ -171,7 +172,10 @@ export function renderPreviewError({
 }
 
 export function renderStats(
-  stats: Record<string, string | number | boolean | null>,
+  stats: Record<
+    ColumnHeaderStatsKey,
+    string | number | boolean | null | undefined
+  >,
   dataType: DataType,
 ) {
   return (

@@ -18,7 +18,6 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.charts import TimeUnitOptions
 from marimo._data.models import BinValue, ColumnStats, ValueCount
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
@@ -93,17 +92,11 @@ class ColumnSummariesArgs:
 
 
 @dataclass
-class TemporalColumnSummary:
-    value_counts: list[ValueCount]
-    time_unit: Optional[TimeUnitOptions]
-
-
-@dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
     bin_values: dict[ColumnName, list[BinValue]]
-    temporal_values: dict[ColumnName, TemporalColumnSummary]
+    value_counts: dict[ColumnName, list[ValueCount]]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
@@ -832,7 +825,7 @@ class table(
                 data=None,
                 stats={},
                 bin_values={},
-                temporal_values={},
+                value_counts={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -847,7 +840,7 @@ class table(
                 data=None,
                 stats={},
                 bin_values={},
-                temporal_values={},
+                value_counts={},
                 is_disabled=True,
             )
 
@@ -866,7 +859,7 @@ class table(
         # we don't return the chart data
         chart_data = None
         bin_values: dict[ColumnName, list[BinValue]] = {}
-        temporal_values: dict[ColumnName, TemporalColumnSummary] = {}
+        value_counts: dict[ColumnName, list[ValueCount]] = {}
 
         data = self._searched_manager
 
@@ -898,14 +891,11 @@ class table(
                     )
 
                 try:
-                    temporal_counts, time_unit = data.get_temporal_summary(
+                    temporal_counts = data.get_value_counts(
                         column, DEFAULT_TEMPORAL_SAMPLE_SIZE
                     )
                     if len(temporal_counts) > 0:
-                        temporal_values[column] = TemporalColumnSummary(
-                            value_counts=temporal_counts,
-                            time_unit=time_unit,
-                        )
+                        value_counts[column] = temporal_counts
                         data = data.drop_columns([column])
                         continue
                 except BaseException as e:
@@ -922,7 +912,7 @@ class table(
             data=chart_data,
             stats=stats,
             bin_values=bin_values,
-            temporal_values=temporal_values,
+            value_counts=value_counts,
             is_disabled=False,
         )
 

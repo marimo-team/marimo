@@ -5,7 +5,6 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
-from marimo._data.charts import TimeUnitOptions
 from marimo._data.models import (
     BinValue,
     ColumnStats,
@@ -21,7 +20,6 @@ ColumnName = str
 RowId = str
 FieldType = DataType
 FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
-TemporalSummary = tuple[list[ValueCount], Optional[TimeUnitOptions]]
 
 
 class TableCoordinate(NamedTuple):
@@ -170,9 +168,9 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def get_temporal_summary(
+    def get_value_counts(
         self, column: str, sample_size: int
-    ) -> TemporalSummary:
+    ) -> list[ValueCount]:
         # Obtain the temporal summary for a column
         pass
 
