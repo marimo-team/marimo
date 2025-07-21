@@ -7,8 +7,11 @@ import { useLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
-import { invariant } from "@/utils/invariant";
-import { cellGraphsAtom, isVariableInSelectedDataflow } from "./minimap-state";
+import {
+  type CellGraph,
+  cellGraphsAtom,
+  isVariableAffectedBySelectedCell,
+} from "./minimap-state";
 
 interface MinimapCellProps {
   cellId: CellId;
@@ -73,9 +76,9 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
                         !isSelected &&
                         selectedCellId &&
                         selectedGraph &&
-                        isVariableInSelectedDataflow(variable, {
-                          cellId: selectedCellId,
-                          graph: selectedGraph,
+                        isVariableAffectedBySelectedCell(variable, {
+                          selectedCellId,
+                          selectedGraph,
                         }),
                     })}
                   >

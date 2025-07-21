@@ -116,41 +116,53 @@ export const cellGraphsAtom = atom((get) => {
   return buildCellGraph(notebook.cellIds.inOrderIds, variables);
 });
 
-export function isVariableInSelectedDataflow(
+/**
+ * Determines if a variable should be highlighted when a cell is selected.
+ *
+ * For upstream dataflow: We can precisely track which variables flow INTO the selected cell
+ * by checking what the selected cell actually uses.
+ *
+ * For downstream dataflow: We only have cell-level dependency information, not variable-level,
+ * so we highlight ALL variables in descendant cells since they will all be re-executed
+ * when the selected cell changes.
+ *
+ * @param variable - The variable to check for highlighting
+ * @param options - The currently selected cell and its dependency graph
+ */
+export function isVariableAffectedBySelectedCell(
   variable: Variable,
-  selected: {
-    cellId: CellId;
-    graph: {
-      ancestors: ReadonlySet<CellId>;
-      descendants: ReadonlySet<CellId>;
-    };
-  },
+  options: { selectedCellId: CellId; selectedGraph: CellGraph },
 ): boolean {
-  // Variable is used by the selected cell
-  if (variable.usedBy.includes(selected.cellId)) {
+  // Case 1: Variable is used by the selected cell (incoming dataflow)
+  if (variable.usedBy.includes(options.selectedCellId)) {
     return true;
   }
 
-  // Variable is declared by the selected cell and used by someone
-  if (
-    variable.declaredBy.includes(selected.cellId) &&
-    variable.usedBy.length > 0
-  ) {
+  // Case 2: Variable is declared by the selected cell (outgoing dataflow)
+  if (variable.declaredBy.includes(options.selectedCellId)) {
     return true;
   }
 
-  // Variable flows through the selected cell:
-  // It must be declared by an ancestor AND used by the selected cell or a descendant
+  // Case 3: Variable is declared by an ancestor AND used by selected cell or descendants
+  // This captures the flow-through case
   const isDeclaredByAncestor = variable.declaredBy.some((declarer) =>
-    selected.graph.ancestors.has(declarer),
+    options.selectedGraph.parents.has(declarer),
   );
 
   if (isDeclaredByAncestor) {
-    // Only highlight if this variable is actually used by selected cell or its descendants
-    return (
-      variable.usedBy.includes(selected.cellId) ||
-      variable.usedBy.some((user) => selected.graph.descendants.has(user))
+    return variable.usedBy.some((user) =>
+      options.selectedGraph.parents.has(user),
     );
+  }
+
+  // Case 4: Variable is declared by a descendant
+  // These will be re-executed when the selected cell changes
+  const isDeclaredByDescendant = variable.declaredBy.some((declarer) =>
+    options.selectedGraph.children.has(declarer),
+  );
+
+  if (isDeclaredByDescendant) {
+    return true;
   }
 
   return false;
