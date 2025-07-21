@@ -43,7 +43,7 @@ function computeTransitiveClosure(
   return result;
 }
 
-function buildCellGraph(
+export function buildCellGraph(
   cellIds: CellId[],
   variables: Variables,
 ): Record<CellId, CellGraph> {
