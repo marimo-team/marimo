@@ -278,6 +278,7 @@ export const DataFrameComponent = memo(
           showFilters={false}
           search={search}
           showColumnSummaries={false}
+          showDataTypes={true}
           get_column_summaries={getColumnSummaries}
           showPageSizeSelector={(total_rows && total_rows > 5) || false}
           showColumnExplorer={false}
