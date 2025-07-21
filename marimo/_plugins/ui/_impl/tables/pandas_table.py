@@ -232,7 +232,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 dtype = index.dtype
                 field_type = self._map_dtype_to_field_type(dtype)
-                return [(index.name or "", field_type)]
+                return [(str(index.name or ""), field_type)]
 
             # We override the default implementation to use pandas's
             # internal fields since they get displayed in the UI.
