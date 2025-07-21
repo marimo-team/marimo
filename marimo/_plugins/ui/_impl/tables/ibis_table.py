@@ -4,7 +4,12 @@ from __future__ import annotations
 import functools
 from typing import Any, Optional
 
-from marimo._data.models import BinValue, ColumnStats, ExternalDataType
+from marimo._data.models import (
+    BinValue,
+    ColumnStats,
+    ExternalDataType,
+    ValueCount,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -194,6 +199,11 @@ class IbisTableManagerFactory(TableManagerFactory):
                     )
                     for row in result.execute().itertuples(index=False)
                 ]
+
+            def get_temporal_value_counts(
+                self, column: str, sample_size: int
+            ) -> list[ValueCount]:
+                pass
 
             @memoize_last_value
             def get_num_rows(self, force: bool = True) -> Optional[int]:

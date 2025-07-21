@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { mint, orange, slate } from "@radix-ui/colors";
+import { mint, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
+import type { StringFieldDef } from "vega-lite/build/src/channeldef";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
 import { asRemoteURL } from "@/core/runtime/config";
@@ -15,11 +16,18 @@ import {
   isDataURLString,
   typedAtob,
 } from "@/utils/json/base64";
+import { Logger } from "@/utils/Logger";
+import { TIME_UNIT_TOOLTIPS } from "./charts/types";
+import {
+  getLegacyNumericSpec,
+  getLegacyTemporalSpec,
+} from "./legacy-chart-spec";
 import type {
   BinValues,
   ColumnHeaderStats,
   ColumnName,
   FieldTypes,
+  TemporalColumnSummary,
 } from "./types";
 
 // We rely on vega's built-in binning to determine bar widths.
@@ -34,9 +42,11 @@ formats("arrow", arrow);
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, ColumnHeaderStats>();
   private columnBinValues = new Map<ColumnName, BinValues>();
+  private columnTemporalValues = new Map<ColumnName, TemporalColumnSummary>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
     [],
+    {},
     {},
     {},
     {},
@@ -54,6 +64,7 @@ export class ColumnChartSpecModel<T> {
     private readonly fieldTypes: FieldTypes,
     readonly stats: Record<ColumnName, ColumnHeaderStats>,
     readonly binValues: Record<ColumnName, BinValues>,
+    readonly temporalValues: Record<ColumnName, TemporalColumnSummary>,
     private readonly opts: {
       includeCharts: boolean;
       usePreComputedValues?: boolean;
@@ -98,6 +109,7 @@ export class ColumnChartSpecModel<T> {
 
     this.columnBinValues = new Map(Object.entries(binValues));
     this.columnStats = new Map(Object.entries(stats));
+    this.columnTemporalValues = new Map(Object.entries(temporalValues));
   }
 
   public getColumnStats(column: string) {
@@ -126,12 +138,21 @@ export class ColumnChartSpecModel<T> {
     const usePreComputedValues = this.opts.usePreComputedValues;
     const binValues = this.columnBinValues.get(column);
     const hasBinValues = binValues && binValues.length > 0;
+    const temporalValues = this.columnTemporalValues.get(column);
+    const hasTemporalValues =
+      temporalValues && temporalValues.value_counts.length > 0;
+
+    let data = this.dataSpec as TopLevelFacetedUnitSpec["data"];
+    if (usePreComputedValues) {
+      if (hasBinValues) {
+        data = { values: binValues, name: "bin_values" };
+      } else if (hasTemporalValues) {
+        data = { values: temporalValues.value_counts, name: "value_counts" };
+      }
+    }
 
     const base: TopLevelFacetedUnitSpec = {
-      data:
-        hasBinValues && usePreComputedValues
-          ? { values: binValues }
-          : (this.dataSpec as TopLevelFacetedUnitSpec["data"]),
+      data,
       background: "transparent",
       config: {
         view: {
@@ -159,92 +180,147 @@ export class ColumnChartSpecModel<T> {
       case "date":
       case "datetime":
       case "time": {
-        const format =
-          type === "date"
-            ? "%Y-%m-%d"
-            : type === "time"
-              ? "%H:%M:%S"
-              : "%Y-%m-%dT%H:%M:%S";
+        if (!usePreComputedValues || !hasTemporalValues) {
+          return getLegacyTemporalSpec(column, type, base, scale);
+        }
+
+        // TODO: This chart raises a warning on hover - WARN: Infinite extent for field "value": [Infinity, -Infinity]
+
+        if (!TIME_UNIT_TOOLTIPS.includes(temporalValues.time_unit)) {
+          Logger.warn(
+            `Temporal value counts for column ${column} have an unrecognized time unit: ${temporalValues.time_unit}`,
+          );
+        }
+
+        const xField = "value";
+        const yField = "count";
+
+        const tooltips: Array<StringFieldDef<string>> = [
+          {
+            field: xField,
+            title: column,
+            // Hack with year time unit, we don't specify for this case as it bugs out
+            timeUnit:
+              temporalValues.time_unit === "year"
+                ? undefined
+                : temporalValues.time_unit,
+            type: temporalValues.time_unit === "year" ? undefined : "temporal",
+          },
+          {
+            field: yField,
+            type: "quantitative",
+            title: "Count",
+            format: ",d",
+          },
+        ];
+
+        // If there is only one value, we show bar chart instead
+        if (temporalValues.value_counts.length === 1) {
+          return {
+            ...base,
+            mark: {
+              type: "bar",
+              color: mint.mint11,
+            },
+            encoding: {
+              x: {
+                field: xField,
+                axis: null,
+                scale: scale,
+              },
+              y: {
+                field: yField,
+                type: "quantitative",
+                axis: null,
+              },
+              tooltip: tooltips,
+            },
+          };
+        }
 
         return {
           ...base,
-          // Two layers: one with the visible bars, and one with invisible bars
-          // that provide a larger tooltip area.
+          encoding: {
+            x: {
+              field: xField,
+              type: "temporal",
+              axis: null,
+              scale: scale,
+            },
+          },
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
-              mark: {
-                type: "bar",
-                color: mint.mint11,
-              },
               encoding: {
-                x: {
-                  field: column,
-                  type: "temporal",
+                y: {
+                  field: yField,
+                  type: "quantitative",
                   axis: null,
-                  bin: true,
-                  scale: scale,
-                },
-                y: { aggregate: "count", type: "quantitative", axis: null },
-                // Color nulls
-                color: {
-                  condition: {
-                    test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
-                    value: orange.orange11,
-                  },
-                  value: mint.mint11,
                 },
               },
+              layer: [
+                {
+                  mark: {
+                    type: "area",
+                    line: {
+                      color: mint.mint11,
+                    },
+                    color: {
+                      x1: 1,
+                      y1: 1,
+                      x2: 1,
+                      y2: 0,
+                      gradient: "linear",
+                      stops: [
+                        {
+                          offset: 0,
+                          color: mint.mint10,
+                        },
+                        {
+                          offset: 0.6,
+                          color: mint.mint11,
+                        },
+                        {
+                          offset: 1,
+                          color: mint.mint11,
+                        },
+                      ],
+                    },
+                  },
+                },
+                {
+                  transform: [{ filter: { param: "hover", empty: false } }],
+                  mark: "point",
+                  encoding: {
+                    size: {
+                      value: 20,
+                    },
+                  },
+                },
+              ],
             },
-
-            // 0 opacity full-height bars with tooltips, since it is too hard to trigger
-            // the tooltip for very small bars.
+            // Vertical rule line
             {
-              mark: {
-                type: "bar",
-                opacity: 0,
-              },
+              mark: "rule",
               encoding: {
-                x: {
-                  field: column,
-                  type: "temporal",
-                  axis: null,
-                  bin: true,
-                  scale: scale,
+                opacity: {
+                  condition: { value: 0.3, param: "hover", empty: false },
+                  value: 0,
                 },
-                y: { aggregate: "max", type: "quantitative", axis: null },
-                tooltip: [
-                  {
-                    // Can also use column, but this is more explicit
-                    field: `bin_maxbins_10_${column}`,
-                    type: "temporal",
-                    format: format,
-                    bin: { binned: true },
-                    title: `${column} (start)`,
-                  },
-                  {
-                    field: `bin_maxbins_10_${column}_end`,
-                    type: "temporal",
-                    format: format,
-                    bin: { binned: true },
-                    title: `${column} (end)`,
-                  },
-                  {
-                    aggregate: "count",
-                    type: "quantitative",
-                    title: "Count",
-                    format: ",d",
-                  },
-                ],
-                // Color nulls
-                color: {
-                  condition: {
-                    test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
-                    value: orange.orange11,
-                  },
-                  value: mint.mint11,
-                },
+                tooltip: tooltips,
               },
+              params: [
+                {
+                  name: "hover",
+                  select: {
+                    type: "point",
+                    fields: [xField],
+                    nearest: true,
+                    on: "pointerover",
+                    clear: "pointerout",
+                  },
+                },
+              ],
             },
           ],
         };
@@ -279,6 +355,7 @@ export class ColumnChartSpecModel<T> {
                   select: {
                     type: "point",
                     on: "mouseover",
+                    clear: "mouseout",
                   },
                 },
               ],
@@ -443,79 +520,4 @@ export class ColumnChartSpecModel<T> {
       },
     };
   }
-}
-
-function getLegacyNumericSpec(
-  column: string,
-  format: string,
-  base: TopLevelFacetedUnitSpec,
-): TopLevelFacetedUnitSpec {
-  return {
-    ...base, // Assuming base contains shared configurations
-    // Two layers: one with the visible bars, and one with invisible bars
-    // that provide a larger tooltip area.
-    // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
-    layer: [
-      {
-        mark: {
-          type: "bar",
-          color: mint.mint11,
-        },
-        encoding: {
-          x: {
-            field: column,
-            type: "quantitative",
-            bin: true,
-          },
-          y: {
-            aggregate: "count",
-            type: "quantitative",
-            axis: null,
-          },
-        },
-      },
-
-      // Tooltip layer
-      {
-        mark: {
-          type: "bar",
-          opacity: 0,
-        },
-        encoding: {
-          x: {
-            field: column,
-            type: "quantitative",
-            bin: true,
-            axis: {
-              title: null,
-              labelFontSize: 8.5,
-              labelOpacity: 0.5,
-              labelExpr:
-                "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
-            },
-          },
-          y: {
-            aggregate: "max",
-            type: "quantitative",
-            axis: null,
-          },
-          tooltip: [
-            {
-              field: column,
-              type: "quantitative",
-              bin: true,
-              title: column,
-              format: format,
-            },
-            {
-              aggregate: "count",
-              type: "quantitative",
-              title: "Count",
-              format: ",d",
-            },
-          ],
-        },
-      },
-    ],
-  };
 }

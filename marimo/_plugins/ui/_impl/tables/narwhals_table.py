@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 import functools
 import io
 from functools import cached_property
@@ -10,7 +11,13 @@ import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
-from marimo._data.models import BinValue, ColumnStats, ExternalDataType
+from marimo._data.charts import TimeUnitOptions
+from marimo._data.models import (
+    BinValue,
+    ColumnStats,
+    ExternalDataType,
+    ValueCount,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
@@ -439,15 +446,19 @@ class NarwhalsTableManager(
         return ColumnStats(**stats_dict)
 
     def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
-        dtype = self.nw_schema[column]
-        if column not in self.nw_schema or not dtype.is_numeric():
+        if column not in self.nw_schema:
+            LOGGER.warning(f"Column {column} not found in schema")
             return []
 
-        import warnings
+        dtype = self.nw_schema[column]
+        if not dtype.is_numeric():
+            return []
 
         col = self.as_frame().get_column(column)
         bin_start = col.min()
         bin_values = []
+
+        import warnings
 
         with warnings.catch_warnings():
             warnings.filterwarnings(
@@ -463,6 +474,87 @@ class NarwhalsTableManager(
                 )
                 bin_start = bin_end
         return bin_values
+
+    def get_temporal_value_counts(
+        self, column: str, sample_size: int
+    ) -> tuple[list[ValueCount], Optional[TimeUnitOptions]]:
+        if column not in self.nw_schema:
+            LOGGER.warning(f"Column {column} not found in schema")
+            return [], None
+
+        dtype = self.nw_schema[column]
+        if not dtype.is_temporal():
+            return [], None
+
+        data = self.as_frame()
+
+        col = data.get_column(column)
+        min_date = col.min()
+        max_date = col.max()
+
+        if isinstance(min_date, (nw.Time, datetime.time)) and isinstance(
+            max_date, (nw.Time, datetime.time)
+        ):
+            value_counts = col.value_counts().sort(by=column)
+            if value_counts.shape[0] > sample_size:
+                idxs = self._sample_indexes(sample_size, value_counts.shape[0])
+                value_counts = value_counts[idxs]
+
+            return [
+                ValueCount(value=row[0], count=row[1])
+                for row in value_counts.iter_rows()
+            ], "hoursminutesseconds"
+
+        # calculate time difference
+        time_diff = max_date - min_date
+        if not hasattr(time_diff, "days"):
+            return [], None
+
+        days_diff = time_diff.days
+        LOGGER.debug(
+            f"Calculating temporal chart values for {column} with days_diff: {days_diff}"
+        )
+
+        date_aggregation: nw.Series[Any] = None
+        time_unit: Optional[TimeUnitOptions] = None
+
+        if days_diff > 365 * 10:  # More than 10 years
+            date_aggregation = col.dt.year()
+            time_unit = "year"
+        elif days_diff > 365:  # More than a year
+            date_aggregation = col.dt.truncate("6mo")
+            time_unit = "yearmonth"
+        elif days_diff > 31:  # More than a month
+            date_aggregation = col.dt.truncate("10d")
+            time_unit = "yearmonthdate"
+        elif days_diff > 1:  # More than a day
+            date_aggregation = col.dt.truncate("4h")
+            time_unit = "yearmonthdate"
+        else:
+            date_aggregation = col.dt.truncate("30m")
+            if dtype == nw.Datetime or dtype == nw.Time:
+                time_unit = "hoursminutesseconds"
+            elif dtype == nw.Date:
+                time_unit = "yearmonthdate"
+
+        aggregated = (
+            data.group_by(date_aggregation).agg(nw.len()).sort(by=column)
+        )
+
+        if len(aggregated) > sample_size:
+            idxs = self._sample_indexes(sample_size, len(aggregated))
+            aggregated = aggregated[idxs]
+
+        return [
+            ValueCount(value=row[0], count=row[1])
+            for row in aggregated.iter_rows()
+        ], time_unit
+
+    def _sample_indexes(self, size: int, total: int) -> list[int]:
+        """Sample evenly from a list of length `total`"""
+        if total <= size:
+            return list(range(total))
+        return [round(i * (total - 1) / (size - 1)) for i in range(size)]
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows

@@ -5,11 +5,13 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
+from marimo._data.charts import TimeUnitOptions
 from marimo._data.models import (
     BinValue,
     ColumnStats,
     DataType,
     ExternalDataType,
+    ValueCount,
 )
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -164,6 +166,12 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
+        pass
+
+    @abc.abstractmethod
+    def get_temporal_value_counts(
+        self, column: str, sample_size: int
+    ) -> tuple[list[ValueCount], Optional[TimeUnitOptions]]:
         pass
 
     @abc.abstractmethod

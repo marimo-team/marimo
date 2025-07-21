@@ -27,6 +27,7 @@ import type { CellStyleState } from "@/components/data-table/cell-styling/types"
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
+import { TIME_UNIT_TOOLTIPS } from "@/components/data-table/charts/types";
 import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
 import {
@@ -42,6 +43,7 @@ import {
   type ColumnName,
   type DataTableSelection,
   type FieldTypesWithExternalType,
+  type TemporalColumnSummary,
   TOO_MANY_ROWS,
   type TooManyRows,
   toFieldTypes,
@@ -85,6 +87,7 @@ interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
   bin_values: Record<ColumnName, BinValues>;
+  temporal_values: Record<ColumnName, TemporalColumnSummary>;
   is_disabled?: boolean;
 }
 
@@ -143,6 +146,16 @@ const binValues = z.array(
     count: z.number(),
   }),
 );
+
+const temporalValues = z.object({
+  value_counts: z.array(
+    z.object({
+      value: z.any(),
+      count: z.number(),
+    }),
+  ),
+  time_unit: z.enum(TIME_UNIT_TOOLTIPS),
+}) as z.ZodType<TemporalColumnSummary>;
 
 /**
  * Arguments for a data table
@@ -267,6 +280,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .nullable(),
           stats: z.record(z.string(), columnStats),
           bin_values: z.record(z.string(), binValues),
+          temporal_values: z.record(z.string(), temporalValues),
           is_disabled: z.boolean().optional(),
         }),
       ),
@@ -569,7 +583,7 @@ export const LoadingDataTableComponent = memo(
       ColumnSummaries<T>
     >(async () => {
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {}, bin_values: {} };
+        return { data: null, stats: {}, bin_values: {}, temporal_values: {} };
       }
       return props.get_column_summaries({ precompute });
     }, [
@@ -724,6 +738,7 @@ const DataTableComponent = ({
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
       columnSummaries.bin_values,
+      columnSummaries.temporal_values,
       {
         includeCharts: Boolean(columnSummaries.data),
         usePreComputedValues: getFeatureFlag("performant_table_charts"),

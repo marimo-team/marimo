@@ -151,6 +151,20 @@ class BinValue:
 
 
 @dataclass
+class ValueCount:
+    """
+    Represents value counts for a column in a data table. This is used for plotting.
+
+    Attributes:
+        value (Any): The value.
+        count (int): The count of values.
+    """
+
+    value: Any
+    count: int
+
+
+@dataclass
 class DataSourceConnection:
     """
     Represents a data source connection.

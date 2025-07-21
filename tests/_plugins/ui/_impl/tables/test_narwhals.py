@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import time
 import unittest
 from math import isnan
 from typing import Any
@@ -9,7 +10,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import BinValue, ColumnStats
+from marimo._data.models import BinValue, ColumnStats, ValueCount
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -979,6 +980,155 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
+        {
+            "int": [1, 2, 3, 4, 5],
+            "time": [
+                datetime.time(1, 1, 1),
+                datetime.time(2, 2, 2),
+                datetime.time(3, 3, 3),
+                datetime.time(4, 4, 4),
+                datetime.time(5, 5, 5),
+            ],
+            "datetime_1_day": [
+                datetime.datetime(2021, 1, 1, 1, 1, 1),
+                datetime.datetime(2021, 1, 1, 2, 2, 2),
+                datetime.datetime(2021, 1, 1, 3, 3, 3),
+                datetime.datetime(2021, 1, 1, 4, 4, 4),
+                datetime.datetime(2021, 1, 1, 5, 5, 5),
+            ],
+            "date_5_days": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 2),
+                datetime.date(2021, 1, 3),
+                datetime.date(2021, 1, 4),
+                datetime.date(2021, 1, 5),
+            ],
+            "date_5_months": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 2, 1),
+                datetime.date(2021, 3, 1),
+                datetime.date(2021, 4, 1),
+                datetime.date(2021, 5, 1),
+            ],
+            "date_5_years": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2022, 1, 1),
+                datetime.date(2023, 1, 1),
+                datetime.date(2024, 1, 1),
+                datetime.date(2025, 1, 1),
+            ],
+            "date_20_years": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2026, 1, 1),
+                datetime.date(2031, 1, 1),
+                datetime.date(2036, 1, 1),
+                datetime.date(2041, 1, 1),
+            ],
+            "multiple_count": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+            ],
+        },
+        exclude=["ibis", "duckdb"],
+    ),
+)
+def test_get_temporal_value_counts(df: Any) -> None:
+    import pandas as pd
+
+    def create_expected_value_counts(
+        date: datetime.date, count: int
+    ) -> ValueCount:
+        if isinstance(df, pd.DataFrame):
+            return ValueCount(value=pd.Timestamp(date), count=count)
+        else:
+            return ValueCount(value=date, count=count)
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    # Test with non-temporal column
+    value_counts, time_unit = manager.get_temporal_value_counts("int", 3)
+    assert value_counts == []
+    assert time_unit is None
+
+    value_counts, time_unit = manager.get_temporal_value_counts(
+        "datetime_1_day", 3
+    )
+    assert value_counts == [
+        create_expected_value_counts(datetime.datetime(2021, 1, 1, 1, 0), 1),
+        create_expected_value_counts(datetime.datetime(2021, 1, 1, 3, 0), 1),
+        create_expected_value_counts(datetime.datetime(2021, 1, 1, 5, 0), 1),
+    ]
+    assert time_unit == "hoursminutesseconds"
+
+    value_counts, time_unit = manager.get_temporal_value_counts(
+        "date_5_days", 3
+    )
+    assert value_counts == [
+        create_expected_value_counts(datetime.date(2021, 1, 1), 1),
+        create_expected_value_counts(datetime.date(2021, 1, 3), 1),
+        create_expected_value_counts(datetime.date(2021, 1, 5), 1),
+    ]
+    assert time_unit == "yearmonthdate"
+
+    value_counts, time_unit = manager.get_temporal_value_counts(
+        "date_5_months", 3
+    )
+    assert value_counts == [
+        create_expected_value_counts(datetime.date(2020, 12, 24), 1),
+        create_expected_value_counts(datetime.date(2021, 2, 22), 1),
+        create_expected_value_counts(datetime.date(2021, 4, 23), 1),
+    ]
+    assert time_unit == "yearmonthdate"
+
+    value_counts, time_unit = manager.get_temporal_value_counts(
+        "date_5_years", 3
+    )
+    assert value_counts == [
+        create_expected_value_counts(datetime.date(2021, 1, 1), 1),
+        create_expected_value_counts(datetime.date(2023, 1, 1), 1),
+        create_expected_value_counts(datetime.date(2025, 1, 1), 1),
+    ]
+    assert time_unit == "yearmonth"
+
+    value_counts, time_unit = manager.get_temporal_value_counts(
+        "date_20_years", 3
+    )
+    assert value_counts == [
+        ValueCount(value=2021, count=1),
+        ValueCount(value=2031, count=1),
+        ValueCount(value=2041, count=1),
+    ]
+    assert time_unit == "year"
+
+    value_counts, time_unit = manager.get_temporal_value_counts(
+        "multiple_count", 3
+    )
+    assert value_counts == [
+        create_expected_value_counts(datetime.date(2021, 1, 1), 5),
+    ]
+    # due to date type, we default to year month date
+    assert time_unit == "yearmonthdate"
+
+    # exclude pandas because it doesn't support time objects
+    if isinstance(df, pd.DataFrame):
+        return
+    value_counts, time_unit = manager.get_temporal_value_counts("time", 3)
+    # sampled evenly
+    assert value_counts == [
+        ValueCount(value=datetime.time(1, 1, 1), count=1),
+        ValueCount(value=datetime.time(3, 3, 3), count=1),
+        ValueCount(value=datetime.time(5, 5, 5), count=1),
+    ]
+    assert time_unit == "hoursminutesseconds"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
         {"A": ["apple", "banana", "cherry"]}, exclude=["ibis", "duckdb"]
     ),
 )
@@ -1281,8 +1431,6 @@ def test_get_sample_values_returns_primitives() -> None:
     create_dataframes({f"col_{i}": [1, 2, 3] for i in range(2000)}),
 )
 def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
-    import time
-
     manager = get_table_manager(df)
 
     start_time = time.time()

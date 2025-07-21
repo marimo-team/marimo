@@ -2,6 +2,7 @@
 
 import type { DataType } from "@/core/kernel/messages";
 import { Objects } from "@/utils/objects";
+import type { TimeUnitTooltip } from "./charts/types";
 
 export type ColumnName = string;
 
@@ -20,7 +21,7 @@ export const ColumnHeaderStatsKeys = [
   "p25",
   "p75",
   "p95",
-];
+] as const;
 export type ColumnHeaderStatsKey = (typeof ColumnHeaderStatsKeys)[number];
 export type ColumnHeaderStats = Record<
   ColumnHeaderStatsKey,
@@ -48,6 +49,15 @@ interface BinValue {
   count: number;
 }
 export type BinValues = BinValue[];
+
+interface ValueCount {
+  value: unknown;
+  count: number;
+}
+export interface TemporalColumnSummary {
+  value_counts: ValueCount[];
+  time_unit: TimeUnitTooltip;
+}
 
 export const SELECT_COLUMN_ID = "__select__";
 

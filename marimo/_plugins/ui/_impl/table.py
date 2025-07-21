@@ -18,7 +18,8 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.models import BinValue, ColumnStats
+from marimo._data.charts import TimeUnitOptions
+from marimo._data.models import BinValue, ColumnStats, ValueCount
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import ColumnPreview
@@ -92,17 +93,23 @@ class ColumnSummariesArgs:
 
 
 @dataclass
+class TemporalColumnSummary:
+    value_counts: list[ValueCount]
+    time_unit: TimeUnitOptions
+
+
+@dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
     bin_values: dict[ColumnName, list[BinValue]]
+    temporal_values: dict[ColumnName, TemporalColumnSummary]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
 
 
 DEFAULT_MAX_COLUMNS = 50
-DEFAULT_NUM_BINS = 9
 
 MaxColumnsNotProvided = Literal["inherit"]
 MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
@@ -825,6 +832,7 @@ class table(
                 data=None,
                 stats={},
                 bin_values={},
+                temporal_values={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -839,6 +847,7 @@ class table(
                 data=None,
                 stats={},
                 bin_values={},
+                temporal_values={},
                 is_disabled=True,
             )
 
@@ -857,8 +866,12 @@ class table(
         # we don't return the chart data
         chart_data = None
         bin_values: dict[ColumnName, list[BinValue]] = {}
+        temporal_values: dict[ColumnName, TemporalColumnSummary] = {}
 
         data = self._searched_manager
+
+        DEFAULT_BIN_SIZE = 9
+        DEFAULT_TEMPORAL_SAMPLE_SIZE = 12
 
         for column in self._manager.get_column_names():
             if should_get_stats:
@@ -872,15 +885,36 @@ class table(
 
             if should_get_chart_data and args.precompute:
                 try:
-                    # TODO: Could optimize further by getting all columns lazily
-                    bins = data.get_bin_values(column, DEFAULT_NUM_BINS)
+                    bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     if len(bins) > 0:
                         bin_values[column] = bins
-                        # Charts will use bin_values instead of data, so we drop the column
                         data = data.drop_columns([column])
-                except BaseException:
+                        continue
+                except BaseException as e:
                     LOGGER.warning(
-                        "Failed to get bin values for column %s", column
+                        "Failed to get bin values for column %s: %s",
+                        column,
+                        e,
+                    )
+
+                try:
+                    temporal_counts, time_unit = (
+                        data.get_temporal_value_counts(
+                            column, DEFAULT_TEMPORAL_SAMPLE_SIZE
+                        )
+                    )
+                    if len(temporal_counts) > 0:
+                        temporal_values[column] = TemporalColumnSummary(
+                            value_counts=temporal_counts,
+                            time_unit=time_unit,
+                        )
+                        data = data.drop_columns([column])
+                        continue
+                except BaseException as e:
+                    LOGGER.warning(
+                        "Failed to get temporal value counts for column %s: %s",
+                        column,
+                        e,
                     )
 
         if should_get_chart_data:
@@ -890,6 +924,7 @@ class table(
             data=chart_data,
             stats=stats,
             bin_values=bin_values,
+            temporal_values=temporal_values,
             is_disabled=False,
         )
 
