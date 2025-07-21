@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import datetime
 import functools
 import io
 from functools import cached_property
@@ -32,6 +31,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCell,
     TableCoordinate,
     TableManager,
+    TemporalSummary,
 )
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
@@ -475,9 +475,9 @@ class NarwhalsTableManager(
                 bin_start = bin_end
         return bin_values
 
-    def get_temporal_value_counts(
+    def get_temporal_summary(
         self, column: str, sample_size: int
-    ) -> tuple[list[ValueCount], Optional[TimeUnitOptions]]:
+    ) -> TemporalSummary:
         if column not in self.nw_schema:
             LOGGER.warning(f"Column {column} not found in schema")
             return [], None
@@ -492,9 +492,7 @@ class NarwhalsTableManager(
         min_date = col.min()
         max_date = col.max()
 
-        if isinstance(min_date, (nw.Time, datetime.time)) and isinstance(
-            max_date, (nw.Time, datetime.time)
-        ):
+        if dtype == nw.Time:
             value_counts = col.value_counts().sort(by=column)
             if value_counts.shape[0] > sample_size:
                 idxs = self._sample_indexes(sample_size, value_counts.shape[0])
@@ -502,7 +500,7 @@ class NarwhalsTableManager(
 
             return [
                 ValueCount(value=row[0], count=row[1])
-                for row in value_counts.iter_rows()
+                for row in value_counts.iter_rows(named=False)
             ], "hoursminutesseconds"
 
         # calculate time difference
@@ -511,32 +509,9 @@ class NarwhalsTableManager(
             return [], None
 
         days_diff = time_diff.days
-        LOGGER.debug(
-            f"Calculating temporal chart values for {column} with days_diff: {days_diff}"
+        date_aggregation, time_unit = self._get_agg_and_time_unit(
+            col, dtype, days_diff
         )
-
-        date_aggregation: nw.Series[Any] = None
-        time_unit: Optional[TimeUnitOptions] = None
-
-        if days_diff > 365 * 10:  # More than 10 years
-            date_aggregation = col.dt.year()
-            time_unit = "year"
-        elif days_diff > 365:  # More than a year
-            date_aggregation = col.dt.truncate("6mo")
-            time_unit = "yearmonth"
-        elif days_diff > 31:  # More than a month
-            date_aggregation = col.dt.truncate("10d")
-            time_unit = "yearmonthdate"
-        elif days_diff > 1:  # More than a day
-            date_aggregation = col.dt.truncate("4h")
-            time_unit = "yearmonthdate"
-        else:
-            date_aggregation = col.dt.truncate("30m")
-            if dtype == nw.Datetime or dtype == nw.Time:
-                time_unit = "hoursminutesseconds"
-            elif dtype == nw.Date:
-                time_unit = "yearmonthdate"
-
         aggregated = (
             data.group_by(date_aggregation).agg(nw.len()).sort(by=column)
         )
@@ -547,7 +522,7 @@ class NarwhalsTableManager(
 
         return [
             ValueCount(value=row[0], count=row[1])
-            for row in aggregated.iter_rows()
+            for row in aggregated.iter_rows(named=False)
         ], time_unit
 
     def _sample_indexes(self, size: int, total: int) -> list[int]:
@@ -555,6 +530,28 @@ class NarwhalsTableManager(
         if total <= size:
             return list(range(total))
         return [round(i * (total - 1) / (size - 1)) for i in range(size)]
+
+    def _get_agg_and_time_unit(
+        self, col: nw.Series[Any], dtype: nw.DType, days_diff: int
+    ) -> tuple[nw.Series[Any], TimeUnitOptions]:
+        if days_diff > 365 * 10:  # More than 10 years
+            return col.dt.year(), "year"
+        elif days_diff > 365:  # More than a year
+            return col.dt.truncate("6mo"), "yearmonth"
+        elif days_diff > 31:  # More than a month
+            return col.dt.truncate("10d"), "yearmonthdate"
+        elif days_diff > 1:  # More than a day
+            if dtype == nw.Date:
+                return col.dt.truncate("1d"), "yearmonthdate"
+            else:
+                return col.dt.truncate("4h"), "yearmonthdatehours"
+        else:
+            agg = col.dt.truncate("30m")
+            if dtype == nw.Date:
+                # Date formats do not have hours, minutes, seconds
+                return agg, "yearmonthdate"
+            else:
+                return agg, "hoursminutesseconds"
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows

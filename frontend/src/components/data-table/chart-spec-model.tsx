@@ -186,7 +186,10 @@ export class ColumnChartSpecModel<T> {
 
         // TODO: This chart raises a warning on hover - WARN: Infinite extent for field "value": [Infinity, -Infinity]
 
-        if (!TIME_UNIT_TOOLTIPS.includes(temporalValues.time_unit)) {
+        if (
+          temporalValues.time_unit &&
+          !TIME_UNIT_TOOLTIPS.includes(temporalValues.time_unit)
+        ) {
           Logger.warn(
             `Temporal value counts for column ${column} have an unrecognized time unit: ${temporalValues.time_unit}`,
           );
@@ -195,16 +198,23 @@ export class ColumnChartSpecModel<T> {
         const xField = "value";
         const yField = "count";
 
+        const nonTemporalUnit =
+          temporalValues.time_unit === "year" || !temporalValues.time_unit;
+
         const tooltips: Array<StringFieldDef<string>> = [
           {
             field: xField,
             title: column,
             // Hack with year time unit, we don't specify for this case as it bugs out
             timeUnit:
-              temporalValues.time_unit === "year"
+              nonTemporalUnit || !temporalValues.time_unit
                 ? undefined
                 : temporalValues.time_unit,
-            type: temporalValues.time_unit === "year" ? undefined : "temporal",
+            type: nonTemporalUnit ? undefined : "temporal",
+            format:
+              temporalValues.time_unit === "hoursminutesseconds"
+                ? "%I:%M:%S %p"
+                : undefined,
           },
           {
             field: yField,

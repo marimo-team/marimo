@@ -56,7 +56,7 @@ interface ValueCount {
 }
 export interface TemporalColumnSummary {
   value_counts: ValueCount[];
-  time_unit: TimeUnitTooltip;
+  time_unit: TimeUnitTooltip | null;
 }
 
 export const SELECT_COLUMN_ID = "__select__";

@@ -21,6 +21,7 @@ ColumnName = str
 RowId = str
 FieldType = DataType
 FieldTypes = list[tuple[ColumnName, tuple[FieldType, ExternalDataType]]]
+TemporalSummary = tuple[list[ValueCount], Optional[TimeUnitOptions]]
 
 
 class TableCoordinate(NamedTuple):
@@ -169,9 +170,10 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def get_temporal_value_counts(
+    def get_temporal_summary(
         self, column: str, sample_size: int
-    ) -> tuple[list[ValueCount], Optional[TimeUnitOptions]]:
+    ) -> TemporalSummary:
+        # Obtain the temporal summary for a column
         pass
 
     @abc.abstractmethod

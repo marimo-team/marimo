@@ -4,12 +4,7 @@ from __future__ import annotations
 import functools
 from typing import Any, Optional
 
-from marimo._data.models import (
-    BinValue,
-    ColumnStats,
-    ExternalDataType,
-    ValueCount,
-)
+from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -27,6 +22,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCoordinate,
     TableManager,
     TableManagerFactory,
+    TemporalSummary,
 )
 from marimo._utils.memoize import memoize_last_value
 
@@ -200,10 +196,12 @@ class IbisTableManagerFactory(TableManagerFactory):
                     for row in result.execute().itertuples(index=False)
                 ]
 
-            def get_temporal_value_counts(
+            def get_temporal_summary(
                 self, column: str, sample_size: int
-            ) -> list[ValueCount]:
-                pass
+            ) -> TemporalSummary:
+                # TODO
+                del column, sample_size
+                return ([], None)
 
             @memoize_last_value
             def get_num_rows(self, force: bool = True) -> Optional[int]:

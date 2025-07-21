@@ -27,7 +27,6 @@ import type { CellStyleState } from "@/components/data-table/cell-styling/types"
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
-import { TIME_UNIT_TOOLTIPS } from "@/components/data-table/charts/types";
 import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
 import {
@@ -154,7 +153,7 @@ const temporalValues = z.object({
       count: z.number(),
     }),
   ),
-  time_unit: z.enum(TIME_UNIT_TOOLTIPS),
+  time_unit: z.string().nullable(),
 }) as z.ZodType<TemporalColumnSummary>;
 
 /**

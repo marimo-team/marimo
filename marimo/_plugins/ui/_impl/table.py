@@ -95,7 +95,7 @@ class ColumnSummariesArgs:
 @dataclass
 class TemporalColumnSummary:
     value_counts: list[ValueCount]
-    time_unit: TimeUnitOptions
+    time_unit: Optional[TimeUnitOptions]
 
 
 @dataclass
@@ -898,10 +898,8 @@ class table(
                     )
 
                 try:
-                    temporal_counts, time_unit = (
-                        data.get_temporal_value_counts(
-                            column, DEFAULT_TEMPORAL_SAMPLE_SIZE
-                        )
+                    temporal_counts, time_unit = data.get_temporal_summary(
+                        column, DEFAULT_TEMPORAL_SAMPLE_SIZE
                     )
                     if len(temporal_counts) > 0:
                         temporal_values[column] = TemporalColumnSummary(
