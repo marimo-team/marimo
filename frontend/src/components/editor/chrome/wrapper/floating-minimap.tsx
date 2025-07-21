@@ -109,16 +109,17 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
         )}
       >
         {isSelected ? (
-          <g transform="translate(0, 0)">
-            <circle r={getCircleRadius(graph)} fill="currentColor" />
-            {renderConnections({ cellId, cellPositions, graph })}
-          </g>
-        ) : isOrphan(graph) ? (
-          <g transform="translate(0, 0)">
-            <circle r={getCircleRadius(graph)} fill="currentColor" />
-          </g>
+          <SelectedCell
+            cellId={cellId}
+            cellPositions={cellPositions}
+            graph={graph}
+          />
         ) : (
-          renderConnectionForCell({ cellId, graph, selectedGraph })
+          <UnselectedCell
+            cellId={cellId}
+            graph={graph}
+            selectedGraph={selectedGraph}
+          />
         )}
       </svg>
     </button>
@@ -167,11 +168,11 @@ function codePreview(code: string): string {
 }
 
 // Connection paths (for selected)
-function renderConnections(options: {
+const SelectedCell = (options: {
   cellId: CellId;
   cellPositions: Record<CellId, number>;
   graph: CellGraph;
-}) {
+}) => {
   const { cellId, cellPositions, graph } = options;
   const dy = 21;
   const paths: React.ReactElement[] = [];
@@ -184,7 +185,7 @@ function renderConnections(options: {
       const yDiff = (targetY - currentY) * dy;
       paths.push(
         <path
-          key={`up-${cellId}`}
+          key={`${cellId}-up-${parentCellId}`}
           d={`M -3 0 H -7 v ${yDiff} h -4`}
           fill="none"
           strokeWidth="2"
@@ -201,7 +202,7 @@ function renderConnections(options: {
       const yDiff = (targetY - currentY) * dy;
       paths.push(
         <path
-          key={`down-${childCellId}`}
+          key={`${cellId}-down-${childCellId}`}
           d={`M 3 0 H 7 v ${yDiff} h 4`}
           fill="none"
           strokeWidth="2"
@@ -211,8 +212,13 @@ function renderConnections(options: {
     }
   }
 
-  return <g className="pen">{paths}</g>;
-}
+  return (
+    <g transform="translate(0, 0)">
+      <circle r={getCircleRadius(graph)} fill="currentColor" />
+      <g className="pen">{paths}</g>
+    </g>
+  );
+};
 
 function isOrphan(graph: CellGraph): boolean {
   return graph.ancestors.size === 0 && graph.descendants.size === 0;
@@ -223,20 +229,21 @@ function getCircleRadius(graph: CellGraph): number {
 }
 
 // Connection indicators for non-selected cells
-function renderConnectionForCell(options: {
+function UnselectedCell(options: {
   cellId: CellId;
   graph: CellGraph;
   selectedGraph?: CellGraph;
 }) {
   const { cellId, graph, selectedGraph } = options;
+  const circleRadius = getCircleRadius(graph);
 
   if (!selectedGraph) {
     // if nothing is selected draw the icon centers with
     // whiskers indicating any upstream/downstream deps
     return drawConnectionGlyph({
+      circleRadius,
       leftWisker: graph.ancestors.size > 0,
       rightWisker: graph.descendants.size > 0,
-      circleRadius: getCircleRadius(graph),
     });
   }
 
@@ -244,9 +251,9 @@ function renderConnectionForCell(options: {
   const isDescendantOfSelected = selectedGraph.descendants.has(cellId);
 
   return drawConnectionGlyph({
+    circleRadius,
     leftWisker: isDescendantOfSelected,
     rightWisker: isAncestorOfSelected,
-    circleRadius: getCircleRadius(graph),
     shift: isAncestorOfSelected
       ? "left"
       : isDescendantOfSelected
