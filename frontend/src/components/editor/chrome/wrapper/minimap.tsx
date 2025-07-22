@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai";
 import React from "react";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
-import { cellFocusAtom } from "@/core/cells/focus";
+import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
@@ -15,16 +15,18 @@ import {
 
 interface MinimapCellProps {
   cellId: CellId;
-  onClick: (cellId: CellId) => void;
   cellPositions: Readonly<Record<CellId, number>>;
 }
 
 const MinimapCell: React.FC<MinimapCellProps> = (props) => {
-  const { cellId, onClick, cellPositions } = props;
+  const { cellId, cellPositions } = props;
   const notebook = useNotebook();
   const variables = useVariables();
-  const selectedCellId = useAtomValue(cellFocusAtom).focusedCellId;
+  const focusState = useAtomValue(cellFocusAtom);
+  const selectedCellId = focusState.focusedCellId;
   const graphs = useAtomValue(cellGraphsAtom);
+  const actions = useCellActions();
+  const focusActions = useCellFocusActions();
 
   const cell = notebook.cellData[cellId];
   const runtime = notebook.cellRuntime[cellId];
@@ -33,6 +35,18 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const selectedGraph = selectedCellId ? graphs[selectedCellId] : undefined;
 
   const isSelected = selectedCellId === cellId;
+
+  const handleClick = () => {
+    if (isSelected) {
+      // If clicking the already focused cell, blur it
+      focusActions.blurCell();
+    } else {
+      // Otherwise focus the cell
+      actions.focusCell({ cellId, where: "exact" });
+      // Also ensure the focus atom is updated
+      focusActions.focusCell({ cellId });
+    }
+  };
 
   return (
     <button
@@ -45,7 +59,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
           ? "text-primary-foreground"
           : "text-[var(--gray-8)] hover:text-[var(--gray-9)]",
       )}
-      onClick={() => onClick(cellId)}
+      onClick={handleClick}
       // Prevent the default mousedown behavior to avoid blur events on the currently
       // focused cell. Without this, clicking the minimap causes a flicker as the focus
       // transitions from current cell -> null -> new cell.
@@ -129,10 +143,6 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
 
 export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
   const notebook = useNotebook();
-  const actions = useCellActions();
-  const handleCellClick = (cellId: CellId) => {
-    actions.focusCell({ cellId, where: "exact" });
-  };
 
   const cellPositions: Record<CellId, number> = Object.fromEntries(
     notebook.cellIds.inOrderIds.map((id, idx) => [id, idx]),
@@ -170,11 +180,7 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
                     aria-hidden="true"
                   />
                 )}
-                <MinimapCell
-                  cellId={cellId}
-                  onClick={handleCellClick}
-                  cellPositions={cellPositions}
-                />
+                <MinimapCell cellId={cellId} cellPositions={cellPositions} />
               </React.Fragment>
             );
           })}
