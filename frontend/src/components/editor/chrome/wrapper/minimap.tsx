@@ -1,13 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import React from "react";
+import { XIcon } from "lucide-react";
+import * as React from "react";
+import { Button } from "@/components/ui/button";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
+import { useChromeActions, useChromeState } from "../state";
 import {
   type CellGraph,
   cellGraphsAtom,
@@ -122,13 +125,14 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   );
 };
 
-export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
+const MinimapInternal: React.FC<{
+  open: boolean;
+  setOpen: (update: boolean) => void;
+}> = ({ open, setOpen }) => {
   const notebook = useNotebook();
-
   const cellPositions: Record<CellId, number> = Object.fromEntries(
     notebook.cellIds.inOrderIds.map((id, idx) => [id, idx]),
   );
-
   const columnBoundaries: number[] = [];
   let cellCount = 0;
   for (const [idx, column] of notebook.cellIds.getColumns().entries()) {
@@ -137,16 +141,24 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
     }
     cellCount += column.inOrderIds.length;
   }
-
   return (
     <div
       className={cn(
-        "fixed top-14 right-4 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[75vh]",
-        className,
+        "fixed top-14 right-5 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[58vh]",
+        "motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-in-out",
+        open ? "translate-x-0" : "translate-x-[calc(100%+20px)]",
       )}
     >
       <div className="flex items-center justify-between p-4 border-b">
         <span className="text-sm font-semibold">Minimap</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => setOpen(false)}
+        >
+          <XIcon className="h-4 w-4" />
+        </Button>
       </div>
       <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none">
         <div className="py-3 pl-3 pr-4 relative min-h-full">
@@ -171,6 +183,12 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
       </div>
     </div>
   );
+};
+
+export const Minimap: React.FC = () => {
+  const { setIsMinimapOpen } = useChromeActions();
+  const { isMinimapOpen } = useChromeState();
+  return <MinimapInternal open={isMinimapOpen} setOpen={setIsMinimapOpen} />;
 };
 
 function codePreview(code: string): string | undefined {
