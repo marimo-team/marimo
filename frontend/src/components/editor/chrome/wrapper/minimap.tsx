@@ -39,20 +39,20 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       data-node-id={cellId}
       className={cn(
         "group bg-transparent text-left w-full flex relative justify-between items-center",
-        "bg-white border-none rounded cursor-pointer",
+        "border-none rounded cursor-pointer",
         "h-[21px] pl-[51px] font-inherit",
         isSelected
-          ? "text-white"
+          ? "text-primary-foreground"
           : runtime.errored
-            ? "text-red-400"
-            : "text-gray-300",
+            ? "text-destructive"
+            : "text-[var(--gray-8)] hover:text-[var(--gray-9)]",
       )}
       onClick={() => onClick(cellId)}
     >
       <div
         className={cn(
-          "group-hover:bg-gray-100 flex h-full w-full px-0.5 items-center rounded",
-          isSelected && "bg-teal-700 group-hover:bg-teal-700",
+          "group-hover:bg-[var(--gray-3)] flex h-full w-full px-0.5 items-center rounded",
+          isSelected && "bg-primary group-hover:bg-primary",
         )}
       >
         <div
@@ -67,9 +67,9 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
                   {idx > 0 && ", "}
                   <span
                     className={cn({
-                      "text-black": noneSelected,
+                      "text-foreground": noneSelected,
                       "font-bold": isSelected,
-                      "text-teal-800 font-medium":
+                      "text-primary font-medium":
                         !isSelected &&
                         selectedCellId &&
                         selectedGraph &&
@@ -95,14 +95,14 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
         className={cn(
           "absolute z-20 overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)]",
           noneSelected
-            ? "text-black"
+            ? "text-foreground"
             : runtime.errored
-              ? "text-red-400"
+              ? "text-destructive"
               : isSelected ||
                   selectedGraph?.parents.has(cellId) ||
                   selectedGraph?.children.has(cellId)
-                ? "text-teal-700"
-                : "text-gray-300",
+                ? "text-primary"
+                : "text-[var(--gray-8)]",
         )}
       >
         {isSelected ? (
