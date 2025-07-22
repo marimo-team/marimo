@@ -226,6 +226,52 @@ class PyLspServer(BaseLspServer):
         )
 
 
+class PyrightServer(BaseLspServer):
+    id = "pyright"
+
+    def start(self) -> Optional[Alert]:
+        # Pyright is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.pyright.has():
+            LOGGER.debug("Pyright is not installed. Skipping LSP server.")
+            return None
+        return super().start()
+
+    def validate_requirements(self) -> Union[str, Literal[True]]:
+        if not DependencyManager.pyright.has():
+            return "Pyright is missing. Install it with `pip install pyright`."
+
+        if not DependencyManager.which("node"):
+            return "node.js binary is missing. Install node at https://nodejs.org/."
+
+        return True
+
+    def get_command(self) -> list[str]:
+        import sys
+
+        from pyright import langserver  # type: ignore
+
+        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
+        log_file = _loggers.get_log_directory() / "pyright-lsp.log"
+
+        return [
+            "node",
+            str(lsp_bin),
+            "--port",
+            str(self.port),
+            "--lsp",
+            f"{sys.executable} {langserver.__file__} --stdio",
+            "--log-file",
+            str(log_file),
+        ]
+
+    def missing_binary_alert(self) -> Alert:
+        return Alert(
+            title="Pyright: Connection Error",
+            description="<span><a class='hyperlink' href='https://github.com/microsoft/pyright'>Install Pyright</a> for type checking support.</span>",
+            variant="danger",
+        )
+
+
 class TyServer(BaseLspServer):
     id = "ty"
 
@@ -284,6 +330,7 @@ class NoopLspServer(LspServer):
 class CompositeLspServer(LspServer):
     LANGUAGE_SERVERS = {
         "pylsp": PyLspServer,
+        "pyright": PyrightServer,
         "ty": TyServer,
         "copilot": CopilotLspServer,
     }

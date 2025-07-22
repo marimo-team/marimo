@@ -486,6 +486,48 @@ export const UserConfigForm: React.FC = () => {
               />
               <FormField
                 control={form.control}
+                name="language_servers.pyright.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Pyright (
+                        <ExternalLink href="https://github.com/microsoft/pyright">
+                          docs
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="pyright-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.pyright.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.pyright && (
+                      <Banner kind="danger">
+                        Pyright is not available in your current environment.
+                        Please install <Kbd className="inline">Pyright</Kbd> in
+                        your environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="language_servers.ty.enabled"
                 render={({ field }) => (
                   <div className="flex flex-col gap-1">

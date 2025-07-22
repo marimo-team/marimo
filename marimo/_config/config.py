@@ -340,6 +340,18 @@ class PythonLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class PyrightServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Pyright Language Server.
+
+    Pyright handles completion, hover, go-to-definition, and diagnostics,
+    but we only use it for diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class TyLanguageServerConfig(TypedDict, total=False):
     """
     Configuration options for Ty Language Server.
@@ -361,6 +373,7 @@ class LanguageServersConfig(TypedDict, total=False):
     """
 
     pylsp: PythonLanguageServerConfig
+    pyright: PyrightServerConfig
     ty: TyLanguageServerConfig
 
 

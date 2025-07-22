@@ -135,7 +135,7 @@ export class RuntimeManager {
   /**
    * The URL of the copilot server.
    */
-  getLSPURL(lsp: "pylsp" | "copilot" | "ty"): URL {
+  getLSPURL(lsp: "pylsp" | "pyright" | "copilot" | "ty"): URL {
     if (lsp === "copilot") {
       // For copilot, don't include any query parameters
       const url = this.formatWsURL(`/lsp/${lsp}`);
