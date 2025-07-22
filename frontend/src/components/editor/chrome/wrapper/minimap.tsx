@@ -97,7 +97,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       </div>
       <svg
         className={cn(
-          "absolute z-20 overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)]",
+          "absolute z-20 overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)] pointer-events-none",
           selectedCellId === null
             ? "text-foreground"
             : runtime.errored
@@ -245,8 +245,12 @@ const SelectedCell = (options: {
 
   return (
     <g transform="translate(0, 0)">
-      <circle r={getCircleRadius(graph)} fill="currentColor" />
-      <g className="pen">{paths}</g>
+      <circle
+        r={getCircleRadius(graph)}
+        fill="currentColor"
+        className="pointer-events-auto"
+      />
+      <g className="pen pointer-events-auto">{paths}</g>
     </g>
   );
 };
@@ -336,7 +340,11 @@ function drawConnectionGlyph(options: {
           />
         )}
       </g>
-      <circle r={circleRadius} fill="currentColor" />
+      <circle
+        r={circleRadius}
+        fill="currentColor"
+        className="pointer-events-auto"
+      />
     </g>
   );
 }
