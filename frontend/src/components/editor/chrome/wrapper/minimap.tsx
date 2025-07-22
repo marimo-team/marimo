@@ -176,8 +176,37 @@ const SelectedCell = (options: {
   const paths: React.ReactElement[] = [];
   const currentY = cellPositions[cellId] ?? 0;
 
-  // direct upstream (cells we depend on - to the left)
+  // First, identify all cycles (nodes that are both parent and child)
+  const cycles = new Set<CellId>();
   for (const parentCellId of graph.parents) {
+    if (graph.children.has(parentCellId)) {
+      cycles.add(parentCellId);
+    }
+  }
+
+  // Add cycle paths first
+  for (const cycleCellId of cycles) {
+    const targetY = cellPositions[cycleCellId];
+    if (targetY !== undefined) {
+      const yDiff = (targetY - currentY) * dy;
+      // Draw a rectangular path around both nodes to show the cycle
+      paths.push(
+        <path
+          key={`${cellId}-cycle-${cycleCellId}`}
+          d={`M -3 0 H -7 v ${yDiff} h 14 v ${-yDiff} H 3`}
+          fill="none"
+          strokeWidth="2"
+          stroke="currentColor"
+        />,
+      );
+    }
+  }
+
+  // Add regular upstream connections (excluding cycles)
+  for (const parentCellId of graph.parents) {
+    if (cycles.has(parentCellId)) {
+      continue; // Skip - already handled as cycle
+    }
     const targetY = cellPositions[parentCellId];
     if (targetY !== undefined) {
       const yDiff = (targetY - currentY) * dy;
@@ -193,8 +222,11 @@ const SelectedCell = (options: {
     }
   }
 
-  // direct downstream (cells that depend on us - to the right)
+  // Add regular downstream connections (excluding cycles)
   for (const childCellId of graph.children) {
+    if (cycles.has(childCellId)) {
+      continue; // Skip - already handled as cycle
+    }
     const targetY = cellPositions[childCellId];
     if (targetY !== undefined) {
       const yDiff = (targetY - currentY) * dy;
@@ -250,12 +282,18 @@ function UnselectedCell(options: {
   const isAncestorOfSelected = selectedGraph.ancestors.has(cellId);
   const isDescendantOfSelected = selectedGraph.descendants.has(cellId);
   if (isAncestorOfSelected || isDescendantOfSelected) {
-    // Node is a part of the current selection, need to jitter
     return drawConnectionGlyph({
       circleRadius,
       leftWisker: hasAncestors,
       rightWisker: hasDescendants,
-      shift: isAncestorOfSelected ? "left" : "right",
+      // Node is a part of the current selection, need to jitter
+      // If it's both ancestor and descendant (cycle), keep it centered
+      shift:
+        isAncestorOfSelected && isDescendantOfSelected
+          ? undefined
+          : isAncestorOfSelected
+            ? "left"
+            : "right",
     });
   }
 
