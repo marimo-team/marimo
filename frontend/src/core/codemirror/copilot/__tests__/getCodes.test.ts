@@ -91,6 +91,47 @@ describe("getTopologicalCellIds", () => {
     // Assert the result
     expect(result).toEqual(["cell1", "cell2", "cell3", "cell4"]);
   });
+
+  it("should return sorted basic cell ids", () => {
+    const cellIds = [Cells.cell1, Cells.cell2];
+    // Cell 1:
+    // mo.
+
+    // Cell 2:
+    // import marimo as mo
+
+    let result = getTopologicalCellIds(cellIds, {
+      [Variables.var1]: {
+        name: Variables.var1,
+        declaredBy: [Cells.cell2],
+        usedBy: [Cells.cell1],
+      },
+    });
+    expect(result).toEqual(["cell2", "cell1"]);
+
+    // Swap them around
+    result = getTopologicalCellIds([Cells.cell2, Cells.cell1], {
+      [Variables.var1]: {
+        name: Variables.var1,
+        declaredBy: [Cells.cell2],
+        usedBy: [Cells.cell1],
+      },
+    });
+    expect(result).toEqual(["cell2", "cell1"]);
+  });
+
+  it("should put new cells (with no dependencies) at the end", () => {
+    const cellIds = [Cells.cell1, Cells.cell2, Cells.cell3, Cells.cell4];
+    const variables: Variables = {
+      [Variables.var1]: {
+        name: Variables.var1,
+        declaredBy: [Cells.cell2],
+        usedBy: [Cells.cell3],
+      },
+    };
+    const result = getTopologicalCellIds(cellIds, variables);
+    expect(result).toEqual(["cell2", "cell1", "cell3", "cell4"]);
+  });
 });
 
 describe("getCodes", () => {

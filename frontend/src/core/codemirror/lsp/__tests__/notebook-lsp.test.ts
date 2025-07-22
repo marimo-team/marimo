@@ -37,6 +37,24 @@ describe("createNotebookLens", () => {
     expect(transformed.character).toBe(0);
   });
 
+  it("order of code should not matter", () => {
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    let codes: Record<CellId, string> = {
+      [Cells.cell1]: "before\ntext",
+      [Cells.cell2]: "cell1\ncell2",
+    };
+    let lens = createNotebookLens(cellIds, codes);
+    expect(lens.mergedText).toBe("before\ntext\ncell1\ncell2");
+
+    // Swap them around
+    codes = {
+      [Cells.cell2]: "cell1\ncell2",
+      [Cells.cell1]: "before\ntext",
+    };
+    lens = createNotebookLens(cellIds, codes);
+    expect(lens.mergedText).toBe("before\ntext\ncell1\ncell2");
+  });
+
   it("should transform ranges to merged doc", () => {
     const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
     const codes: Record<CellId, string> = {
