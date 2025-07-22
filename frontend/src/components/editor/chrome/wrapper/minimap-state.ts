@@ -48,7 +48,7 @@ export function buildCellGraph(
   variables: Variables,
 ): Record<CellId, CellGraph> {
   // First pass: build direct connections
-  const connections = new Map<
+  const dependencyMap = new Map<
     CellId,
     {
       variables: Set<VariableName>;
@@ -57,7 +57,7 @@ export function buildCellGraph(
     }
   >();
   for (const cellId of cellIds) {
-    connections.set(cellId, {
+    dependencyMap.set(cellId, {
       variables: new Set(),
       parents: new Set(),
       children: new Set(),
@@ -70,11 +70,11 @@ export function buildCellGraph(
       continue;
     }
     for (const declarer of variable.declaredBy) {
-      connections.get(declarer)?.variables.add(variable.name);
+      dependencyMap.get(declarer)?.variables.add(variable.name);
       for (const user of variable.usedBy) {
         if (declarer !== user) {
-          connections.get(user)?.parents.add(declarer);
-          connections.get(declarer)?.children.add(user);
+          dependencyMap.get(user)?.parents.add(declarer);
+          dependencyMap.get(declarer)?.children.add(user);
         }
       }
     }
@@ -82,28 +82,19 @@ export function buildCellGraph(
 
   // Second pass: build final graph with transitive closures
   const graphs: Record<CellId, CellGraph> = {};
-
-  for (const cellId of cellIds) {
-    const conn = connections.get(cellId);
-    if (!conn) {
-      continue;
-    }
-
-    const ancestors = computeTransitiveClosure(
-      cellId,
-      (id) => connections.get(id)?.parents ?? new Set(),
-    );
-    const descendants = computeTransitiveClosure(
-      cellId,
-      (id) => connections.get(id)?.children ?? new Set(),
-    );
-
+  for (const [cellId, cellDeps] of dependencyMap.entries()) {
     graphs[cellId] = {
-      parents: conn.parents,
-      children: conn.children,
-      ancestors,
-      descendants,
-      variables: [...conn.variables],
+      parents: cellDeps.parents,
+      children: cellDeps.children,
+      variables: [...cellDeps.variables],
+      ancestors: computeTransitiveClosure(
+        cellId,
+        (id) => dependencyMap.get(id)?.parents ?? new Set(),
+      ),
+      descendants: computeTransitiveClosure(
+        cellId,
+        (id) => dependencyMap.get(id)?.children ?? new Set(),
+      ),
     };
   }
 
