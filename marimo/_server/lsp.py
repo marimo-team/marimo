@@ -246,10 +246,6 @@ class PyrightServer(BaseLspServer):
         return True
 
     def get_command(self) -> list[str]:
-        import sys
-
-        from pyright import langserver  # type: ignore
-
         lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
         log_file = _loggers.get_log_directory() / "pyright-lsp.log"
 
@@ -259,7 +255,7 @@ class PyrightServer(BaseLspServer):
             "--port",
             str(self.port),
             "--lsp",
-            f"{sys.executable} {langserver.__file__} --stdio",
+            "pyright-langserver --stdio",
             "--log-file",
             str(log_file),
         ]
