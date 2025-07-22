@@ -38,28 +38,25 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     <button
       data-node-id={cellId}
       className={cn(
-        "bg-transparent text-left w-full flex relative justify-between items-center",
-        "bg-white border-none rounded pr-0 cursor-pointer",
-        "h-[21px] pl-[45px] font-inherit",
-        "text-gray-400",
-        {
-          "text-red-400": runtime.errored,
-          "text-white": isSelected,
-        },
+        "group bg-transparent text-left w-full flex relative justify-between items-center",
+        "bg-white border-none rounded cursor-pointer",
+        "h-[21px] pl-[51px] font-inherit",
+        isSelected
+          ? "text-white"
+          : runtime.errored
+            ? "text-red-400"
+            : "text-gray-300",
       )}
       onClick={() => onClick(cellId)}
     >
       <div
         className={cn(
-          "flex h-full w-full px-1 items-center rounded",
-          isSelected ? "bg-teal-700" : "bg-transparent",
+          "group-hover:bg-gray-100 flex h-full w-full px-0.5 items-center rounded",
+          isSelected && "bg-teal-700 group-hover:bg-teal-700",
         )}
       >
         <div
-          className={cn(
-            "truncate px-1 font-mono text-sm flex gap-1",
-            isSelected ? "opacity-100" : "opacity-80",
-          )}
+          className="truncate px-1 font-mono text-sm flex gap-1"
           title={cell.code}
         >
           {graph.variables.length > 0 ? (
@@ -89,7 +86,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
             })
           ) : (
             <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
-              {codePreview(cell.code)}
+              {codePreview(cell.code) ?? <span className="italic">empty</span>}
             </span>
           )}
         </div>
@@ -105,7 +102,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
                   selectedGraph?.parents.has(cellId) ||
                   selectedGraph?.children.has(cellId)
                 ? "text-teal-700"
-                : "text-gray-400",
+                : "text-gray-300",
         )}
       >
         {isSelected ? (
@@ -145,7 +142,7 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
       <div className="flex items-center justify-between p-4 border-b">
         <span className="text-sm font-semibold">Minimap</span>
       </div>
-      <div className="overflow-y-auto overflow-x-hidden pl-3 pr-4 flex-1 scrollbar-none">
+      <div className="overflow-y-auto overflow-x-hidden py-3 pl-3 pr-4 flex-1 scrollbar-none">
         {notebook.cellIds.inOrderIds.map((cellId) => {
           return (
             <MinimapCell
@@ -161,8 +158,8 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
   );
 };
 
-function codePreview(code: string): string {
-  return code.split("\n")[0].trim() || "-";
+function codePreview(code: string): string | undefined {
+  return code.split("\n")[0].trim() || undefined;
 }
 
 // Connection paths (for selected)
