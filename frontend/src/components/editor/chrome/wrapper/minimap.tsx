@@ -127,7 +127,7 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
   const notebook = useNotebook();
   const actions = useCellActions();
   const handleCellClick = (cellId: CellId) => {
-    actions.focusCell({ cellId, mode: "exact" });
+    actions.focusCell({ cellId, where: "exact" });
   };
   const cellPositions: Record<CellId, number> = Object.fromEntries(
     notebook.cellIds.inOrderIds.map((id, idx) => [id, idx]),

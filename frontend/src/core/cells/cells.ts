@@ -412,20 +412,20 @@ const {
   },
   focusCell: (
     state,
-    action: { cellId: CellId; mode: "before" | "after" | "exact" },
+    action: { cellId: CellId; where: "before" | "after" | "exact" },
   ) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId, mode } = action;
+    const { cellId, where } = action;
     const index = column.indexOfOrThrow(cellId);
 
     let focusIndex: number;
-    if (mode === "before") {
+    if (where === "before") {
       focusIndex = clamp(index - 1, 0, column.length - 1);
-    } else if (mode === "after") {
+    } else if (where === "after") {
       focusIndex = clamp(index + 1, 0, column.length - 1);
     } else {
       focusIndex = index;
@@ -437,7 +437,7 @@ const {
       cellId: focusCellId,
       cell: state.cellHandles[focusCellId],
       isCodeHidden: isCellCodeHidden(state, focusCellId),
-      codeFocus: mode === "after" ? "top" : "bottom",
+      codeFocus: where === "after" ? "top" : "bottom",
       variableName: undefined,
     });
     return state;
