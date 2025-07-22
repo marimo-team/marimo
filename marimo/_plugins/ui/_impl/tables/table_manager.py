@@ -10,7 +10,6 @@ from marimo._data.models import (
     ColumnStats,
     DataType,
     ExternalDataType,
-    ValueCount,
 )
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 
@@ -165,13 +164,6 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
-        pass
-
-    @abc.abstractmethod
-    def get_value_counts(
-        self, column: str, sample_size: int
-    ) -> list[ValueCount]:
-        # Obtain the temporal summary for a column
         pass
 
     @abc.abstractmethod

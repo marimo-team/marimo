@@ -1,8 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { mint, slate } from "@radix-ui/colors";
+import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
-import type { StringFieldDef } from "vega-lite/build/src/channeldef";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
 import { asRemoteURL } from "@/core/runtime/config";
@@ -16,18 +15,17 @@ import {
   isDataURLString,
   typedAtob,
 } from "@/utils/json/base64";
-import { Logger } from "@/utils/Logger";
-import {
-  getLegacyNumericSpec,
-  getLegacyTemporalSpec,
-} from "./legacy-chart-spec";
 import type {
   BinValues,
   ColumnHeaderStats,
   ColumnName,
   FieldTypes,
-  ValueCounts,
-} from "./types";
+} from "../types";
+import {
+  getLegacyNumericSpec,
+  getLegacyTemporalSpec,
+} from "./legacy-chart-spec";
+import { getPartialTimeTooltip } from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
@@ -41,11 +39,9 @@ formats("arrow", arrow);
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, ColumnHeaderStats>();
   private columnBinValues = new Map<ColumnName, BinValues>();
-  private columnValueCounts = new Map<ColumnName, ValueCounts>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
     [],
-    {},
     {},
     {},
     {},
@@ -63,7 +59,6 @@ export class ColumnChartSpecModel<T> {
     private readonly fieldTypes: FieldTypes,
     readonly stats: Record<ColumnName, ColumnHeaderStats>,
     readonly binValues: Record<ColumnName, BinValues>,
-    readonly valueCounts: Record<ColumnName, ValueCounts>,
     private readonly opts: {
       includeCharts: boolean;
       usePreComputedValues?: boolean;
@@ -108,7 +103,6 @@ export class ColumnChartSpecModel<T> {
 
     this.columnBinValues = new Map(Object.entries(binValues));
     this.columnStats = new Map(Object.entries(stats));
-    this.columnValueCounts = new Map(Object.entries(valueCounts));
   }
 
   public getColumnStats(column: string) {
@@ -137,20 +131,24 @@ export class ColumnChartSpecModel<T> {
     const usePreComputedValues = this.opts.usePreComputedValues;
     const binValues = this.columnBinValues.get(column);
     const hasBinValues = binValues && binValues.length > 0;
-    const valueCounts = this.columnValueCounts.get(column);
-    const hasValueCounts = valueCounts && valueCounts.length > 0;
 
     let data = this.dataSpec as TopLevelFacetedUnitSpec["data"];
-    if (usePreComputedValues) {
-      if (hasBinValues) {
-        data = { values: binValues, name: "bin_values" };
-      } else if (hasValueCounts) {
-        data = { values: valueCounts, name: "value_counts" };
+    const stats = this.columnStats.get(column);
+
+    if (usePreComputedValues && hasBinValues) {
+      const values = binValues;
+      if (stats?.nulls) {
+        values.push({
+          bin_start: null,
+          bin_end: null,
+          count: stats.nulls as number,
+        });
       }
+
+      data = { values, name: "bin_values" };
     }
 
-    const base: TopLevelFacetedUnitSpec = {
-      data,
+    const baseWithoutData: Omit<TopLevelFacetedUnitSpec, "data"> = {
       background: "transparent",
       config: {
         view: {
@@ -161,6 +159,11 @@ export class ColumnChartSpecModel<T> {
         },
       },
       height: 100,
+    } as TopLevelFacetedUnitSpec;
+
+    const base: TopLevelFacetedUnitSpec = {
+      data,
+      ...baseWithoutData,
     } as TopLevelFacetedUnitSpec;
     const type = this.fieldTypes[column];
 
@@ -178,137 +181,192 @@ export class ColumnChartSpecModel<T> {
       case "date":
       case "datetime":
       case "time": {
-        if (!usePreComputedValues || !hasValueCounts) {
+        if (!usePreComputedValues || !hasBinValues) {
           return getLegacyTemporalSpec(column, type, base, scale);
         }
 
-        // TODO: This chart raises a warning on hover - WARN: Infinite extent for field "value": [Infinity, -Infinity]
-        const xField = "value";
-        const yField = "count";
+        const tooltip = getPartialTimeTooltip(binValues);
+        const chartHeight = 30;
+        const chartWidth = 75;
+        const nullBarWidth = 5;
 
-        const tooltips: Array<StringFieldDef<string>> = [
-          {
-            field: xField,
-            title: column,
-            ...getPartialTimeTooltip(valueCounts),
-          },
-          {
-            field: yField,
-            type: "quantitative",
-            title: "Count",
-            format: ",d",
-          },
-        ];
+        const singleValue = binValues.length === 1;
 
-        // If there is only one value, we show bar chart instead
-        if (valueCounts.length === 1) {
+        // Single value charts can be displayed as a full bar
+        if (singleValue) {
           return {
             ...base,
-            mark: {
-              type: "bar",
-              color: mint.mint11,
-            },
+            mark: { type: "bar", color: mint.mint11 },
             encoding: {
               x: {
-                field: xField,
+                field: "bin_start",
+                type: "nominal",
                 axis: null,
-                scale: scale,
               },
               y: {
-                field: yField,
+                field: "count",
                 type: "quantitative",
                 axis: null,
               },
-              tooltip: tooltips,
+              tooltip: [
+                {
+                  field: "bin_start",
+                  type: "temporal",
+                  ...tooltip,
+                  title: `${column} (start)`,
+                },
+                {
+                  field: "bin_end",
+                  type: "temporal",
+                  ...tooltip,
+                  title: `${column} (end)`,
+                },
+              ],
             },
           };
         }
 
-        return {
-          ...base,
-          encoding: {
-            x: {
-              field: xField,
-              type: "temporal",
-              axis: null,
-              scale: scale,
-            },
-          },
+        const histogram: TopLevelFacetedUnitSpec = {
+          height: chartHeight,
+          width: chartWidth,
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
-              encoding: {
-                y: {
-                  field: yField,
-                  type: "quantitative",
-                  axis: null,
-                },
-              },
-              layer: [
-                {
-                  mark: {
-                    type: "area",
-                    line: {
-                      color: mint.mint11,
-                    },
-                    color: {
-                      x1: 1,
-                      y1: 1,
-                      x2: 1,
-                      y2: 0,
-                      gradient: "linear",
-                      stops: [
-                        {
-                          offset: 0,
-                          color: mint.mint10,
-                        },
-                        {
-                          offset: 0.6,
-                          color: mint.mint11,
-                        },
-                        {
-                          offset: 1,
-                          color: mint.mint11,
-                        },
-                      ],
-                    },
-                  },
-                },
-                {
-                  transform: [{ filter: { param: "hover", empty: false } }],
-                  mark: "point",
-                  encoding: {
-                    size: {
-                      value: 20,
-                    },
-                  },
-                },
-              ],
-            },
-            // Vertical rule line
-            {
-              mark: "rule",
-              encoding: {
-                opacity: {
-                  condition: { value: 0.3, param: "hover", empty: false },
-                  value: 0,
-                },
-                tooltip: tooltips,
+              mark: {
+                type: "bar",
+                color: mint.mint11,
+                stroke: mint.mint11,
+                strokeWidth: 0,
               },
               params: [
                 {
                   name: "hover",
                   select: {
                     type: "point",
-                    fields: [xField],
-                    nearest: true,
-                    on: "pointerover",
-                    clear: "pointerout",
+                    on: "mouseover",
+                    clear: "mouseout",
                   },
                 },
               ],
+              encoding: {
+                x: {
+                  field: "bin_start",
+                  type: "temporal",
+                  bin: { binned: true, step: 2 },
+                  axis: null,
+                },
+                x2: {
+                  field: "bin_end",
+                  type: "temporal",
+                  axis: null,
+                },
+                y: {
+                  field: "count",
+                  type: "quantitative",
+                  axis: null,
+                },
+                strokeWidth: {
+                  condition: {
+                    param: "hover",
+                    empty: false,
+                    value: 0.5,
+                  },
+                  value: 0,
+                },
+              },
+            },
+
+            // Invisible tooltip layer
+            {
+              mark: {
+                type: "bar",
+                opacity: 0,
+              },
+              encoding: {
+                x: {
+                  field: "bin_start",
+                  type: "temporal",
+                  bin: { binned: true, step: 2 },
+                  axis: null,
+                },
+                x2: {
+                  field: "bin_end",
+                  type: "temporal",
+                  bin: { binned: true, step: 2 },
+                  axis: null,
+                },
+                y: {
+                  aggregate: "max",
+                  type: "quantitative",
+                  axis: null,
+                },
+                tooltip: [
+                  {
+                    field: "bin_start",
+                    type: "temporal",
+                    ...tooltip,
+                    title: `${column} (start)`,
+                  },
+                  {
+                    field: "bin_end",
+                    type: "temporal",
+                    ...tooltip,
+                    title: `${column} (end)`,
+                  },
+                  {
+                    field: "count",
+                    type: "quantitative",
+                    title: "Count",
+                    format: ",d",
+                  },
+                ],
+              },
             },
           ],
+        };
+
+        // @ts-expect-error 'data' property not in TopLevelFacetedUnitSpec
+        const nullBar: TopLevelFacetedUnitSpec = {
+          ...baseWithoutData,
+          height: chartHeight,
+          width: nullBarWidth,
+          mark: {
+            type: "bar",
+            color: orange.orange11,
+          },
+          encoding: {
+            x: {
+              field: "bin_start",
+              type: "nominal",
+              axis: null,
+            },
+            y: {
+              field: "count",
+              type: "quantitative",
+              axis: null,
+            },
+            tooltip: [
+              {
+                field: "count",
+                type: "quantitative",
+                title: "Nulls",
+                format: ",d",
+              },
+            ],
+          },
+          transform: [
+            {
+              filter:
+                "datum['bin_start'] === null && datum['bin_end'] === null",
+            },
+          ],
+        };
+
+        return {
+          ...base,
+          // Place the histogram on the left, and the null bar on the right
+          // @ts-expect-error 'hconcat' property not in TopLevelFacetedUnitSpec
+          hconcat: [histogram, nullBar],
         };
       }
       case "integer":
@@ -506,77 +564,4 @@ export class ColumnChartSpecModel<T> {
       },
     };
   }
-}
-
-const readableTimeFormat = "%-I:%M:%S %p"; // e.g., 1:02:30 AM (no leading zero on hour)
-
-function getPartialTimeTooltip(
-  values: ValueCounts,
-): Partial<StringFieldDef<string>> {
-  if (values.length === 0) {
-    return {};
-  }
-
-  // Find non-null value
-  const value = values.find((v) => v.value !== null)?.value;
-  if (!value) {
-    return {};
-  }
-
-  // If value is a year (2019, 2020, etc), we return empty as it bugs out when we return a time unit
-  if (typeof value === "number" && value.toString().length === 4) {
-    return {};
-  }
-
-  // If value is just time (00:00:00, 01:00:00, etc)
-  if (typeof value === "string" && value.length === 8) {
-    return {
-      type: "temporal",
-      timeUnit: "hoursminutesseconds",
-      format: readableTimeFormat,
-    };
-  }
-
-  // If value is a date (2019-01-01, 2020-01-01, etc)
-  if (typeof value === "string" && value.length === 10) {
-    return {
-      type: "temporal",
-      timeUnit: "yearmonthdate",
-    };
-  }
-
-  // If value is a datetime (2019-01-01 00:00:00, 2020-01-01 00:00:00, 2023-05-15T01:00:00 etc)
-  if (typeof value === "string" && value.length === 19) {
-    const minimumValue = value; // non-null value
-    const maximumValue = values[values.length - 1].value;
-
-    try {
-      const minimumDate = new Date(minimumValue);
-      const maximumDate = new Date(maximumValue as string);
-      const timeDifference = maximumDate.getTime() - minimumDate.getTime();
-
-      // If time difference is less than 1 day, we use hoursminutesseconds
-      if (timeDifference < 1000 * 60 * 60 * 24) {
-        return {
-          type: "temporal",
-          timeUnit: "hoursminutesseconds",
-          format: readableTimeFormat,
-        };
-      }
-    } catch (error) {
-      Logger.debug("Error parsing date", error);
-    }
-
-    return {
-      type: "temporal",
-      timeUnit: "yearmonthdatehoursminutes",
-    };
-  }
-
-  Logger.debug("Unknown time unit", value);
-
-  return {
-    type: "temporal",
-    timeUnit: "yearmonthdate",
-  };
 }

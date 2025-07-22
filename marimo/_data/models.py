@@ -140,27 +140,13 @@ class BinValue:
     Represents bin values for a column in a data table. This is used for plotting.
 
     Attributes:
-        bin_start (float): The start of the bin.
-        bin_end (float): The end of the bin.
+        bin_start (NonNestedLiteral): The start of the bin.
+        bin_end (NonNestedLiteral): The end of the bin.
         count (int): The count of values in the bin.
     """
 
-    bin_start: float
-    bin_end: float
-    count: int
-
-
-@dataclass
-class ValueCount:
-    """
-    Represents value counts for a column in a data table. This is used for plotting.
-
-    Attributes:
-        value (Any): The value.
-        count (int): The count of values.
-    """
-
-    value: Any
+    bin_start: NonNestedLiteral
+    bin_end: NonNestedLiteral
     count: int
 
 

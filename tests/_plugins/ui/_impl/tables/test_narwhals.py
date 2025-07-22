@@ -10,7 +10,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import BinValue, ColumnStats, ValueCount
+from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -925,183 +925,6 @@ def test_get_summary_all_types() -> None:
     )
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.parametrize(
-    "df",
-    create_dataframes(
-        {
-            "int": [1, 2, 3, 4, 5],
-            "time": [
-                datetime.time(1, 1, 1),
-                datetime.time(2, 2, 2),
-                datetime.time(3, 3, 3),
-                datetime.time(4, 4, 4),
-                datetime.time(5, 5, 5),
-            ],
-            "datetime_1_day": [
-                datetime.datetime(2021, 1, 1, 1, 1, 1),
-                datetime.datetime(2021, 1, 1, 2, 2, 2),
-                datetime.datetime(2021, 1, 1, 3, 3, 3),
-                datetime.datetime(2021, 1, 1, 4, 4, 4),
-                datetime.datetime(2021, 1, 1, 5, 5, 5),
-            ],
-            "datetime_5_days": [
-                datetime.datetime(2021, 1, 1, 1, 1, 1),
-                datetime.datetime(2021, 1, 2, 2, 2, 2),
-                datetime.datetime(2021, 1, 3, 3, 3, 3),
-                datetime.datetime(2021, 1, 4, 4, 4, 4),
-                datetime.datetime(2021, 1, 5, 5, 5, 5),
-            ],
-            "date_5_days": [
-                datetime.date(2021, 1, 1),
-                datetime.date(2021, 1, 2),
-                datetime.date(2021, 1, 3),
-                datetime.date(2021, 1, 4),
-                datetime.date(2021, 1, 5),
-            ],
-            "date_5_months": [
-                datetime.date(2021, 1, 1),
-                datetime.date(2021, 2, 1),
-                datetime.date(2021, 3, 1),
-                datetime.date(2021, 4, 1),
-                datetime.date(2021, 5, 1),
-            ],
-            "date_5_years": [
-                datetime.date(2021, 1, 1),
-                datetime.date(2022, 1, 1),
-                datetime.date(2023, 1, 1),
-                datetime.date(2024, 1, 1),
-                datetime.date(2025, 1, 1),
-            ],
-            "date_20_years": [
-                datetime.date(2021, 1, 1),
-                datetime.date(2026, 1, 1),
-                datetime.date(2031, 1, 1),
-                datetime.date(2036, 1, 1),
-                datetime.date(2041, 1, 1),
-            ],
-            "multiple_count": [
-                datetime.date(2021, 1, 1),
-                datetime.date(2021, 1, 1),
-                datetime.date(2021, 1, 1),
-                datetime.date(2021, 1, 1),
-                datetime.date(2021, 1, 1),
-            ],
-        },
-        exclude=["ibis", "duckdb"],
-    ),
-)
-class TestComputedColSummaries:
-    def create_expected_value_count(
-        self, df: Any, date: Any, count: int
-    ) -> list[ValueCount]:
-        import pandas as pd
-
-        if isinstance(df, pd.DataFrame):
-            return ValueCount(value=pd.Timestamp(date), count=count)
-        else:
-            return ValueCount(value=date, count=count)
-
-    def test_non_temporal_column(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("int", 3)
-        assert value_counts == []
-
-    def test_time_column(self, df: Any) -> None:
-        import pandas as pd
-
-        if isinstance(df, pd.DataFrame):
-            # pandas doesn't support time objects
-            return
-
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("time", 3)
-        assert value_counts == [
-            ValueCount(value=datetime.time(1, 1, 1), count=1),
-            ValueCount(value=datetime.time(3, 3, 3), count=1),
-            ValueCount(value=datetime.time(5, 5, 5), count=1),
-        ]
-
-    def test_datetime_1_day_column(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("datetime_1_day", 3)
-        assert value_counts == [
-            self.create_expected_value_count(
-                df, datetime.datetime(2021, 1, 1, 1), 1
-            ),
-            self.create_expected_value_count(
-                df, datetime.datetime(2021, 1, 1, 3), 1
-            ),
-            self.create_expected_value_count(
-                df, datetime.datetime(2021, 1, 1, 5), 1
-            ),
-        ]
-
-    def test_date_5_days_column(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("date_5_days", 3)
-        assert value_counts == [
-            self.create_expected_value_count(df, datetime.date(2021, 1, 1), 1),
-            self.create_expected_value_count(df, datetime.date(2021, 1, 3), 1),
-            self.create_expected_value_count(df, datetime.date(2021, 1, 5), 1),
-        ]
-
-    def test_datetime_5_days_column(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("datetime_5_days", 3)
-        assert value_counts == [
-            self.create_expected_value_count(
-                df, datetime.datetime(2021, 1, 1, 0), 1
-            ),
-            self.create_expected_value_count(
-                df, datetime.datetime(2021, 1, 3, 0), 1
-            ),
-            self.create_expected_value_count(
-                df, datetime.datetime(2021, 1, 5, 4), 1
-            ),
-        ]
-
-    def test_date_5_months_column(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("date_5_months", 3)
-        assert value_counts == [
-            self.create_expected_value_count(
-                df, datetime.date(2020, 12, 24), 1
-            ),
-            self.create_expected_value_count(
-                df, datetime.date(2021, 2, 22), 1
-            ),
-            self.create_expected_value_count(
-                df, datetime.date(2021, 4, 23), 1
-            ),
-        ]
-
-    def test_date_5_years_column(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("date_5_years", 3)
-        assert value_counts == [
-            self.create_expected_value_count(df, datetime.date(2021, 1, 1), 1),
-            self.create_expected_value_count(df, datetime.date(2023, 1, 1), 1),
-            self.create_expected_value_count(df, datetime.date(2025, 1, 1), 1),
-        ]
-
-    def test_date_20_years_column(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("date_20_years", 3)
-        assert value_counts == [
-            ValueCount(value=2021, count=1),
-            ValueCount(value=2031, count=1),
-            ValueCount(value=2041, count=1),
-        ]
-
-    def test_temporal_summary_with_multiple_count(self, df: Any) -> None:
-        manager = NarwhalsTableManager.from_dataframe(df)
-        value_counts = manager.get_value_counts("multiple_count", 3)
-        assert value_counts == [
-            self.create_expected_value_count(df, datetime.date(2021, 1, 1), 5),
-        ]
-
-
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
@@ -1151,6 +974,209 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
         )
         for bin_value in bin_values
     ]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "int": [1, 2, 3, 4, 5],
+            "time": [
+                datetime.time(12, 0, 0),
+                datetime.time(13, 0, 0),
+                datetime.time(14, 0, 0),
+                datetime.time(15, 0, 0),
+                datetime.time(16, 0, 0),
+            ],
+            "dates_with_nulls": [
+                datetime.datetime(2021, 1, 1),
+                datetime.datetime(2021, 1, 2),
+                datetime.datetime(2021, 1, 3),
+                None,
+                None,
+            ],
+            "datetime_1_day": [
+                datetime.datetime(2021, 1, 1, 1, 1, 1),
+                datetime.datetime(2021, 1, 1, 2, 2, 2),
+                datetime.datetime(2021, 1, 1, 3, 3, 3),
+                datetime.datetime(2021, 1, 1, 4, 4, 4),
+                datetime.datetime(2021, 1, 1, 5, 5, 5),
+            ],
+            "timedelta": [
+                datetime.timedelta(days=1, hours=1, minutes=1, seconds=1),
+                datetime.timedelta(days=2, hours=2, minutes=2, seconds=2),
+                datetime.timedelta(days=3, hours=3, minutes=3, seconds=3),
+                datetime.timedelta(days=4, hours=4, minutes=4, seconds=4),
+                datetime.timedelta(days=5, hours=5, minutes=5, seconds=5),
+            ],
+            "datetime_with_tz": [
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 2, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 3, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 4, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 5, 1, tzinfo=datetime.timezone.utc),
+            ],
+            "dates_multiple": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+            ],
+        },
+        exclude=["ibis", "duckdb"],
+    ),
+)
+class TestGetBinValuesTemporal:
+    def test_datetime(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("datetime_1_day", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 1, 1, 1, 1),
+                bin_end=datetime.datetime(2021, 1, 1, 10, 22, 22, 333333),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 1, 10, 22, 22, 333333),
+                bin_end=datetime.datetime(2021, 1, 1, 11, 43, 43, 666667),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 1, 11, 43, 43, 666667),
+                bin_end=datetime.datetime(2021, 1, 1, 13, 5, 5),
+                count=2,
+            ),
+        ]
+
+    def test_dates_with_nulls(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("dates_with_nulls", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 1, 0, 0),
+                bin_end=datetime.datetime(2021, 1, 2, 0, 0),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 2, 0, 0),
+                bin_end=datetime.datetime(2021, 1, 2, 16, 0),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 2, 16, 0),
+                bin_end=datetime.datetime(2021, 1, 3, 8, 0),
+                count=1,
+            ),
+        ]
+
+    def test_get_bin_values_time(self, df: Any) -> None:
+        import pandas as pd
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("time", 3)
+
+        # Pandas doesn't support time types
+        if isinstance(df, pd.DataFrame):
+            assert bin_values == []
+            return
+
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.time(12, 0),
+                bin_end=datetime.time(13, 20),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.time(13, 20),
+                bin_end=datetime.time(14, 40),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.time(14, 40),
+                bin_end=datetime.time(16, 0),
+                count=2,
+            ),
+        ]
+
+    @pytest.mark.xfail(reason="Timedelta is not supported yet", strict=False)
+    def test_timedelta(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("timedelta", 3)
+
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.timedelta(
+                    days=1, hours=1, minutes=1, seconds=1
+                ),
+                bin_end=datetime.timedelta(
+                    days=2, hours=2, minutes=2, seconds=2
+                ),
+                count=1,
+            )
+        ]
+
+    @pytest.mark.xfail(
+        reason="Datetime with timezone not fully supported, loses timezone info"
+    )
+    def test_datetime_with_tz(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("datetime_with_tz", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 1, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 5, 1, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+        ]
+
+    def test_dates_multiple(self, df: Any) -> None:
+        import pandas as pd
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("dates_multiple", 3)
+
+        if isinstance(df, pd.DataFrame):
+            # pandas converts to pd.Datetime, so we get a datetime
+            assert bin_values == [
+                BinValue(
+                    bin_start=datetime.datetime(2021, 1, 1, 7, 59, 59, 999833),
+                    bin_end=datetime.datetime(2021, 1, 1, 8, 0, 0, 167),
+                    count=5,
+                )
+            ]
+            return
+
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.date(2021, 1, 1),
+                bin_end=datetime.date(2021, 1, 1),
+                count=5,
+            )
+        ]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

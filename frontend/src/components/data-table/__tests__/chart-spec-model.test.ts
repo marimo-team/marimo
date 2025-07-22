@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
-import { ColumnChartSpecModel } from "../chart-spec-model";
+import { ColumnChartSpecModel } from "../column-summary/chart-spec-model";
 import type {
   BinValues,
   ColumnHeaderStats,

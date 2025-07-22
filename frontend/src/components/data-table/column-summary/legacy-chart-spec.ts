@@ -107,17 +107,17 @@ export function getLegacyTemporalSpec(
         },
         encoding: {
           x: {
-            field: "value",
+            field: column,
             type: "temporal",
             axis: null,
             bin: true,
             scale: scale,
           },
-          y: { field: "count", type: "quantitative", axis: null },
+          y: { aggregate: "count", type: "quantitative", axis: null },
           // Color nulls
           color: {
             condition: {
-              test: `datum["bin_maxbins_10_value_range"] === "null"`,
+              test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
               value: orange.orange11,
             },
             value: mint.mint11,
@@ -134,24 +134,24 @@ export function getLegacyTemporalSpec(
         },
         encoding: {
           x: {
-            field: "value",
+            field: column,
             type: "temporal",
             axis: null,
             bin: true,
             scale: scale,
           },
-          y: { field: "count", type: "quantitative", axis: null },
+          y: { aggregate: "max", type: "quantitative", axis: null },
           tooltip: [
             {
               // Can also use column, but this is more explicit
-              field: "bin_maxbins_10_value",
+              field: `bin_maxbins_10_${column}`,
               type: "temporal",
               format: format,
               bin: { binned: true },
               title: `${column} (start)`,
             },
             {
-              field: "bin_maxbins_10_value_end",
+              field: `bin_maxbins_10_${column}_end`,
               type: "temporal",
               format: format,
               bin: { binned: true },
@@ -167,7 +167,7 @@ export function getLegacyTemporalSpec(
           // Color nulls
           color: {
             condition: {
-              test: `datum["bin_maxbins_10_value_range"] === "null"`,
+              test: `datum["bin_maxbins_10_${column}_range"] === "null"`,
               value: orange.orange11,
             },
             value: mint.mint11,

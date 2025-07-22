@@ -1645,6 +1645,7 @@ export const UserConfigForm: React.FC = () => {
                       />
                     </FormControl>
                   </FormItem>
+
                   <FormDescription>
                     Enable experimental real-time collaboration. This change
                     requires a page refresh to take effect.
@@ -1669,6 +1670,10 @@ export const UserConfigForm: React.FC = () => {
                       />
                     </FormControl>
                   </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.performant_table_charts"
+                  />
                   <FormDescription>
                     Enable experimental table charts which are computed on the
                     backend.
