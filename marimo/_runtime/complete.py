@@ -5,9 +5,9 @@ import html
 import sys
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import jedi  # type: ignore # noqa: F401
 import jedi.api  # type: ignore # noqa: F401
@@ -372,17 +372,27 @@ def _isinstance_external(obj: Any, *, class_ref: str) -> bool:
     return isinstance(obj, target_class)
 
 
+class HasKeysMethod(Protocol):
+    def keys(self) -> Collection[Any]: ...
+
+
+class HasColumnsProperty(Protocol):
+    @property
+    def columns(self) -> Collection[Any]: ...
+
+
 def _key_options_from_ipython_method(obj: Any) -> list[str]:
     # convention for `_ipython_key_completions_` is to return a list of strings
     return [str(key) for key in obj._ipython_key_completions_()]
 
 
-def _key_options_from_mapping(obj: Mapping[Any, Any]) -> list[str]:
+def _key_options_via_keys_method(obj: HasKeysMethod) -> list[str]:
     return [str(key) for key in obj.keys()]
 
 
-def _key_options_from_pandas(obj: Any) -> list[str]:
-    return _key_options_from_mapping(obj)
+# TODO refactor to customize the `CompletionOption.info` with `"columns"`
+def _key_options_via_columns_method(obj: HasColumnsProperty) -> list[str]:
+    return [str(col) for col in obj.columns]
 
 
 def _key_options_dispatcher(obj: Any) -> list[str]:
@@ -394,9 +404,11 @@ def _key_options_dispatcher(obj: Any) -> list[str]:
     if getattr(obj, "_ipython_key_completions_", False):
         return _key_options_from_ipython_method(obj)
     elif isinstance(obj, Mapping):
-        return _key_options_from_mapping(obj)
+        return _key_options_via_keys_method(obj)
     elif _isinstance_external(obj, class_ref="pandas.DataFrame"):
-        return _key_options_from_pandas(obj)
+        return _key_options_via_columns_method(obj)
+    elif _isinstance_external(obj, class_ref="polars.DataFrame"):
+        return _key_options_via_columns_method(obj)
 
     LOGGER.debug(
         f"No matching handlers found to retrieve keys from type `{type(obj)}`"
@@ -416,7 +428,7 @@ def _get_key_options(
     names = script.get_names(
         references=True, definitions=False, all_scopes=False
     )
-    if len(names) == 0:
+    if not names:
         LOGGER.debug(
             f"Retrieved no `names` for completion request: `{script._code}`"
         )
@@ -432,7 +444,7 @@ def _get_key_options(
     # TODO currently unreliable for non-string keys, even if stringified
     # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
     return [
-        CompletionOption(name=key, type="property", completion_info="property")
+        CompletionOption(name=key, type="property", completion_info="key")
         for key in keys
     ]
 
@@ -454,7 +466,10 @@ def _maybe_get_key_options(
     locked = False
     locked = glbls_lock.acquire(blocking=False)
     if locked:
-        return _get_key_options(script, glbls)
+        try:
+            return _get_key_options(script, glbls)
+        finally:
+            glbls_lock.release()
     else:
         return []
 
@@ -474,6 +489,9 @@ def _get_completions(
     return script, completions
 
 
+# NOTE you will hit front display bug if the result set doesn't
+# share the same `prefix_length`. This could happen if completion values
+# are generated via different means
 def complete(
     request: CodeCompletionRequest,
     graph: dataflow.DirectedGraph,
@@ -528,14 +546,22 @@ def complete(
         )
         prefix = request.document[-prefix_length:]
 
-        # TODO we can probably return early if we have key completion;
-        # it has different triggers and retrieval should never overlap with attribute completion
         key_options = _maybe_get_key_options(
             request,
             script,
             glbls=glbls,
             glbls_lock=glbls_lock,
         )
+        # if `key_options` are found, return early
+        # we can return because key and attribute completions have non-overlapping triggers
+        if key_options:
+            _write_completion_result(
+                stream=stream,
+                completion_id=request.id,
+                prefix_length=0,  # values is static because of our implementation
+                options=key_options,
+            )
+            return
 
         if (
             prefix_length == 0
@@ -592,7 +618,7 @@ def complete(
             stream=stream,
             completion_id=request.id,
             prefix_length=prefix_length,
-            options=key_options + options,
+            options=options,
         )
     except Exception as e:
         # jedi failed to provide completion
