@@ -6,6 +6,7 @@ import { useCellActions, useNotebook } from "@/core/cells/cells";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
+import type { VariableName } from "@/core/variables/types";
 import { cn } from "@/utils/cn";
 import {
   type CellGraph,
@@ -21,7 +22,6 @@ interface MinimapCellProps {
 const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const { cellId, cellPositions } = props;
   const notebook = useNotebook();
-  const variables = useVariables();
   const focusState = useAtomValue(cellFocusAtom);
   const selectedCellId = focusState.focusedCellId;
   const graphs = useAtomValue(cellGraphsAtom);
@@ -43,7 +43,6 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     } else {
       // Otherwise focus the cell
       actions.focusCell({ cellId, where: "exact" });
-      // Also ensure the focus atom is updated
       focusActions.focusCell({ cellId });
     }
   };
@@ -76,30 +75,12 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
           title={cell.code}
         >
           {graph.variables.length > 0 ? (
-            graph.variables.map((varName, idx) => {
-              const variable = variables[varName];
-              return (
-                <React.Fragment key={varName}>
-                  {idx > 0 && ", "}
-                  <span
-                    className={cn({
-                      "text-foreground": selectedCellId === null,
-                      "font-bold": isSelected,
-                      "text-primary font-medium":
-                        !isSelected &&
-                        selectedCellId &&
-                        selectedGraph &&
-                        isVariableAffectedBySelectedCell(variable, {
-                          selectedCellId,
-                          selectedGraph,
-                        }),
-                    })}
-                  >
-                    {varName}
-                  </span>
-                </React.Fragment>
-              );
-            })
+            <VariablesList
+              cellId={cellId}
+              variableNames={graph.variables}
+              selectedCellId={selectedCellId}
+              selectedGraph={selectedGraph}
+            />
           ) : (
             <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
               {codePreview(cell.code) ?? <span className="italic">empty</span>}
@@ -195,6 +176,44 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
 function codePreview(code: string): string | undefined {
   return code.split("\n")[0].trim() || undefined;
 }
+
+const VariablesList: React.FC<{
+  cellId: CellId;
+  variableNames: readonly VariableName[];
+  selectedCellId: CellId | null;
+  selectedGraph?: CellGraph;
+}> = ({ variableNames, selectedGraph, cellId, selectedCellId }) => {
+  const variables = useVariables();
+  const isSelected = cellId === selectedCellId;
+  return (
+    <>
+      {variableNames.map((varName, idx) => {
+        const variable = variables[varName];
+        return (
+          <React.Fragment key={varName}>
+            {idx > 0 && ", "}
+            <span
+              className={cn({
+                "text-foreground": selectedGraph === undefined,
+                "font-bold": isSelected,
+                "text-primary font-medium":
+                  !isSelected &&
+                  selectedGraph &&
+                  selectedCellId &&
+                  isVariableAffectedBySelectedCell(variable, {
+                    selectedCellId,
+                    selectedGraph,
+                  }),
+              })}
+            >
+              {varName}
+            </span>
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
 
 // Connection paths (for selected)
 const SelectedCell = (options: {
