@@ -43,9 +43,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
         "h-[21px] pl-[51px] font-inherit",
         isSelected
           ? "text-primary-foreground"
-          : runtime.errored
-            ? "text-destructive"
-            : "text-[var(--gray-8)] hover:text-[var(--gray-9)]",
+          : "text-[var(--gray-8)] hover:text-[var(--gray-9)]",
       )}
       onClick={() => onClick(cellId)}
       // Prevent the default mousedown behavior to avoid blur events on the currently
@@ -98,10 +96,10 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       <svg
         className={cn(
           "absolute z-20 overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)] pointer-events-none",
-          selectedCellId === null
-            ? "text-foreground"
-            : runtime.errored
-              ? "text-destructive"
+          runtime.errored
+            ? "text-destructive"
+            : selectedCellId === null
+              ? "text-foreground"
               : isSelected ||
                   selectedGraph?.parents.has(cellId) ||
                   selectedGraph?.children.has(cellId)
@@ -139,24 +137,28 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
   return (
     <div
       className={cn(
-        "fixed top-14 right-4 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border shadow-lg w-64 contain-size h-3/4 flex flex-col",
+        "fixed top-14 right-4 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[75vh]",
         className,
       )}
     >
       <div className="flex items-center justify-between p-4 border-b">
         <span className="text-sm font-semibold">Minimap</span>
       </div>
-      <div className="overflow-y-auto overflow-x-hidden py-3 pl-3 pr-4 flex-1 scrollbar-none">
-        {notebook.cellIds.inOrderIds.map((cellId) => {
-          return (
-            <MinimapCell
-              key={cellId}
-              cellId={cellId}
-              onClick={handleCellClick}
-              cellPositions={cellPositions}
-            />
-          );
-        })}
+      <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none relative">
+        <div className="py-3 pl-3 pr-4">
+          {notebook.cellIds.inOrderIds.map((cellId) => {
+            return (
+              <MinimapCell
+                key={cellId}
+                cellId={cellId}
+                onClick={handleCellClick}
+                cellPositions={cellPositions}
+              />
+            );
+          })}
+        </div>
+        {/* Invisible element to prevent SVG overflow from affecting scroll */}
+        <div className="h-0 overflow-hidden" aria-hidden="true" />
       </div>
     </div>
   );
