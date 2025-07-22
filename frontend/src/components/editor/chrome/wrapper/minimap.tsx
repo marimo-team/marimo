@@ -32,8 +32,8 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const graph = graphs[cellId];
   const selectedGraph = selectedCellId ? graphs[selectedCellId] : undefined;
 
-  const noneSelected = selectedCellId === undefined;
   const isSelected = selectedCellId === cellId;
+
   return (
     <button
       data-node-id={cellId}
@@ -48,6 +48,10 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
             : "text-[var(--gray-8)] hover:text-[var(--gray-9)]",
       )}
       onClick={() => onClick(cellId)}
+      // Prevent the default mousedown behavior to avoid blur events on the currently
+      // focused cell. Without this, clicking the minimap causes a flicker as the focus
+      // transitions from current cell -> null -> new cell.
+      onMouseDown={(e) => e.preventDefault()}
     >
       <div
         className={cn(
@@ -67,7 +71,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
                   {idx > 0 && ", "}
                   <span
                     className={cn({
-                      "text-foreground": noneSelected,
+                      "text-foreground": selectedCellId === null,
                       "font-bold": isSelected,
                       "text-primary font-medium":
                         !isSelected &&
@@ -94,7 +98,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       <svg
         className={cn(
           "absolute z-20 overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)]",
-          noneSelected
+          selectedCellId === null
             ? "text-foreground"
             : runtime.errored
               ? "text-destructive"
