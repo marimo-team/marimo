@@ -186,13 +186,13 @@ export function useCellNavigationProps(
         },
         // Move up
         ArrowUp: () => {
-          actions.focusCell({ cellId, mode: "before" });
+          actions.focusCell({ cellId, where: "before" });
           selectionActions.clear();
           return true;
         },
         // Move down
         ArrowDown: () => {
-          actions.focusCell({ cellId, mode: "after" });
+          actions.focusCell({ cellId, where: "after" });
           selectionActions.clear();
           return true;
         },
@@ -207,7 +207,7 @@ export function useCellNavigationProps(
             selectionActions.extend({ cellId: beforeCellId, allCellIds });
           }
           // Focus the cell
-          actions.focusCell({ cellId, mode: "before" });
+          actions.focusCell({ cellId, where: "before" });
           return true;
         },
         // Select down
@@ -221,7 +221,7 @@ export function useCellNavigationProps(
             selectionActions.extend({ cellId: afterCellId, allCellIds });
           }
           // Focus the cell
-          actions.focusCell({ cellId, mode: "after" });
+          actions.focusCell({ cellId, where: "after" });
           return true;
         },
         // Clear selection
@@ -361,7 +361,7 @@ export function useCellNavigationProps(
           // Only focus if it is a single cell
           if (cellIds.length === 1) {
             const cellId = cellIds[0];
-            actions.focusCell({ cellId, mode: "after" });
+            actions.focusCell({ cellId, where: "after" });
             if (nextHideCode) {
               // Move focus from the editor to the cell
               editorView.current?.contentDOM.blur();
@@ -374,11 +374,11 @@ export function useCellNavigationProps(
           return true;
         }),
         "cell.focusDown": (cellId) => {
-          actions.focusCell({ cellId, mode: "after" });
+          actions.focusCell({ cellId, where: "after" });
           return true;
         },
         "cell.focusUp": (cellId) => {
-          actions.focusCell({ cellId, mode: "before" });
+          actions.focusCell({ cellId, where: "before" });
           return true;
         },
         "cell.sendToBottom": addSingleHandler((cellIds) => {
