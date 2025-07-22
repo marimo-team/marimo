@@ -7,7 +7,7 @@ import {
   isCellAwareAtom,
 } from "@/components/editor/chrome/panels/context-aware-panel/atoms";
 import type { PanelType } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
-import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import { useCellFocusActions, useLastFocusedCellId } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
 
@@ -21,9 +21,8 @@ export function usePanelOwnership(
   cellId?: CellId | null,
 ): PanelOwnershipResult {
   let isPanelCellAware = useAtomValue(isCellAwareAtom);
-  const [lastFocusedCellId, setLastFocusedCellId] = useAtom(
-    lastFocusedCellIdAtom,
-  );
+  const { focusCell } = useCellFocusActions();
+  const lastFocusedCellId = useLastFocusedCellId();
   const [panelType, setPanelType] = useAtom(contextAwarePanelType);
   const [panelOwner, setPanelOwner] = useAtom(contextAwarePanelOwner);
   const [isContextAwarePanelOpen, setContextAwarePanelOpen] = useAtom(
@@ -64,7 +63,7 @@ export function usePanelOwnership(
       setPanelOwner(panelId);
       // if cell-aware, we want to focus on this cell when toggled open
       if (isPanelCellAware && cellId) {
-        setLastFocusedCellId(cellId);
+        focusCell({ cellId });
       }
       setContextAwarePanelOpen(true);
       setPanelType(panelType);
