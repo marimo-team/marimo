@@ -13,7 +13,7 @@ import sys
 import threading
 import time
 import traceback
-from copy import copy, deepcopy
+from copy import copy
 from functools import cached_property
 from multiprocessing import connection
 from pathlib import Path
@@ -1113,8 +1113,6 @@ class Kernel:
         LOGGER.debug("Current set of errors: %s", self.errors)
         cells_before_mutation = set(self.graph.cells.keys())
         cells_with_errors_before_mutation = set(self.errors.keys())
-        edges_before = deepcopy(self.graph.children)
-        definitions_before = set(self.graph.definitions.keys())
         cells_starting_stale = (
             set() if cells_starting_stale is None else cells_starting_stale
         )
@@ -1271,27 +1269,22 @@ class Kernel:
                 cell_id=cid,
             )
 
-        # Only broadcast Variables message if definitions changed
-        edges_after = self.graph.children
-        definitions_after = set(self.graph.definitions.keys())
-        if (
-            edges_before != edges_after
-            or definitions_before != definitions_after
-        ):
-            Variables(
-                variables=[
-                    VariableDeclaration(
-                        name=variable,
-                        declared_by=list(declared_by),
-                        used_by=list(
-                            self.graph.get_referring_cells(
-                                variable, language="python"
-                            )
-                        ),
-                    )
-                    for variable, declared_by in self.graph.definitions.items()
-                ]
-            ).broadcast()
+        # Always broadcast Variables message after graph mutation to ensure
+        # frontend has the latest dependency information
+        Variables(
+            variables=[
+                VariableDeclaration(
+                    name=variable,
+                    declared_by=list(declared_by),
+                    used_by=list(
+                        self.graph.get_referring_cells(
+                            variable, language="python"
+                        )
+                    ),
+                )
+                for variable, declared_by in self.graph.definitions.items()
+            ]
+        ).broadcast()
 
         stale_cells = (
             set(
