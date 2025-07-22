@@ -424,6 +424,7 @@ class KernelCapabilities:
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
         self.pylsp = DependencyManager.pylsp.has()
+        self.pyright = DependencyManager.pyright.has()
         self.ty = DependencyManager.ty.has()
 
 

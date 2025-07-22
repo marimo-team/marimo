@@ -3240,6 +3240,9 @@ export interface components {
           enable_ruff?: boolean;
           enabled?: boolean;
         };
+        pyright?: {
+          enabled?: boolean;
+        };
         ty?: {
           enabled?: boolean;
         };

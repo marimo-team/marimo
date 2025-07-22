@@ -153,6 +153,24 @@ const tyLspClient = once((_: LSPConfig) => {
   );
 });
 
+const pyrightClient = once((_: LSPConfig) => {
+  const lspClientOpts = {
+    transport: createTransport("pyright"),
+    rootUri: getLSPDocumentRootUri(),
+    workspaceFolders: [],
+  };
+
+  // We wrap the client in a NotebookLanguageServerClient to add some
+  // additional functionality to handle multiple cells
+  return new NotebookLanguageServerClient(
+    new LanguageServerClient({
+      ...lspClientOpts,
+      autoClose: false,
+    }),
+    {},
+  );
+});
+
 /**
  * Language adapter for Python.
  */
@@ -208,6 +226,9 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
       }
       if (lspConfig?.ty?.enabled && hasCapability("ty")) {
         clients.push(tyLspClient(lspConfig));
+      }
+      if (lspConfig?.pyright?.enabled && hasCapability("pyright")) {
+        clients.push(pyrightClient(lspConfig));
       }
 
       if (clients.length > 0) {
