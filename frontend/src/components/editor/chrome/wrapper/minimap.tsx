@@ -53,7 +53,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     >
       <div
         className={cn(
-          "group-hover:bg-[var(--gray-3)] flex h-full w-full px-0.5 items-center rounded",
+          "group-hover:bg-[var(--gray-2)] flex h-full w-full px-0.5 items-center rounded",
           isSelected && "bg-primary group-hover:bg-primary",
         )}
       >
@@ -106,6 +106,8 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
                 ? "text-primary"
                 : "text-[var(--gray-8)]",
         )}
+        width="1"
+        height="1"
       >
         {isSelected ? (
           <SelectedCell
@@ -131,9 +133,20 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
   const handleCellClick = (cellId: CellId) => {
     actions.focusCell({ cellId, where: "exact" });
   };
+
   const cellPositions: Record<CellId, number> = Object.fromEntries(
     notebook.cellIds.inOrderIds.map((id, idx) => [id, idx]),
   );
+
+  const columnBoundaries: number[] = [];
+  let cellCount = 0;
+  for (const [idx, column] of notebook.cellIds.getColumns().entries()) {
+    if (idx > 0) {
+      columnBoundaries.push(cellCount);
+    }
+    cellCount += column.inOrderIds.length;
+  }
+
   return (
     <div
       className={cn(
@@ -144,16 +157,25 @@ export const Minimap: React.FC<{ className?: string }> = ({ className }) => {
       <div className="flex items-center justify-between p-4 border-b">
         <span className="text-sm font-semibold">Minimap</span>
       </div>
-      <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none relative">
-        <div className="py-3 pl-3 pr-4">
-          {notebook.cellIds.inOrderIds.map((cellId) => {
+      <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none">
+        <div className="py-3 pl-3 pr-4 relative min-h-full">
+          {notebook.cellIds.inOrderIds.map((cellId, idx) => {
+            const isColumnBoundary = columnBoundaries.includes(idx);
             return (
-              <MinimapCell
-                key={cellId}
-                cellId={cellId}
-                onClick={handleCellClick}
-                cellPositions={cellPositions}
-              />
+              <React.Fragment key={cellId}>
+                {/* Subtle visual divider between nodes */}
+                {isColumnBoundary && (
+                  <div
+                    className="absolute left-5 w-[36px] h-px bg-[var(--gray-4)] pointer-events-none"
+                    aria-hidden="true"
+                  />
+                )}
+                <MinimapCell
+                  cellId={cellId}
+                  onClick={handleCellClick}
+                  cellPositions={cellPositions}
+                />
+              </React.Fragment>
             );
           })}
         </div>
