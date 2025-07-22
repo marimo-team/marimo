@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai";
 import React from "react";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
-import { useLastFocusedCellId } from "@/core/cells/focus";
+import { cellFocusAtom } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
@@ -23,7 +23,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const { cellId, onClick, cellPositions } = props;
   const notebook = useNotebook();
   const variables = useVariables();
-  const selectedCellId = useLastFocusedCellId();
+  const selectedCellId = useAtomValue(cellFocusAtom).focusedCellId;
   const graphs = useAtomValue(cellGraphsAtom);
 
   const cell = notebook.cellData[cellId];

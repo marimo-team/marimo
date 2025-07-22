@@ -5,7 +5,7 @@ import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
-import { useSetLastFocusedCellId } from "@/core/cells/focus";
+import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import {
@@ -78,7 +78,7 @@ function addSingleHandler(handler: HotkeyHandler["bulkHandle"]): HotkeyHandler {
 }
 
 function useCellFocusProps(cellId: CellId) {
-  const setLastFocusedCellId = useSetLastFocusedCellId();
+  const focusActions = useCellFocusActions();
   const actions = useCellActions();
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
   const pendingDeleteService = usePendingDeleteService();
@@ -87,13 +87,14 @@ function useCellFocusProps(cellId: CellId) {
   const { focusWithinProps } = useFocusWithin({
     onFocusWithin: () => {
       // On focus, set the last focused cell id.
-      setLastFocusedCellId(cellId);
+      focusActions.focusCell({ cellId });
     },
     onBlurWithin: () => {
       // On blur, hide the code if it was temporarily shown.
       setTemporarilyShownCode(false);
       actions.markTouched({ cellId });
       pendingDeleteService.clear();
+      focusActions.blurCell();
     },
   });
 

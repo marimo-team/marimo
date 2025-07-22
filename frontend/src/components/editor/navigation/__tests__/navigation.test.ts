@@ -25,8 +25,9 @@ vi.mock("@/core/cells/cells", async (importOriginal) => ({
   useCellActions: vi.fn(),
 }));
 
-vi.mock("@/core/cells/focus", () => ({
-  useSetLastFocusedCellId: vi.fn(),
+vi.mock("@/core/cells/focus", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useCellFocusActions: vi.fn(),
 }));
 
 vi.mock("@/core/saving/save-component", () => ({
