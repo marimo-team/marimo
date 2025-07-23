@@ -400,7 +400,7 @@ export class ColumnChartSpecModel<T> {
             },
           };
           chart = {
-            // Because the temporal axis will not show nulls, we concat 2 charts
+            // Temporal axis will not show nulls, so we concat 2 charts
             // @ts-expect-error 'hconcat' property not in TopLevelFacetedUnitSpec
             hconcat: [nullBar, histogram],
           };
@@ -613,8 +613,6 @@ export class ColumnChartSpecModel<T> {
 
         return {
           ...base, // Assuming base contains shared configurations
-          // Two layers: one with the visible bars, and one with invisible bars
-          // that provide a larger tooltip area.
           ...chart,
         };
       }
