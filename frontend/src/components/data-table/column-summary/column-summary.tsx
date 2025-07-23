@@ -137,9 +137,9 @@ export const TableColumnSummary = <TData, TValue>({
         return null;
       case "string":
         return (
-          <div className="flex flex-col whitespace-pre">
-            <span>unique: {prettyNumber(stats.unique)}</span>
-          </div>
+          <span className="whitespace-pre text-xs">
+            unique: {prettyNumber(stats.unique)}
+          </span>
         );
       case "unknown":
         return (
@@ -154,7 +154,7 @@ export const TableColumnSummary = <TData, TValue>({
   };
 
   return (
-    <div className="flex flex-col items-center text-xs text-muted-foreground align-end">
+    <div className="flex flex-col items-center text-xs text-muted-foreground align-end max-h-20">
       {chart}
       {renderStats()}
     </div>

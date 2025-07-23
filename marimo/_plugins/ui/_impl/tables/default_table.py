@@ -7,7 +7,12 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Optional, Union, cast
 
-from marimo._data.models import BinValue, ColumnStats, ExternalDataType
+from marimo._data.models import (
+    BinValue,
+    ColumnStats,
+    ExternalDataType,
+    ValueCount,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.json_encoder import WebComponentEncoder
@@ -330,6 +335,12 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
         del column, num_bins
+        return []
+
+    def get_value_counts(
+        self, column: ColumnName, limit: int
+    ) -> list[ValueCount]:
+        del column, limit
         return []
 
     def get_num_rows(self, force: bool = True) -> int:

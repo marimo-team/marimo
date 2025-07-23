@@ -11,7 +11,12 @@ import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
-from marimo._data.models import BinValue, ColumnStats, ExternalDataType
+from marimo._data.models import (
+    BinValue,
+    ColumnStats,
+    ExternalDataType,
+    ValueCount,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
@@ -534,6 +539,46 @@ class NarwhalsTableManager(
         if total <= size:
             return list(range(total))
         return [round(i * (total - 1) / (size - 1)) for i in range(size)]
+
+    def get_value_counts(
+        self, column: ColumnName, limit: int
+    ) -> list[ValueCount]:
+        """
+        Get value counts for a column.
+
+        This is a wrapper around calculate_top_k_rows that returns a list of
+        ValueCount objects. The last item will be 'Others' with the count of
+        remaining values.
+        """
+        if column not in self.nw_schema:
+            LOGGER.error(f"Column {column} not found in schema")
+            return []
+
+        values = self.calculate_top_k_rows(column, limit)
+        total_rows = self.get_num_rows(force=False)
+        if total_rows is None:
+            LOGGER.warning("Could not get number of rows for value counts")
+            return []
+
+        # Check if completely unique
+        all_unique = values[0][1] == 1
+        if all_unique:
+            return [ValueCount(value="Unique", count=total_rows)]
+
+        sum_count = 0
+        value_counts = []
+        for value, count in values:
+            sum_count += count
+            value_counts.append(ValueCount(value=value, count=count))
+
+        unique_count = ValueCount(value="Unique", count=total_rows - sum_count)
+
+        if len(value_counts) == limit:
+            value_counts[-1] = unique_count
+        else:
+            value_counts.append(unique_count)
+
+        return value_counts
 
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows

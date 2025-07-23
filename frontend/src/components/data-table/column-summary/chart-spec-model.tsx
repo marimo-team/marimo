@@ -2,6 +2,7 @@
 
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";
+import type { StringFieldDef } from "vega-lite/build/src/channeldef";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
 import { asRemoteURL } from "@/core/runtime/config";
@@ -15,13 +16,16 @@ import {
   isDataURLString,
   typedAtob,
 } from "@/utils/json/base64";
+import { Logger } from "@/utils/Logger";
 import type {
   BinValues,
   ColumnHeaderStats,
   ColumnName,
   FieldTypes,
+  ValueCounts,
 } from "../types";
 import {
+  getLegacyBooleanSpec,
   getLegacyNumericSpec,
   getLegacyTemporalSpec,
 } from "./legacy-chart-spec";
@@ -44,9 +48,11 @@ formats("arrow", arrow);
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, Partial<ColumnHeaderStats>>();
   private columnBinValues = new Map<ColumnName, BinValues>();
+  private columnValueCounts = new Map<ColumnName, ValueCounts>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
     [],
+    {},
     {},
     {},
     {},
@@ -64,6 +70,7 @@ export class ColumnChartSpecModel<T> {
     private readonly fieldTypes: FieldTypes,
     readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
     readonly binValues: Record<ColumnName, BinValues>,
+    readonly valueCounts: Record<ColumnName, ValueCounts>,
     private readonly opts: {
       includeCharts: boolean;
       usePreComputedValues?: boolean;
@@ -107,6 +114,7 @@ export class ColumnChartSpecModel<T> {
     }
 
     this.columnBinValues = new Map(Object.entries(binValues));
+    this.columnValueCounts = new Map(Object.entries(valueCounts));
     this.columnStats = new Map(Object.entries(stats));
   }
 
@@ -136,24 +144,29 @@ export class ColumnChartSpecModel<T> {
     const usePreComputedValues = this.opts.usePreComputedValues;
     const binValues = this.columnBinValues.get(column);
     const hasBinValues = binValues && binValues.length > 0;
+    const valueCounts = this.columnValueCounts.get(column);
+    const hasValueCounts = valueCounts && valueCounts.length > 0;
 
     let data = this.dataSpec as TopLevelFacetedUnitSpec["data"];
     const stats = this.columnStats.get(column);
 
-    if (usePreComputedValues && hasBinValues) {
-      const values = binValues;
-      if (stats?.nulls) {
-        values.push({
-          bin_start: null,
-          bin_end: null,
-          count: stats.nulls as number,
-        });
+    if (usePreComputedValues) {
+      if (hasBinValues) {
+        const values = binValues;
+        if (stats?.nulls) {
+          values.push({
+            bin_start: null,
+            bin_end: null,
+            count: stats.nulls as number,
+          });
+        }
+        data = { values, name: "bin_values" };
+      } else if (hasValueCounts) {
+        data = { values: valueCounts, name: "value_counts" };
       }
-
-      data = { values, name: "bin_values" };
     }
 
-    let base: TopLevelFacetedUnitSpec = {
+    const base: TopLevelFacetedUnitSpec = {
       background: "transparent",
       data,
       config: {
@@ -384,8 +397,10 @@ export class ColumnChartSpecModel<T> {
         };
 
         let chart: TopLevelFacetedUnitSpec = histogram;
+        let timeBase = base;
+
         if (stats?.nulls) {
-          base = {
+          timeBase = {
             ...base,
             config: {
               ...base.config,
@@ -407,7 +422,7 @@ export class ColumnChartSpecModel<T> {
         }
 
         return {
-          ...base,
+          ...timeBase,
           ...chart,
         };
       }
@@ -589,8 +604,10 @@ export class ColumnChartSpecModel<T> {
         };
 
         let chart: TopLevelFacetedUnitSpec = histogram;
+        let numericBase = base;
+
         if (stats?.nulls) {
-          base = {
+          numericBase = {
             ...base,
             config: {
               ...base.config,
@@ -612,48 +629,105 @@ export class ColumnChartSpecModel<T> {
         }
 
         return {
-          ...base, // Assuming base contains shared configurations
+          ...numericBase, // Assuming base contains shared configurations
           ...chart,
         };
       }
-      case "boolean":
+      case "boolean": {
+        if (!usePreComputedValues) {
+          return getLegacyBooleanSpec(column, base, MAX_BAR_HEIGHT);
+        }
+
+        const BAR_HEIGHT = stats?.nulls ? 11 : MAX_BAR_HEIGHT;
+
+        const values = [
+          { value: "true", count: stats?.true },
+          { value: "false", count: stats?.false },
+        ];
+        if (stats?.nulls) {
+          values.push({ value: "null", count: stats?.nulls });
+        }
+
+        let total = null;
+        let countTooltip: StringFieldDef<string> = {
+          field: "count",
+          type: "quantitative",
+          format: ",d",
+        };
+        let transform: TopLevelFacetedUnitSpec["transform"] = [];
+
+        try {
+          total =
+            Number(stats?.total) ||
+            Number(stats?.true) + Number(stats?.false) + Number(stats?.nulls);
+          if (total) {
+            countTooltip = {
+              field: "count_with_percent",
+              type: "nominal",
+              title: "Count",
+            };
+            transform = [
+              {
+                calculate: `format(datum.count, ',d') + ' (' + format(datum.count / ${total} * 100, '.1f') + '%)'`,
+                as: "count_with_percent",
+              },
+            ];
+          }
+        } catch (error) {
+          Logger.debug("Error calculating total", error);
+        }
+
         return {
           ...base,
-          mark: { type: "bar", color: mint.mint11 },
+          data: {
+            values,
+            name: "boolean_values",
+          },
+          mark: {
+            type: "bar",
+            color: mint.mint11,
+          },
           encoding: {
             y: {
-              field: column,
+              field: "value",
               type: "nominal",
+              sort: ["true", "false", "null"],
+              scale: stats?.nulls ? { paddingInner: 1 } : undefined,
               axis: {
                 labelExpr:
-                  "datum.label === 'true' || datum.label === 'True'  ? 'True' : 'False'",
+                  "datum.label === 'true' || datum.label === 'True'  ? 'True' : datum.label === 'false' || datum.label === 'False' ? 'False' : 'Null'",
                 tickWidth: 0,
                 title: null,
                 labelColor: slate.slate9,
               },
             },
             x: {
-              aggregate: "count",
+              field: "count",
               type: "quantitative",
               axis: null,
               scale: { type: "linear" },
             },
-            tooltip: [
-              { field: column, type: "nominal", title: "Value" },
-              {
-                aggregate: "count",
-                type: "quantitative",
-                title: "Count",
-                format: ",d",
+            color: {
+              field: "value",
+              type: "nominal",
+              scale: {
+                domain: ["true", "false", "null"],
+                range: [mint.mint11, mint.mint11, orange.orange11],
               },
+              legend: null,
+            },
+            tooltip: [
+              { field: "value", type: "nominal", title: column },
+              countTooltip,
             ],
           },
+          transform,
           layer: [
             {
               mark: {
                 type: "bar",
                 color: mint.mint11,
-                height: MAX_BAR_HEIGHT,
+                height: BAR_HEIGHT,
               },
             },
             {
@@ -666,15 +740,138 @@ export class ColumnChartSpecModel<T> {
               },
               encoding: {
                 text: {
-                  aggregate: "count",
+                  field: "count",
                   type: "quantitative",
+                  format: ",d",
                 },
               },
             },
           ],
         } as TopLevelFacetedUnitSpec; // "layer" not in TopLevelFacetedUnitSpec
+      }
+      case "string": {
+        if (!usePreComputedValues) {
+          return null;
+        }
+
+        const xField = "count";
+        const yField = "value";
+        // TODO: Convert total to number
+        const total = stats?.total ?? 0;
+
+        // Add a transform to calculate the percentage for each value
+        const percentField = "percent";
+        const transforms: TopLevelFacetedUnitSpec["transform"] = [
+          {
+            calculate: total ? `datum.count / ${total}` : "0",
+            as: percentField,
+          },
+        ];
+
+        // Helper function to calculate text clipping based on bar width
+        // If the text is >80% width, clip to 6 characters
+        // If the text is >50% width, clip to 5 characters
+        // If the text is >40% width, clip to 4 characters
+        // If the text is >10% width, clip to 2 characters
+        // Otherwise, clip to 0 characters
+        const getTextClippingFormula = () => {
+          return `datum.count / ${total} > 0.8 ? slice(datum.${yField}, 0, 6) : (datum.count / ${total} > 0.5 ? slice(datum.${yField}, 0, 5) : (datum.count / ${total} > 0.4 ? slice(datum.${yField}, 0, 4) : (datum.count / ${total} > 0.1 ? slice(datum.${yField}, 0, 2) : '')))`;
+        };
+
+        // Pill-like bar
+        const barChart: Omit<TopLevelFacetedUnitSpec, "data"> = {
+          mark: {
+            type: "bar",
+            cornerRadiusEnd: 10,
+            cornerRadius: 10,
+          },
+          params: [
+            {
+              name: "hover_bar",
+              select: {
+                type: "point",
+                on: "mouseover",
+                clear: "mouseout",
+              },
+            },
+          ],
+          encoding: {
+            x: {
+              field: xField,
+              type: "quantitative",
+              axis: null,
+              stack: true,
+              scale: { type: "linear" },
+            },
+            color: {
+              condition: {
+                param: "hover_bar",
+                value: mint.mint11,
+              },
+              value: mint.mint8,
+              legend: null,
+            },
+            tooltip: [
+              {
+                field: yField,
+                type: "nominal",
+                title: column,
+              },
+              {
+                field: "count_with_percent",
+                type: "nominal",
+                title: "Count",
+              },
+            ],
+          },
+          transform: [
+            // Display count and percent together
+            {
+              calculate: `format(datum.count, ',d') + ' (' + format(datum.count / ${total} * 100, '.1f') + '%)'`,
+              as: "count_with_percent",
+            },
+          ],
+        };
+
+        // Text layer with clipping based on bar width
+        const textChart: Omit<TopLevelFacetedUnitSpec, "data"> = {
+          mark: {
+            type: "text",
+            baseline: "middle",
+            align: "center",
+            color: "white",
+            fontSize: 8.5,
+            ellipsis: " ", // Don't add ... after clipping
+          },
+          encoding: {
+            x: {
+              field: xField,
+              type: "quantitative",
+              axis: null,
+              stack: true,
+              bandPosition: 0.5, // Center the text
+              scale: { type: "linear" },
+            },
+            text: {
+              field: "clipped_text",
+            },
+          },
+          transform: [
+            {
+              calculate: getTextClippingFormula(),
+              as: "clipped_text",
+            },
+          ],
+        };
+
+        return {
+          ...base,
+          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
+          layer: [barChart, textChart],
+          transform: transforms,
+        };
+      }
       case "unknown":
-      case "string":
         return null;
       default:
         logNever(type);
