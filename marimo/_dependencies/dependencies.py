@@ -235,6 +235,7 @@ class DependencyManager:
     boto3 = Dependency("boto3")
     litellm = Dependency("litellm")
     redshift_connector = Dependency("redshift_connector")
+    mcp = Dependency("mcp")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
