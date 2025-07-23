@@ -8,6 +8,7 @@ with code and data.
 | Guide | Description |
 |-------|-------------|
 | [Overview](overview.md) | An overview of editor features and configuration |
+| [Understanding dataflow](dataflow.md) | Visualize and navigate cell dependencies |
 | [Package Management](package_management.md) | Using package managers in marimo |
 | [AI Completion](ai_completion.md) | Code with the help of a language model |
 | [Language Server](language_server.md) | Code intelligence via LSP |
@@ -16,6 +17,7 @@ with code and data.
 Highlights include:
 
 - a variables panel that lets you explore variable values and see where they are defined
+- a dependency graph and minimap for visualizing notebook structure and data flow
 - a data explorer that lets you inspect dataframes and tables at a glance
 - smart module autoreloading that tells you which cells need to be rerun
 - code completion

@@ -117,7 +117,7 @@ marimo ships with the IDE panels that provide an overview of your notebook
 - **file explorer**: view the file tree, open other notebooks
 - **variables**: explore variable values, see where they are defined and used, with go-to-definition
 - **data explorer**: see dataframe and table schemas at a glance
-- **dependency graph**: view dependencies between cells, drill-down on nodes and edges
+- **dependency explorer**: view all cells and their connections in a full graph layout to understand notebook structure
 - **package manager**: add and remove packages, and view your current environment
 - **table of contents**: corresponding to your markdown
 - **documentation** - move your text cursor over a symbol to see its documentation

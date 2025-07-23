@@ -40,6 +40,14 @@ It then forms a directed acyclic graph (DAG) on cells, with an edge from
 one cell to another if the latter references any of the definitions of the
 former. When a cell is run, its descendants are marked for execution.
 
+!!! tip "Visualizing the DAG"
+    marimo provides several tools to help you visualize and navigate this dependency graph,
+    including a [dependency explorer](editor_features/dataflow.md#dependency-explorer), 
+    [minimap](editor_features/dataflow.md#minimap),
+    and [reactive reference highlighting](editor_features/dataflow.md#reactive-reference-highlighting).
+    
+    See the [understanding dataflow](editor_features/dataflow.md) guide for details.
+
 !!! important "Runtime Rule"
     When a cell is run, marimo automatically runs all other cells that
     **reference** any of the global variables it **defines**.
