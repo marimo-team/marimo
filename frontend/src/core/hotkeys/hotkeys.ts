@@ -349,6 +349,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-/",
   },
+  "global.toggleMinimap": {
+    name: "Toggle Minimap",
+    group: "Other",
+    key: "Mod-Shift-i",
+  },
 
   // Global Navigation
   "global.focusTop": {

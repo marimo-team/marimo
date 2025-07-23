@@ -9,6 +9,7 @@ import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
+import { useHotkey } from "@/hooks/useHotkey";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import {
@@ -186,8 +187,9 @@ const MinimapInternal: React.FC<{
 };
 
 export const Minimap: React.FC = () => {
-  const { setIsMinimapOpen } = useChromeActions();
+  const { setIsMinimapOpen, toggleMinimap } = useChromeActions();
   const { isMinimapOpen } = useChromeState();
+  useHotkey("global.toggleMinimap", () => toggleMinimap());
   return <MinimapInternal open={isMinimapOpen} setOpen={setIsMinimapOpen} />;
 };
 
