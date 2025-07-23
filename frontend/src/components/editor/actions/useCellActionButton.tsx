@@ -290,7 +290,7 @@ export function useCellActionButtons({ cell }: Props) {
           }
           maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           switchLanguage(editorView, {
-            language: "markdown",
+            language: "sql",
             keepCodeAsIs: false,
           });
         },
