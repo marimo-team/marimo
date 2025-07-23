@@ -29,6 +29,9 @@ import { getPartialTimeTooltip } from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
+const CHART_HEIGHT = 30;
+const CHART_WIDTH = 70;
+const NULL_BAR_WIDTH = 5;
 
 // Arrow formats have a magic number at the beginning of the file.
 const ARROW_MAGIC_NUMBER = "ARROW1";
@@ -37,7 +40,7 @@ const ARROW_MAGIC_NUMBER = "ARROW1";
 formats("arrow", arrow);
 
 export class ColumnChartSpecModel<T> {
-  private columnStats = new Map<ColumnName, ColumnHeaderStats>();
+  private columnStats = new Map<ColumnName, Partial<ColumnHeaderStats>>();
   private columnBinValues = new Map<ColumnName, BinValues>();
 
   public static readonly EMPTY = new ColumnChartSpecModel(
@@ -57,7 +60,7 @@ export class ColumnChartSpecModel<T> {
   constructor(
     private readonly data: T[] | string,
     private readonly fieldTypes: FieldTypes,
-    readonly stats: Record<ColumnName, ColumnHeaderStats>,
+    readonly stats: Record<ColumnName, Partial<ColumnHeaderStats>>,
     readonly binValues: Record<ColumnName, BinValues>,
     private readonly opts: {
       includeCharts: boolean;
@@ -148,8 +151,9 @@ export class ColumnChartSpecModel<T> {
       data = { values, name: "bin_values" };
     }
 
-    const baseWithoutData: Omit<TopLevelFacetedUnitSpec, "data"> = {
+    let base: TopLevelFacetedUnitSpec = {
       background: "transparent",
+      data,
       config: {
         view: {
           stroke: "transparent",
@@ -161,10 +165,6 @@ export class ColumnChartSpecModel<T> {
       height: 100,
     } as TopLevelFacetedUnitSpec;
 
-    const base: TopLevelFacetedUnitSpec = {
-      data,
-      ...baseWithoutData,
-    } as TopLevelFacetedUnitSpec;
     const type = this.fieldTypes[column];
 
     // https://github.com/vega/altair/blob/32990a597af7c09586904f40b3f5e6787f752fa5/doc/user_guide/encodings/index.rst#escaping-special-characters-in-column-names
@@ -186,10 +186,6 @@ export class ColumnChartSpecModel<T> {
         }
 
         const tooltip = getPartialTimeTooltip(binValues);
-        const chartHeight = 30;
-        const chartWidth = 75;
-        const nullBarWidth = 5;
-
         const singleValue = binValues.length === 1;
 
         // Single value charts can be displayed as a full bar
@@ -227,8 +223,8 @@ export class ColumnChartSpecModel<T> {
         }
 
         const histogram: TopLevelFacetedUnitSpec = {
-          height: chartHeight,
-          width: chartWidth,
+          height: CHART_HEIGHT,
+          width: CHART_WIDTH,
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
@@ -325,35 +321,58 @@ export class ColumnChartSpecModel<T> {
           ],
         };
 
-        // @ts-expect-error 'data' property not in TopLevelFacetedUnitSpec
         const nullBar: TopLevelFacetedUnitSpec = {
-          ...baseWithoutData,
-          height: chartHeight,
-          width: nullBarWidth,
-          mark: {
-            type: "bar",
-            color: orange.orange11,
-          },
-          encoding: {
-            x: {
-              field: "bin_start",
-              type: "nominal",
-              axis: null,
-            },
-            y: {
-              field: "count",
-              type: "quantitative",
-              axis: null,
-            },
-            tooltip: [
-              {
-                field: "count",
-                type: "quantitative",
-                title: "Nulls",
-                format: ",d",
+          height: CHART_HEIGHT,
+          width: NULL_BAR_WIDTH,
+          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
+          layer: [
+            {
+              mark: {
+                type: "bar",
+                color: orange.orange11,
               },
-            ],
-          },
+              encoding: {
+                x: {
+                  field: "bin_start",
+                  type: "nominal",
+                  axis: null,
+                },
+                y: {
+                  field: "count",
+                  type: "quantitative",
+                  axis: null,
+                },
+              },
+            },
+
+            // Invisible tooltip layer with max-height
+            {
+              mark: {
+                type: "bar",
+                opacity: 0,
+              },
+              encoding: {
+                x: {
+                  field: "bin_start",
+                  type: "nominal",
+                  axis: null,
+                },
+                y: {
+                  aggregate: "max",
+                  type: "quantitative",
+                  axis: null,
+                },
+                tooltip: [
+                  {
+                    field: "count",
+                    type: "quantitative",
+                    title: "nulls",
+                    format: ",d",
+                  },
+                ],
+              },
+            },
+          ],
           transform: [
             {
               filter:
@@ -362,11 +381,32 @@ export class ColumnChartSpecModel<T> {
           ],
         };
 
+        let chart: TopLevelFacetedUnitSpec = histogram;
+        if (stats?.nulls) {
+          base = {
+            ...base,
+            config: {
+              ...base.config,
+              concat: {
+                spacing: 0,
+              },
+            },
+            resolve: {
+              scale: {
+                y: "shared",
+              },
+            },
+          };
+          chart = {
+            // Because the temporal axis will not show nulls, we concat 2 charts
+            // @ts-expect-error 'hconcat' property not in TopLevelFacetedUnitSpec
+            hconcat: [nullBar, histogram],
+          };
+        }
+
         return {
           ...base,
-          // Place the histogram on the left, and the null bar on the right
-          // @ts-expect-error 'hconcat' property not in TopLevelFacetedUnitSpec
-          hconcat: [histogram, nullBar],
+          ...chart,
         };
       }
       case "integer":
@@ -380,10 +420,9 @@ export class ColumnChartSpecModel<T> {
 
         const stats = this.columnStats.get(column);
 
-        return {
-          ...base, // Assuming base contains shared configurations
-          // Two layers: one with the visible bars, and one with invisible bars
-          // that provide a larger tooltip area.
+        const histogram: TopLevelFacetedUnitSpec = {
+          height: CHART_HEIGHT,
+          width: CHART_WIDTH,
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
@@ -487,6 +526,94 @@ export class ColumnChartSpecModel<T> {
               ],
             },
           ],
+        };
+
+        const nullBar: TopLevelFacetedUnitSpec = {
+          height: CHART_HEIGHT,
+          width: NULL_BAR_WIDTH,
+          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
+          layer: [
+            {
+              mark: {
+                type: "bar",
+                color: orange.orange11,
+              },
+              encoding: {
+                x: {
+                  field: "bin_start",
+                  type: "nominal",
+                  axis: null,
+                },
+                y: {
+                  field: "count",
+                  type: "quantitative",
+                  axis: null,
+                },
+              },
+            },
+            {
+              mark: {
+                type: "bar",
+                opacity: 0,
+              },
+              encoding: {
+                x: {
+                  field: "bin_start",
+                  type: "nominal",
+                  axis: null,
+                },
+                y: {
+                  aggregate: "max",
+                  type: "quantitative",
+                  axis: null,
+                },
+                tooltip: [
+                  {
+                    field: "count",
+                    type: "quantitative",
+                    title: "nulls",
+                    format: ",d",
+                  },
+                ],
+              },
+            },
+          ],
+          transform: [
+            {
+              filter:
+                "datum['bin_start'] === null && datum['bin_end'] === null",
+            },
+          ],
+        };
+
+        let chart: TopLevelFacetedUnitSpec = histogram;
+        if (stats?.nulls) {
+          base = {
+            ...base,
+            config: {
+              ...base.config,
+              concat: {
+                spacing: 0,
+              },
+            },
+            // So that the null bar and the histogram share the same y-axis
+            resolve: {
+              scale: {
+                y: "shared",
+              },
+            },
+          };
+          chart = {
+            // @ts-expect-error 'hconcat' property not in TopLevelFacetedUnitSpec
+            hconcat: [nullBar, histogram],
+          };
+        }
+
+        return {
+          ...base, // Assuming base contains shared configurations
+          // Two layers: one with the visible bars, and one with invisible bars
+          // that provide a larger tooltip area.
+          ...chart,
         };
       }
       case "boolean":

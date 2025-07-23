@@ -172,9 +172,8 @@ export function renderPreviewError({
 }
 
 export function renderStats(
-  stats: Record<
-    ColumnHeaderStatsKey,
-    string | number | boolean | null | undefined
+  stats: Partial<
+    Record<ColumnHeaderStatsKey, string | number | boolean | null | undefined>
   >,
   dataType: DataType,
 ) {
@@ -188,7 +187,7 @@ export function renderStats(
         return (
           <div key={key} className="flex items-center gap-1 group">
             <span className="text-xs min-w-[60px] capitalize">
-              {convertStatsName(key, dataType)}
+              {convertStatsName(key as ColumnHeaderStatsKey, dataType)}
             </span>
             <span className="text-xs font-bold text-muted-foreground tracking-wide">
               {prettyNumber(value)}

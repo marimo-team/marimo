@@ -27,7 +27,7 @@ describe("ColumnChartSpecModel", () => {
     boolean: "boolean",
     string: "string",
   };
-  const mockStats: Record<ColumnName, ColumnHeaderStats> = {
+  const mockStats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
     date: { min: "2023-01-01", max: "2023-12-31" },
     number: { min: 0, max: 100 },
     integer: { min: 1, max: 10 },
@@ -105,7 +105,7 @@ describe("ColumnChartSpecModel", () => {
     const specialFieldTypes: FieldTypes = {
       "column.with[special:chars]": "time",
     };
-    const specialStats: Record<ColumnName, ColumnHeaderStats> = {
+    const specialStats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
       "column.with[special:chars]": { min: "2023-01-01", max: "2023-12-31" },
     };
     const model = new ColumnChartSpecModel(
