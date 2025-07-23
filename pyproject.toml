@@ -202,6 +202,7 @@ dependencies = [
     "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
+    "mcp>=1.0.0; python_version >= '3.10'",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
@@ -287,6 +288,7 @@ extra-dependencies = [
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
+    "mcp>=1.0.0; python_version >= '3.10'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
