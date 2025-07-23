@@ -29,6 +29,8 @@ import { getPartialTimeTooltip } from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
+
+// If we are concatenating charts, we need to specify each chart's height and width.
 const CHART_HEIGHT = 30;
 const CHART_WIDTH = 70;
 const NULL_BAR_WIDTH = 5;
