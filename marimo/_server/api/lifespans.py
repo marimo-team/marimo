@@ -46,27 +46,17 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     yield
 
 
-# TODO(bjoaquinc): add MCP server here after it is implemented
-# @contextlib.asynccontextmanager
-# async def mcp(app: Starlette) -> AsyncIterator[None]:
-#     state = AppState.from_app(app)
-#     session_mgr = state.session_manager
+@contextlib.asynccontextmanager
+async def mcp(app: Starlette) -> AsyncIterator[None]:
+    state = AppState.from_app(app)
+    session_mgr = state.session_manager
 
-#     # Only start MCP servers in Edit mode
-#     if session_mgr.mode == SessionMode.EDIT:
-#         try:
-#             from marimo._server.ai.mcp import get_mcp_client
-#             mcp_client = get_mcp_client()
-#             if mcp_client and mcp_client.servers:
-#                 LOGGER.debug(f"Starting MCP servers: {list(mcp_client.servers.keys())}")
-#                 await mcp_client.connect_to_all_servers()
-#                 LOGGER.info(f"MCP servers connected: {len(mcp_client.servers)}")
-#             else:
-#                 LOGGER.debug("No MCP servers configured")
-#         except Exception as e:
-#             LOGGER.warning(f"Failed to connect MCP servers: {e}")
+    # Only start MCP servers in Edit mode
+    if session_mgr.mode == SessionMode.EDIT:
+        # add MCP server here after it is implemented
+        ...
 
-#     yield
+    yield
 
 
 @contextlib.asynccontextmanager

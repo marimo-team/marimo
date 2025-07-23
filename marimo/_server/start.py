@@ -168,8 +168,7 @@ def start(
         lifespan=Lifespans(
             [
                 lifespans.lsp,
-                # TODO(bjoaquinc): add MCP server here after it is implemented
-                # lifespans.mcp,
+                lifespans.mcp,
                 lifespans.etc,
                 lifespans.signal_handler,
                 lifespans.logging,
