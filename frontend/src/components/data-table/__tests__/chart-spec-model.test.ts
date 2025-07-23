@@ -26,6 +26,7 @@ describe("ColumnChartSpecModel", () => {
     integer: "integer",
     boolean: "boolean",
     string: "string",
+    datetime: "datetime",
   };
   const mockStats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
     date: { min: "2023-01-01", max: "2023-12-31" },
@@ -33,6 +34,7 @@ describe("ColumnChartSpecModel", () => {
     integer: { min: 1, max: 10 },
     boolean: { true: 5, false: 5 },
     string: { unique: 20 },
+    datetime: { nulls: 10 },
   };
   const mockBinValues: Record<ColumnName, BinValues> = {
     number: [
@@ -42,6 +44,10 @@ describe("ColumnChartSpecModel", () => {
     integer: [
       { bin_start: 0, bin_end: 10, count: 10 },
       { bin_start: 10, bin_end: 20, count: 20 },
+    ],
+    datetime: [
+      { bin_start: "2023-01-01", bin_end: "2023-01-02", count: 10 },
+      { bin_start: "2023-01-02", bin_end: "2023-01-03", count: 20 },
     ],
   };
 
@@ -149,6 +155,45 @@ describe("ColumnChartSpecModel", () => {
     expect(summary2.spec).toBeDefined();
     // @ts-expect-error data.values should be available
     expect(summary2.spec?.data?.values).toEqual(mockBinValues.integer);
+  });
+
+  it("should handle datetime bin values when feat flag is true", () => {
+    const model = new ColumnChartSpecModel(
+      mockData,
+      mockFieldTypes,
+      mockStats,
+      mockBinValues,
+      { includeCharts: true, usePreComputedValues: true },
+    );
+
+    const summary = model.getHeaderSummary("datetime");
+    expect(summary.spec).toBeDefined();
+    // @ts-expect-error data.values should be available
+    expect(summary.spec?.data?.values).toEqual(mockBinValues.datetime);
+
+    // Expect hconcat since there are nulls
+    // @ts-expect-error hconcat should be available
+    expect(summary.spec?.hconcat).toBeDefined();
+    expect(summary.spec).toMatchSnapshot();
+
+    // Test again without the nulls
+    const mockStats2 = {
+      ...mockStats,
+      datetime: { min: "2023-01-01", max: "2023-12-31" },
+    };
+    const model2 = new ColumnChartSpecModel(
+      mockData,
+      mockFieldTypes,
+      mockStats2,
+      mockBinValues,
+      { includeCharts: true, usePreComputedValues: true },
+    );
+    const summary2 = model2.getHeaderSummary("datetime");
+    expect(summary2.spec).toBeDefined();
+
+    // No hconcat since there are no nulls
+    // @ts-expect-error hconcat should be available
+    expect(summary2.spec?.hconcat).toBeUndefined();
   });
 
   describe("snapshot", () => {
