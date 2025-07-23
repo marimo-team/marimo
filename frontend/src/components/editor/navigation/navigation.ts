@@ -5,7 +5,7 @@ import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
-import { useSetLastFocusedCellId } from "@/core/cells/focus";
+import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import {
@@ -78,7 +78,7 @@ function addSingleHandler(handler: HotkeyHandler["bulkHandle"]): HotkeyHandler {
 }
 
 function useCellFocusProps(cellId: CellId) {
-  const setLastFocusedCellId = useSetLastFocusedCellId();
+  const focusActions = useCellFocusActions();
   const actions = useCellActions();
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
   const pendingDeleteService = usePendingDeleteService();
@@ -87,13 +87,14 @@ function useCellFocusProps(cellId: CellId) {
   const { focusWithinProps } = useFocusWithin({
     onFocusWithin: () => {
       // On focus, set the last focused cell id.
-      setLastFocusedCellId(cellId);
+      focusActions.focusCell({ cellId });
     },
     onBlurWithin: () => {
       // On blur, hide the code if it was temporarily shown.
       setTemporarilyShownCode(false);
       actions.markTouched({ cellId });
       pendingDeleteService.clear();
+      focusActions.blurCell();
     },
   });
 
@@ -186,13 +187,13 @@ export function useCellNavigationProps(
         },
         // Move up
         ArrowUp: () => {
-          actions.focusCell({ cellId, before: true });
+          actions.focusCell({ cellId, where: "before" });
           selectionActions.clear();
           return true;
         },
         // Move down
         ArrowDown: () => {
-          actions.focusCell({ cellId, before: false });
+          actions.focusCell({ cellId, where: "after" });
           selectionActions.clear();
           return true;
         },
@@ -207,7 +208,7 @@ export function useCellNavigationProps(
             selectionActions.extend({ cellId: beforeCellId, allCellIds });
           }
           // Focus the cell
-          actions.focusCell({ cellId, before: true });
+          actions.focusCell({ cellId, where: "before" });
           return true;
         },
         // Select down
@@ -221,7 +222,7 @@ export function useCellNavigationProps(
             selectionActions.extend({ cellId: afterCellId, allCellIds });
           }
           // Focus the cell
-          actions.focusCell({ cellId, before: false });
+          actions.focusCell({ cellId, where: "after" });
           return true;
         },
         // Clear selection
@@ -361,7 +362,7 @@ export function useCellNavigationProps(
           // Only focus if it is a single cell
           if (cellIds.length === 1) {
             const cellId = cellIds[0];
-            actions.focusCell({ cellId, before: false });
+            actions.focusCell({ cellId, where: "after" });
             if (nextHideCode) {
               // Move focus from the editor to the cell
               editorView.current?.contentDOM.blur();
@@ -374,11 +375,11 @@ export function useCellNavigationProps(
           return true;
         }),
         "cell.focusDown": (cellId) => {
-          actions.focusCell({ cellId, before: false });
+          actions.focusCell({ cellId, where: "after" });
           return true;
         },
         "cell.focusUp": (cellId) => {
-          actions.focusCell({ cellId, before: true });
+          actions.focusCell({ cellId, where: "before" });
           return true;
         },
         "cell.sendToBottom": addSingleHandler((cellIds) => {

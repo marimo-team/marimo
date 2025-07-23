@@ -10,6 +10,7 @@ export interface ChromeState {
   selectedPanel: PanelType | undefined;
   isSidebarOpen: boolean;
   isTerminalOpen: boolean;
+  isMinimapOpen: boolean;
 }
 
 const KEY = "marimo:sidebar";
@@ -21,6 +22,7 @@ const storage = new ZodLocalStorage<ChromeState>(
       .transform((v) => v as PanelType),
     isSidebarOpen: z.boolean(),
     isTerminalOpen: z.boolean(),
+    isMinimapOpen: z.boolean(),
   }),
   initialState,
 );
@@ -30,6 +32,7 @@ function initialState(): ChromeState {
     selectedPanel: "variables", // initial panel
     isSidebarOpen: false,
     isTerminalOpen: false,
+    isMinimapOpen: false,
   };
 }
 
@@ -70,6 +73,14 @@ const {
     setIsTerminalOpen: (state, isOpen: boolean) => ({
       ...state,
       isTerminalOpen: isOpen,
+    }),
+    toggleMinimap: (state) => ({
+      ...state,
+      isMinimapOpen: !state.isMinimapOpen,
+    }),
+    setIsMinimapOpen: (state, isOpen: boolean) => ({
+      ...state,
+      isMinimapOpen: isOpen,
     }),
   },
   [(_prevState, newState) => storage.set(KEY, newState)],

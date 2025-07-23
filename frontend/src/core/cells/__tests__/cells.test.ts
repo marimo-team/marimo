@@ -1282,7 +1282,7 @@ describe("cell reducer", () => {
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({ cellId: "1" as CellId, before: false });
 
-    actions.focusCell({ cellId: "1" as CellId, before: true });
+    actions.focusCell({ cellId: "1" as CellId, where: "before" });
     expect(focusAndScrollCellIntoView).toHaveBeenCalledWith(
       expect.objectContaining({
         cellId: "0" as CellId,

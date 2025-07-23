@@ -410,17 +410,26 @@ const {
       cellIds: state.cellIds.moveColumn(action.column, action.overColumn),
     };
   },
-  focusCell: (state, action: { cellId: CellId; before: boolean }) => {
+  focusCell: (
+    state,
+    action: { cellId: CellId; where: "before" | "after" | "exact" },
+  ) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId, before } = action;
+    const { cellId, where } = action;
     const index = column.indexOfOrThrow(cellId);
-    let focusIndex = before ? index - 1 : index + 1;
-    // clamp
-    focusIndex = clamp(focusIndex, 0, column.length - 1);
+
+    let focusIndex: number;
+    if (where === "before") {
+      focusIndex = clamp(index - 1, 0, column.length - 1);
+    } else if (where === "after") {
+      focusIndex = clamp(index + 1, 0, column.length - 1);
+    } else {
+      focusIndex = index;
+    }
     const focusCellId = column.atOrThrow(focusIndex);
     // can scroll immediately, without setting scrollKey in state, because
     // CellArray won't need to re-render
@@ -428,7 +437,7 @@ const {
       cellId: focusCellId,
       cell: state.cellHandles[focusCellId],
       isCodeHidden: isCellCodeHidden(state, focusCellId),
-      codeFocus: before ? "bottom" : "top",
+      codeFocus: where === "after" ? "top" : "bottom",
       variableName: undefined,
     });
     return state;

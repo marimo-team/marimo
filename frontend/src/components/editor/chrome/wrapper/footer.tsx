@@ -17,6 +17,7 @@ import { AIStatusIcon } from "./footer-items/ai-status";
 import { BackendConnection } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
+import { MinimapStatusIcon } from "./footer-items/minimap-status";
 import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
 
@@ -78,6 +79,7 @@ export const Footer: React.FC = () => {
 
       <div className="flex items-center flex-shrink-0 min-w-0">
         <MachineStats />
+        <MinimapStatusIcon />
         <AIStatusIcon />
         <CopilotStatusIcon />
         <RTCStatus />
