@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -189,7 +190,8 @@ class BasePersistenceLoader(Loader):
             except ContextNotInitializedError:
                 self.store = DEFAULT_STORE()
 
-        self.name = name
+        # Limited character set for path for windows compatibility
+        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", name)
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:
