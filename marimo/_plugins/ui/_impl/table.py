@@ -315,6 +315,8 @@ class table(
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns and at least 10 rows, False otherwise.
             If "stats", only show stats. If "chart", only show charts.
+        show_data_types (bool, optional): Whether to show data types of columns in the table header.
+            Defaults to True.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
@@ -409,6 +411,7 @@ class table(
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
         ] = None,
+        show_data_types: bool = True,
         format_mapping: Optional[
             dict[str, Union[str, Callable[..., Any]]]
         ] = None,
@@ -650,6 +653,7 @@ class table(
                 "show-download": show_download
                 and self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
+                "show-data-types": show_data_types,
                 "show-page-size-selector": show_page_size_selector,
                 "show-column-explorer": show_column_explorer,
                 "show-chart-builder": show_chart_builder,
