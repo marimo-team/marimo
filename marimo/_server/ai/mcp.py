@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -111,19 +111,19 @@ class MCPServerDefinitionFactory:
         """
         # Import here to avoid circular imports
 
-        if isinstance(config, MCPServerStdioConfig):
+        if "command" in config:
             return MCPServerDefinition(
                 name=name,
                 transport=MCPTransportType.STDIO,
                 config=config,
                 timeout=30.0,  # default timeout for STDIO
             )
-        elif isinstance(config, MCPServerStreamableHttpConfig):
+        elif "url" in config:
             return MCPServerDefinition(
                 name=name,
                 transport=MCPTransportType.STREAMABLE_HTTP,
                 config=config,
-                timeout=config.timeout or 30.0,
+                timeout=config.get("timeout") or 30.0,
             )
         else:
             raise ValueError(f"Unsupported config type: {type(config)}")
@@ -159,16 +159,17 @@ class StdioTransportConnector(MCPTransportConnector):
         from mcp.client.stdio import stdio_client
 
         # Type narrowing for mypy
-        assert isinstance(server_def.config, MCPServerStdioConfig)
+        assert "command" in server_def.config
+        config = cast(MCPServerStdioConfig, server_def.config)
 
         # Set up environment variables for the server process
         env = os.environ.copy()
-        env.update(server_def.config.env or {})
+        env.update(config.get("env") or {})
 
         # Configure server parameters
         server_params = StdioServerParameters(
-            command=server_def.config.command,
-            args=server_def.config.args or [],
+            command=config["command"],
+            args=config.get("args") or [],
             env=env,
         )
 
@@ -190,13 +191,14 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
         from mcp.client.streamable_http import streamablehttp_client
 
         # Type narrowing for mypy
-        assert isinstance(server_def.config, MCPServerStreamableHttpConfig)
+        assert "url" in server_def.config
+        config = cast(MCPServerStreamableHttpConfig, server_def.config)
 
         # Establish streamable HTTP connection
         read, write, *_ = await exit_stack.enter_async_context(
             streamablehttp_client(
-                server_def.config.url,
-                headers=server_def.config.headers or {},
+                config["url"],
+                headers=config.get("headers") or {},
                 timeout=server_def.timeout,
             )
         )
@@ -275,7 +277,7 @@ class MCPClient:
         Note: Servers with invalid configurations are logged but excluded from self.servers,
         making them unavailable for connection attempts.
         """
-        mcp_servers = getattr(self.config, "mcpServers", {})
+        mcp_servers = self.config.get("mcpServers", {})
 
         for server_name, server_config in mcp_servers.items():
             try:

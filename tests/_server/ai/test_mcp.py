@@ -188,12 +188,12 @@ class TestMCPServerDefinition:
 
         # Verify transport-specific attributes are available from config
         if expected_transport == MCPTransportType.STDIO:
-            assert server_def.config.command == config_kwargs["command"]
-            assert server_def.config.args == config_kwargs["args"]
-            assert server_def.config.env == config_kwargs["env"]
+            assert server_def.config["command"] == config_kwargs["command"]
+            assert server_def.config.get("args") == config_kwargs["args"]
+            assert server_def.config.get("env") == config_kwargs["env"]
         elif expected_transport == MCPTransportType.STREAMABLE_HTTP:
-            assert server_def.config.url == config_kwargs["url"]
-            assert server_def.config.headers == config_kwargs["headers"]
+            assert server_def.config["url"] == config_kwargs["url"]
+            assert server_def.config.get("headers") == config_kwargs["headers"]
             assert server_def.timeout == config_kwargs["timeout"]
 
 
@@ -894,7 +894,7 @@ class TestMCPClientConnectionManagement:
         """Test server connection edge cases."""
         config = MCPConfig(mcpServers={})
         if server_exists:
-            config.mcpServers["test_server"] = MCPServerStdioConfig(
+            config["mcpServers"]["test_server"] = MCPServerStdioConfig(
                 command="python", args=["test.py"]
             )
 
@@ -1077,9 +1077,9 @@ class TestMCPServerConnection:
         connection = MCPServerConnection(definition=server_def)
 
         assert connection.definition.name == "test_server"
-        assert connection.definition.config.command == "python"
-        assert connection.definition.config.args == ["test.py"]
-        assert connection.definition.config.env == {"TEST": "value"}
+        assert connection.definition.config["command"] == "python"
+        assert connection.definition.config.get("args") == ["test.py"]
+        assert connection.definition.config.get("env") == {"TEST": "value"}
         assert connection.status == MCPServerStatus.DISCONNECTED
         assert connection.session is None
         assert len(connection.tools) == 0

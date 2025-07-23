@@ -446,25 +446,25 @@ class MarimoConfig(TypedDict):
 
 @mddoc
 @dataclass
-class MCPServerStdioConfig:
+class MCPServerStdioConfig(TypedDict):
     """Configuration for STDIO transport MCP servers"""
 
     command: str
-    args: Optional[list[str]] = None
-    env: Optional[dict[str, str]] = None
-    disabled: Optional[bool] = None
+    args: NotRequired[Optional[list[str]]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
 
 
 @mddoc
 @dataclass
-class MCPServerStreamableHttpConfig:
+class MCPServerStreamableHttpConfig(TypedDict):
     """Configuration for Streamable HTTP transport MCP servers"""
 
     url: str
-    headers: Optional[dict[str, str]] = None
-    timeout: Optional[float] = None
-    env: Optional[dict[str, str]] = None
-    disabled: Optional[bool] = None
+    headers: NotRequired[Optional[dict[str, str]]]
+    timeout: NotRequired[Optional[float]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
 
 
 MCPServerConfig = Union[MCPServerStdioConfig, MCPServerStreamableHttpConfig]
@@ -472,8 +472,13 @@ MCPServerConfig = Union[MCPServerStdioConfig, MCPServerStreamableHttpConfig]
 
 @mddoc
 @dataclass
-class MCPConfig:
-    """Configuration for MCP servers"""
+class MCPConfig(TypedDict):
+    """
+    Configuration for MCP servers
+
+    Note: the field name `mcpServers` is camelCased to match MCP server
+    config conventions used by popular AI applications (e.g. Cursor, Claude Desktop, etc.)
+    """
 
     mcpServers: dict[str, MCPServerConfig]
 
