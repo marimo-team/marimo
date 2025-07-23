@@ -1,4 +1,4 @@
-# Running marimo as a batch job
+# Running marimo as a schedule job
 
 marimo notebooks are plain Python files under the hood, so any system that can schedule a Python script can schedule a marimo notebook. This includes cron, [airflow](https://airflow.apache.org/) or [prefect](https://www.prefect.io/). You can even [pass variables](https://docs.marimo.io/guides/scripts/?h=command+line) from the command line to marimo notebooks, which makes them very versatile for this use-case.
 
@@ -38,8 +38,8 @@ jobs:
 
 ## Alternatives
 
-For tools like Airflow and Prefect, you can also choose to re-use parts of a marimo notebook in larger Python batch jobs. Check the [docs on reusing functions](https://docs.marimo.io/guides/reusing_functions/) if you're interested in that. 
+For tools like Airflow and Prefect, you can also choose to re-use parts of a marimo notebook in larger Python batch jobs. Check the [docs on re-using functions](https://docs.marimo.io/guides/reusing_functions/) if you're interested in that. 
 
-Alternatively, you may be interested to have specific cells in marimo run on an automated schedule as you have the notebook open. The simplest way to do that is to use the [mo.ui.refresh](https://docs.marimo.io/api/inputs/refresh/#marimo.ui.refresh) widget to manually specify how often a cell needs to rerun.
+Alternatively, you may be interested in having specific cells in marimo run on an automated schedule as you have the notebook open. The simplest way to do that is to use the [mo.ui.refresh](https://docs.marimo.io/api/inputs/refresh/#marimo.ui.refresh) widget to manually specify how often a cell needs to rerun.
 
 Finally, if you have very custom needs, you can always use 3rd party Python libraries (like [schedule](https://schedule.readthedocs.io/en/stable/index.html)) to set up something bespoke from your own code.
