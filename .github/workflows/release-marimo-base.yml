@@ -28,14 +28,14 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Adapt pyproject.toml to build marimo-base
         run: ./scripts/modify_pyproject_for_marimo_base.sh
 
       - name: 📦 Build marimo-base
-        run: hatch build --clean
+        run: uv build
 
       - name: 📦 Validate wheel under 2mb
         run: ./scripts/validate_base_wheel_size.sh
@@ -44,10 +44,10 @@ jobs:
         env:
           HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.PYPI_MARIMO_BASE_PASSWORD }}
-        run: hatch publish
+        run: uvx hatch publish
 
       - name: 📤 Upload to TestPyPI
         env:
           HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_MARIMO_BASE_PASSWORD }}
-        run: hatch publish --repo test
+        run: uvx hatch publish --repo test
