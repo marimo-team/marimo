@@ -1638,6 +1638,11 @@ components:
           type: object
         language_servers:
           properties:
+            basedpyright:
+              properties:
+                enabled:
+                  type: boolean
+              type: object
             pylsp:
               properties:
                 enable_flake8:
@@ -1652,11 +1657,6 @@ components:
                   type: boolean
                 enable_ruff:
                   type: boolean
-                enabled:
-                  type: boolean
-              type: object
-            pyright:
-              properties:
                 enabled:
                   type: boolean
               type: object

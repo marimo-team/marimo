@@ -486,7 +486,7 @@ export const UserConfigForm: React.FC = () => {
               />
               <FormField
                 control={form.control}
-                name="language_servers.pyright.enabled"
+                name="language_servers.basedpyright.enabled"
                 render={({ field }) => (
                   <div className="flex flex-col gap-1">
                     <FormItem className={formItemClasses}>
@@ -494,15 +494,15 @@ export const UserConfigForm: React.FC = () => {
                         <Badge variant="defaultOutline" className="mr-2">
                           Beta
                         </Badge>
-                        Pyright (
-                        <ExternalLink href="https://github.com/microsoft/pyright">
+                        basedpyright (
+                        <ExternalLink href="https://docs.basedpyright.com">
                           docs
                         </ExternalLink>
                         )
                       </FormLabel>
                       <FormControl>
                         <Checkbox
-                          data-testid="pyright-checkbox"
+                          data-testid="basedpyright-checkbox"
                           checked={field.value}
                           disabled={field.disabled}
                           onCheckedChange={(checked) => {
@@ -513,14 +513,15 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden
                         userConfig={config}
-                        name="language_servers.pyright.enabled"
+                        name="language_servers.basedpyright.enabled"
                       />
                     </FormItem>
-                    {field.value && !capabilities.pyright && (
+                    {field.value && !capabilities.basedpyright && (
                       <Banner kind="danger">
-                        Pyright is not available in your current environment.
-                        Please install <Kbd className="inline">Pyright</Kbd> in
-                        your environment.
+                        basedpyright is not available in your current
+                        environment. Please install{" "}
+                        <Kbd className="inline">basedpyright</Kbd> in your
+                        environment.
                       </Banner>
                     )}
                   </div>

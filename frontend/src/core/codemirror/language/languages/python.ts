@@ -155,7 +155,7 @@ const tyLspClient = once((_: LSPConfig) => {
 
 const pyrightClient = once((_: LSPConfig) => {
   const lspClientOpts = {
-    transport: createTransport("pyright"),
+    transport: createTransport("basedpyright"),
     rootUri: getLSPDocumentRootUri(),
     workspaceFolders: [],
   };
@@ -227,7 +227,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
       if (lspConfig?.ty?.enabled && hasCapability("ty")) {
         clients.push(tyLspClient(lspConfig));
       }
-      if (lspConfig?.pyright?.enabled && hasCapability("pyright")) {
+      if (lspConfig?.basedpyright?.enabled && hasCapability("basedpyright")) {
         clients.push(pyrightClient(lspConfig));
       }
 
