@@ -38,7 +38,7 @@ jobs:
 
 ## Alternatives
 
-For tools like Airflow and Prefect, you can also choose to re-use parts of a marimo notebook in larger Python batch jobs. Check the [docs on re-using functions](https://docs.marimo.io/guides/reusing_functions/) if you're interested in that. 
+For tools like Airflow and Prefect, you can also choose to re-use parts of a marimo notebook in larger Python batch jobs. Check the [docs on reusing functions](https://docs.marimo.io/guides/reusing_functions/) if you're interested in that. 
 
 Alternatively, you may be interested in having specific cells in marimo run on an automated schedule as you have the notebook open. The simplest way to do that is to use the [mo.ui.refresh](https://docs.marimo.io/api/inputs/refresh/#marimo.ui.refresh) widget to manually specify how often a cell needs to rerun.
 

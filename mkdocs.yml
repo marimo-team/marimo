@@ -149,7 +149,7 @@ nav:
           - nginx: guides/deploying/deploying_nginx.md
           - Prebuilt containers: guides/deploying/prebuilt_containers.md
           - Programmatic: guides/deploying/programmatically.md
-          - Batch jobs: guides/deploying/batch_jobs.md
+          - Scheduled jobs: guides/deploying/scheduled_jobs.md
       - WebAssembly notebooks: guides/wasm.md
       - Configuration:
           - Configuration: guides/configuration/index.md
