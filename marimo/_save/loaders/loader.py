@@ -190,8 +190,8 @@ class BasePersistenceLoader(Loader):
             except ContextNotInitializedError:
                 self.store = DEFAULT_STORE()
 
-        # Replace all non-alphanumeric characters in the name with underscores
-        self.name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+        # Limited character set for path for windows compatibility
+        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", name)
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:
