@@ -74,19 +74,22 @@ export function getTopologicalCellIds(cellIds: CellId[], variables: Variables) {
   const adjacency = new Map<CellId, CellId[]>();
   cellIds.forEach((id) => adjacency.set(id, []));
 
+  // Start with all cells with no declaredBy or usedBy
+  const noDepCells = new Set<CellId>(cellIds); // Cells with no declaredBy
+  const noUsedByCells = new Set<CellId>(cellIds); // Cells with no usedBy
+
   // Link "declaredBy -> usedBy"
   for (const { declaredBy, usedBy } of Object.values(variables)) {
-    if (!declaredBy || !usedBy) {
-      continue;
-    }
-    const declArr = Array.isArray(declaredBy) ? declaredBy : [declaredBy];
-    declArr.forEach((declCell) => {
-      usedBy.forEach((useCell) => {
+    for (const declCell of declaredBy) {
+      noDepCells.delete(declCell);
+      for (const useCell of usedBy) {
+        noUsedByCells.delete(useCell);
+
         if (useCell !== declCell) {
           adjacency.get(declCell)?.push(useCell);
         }
-      });
-    });
+      }
+    }
   }
 
   // Kahn's algorithm for topological sort
@@ -121,5 +124,7 @@ export function getTopologicalCellIds(cellIds: CellId[], variables: Variables) {
     });
   }
 
-  return sorted;
+  // Put noDepCells at the end
+  const filteredSorted = sorted.filter((id) => !noDepCells.has(id));
+  return [...filteredSorted, ...noDepCells];
 }
