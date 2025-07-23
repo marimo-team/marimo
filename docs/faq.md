@@ -492,7 +492,7 @@ If you are running marimo inside a Docker container, you may want to run under a
 marimo run notebook.py --host 0.0.0.0 --port 8080
 ```
 
-<a name="faq-marimo-free"></a> 
+<a name="faq-marimo-free"></a>
 
 ### Is marimo free?
 
