@@ -6,7 +6,7 @@ import { store } from "../state/jotai";
 export const capabilitiesAtom = atom<Capabilities>({
   terminal: false,
   pylsp: false,
-  pyright: false,
+  basedpyright: false,
   ty: false,
 });
 

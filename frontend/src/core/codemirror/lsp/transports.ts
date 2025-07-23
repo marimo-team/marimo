@@ -13,7 +13,7 @@ import { getRuntimeManager } from "../../runtime/config";
  * @returns The transport.
  */
 export function createTransport(
-  serverName: "pylsp" | "pyright" | "copilot" | "ty",
+  serverName: "pylsp" | "basedpyright" | "copilot" | "ty",
 ) {
   const runtimeManager = getRuntimeManager();
   const transport = new WebSocketTransport(
