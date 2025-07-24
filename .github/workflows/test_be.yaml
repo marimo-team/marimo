@@ -40,11 +40,11 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      - name: ⬇️ Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v6
 
       - name: 📚 Build docs
-        run: hatch run docs:build --strict
+        run: uvx hatch run docs:build --strict
 
   test_python:
     needs: changes
@@ -95,8 +95,8 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v6
 
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
@@ -107,23 +107,23 @@ jobs:
 
       - name: Lint
         if: ${{ matrix.python-version == '3.12' }}
-        run: hatch run lint
+        run: uvx hatch run lint
 
       - name: Typecheck
         if: ${{ matrix.python-version == '3.12' }}
-        run: hatch run typecheck:check
+        run: uvx hatch run typecheck:check
 
       # Test with minimal dependencies
       - name: Test with minimal dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
+          uvx hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
 
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test-optional:test -v tests/ -k "not test_cli" --durations=10
+          uvx hatch run +py=${{ matrix.python-version }} test-optional:test -v tests/ -k "not test_cli" --durations=10
 
   # Only run coverage on `main` so it is not blocking
   test_coverage:
@@ -138,8 +138,8 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: 🐍 Setup uv
+        uses: astral-sh/setup-uv@v6
 
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
@@ -150,7 +150,7 @@ jobs:
 
       - name: Test with optional dependencies
         run: |
-          hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
+          uvx hatch run +py=3.12 test-optional:test -v tests/ -k "not test_cli" --durations=10 \
           --cov=marimo --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       # Only upload coverage on `main` so it is not blocking
