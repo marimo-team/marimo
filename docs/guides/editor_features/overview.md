@@ -32,6 +32,7 @@ A non-exhaustive list of settings:
 - [GitHub Copilot](ai_completion.md)
 - [LLM coding assistant](ai_completion.md)
 - [Module autoreloading](../configuration/runtime_configuration.md#on-module-change)
+- [Reactive reference highlighting](dataflow.md#reactive-reference-highlighting)
 
 ## Command mode
 
@@ -117,7 +118,7 @@ marimo ships with the IDE panels that provide an overview of your notebook
 - **file explorer**: view the file tree, open other notebooks
 - **variables**: explore variable values, see where they are defined and used, with go-to-definition
 - **data explorer**: see dataframe and table schemas at a glance
-- **dependency explorer**: view all cells and their connections in a full graph layout to understand notebook structure
+- **dataflow tools**: visualize and navigate notebook structure and cell dependencies (see [Understanding dataflow](dataflow.md))
 - **package manager**: add and remove packages, and view your current environment
 - **table of contents**: corresponding to your markdown
 - **documentation** - move your text cursor over a symbol to see its documentation

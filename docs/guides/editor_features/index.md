@@ -5,14 +5,14 @@ notebooks. We've taken a batteries-included approach to designing the editor:
 it comes _packed_ with features to make you productive when working
 with code and data.
 
-| Guide | Description |
-|-------|-------------|
-| [Overview](overview.md) | An overview of editor features and configuration |
-| [Understanding dataflow](dataflow.md) | Visualize and navigate cell dependencies |
-| [Package Management](package_management.md) | Using package managers in marimo |
-| [AI Completion](ai_completion.md) | Code with the help of a language model |
-| [Language Server](language_server.md) | Code intelligence via LSP |
-| [Hotkeys](hotkeys.md) | Our hotkeys |
+| Guide                                       | Description                                      |
+| ------------------------------------------- | ------------------------------------------------ |
+| [Overview](overview.md)                     | An overview of editor features and configuration |
+| [Understanding dataflow](dataflow.md)       | Visualize and navigate cell dependencies         |
+| [Package Management](package_management.md) | Using package managers in marimo                 |
+| [AI Completion](ai_completion.md)           | Code with the help of a language model           |
+| [Language Server](language_server.md)       | Code intelligence via LSP                        |
+| [Hotkeys](hotkeys.md)                       | Our hotkeys                                      |
 
 Highlights include:
 

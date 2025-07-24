@@ -2,11 +2,13 @@
 
 Unlike traditional notebooks, marimo understands the relationships between
 cells and uses this information to keep your code and outputs consistent. These
-relationships are represented as a **dataflow graph**, which encodes
-how variables flow from one cell to another. The dataflow graph, which is inferred
-statically from variable definitions and references, is used to 
-automatically run (or mark stale) cells in the correct sequence; it's also why
-cells can be arranged "out of order" on the page, or across columns.
+relationships are represented as a **dataflow graph**, which encodes how
+variables flow from one cell to another.
+
+The dataflow graph, which is inferred statically from variable definitions and
+references, is used to automatically run (or mark stale) cells in the correct
+sequence; it's also why cells can be arranged "out of order" on the page, or
+across columns.
 
 marimo provides several tools to help you visualize and understand these
 relationships:
