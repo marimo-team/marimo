@@ -247,10 +247,11 @@ dataflow visualization for their reactive JavaScript notebooks.
 
 We adapted Observable's visual design to marimo's execution model. A key
 difference: Observable cells are named (declaring one variable), while marimo
-cells can define multiple variables. This property creates asymmetric dataflow
-tracing, where we can trace specific variables upstream, but downstream we all
-cells affected by any variable from the selected cell. Our minimap also handles
-marimo's multi-column layouts.
+cells can define multiple variables. This leads to asymmetric dataflow tracing.
+When tracing upstream, we can identify exactly which variables from a cell
+depends on. When tracing downstream, all variables in a dependent cell are
+considered affected. Our minimap also accounts for marimo's support for
+multi-column layouts.
 
 ## Reactive reference highlighting
 
