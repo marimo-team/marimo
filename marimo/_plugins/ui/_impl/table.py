@@ -954,9 +954,10 @@ class table(
         if len(top_k_rows) == 0:
             return []
 
+        UNIQUE_VALUE = "unique"
         all_unique = top_k_rows[0][1] == 1
         if all_unique:
-            return [ValueCount(value="unique", count=total_rows)]
+            return [ValueCount(value=UNIQUE_VALUE, count=total_rows)]
 
         value_counts = []
 
@@ -967,11 +968,12 @@ class table(
         sum_count = 0
         for value, count in top_k_rows:
             sum_count += count
-            value_counts.append(ValueCount(value=str(value), count=count))
+            value = str(value) if value is not None else "null"
+            value_counts.append(ValueCount(value=value, count=count))
 
         remaining = total_rows - sum_count
         if remaining > 0:
-            unique_count = ValueCount(value="unique", count=remaining)
+            unique_count = ValueCount(value=UNIQUE_VALUE, count=remaining)
             if len(value_counts) == size:
                 value_counts[-1] = unique_count
             else:

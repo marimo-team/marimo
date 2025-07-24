@@ -750,17 +750,43 @@ export class ColumnChartSpecModel<T> {
         } as TopLevelFacetedUnitSpec; // "layer" not in TopLevelFacetedUnitSpec
       }
       case "string": {
-        if (!usePreComputedValues) {
+        if (!usePreComputedValues || !valueCounts) {
           return null;
         }
 
-        const xField = "count";
         const yField = "value";
-        let total = 1000;
-        try {
-          total = Number(stats?.total);
-        } catch (error) {
-          Logger.debug("Error calculating total", error);
+        const total = stats?.total
+          ? Number(stats?.total)
+          : valueCounts.reduce((acc, curr) => acc + curr.count, 0);
+
+        const xStartField = "xStart";
+        const xEndField = "xEnd";
+        const xMidField = "xMid";
+
+        // Calculate xStart and xEnd for each value count
+        const newValueCounts: Array<{
+          count: number;
+          value: string;
+          xStart: number;
+          xEnd: number;
+          xMid: number;
+          proportion: number;
+        }> = [];
+        let xStart = 0;
+        for (const valueCount of valueCounts) {
+          const xEnd = xStart + valueCount.count;
+          const xMid = (xStart + xEnd) / 2;
+          const proportion = (xEnd - xStart) / total;
+
+          newValueCounts.push({
+            count: valueCount.count,
+            value: valueCount.value,
+            xStart,
+            xEnd,
+            xMid,
+            proportion,
+          });
+          xStart = xEnd;
         }
 
         // Add a transform to calculate the percentage for each value
@@ -772,22 +798,12 @@ export class ColumnChartSpecModel<T> {
           },
         ];
 
-        // Helper function to calculate text clipping based on bar width
-        // If the text is >80% width, clip to 6 characters
-        // If the text is >50% width, clip to 5 characters
-        // If the text is >40% width, clip to 4 characters
-        // If the text is >10% width, clip to 2 characters
-        // Otherwise, clip to 0 characters
-        const getTextClippingFormula = () => {
-          return `datum.count / ${total} > 0.8 ? slice(datum.${yField}, 0, 6) : (datum.count / ${total} > 0.5 ? slice(datum.${yField}, 0, 5) : (datum.count / ${total} > 0.4 ? slice(datum.${yField}, 0, 4) : (datum.count / ${total} > 0.1 ? slice(datum.${yField}, 0, 2) : '')))`;
-        };
-
         // Pill-like bar
         const barChart: Omit<TopLevelFacetedUnitSpec, "data"> = {
           mark: {
             type: "bar",
-            cornerRadiusEnd: 10,
-            cornerRadius: 10,
+            // cornerRadiusEnd: 10,
+            // cornerRadius: 10,
           },
           params: [
             {
@@ -801,11 +817,13 @@ export class ColumnChartSpecModel<T> {
           ],
           encoding: {
             x: {
-              field: xField,
+              field: xStartField,
               type: "quantitative",
               axis: null,
-              stack: true,
-              scale: { type: "linear" },
+            },
+            x2: {
+              field: xEndField,
+              type: "quantitative",
             },
             color: {
               condition: [
@@ -814,7 +832,7 @@ export class ColumnChartSpecModel<T> {
                   value: mint.mint11,
                 },
                 {
-                  test: `datum.${yField} == "None"`,
+                  test: `datum.${yField} == "None" || datum.${yField} == "null"`,
                   value: orange.orange11,
                 },
               ],
@@ -847,20 +865,16 @@ export class ColumnChartSpecModel<T> {
         const textChart: Omit<TopLevelFacetedUnitSpec, "data"> = {
           mark: {
             type: "text",
-            baseline: "middle",
-            align: "center",
             color: "white",
             fontSize: 8.5,
             ellipsis: " ", // Don't add ... after clipping
+            clip: true,
           },
           encoding: {
             x: {
-              field: xField,
+              field: xMidField,
               type: "quantitative",
               axis: null,
-              stack: true,
-              bandPosition: 0.5, // Center the text
-              scale: { type: "linear" },
             },
             text: {
               field: "clipped_text",
@@ -868,7 +882,7 @@ export class ColumnChartSpecModel<T> {
           },
           transform: [
             {
-              calculate: getTextClippingFormula(),
+              calculate: `datum.proportion > 0.5 ? slice(datum.${yField}, 0, 8) : datum.proportion > 0.2 ? slice(datum.${yField}, 0, 3) : datum.proportion > 0.1 ? slice(datum.${yField}, 0, 1) : ''`,
               as: "clipped_text",
             },
           ],
@@ -876,6 +890,10 @@ export class ColumnChartSpecModel<T> {
 
         return {
           ...base,
+          data: {
+            values: newValueCounts,
+            name: "value_counts",
+          },
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [barChart, textChart],
           transform: transforms,

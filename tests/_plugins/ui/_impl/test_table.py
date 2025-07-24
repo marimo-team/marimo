@@ -1043,7 +1043,7 @@ def test_table__get_value_counts() -> list[ValueCount]:
         column="with_nulls", size=10, total_rows=total_rows
     )
     assert value_counts == [
-        ValueCount(value="None", count=2),
+        ValueCount(value="null", count=2),
         ValueCount(value="2", count=1),
         ValueCount(value="3", count=1),
         ValueCount(value="4", count=1),
