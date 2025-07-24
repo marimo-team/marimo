@@ -13,7 +13,7 @@ relationships:
 The **dependency explorer** provides a _bird's-eye view_ of your notebook's
 dataflow, showing all cells as an interactive graph. It helps you understand
 high-level patterns, overall connectedness, and the broader structure of your
-notebook at a glance.
+notebook.
 
 <div align="center">
 <picture>
@@ -23,13 +23,12 @@ notebook at a glance.
 </div>
 
 To open the dependency explorer, click the **graph icon** in the **left sidebar
-panel**. You can choose between vertical or horizontal layouts to best
-visualize your notebook's dependency structure.
+panel**. You can choose between vertical or horizontal layouts.
 
 ## Minimap
 
 The **minimap** provides a _focused slice_ of your notebook's dataflow, helping
-you understand a _specific_ cell's reactive context and navigate related cells.
+you understand the reactive context of a given cell and navigate related cells.
 You can toggle the minimap a _hotkey_ (`Cmd/Ctrl-Shift-i`), or select the **map
 icon** from the **footer toolbar**.
 
@@ -199,7 +198,7 @@ show all cells that reference any variable from your selected cell.
       </td>
       <td>
         Gray cell indirectly uses variables from the first cell. Whiskers
-        indicate transitive dependencies (click to explore)
+        indicate transitive dependencies
       </td>
     </tr>
     <tr>
@@ -214,7 +213,7 @@ show all cells that reference any variable from your selected cell.
       </td>
       <td>
         Gray cell's variables are indirectly used by the second cell. Whiskers
-        indicate transitive dependencies (click to explore)
+        indicate transitive dependencies
       </td>
     </tr>
     <tr>
@@ -252,9 +251,9 @@ marimo's multi-column layouts.
 
 ## Reactive reference highlighting
 
-marimo's **reactive reference highlighting** provides a visual indication when
-variables defined by other cells are used in the current cell. These variables
-appear with underlines and lightly bolded text inline.
+marimo's **reactive reference highlighting** provides an _in-editor_ indicator
+when variables defined by other cells are used in the current cell. These
+"reactive references" are emphasized with an underline and lightly bolded text:
 
 <div align="center" style="margin-top: 20px">
 <picture>
@@ -264,8 +263,7 @@ appear with underlines and lightly bolded text inline.
 </div>
 
 Hover over any underlined variable and `Cmd/Ctrl-Click` to jump to its
-definition. This immediate visual feedback helps you trace data flow without
-opening additional panels.
+definition.
 
 This feature is currently **opt-in** and must be enabled via *Settings* > *User
 Settings* > *Display* > *Reference highlighting* or toggled via the command
