@@ -10,15 +10,31 @@ references, is used to automatically run (or mark stale) cells in the correct
 sequence; it's also why cells can be arranged "out of order" on the page, or
 across columns.
 
-marimo provides several tools to help you visualize and understand these
-relationships:
+marimo provides several tools to help you visualize and understand the
+relationships it identifies between cells.
+
+## Variables explorer
+
+The **variables explorer panel** collects marimo's understanding of the
+variables in your notebook into a single searchable list. 
+
+<div align="center">
+<picture>
+  <source srcset="/_static/docs-variables-panel.webp" type="image/webp">
+  <img src="/_static/docs-variables-panel.jpg" alt="Variables panel showing variable relationships" style="max-width: 700px; width: 100%;" />
+</picture>
+</div>
+
+To open the panel, click the **variables icon** in the **left sidebar panel**.
+The variable explorer shows each variable's name, type, value, where it's
+defined, and where it's used.
 
 ## Dependency explorer
 
-The **dependency explorer** provides a _bird's-eye view_ of your notebook's
-dataflow, showing all cells as an interactive graph. It helps you understand
-high-level patterns, overall connectedness, and the broader structure of your
-notebook.
+The **dependency explorer panel** provides a _bird's-eye view_ of your
+notebook's dataflow, showing all cells as an interactive graph. It helps you
+understand high-level patterns, overall connectedness, and the broader
+structure of your notebook.
 
 <div align="center">
 <picture>
@@ -238,7 +254,6 @@ show all cells that reference any variable from your selected cell.
 </table>
 
 
-
 ### Implementation notes
 
 The minimap was heavily inspired by [Observable's
@@ -254,6 +269,7 @@ When tracing upstream, we can identify exactly which variables from a cell
 depends on. When tracing downstream, all variables in a dependent cell are
 considered affected. Our minimap also accounts for marimo's support for
 multi-column layouts.
+
 
 ## Reactive reference highlighting
 
@@ -274,3 +290,4 @@ definition.
 This feature is currently **opt-in** and must be enabled via *Settings* > *User
 Settings* > *Display* > *Reference highlighting* or toggled via the command
 palette (`Cmd/Ctrl-K` > *Reference highlighting*).
+
