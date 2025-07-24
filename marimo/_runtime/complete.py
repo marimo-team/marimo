@@ -594,7 +594,7 @@ def complete(
                 )
                 return
 
-        if not completions and not key_options:
+        if not completions:
             # If there are still no completions, then bail.
             _write_no_completions(stream, request.id)
             return
