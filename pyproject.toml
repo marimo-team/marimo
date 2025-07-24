@@ -529,6 +529,7 @@ format_on_save = true
 [tool.marimo.experimental]
 multi_column = true
 performant_table_charts = true
+mcp_docs = true
 
 [tool.marimo.display]
 dataframes = "rich"
