@@ -894,7 +894,11 @@ class table(
                 ]:
                     continue
 
-                if column_type[0] == "string":
+                # For perf, we only compute value counts for categorical columns
+                external_type = column_type[1].lower()
+                if column_type[0] == "string" and (
+                    "cat" in external_type or "enum" in external_type
+                ):
                     try:
                         val_counts = self._get_value_counts(
                             column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
