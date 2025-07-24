@@ -136,11 +136,14 @@ export const TableColumnSummary = <TData, TValue>({
       case "time":
         return null;
       case "string":
-        return (
-          <span className="whitespace-pre text-xs">
-            unique: {prettyNumber(stats.unique)}
-          </span>
-        );
+        if (!spec) {
+          return (
+            <span className="whitespace-pre text-xs">
+              unique: {prettyNumber(stats.unique)}
+            </span>
+          );
+        }
+        return null;
       case "unknown":
         return (
           <div className="flex flex-col whitespace-pre">
