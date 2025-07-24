@@ -440,6 +440,54 @@ class MarimoConfig(TypedDict):
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
+    # We don't support configuring MCP servers yet
+    # mcp: NotRequired[MCPConfig]
+
+
+@mddoc
+@dataclass
+class MCPServerStdioConfig(TypedDict):
+    """Configuration for STDIO transport MCP servers"""
+
+    command: str
+    args: NotRequired[Optional[list[str]]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
+
+
+@mddoc
+@dataclass
+class MCPServerStreamableHttpConfig(TypedDict):
+    """Configuration for Streamable HTTP transport MCP servers"""
+
+    url: str
+    headers: NotRequired[Optional[dict[str, str]]]
+    timeout: NotRequired[Optional[float]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
+
+
+MCPServerConfig = Union[MCPServerStdioConfig, MCPServerStreamableHttpConfig]
+
+
+@mddoc
+@dataclass
+class MCPConfig(TypedDict):
+    """
+    Configuration for MCP servers
+
+    Note: the field name `mcpServers` is camelCased to match MCP server
+    config conventions used by popular AI applications (e.g. Cursor, Claude Desktop, etc.)
+    """
+
+    mcpServers: dict[str, MCPServerConfig]
+
+
+DEFAULT_MCP_CONFIG: MCPConfig = MCPConfig(
+    mcpServers={
+        # TODO(bjoaquinc): add Marimo MCP server here after it is implemented
+    }
+)
 
 
 @mddoc

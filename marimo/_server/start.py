@@ -168,6 +168,7 @@ def start(
         lifespan=Lifespans(
             [
                 lifespans.lsp,
+                lifespans.mcp,
                 lifespans.etc,
                 lifespans.signal_handler,
                 lifespans.logging,

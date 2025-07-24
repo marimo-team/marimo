@@ -47,6 +47,19 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def mcp(app: Starlette) -> AsyncIterator[None]:
+    state = AppState.from_app(app)
+    session_mgr = state.session_manager
+
+    # Only start MCP servers in Edit mode
+    if session_mgr.mode == SessionMode.EDIT:
+        # add MCP server here after it is implemented
+        ...
+
+    yield
+
+
+@contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     if not state.headless:
