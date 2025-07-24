@@ -862,6 +862,7 @@ class table(
         data = self._searched_manager
 
         DEFAULT_BIN_SIZE = 9
+        DEFAULT_VALUE_COUNTS_SIZE = 15
 
         for column in self._manager.get_column_names():
             if should_get_stats:
@@ -895,7 +896,9 @@ class table(
 
                 if column_type[0] == "string":
                     try:
-                        val_counts = self._manager.get_value_counts(column, 20)
+                        val_counts = self._get_value_counts(
+                            column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
+                        )
                         if len(val_counts) > 0:
                             value_counts[column] = val_counts
                             data = data.drop_columns([column])
@@ -928,6 +931,53 @@ class table(
             value_counts=value_counts,
             is_disabled=False,
         )
+
+    def _get_value_counts(
+        self, column: ColumnName, size: int, total_rows: int
+    ) -> list[ValueCount]:
+        """Get value counts for a column. The last item will be 'unique' with the count of remaining
+        unique values.
+
+        Args:
+            column (ColumnName): The column to get value counts for.
+            size (int): The number of value counts to return.
+            total_rows (int): The total number of rows in the table.
+
+        Returns:
+            list[ValueCount]: The value counts.
+        """
+        if size <= 0 or total_rows <= 0:
+            LOGGER.warning("Total rows and size is not valid")
+            return []
+
+        top_k_rows = self._manager.calculate_top_k_rows(column, size)
+        if len(top_k_rows) == 0:
+            return []
+
+        all_unique = top_k_rows[0][1] == 1
+        if all_unique:
+            return [ValueCount(value="unique", count=total_rows)]
+
+        value_counts = []
+
+        if len(top_k_rows) == size:
+            # reserve 1 for unique
+            top_k_rows = top_k_rows[:-1]
+
+        sum_count = 0
+        for value, count in top_k_rows:
+            sum_count += count
+            value_counts.append(ValueCount(value=str(value), count=count))
+
+        remaining = total_rows - sum_count
+        if remaining > 0:
+            unique_count = ValueCount(value="unique", count=remaining)
+            if len(value_counts) == size:
+                value_counts[-1] = unique_count
+            else:
+                value_counts.append(unique_count)
+
+        return value_counts
 
     @classmethod
     def _to_chart_data_url(

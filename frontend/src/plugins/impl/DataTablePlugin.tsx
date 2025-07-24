@@ -138,7 +138,7 @@ const columnStats = z.object({
   p95: maybeNumber,
 });
 
-const binValues = z.array(
+const binValues: z.ZodType<BinValues> = z.array(
   z.object({
     bin_start: z.union([z.number(), z.string(), z.instanceof(Date)]),
     bin_end: z.union([z.number(), z.string(), z.instanceof(Date)]),
@@ -146,9 +146,9 @@ const binValues = z.array(
   }),
 );
 
-const valueCounts = z.array(
+const valueCounts: z.ZodType<ValueCounts> = z.array(
   z.object({
-    value: z.string().nullable(),
+    value: z.string(),
     count: z.number(),
   }),
 );

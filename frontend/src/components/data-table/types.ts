@@ -50,7 +50,7 @@ interface BinValue {
 export type BinValues = BinValue[];
 
 interface ValueCount {
-  value: string | null;
+  value: string;
   count: number;
 }
 export type ValueCounts = ValueCount[];

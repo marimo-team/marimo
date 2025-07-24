@@ -157,11 +157,11 @@ class ValueCount:
     Currently used for string columns.
 
     Attributes:
-        value (str | None): The value.
+        value (str): The value.
         count (int): The count of the value.
     """
 
-    value: str | None
+    value: str
     count: int
 
 

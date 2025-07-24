@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._data.models import ValueCount
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
@@ -971,6 +972,7 @@ def test_show_column_summaries_modes():
     assert summaries_stats.is_disabled is False
     assert summaries_stats.data is None
     assert summaries_stats.bin_values == {}
+    assert summaries_stats.value_counts == {}
     assert len(summaries_stats.stats) > 0
 
     # Test chart-only mode
@@ -999,6 +1001,7 @@ def test_show_column_summaries_modes():
     assert summaries_disabled.is_disabled is False
     assert summaries_disabled.data is None
     assert summaries_disabled.bin_values == {}
+    assert summaries_disabled.value_counts == {}
     assert len(summaries_disabled.stats) == 0
 
     # Test Default behavior
@@ -1010,6 +1013,50 @@ def test_show_column_summaries_modes():
     assert summaries_default.data is not None
     assert len(summaries_default.stats) > 0
     assert table_default._component_args["show-column-summaries"] is True
+
+
+def test_table__get_value_counts() -> list[ValueCount]:
+    data = {
+        "unique": [1, 2, 3, 4, 5],
+        "repeat": [1, 1, 2, 3, 4],
+        "with_nulls": [None, None, 2, 3, 4],
+    }
+    table = ui.table(data)
+    total_rows = len(data["unique"])
+
+    value_counts = table._get_value_counts(
+        column="unique", size=2, total_rows=total_rows
+    )
+    assert value_counts == [ValueCount(value="unique", count=total_rows)]
+
+    value_counts = table._get_value_counts(
+        column="repeat", size=10, total_rows=total_rows
+    )
+    assert value_counts == [
+        ValueCount(value="1", count=2),
+        ValueCount(value="2", count=1),
+        ValueCount(value="3", count=1),
+        ValueCount(value="4", count=1),
+    ]
+
+    value_counts = table._get_value_counts(
+        column="with_nulls", size=10, total_rows=total_rows
+    )
+    assert value_counts == [
+        ValueCount(value="None", count=2),
+        ValueCount(value="2", count=1),
+        ValueCount(value="3", count=1),
+        ValueCount(value="4", count=1),
+    ]
+
+    # check with lower size
+    value_counts = table._get_value_counts(
+        column="repeat", size=2, total_rows=total_rows
+    )
+    assert value_counts == [
+        ValueCount(value="1", count=2),
+        ValueCount(value="unique", count=3),
+    ]
 
 
 def test_table_with_frozen_columns() -> None:

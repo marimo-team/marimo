@@ -756,8 +756,12 @@ export class ColumnChartSpecModel<T> {
 
         const xField = "count";
         const yField = "value";
-        // TODO: Convert total to number
-        const total = stats?.total ?? 0;
+        let total = 1000;
+        try {
+          total = Number(stats?.total);
+        } catch (error) {
+          Logger.debug("Error calculating total", error);
+        }
 
         // Add a transform to calculate the percentage for each value
         const percentField = "percent";
@@ -804,10 +808,16 @@ export class ColumnChartSpecModel<T> {
               scale: { type: "linear" },
             },
             color: {
-              condition: {
-                param: "hover_bar",
-                value: mint.mint11,
-              },
+              condition: [
+                {
+                  param: "hover_bar",
+                  value: mint.mint11,
+                },
+                {
+                  test: `datum.${yField} == "None"`,
+                  value: orange.orange11,
+                },
+              ],
               value: mint.mint8,
               legend: null,
             },
