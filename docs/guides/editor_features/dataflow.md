@@ -52,7 +52,7 @@ Connections are read **left to right**:
 dependencies_ — cells that influence or are influenced by the current cell, but
 only through one or more intermediate cells
 
-The minimap can take some getting used to, but it's effective representation
+The minimap can take some getting used to, but it's an effective representation
 for understanding how data flows around the current cell. It's meant to show
 _just enough_ local context to help you debug, trace relationships, and
 navigate complex notebooks. For a high level overview, use the [dependency
