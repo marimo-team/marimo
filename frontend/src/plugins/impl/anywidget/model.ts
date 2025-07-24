@@ -254,7 +254,7 @@ export async function handleWidgetMessage(
 
   if (msg.method === "custom") {
     const model = await modelManager.get(modelId);
-    model.receiveCustomMessage(msg.content);
+    model.receiveCustomMessage(msg);
     return;
   }
 

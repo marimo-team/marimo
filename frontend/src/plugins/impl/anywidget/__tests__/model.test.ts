@@ -337,6 +337,20 @@ describe("ModelManager", () => {
     expect(model.get("count")).toBe(1);
   });
 
+  it("should handle custom messages", async () => {
+    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
+    const callback = vi.fn();
+    model.on("msg:custom", callback);
+    modelManager.set("test-id", model);
+
+    await handle({
+      modelId: "test-id",
+      message: { method: "custom", content: { count: 1 } },
+      buffers: [],
+    });
+    expect(callback).toHaveBeenCalledWith({ count: 1 }, undefined);
+  });
+
   it("should handle close messages", async () => {
     const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
     modelManager.set("test-id", model);
