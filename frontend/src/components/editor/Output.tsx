@@ -47,8 +47,9 @@ export const OutputRenderer: React.FC<{
   message: Pick<OutputMessage, "channel" | "data" | "mimetype">;
   cellId?: CellId;
   onRefactorWithAI?: (opts: { prompt: string }) => void;
+  wrapText?: boolean;
 }> = memo((props) => {
-  const { message, onRefactorWithAI, cellId } = props;
+  const { message, onRefactorWithAI, cellId, wrapText } = props;
   const { theme } = useTheme();
 
   // Memoize parsing the json data
@@ -85,7 +86,7 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <TextOutput channel={channel} text={data} />;
+      return <TextOutput channel={channel} text={data} wrapText={wrapText} />;
 
     case "application/json":
       // TODO: format is 'auto', but should make configurable once cells can
