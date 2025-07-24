@@ -1,6 +1,13 @@
 # Troubleshooting
 
-This guide covers common issues and unexpected behaviors you might encounter when using marimo notebooks, along with ways to debug and resolve them. If your issue isn't covered here, try checking our [FAQ](../faq.md).
+marimo understands the relationships between cells based on the variables they
+define and reference. When things don't work as expected, marimo provides
+[several tools](editor_features/dataflow.md) to help you understand both marimo's
+interpretation of your notebook and debug issues.
+
+This guide covers common issues and unexpected behaviors you might encounter,
+along with ways to debug and resolve them. If your issue isn't covered here,
+try checking our [FAQ](../faq.md).
 
 ## Why aren't my cells running?
 
@@ -16,20 +23,38 @@ Instead of mutating objects across cells, try creating new objects or performing
 
 ### Verify cell connections
 
-Use the Dependency Panel or Variable Panel to check if your cells are actually connected as you expect.
+Use marimo's [dataflow tools](editor_features/dataflow.md) to check if your cells are actually
+connected as you expect.
 
-1. Open the Dependency Panel (graph icon) or Variable Panel (variable icon) in the left sidebar.
-2. Look for arrows connecting your cells or check which cells are listed as using each variable.
-3. If connections are missing, review your variable usage to ensure cells are properly referencing each other.
+Toggle the [minimap](editor_features/dataflow.md#minimap) to see the current cell's
+connections. You should see connections to cells you expect as inputs on the
+left and outgoing connections to other cells on the right. Here, the cell
+defining `f` depends on the two cells above and connects to the one below with
+`print(f)`.
 
 <div align="center">
-<figure>
-<img src="/_static/docs-dependency-graph.png"/>
-<figcaption>
-Dependency graph showing cell connections.
-</figcaption>
-</figure>
+  <video autoplay muted loop playsinline style="max-width: 450px; width: 100%;">
+   <source src="/_static/docs-debugging-minimap.webm" type="video/webm">
+   <source src="/_static/docs-debugging-minimap.mp4" type="video/mp4">
+  </video>
 </div>
+
+
+Alternatively, you can open the [dependency
+explorer](editor_features/dataflow.md#dependency-explorer) or [variables
+explorer](editor_features/dataflow.md#variables-explorer) in the left sidebar.
+
+<div align="center">
+  <figure>
+    <img width="650" src="/_static/docs-dependency-graph.png"/>
+    <figcaption>
+    Dependency graph showing cell connections.
+    </figcaption>
+  </figure>
+</div>
+
+If connections are missing, review your variable usage to ensure cells are
+properly referencing each other.
 
 ## Why is my cell running unexpectedly?
 
@@ -37,10 +62,10 @@ If a cell is running more often than you anticipate:
 
 ### Check cell dependencies
 
-Use the Dependency Panel or Variable Panel to see what's triggering your cell:
+Use marimo's [dataflow tools](editor_features/dataflow.md) to see what's triggering your cell:
 
-1. Open the Dependency Panel or Variable Panel.
-2. Locate your cell and examine its incoming connections.
+1. Toggle the [minimap](editor_features/dataflow.md#minimap) (see [above](#verify-cell-connections)) - cells on the left are inputs that trigger your cell when they run.
+2. Check the [variables explorer](editor_features/dataflow.md#variables-explorer) to see which variables your cell uses and where they're defined.
 3. You might find unexpected dependencies that are causing the cell to run.
 
 ### Understand global vs local variables vs functions args

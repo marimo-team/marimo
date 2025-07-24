@@ -16,8 +16,7 @@ with code and data.
 
 Highlights include:
 
-- a variables panel that lets you explore variable values and see where they are defined
-- a dependency graph and minimap for visualizing notebook structure and data flow
+- [dataflow tools](dataflow.md) including a variables panel, dependency graph, and minimap for understanding notebook structure
 - a data explorer that lets you inspect dataframes and tables at a glance
 - smart module autoreloading that tells you which cells need to be rerun
 - code completion

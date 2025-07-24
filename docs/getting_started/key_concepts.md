@@ -97,7 +97,7 @@ For more on reactive execution, open the dataflow tutorial
 marimo tutorial dataflow
 ```
 
-or read the [reactivity guide](../guides/reactivity.md).
+or read the [reactivity guide](../guides/reactivity.md). To visualize and understand how data flows through your notebook, check out our [dataflow tools](../guides/editor_features/dataflow.md).
 
 ### Visualizing outputs
 
