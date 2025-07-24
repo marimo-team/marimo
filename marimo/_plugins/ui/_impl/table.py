@@ -954,10 +954,9 @@ class table(
         if len(top_k_rows) == 0:
             return []
 
-        UNIQUE_VALUE = "unique"
         all_unique = top_k_rows[0][1] == 1
         if all_unique:
-            return [ValueCount(value=UNIQUE_VALUE, count=total_rows)]
+            return [ValueCount(value="unique values", count=total_rows)]
 
         value_counts = []
 
@@ -973,7 +972,7 @@ class table(
 
         remaining = total_rows - sum_count
         if remaining > 0:
-            unique_count = ValueCount(value=UNIQUE_VALUE, count=remaining)
+            unique_count = ValueCount(value="others", count=remaining)
             if len(value_counts) == size:
                 value_counts[-1] = unique_count
             else:

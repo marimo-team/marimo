@@ -1027,7 +1027,9 @@ def test_table__get_value_counts() -> list[ValueCount]:
     value_counts = table._get_value_counts(
         column="unique", size=2, total_rows=total_rows
     )
-    assert value_counts == [ValueCount(value="unique", count=total_rows)]
+    assert value_counts == [
+        ValueCount(value="unique values", count=total_rows)
+    ]
 
     value_counts = table._get_value_counts(
         column="repeat", size=10, total_rows=total_rows
@@ -1055,7 +1057,7 @@ def test_table__get_value_counts() -> list[ValueCount]:
     )
     assert value_counts == [
         ValueCount(value="1", count=2),
-        ValueCount(value="unique", count=3),
+        ValueCount(value="others", count=3),
     ]
 
 
