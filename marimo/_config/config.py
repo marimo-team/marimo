@@ -486,7 +486,7 @@ class MCPConfig(TypedDict):
 DEFAULT_MCP_CONFIG: MCPConfig = MCPConfig(
     mcpServers={
         "marimo": MCPServerStreamableHttpConfig(
-            url="http://mcp.marimo.app/mcp"
+            url="https://mcp.marimo.app/mcp"
         ),
         # TODO(bjoaquinc): add more Marimo MCP servers here after they are implemented
     }
