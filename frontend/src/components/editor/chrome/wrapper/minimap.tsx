@@ -45,7 +45,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   }
 
   const isSelected = selectedCell?.id === cell.id;
-  const circleRadius = isNonReferencableCell(cell.graph) ? 1.5 : 3;
+  const circleRadius = isNonReferenceableCell(cell.graph) ? 1.5 : 3;
 
   const handleClick = () => {
     if (isSelected) {
@@ -412,7 +412,7 @@ function getTextColor({
   }
 
   // Nothing selected. Nodes that declare or uses variables
-  if (!selectedCell && !isNonReferencableCell(cell.graph)) {
+  if (!selectedCell && !isNonReferenceableCell(cell.graph)) {
     return "text-foreground";
   }
 
@@ -431,7 +431,7 @@ function getTextColor({
 /**
  * Whether a cell is unconnected AND does not declare any variables
  */
-function isNonReferencableCell(graph: CellGraph): boolean {
+function isNonReferenceableCell(graph: CellGraph): boolean {
   return (
     graph.variables.length === 0 &&
     graph.ancestors.size === 0 &&
