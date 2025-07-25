@@ -26,6 +26,7 @@ check-prereqs:
 	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
 	@pnpm -v | grep -vq "^[0-8]\." || { echo "pnpm v9+ is required. Current version: $(shell pnpm -v)"; exit 1; }
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required. See https://docs.astral.sh/uv/getting-started/installation/"; exit 1; }
+	@command -v hatch >/dev/null 2>&1 || { echo "hatch is required. See https://hatch.pypa.io/dev/install/"; exit 1; }
 	@command -v node >/dev/null 2>&1 || { echo "Node.js is required. See https://nodejs.org/en/download/"; exit 1; }
 	@node -v | grep -q "v2[0-9]" || { echo "Node.js v20+ is required. Current version: $(shell node -v)"; exit 1; }
 	@echo "✅ All prerequisites are installed!"
@@ -89,7 +90,7 @@ e2e:
 .PHONY: fe-lint
 # 🧹 Lint frontend
 fe-lint:
-	cd frontend/src && uvx hatch run typos && cd - && pnpm --filter @marimo-team/frontend lint
+	cd frontend/src && hatch run typos && cd - && pnpm --filter @marimo-team/frontend lint
 
 .PHONY: fe-typecheck
 # 🔍 Typecheck frontend
@@ -111,18 +112,18 @@ py-check:
 .PHONY: typos
 # 🔍 Check for typos
 typos:
-	uvx hatch run typos
+	hatch run typos
 
 .PHONY: py-test
 # 🧪 Test python
 py-test:
 	@command -v hatch >/dev/null 2>&1 || { echo "hatch is required. See https://hatch.pypa.io/dev/install/"; exit 1; }
-	uvx hatch run typos && hatch run +py=3.12 test-optional:test $(ARGS)
+	hatch run typos && hatch run +py=3.12 test-optional:test $(ARGS)
 
 .PHONY: py-snapshots
 # 📸 Update snapshots
 py-snapshots:
-	uvx hatch run +py=3.12 test:test \
+	hatch run +py=3.12 test:test \
 		tests/_server/templates/test_templates.py \
 		tests/_server/api/endpoints/test_export.py \
 		tests/test_api.py
@@ -134,7 +135,7 @@ py-snapshots:
 .PHONY: wheel
 # 📦 Build wheel
 wheel:
-	uv build
+	hatch build
 
 
 #################
@@ -144,12 +145,12 @@ wheel:
 .PHONY: docs
 # 📚 Build docs
 docs:
-	uvx hatch run docs:build
+	hatch run docs:build
 
 .PHONY: docs-serve
 # 📚 Serve docs
 docs-serve:
-	uvx hatch run docs:serve
+	hatch run docs:serve
 
 .PHONY: storybook
 # 🧩 Start Storybook for UI development
