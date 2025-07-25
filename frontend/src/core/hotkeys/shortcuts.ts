@@ -50,7 +50,17 @@ function areKeysPressed(keys: string[], e: IKeyboardEvent): boolean {
         satisfied &&= e.code === "Space";
         break;
       default:
-        satisfied &&= e.key.toLowerCase() === key;
+        // Handle digit keys specially when shift is pressed
+        // Shift+7 produces different characters across keyboards/platforms:
+        // - US keyboards: "&"
+        // - Some layouts: "7"
+        // Using e.code (physical key) instead of e.key (produced character)
+        // eslint-disable-next-line unicorn/prefer-ternary
+        if (/^\d$/.test(key) && e.shiftKey) {
+          satisfied &&= e.code === `Digit${key}`;
+        } else {
+          satisfied &&= e.key.toLowerCase() === key;
+        }
         break;
     }
 
