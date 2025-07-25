@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,11 @@ import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
 import { useHotkey } from "@/hooks/useHotkey";
 import { cn } from "@/utils/cn";
-import { useChromeActions, useChromeState } from "../state";
 import {
   type CellGraph,
   cellGraphsAtom,
   isVariableAffectedBySelectedCell,
+  minimapOpenAtom,
 } from "./minimap-state";
 
 interface MinimapCellProps {
@@ -182,10 +182,9 @@ const MinimapInternal: React.FC<{
 };
 
 export const Minimap: React.FC = () => {
-  const { setIsMinimapOpen, toggleMinimap } = useChromeActions();
-  const { isMinimapOpen } = useChromeState();
-  useHotkey("global.toggleMinimap", () => toggleMinimap());
-  return <MinimapInternal open={isMinimapOpen} setOpen={setIsMinimapOpen} />;
+  const [open, setOpen] = useAtom(minimapOpenAtom);
+  useHotkey("global.toggleMinimap", () => setOpen((prev) => !prev));
+  return <MinimapInternal open={open} setOpen={setOpen} />;
 };
 
 function codePreview(code: string): string | undefined {

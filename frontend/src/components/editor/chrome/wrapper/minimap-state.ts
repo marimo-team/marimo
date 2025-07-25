@@ -6,6 +6,8 @@ import type { CellId } from "@/core/cells/ids";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variable, VariableName, Variables } from "@/core/variables/types";
 
+export const minimapOpenAtom = atom(false);
+
 export interface CellGraph {
   variables: readonly VariableName[];
 
