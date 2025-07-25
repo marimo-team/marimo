@@ -90,6 +90,24 @@ def hash_module(
     return hash_alg.digest()
 
 
+def hash_wrapped_functions(
+    wrapped: Callable[..., Any], hash_type: str = DEFAULT_HASH
+) -> bytes:
+    seen = set()
+
+    # there is a chance for a circular reference
+    # likely manually created, but easy to guard against.
+    def process_function(fn: Callable[..., Any]) -> bytes:
+        fn_hash = hash_module(fn.__code__, hash_type)
+        if fn_hash not in seen and hasattr(fn, "__wrapped__"):
+            child_hash = hash_wrapped_functions(fn.__wrapped__, hash_type)
+            return child_hash + fn_hash
+        seen.add(fn_hash)
+        return fn_hash
+
+    return process_function(wrapped)
+
+
 def hash_raw_module(
     module: ast.Module, hash_type: str = DEFAULT_HASH
 ) -> bytes:
@@ -774,7 +792,9 @@ class BlockHasher:
             elif is_pure_function(
                 local_ref, value, scope, self.fn_cache, self.graph
             ):
-                serial_value = hash_module(value.__code__, self.hash_alg.name)
+                serial_value = hash_wrapped_functions(
+                    value, self.hash_alg.name
+                )
             # An external module variable is assumed to be pure, with module
             # pinning being the mechanism for invalidation.
             elif getattr(value, "__module__", "__main__") == "__main__":
