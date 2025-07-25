@@ -28,7 +28,7 @@ def test_google_docstring_to_markdown_summary():
         ```
     """
     md_result = google_docstring_to_markdown(docstring)
-    snapshot("docstring_summary.txt", md_result)
+    snapshot("docstring_summary.md", md_result)
 
     for substr in [
         "# Summary",
@@ -84,18 +84,25 @@ def test_google_docstring_to_markdown_complex():
             equal height; or a list of relative heights with same length as `items`,
             eg, [1, 2] means the second item is twice as tall as the first;
             or None for a sensible default.
+        custom_css (dict[str, str], optional): Custom CSS styles for each column. Keys include:
+            - width
+            - height
+            - background_color
+            - border
+            - border_radius
+            - padding
 
     Returns:
         Html: An Html object.
     """
     md_result = google_docstring_to_markdown(docstring)
-    snapshot("docstring_complex.txt", md_result)
+    snapshot("docstring_complex.md", md_result)
 
 
 def test_google_docstring_to_markdown_oneliner():
     docstring = """One-liner docstring"""
     md_result = google_docstring_to_markdown(docstring)
-    snapshot("docstring_one_liner.txt", md_result)
+    snapshot("docstring_one_liner.md", md_result)
 
     for substr in [
         "# Summary",

@@ -43,25 +43,63 @@ def google_docstring_to_markdown(docstring: str) -> str:
     def _handle_arg_or_attribute(
         table: list[tuple[str, str, str]], stripped: str
     ) -> None:
-        # Typically: "    arg_name (arg_type): description"
+        # Parse parameter definition: "arg_name (arg_type): description"
         match = re.match(r"^(\w+)\s*\(([^)]+)\):\s*(.*)", stripped)
         if match:
             arg_name, arg_type, description = match.groups()
             table.append((arg_name, arg_type, description.strip()))
+            return
+
+        # Parse simple parameter: "arg_name: description"
+        match = re.match(r"^(\w+)\s*:\s*(.*)", stripped)
+        if match:
+            arg_name, description = match.groups()
+            table.append((arg_name, "", description.strip()))
+            return
+
+        # Handle continuation lines
+        if not table:
+            return
+
+        current_name, current_type, current_desc = table[-1]
+        stripped_content = stripped.strip()
+
+        # Handle bullet points
+        if stripped_content.startswith("- "):
+            bullet_content = stripped_content[2:]  # Remove "- "
+            new_desc = (
+                current_desc + "<br>- " + bullet_content
+                if current_desc
+                else "- " + bullet_content
+            )
+            table[-1] = (current_name, current_type, new_desc)
+            return
+
+        # Handle regular continuation lines
+        if not current_desc:
+            table[-1] = (current_name, current_type, stripped_content)
+            return
+
+        # Determine how to join the continuation
+        if stripped_content.startswith(
+            ("Defaults to", "Default:", "Optional:", "Required:")
+        ):
+            # New sentence - add space
+            separator = " "
+        elif current_desc.endswith(".") or (
+            stripped_content and stripped_content[0].islower()
+        ):
+            # Continue sentence - add space
+            separator = " "
         else:
-            # Fallback to "    arg_name: description"
-            match = re.match(r"^(\w+)\s*:\s*(.*)", stripped)
-            if match:
-                arg_name, description = match.groups()
-                table.append((arg_name, "", description.strip()))
-            else:
-                # Possibly just an indented line continuing the description
-                if table:
-                    table[-1] = (
-                        table[-1][0],
-                        table[-1][1],
-                        table[-1][2] + " " + stripped.strip(),
-                    )
+            # New sentence - add space
+            separator = " "
+
+        table[-1] = (
+            current_name,
+            current_type,
+            current_desc + separator + stripped_content,
+        )
 
     # We'll store a simple summary until we see "Args:" or "Returns:" or "Raises:"
     for line in lines:
