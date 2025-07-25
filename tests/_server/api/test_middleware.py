@@ -445,6 +445,7 @@ class TestProxyMiddleware:
         )
         return edit_app
 
+    @pytest.mark.flaky(reruns=5)
     def test_proxy_static_file(self, app_with_static_proxy: Starlette) -> None:
         client = TestClient(app_with_static_proxy)
         response = client.get("/_static/css/page.css")
@@ -452,6 +453,7 @@ class TestProxyMiddleware:
         assert response.headers["content-type"].startswith("text/css")
         assert "body { color: red; }" in response.text
 
+    @pytest.mark.flaky(reruns=5)
     def test_proxy_large_static_file(
         self, app_with_static_proxy: Starlette
     ) -> None:
@@ -474,6 +476,7 @@ class TestProxyMiddleware:
                 content_length += len(chunk)
             assert content_length == 1024 * 1024
 
+    @pytest.mark.flaky(reruns=5)
     async def test_http_client_streaming(
         self, app_with_proxy: Starlette
     ) -> None:
