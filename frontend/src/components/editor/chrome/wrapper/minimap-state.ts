@@ -122,34 +122,36 @@ export const cellGraphsAtom = atom((get) => {
  */
 export function isVariableAffectedBySelectedCell(
   variable: Variable,
-  options: { selectedCellId: CellId; selectedGraph: CellGraph },
+  selectedCell?: { id: CellId; graph: CellGraph },
 ): boolean {
+  if (!selectedCell) {
+    return false;
+  }
+
   // Case 1: Variable is used by the selected cell (incoming dataflow)
-  if (variable.usedBy.includes(options.selectedCellId)) {
+  if (variable.usedBy.includes(selectedCell.id)) {
     return true;
   }
 
   // Case 2: Variable is declared by the selected cell (outgoing dataflow)
-  if (variable.declaredBy.includes(options.selectedCellId)) {
+  if (variable.declaredBy.includes(selectedCell.id)) {
     return true;
   }
 
   // Case 3: Variable is declared by an ancestor AND used by selected cell or descendants
   // This captures the flow-through case
   const isDeclaredByAncestor = variable.declaredBy.some((declarer) =>
-    options.selectedGraph.parents.has(declarer),
+    selectedCell.graph.parents.has(declarer),
   );
 
   if (isDeclaredByAncestor) {
-    return variable.usedBy.some((user) =>
-      options.selectedGraph.parents.has(user),
-    );
+    return variable.usedBy.some((user) => selectedCell.graph.parents.has(user));
   }
 
   // Case 4: Variable is declared by a descendant
   // These will be re-executed when the selected cell changes
   const isDeclaredByDescendant = variable.declaredBy.some((declarer) =>
-    options.selectedGraph.children.has(declarer),
+    selectedCell.graph.children.has(declarer),
   );
 
   if (isDeclaredByDescendant) {
