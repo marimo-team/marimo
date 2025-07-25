@@ -1,4 +1,7 @@
-from marimo._utils.docs import google_docstring_to_markdown
+from marimo._utils.docs import (
+    _process_code_block_content,
+    google_docstring_to_markdown,
+)
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -91,11 +94,27 @@ def test_google_docstring_to_markdown_complex():
             - border
             - border_radius
             - padding
+        typeless: Pass unknown types to the stack.
+        *args: positional arguments passed to stack
+        code_block (str): Render a code block in the stack.
+            ```
+            mo.vstack(),
+            mo.hstack()
+            ```
+        second_code_block (str): Render a second code block in the stack.
+            ```python
+            mo.vstack([])
+            ```
+        **kwargs: keyword arguments passed to stack
 
     Returns:
         Html: An Html object.
     """
     md_result = google_docstring_to_markdown(docstring)
+
+    assert "<pre><code>mo.vstack(),<br>mo.hstack()</code></pre>" in md_result
+    assert "<pre><code>mo.vstack([])</code></pre>" in md_result
+
     snapshot("docstring_complex.md", md_result)
 
 
@@ -109,3 +128,48 @@ def test_google_docstring_to_markdown_oneliner():
         "One-liner docstring",
     ]:
         assert substr in md_result
+
+
+def test_process_code_block_content():
+    """Test the _process_code_block_content function with various inputs."""
+
+    # Test with no code blocks
+    result = _process_code_block_content("Simple description")
+    assert result == "Simple description"
+
+    # Test with a simple code block
+    result = _process_code_block_content(
+        "Description with ```python\ncode here\n```"
+    )
+    assert result == "Description with <pre><code>code here</code></pre>"
+
+    # Test with code block without language
+    result = _process_code_block_content(
+        "Description with ```\ncode here\n```"
+    )
+    assert result == "Description with <pre><code>code here</code></pre>"
+
+    # Test with multiple code blocks
+    result = _process_code_block_content(
+        "First ```python\ncode1\n``` Second ```\ncode2\n```"
+    )
+    assert (
+        result
+        == "First <pre><code>code1</code></pre> Second <pre><code>code2</code></pre>"
+    )
+
+    # Test with text after code block
+    result = _process_code_block_content(
+        "Description ```python\ncode\n``` and more text"
+    )
+    assert result == "Description <pre><code>code</code></pre> and more text"
+
+    # Test with language identifier
+    result = _process_code_block_content(
+        "Description ```python\ncode here\n```"
+    )
+    assert result == "Description <pre><code>code here</code></pre>"
+
+    # Test with empty code block
+    result = _process_code_block_content("Description ```\n\n```")
+    assert result == "Description <pre><code></code></pre>"
