@@ -48,22 +48,22 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: 🐍 Setup uv
-        uses: astral-sh/setup-uv@v6
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
 
       - name: 📦 Build marimo
-        run: uv build
+        run: hatch build
 
       - name: 📤 Upload to PyPI
         env:
           HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.PYPI_PASSWORD }}
-        run: uvx hatch publish
+        run: hatch publish
 
       - name: 🔨 Get version
         id: get_version
         run: |
-          echo "marimo_version=$(uvx hatch version)" >> $GITHUB_OUTPUT
+          echo "marimo_version=$(hatch version)" >> $GITHUB_OUTPUT
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

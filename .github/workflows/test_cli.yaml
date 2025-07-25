@@ -58,11 +58,11 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           NODE_OPTIONS: '--max_old_space_size=8192'
 
-      - name: 🐍 Setup uv
-        uses: astral-sh/setup-uv@v6
+      - name: 🥚 Install Hatch
+        uses: pypa/hatch@install
 
       - name: 📦 Build marimo wheel
-        run: uv build --wheel
+        run: hatch build -t wheel
 
       - name: Check for _static/_lsp directory in wheel
         run: |
