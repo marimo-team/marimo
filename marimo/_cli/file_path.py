@@ -307,8 +307,14 @@ class RemoteFileHandler(FileHandler):
         LOGGER.info("Creating temporary file")
         path_to_app = Path(temp_dir.name) / name
         # If doesn't end in .py, add it
-        if not path_to_app.suffix == ".py":
-            path_to_app = path_to_app.with_suffix(".py")
+        if path_to_app.suffix not in (".py", ".md", ".qmd"):
+            if "__generated_with" in content:
+                path_to_app = path_to_app.with_suffix(".py")
+            elif "marimo-version" in content:
+                path_to_app = path_to_app.with_suffix(".md")
+            else:
+                # Fallback to .py
+                path_to_app = path_to_app.with_suffix(".py")
         path_to_app.write_text(content, encoding="utf-8")
         LOGGER.info("App saved to %s", path_to_app)
         return str(path_to_app)
