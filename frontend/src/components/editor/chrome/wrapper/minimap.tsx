@@ -8,7 +8,6 @@ import { useCellActions, useNotebook } from "@/core/cells/cells";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
-import type { VariableName } from "@/core/variables/types";
 import { useHotkey } from "@/hooks/useHotkey";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
@@ -24,21 +23,29 @@ interface MinimapCellProps {
 }
 
 const MinimapCell: React.FC<MinimapCellProps> = (props) => {
-  const { cellId, cellPositions } = props;
   const notebook = useNotebook();
   const focusState = useAtomValue(cellFocusAtom);
-  const selectedCellId = focusState.focusedCellId;
   const graphs = useAtomValue(cellGraphsAtom);
   const actions = useCellActions();
   const focusActions = useCellFocusActions();
 
-  const cell = notebook.cellData[cellId];
-  const runtime = notebook.cellRuntime[cellId];
+  const cell = {
+    id: props.cellId,
+    graph: graphs[props.cellId],
+    code: notebook.cellData[props.cellId].code,
+    hasError: notebook.cellRuntime[props.cellId].errored,
+  };
 
-  const graph = graphs[cellId];
-  const selectedGraph = selectedCellId ? graphs[selectedCellId] : undefined;
+  let selectedCell: undefined | { id: CellId; graph: CellGraph };
+  if (focusState.focusedCellId && graphs[focusState.focusedCellId]) {
+    selectedCell = {
+      id: focusState.focusedCellId,
+      graph: graphs[focusState.focusedCellId],
+    };
+  }
 
-  const isSelected = selectedCellId === cellId;
+  const isSelected = selectedCell?.id === cell.id;
+  const circleRadius = isNonReferenceableCell(cell.graph) ? 1.5 : 3;
 
   const handleClick = () => {
     if (isSelected) {
@@ -46,14 +53,14 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       focusActions.blurCell();
     } else {
       // Otherwise focus the cell
-      actions.focusCell({ cellId, where: "exact" });
-      focusActions.focusCell({ cellId });
+      actions.focusCell({ cellId: cell.id, where: "exact" });
+      focusActions.focusCell({ cellId: cell.id });
     }
   };
 
   return (
     <button
-      data-node-id={cellId}
+      data-node-id={cell.id}
       className={cn(
         "group bg-transparent text-left w-full flex relative justify-between items-center",
         "border-none rounded cursor-pointer",
@@ -78,13 +85,8 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
           className="truncate px-1 font-mono text-sm flex gap-1"
           title={cell.code}
         >
-          {graph.variables.length > 0 ? (
-            <VariablesList
-              cellId={cellId}
-              variableNames={graph.variables}
-              selectedCellId={selectedCellId}
-              selectedGraph={selectedGraph}
-            />
+          {cell.graph.variables.length > 0 ? (
+            <VariablesList cell={cell} selectedCell={selectedCell} />
           ) : (
             <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
               {codePreview(cell.code) ?? <span className="italic">empty</span>}
@@ -96,30 +98,22 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
         className={cn(
           "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)] pointer-events-none",
           isSelected ? "z-30" : "z-20",
-          runtime.errored
-            ? "text-destructive"
-            : selectedCellId === null
-              ? "text-foreground"
-              : isSelected ||
-                  selectedGraph?.parents.has(cellId) ||
-                  selectedGraph?.children.has(cellId)
-                ? "text-primary"
-                : "text-[var(--gray-8)]",
+          getTextColor({ cell, selectedCell }),
         )}
         width="1"
         height="1"
       >
         {isSelected ? (
           <SelectedCell
-            cellId={cellId}
-            cellPositions={cellPositions}
-            graph={graph}
+            cell={cell}
+            cellPositions={props.cellPositions}
+            circleRadius={circleRadius}
           />
         ) : (
           <UnselectedCell
-            cellId={cellId}
-            graph={graph}
-            selectedGraph={selectedGraph}
+            cell={cell}
+            selectedCell={selectedCell}
+            circleRadius={circleRadius}
           />
         )}
       </svg>
@@ -199,32 +193,25 @@ function codePreview(code: string): string | undefined {
 }
 
 const VariablesList: React.FC<{
-  cellId: CellId;
-  variableNames: readonly VariableName[];
-  selectedCellId: CellId | null;
-  selectedGraph?: CellGraph;
-}> = ({ variableNames, selectedGraph, cellId, selectedCellId }) => {
+  cell: { id: CellId; graph: CellGraph };
+  selectedCell?: { id: CellId; graph: CellGraph };
+}> = ({ cell, selectedCell }) => {
   const variables = useVariables();
-  const isSelected = cellId === selectedCellId;
+  const isSelected = cell.id === selectedCell?.id;
   return (
     <>
-      {variableNames.map((varName, idx) => {
+      {cell.graph.variables.map((varName, idx) => {
         const variable = variables[varName];
         return (
           <React.Fragment key={varName}>
             {idx > 0 && ", "}
             <span
               className={cn({
-                "text-foreground": selectedGraph === undefined,
                 "font-bold": isSelected,
+                "text-foreground": selectedCell === undefined,
                 "text-primary font-medium":
                   !isSelected &&
-                  selectedGraph &&
-                  selectedCellId &&
-                  isVariableAffectedBySelectedCell(variable, {
-                    selectedCellId,
-                    selectedGraph,
-                  }),
+                  isVariableAffectedBySelectedCell(variable, selectedCell),
               })}
             >
               {varName}
@@ -238,19 +225,19 @@ const VariablesList: React.FC<{
 
 // Connection paths (for selected)
 const SelectedCell = (options: {
-  cellId: CellId;
+  cell: { id: CellId; graph: CellGraph };
   cellPositions: Record<CellId, number>;
-  graph: CellGraph;
+  circleRadius: number;
 }) => {
-  const { cellId, cellPositions, graph } = options;
+  const { cell, cellPositions, circleRadius } = options;
   const dy = 21;
   const paths: React.ReactElement[] = [];
-  const currentY = cellPositions[cellId] ?? 0;
+  const currentY = cellPositions[cell.id] ?? 0;
 
   // First, identify all cycles (nodes that are both parent and child)
   const cycles = new Set<CellId>();
-  for (const parentCellId of graph.parents) {
-    if (graph.children.has(parentCellId)) {
+  for (const parentCellId of cell.graph.parents) {
+    if (cell.graph.children.has(parentCellId)) {
       cycles.add(parentCellId);
     }
   }
@@ -263,7 +250,7 @@ const SelectedCell = (options: {
       // Draw a rectangular path around both nodes to show the cycle
       paths.push(
         <path
-          key={`${cellId}-cycle-${cycleCellId}`}
+          key={`${cell.id}-cycle-${cycleCellId}`}
           d={`M -3 0 H -7 v ${yDiff} h 14 v ${-yDiff} H 3`}
           fill="none"
           strokeWidth="2"
@@ -274,7 +261,7 @@ const SelectedCell = (options: {
   }
 
   // Add regular upstream connections (excluding cycles)
-  for (const parentCellId of graph.parents) {
+  for (const parentCellId of cell.graph.parents) {
     if (cycles.has(parentCellId)) {
       continue; // Skip - already handled as cycle
     }
@@ -283,7 +270,7 @@ const SelectedCell = (options: {
       const yDiff = (targetY - currentY) * dy;
       paths.push(
         <path
-          key={`${cellId}-up-${parentCellId}`}
+          key={`${cell.id}-up-${parentCellId}`}
           d={`M -3 0 H -7 v ${yDiff} h -4`}
           fill="none"
           strokeWidth="2"
@@ -294,7 +281,7 @@ const SelectedCell = (options: {
   }
 
   // Add regular downstream connections (excluding cycles)
-  for (const childCellId of graph.children) {
+  for (const childCellId of cell.graph.children) {
     if (cycles.has(childCellId)) {
       continue; // Skip - already handled as cycle
     }
@@ -303,7 +290,7 @@ const SelectedCell = (options: {
       const yDiff = (targetY - currentY) * dy;
       paths.push(
         <path
-          key={`${cellId}-down-${childCellId}`}
+          key={`${cell.id}-down-${childCellId}`}
           d={`M 3 0 H 7 v ${yDiff} h 4`}
           fill="none"
           strokeWidth="2"
@@ -316,7 +303,7 @@ const SelectedCell = (options: {
   return (
     <g transform="translate(0, 0)">
       <circle
-        r={getCircleRadius(graph)}
+        r={circleRadius}
         fill="currentColor"
         className="pointer-events-auto"
       />
@@ -325,27 +312,18 @@ const SelectedCell = (options: {
   );
 };
 
-function isOrphan(graph: CellGraph): boolean {
-  return graph.ancestors.size === 0 && graph.descendants.size === 0;
-}
-
-function getCircleRadius(graph: CellGraph): number {
-  return isOrphan(graph) ? 1.5 : 3;
-}
-
 // Connection indicators for non-selected cells
 function UnselectedCell(options: {
-  cellId: CellId;
-  graph: CellGraph;
-  selectedGraph?: CellGraph;
+  cell: { id: CellId; graph: CellGraph };
+  selectedCell?: { id: CellId; graph: CellGraph };
+  circleRadius: number;
 }) {
-  const { cellId, graph, selectedGraph } = options;
-  const circleRadius = getCircleRadius(graph);
+  const { cell, selectedCell, circleRadius } = options;
 
-  const hasAncestors = graph.ancestors.size > 0;
-  const hasDescendants = graph.descendants.size > 0;
+  const hasAncestors = cell.graph.ancestors.size > 0;
+  const hasDescendants = cell.graph.descendants.size > 0;
 
-  if (!selectedGraph) {
+  if (!selectedCell) {
     // There is no selection, so show all upstream/downstream indicators
     return drawConnectionGlyph({
       circleRadius,
@@ -354,8 +332,8 @@ function UnselectedCell(options: {
     });
   }
 
-  const isAncestorOfSelected = selectedGraph.ancestors.has(cellId);
-  const isDescendantOfSelected = selectedGraph.descendants.has(cellId);
+  const isAncestorOfSelected = selectedCell.graph.ancestors.has(cell.id);
+  const isDescendantOfSelected = selectedCell.graph.descendants.has(cell.id);
   if (isAncestorOfSelected || isDescendantOfSelected) {
     return drawConnectionGlyph({
       circleRadius,
@@ -416,5 +394,47 @@ function drawConnectionGlyph(options: {
         className="pointer-events-auto"
       />
     </g>
+  );
+}
+
+/**
+ * Color for the node/connections in the SVG diagram
+ */
+function getTextColor({
+  cell,
+  selectedCell,
+}: {
+  cell: { id: CellId; hasError: boolean; graph: CellGraph };
+  selectedCell?: { id: CellId; graph: CellGraph };
+}) {
+  if (cell.hasError) {
+    return "text-destructive";
+  }
+
+  // Nothing selected. Nodes that declare or uses variables
+  if (!selectedCell && !isNonReferenceableCell(cell.graph)) {
+    return "text-foreground";
+  }
+
+  // Inside the selected graph
+  if (
+    selectedCell?.id === cell.id ||
+    selectedCell?.graph.parents.has(cell.id) ||
+    selectedCell?.graph.children.has(cell.id)
+  ) {
+    return "text-primary";
+  }
+
+  return "text-[var(--gray-8)]";
+}
+
+/**
+ * Whether a cell is unconnected AND does not declare any variables
+ */
+function isNonReferenceableCell(graph: CellGraph): boolean {
+  return (
+    graph.variables.length === 0 &&
+    graph.ancestors.size === 0 &&
+    graph.descendants.size === 0
   );
 }
