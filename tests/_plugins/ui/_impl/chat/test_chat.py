@@ -62,7 +62,6 @@ def test_chat_with_config():
 
     config: ChatModelConfigDict = {"temperature": 0.7, "max_tokens": 100}
     chat = ui.chat(mock_model, config=config)
-    print("chat._component_args", chat._component_args["config"])
     assert chat._component_args["config"] == {
         **DEFAULT_CONFIG,
         "temperature": 0.7,
