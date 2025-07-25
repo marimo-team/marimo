@@ -1029,10 +1029,26 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
     ),
 )
 class TestGetBinValuesTemporal:
+    def _normalize_bin_values(
+        self, bin_values: list[BinValue]
+    ) -> list[BinValue]:
+        import pandas as pd
+
+        return [
+            BinValue(
+                bin_start=pd.Timestamp(bin_value.bin_start),
+                bin_end=pd.Timestamp(bin_value.bin_end),
+                count=bin_value.count,
+            )
+            for bin_value in bin_values
+        ]
+
     def test_datetime(self, df: Any) -> None:
+        import pandas as pd
+
         manager = NarwhalsTableManager.from_dataframe(df)
         bin_values = manager.get_bin_values("datetime_1_day", 3)
-        assert bin_values == [
+        expected = [
             BinValue(
                 bin_start=datetime.datetime(2021, 1, 1, 1, 1, 1),
                 bin_end=datetime.datetime(2021, 1, 1, 10, 22, 22, 333333),
@@ -1049,11 +1065,16 @@ class TestGetBinValuesTemporal:
                 count=2,
             ),
         ]
+        if isinstance(df, pd.DataFrame):
+            expected = self._normalize_bin_values(expected)
+        assert bin_values == expected
 
     def test_dates_with_nulls(self, df: Any) -> None:
+        import pandas as pd
+
         manager = NarwhalsTableManager.from_dataframe(df)
         bin_values = manager.get_bin_values("dates_with_nulls", 3)
-        assert bin_values == [
+        expected = [
             BinValue(
                 bin_start=datetime.datetime(2021, 1, 1, 0, 0),
                 bin_end=datetime.datetime(2021, 1, 2, 0, 0),
@@ -1070,6 +1091,9 @@ class TestGetBinValuesTemporal:
                 count=1,
             ),
         ]
+        if isinstance(df, pd.DataFrame):
+            expected = self._normalize_bin_values(expected)
+        assert bin_values == expected
 
     def test_get_bin_values_time(self, df: Any) -> None:
         import pandas as pd
