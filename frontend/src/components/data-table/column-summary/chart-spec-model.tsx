@@ -16,7 +16,6 @@ import {
   isDataURLString,
   typedAtob,
 } from "@/utils/json/base64";
-import { Logger } from "@/utils/Logger";
 import type {
   BinValues,
   ColumnHeaderStats,
@@ -634,21 +633,20 @@ export class ColumnChartSpecModel<T> {
         };
       }
       case "boolean": {
-        if (!usePreComputedValues) {
+        if (!usePreComputedValues || !stats?.true || !stats?.false) {
           return getLegacyBooleanSpec(column, base, MAX_BAR_HEIGHT);
         }
 
         const BAR_HEIGHT = stats?.nulls ? 11 : MAX_BAR_HEIGHT;
 
         const values = [
-          { value: "true", count: stats?.true },
-          { value: "false", count: stats?.false },
+          { value: "true", count: stats.true },
+          { value: "false", count: stats.false },
         ];
         if (stats?.nulls) {
-          values.push({ value: "null", count: stats?.nulls });
+          values.push({ value: "null", count: stats.nulls });
         }
 
-        let total = null;
         let countTooltip: StringFieldDef<string> = {
           field: "count",
           type: "quantitative",
@@ -656,25 +654,22 @@ export class ColumnChartSpecModel<T> {
         };
         let transform: TopLevelFacetedUnitSpec["transform"] = [];
 
-        try {
-          total =
-            Number(stats?.total) ||
-            Number(stats?.true) + Number(stats?.false) + Number(stats?.nulls);
-          if (total) {
-            countTooltip = {
-              field: "count_with_percent",
-              type: "nominal",
-              title: "Count",
-            };
-            transform = [
-              {
-                calculate: `format(datum.count, ',d') + ' (' + format(datum.count / ${total} * 100, '.1f') + '%)'`,
-                as: "count_with_percent",
-              },
-            ];
-          }
-        } catch (error) {
-          Logger.debug("Error calculating total", error);
+        const total =
+          Number(stats.total) ||
+          Number(stats.true) + Number(stats.false) + Number(stats.nulls);
+
+        if (!Number.isNaN(total)) {
+          countTooltip = {
+            field: "count_with_percent",
+            type: "nominal",
+            title: "Count",
+          };
+          transform = [
+            {
+              calculate: `format(datum.count, ',d') + ' (' + format(datum.count / ${total} * 100, '.1f') + '%)'`,
+              as: "count_with_percent",
+            },
+          ];
         }
 
         return {
@@ -750,18 +745,18 @@ export class ColumnChartSpecModel<T> {
         } as TopLevelFacetedUnitSpec; // "layer" not in TopLevelFacetedUnitSpec
       }
       case "string": {
-        if (!usePreComputedValues || !valueCounts) {
+        if (!usePreComputedValues || !hasValueCounts) {
           return null;
         }
 
-        const yField = "value";
-        const total = stats?.total
-          ? Number(stats?.total)
-          : valueCounts.reduce((acc, curr) => acc + curr.count, 0);
+        const total =
+          Number(stats?.total) ||
+          valueCounts.reduce((acc, curr) => acc + curr.count, 0);
 
         const xStartField = "xStart";
         const xEndField = "xEnd";
         const xMidField = "xMid";
+        const yField = "value";
 
         // Calculate xStart and xEnd for each value count
         const newValueCounts: Array<{

@@ -906,7 +906,7 @@ class table(
                         if len(val_counts) > 0:
                             value_counts[column] = val_counts
                             data = data.drop_columns([column])
-                            continue
+                        continue
                     except BaseException as e:
                         LOGGER.warning(
                             "Failed to get value counts for column %s: %s",
@@ -939,8 +939,8 @@ class table(
     def _get_value_counts(
         self, column: ColumnName, size: int, total_rows: int
     ) -> list[ValueCount]:
-        """Get value counts for a column. The last item will be 'unique' with the count of remaining
-        unique values.
+        """Get value counts for a column. The last item will be 'others' with the count of remaining
+        unique values. If there are only unique values, we return 'unique values' instead.
 
         Args:
             column (ColumnName): The column to get value counts for.
@@ -965,7 +965,7 @@ class table(
         value_counts = []
 
         if len(top_k_rows) == size:
-            # reserve 1 for unique
+            # reserve 1 for others
             top_k_rows = top_k_rows[:-1]
 
         sum_count = 0

@@ -1015,50 +1015,53 @@ def test_show_column_summaries_modes():
     assert table_default._component_args["show-column-summaries"] is True
 
 
-def test_table__get_value_counts() -> list[ValueCount]:
-    data = {
-        "unique": [1, 2, 3, 4, 5],
-        "repeat": [1, 1, 2, 3, 4],
-        "with_nulls": [None, None, 2, 3, 4],
-    }
-    table = ui.table(data)
-    total_rows = len(data["unique"])
+class TestTableGetValueCounts:
+    @pytest.fixture
+    def table(self) -> ui.table:
+        data = {
+            "unique": [1, 2, 3, 4, 5],
+            "repeat": [1, 1, 2, 3, 4],
+            "with_nulls": [None, None, 2, 3, 4],
+        }
+        self.total_rows = len(data["unique"])
+        return ui.table(data)
 
-    value_counts = table._get_value_counts(
-        column="unique", size=2, total_rows=total_rows
-    )
-    assert value_counts == [
-        ValueCount(value="unique values", count=total_rows)
-    ]
+    def test_all_unique_values(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="unique", size=10, total_rows=self.total_rows
+        )
+        assert value_counts == [ValueCount(value="unique values", count=5)]
 
-    value_counts = table._get_value_counts(
-        column="repeat", size=10, total_rows=total_rows
-    )
-    assert value_counts == [
-        ValueCount(value="1", count=2),
-        ValueCount(value="2", count=1),
-        ValueCount(value="3", count=1),
-        ValueCount(value="4", count=1),
-    ]
+    def test_repeated_values(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="repeat", size=10, total_rows=self.total_rows
+        )
+        assert value_counts == [
+            ValueCount(value="1", count=2),
+            ValueCount(value="2", count=1),
+            ValueCount(value="3", count=1),
+            ValueCount(value="4", count=1),
+        ]
 
-    value_counts = table._get_value_counts(
-        column="with_nulls", size=10, total_rows=total_rows
-    )
-    assert value_counts == [
-        ValueCount(value="null", count=2),
-        ValueCount(value="2", count=1),
-        ValueCount(value="3", count=1),
-        ValueCount(value="4", count=1),
-    ]
+    def test_with_nulls(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="with_nulls", size=10, total_rows=self.total_rows
+        )
+        assert value_counts == [
+            ValueCount(value="null", count=2),
+            ValueCount(value="2", count=1),
+            ValueCount(value="3", count=1),
+            ValueCount(value="4", count=1),
+        ]
 
-    # check with lower size
-    value_counts = table._get_value_counts(
-        column="repeat", size=2, total_rows=total_rows
-    )
-    assert value_counts == [
-        ValueCount(value="1", count=2),
-        ValueCount(value="others", count=3),
-    ]
+    def test_with_smaller_limit(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="repeat", size=2, total_rows=self.total_rows
+        )
+        assert value_counts == [
+            ValueCount(value="1", count=2),
+            ValueCount(value="others", count=3),
+        ]
 
 
 def test_table_with_frozen_columns() -> None:
