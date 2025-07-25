@@ -20,6 +20,15 @@ from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
 
+DEFAULT_CONFIG = ChatModelConfigDict(
+    max_tokens=100,
+    temperature=0.5,
+    top_p=1,
+    top_k=40,
+    frequency_penalty=0,
+    presence_penalty=0,
+)
+
 
 @dataclass
 class SendMessageRequest:
@@ -114,13 +123,12 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             controls. Defaults to False.
         config (ChatModelConfigDict, optional): Optional configuration to override the
             default configuration. Keys include:
-            - max_tokens
-            - temperature
-            - top_p
-            - top_k
-            - frequency_penalty
-            - presence_penalty
-            Defaults to None.
+            - max_tokens. The maximum number of tokens to generate. Defaults to 100.
+            - temperature. Defaults to 0.5.
+            - top_p. Defaults to 1.
+            - top_k. Defaults to 40.
+            - frequency_penalty. Defaults to 0.
+            - presence_penalty. Defaults to 0.
         allow_attachments (bool | List[str], optional): Allow attachments. True for any
             attachments types, or pass a list of mime types. Defaults to False.
         max_height (int, optional): Optional maximum height for the chat element.
@@ -136,12 +144,18 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         prompts: Optional[list[str]] = None,
         on_message: Optional[Callable[[list[ChatMessage]], None]] = None,
         show_configuration_controls: bool = False,
-        config: Optional[ChatModelConfigDict] = None,
+        config: Optional[ChatModelConfigDict] = DEFAULT_CONFIG,
         allow_attachments: Union[bool, list[str]] = False,
         max_height: Optional[int] = None,
     ) -> None:
         self._model = model
         self._chat_history: list[ChatMessage] = []
+
+        if config is None:
+            config = DEFAULT_CONFIG
+        else:
+            # overwrite defaults with user config
+            config = {**DEFAULT_CONFIG, **config}
 
         super().__init__(
             component_name=chat._name,
