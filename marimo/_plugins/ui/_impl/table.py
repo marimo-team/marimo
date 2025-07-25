@@ -18,7 +18,7 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.models import BinValue, ColumnStats
+from marimo._data.models import BinValue, ColumnStats, ValueCount
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import ColumnPreview
@@ -96,6 +96,7 @@ class ColumnSummaries:
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
     bin_values: dict[ColumnName, list[BinValue]]
+    value_counts: dict[ColumnName, list[ValueCount]]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
@@ -824,6 +825,7 @@ class table(
                 data=None,
                 stats={},
                 bin_values={},
+                value_counts={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -838,27 +840,29 @@ class table(
                 data=None,
                 stats={},
                 bin_values={},
+                value_counts={},
                 is_disabled=True,
             )
 
-        # Get column stats if not chart-only mode
-        should_get_stats = self._show_column_summaries != "chart"
+        # If we are above the limit to show charts,
+        # or if we are in stats-only mode,
+        # we don't return the chart data
         should_get_chart_data = (
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         )
 
         # Get column stats if not chart-only mode
+        should_get_stats = self._show_column_summaries != "chart"
         stats: dict[ColumnName, ColumnStats] = {}
 
-        # If we are above the limit to show charts,
-        # or if we are in stats-only mode,
-        # we don't return the chart data
         chart_data = None
         bin_values: dict[ColumnName, list[BinValue]] = {}
+        value_counts: dict[ColumnName, list[ValueCount]] = {}
         data = self._searched_manager
 
         DEFAULT_BIN_SIZE = 9
+        DEFAULT_VALUE_COUNTS_SIZE = 15
 
         for column in self._manager.get_column_names():
             if should_get_stats:
@@ -871,6 +875,45 @@ class table(
                     LOGGER.warning("Failed to get stats for column %s", column)
 
             if should_get_chart_data and args.precompute:
+                if not should_get_stats:
+                    LOGGER.warning("Please enable stats to precompute charts")
+
+                # For boolean columns, we can drop the column since we use stats
+                column_type = self._manager.get_field_type(column)
+                if column_type[0] == "boolean":
+                    data = data.drop_columns([column])
+
+                # Bin values are only supported for numeric and temporal columns
+                if column_type[0] not in [
+                    "integer",
+                    "number",
+                    "date",
+                    "datetime",
+                    "time",
+                    "string",
+                ]:
+                    continue
+
+                # For perf, we only compute value counts for categorical columns
+                external_type = column_type[1].lower()
+                if column_type[0] == "string" and (
+                    "cat" in external_type or "enum" in external_type
+                ):
+                    try:
+                        val_counts = self._get_value_counts(
+                            column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
+                        )
+                        if len(val_counts) > 0:
+                            value_counts[column] = val_counts
+                            data = data.drop_columns([column])
+                        continue
+                    except BaseException as e:
+                        LOGGER.warning(
+                            "Failed to get value counts for column %s: %s",
+                            column,
+                            e,
+                        )
+
                 try:
                     bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     if len(bins) > 0:
@@ -889,8 +932,57 @@ class table(
             data=chart_data,
             stats=stats,
             bin_values=bin_values,
+            value_counts=value_counts,
             is_disabled=False,
         )
+
+    def _get_value_counts(
+        self, column: ColumnName, size: int, total_rows: int
+    ) -> list[ValueCount]:
+        """Get value counts for a column. The last item will be 'others' with the count of remaining
+        unique values. If there are only unique values, we return 'unique values' instead.
+
+        Args:
+            column (ColumnName): The column to get value counts for.
+            size (int): The number of value counts to return.
+            total_rows (int): The total number of rows in the table.
+
+        Returns:
+            list[ValueCount]: The value counts.
+        """
+        if size <= 0 or total_rows <= 0:
+            LOGGER.warning("Total rows and size is not valid")
+            return []
+
+        top_k_rows = self._manager.calculate_top_k_rows(column, size)
+        if len(top_k_rows) == 0:
+            return []
+
+        all_unique = top_k_rows[0][1] == 1
+        if all_unique:
+            return [ValueCount(value="unique values", count=total_rows)]
+
+        value_counts = []
+
+        if len(top_k_rows) == size:
+            # reserve 1 for others
+            top_k_rows = top_k_rows[:-1]
+
+        sum_count = 0
+        for value, count in top_k_rows:
+            sum_count += count
+            value = str(value) if value is not None else "null"
+            value_counts.append(ValueCount(value=value, count=count))
+
+        remaining = total_rows - sum_count
+        if remaining > 0:
+            unique_count = ValueCount(value="others", count=remaining)
+            if len(value_counts) == size:
+                value_counts[-1] = unique_count
+            else:
+                value_counts.append(unique_count)
+
+        return value_counts
 
     @classmethod
     def _to_chart_data_url(

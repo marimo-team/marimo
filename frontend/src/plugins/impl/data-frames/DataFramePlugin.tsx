@@ -299,5 +299,6 @@ function getColumnSummaries() {
     stats: {},
     data: null,
     bin_values: {},
+    value_counts: {},
   });
 }

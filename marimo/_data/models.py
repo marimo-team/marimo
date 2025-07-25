@@ -151,6 +151,21 @@ class BinValue:
 
 
 @dataclass
+class ValueCount:
+    """
+    Represents a value and its count in a column in a data table.
+    Currently used for string columns.
+
+    Attributes:
+        value (str): The value.
+        count (int): The count of the value.
+    """
+
+    value: str
+    count: int
+
+
+@dataclass
 class DataSourceConnection:
     """
     Represents a data source connection.

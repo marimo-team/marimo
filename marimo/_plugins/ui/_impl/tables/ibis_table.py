@@ -206,7 +206,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                 return result.execute()
 
             def get_bin_values(
-                self, column: str, num_bins: int
+                self, column: ColumnName, num_bins: int
             ) -> list[BinValue]:
                 """Get bin values for a column. Currently supports numeric and temporal columns.
 
@@ -244,7 +244,7 @@ class IbisTableManagerFactory(TableManagerFactory):
                 ]
 
             def _get_bin_values_temporal(
-                self, column: str, dtype: DataType, num_bins: int
+                self, column: ColumnName, dtype: DataType, num_bins: int
             ) -> list[BinValue]:
                 def _convert_ms_to_time(ms: int) -> datetime.time:
                     hours = ms // 3600000
