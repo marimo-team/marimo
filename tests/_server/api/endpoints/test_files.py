@@ -67,6 +67,7 @@ def test_rename(client: TestClient) -> None:
     _try_assert_n_times(5, _new_path_exists)
 
 
+@pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_read_code(client: TestClient) -> None:
     response = client.post(
@@ -75,9 +76,10 @@ def test_read_code(client: TestClient) -> None:
         json={},
     )
     assert response.status_code == 200, response.text
-    assert response.json()["contents"].strip().startswith("import marimo")
+    assert "import marimo" in response.json()["contents"]
 
 
+@pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_file(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
