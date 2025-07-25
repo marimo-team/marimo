@@ -135,6 +135,7 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
     },
   },
   "data": {
+    "name": "bin_values",
     "values": [
       {
         "bin_end": 10,
@@ -148,7 +149,7 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
       },
     ],
   },
-  "height": 100,
+  "height": 30,
   "layer": [
     {
       "encoding": {
@@ -188,6 +189,7 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
         {
           "name": "hover",
           "select": {
+            "clear": "mouseout",
             "on": "mouseover",
             "type": "point",
           },
@@ -246,6 +248,462 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
           "calculate": "format(datum.bin_start, '.2f') + ' - ' + format(datum.bin_end, '.2f')",
         },
       ],
+    },
+  ],
+  "width": 70,
+}
+`;
+
+exports[`ColumnChartSpecModel > should handle boolean stats when feat flag is true 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "name": "boolean_values",
+    "values": [
+      {
+        "count": 5,
+        "value": "true",
+      },
+      {
+        "count": 5,
+        "value": "false",
+      },
+      {
+        "count": 10,
+        "value": "null",
+      },
+    ],
+  },
+  "encoding": {
+    "color": {
+      "field": "value",
+      "legend": null,
+      "scale": {
+        "domain": [
+          "true",
+          "false",
+          "null",
+        ],
+        "range": [
+          "#027864",
+          "#027864",
+          "#cc4e00",
+        ],
+      },
+      "type": "nominal",
+    },
+    "tooltip": [
+      {
+        "field": "value",
+        "title": "boolean",
+        "type": "nominal",
+      },
+      {
+        "field": "count_with_percent",
+        "title": "Count",
+        "type": "nominal",
+      },
+    ],
+    "x": {
+      "axis": null,
+      "field": "count",
+      "scale": {
+        "type": "linear",
+      },
+      "type": "quantitative",
+    },
+    "y": {
+      "axis": {
+        "labelColor": "#8b8d98",
+        "labelExpr": "datum.label === 'true' || datum.label === 'True'  ? 'True' : datum.label === 'false' || datum.label === 'False' ? 'False' : 'Null'",
+        "tickWidth": 0,
+        "title": null,
+      },
+      "field": "value",
+      "scale": {
+        "paddingInner": 1,
+      },
+      "sort": [
+        "true",
+        "false",
+        "null",
+      ],
+      "type": "nominal",
+    },
+  },
+  "height": 100,
+  "layer": [
+    {
+      "mark": {
+        "color": "#027864",
+        "height": 11,
+        "type": "bar",
+      },
+    },
+    {
+      "encoding": {
+        "text": {
+          "field": "count",
+          "format": ",d",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "align": "left",
+        "baseline": "middle",
+        "color": "#8b8d98",
+        "dx": 3,
+        "type": "text",
+      },
+    },
+  ],
+  "mark": {
+    "color": "#027864",
+    "type": "bar",
+  },
+  "transform": [
+    {
+      "as": "count_with_percent",
+      "calculate": "format(datum.count, ',d') + ' (' + format(datum.count / 20 * 100, '.1f') + '%)'",
+    },
+  ],
+}
+`;
+
+exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag is true 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "concat": {
+      "spacing": 0,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "name": "bin_values",
+    "values": [
+      {
+        "bin_end": "2023-01-02",
+        "bin_start": "2023-01-01",
+        "count": 10,
+      },
+      {
+        "bin_end": "2023-01-03",
+        "bin_start": "2023-01-02",
+        "count": 20,
+      },
+      {
+        "bin_end": null,
+        "bin_start": null,
+        "count": 10,
+      },
+    ],
+  },
+  "hconcat": [
+    {
+      "height": 30,
+      "layer": [
+        {
+          "encoding": {
+            "x": {
+              "axis": null,
+              "field": "bin_start",
+              "type": "nominal",
+            },
+            "y": {
+              "axis": null,
+              "field": "count",
+              "type": "quantitative",
+            },
+          },
+          "mark": {
+            "color": "#cc4e00",
+            "type": "bar",
+          },
+        },
+        {
+          "encoding": {
+            "tooltip": [
+              {
+                "field": "count",
+                "format": ",d",
+                "title": "nulls",
+                "type": "quantitative",
+              },
+            ],
+            "x": {
+              "axis": null,
+              "field": "bin_start",
+              "type": "nominal",
+            },
+            "y": {
+              "aggregate": "max",
+              "axis": null,
+              "type": "quantitative",
+            },
+          },
+          "mark": {
+            "opacity": 0,
+            "type": "bar",
+          },
+        },
+      ],
+      "transform": [
+        {
+          "filter": "datum['bin_start'] === null && datum['bin_end'] === null",
+        },
+      ],
+      "width": 5,
+    },
+    {
+      "height": 30,
+      "layer": [
+        {
+          "encoding": {
+            "strokeWidth": {
+              "condition": {
+                "empty": false,
+                "param": "hover",
+                "value": 0.5,
+              },
+              "value": 0,
+            },
+            "x": {
+              "axis": null,
+              "bin": {
+                "binned": true,
+                "step": 2,
+              },
+              "field": "bin_start",
+              "type": "temporal",
+            },
+            "x2": {
+              "axis": null,
+              "field": "bin_end",
+              "type": "temporal",
+            },
+            "y": {
+              "axis": null,
+              "field": "count",
+              "type": "quantitative",
+            },
+          },
+          "mark": {
+            "color": "#027864",
+            "stroke": "#027864",
+            "strokeWidth": 0,
+            "type": "bar",
+          },
+          "params": [
+            {
+              "name": "hover",
+              "select": {
+                "clear": "mouseout",
+                "on": "mouseover",
+                "type": "point",
+              },
+            },
+          ],
+        },
+        {
+          "encoding": {
+            "tooltip": [
+              {
+                "field": "bin_start",
+                "timeUnit": "yearmonthdate",
+                "title": "datetime (start)",
+                "type": "temporal",
+              },
+              {
+                "field": "bin_end",
+                "timeUnit": "yearmonthdate",
+                "title": "datetime (end)",
+                "type": "temporal",
+              },
+              {
+                "field": "count",
+                "format": ",d",
+                "title": "Count",
+                "type": "quantitative",
+              },
+            ],
+            "x": {
+              "axis": null,
+              "bin": {
+                "binned": true,
+                "step": 2,
+              },
+              "field": "bin_start",
+              "type": "temporal",
+            },
+            "x2": {
+              "axis": null,
+              "bin": {
+                "binned": true,
+                "step": 2,
+              },
+              "field": "bin_end",
+              "type": "temporal",
+            },
+            "y": {
+              "aggregate": "max",
+              "axis": null,
+              "type": "quantitative",
+            },
+          },
+          "mark": {
+            "opacity": 0,
+            "type": "bar",
+          },
+        },
+      ],
+      "width": 70,
+    },
+  ],
+  "height": 100,
+  "resolve": {
+    "scale": {
+      "y": "shared",
+    },
+  },
+}
+`;
+
+exports[`ColumnChartSpecModel > should handle string value counts when feat flag is true 1`] = `
+{
+  "background": "transparent",
+  "config": {
+    "axis": {
+      "domain": false,
+    },
+    "view": {
+      "stroke": "transparent",
+    },
+  },
+  "data": {
+    "name": "value_counts",
+    "values": [
+      {
+        "count": 10,
+        "proportion": 0.25,
+        "value": "A",
+        "xEnd": 10,
+        "xMid": 5,
+        "xStart": 0,
+      },
+      {
+        "count": 30,
+        "proportion": 0.75,
+        "value": "B",
+        "xEnd": 40,
+        "xMid": 25,
+        "xStart": 10,
+      },
+    ],
+  },
+  "height": 100,
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "condition": [
+            {
+              "param": "hover_bar",
+              "value": "#027864",
+            },
+            {
+              "test": "datum.value == "None" || datum.value == "null"",
+              "value": "#cc4e00",
+            },
+          ],
+          "legend": null,
+          "value": "#4cbba5",
+        },
+        "tooltip": [
+          {
+            "field": "value",
+            "title": "string",
+            "type": "nominal",
+          },
+          {
+            "field": "count_with_percent",
+            "title": "Count",
+            "type": "nominal",
+          },
+        ],
+        "x": {
+          "axis": null,
+          "field": "xStart",
+          "type": "quantitative",
+        },
+        "x2": {
+          "field": "xEnd",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "type": "bar",
+      },
+      "params": [
+        {
+          "name": "hover_bar",
+          "select": {
+            "clear": "mouseout",
+            "on": "mouseover",
+            "type": "point",
+          },
+        },
+      ],
+      "transform": [
+        {
+          "as": "count_with_percent",
+          "calculate": "format(datum.count, ',d') + ' (' + format(datum.count / 40 * 100, '.1f') + '%)'",
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "text": {
+          "field": "clipped_text",
+        },
+        "x": {
+          "axis": null,
+          "field": "xMid",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "clip": true,
+        "color": "white",
+        "ellipsis": " ",
+        "fontSize": 8.5,
+        "type": "text",
+      },
+      "transform": [
+        {
+          "as": "clipped_text",
+          "calculate": "datum.proportion > 0.5 ? slice(datum.value, 0, 8) : datum.proportion > 0.2 ? slice(datum.value, 0, 3) : datum.proportion > 0.1 ? slice(datum.value, 0, 1) : ''",
+        },
+      ],
+    },
+  ],
+  "transform": [
+    {
+      "as": "percent",
+      "calculate": "datum.count / 40",
     },
   ],
 }

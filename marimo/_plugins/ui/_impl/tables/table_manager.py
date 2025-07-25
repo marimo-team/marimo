@@ -163,7 +163,9 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     @abc.abstractmethod
-    def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
+    def get_bin_values(
+        self, column: ColumnName, num_bins: int
+    ) -> list[BinValue]:
         pass
 
     @abc.abstractmethod

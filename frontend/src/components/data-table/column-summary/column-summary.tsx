@@ -5,10 +5,10 @@ import { useTheme } from "@/theme/useTheme";
 import { logNever } from "@/utils/assertNever";
 import { prettyDate } from "@/utils/dates";
 import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
-import { ChartSkeleton } from "../charts/chart-skeleton";
-import { DelayMount } from "../utils/delay-mount";
+import { DelayMount } from "../../utils/delay-mount";
+import { DatePopover } from "../date-popover";
+import { ChartSkeleton } from "./chart-skeleton";
 import { ColumnChartSpecModel } from "./chart-spec-model";
-import { DatePopover } from "./date-popover";
 
 export const ColumnChartContext = React.createContext<
   ColumnChartSpecModel<unknown>
@@ -136,11 +136,14 @@ export const TableColumnSummary = <TData, TValue>({
       case "time":
         return null;
       case "string":
-        return (
-          <div className="flex flex-col whitespace-pre">
-            <span>unique: {prettyNumber(stats.unique)}</span>
-          </div>
-        );
+        if (!spec) {
+          return (
+            <div className="flex flex-col whitespace-pre">
+              <span>unique: {prettyNumber(stats.unique)}</span>
+            </div>
+          );
+        }
+        return null;
       case "unknown":
         return (
           <div className="flex flex-col whitespace-pre">

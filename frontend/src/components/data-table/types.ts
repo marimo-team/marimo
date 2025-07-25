@@ -20,7 +20,7 @@ export const ColumnHeaderStatsKeys = [
   "p25",
   "p75",
   "p95",
-];
+] as const;
 export type ColumnHeaderStatsKey = (typeof ColumnHeaderStatsKeys)[number];
 export type ColumnHeaderStats = Record<
   ColumnHeaderStatsKey,
@@ -43,11 +43,17 @@ export function toFieldTypes(
 }
 
 interface BinValue {
-  bin_start: number;
-  bin_end: number;
+  bin_start: number | string | Date | null;
+  bin_end: number | string | Date | null;
   count: number;
 }
 export type BinValues = BinValue[];
+
+interface ValueCount {
+  value: string;
+  count: number;
+}
+export type ValueCounts = ValueCount[];
 
 export const SELECT_COLUMN_ID = "__select__";
 

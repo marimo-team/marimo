@@ -24,11 +24,11 @@ import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
-import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
 import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
-import { ColumnChartContext } from "@/components/data-table/column-summary";
+import { ColumnChartSpecModel } from "@/components/data-table/column-summary/chart-spec-model";
+import { ColumnChartContext } from "@/components/data-table/column-summary/column-summary";
 import {
   type ColumnFilterValue,
   filterToFilterCondition,
@@ -45,6 +45,7 @@ import {
   TOO_MANY_ROWS,
   type TooManyRows,
   toFieldTypes,
+  type ValueCounts,
 } from "@/components/data-table/types";
 import { loadTableData } from "@/components/data-table/utils";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
@@ -88,6 +89,7 @@ interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
   bin_values: Record<ColumnName, BinValues>;
+  value_counts: Record<ColumnName, ValueCounts>;
   is_disabled?: boolean;
 }
 
@@ -139,10 +141,17 @@ const columnStats = z.object({
   p95: maybeNumber,
 });
 
-const binValues = z.array(
+const binValues: z.ZodType<BinValues> = z.array(
   z.object({
-    bin_start: z.number(),
-    bin_end: z.number(),
+    bin_start: z.union([z.number(), z.string(), z.instanceof(Date)]),
+    bin_end: z.union([z.number(), z.string(), z.instanceof(Date)]),
+    count: z.number(),
+  }),
+);
+
+const valueCounts: z.ZodType<ValueCounts> = z.array(
+  z.object({
+    value: z.string(),
     count: z.number(),
   }),
 );
@@ -265,6 +274,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             .nullable(),
           stats: z.record(z.string(), columnStats),
           bin_values: z.record(z.string(), binValues),
+          value_counts: z.record(z.string(), valueCounts),
           is_disabled: z.boolean().optional(),
         }),
       ),
@@ -566,8 +576,10 @@ export const LoadingDataTableComponent = memo(
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
     >(async () => {
+      // TODO: props.get_column_summaries is always true,
+      // so we are unable to detect if the function is registered
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {}, bin_values: {} };
+        return { data: null, stats: {}, bin_values: {}, value_counts: {} };
       }
       return props.get_column_summaries({ precompute });
     }, [
@@ -723,6 +735,7 @@ const DataTableComponent = ({
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
       columnSummaries.bin_values,
+      columnSummaries.value_counts,
       {
         includeCharts: Boolean(columnSummaries.data),
         usePreComputedValues: getFeatureFlag("performant_table_charts"),

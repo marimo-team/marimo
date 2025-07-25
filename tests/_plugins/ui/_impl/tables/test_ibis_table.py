@@ -434,3 +434,185 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         # Not supported for other column types
         result = manager.get_bin_values("string", 3)
         assert result == []
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+class TestTemporalColSummaries(unittest.TestCase):
+    manager: TableManager[Any]
+
+    def setUp(self) -> None:
+        import ibis
+
+        self.factory = IbisTableManagerFactory()
+        self.data = ibis.memtable(
+            {
+                "date": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                    datetime.date(2021, 1, 4),
+                    datetime.date(2021, 1, 5),
+                ],
+                "datetime": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                    datetime.datetime(2021, 1, 4),
+                    datetime.datetime(2021, 1, 5),
+                ],
+                "datetime_with_tz": [
+                    datetime.datetime(
+                        2021, 1, 1, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 2, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 3, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 4, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 5, tzinfo=datetime.timezone.utc
+                    ),
+                ],
+                "time": [
+                    datetime.time(1, 2, 3),
+                    datetime.time(4, 5, 6),
+                    datetime.time(7, 8, 9),
+                    datetime.time(10, 11, 12),
+                    datetime.time(13, 14, 15),
+                ],
+                "dates_multiple": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                ],
+                "timedelta": [
+                    datetime.timedelta(days=1),
+                    datetime.timedelta(days=2),
+                    datetime.timedelta(days=3),
+                    datetime.timedelta(days=4),
+                    datetime.timedelta(days=5),
+                ],
+            }
+        )
+        self.manager = self.factory.create()(self.data)
+
+    def test_date_column(self) -> None:
+        bin_values = self.manager.get_bin_values("date", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.date(2021, 1, 1),
+                bin_end=datetime.date(2021, 1, 2),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.date(2021, 1, 2),
+                bin_end=datetime.date(2021, 1, 4),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.date(2021, 1, 4),
+                bin_end=datetime.date(2021, 1, 5),
+                count=2,
+            ),
+        ]
+
+    def test_datetime_column(self) -> None:
+        bin_values = self.manager.get_bin_values("datetime", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 1, 8, 0),
+                bin_end=datetime.datetime(2021, 1, 2, 16, 0),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 2, 16, 0),
+                bin_end=datetime.datetime(2021, 1, 4, 0, 0),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(2021, 1, 4, 0, 0),
+                bin_end=datetime.datetime(2021, 1, 5, 8, 0),
+                count=2,
+            ),
+        ]
+
+    def test_time_column(self) -> None:
+        bin_values = self.manager.get_bin_values("time", 3)
+        print(bin_values)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.time(1, 2, 3),
+                bin_end=datetime.time(5, 6, 7),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.time(5, 6, 7),
+                bin_end=datetime.time(9, 10, 11),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.time(9, 10, 11),
+                bin_end=datetime.time(13, 14, 15),
+                count=2,
+            ),
+        ]
+
+    def test_dates_multiple(self) -> None:
+        bin_values = self.manager.get_bin_values("dates_multiple", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.date(2021, 1, 1),
+                bin_end=datetime.date(2021, 1, 1),
+                count=5,
+            )
+        ]
+
+    @pytest.mark.xfail(reason="datetime with tz is not supported")
+    def test_datetime_with_tz(self) -> None:
+        bin_values = self.manager.get_bin_values("datetime_with_tz", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 1, 8, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 1, 5, 8, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+        ]
+
+    @pytest.mark.xfail(reason="timedelta is not supported")
+    def test_timedelta_column(self) -> None:
+        bin_values = self.manager.get_bin_values("timedelta", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.timedelta(days=1),
+                bin_end=datetime.timedelta(days=2),
+                count=2,
+            )
+        ]
