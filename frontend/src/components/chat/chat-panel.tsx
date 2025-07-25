@@ -45,6 +45,7 @@ import {
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
+import { FeatureFlagged } from "@/core/config/feature-flag";
 import { invokeAiTool, saveUserConfig } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -245,32 +246,32 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   ({ input, onSendClick, isLoading, onStop }) => {
     const ai = useAtomValue(aiAtom);
     const [userConfig, setUserConfig] = useAtom(userConfigAtom);
-    // const currentMode = ai?.mode || "manual";
+    const currentMode = ai?.mode || "manual";
     const currentModel = ai?.open_ai?.model || "o4-mini";
 
-    // const modeOptions = [
-    //   {
-    //     value: "ask",
-    //     label: "Ask",
-    //     subtitle: "Read-only tools",
-    //   },
-    //   {
-    //     value: "manual",
-    //     label: "Manual",
-    //     subtitle: "No tools",
-    //   },
-    // ];
+    const modeOptions = [
+      {
+        value: "ask",
+        label: "Ask",
+        subtitle: "Read-only tools",
+      },
+      {
+        value: "manual",
+        label: "Manual",
+        subtitle: "No tools",
+      },
+    ];
 
-    // const handleModeChange = async (newMode: "ask" | "manual") => {
-    //   const newConfig: UserConfig = {
-    //     ...userConfig,
-    //     ai: {
-    //       ...userConfig.ai,
-    //       mode: newMode,
-    //     },
-    //   };
-    //   saveConfig(newConfig);
-    // };
+    const handleModeChange = async (newMode: "ask" | "manual") => {
+      const newConfig: UserConfig = {
+        ...userConfig,
+        ai: {
+          ...userConfig.ai,
+          mode: newMode,
+        },
+      };
+      saveConfig(newConfig);
+    };
 
     const handleModelChange = async (newModel: string) => {
       const newConfig: UserConfig = {
@@ -295,28 +296,29 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     return (
       <div className="px-3 py-2 border-t border-border/20 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* TODO: ADD BACK ONCE THERE ARE TOOLS FOR ASK MODE */}
-          {/* <Select value={currentMode} onValueChange={handleModeChange}>
-            <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
-              <SelectValue placeholder="manual" />
-            </SelectTrigger>
-            <SelectContent>
-              {modeOptions.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="text-xs"
-                  subtitle={
-                    <div className="text-muted-foreground text-xs pl-2">
-                      {option.subtitle}
-                    </div>
-                  }
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select> */}
+          <FeatureFlagged feature="mcp_docs">
+            <Select value={currentMode} onValueChange={handleModeChange}>
+              <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
+                <SelectValue placeholder="manual" />
+              </SelectTrigger>
+              <SelectContent>
+                {modeOptions.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="text-xs"
+                    subtitle={
+                      <div className="text-muted-foreground text-xs pl-2">
+                        {option.subtitle}
+                      </div>
+                    }
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FeatureFlagged>
           <Select value={currentModel} onValueChange={handleModelChange}>
             <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
               <SelectValue placeholder="Model" />
