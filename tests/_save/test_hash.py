@@ -1478,3 +1478,99 @@ class TestSideEffects:
         assert hashes[1] != hashes[3]
         assert hashes[0] != hashes[2]
         assert non_primitive[1] == 2 == v
+
+
+class TestWrappedFunctionCache:
+    """Test cache behavior with wrapped functions (decorators) across kernel calls."""
+
+    @staticmethod
+    async def test_decorator_hash_same_name_different_kernels(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that decorators with same function names in different kernel calls have different hashes."""
+
+        # First kernel execution
+        cell_id = "test_cell"
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import functools
+            import marimo as mo
+
+            def my_decorator(func):
+                @functools.wraps(func)
+                def wrapper(*args, **kwargs):
+                    wrapper._call_count = getattr(wrapper, '_call_count', 0) + 1
+                    return func(*args, **kwargs)
+                wrapper._kernel_version = 1
+                return wrapper
+
+            @my_decorator
+            def my_function():
+                return "kernel_1"
+
+            @mo.cache
+            def cached_decorated_function():
+                return my_function()
+
+            result1 = cached_decorated_function()
+            hash1 = cached_decorated_function._last_hash
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == "kernel_1"
+        first_hash = k.globals["hash1"]
+        first_function = k.globals["my_function"]
+
+        # Second kernel execution - update the same cell with different definitions
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import functools
+            import marimo as mo
+
+            def my_decorator(func):
+                @functools.wraps(func)
+                def wrapper(*args, **kwargs):
+                    wrapper._call_count = getattr(wrapper, '_call_count', 0) + 1
+                    return func(*args, **kwargs)
+                wrapper._kernel_version = 2  # Different version
+                return wrapper
+
+            @my_decorator
+            def my_function():
+                return "kernel_2"  # Different return value
+
+            @mo.cache
+            def cached_decorated_function():
+                return my_function()
+
+            result2 = cached_decorated_function()
+            hash2 = cached_decorated_function._last_hash
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result2"] == "kernel_2"
+        second_hash = k.globals["hash2"]
+        second_function = k.globals["my_function"]
+
+        # Functions should be different objects despite same name
+        assert first_function is not second_function
+        assert (
+            first_function._kernel_version != second_function._kernel_version
+        )
+
+        # Cache hashes should be different
+        assert first_hash != second_hash, (
+            f"Expected different hashes, got {first_hash} == {second_hash}"
+        )
