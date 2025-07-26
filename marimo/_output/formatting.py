@@ -233,7 +233,7 @@ def try_format(
         return (
             FormattedOutput(
                 mimetype="text/html",
-                data=plain_text(escape(data_str)).text,
+                data=plain_text(data_str).text,
             )
             if data_str
             else FormattedOutput.empty()
