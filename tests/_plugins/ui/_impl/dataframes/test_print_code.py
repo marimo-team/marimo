@@ -591,7 +591,7 @@ def test_print_code_result_matches_actual_transform_ibis(
     not DependencyManager.pandas.has() or not DependencyManager.polars.has(),
     reason="pandas or polars not installed",
 )
-class TestCombinedTransforms2:
+class TestCombinedTransforms:
     import pandas as pd
     import polars as pl
 
