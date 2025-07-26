@@ -27,11 +27,9 @@ import { errorLineHighlighter } from "./traceback-decorations";
 function cellKeymaps({
   cellId,
   hotkeys,
-  keymapConfig,
 }: {
   cellId: CellId;
   hotkeys: HotkeyProvider;
-  keymapConfig: KeymapConfig;
 }): Extension[] {
   const keybindings: KeyBinding[] = [];
 
@@ -107,10 +105,8 @@ function cellKeymaps({
         preventDefault: true,
         stopPropagation: true,
         run: (cm) => {
-          // Can only delete non-empty cells when `destructive_delete` is enabled
-          const canDelete =
-            keymapConfig.destructive_delete || cm.state.doc.length === 0;
-          if (canDelete) {
+          // When editing (not command mode), only allow deletion of empty cells
+          if (cm.state.doc.length === 0) {
             const actions = cm.state.facet(cellActionsState);
             actions.deleteCell();
           }
@@ -353,7 +349,6 @@ export function cellBundle({
   cellId,
   hotkeys,
   cellActions,
-  keymapConfig,
 }: {
   cellId: CellId;
   hotkeys: HotkeyProvider;
@@ -363,7 +358,7 @@ export function cellBundle({
   return [
     cellActionsState.of(cellActions),
     cellIdState.of(cellId),
-    cellKeymaps({ cellId, hotkeys, keymapConfig }),
+    cellKeymaps({ cellId, hotkeys }),
     cellCodeEditing(hotkeys),
     errorLineHighlighter(
       createObservable(createTracebackInfoAtom(cellId), store),
