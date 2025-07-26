@@ -46,6 +46,16 @@ export const Strings = {
   withoutLeadingSlash(url: string): string {
     return url.startsWith("/") ? url.slice(1) : url;
   },
+  asString: (value: unknown): string => {
+    if (typeof value === "string") {
+      return value;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  },
 };
 
 export const decodeUtf8 = (array: Uint8Array): string => {
