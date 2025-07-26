@@ -1,5 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -26,6 +33,7 @@ import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { Objects } from "@/utils/objects";
+import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
@@ -161,10 +169,12 @@ export const OutputRenderer: React.FC<{
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":
       return (
-        <LazyVegaLite
-          spec={parsedJsonData as TopLevelFacetedUnitSpec}
-          theme={theme === "dark" ? "dark" : undefined}
-        />
+        <Suspense fallback={<ChartLoadingState />}>
+          <LazyVegaLite
+            spec={parsedJsonData as TopLevelFacetedUnitSpec}
+            theme={theme === "dark" ? "dark" : undefined}
+          />
+        </Suspense>
       );
     case "application/vnd.marimo+mimebundle":
       return (
@@ -216,7 +226,7 @@ const MimeBundleOutputRenderer: React.FC<{
 
   const mimeEntries = Objects.entries(mimebundle);
   // Sort HTML first
-  mimeEntries.sort(([mimeA], [mimeB]) => {
+  mimeEntries.sort(([mimeA], [_mimeB]) => {
     if (mimeA === "text/html") {
       return -1;
     }
