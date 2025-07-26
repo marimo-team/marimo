@@ -585,3 +585,132 @@ def test_print_code_result_matches_actual_transform_ibis(
     #     cast(ibis.Table, code_result).to_polars(),
     #     real_result.to_polars(),
     # )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has() or not DependencyManager.polars.has(),
+    reason="pandas or polars not installed",
+)
+class TestCombinedTransforms2:
+    import pandas as pd
+    import polars as pl
+
+    @pytest.fixture
+    def sample_data(self):
+        return {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+
+    @pytest.fixture
+    def pd_dataframe(self, sample_data):
+        import pandas as pd
+
+        return pd.DataFrame(sample_data)
+
+    @pytest.fixture
+    def pl_dataframe(self, sample_data):
+        import polars as pl
+
+        return pl.DataFrame(sample_data)
+
+    def _test_transforms(
+        self, df: pl.DataFrame | pd.DataFrame, transforms: Transformations
+    ):
+        import pandas as pd
+        import pandas.testing as pd_testing
+        import polars as pl
+        import polars.testing as pl_testing
+
+        if isinstance(df, pl.DataFrame):
+            handler = PolarsTransformHandler()
+            print_func = python_print_polars
+            testing_func = pl_testing.assert_frame_equal
+
+        elif isinstance(df, pd.DataFrame):
+            handler = PandasTransformHandler()
+            print_func = python_print_pandas
+            testing_func = pd_testing.assert_frame_equal
+
+        result = _apply_transforms(df, handler, transforms)
+        code = python_print_transforms(
+            "df", df.columns, transforms.transforms, print_func
+        )
+
+        # Apply code
+        if isinstance(df, pl.DataFrame):
+            loc = {"pl": pl, "df": df.clone()}
+            exec(code, globals(), loc)
+        elif isinstance(df, pd.DataFrame):
+            loc = {"pd": pd, "df": df.copy()}
+            exec(code, {}, loc)
+
+        assert loc.get("df_next") is not None
+
+        # Test that the result matches the actual result
+        testing_func(loc.get("df_next"), result)
+
+    def test_select_then_group_by(
+        self, pl_dataframe: pl.DataFrame, pd_dataframe: pd.DataFrame
+    ):
+        # Apply a select, then a group by
+        transforms = Transformations(
+            [
+                SelectColumnsTransform(
+                    type=TransformType.SELECT_COLUMNS,
+                    column_ids=["a", "b"],
+                ),
+                GroupByTransform(
+                    type=TransformType.GROUP_BY,
+                    column_ids=["a"],
+                    drop_na=False,
+                    aggregation="sum",
+                ),
+            ]
+        )
+
+        self._test_transforms(pl_dataframe, transforms)
+        self._test_transforms(pd_dataframe, transforms)
+
+    def test_select_rename_groupby(
+        self, pl_dataframe: pl.DataFrame, pd_dataframe: pd.DataFrame
+    ):
+        transforms = Transformations(
+            [
+                SelectColumnsTransform(
+                    type=TransformType.SELECT_COLUMNS,
+                    column_ids=["a", "b"],
+                ),
+                RenameColumnTransform(
+                    type=TransformType.RENAME_COLUMN,
+                    column_id="a",
+                    new_column_id="x",
+                ),
+                GroupByTransform(
+                    type=TransformType.GROUP_BY,
+                    column_ids=["x"],
+                    drop_na=False,
+                    aggregation="mean",
+                ),
+            ]
+        )
+        self._test_transforms(pl_dataframe, transforms)
+        self._test_transforms(pd_dataframe, transforms)
+
+    def test_select_then_aggregate(
+        self, pl_dataframe: pl.DataFrame, pd_dataframe: pd.DataFrame
+    ):
+        """Test select columns followed by aggregate transform."""
+        transforms = Transformations(
+            [
+                SelectColumnsTransform(
+                    type=TransformType.SELECT_COLUMNS,
+                    column_ids=["a", "b"],
+                ),
+                AggregateTransform(
+                    type=TransformType.AGGREGATE,
+                    column_ids=["a"],
+                    aggregations=["sum"],
+                ),
+            ]
+        )
+
+        self._test_transforms(pl_dataframe, transforms)
+        self._test_transforms(pd_dataframe, transforms)
