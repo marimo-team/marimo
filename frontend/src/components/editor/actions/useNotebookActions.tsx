@@ -35,7 +35,6 @@ import {
   PresentationIcon,
   SettingsIcon,
   Share2Icon,
-  TextSearchIcon,
   Undo2Icon,
   XCircleIcon,
   YoutubeIcon,
@@ -275,23 +274,17 @@ export function useNotebookActions() {
       icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
       label: "Helper panel",
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(({ type, Icon, hidden }) => {
+      dropdown: PANELS.flatMap(({ type, Icon, hidden, tooltip }) => {
         if (hidden) {
           return [];
         }
         return {
-          label: startCase(type),
+          label: startCase(tooltip),
           rightElement: renderCheckboxElement(selectedPanel === type),
           icon: <Icon size={14} strokeWidth={1.5} />,
           handle: () => toggleApplication(type),
         };
       }),
-    },
-    {
-      icon: <TextSearchIcon size={14} strokeWidth={1.5} />,
-      label: "Helper panel > View live docs",
-      description: "Show the documentation helper panel",
-      handle: () => toggleApplication("documentation"),
     },
 
     {
@@ -549,12 +542,6 @@ export function useNotebookActions() {
       label: "Restart kernel",
       variant: "danger",
       handle: restartKernel,
-    },
-    {
-      icon: <MessagesSquareIcon size={14} strokeWidth={1.5} />,
-      label: "Helper panel > Chat with AI",
-      description: "Chat with AI assistant",
-      handle: () => toggleApplication("chat"),
     },
   ];
 
