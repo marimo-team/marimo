@@ -871,20 +871,6 @@ def persistent_cache(  # type: ignore[misc]
     **Warning.** Since context abuses sys frame trace, this may conflict with
     debugging tools or libraries that also use `sys.settrace`.
 
-    Args:
-        name: the name of the cache, used to set saving path- to manually
-            invalidate the cache, change the name.
-        save_path: the folder in which to save the cache, defaults to
-            `__marimo__/cache` in the directory of the notebook file
-        method: the serialization method to use, current options are "json",
-            and "pickle" (default).
-        pin_modules: if True, the cache will be invalidated if module versions
-            differ between runs, defaults to False.
-        store: optional store.
-        **kwargs: keyword arguments passed to `cache()`
-        *args: positional arguments passed to `cache()`
-
-
     ## Decorator for persistently caching the return value of a function.
 
     `persistent_cache` can also be used as a drop in function-level memoization
@@ -910,6 +896,17 @@ def persistent_cache(  # type: ignore[misc]
     ```
 
     Args:
+        name: the name of the cache, used to set saving path- to manually
+            invalidate the cache, change the name.
+        save_path: the folder in which to save the cache, defaults to
+            `__marimo__/cache` in the directory of the notebook file
+        method: the serialization method to use, current options are "json",
+            and "pickle" (default).
+        pin_modules: if True, the cache will be invalidated if module versions
+            differ between runs, defaults to False.
+        store: optional store.
+        **kwargs: keyword arguments passed to `cache()`
+        *args: positional arguments passed to `cache()`
         fn: the wrapped function if no settings are passed.
         save_path: the folder in which to save the cache, defaults to
             `__marimo__/cache` in the directory of the notebook file

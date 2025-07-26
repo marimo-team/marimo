@@ -43,25 +43,55 @@ def google_docstring_to_markdown(docstring: str) -> str:
     def _handle_arg_or_attribute(
         table: list[tuple[str, str, str]], stripped: str
     ) -> None:
-        # Typically: "    arg_name (arg_type): description"
-        match = re.match(r"^(\w+)\s*\(([^)]+)\):\s*(.*)", stripped)
+        # Parse standard parameters: "arg_name (arg_type): description" or "arg_name: description"
+        # This handles both typed and untyped parameters, with or without description
+        match = re.match(r"^(\w+)(?:\s*\(([^)]+)\))?:\s*(.*)", stripped)
         if match:
             arg_name, arg_type, description = match.groups()
-            table.append((arg_name, arg_type, description.strip()))
-        else:
-            # Fallback to "    arg_name: description"
-            match = re.match(r"^(\w+)\s*:\s*(.*)", stripped)
-            if match:
-                arg_name, description = match.groups()
-                table.append((arg_name, "", description.strip()))
-            else:
-                # Possibly just an indented line continuing the description
-                if table:
-                    table[-1] = (
-                        table[-1][0],
-                        table[-1][1],
-                        table[-1][2] + " " + stripped.strip(),
-                    )
+            table.append((arg_name, arg_type or "", description.strip()))
+            return
+
+        # Parse special parameters: "*args: description" or "**kwargs: description"
+        if stripped.startswith("*args:"):
+            table.append(("*args", "", stripped[6:].strip()))
+            return
+        if stripped.startswith("**kwargs:"):
+            table.append(("**kwargs", "", stripped[9:].strip()))
+            return
+
+        # Handle continuation lines
+        if not table:
+            return
+
+        current_name, current_type, current_desc = table[-1]
+        stripped_content = stripped.strip()
+
+        # Handle bullet points
+        if stripped_content.startswith("- "):
+            bullet_content = stripped_content[2:]
+            new_desc = (
+                current_desc + "<br>- " + bullet_content
+                if current_desc
+                else "- " + bullet_content
+            )
+            table[-1] = (current_name, current_type, new_desc)
+            return
+
+        # Check if we're inside a code block
+        if "```" in current_desc and not current_desc.rstrip().endswith("```"):
+            table[-1] = (
+                current_name,
+                current_type,
+                current_desc + "\n" + stripped_content,
+            )
+            return
+
+        # Regular continuation - add space separator
+        table[-1] = (
+            current_name,
+            current_type,
+            current_desc + " " + stripped_content,
+        )
 
     # We'll store a simple summary until we see "Args:" or "Returns:" or "Raises:"
     for line in lines:
@@ -175,14 +205,22 @@ def google_docstring_to_markdown(docstring: str) -> str:
         output.append("| Parameter | Type | Description |")
         output.append("|-----------|------|-------------|")
         for arg_name, arg_type, desc in arg_table:
-            output.append(f"| `{arg_name}` | `{arg_type}` | {desc.strip()} |")
+            # Process code blocks in the description
+            processed_desc = _process_code_block_content(desc.strip())
+            output.append(
+                f"| `{arg_name}` | `{arg_type}` | {processed_desc} |"
+            )
 
     if attribute_table:
         output.append("\n# Attributes")
         output.append("| Attribute | Type | Description |")
         output.append("|-----------|------|-------------|")
         for arg_name, arg_type, desc in attribute_table:
-            output.append(f"| `{arg_name}` | `{arg_type}` | {desc.strip()} |")
+            # Process code blocks in the description
+            processed_desc = _process_code_block_content(desc.strip())
+            output.append(
+                f"| `{arg_name}` | `{arg_type}` | {processed_desc} |"
+            )
 
     if returns_table:
         output.append("\n# Returns")
@@ -217,3 +255,30 @@ class MarimoConverter:
                 return True
 
         return False
+
+
+def _process_code_block_content(description: str) -> str:
+    """
+    Process a description that may contain code blocks and convert them to HTML.
+
+    Args:
+        description (str): The description text that may contain ``` code blocks
+
+    Returns:
+        str: The description with code blocks converted to HTML <pre><code> tags
+    """
+    if "```" not in description:
+        return description
+
+    def replace_code_block(match: re.Match[str]) -> str:
+        code_content = match.group(1).strip()
+        if code_content.startswith("python\n"):
+            code_content = code_content[7:]  # Remove "python\n"
+
+        return (
+            f"<pre><code>{code_content.replace(chr(10), '<br>')}</code></pre>"
+        )
+
+    return re.sub(
+        r"```(.*?)```", replace_code_block, description, flags=re.DOTALL
+    )
