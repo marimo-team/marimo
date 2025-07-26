@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import datetime
 import string
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 import pytest
 from hypothesis import assume, given, settings, strategies as st
@@ -40,6 +40,10 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transformations,
     TransformType,
 )
+
+if TYPE_CHECKING:
+    import pandas as pd
+    import polars as pl
 
 any_column_id = st.one_of(
     st.text(
@@ -592,9 +596,6 @@ def test_print_code_result_matches_actual_transform_ibis(
     reason="pandas or polars not installed",
 )
 class TestCombinedTransforms:
-    import pandas as pd
-    import polars as pl
-
     @pytest.fixture
     def sample_data(self):
         return {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
@@ -702,11 +703,11 @@ class TestCombinedTransforms:
             [
                 SelectColumnsTransform(
                     type=TransformType.SELECT_COLUMNS,
-                    column_ids=["a", "b"],
+                    column_ids=["a", "b", "c"],
                 ),
                 AggregateTransform(
                     type=TransformType.AGGREGATE,
-                    column_ids=["a"],
+                    column_ids=["a", "b"],
                     aggregations=["sum"],
                 ),
             ]

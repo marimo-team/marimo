@@ -275,10 +275,10 @@ def python_print_polars(
         for agg_func in aggregations:
             agg_df = f"{selected_df}.{agg_func}()"
             rename_dict = {
-                f"{column}: f'{column}_{agg_func}'" for column in all_columns
+                column: f"{column}_{agg_func}" for column in column_ids
             }
             agg_df = f"{agg_df}.rename({rename_dict})"
-            result_df = f"{result_df}.join({agg_df})"
+            result_df = f"{result_df}.hstack({agg_df})"
         return result_df
 
     elif transform.type == TransformType.GROUP_BY:
