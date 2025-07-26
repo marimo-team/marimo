@@ -237,7 +237,7 @@ def python_print_polars(
             transform.column_id,
             transform.new_column_id,
         )
-        # Update all_columns in place
+        # Update column names in place
         all_columns[:] = [
             str(new_column_id) if col == column_id else col
             for col in all_columns
@@ -318,7 +318,7 @@ def python_print_polars(
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
-        # Update all_columns in place for subsequent transforms
+        # Update columns in place for subsequent transforms
         all_columns[:] = [str(col) for col in column_ids]
         return f"{df_name}.select({_list_of_strings(column_ids)})"
 
