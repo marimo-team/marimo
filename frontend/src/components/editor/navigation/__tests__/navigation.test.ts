@@ -121,7 +121,7 @@ const setupSelection = () => {
   return selectionTesting.createActions(dispatch);
 };
 
-const [cellId1, cellId2, cellId3] = MockNotebook.cellIds();
+const [cellId1, cellId2, cellId3, cellId4, cellId5] = MockNotebook.cellIds();
 const mockCellId = cellId1;
 
 describe("useCellNavigationProps", () => {
@@ -1219,6 +1219,13 @@ describe("useCellNavigationProps", () => {
     it("should navigate between columns with arrow keys when canMoveX is true", () => {
       const optionsWithMoveX = { ...options, canMoveX: true };
 
+      /**
+       * column 0  |  column 1
+       * --------- | ---------
+       * cellId1   | cellId2
+       * cellId3   | cellId4
+       *           | cellId5
+       */
       const notebookState = MockNotebook.notebookState({
         cellData: {
           [cellId1]: {
@@ -1229,10 +1236,25 @@ describe("useCellNavigationProps", () => {
             id: cellId2,
             config: { hide_code: false, disabled: false, column: 1 },
           },
+          [cellId3]: {
+            id: cellId3,
+            config: { hide_code: false, disabled: false, column: 0 },
+          },
+          [cellId4]: {
+            id: cellId4,
+            config: { hide_code: false, disabled: false, column: 1 },
+          },
+          [cellId5]: {
+            id: cellId5,
+            config: { hide_code: false, disabled: false, column: 1 },
+          },
         },
       });
       // Override cellIds to be multi-column
-      notebookState.cellIds = MultiColumn.from([[cellId1], [cellId2]]);
+      notebookState.cellIds = MultiColumn.from([
+        [cellId1, cellId3],
+        [cellId2, cellId4, cellId5],
+      ]);
       store.set(notebookAtom, notebookState);
 
       const { result } = renderWithProvider(() =>
@@ -1255,6 +1277,30 @@ describe("useCellNavigationProps", () => {
       });
       expect(mockCellActions.focusCell).toHaveBeenCalledWith({
         cellId: cellId2,
+        where: "exact",
+      });
+
+      // Move right from second index, cellId3 -> cellId4
+      const { result: result3 } = renderWithProvider(() =>
+        useCellNavigationProps(cellId3, optionsWithMoveX),
+      );
+      act(() => {
+        result3.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowRight" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId4,
+        where: "exact",
+      });
+
+      // Move left from last index, cellId5 -> cellId3
+      const { result: result4 } = renderWithProvider(() =>
+        useCellNavigationProps(cellId5, optionsWithMoveX),
+      );
+      act(() => {
+        result4.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowLeft" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId3,
         where: "exact",
       });
     });

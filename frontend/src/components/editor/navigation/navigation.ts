@@ -18,6 +18,7 @@ import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
+import type { CellIndex, CollapsibleTree } from "@/utils/id-tree";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
@@ -204,8 +205,11 @@ export function useCellNavigationProps(
             const leftColumn = notebook.cellIds.at(columnIndex - 1);
 
             if (leftColumn && leftColumn.length > 0) {
-              // Focus the first cell in the left column
-              actions.focusCell({ cellId: leftColumn.first(), where: "exact" });
+              const cellIndex = column.indexOfOrThrow(cellId);
+              const leftCellId = findClosestAdjacentCell(cellIndex, leftColumn);
+
+              actions.focusCell({ cellId: leftCellId, where: "exact" });
+
               selectionActions.clear();
               return true;
             }
@@ -221,11 +225,14 @@ export function useCellNavigationProps(
             const rightColumn = notebook.cellIds.at(columnIndex + 1);
 
             if (rightColumn && rightColumn.length > 0) {
-              // Focus the first cell in the right column
-              actions.focusCell({
-                cellId: rightColumn.first(),
-                where: "exact",
-              });
+              const cellIndex = column.indexOfOrThrow(cellId);
+              const rightCellId = findClosestAdjacentCell(
+                cellIndex,
+                rightColumn,
+              );
+
+              actions.focusCell({ cellId: rightCellId, where: "exact" });
+
               selectionActions.clear();
               return true;
             }
@@ -614,4 +621,21 @@ export function useCellEditorNavigationProps(cellId: CellId) {
   });
 
   return keyboardProps;
+}
+
+function findClosestAdjacentCell(
+  cellIndex: CellIndex,
+  adjacentColumn: CollapsibleTree<CellId>,
+): CellId {
+  let closestCellId: CellId;
+
+  if (cellIndex === 0) {
+    closestCellId = adjacentColumn.first();
+  } else if (cellIndex >= adjacentColumn.length) {
+    closestCellId = adjacentColumn.last();
+  } else {
+    closestCellId = adjacentColumn.atOrThrow(cellIndex);
+  }
+
+  return closestCellId;
 }
