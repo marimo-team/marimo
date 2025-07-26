@@ -23,7 +23,9 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.dataflow import induced_subgraph
 from marimo._runtime.primitives import (
+    CLONE_PRIMITIVES,
     FN_CACHE_TYPE,
+    build_ref_predicate_for_primitives,
     is_data_primitive,
     is_data_primitive_container,
     is_primitive,
@@ -582,6 +584,27 @@ class BlockHasher:
             exceptions = []
             # By rights, could just fail here - but this final attempt should
             # provide better user experience.
+            #
+            # Get a transitive closure over the object, and attempt to pickle
+            # each dependent object.
+            #
+            # TODO: Maybe just try dill?
+            closure = self.graph.get_transitive_references(
+                unhashable,
+                predicate=build_ref_predicate_for_primitives(
+                    scope, CLONE_PRIMITIVES
+                ),
+            )
+            closure -= set(content_serialization.keys()) | self.execution_refs
+            unhashable_closure, relevant_serialization, _ = (
+                self.serialize_and_dequeue_content_refs(
+                    closure - unhashable, scope
+                )
+            )
+            unhashable |= unhashable_closure
+            content_serialization.update(relevant_serialization)
+            refs |= unhashable_closure
+
             for ref in unhashable:
                 try:
                     _hashed = pickle.dumps(scope[ref])

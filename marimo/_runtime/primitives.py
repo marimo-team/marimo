@@ -201,6 +201,11 @@ def is_pure_function(
     if hasattr(value, "__wrapped__"):
         wrapped = getattr(value, "__wrapped__", None)
         if wrapped is not None:
+            # NB. By rights, this should fall through to detect impure
+            # decorators.
+            # However, this requires a change to visitor to capture decorator
+            # references, so for now defer to the purity of the wrapped
+            # function.
             return is_pure_function(ref, wrapped, defs, cache, graph)
 
     # We assume all external module function references to be pure. Cache can
