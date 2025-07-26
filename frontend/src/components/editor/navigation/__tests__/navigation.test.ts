@@ -68,6 +68,7 @@ const mockUseCellClipboard = vi.mocked(
 
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { saveCellConfig } from "@/core/network/requests";
+import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
   type CellSelectionState,
@@ -1215,6 +1216,49 @@ describe("useCellNavigationProps", () => {
   });
 
   describe("move left/right functionality", () => {
+    it("should navigate between columns with arrow keys when canMoveX is true", () => {
+      const optionsWithMoveX = { ...options, canMoveX: true };
+
+      const notebookState = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: {
+            id: cellId1,
+            config: { hide_code: false, disabled: false, column: 0 },
+          },
+          [cellId2]: {
+            id: cellId2,
+            config: { hide_code: false, disabled: false, column: 1 },
+          },
+        },
+      });
+      // Override cellIds to be multi-column
+      notebookState.cellIds = MultiColumn.from([[cellId1], [cellId2]]);
+      store.set(notebookAtom, notebookState);
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId2, optionsWithMoveX),
+      );
+
+      act(() => {
+        result.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowLeft" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId1,
+        where: "exact",
+      });
+
+      const { result: result2 } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithMoveX),
+      );
+      act(() => {
+        result2.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowRight" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId2,
+        where: "exact",
+      });
+    });
+
     it("should move cell left when shortcut is pressed and canMoveX is true", () => {
       const optionsWithMoveX = { ...options, canMoveX: true };
 

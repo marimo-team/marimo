@@ -195,6 +195,43 @@ export function useCellNavigationProps(
           selectionActions.clear();
           return true;
         },
+        // Move left across columns
+        ArrowLeft: () => {
+          if (canMoveX) {
+            const notebook = store.get(notebookAtom);
+            const column = notebook.cellIds.findWithId(cellId);
+            const columnIndex = notebook.cellIds.indexOf(column);
+            const leftColumn = notebook.cellIds.at(columnIndex - 1);
+
+            if (leftColumn && leftColumn.length > 0) {
+              // Focus the first cell in the left column
+              actions.focusCell({ cellId: leftColumn.first(), where: "exact" });
+              selectionActions.clear();
+              return true;
+            }
+          }
+          return false;
+        },
+        // Move right across columns
+        ArrowRight: () => {
+          if (canMoveX) {
+            const notebook = store.get(notebookAtom);
+            const column = notebook.cellIds.findWithId(cellId);
+            const columnIndex = notebook.cellIds.indexOf(column);
+            const rightColumn = notebook.cellIds.at(columnIndex + 1);
+
+            if (rightColumn && rightColumn.length > 0) {
+              // Focus the first cell in the right column
+              actions.focusCell({
+                cellId: rightColumn.first(),
+                where: "exact",
+              });
+              selectionActions.clear();
+              return true;
+            }
+          }
+          return false;
+        },
         // Select up
         "Shift+ArrowUp": () => {
           // Select self
@@ -479,6 +516,8 @@ export function useCellNavigationProps(
         handleVimKeybinding(evt.nativeEvent || evt, {
           j: keymaps.ArrowDown,
           k: keymaps.ArrowUp,
+          h: keymaps.ArrowLeft,
+          l: keymaps.ArrowRight,
           i: keymaps.Enter,
           "shift+j": keymaps["Shift+ArrowDown"],
           "shift+k": keymaps["Shift+ArrowUp"],
