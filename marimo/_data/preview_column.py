@@ -258,7 +258,9 @@ def _get_altair_chart(
         should_limit_to_10_items = True
 
     chart_builder = get_chart_builder(column_type, should_limit_to_10_items)
-    code = chart_builder.altair_code(table_name, column_name, simple=True)
+    code = chart_builder.altair_code_with_comment(
+        table_name, column_name, simple=True
+    )
 
     # Filter the data to the column we want
     column_data = table.select_columns([column_name]).data

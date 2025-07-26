@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from marimo._data.charts import (
+    REPLACE_DF_COMMENT,
     ChartBuilder,
     DateChartBuilder,
     get_chart_builder,
@@ -87,6 +88,12 @@ def test_charts_bad_characters():
         outputs.append(f"# {col}\n{code}")
 
     snapshot("charts_bad_characters.txt", "\n\n".join(outputs))
+
+
+def test_charts_altair_code_with_comment():
+    builder = get_chart_builder("string", False)
+    code = builder.altair_code_with_comment("df", "some_column", simple=True)
+    assert f"alt.Chart([]) {REPLACE_DF_COMMENT}" in code
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

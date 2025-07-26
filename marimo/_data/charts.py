@@ -17,6 +17,8 @@ from marimo._utils.theme import get_current_theme
 if TYPE_CHECKING:
     import altair as alt
 
+REPLACE_DF_COMMENT = "# <-- replace with data"
+
 
 @abc.abstractmethod
 class ChartBuilder:
@@ -36,6 +38,20 @@ class ChartBuilder:
     def altair_code(self, data: str, column: str, simple: bool) -> str:
         """If simple, return simple altair code."""
         raise NotImplementedError
+
+    def altair_code_with_comment(
+        self, data: str, column: str, simple: bool
+    ) -> str:
+        """
+        Return the altair code with a comment to replace the df and produces an empty chart.
+        This is useful when we don't know the var name of the data.
+        """
+        code = self.altair_code(data, column, simple)
+        code = code.replace(
+            f"alt.Chart({data})",
+            f"alt.Chart([]) {REPLACE_DF_COMMENT}",
+        )
+        return code
 
 
 @dataclass
