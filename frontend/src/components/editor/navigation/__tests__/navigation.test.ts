@@ -644,6 +644,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "9",
+        code: "Digit9",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -666,6 +667,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "9",
+        code: "Digit9",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -685,6 +687,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "0",
+        code: "Digit0",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -760,6 +763,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "9",
+        code: "Digit9",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -794,6 +798,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "0",
+        code: "Digit0",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -829,6 +834,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "1",
+        code: "Digit1",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -861,6 +867,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "2",
+        code: "Digit2",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1224,6 +1231,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "7",
+        code: "Digit7",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1248,6 +1256,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "8",
+        code: "Digit8",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1270,6 +1279,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "7",
+        code: "Digit7",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1289,6 +1299,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "8",
+        code: "Digit8",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1318,6 +1329,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "7",
+        code: "Digit7",
         ctrlKey: true,
         shiftKey: true,
       });
