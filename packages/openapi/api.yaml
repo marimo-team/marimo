@@ -1638,6 +1638,11 @@ components:
           type: object
         language_servers:
           properties:
+            basedpyright:
+              properties:
+                enabled:
+                  type: boolean
+              type: object
             pylsp:
               properties:
                 enable_flake8:
@@ -2740,7 +2745,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.11
+  version: 0.14.13
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
