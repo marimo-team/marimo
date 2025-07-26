@@ -86,6 +86,11 @@ class TestPandasTableManager(unittest.TestCase):
                     [3.0, False],
                     [None, datetime.datetime(2021, 1, 1)],
                 ],
+                "bytes": [
+                    b"\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83",
+                    b"world",
+                    b"bytes",
+                ],
             },
         )
 

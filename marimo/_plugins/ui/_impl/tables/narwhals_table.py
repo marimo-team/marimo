@@ -648,4 +648,5 @@ class NarwhalsTableManager(
 
             if isinstance(value, Image.Image):
                 return io_to_data_url(value, "image/png")
+
         return value

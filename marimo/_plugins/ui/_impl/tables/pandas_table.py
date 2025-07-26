@@ -19,6 +19,7 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
@@ -114,6 +115,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                             result[col] = result[col].apply(
                                 self._sanitize_table_value
                             )
+                            # Cast bytes to string to avoid overflow error
+                            if self._infer_dtype(col) == "bytes":
+                                result[col] = result[col].apply(str)
 
                 except Exception as e:
                     LOGGER.error(
@@ -164,6 +168,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                         default_handler=str,
                     )
                 )
+
+            def _infer_dtype(self, column: ColumnName) -> str:
+                # Typically, pandas dtypes returns a generic dtype
+                # This provides more specific dtypes like bytes, floating, categorical, etc.
+                return pd.api.types.infer_dtype(self._original_data[column])
 
             def to_arrow_ipc(self) -> bytes:
                 out = io.BytesIO()
