@@ -1,17 +1,1 @@
-[
-  ["strings", ["string", "object"]],
-  ["bool", ["boolean", "bool"]],
-  ["int", ["integer", "int64"]],
-  ["float", ["number", "float64"]],
-  ["datetime", ["datetime", "datetime64[ns]"]],
-  ["date", ["string", "object"]],
-  ["struct", ["string", "object"]],
-  ["list", ["string", "object"]],
-  ["nulls", ["string", "object"]],
-  ["category", ["string", "category"]],
-  ["set", ["string", "object"]],
-  ["imaginary", ["unknown", "complex128"]],
-  ["time", ["string", "object"]],
-  ["duration", ["string", "timedelta64[ns]"]],
-  ["mixed_list", ["string", "object"]]
-]
+[["strings", ["string", "object"]], ["bool", ["boolean", "bool"]], ["int", ["integer", "int64"]], ["float", ["number", "float64"]], ["datetime", ["datetime", "datetime64[ns]"]], ["date", ["string", "object"]], ["struct", ["string", "object"]], ["list", ["string", "object"]], ["nulls", ["string", "object"]], ["category", ["string", "category"]], ["set", ["string", "object"]], ["imaginary", ["unknown", "complex128"]], ["time", ["string", "object"]], ["duration", ["string", "timedelta64[ns]"]], ["mixed_list", ["string", "object"]], ["bytes", ["string", "object"]]]

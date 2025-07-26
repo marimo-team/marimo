@@ -123,13 +123,18 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     BaseException
                 ):  # Sometimes, polars throws a generic exception
                     LOGGER.info(
-                        "Failed to write json. Trying to convert columns to strings."
+                        "Failed to write json. Converting columns to string values."
                     )
                     converted_columns = []
                     for column in result.get_columns():
                         dtype = column.dtype
                         if isinstance(dtype, pl.Object):
                             result = self._cast_object_to_string(
+                                result, column
+                            )
+                            converted_columns.append(column.name)
+                        elif isinstance(dtype, pl.Binary):
+                            result = self._cast_binary_to_base64(
                                 result, column
                             )
                             converted_columns.append(column.name)
@@ -161,7 +166,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
                     if converted_columns:
                         LOGGER.info(
-                            "Converted columns %s to string.",
+                            "Converted columns %s to safe values.",
                             ", ".join(f"'{col}'" for col in converted_columns),
                         )
 
@@ -189,6 +194,14 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             return_dtype=pl.String,
                         )
                     )
+
+            def _cast_binary_to_base64(
+                self, df: pl.DataFrame, column: pl.Series
+            ) -> pl.DataFrame:
+                try:
+                    return df.with_columns(column.cast(pl.String))
+                except pl.exceptions.ComputeError:
+                    return self._cast_object_to_string(df, column)
 
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]

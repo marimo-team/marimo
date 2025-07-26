@@ -113,6 +113,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                     [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]],
                     dtype=pl.List(pl.Enum(categories=["A", "B", "C"])),
                 ),
+                "binary": pl.Series(
+                    [
+                        b"\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83",
+                        b"world",
+                        b"foo",
+                    ],
+                    dtype=pl.Binary,
+                ),
             },
             strict=False,
         )
@@ -155,7 +163,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     )
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        # CSV does not support nested data types
+        # CSV does not support nested data types and binary data
         columns = [
             col
             for col in complex_data.get_column_names()
@@ -165,6 +173,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "nested_arrays",
                 "list_with_structs",
                 "structs_with_list",
+                "binary",
             ]
         ]
         manager = complex_data.select_columns(columns)
@@ -986,3 +995,18 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         data_list = pl.DataFrame(data, schema={"A": pl.List(pl.Categorical())})
         with pytest.raises(pl.exceptions.PanicException):
             data_list.write_json()
+
+    def test_to_json_binary(self) -> None:
+        # Remove casting to string once binary is supported
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "A": [
+                    b"\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83"
+                ]
+            }
+        )
+
+        with pytest.raises(pl.exceptions.PanicException):
+            data.write_json()
