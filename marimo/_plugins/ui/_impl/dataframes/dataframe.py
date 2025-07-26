@@ -251,10 +251,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         offset = args.page_number * args.page_size
 
         # Apply filters, query, and functools.sort using the cached method
-        result = self._apply_filters_query_sort(
-            args.query,
-            args.sort,
-        )
+        result = self._apply_filters_query_sort(args.query, args.sort)
 
         # Save the manager to be used for selection
         try:
