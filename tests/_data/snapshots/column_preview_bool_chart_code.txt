@@ -1,5 +1,5 @@
 _base = (
-    alt.Chart(table)
+    alt.Chart([]) # <-- replace with data
     .transform_aggregate(count="count()", groupby=["bool_col"])
     .transform_joinaggregate(total="sum(count)")
     .transform_calculate(percentage="datum.count / datum.total")
