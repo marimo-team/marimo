@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { ChartPieIcon } from "lucide-react";
 import React from "react";
 import type { TopLevelSpec } from "vega-lite";
 import { useTheme } from "@/theme/useTheme";
 import type { ErrorMessage } from "./chart-spec/spec";
 import { augmentSpecWithData } from "./chart-spec/spec";
+import { ChartInfoState } from "./components/chart-states";
 
 const LazyVega = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.Vega })),
@@ -23,7 +23,7 @@ export const LazyChart: React.FC<{
 
   const renderChart = (specOrMessage: TopLevelSpec | ErrorMessage) => {
     if (typeof specOrMessage === "string") {
-      return <ChartEmptyState>{specOrMessage}</ChartEmptyState>;
+      return <ChartInfoState>{specOrMessage}</ChartInfoState>;
     }
     const spec = augmentSpecWithData(specOrMessage, data);
 
@@ -52,16 +52,5 @@ export const LazyChart: React.FC<{
 };
 
 const LoadingChart = () => {
-  return <ChartEmptyState>Loading chart...</ChartEmptyState>;
-};
-
-const ChartEmptyState = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 mt-14">
-      <ChartPieIcon className="w-10 h-10 text-muted-foreground" />
-      <span className="text-md font-semibold text-muted-foreground">
-        {children}
-      </span>
-    </div>
-  );
+  return <ChartInfoState className="mt-14">Loading chart...</ChartInfoState>;
 };

@@ -77,6 +77,9 @@ class AltairFormatter(FormatterFactory):
                         return mime_type, mime_response
                     return mime_type, json.dumps(mime_response)
 
+            chart = _apply_embed_options(chart)
+            chart = maybe_make_full_width(chart)
+
             # If vegafusion is enabled, just wrap in altair_chart
             if alt.data_transformers.active.startswith("vegafusion"):
                 return (
@@ -88,10 +91,6 @@ class AltairFormatter(FormatterFactory):
             # since we are able to handle the larger sizes (default is 5000)
             if "max_rows" not in alt.data_transformers.options:
                 alt.data_transformers.options["max_rows"] = 20_000
-
-            chart = _apply_embed_options(chart)
-
-            chart = maybe_make_full_width(chart)
 
             # Return the chart as a vega-lite chart with embed options
             return (
