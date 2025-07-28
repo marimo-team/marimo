@@ -84,6 +84,8 @@ export const SetupMocks = {
       .fn()
       .mockImplementation((data) => Mocks.clipboardItem(data));
 
+    global.ClipboardItem.supports = vi.fn().mockReturnValue(true);
+
     // Mock Blob
     global.Blob = vi
       .fn()

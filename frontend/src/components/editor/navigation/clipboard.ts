@@ -7,7 +7,8 @@ import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
 
-const MARIMO_CELL_MIMETYPE = "application/x-marimo-cell";
+// According to MDN, custom mimetypes should start with "web "
+const MARIMO_CELL_MIMETYPE = "web application/x-marimo-cell";
 
 interface ClipboardCellData {
   cells: Array<{
@@ -41,19 +42,13 @@ export function useCellClipboard() {
       .filter(Boolean);
 
     if (cells.length === 0) {
-      toast({
-        title: "Error",
-        description: "No cells found",
-        variant: "danger",
-      });
+      // No cells to copy
       return;
     }
 
     try {
       const clipboardData: ClipboardCellData = {
-        cells: cells.map((cell) => ({
-          code: cell.code,
-        })),
+        cells: cells.map((cell) => ({ code: cell.code })),
         version: "1.0",
       };
 
@@ -61,22 +56,14 @@ export function useCellClipboard() {
       const plainText = cells.map((cell) => cell.code).join("\n\n");
 
       // Create clipboard item with both custom mimetype and plain text
-      const clipboardItem = new ClipboardItem({
-        [MARIMO_CELL_MIMETYPE]: new Blob([JSON.stringify(clipboardData)], {
-          type: MARIMO_CELL_MIMETYPE,
-        }),
-        "text/plain": new Blob([plainText], {
-          type: "text/plain",
-        }),
-      });
+      const clipboardItem = new ClipboardItemBuilder()
+        .add(MARIMO_CELL_MIMETYPE, clipboardData)
+        .add("text/plain", plainText)
+        .build();
 
       await navigator.clipboard.write([clipboardItem]);
 
-      const cellText = cells.length === 1 ? "Cell" : `${cells.length} cells`;
-      toast({
-        title: `${cellText} copied`,
-        description: `${cellText} ${cells.length === 1 ? "has" : "have"} been copied to clipboard`,
-      });
+      toastSuccess(cells.length);
     } catch (error) {
       Logger.error("Failed to copy cells to clipboard", error);
 
@@ -84,17 +71,9 @@ export function useCellClipboard() {
       try {
         const plainText = cells.map((cell) => cell.code).join("\n\n");
         await navigator.clipboard.writeText(plainText);
-        const cellText = cells.length === 1 ? "Cell" : `${cells.length} cells`;
-        toast({
-          title: `${cellText} copied`,
-          description: `${cellText} code ${cells.length === 1 ? "has" : "have"} been copied to clipboard`,
-        });
+        toastSuccess(cells.length);
       } catch {
-        toast({
-          title: "Copy failed",
-          description: "Failed to copy cells to clipboard",
-          variant: "danger",
-        });
+        toastError();
       }
     }
   });
@@ -126,20 +105,14 @@ export function useCellClipboard() {
 
             // Create new cells with the copied data before/after the current cell
             const currentCellId = cellId;
-            for (const cell of clipboardData.cells) {
+            const reversedCells = clipboardData.cells.reverse();
+            for (const cell of reversedCells) {
               actions.createNewCell({
                 cellId: currentCellId,
                 before,
                 code: cell.code,
-                autoFocus: false,
+                autoFocus: true,
               });
-              // Update currentCellId to the newly created cell for chaining
-              // Note: We don't have the new cell ID here, but createNewCell handles the positioning
-            }
-
-            // Focus the last created cell
-            if (clipboardData.cells.length > 0) {
-              // The focus will be handled by the cell creation logic
             }
 
             return;
@@ -159,19 +132,11 @@ export function useCellClipboard() {
           autoFocus: true,
         });
       } else {
-        toast({
-          title: "Nothing to paste",
-          description: "No cell or text found in clipboard",
-          variant: "danger",
-        });
+        toastNothingToPaste();
       }
     } catch (error) {
       Logger.error("Failed to paste from clipboard", error);
-      toast({
-        title: "Paste failed",
-        description: "Failed to read from clipboard",
-        variant: "danger",
-      });
+      toastPasteFailed();
     }
   });
 
@@ -179,4 +144,62 @@ export function useCellClipboard() {
     copyCells,
     pasteAtCell,
   };
+}
+
+const toastSuccess = (cellLength: number) => {
+  const cellText = cellLength === 1 ? "Cell" : `${cellLength} cells`;
+  toast({
+    title: `${cellText} copied`,
+    description: `${cellText} ${cellLength === 1 ? "has" : "have"} been copied to clipboard.`,
+  });
+};
+
+const toastError = () => {
+  toast({
+    title: "Copy failed",
+    description: "Failed to copy cells to clipboard.",
+    variant: "danger",
+  });
+};
+
+const toastNothingToPaste = () => {
+  toast({
+    title: "Nothing to paste",
+    description: "No cell or text found in clipboard.",
+    variant: "danger",
+  });
+};
+
+const toastPasteFailed = () => {
+  toast({
+    title: "Paste failed",
+    description: "Failed to read from clipboard",
+    variant: "danger",
+  });
+};
+
+class ClipboardItemBuilder {
+  private items: Record<string, string | Blob> = {};
+
+  add(mimeType: string, value: string | object) {
+    // Skip if the browser doesn't support the mime type
+    if (!ClipboardItem.supports(mimeType)) {
+      Logger.warn(`ClipboardItem does not support ${mimeType}`);
+      return this;
+    }
+
+    if (typeof value === "string") {
+      this.items[mimeType] = new Blob([value], { type: mimeType });
+      return this;
+    }
+
+    this.items[mimeType] = new Blob([JSON.stringify(value)], {
+      type: mimeType,
+    });
+    return this;
+  }
+
+  build() {
+    return new ClipboardItem(this.items);
+  }
 }
