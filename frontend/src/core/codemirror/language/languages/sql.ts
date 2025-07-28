@@ -31,6 +31,7 @@ import { datasetTablesAtom } from "@/core/datasets/state";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
+import { LRUCache } from "@/utils/lru";
 import { variableCompletionSource } from "../embedded/embedded-python";
 import { languageMetadataField } from "../metadata";
 import type { LanguageAdapter } from "../types";
@@ -206,8 +207,19 @@ export class SQLLanguageAdapter
 
 type TableToCols = Record<string, string[]>;
 type Schemas = Record<string, TableToCols>;
+type CachedSchema = Pick<SQLConfig, "schema" | "defaultSchema"> & {
+  shouldAddLocalTables: boolean;
+};
 
 export class SQLCompletionStore {
+  private cache: LRUCache<DataSourceConnection, CachedSchema>;
+
+  constructor() {
+    this.cache = new LRUCache(10, {
+      create: (connection) => this.getConnectionSchema(connection),
+    });
+  }
+
   private getConnection(
     connectionName: ConnectionName,
   ): DataSourceConnection | undefined {
@@ -215,43 +227,9 @@ export class SQLCompletionStore {
     return dataConnectionsMap.get(connectionName);
   }
 
-  /**
-   * Get the dialect for a connection.
-   * If the connection is not found, return the standard SQL dialect.
-   */
-  getDialect(connectionName: ConnectionName): SQLDialect {
-    const connection = this.getConnection(connectionName);
-    if (!connection) {
-      return StandardSQL;
-    }
-    return guessDialect(connection) ?? StandardSQL;
-  }
-
-  getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
-    const connection = this.getConnection(connectionName);
-    if (!connection) {
-      return null;
-    }
-
-    const localTables = store.get(datasetTablesAtom);
-
-    // If there is a conflict with connection tables,
-    // the engine will prioritize the connection tables without special handling
-    const tablesMap: TableToCols = {};
-    for (const table of localTables) {
-      const tableColumns = table.columns.map((col) => col.name);
-      tablesMap[table.name] = tableColumns;
-    }
-
+  private getConnectionSchema(connection: DataSourceConnection): CachedSchema {
     const schemaMap: Record<string, TableToCols> = {};
     const databaseMap: Record<string, Schemas> = {};
-
-    const baseConfig: SQLConfig = {
-      dialect: guessDialect(connection),
-      schema: schemaMap,
-      defaultSchema: connection.default_schema ?? undefined,
-      defaultTable: getSingleTable(connection),
-    };
 
     // When there is only one database, it is the default
     const defaultDb = connection.databases.find(
@@ -266,7 +244,7 @@ export class SQLCompletionStore {
 
     // For schemaless databases, treat databases as schemas
     if (isSchemalessDb) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-
       const dbToTablesMap: Record<string, any> = {};
 
       for (const db of connection.databases) {
@@ -289,7 +267,7 @@ export class SQLCompletionStore {
       }
 
       return {
-        ...baseConfig,
+        shouldAddLocalTables: false,
         schema: dbToTablesMap,
         defaultSchema: defaultDb?.name,
       };
@@ -322,9 +300,51 @@ export class SQLCompletionStore {
     }
 
     return {
-      ...baseConfig,
-      schema: { ...databaseMap, ...schemaMap, ...tablesMap },
+      shouldAddLocalTables: true,
+      schema: { ...databaseMap, ...schemaMap },
       defaultSchema: connection.default_schema ?? undefined,
+    };
+  }
+
+  /**
+   * Get the dialect for a connection.
+   * If the connection is not found, return the standard SQL dialect.
+   */
+  getDialect(connectionName: ConnectionName): SQLDialect {
+    const connection = this.getConnection(connectionName);
+    if (!connection) {
+      return StandardSQL;
+    }
+    return guessDialect(connection) ?? StandardSQL;
+  }
+
+  getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
+    const connection = this.getConnection(connectionName);
+    if (!connection) {
+      return null;
+    }
+
+    const getTablesMap = () => {
+      const localTables = store.get(datasetTablesAtom);
+      // If there is a conflict with connection tables,
+      // the engine will prioritize the connection tables without special handling
+      const tablesMap: TableToCols = {};
+      for (const table of localTables) {
+        const tableColumns = table.columns.map((col) => col.name);
+        tablesMap[table.name] = tableColumns;
+      }
+      return tablesMap;
+    };
+
+    const schema = this.cache.getOrCreate(connection);
+
+    return {
+      dialect: guessDialect(connection),
+      schema: schema.shouldAddLocalTables
+        ? { ...schema.schema, ...getTablesMap() }
+        : schema.schema,
+      defaultSchema: schema.defaultSchema,
+      defaultTable: getSingleTable(connection),
     };
   }
 }
