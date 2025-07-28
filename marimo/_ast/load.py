@@ -73,7 +73,9 @@ def _static_load(filepath: Path) -> Optional[App]:
 
     if notebook and is_non_marimo_python_script(notebook):
         # Should fail instead of overriding contents
-        raise MarimoFileError(f"Python script {filepath} is not a marimo notebook.")
+        raise MarimoFileError(
+            f"Python script {filepath} is not a marimo notebook."
+        )
 
     if notebook is None or not notebook.valid:
         return None

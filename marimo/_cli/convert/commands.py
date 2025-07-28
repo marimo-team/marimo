@@ -28,10 +28,20 @@ def convert(
     filename: str,
     output: Optional[Path],
 ) -> None:
-    r"""Convert a Jupyter notebook, Markdown file, or unknown Python script to a marimo notebook.
+    r"""Convert a Jupyter notebook, Markdown file, or Python script to a marimo notebook.
 
-    The argument may be either a path to a local .ipynb/.md/.py file,
-    or an .ipynb/.md file hosted on GitHub.
+    Supported input formats:
+    - `.ipynb` (local or GitHub-hosted)
+    - `.md` files with `{python}` code fences
+    - `.py` scripts in py:percent format
+
+    Behavior:
+    - Jupyter notebooks: outputs are stripped.
+    - Markdown files: only `{python}` fenced code blocks are converted.
+    - Python scripts:
+        - If already a valid marimo notebook, no conversion is performed.
+        - Otherwise, marimo attempts to convert using py:percent formatting,
+          preserving top-level comments and docstrings.
 
     Example usage:
 
@@ -45,21 +55,13 @@ def convert(
 
         marimo convert script.py -o your_nb.py
 
-    Jupyter notebook conversion will strip out all outputs. Markdown cell
-    conversion will occur on the presence of `{python}` code fences.
-
-    For .py files:
-    - If the file is already a valid marimo notebook, no conversion is performed
-    - Unknown Python scripts are converted by preserving the header (docstrings/comments)
-      and splitting the code into cells, with __main__ blocks separated
-
-    After conversion, you can open the notebook in the editor:
+    After conversion:
 
         marimo edit your_nb.py
 
-    Since marimo is different from traditional notebooks, once in the editor,
-    you may need to fix errors like multiple definition errors or cycle
-    errors.
+    Note:
+    Since marimo differs from traditional notebooks, expect to fix issues like
+    multiple definitions or cyclic dependencies after conversion.
     """
 
     ext = Path(filename).suffix
