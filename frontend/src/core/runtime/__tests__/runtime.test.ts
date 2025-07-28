@@ -308,7 +308,7 @@ describe("RuntimeManager", () => {
 
       const baseElement = document.querySelector("base");
       expect(baseElement).toBeTruthy();
-      expect(baseElement?.getAttribute("href")).toBe("https://example.com");
+      expect(baseElement?.getAttribute("href")).toBe("https://example.com/");
     });
 
     it("should update existing base element href", async () => {
@@ -326,7 +326,7 @@ describe("RuntimeManager", () => {
 
       const baseElement = document.querySelector("base");
       expect(baseElement).toBe(existingBase); // Should be the same element
-      expect(baseElement?.getAttribute("href")).toBe("https://example.com");
+      expect(baseElement?.getAttribute("href")).toBe("https://example.com/");
 
       // Should only have one base element
       expect(document.querySelectorAll("base")).toHaveLength(1);

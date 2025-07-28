@@ -182,6 +182,10 @@ export class RuntimeManager {
   }
 
   private setDOMBaseUri(uri: string) {
+    // Make sure there is a trailing slash
+    if (!uri.endsWith("/")) {
+      uri += "/";
+    }
     const baseURI = document.querySelector("base");
     if (baseURI) {
       baseURI.setAttribute("href", uri);
