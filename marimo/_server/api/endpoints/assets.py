@@ -149,9 +149,6 @@ def _inject_service_worker(html: str, file_key: str) -> str:
 
 STATIC_FILES = [
     r"(favicon\.ico)",
-    r"(circle-check\.ico)",
-    r"(circle-play\.ico)",
-    r"(circle-x\.ico)",
     r"(manifest\.json)",
     r"(android-chrome-(192x192|512x512)\.png)",
     r"(apple-touch-icon\.png)",

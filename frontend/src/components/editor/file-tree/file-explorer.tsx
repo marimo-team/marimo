@@ -60,6 +60,7 @@ import { downloadBlob } from "@/utils/download";
 import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
+import marimoIcon from "../../../assets/icon-32x32.png";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
 import { openStateAtom, treeAtom } from "./state";
@@ -619,7 +620,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
       >
         {node.data.isMarimoFile ? (
           <img
-            src="./favicon.ico"
+            src={marimoIcon}
             className="w-5 h-5 flex-shrink-0 mr-2 filter grayscale"
             alt="Marimo"
           />

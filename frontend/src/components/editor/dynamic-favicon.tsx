@@ -4,29 +4,22 @@ import { usePrevious } from "@dnd-kit/utilities";
 import { useEffect } from "react";
 import { useCellErrors } from "@/core/cells/cells";
 import { useEventListener } from "@/hooks/useEventListener";
+import successFaviconUrl from "../../assets/circle-check.ico";
+import runningFaviconUrl from "../../assets/circle-play.ico";
+import errorFaviconUrl from "../../assets/circle-x.ico";
 
 const FAVICON_PATHS = {
   idle: "./favicon.ico",
-  success: "./circle-check.ico",
-  running: "./circle-play.ico",
-  error: "./circle-x.ico",
+  success: successFaviconUrl,
+  running: runningFaviconUrl,
+  error: errorFaviconUrl,
 } as const;
 
 // Cache favicon object URLs lazily
 type FaviconKey = keyof typeof FAVICON_PATHS;
-const cache = new Map<FaviconKey, string>();
 
 async function getFaviconUrl(key: FaviconKey): Promise<string> {
-  const cached = cache.get(key);
-  if (cached) {
-    return cached;
-  }
-
-  const response = await fetch(FAVICON_PATHS[key]);
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  cache.set(key, url);
-  return url;
+  return FAVICON_PATHS[key];
 }
 
 interface Props {
@@ -79,13 +72,6 @@ export const DynamicFavicon = (props: Props) => {
     favicon.rel = "icon";
     document.getElementsByTagName("head")[0].append(favicon);
   }
-
-  useEffect(() => {
-    // Cleanup on unmount
-    return () => {
-      cache.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, []);
 
   useEffect(() => {
     // No change on startup (autorun enabled or not)
