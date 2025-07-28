@@ -1,25 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { RefObject } from "react";
-import { useEventListener } from "./useEventListener";
 
 /**
  * Hook that enables Ctrl/Cmd-A to select all text content within a specific element
  * @param ref - React ref to the element whose content should be selectable
  * @param enabled - Whether the hook should be active (defaults to true)
  */
-export function useSelectAllContent<T extends HTMLElement>(
-  ref: RefObject<T | null>,
-  enabled = true,
-) {
-  const handleKeyDown = (event: KeyboardEvent) => {
+export function useSelectAllContent<T extends HTMLElement>(enabled = true) {
+  const handleKeyDown = (event: React.KeyboardEvent<T>) => {
     if (!enabled) {
       return;
     }
 
-    const element = ref.current;
-    if (!element) {
-      return;
-    }
+    const element = event.currentTarget;
 
     // Check for Ctrl-A (Windows/Linux) or Cmd-A (Mac)
     const isSelectAll =
@@ -46,5 +38,5 @@ export function useSelectAllContent<T extends HTMLElement>(
     selection.addRange(range);
   };
 
-  useEventListener(ref, "keydown", handleKeyDown);
+  return { onKeyDown: handleKeyDown };
 }

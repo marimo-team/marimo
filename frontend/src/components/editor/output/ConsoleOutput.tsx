@@ -1,18 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { AnsiUp } from "ansi_up";
-import { ChevronRightIcon, WrapTextIcon } from "lucide-react";
+import { ChevronRightIcon, CopyIcon, WrapTextIcon } from "lucide-react";
 import React, { useLayoutEffect } from "react";
-import { ToggleButton, Tooltip, TooltipTrigger } from "react-aria-components";
+import { ToggleButton } from "react-aria-components";
 import { DebuggerControls } from "@/components/debugger/debugger-code";
 import { Input } from "@/components/ui/input";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
 import { invariant } from "@/utils/invariant";
+import { Strings } from "@/utils/strings";
 import { NameCellContentEditable } from "../actions/name-cell-input";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
 import { OutputRenderer } from "../Output";
@@ -68,7 +71,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const hasOutputs = consoleOutputs.length > 0;
 
   // Enable Ctrl/Cmd-A to select all content within the console output
-  useSelectAllContent(ref, hasOutputs);
+  const selectAllProps = useSelectAllContent(hasOutputs);
 
   // Keep scroll at the bottom if it is within 120px of the bottom,
   // so when we add new content, it will lock to the bottom
@@ -110,23 +113,43 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   return (
     <div className="relative group">
-      <TooltipTrigger>
-        <ToggleButton
-          aria-label="Toggle text wrapping"
-          className="absolute top-1 right-1 h-6 w-6 z-10 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 bg-transparent text-muted-foreground data-[hovered]:text-foreground data-[selected]:text-foreground"
-          isSelected={wrapText}
-          onChange={setWrapText}
-        >
-          <WrapTextIcon className="h-4 w-4" />
-        </ToggleButton>
-        <Tooltip className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-xs data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1">
-          {wrapText ? "Disable wrap text" : "Wrap text"}
+      <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
+        <Tooltip content="Copy all">
+          <span>
+            <button
+              aria-label="Copy all console output"
+              className="p-1 rounded bg-transparent text-muted-foreground hover:text-foreground"
+              type="button"
+              onClick={() => {
+                const text = reversedOutputs
+                  .filter((output) => output.channel !== "pdb")
+                  .map((output) => Strings.asString(output.data))
+                  .join("\n");
+                void copyToClipboard(text);
+              }}
+            >
+              <CopyIcon className="h-4 w-4" />
+            </button>
+          </span>
         </Tooltip>
-      </TooltipTrigger>
+        <Tooltip content={wrapText ? "Disable wrap text" : "Wrap text"}>
+          <span>
+            <ToggleButton
+              aria-label="Toggle text wrapping"
+              className="p-1 rounded bg-transparent text-muted-foreground data-[hovered]:text-foreground data-[selected]:text-foreground"
+              isSelected={wrapText}
+              onChange={setWrapText}
+            >
+              <WrapTextIcon className="h-4 w-4" />
+            </ToggleButton>
+          </span>
+        </Tooltip>
+      </div>
       <div
         title={stale ? "This console output is stale" : undefined}
         data-testid="console-output-area"
         ref={ref}
+        {...selectAllProps}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: Needed to capture keypress events
         tabIndex={0}
         className={cn(
