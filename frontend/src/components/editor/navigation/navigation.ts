@@ -630,7 +630,7 @@ function findClosestAdjacentCell(
 
   const currentRect = current.getBoundingClientRect();
   // first to to either overlap or contain the current cell's top edge
-  for (const candidateId of adjacentColumn.inOrderIds) {
+  for (const candidateId of adjacentColumn.topLevelIds) {
     const candidate = document.getElementById(HTMLCellId.create(candidateId));
     if (candidate) {
       const candidateRect = candidate.getBoundingClientRect();
