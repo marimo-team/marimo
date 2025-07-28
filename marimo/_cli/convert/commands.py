@@ -38,6 +38,12 @@ def convert(
     Behavior:
     - Jupyter notebooks: outputs are stripped.
     - Markdown files: only `{python}` fenced code blocks are converted.
+
+    Example:
+      ```{python}
+      x = 1 + 2
+      print(x)
+      ```
     - Python scripts:
         - If already a valid marimo notebook, no conversion is performed.
         - Otherwise, marimo attempts to convert using py:percent formatting,
