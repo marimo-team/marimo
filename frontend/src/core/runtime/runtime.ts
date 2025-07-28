@@ -196,15 +196,19 @@ export class RuntimeManager {
    * - May affect the behavior of scripts, styles, and other resources that use relative URLs.
    */
   private setDOMBaseUri(uri: string) {
+    // Remove query params from the URI
+    uri = uri.split("?", 1)[0];
+
     // Make sure there is a trailing slash
     if (!uri.endsWith("/")) {
       uri += "/";
     }
-    const baseURI = document.querySelector("base");
-    if (baseURI) {
-      baseURI.setAttribute("href", uri);
+
+    let base = document.querySelector("base");
+    if (base) {
+      base.setAttribute("href", uri);
     } else {
-      const base = document.createElement("base");
+      base = document.createElement("base");
       base.setAttribute("href", uri);
       document.head.append(base);
     }

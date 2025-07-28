@@ -331,6 +331,27 @@ describe("RuntimeManager", () => {
       // Should only have one base element
       expect(document.querySelectorAll("base")).toHaveLength(1);
     });
+
+    it("should remove query params from base URI", async () => {
+      const configWithQueryParams: RuntimeConfig = {
+        url: "https://example.com/foo?param1=value1&param2=value2",
+        authToken: "test-token",
+      };
+
+      const runtime = new RuntimeManager(configWithQueryParams);
+
+      // Mock successful health check
+      global.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+      await runtime.isHealthy();
+
+      const baseElement = document.querySelector("base");
+      expect(baseElement).toBeTruthy();
+      // Query params should be removed from the base href
+      expect(baseElement?.getAttribute("href")).toBe(
+        "https://example.com/foo/",
+      );
+    });
   });
 
   describe("edge cases", () => {
