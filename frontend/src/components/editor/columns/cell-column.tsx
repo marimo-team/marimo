@@ -34,6 +34,7 @@ export const Column = memo((props: Props) => {
         canMoveLeft={props.canMoveLeft}
         canMoveRight={props.canMoveRight}
         className="group/column"
+        footer={props.footer}
       >
         <ResizableComponent
           startingWidth={getColumnWidth(props.index)}
@@ -43,7 +44,6 @@ export const Column = memo((props: Props) => {
         >
           {props.children}
         </ResizableComponent>
-        {props.footer}
       </SortableColumn>
     );
   }
@@ -94,7 +94,7 @@ const ResizableComponent = ({
       {renderResizeHandler(handleRefs.left)}
       <div
         ref={resizableDivRef}
-        className="flex flex-col gap-5 box-content min-h-[100px] px-11 py-6 min-w-[500px] z-1"
+        className="flex flex-col gap-5 box-content min-h-[100px] px-11 pt-3 pb-6 min-w-[500px] z-1"
         style={style}
       >
         {children}
