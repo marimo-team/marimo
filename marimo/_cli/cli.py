@@ -15,7 +15,6 @@ import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.load import get_notebook_status
-from marimo._ast.parse import is_non_marimo_python_script
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
