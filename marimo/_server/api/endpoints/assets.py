@@ -83,13 +83,14 @@ async def index(request: Request) -> HTMLResponse:
     )
 
     html = index_html.read_text()
+    base_url = app_state.remote_url or app_state.base_url
 
     if not file_key:
         # We don't know which file to use, so we need to render a homepage
         LOGGER.debug("No file key provided, serving homepage")
         html = home_page_template(
             html=html,
-            base_url=app_state.base_url,
+            base_url=base_url,
             user_config=app_state.config_manager.get_user_config(),
             config_overrides=app_state.config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
@@ -104,7 +105,7 @@ async def index(request: Request) -> HTMLResponse:
 
         html = notebook_page_template(
             html=html,
-            base_url=app_state.base_url,
+            base_url=base_url,
             user_config=config_manager.get_user_config(),
             config_overrides=config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,

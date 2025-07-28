@@ -74,7 +74,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.mode,
         )
 
-        assert self.base_url not in result
+        assert f"<base href='{self.base_url}/' />" in result
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "read" in result
@@ -92,7 +92,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             self.mode,
         )
 
-        assert self.base_url not in result
+        assert f"<base href='{self.base_url}/' />" in result
         assert str(self.server_token) in result
         assert "<title>marimo</title>" in result
         assert "read" in result
@@ -110,7 +110,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
             SessionMode.EDIT,
         )
 
-        assert self.base_url not in result
+        assert self.base_url in result
         assert str(self.server_token) in result
         assert self.filename.name in result
         assert "edit" in result
@@ -297,7 +297,7 @@ class TestHomePageTemplate(unittest.TestCase):
             self.server_token,
         )
 
-        assert self.base_url not in result
+        assert f"<base href='{self.base_url}/' />" in result
         assert str(self.server_token) in result
         assert json.dumps(self.user_config, sort_keys=True) in result
         assert "marimo" in result

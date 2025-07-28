@@ -90,7 +90,7 @@ def home_page_template(
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
 ) -> str:
-    html = html.replace("{{ base_url }}", base_url)
+    html = _update_base_url(html, base_url)
     html = html.replace("{{ title }}", "marimo")
     html = html.replace("{{ filename }}", "")
 
@@ -132,7 +132,7 @@ def notebook_page_template(
     mode: SessionMode,
     remote_url: Optional[str] = None,
 ) -> str:
-    html = html.replace("{{ base_url }}", base_url)
+    html = _update_base_url(html, base_url)
 
     # When we have a remote URL, let's pre-populate the index.html page
     # with a view of the notebook.
@@ -218,7 +218,7 @@ def static_notebook_template(
     if asset_url is None:
         asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
 
-    html = html.replace("{{ base_url }}", "")
+    html = _update_base_url(html, "")
     filename = os.path.basename(filepath or "")
     html = html.replace("{{ filename }}", _html_escape(filename))
 
@@ -339,7 +339,7 @@ def wasm_notebook_template(
     if asset_url is not None:
         body = re.sub(r'="./assets/', f'="{asset_url}/assets/', body)
 
-    body = body.replace("{{ base_url }}", "")
+    html = _update_base_url(html, "")
     body = body.replace(
         "{{ title }}",
         _html_escape(
@@ -472,3 +472,21 @@ def _inject_custom_css_for_config(
 
     css_block = "\n".join(css_contents)
     return html.replace("</head>", f"{css_block}</head>")
+
+
+def _update_base_url(html: str, base_url: str) -> str:
+    # Ensure base_url ends with a slash
+    if base_url and not base_url.endswith("/"):
+        base_url = base_url + "/"
+
+    template = "{{ base_url }}"
+    has_base_url = template in html
+
+    # If the base_url is already in the html, replace it
+    # Otherwise, append a base tag to the head
+    if has_base_url:
+        return html.replace(template, base_url)
+    if base_url:
+        # Append a base tag to the head
+        return html.replace("<head>", f"<head>\n<base href='{base_url}' />")
+    return html
