@@ -54,7 +54,7 @@ python your_notebook.py
 
 You can also [pass CLI args](../guides/scripts.md) to your notebook.
 
-## Convert notebooks to marimo
+## Convert Jupyter notebooks and Python scripts to marimo
 
 Automatically convert Jupyter notebooks and Python scripts to marimo notebooks with `marimo convert`:
 
