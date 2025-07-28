@@ -5,9 +5,12 @@ import {
   type CompletionSource,
 } from "@codemirror/autocomplete";
 import {
+  Cassandra,
   keywordCompletionSource,
+  MariaSQL,
   MSSQL,
   MySQL,
+  PLSQL,
   PostgreSQL,
   type SQLConfig,
   type SQLDialect,
@@ -39,6 +42,7 @@ import { parseArgsKwargs } from "../utils/ast";
 import { indentOneTab } from "../utils/indentOneTab";
 import type { QuotePrefixKind } from "../utils/quotes";
 import { MarkdownLanguageAdapter } from "./markdown";
+import { DuckDBDialect } from "./sql-dialects/duckdb";
 
 export interface SQLLanguageAdapterMetadata {
   dataframeName: string;
@@ -426,6 +430,15 @@ function guessDialect(
     case "mssql":
     case "sqlserver":
       return MSSQL;
+    case "duckdb":
+      return DuckDBDialect;
+    case "mariadb":
+      return MariaSQL;
+    case "cassandra":
+      return Cassandra;
+    case "oracledb":
+    case "oracle":
+      return PLSQL;
     default:
       return undefined;
   }
