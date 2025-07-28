@@ -51,6 +51,9 @@ import numpy as np
 # This is a markdown cell
 # with multiple lines
 
+# %% [markdown]
+"""This is a doc string, but also markdown"""
+
 # %%
 # First code cell
 x = np.array([1, 2, 3])
