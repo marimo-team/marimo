@@ -70,7 +70,8 @@ def check_app_correctness(filename: str) -> None:
         click.echo(f"Failed to parse notebook: {filename}\n", err=True)
         raise click.ClickException(traceback.format_exc(limit=0)) from None
 
-    if status == "invalid":
+    # Only show the tip if we're in an interactive terminal
+    if status == "invalid" and sys.stdin.isatty():
         click.echo(
             green("tip")
             + ": Use `"
