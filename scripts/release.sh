@@ -75,15 +75,16 @@ git pull origin main
 
 # Run hatch version
 print_step "Updating version"
-echo -e "Running: hatch version $VERSION_TYPE\n"
-hatch version $VERSION_TYPE
-NEW_VERSION=$(hatch --no-color version) # re-run to get the version
+echo -e "Running: uv version --bump $VERSION_TYPE\n"
+uv version --bump $VERSION_TYPE
+NEW_VERSION=$(NO_COLOR=1 uv version --short) # re-run to get the version
 
 # Summary and confirmation
 echo -e "\n${BOLD}Release Summary:${NC}"
 echo "  • New Version: $NEW_VERSION"
 echo "  • Files to be committed:"
-echo "    - marimo/__init__.py"
+echo "    - pyproject.toml"
+echo "    - uv.lock"
 
 if ! confirm "Proceed with release?"; then
   print_warning "Release cancelled"
@@ -92,7 +93,8 @@ fi
 
 # Commit version change
 print_step "Committing version change"
-git add marimo/__init__.py
+git add pyproject.toml
+git add uv.lock
 git commit -m "release: $NEW_VERSION"
 
 # Push changes
