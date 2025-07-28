@@ -305,8 +305,8 @@ if __name__ == "__main__":
         assert "File is already a valid marimo notebook." in p.stdout
 
     @staticmethod
-    def test_convert_unknown_python_script(tmp_path: Path) -> None:
-        """Test converting an unknown Python script."""
+    def test_convert_non_marimo_python_script(tmp_path: Path) -> None:
+        """Test converting a non-marimo Python script."""
         script_path = tmp_path / "script.py"
         script_content = '''"""A simple Python script."""
 

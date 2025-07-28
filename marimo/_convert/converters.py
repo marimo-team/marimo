@@ -50,8 +50,8 @@ class MarimoConvert:
         return MarimoConverterIntermediate(ir)
 
     @staticmethod
-    def from_unknown_py_script(source: str) -> MarimoConverterIntermediate:
-        """Convert from unknown Python script to marimo notebook.
+    def from_non_marimo_py_script(source: str) -> MarimoConverterIntermediate:
+        """Convert from a non-marimo Python script to marimo notebook.
 
         This should only be used when the .py file is not already a valid
         marimo notebook.
@@ -59,11 +59,13 @@ class MarimoConvert:
         Args:
             source: Unknown Python script source code string
         """
-        from marimo._convert.unknown_python import (
-            convert_unknown_py_to_notebook_ir,
+        from marimo._convert.non_marimo_python_script import (
+            convert_non_marimo_python_script_to_notebook_ir,
         )
 
-        return MarimoConvert.from_ir(convert_unknown_py_to_notebook_ir(source))
+        return MarimoConvert.from_ir(
+            convert_non_marimo_python_script_to_notebook_ir(source)
+        )
 
     @staticmethod
     def from_md(source: str) -> MarimoConverterIntermediate:

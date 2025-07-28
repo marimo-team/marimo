@@ -1,5 +1,3 @@
-"""Script with empty main."""
-
 import marimo
 
 __generated_with = "0.0.0"
@@ -8,14 +6,21 @@ app = marimo.App()
 
 @app.cell
 def _():
-    data = [1, 2, 3, 4, 5]
+    """Script with main block in pypercent."""
     return
 
 
 @app.cell
 def _():
+    import sys
+    return (sys,)
+
+
+@app.cell
+def _(sys):
     def _main_():
-        pass
+        print("Running as script")
+        sys.exit(0)
 
     _main_()
     return
