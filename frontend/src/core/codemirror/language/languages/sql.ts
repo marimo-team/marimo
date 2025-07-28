@@ -244,7 +244,7 @@ export class SQLCompletionStore {
 
     // For schemaless databases, treat databases as schemas
     if (isSchemalessDb) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dbToTablesMap: Record<string, any> = {};
 
       for (const db of connection.databases) {
