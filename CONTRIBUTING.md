@@ -318,24 +318,6 @@ If you use vscode, you might find the following `settings.json` useful:
 }
 ```
 
-## Testing a branch from GitHub
-
-This requires `uv` to be installed. This may take a bit to install frontend dependencies and build the frontend.
-
-```bash
-MARIMO_BUILD_FRONTEND=true \
-uvx --with git+https://github.com/marimo-team/marimo.git@BRANCH_NAME \
-marimo edit
-```
-
-Additionally, you can run `marimo` from the main branch:
-
-```bash
-MARIMO_BUILD_FRONTEND=true \
-uvx --with git+https://github.com/marimo-team/marimo.git \
-marimo edit
-```
-
 ## Your first PR
 
 Marimo has a variety of CI jobs that run on pull requests. All new PRs will fail until you have signed the [CLA](https://marimo.io/cla). Don't fret. You can sign the CLA by leaving a comment in the PR with text of `I have read the CLA Document and I hereby sign the CLA`
