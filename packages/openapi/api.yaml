@@ -1920,6 +1920,7 @@ components:
       - application/vnd.marimo+mimebundle
       - application/vnd.vega.v5+json
       - application/vnd.vegalite.v5+json
+      - application/vnd.jupyter.widget-view+json
       - image/png
       - image/svg+xml
       - image/tiff
@@ -2740,7 +2741,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.11
+  version: 0.14.13
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

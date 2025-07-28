@@ -28,6 +28,7 @@ import {
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
@@ -184,6 +185,22 @@ export const OutputRenderer: React.FC<{
             parsedJsonData as Record<OutputMessage["mimetype"], OutputMessage>
           }
         />
+      );
+    case "application/vnd.jupyter.widget-view+json":
+      return (
+        <Banner kind="warn">
+          <b>Jupyter widgets are not supported in marimo.</b> <br />
+          Please migrate this widget to{" "}
+          <a
+            href="https://github.com/manzt/anywidget"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-[var(--amber-12)]"
+          >
+            anywidget
+          </a>
+          .
+        </Banner>
       );
     default:
       logNever(mimetype);
