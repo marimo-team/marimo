@@ -840,7 +840,7 @@ def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
         )
 
         remaining = parser.extractor.contents[len(header.value) :]
-        if len(remaining.strip()) != 0:
+        if remaining.strip():
             # just a header is fine, anything else we would ignore and override
             violations.append(
                 Violation(
