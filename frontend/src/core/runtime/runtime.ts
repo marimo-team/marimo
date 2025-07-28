@@ -167,11 +167,28 @@ export class RuntimeManager {
       // If there is a redirect, update the URL in the config
       if (response.redirected) {
         // strip /health from the URL
-        this.config.url = response.url.replace(/\/health$/, "");
+        const baseUrl = response.url.replace(/\/health$/, "");
+        this.config.url = baseUrl;
       }
-      return response.ok;
+
+      const success = response.ok;
+      if (success) {
+        this.setDOMBaseUri(this.config.url);
+      }
+      return success;
     } catch {
       return false;
+    }
+  }
+
+  private setDOMBaseUri(uri: string) {
+    const baseURI = document.querySelector("base");
+    if (baseURI) {
+      baseURI.setAttribute("href", uri);
+    } else {
+      const base = document.createElement("base");
+      base.setAttribute("href", uri);
+      document.head.append(base);
     }
   }
 

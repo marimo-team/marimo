@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionId } from "@/core/kernel/session";
 import { Logger } from "@/utils/Logger";
 import { RuntimeManager } from "../runtime";
@@ -258,6 +258,78 @@ describe("RuntimeManager", () => {
         "Marimo-Server-Token": "",
         "x-runtime-url": "http://localhost:8080/",
       });
+    });
+  });
+
+  describe("setDOMBaseUri", () => {
+    let originalBase: HTMLBaseElement | null;
+
+    beforeEach(() => {
+      // Store and remove existing base element if any
+      originalBase = document.querySelector("base");
+      if (originalBase) {
+        originalBase.remove();
+      }
+    });
+
+    afterEach(() => {
+      // Clean up any base elements created during tests
+      const baseElements = document.querySelectorAll("base");
+      baseElements.forEach((base) => base.remove());
+
+      // Restore original base element if it existed
+      if (originalBase) {
+        document.head.append(originalBase);
+      }
+    });
+
+    it("should not set base URI when health check fails", async () => {
+      const runtime = new RuntimeManager(mockConfig);
+      // Base element should not be set
+      let baseElement = document.querySelector("base");
+      expect(baseElement).toBeNull();
+
+      // Mock failed health check
+      global.fetch = vi.fn().mockResolvedValue({ ok: false });
+
+      await runtime.isHealthy();
+
+      baseElement = document.querySelector("base");
+      expect(baseElement).toBeNull();
+    });
+
+    it("should create base element when none exists", async () => {
+      const runtime = new RuntimeManager(mockConfig);
+
+      // Mock successful health check
+      global.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+      await runtime.isHealthy();
+
+      const baseElement = document.querySelector("base");
+      expect(baseElement).toBeTruthy();
+      expect(baseElement?.getAttribute("href")).toBe("https://example.com");
+    });
+
+    it("should update existing base element href", async () => {
+      // Create existing base element
+      const existingBase = document.createElement("base");
+      existingBase.setAttribute("href", "https://old-url.com");
+      document.head.append(existingBase);
+
+      const runtime = new RuntimeManager(mockConfig);
+
+      // Mock successful health check
+      global.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+      await runtime.isHealthy();
+
+      const baseElement = document.querySelector("base");
+      expect(baseElement).toBe(existingBase); // Should be the same element
+      expect(baseElement?.getAttribute("href")).toBe("https://example.com");
+
+      // Should only have one base element
+      expect(document.querySelectorAll("base")).toHaveLength(1);
     });
   });
 
