@@ -183,14 +183,14 @@ export class RuntimeManager {
 
   /**
    * Sets the base URI for resolving relative URLs in the document.
-   * 
+   *
    * @param uri - The base URI to set. This should be a valid URL string.
-   * 
+   *
    * @remarks
    * This method modifies the `<base>` element in the document's `<head>`.
    * If a `<base>` element already exists, its `href` attribute is updated.
    * Otherwise, a new `<base>` element is created and appended to the `<head>`.
-   * 
+   *
    * Side effects:
    * - Changes how relative URLs are resolved in the document.
    * - May affect the behavior of scripts, styles, and other resources that use relative URLs.
