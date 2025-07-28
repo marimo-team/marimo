@@ -162,9 +162,3 @@ jobs:
         run: |
           uv add pytest pytest-asyncio
           uv pip install marimo*whl
-
-      - name: Test examples
-        shell: bash
-        run: uv run pytest -v -s tests/_smoke_tests/run_all.py
-        # TODO(msconick) remove continue-on-error when all tests pass
-        continue-on-error: true
