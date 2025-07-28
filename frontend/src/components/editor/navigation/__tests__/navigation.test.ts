@@ -68,6 +68,7 @@ const mockUseCellClipboard = vi.mocked(
 
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { saveCellConfig } from "@/core/network/requests";
+import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
   type CellSelectionState,
@@ -120,7 +121,7 @@ const setupSelection = () => {
   return selectionTesting.createActions(dispatch);
 };
 
-const [cellId1, cellId2, cellId3] = MockNotebook.cellIds();
+const [cellId1, cellId2, cellId3, cellId4, cellId5] = MockNotebook.cellIds();
 const mockCellId = cellId1;
 
 describe("useCellNavigationProps", () => {
@@ -1215,6 +1216,146 @@ describe("useCellNavigationProps", () => {
   });
 
   describe("move left/right functionality", () => {
+    it("should navigate between columns with arrow keys when canMoveX is true", () => {
+      const optionsWithMoveX = { ...options, canMoveX: true };
+
+      /**
+       * Layout visualization:
+       *
+       * | Column 0      | Column 1      |
+       * |---------------|---------------|
+       * | cellId1       | cellId2       |
+       * | top: 0        | top: 0        |
+       * | height: 100   | height: 80    |
+       * | (0-100)       | (0-80)        |
+       * |---------------|---------------|
+       * | cellId3       | cellId4       |
+       * | top: 100      | top: 80       |
+       * | height: 100   | height: 80    |
+       * | (100-200)     | (80-160)      |
+       * |               |---------------|
+       * |               | cellId5       |
+       * |               | top: 160      |
+       * |               | height: 80    |
+       * |               | (160-240)     |
+       *
+       * Expected navigation:
+       * - cellId2 → cellId1 (overlaps vertically)
+       * - cellId1 → cellId2 (overlaps vertically)
+       * - cellId3 → cellId4 (overlaps vertically)
+       * - cellId5 → cellId3 (closest center)
+       */
+      const notebookState = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: {
+            id: cellId1,
+            config: { hide_code: false, disabled: false, column: 0 },
+          },
+          [cellId2]: {
+            id: cellId2,
+            config: { hide_code: false, disabled: false, column: 1 },
+          },
+          [cellId3]: {
+            id: cellId3,
+            config: { hide_code: false, disabled: false, column: 0 },
+          },
+          [cellId4]: {
+            id: cellId4,
+            config: { hide_code: false, disabled: false, column: 1 },
+          },
+          [cellId5]: {
+            id: cellId5,
+            config: { hide_code: false, disabled: false, column: 1 },
+          },
+        },
+      });
+      // Override cellIds to be multi-column
+      notebookState.cellIds = MultiColumn.from([
+        [cellId1, cellId3],
+        [cellId2, cellId4, cellId5],
+      ]);
+      store.set(notebookAtom, notebookState);
+
+      // Mock DOM elements and their positions
+      const mockGetElementById = vi.spyOn(document, "getElementById");
+      const createMockElement = (top: number, height: number) =>
+        ({
+          getBoundingClientRect: () => ({
+            top,
+            bottom: top + height,
+            height,
+            left: 0,
+            right: 100,
+            width: 100,
+            x: 0,
+            y: top,
+            toJSON: () => ({}),
+          }),
+        }) as HTMLElement;
+
+      // Setup mock positions:
+      // Column 0: cellId1 (0-100), cellId3 (100-200)
+      // Column 1: cellId2 (0-80), cellId4 (80-160), cellId5 (160-240)
+      mockGetElementById.mockImplementation((id) => {
+        const idToCellId = id.replace("cell-", "");
+        if (idToCellId === cellId1) return createMockElement(0, 100);
+        if (idToCellId === cellId2) return createMockElement(0, 80);
+        if (idToCellId === cellId3) return createMockElement(100, 100);
+        if (idToCellId === cellId4) return createMockElement(80, 80);
+        if (idToCellId === cellId5) return createMockElement(160, 80);
+        return null;
+      });
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(cellId2, optionsWithMoveX),
+      );
+
+      act(() => {
+        result.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowLeft" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId1,
+        where: "exact",
+      });
+
+      const { result: result2 } = renderWithProvider(() =>
+        useCellNavigationProps(cellId1, optionsWithMoveX),
+      );
+      act(() => {
+        result2.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowRight" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId2,
+        where: "exact",
+      });
+
+      // Move right from second index, cellId3 -> cellId4
+      const { result: result3 } = renderWithProvider(() =>
+        useCellNavigationProps(cellId3, optionsWithMoveX),
+      );
+      act(() => {
+        result3.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowRight" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId4,
+        where: "exact",
+      });
+
+      // Move left from last index, cellId5 -> cellId3
+      const { result: result4 } = renderWithProvider(() =>
+        useCellNavigationProps(cellId5, optionsWithMoveX),
+      );
+      act(() => {
+        result4.current.onKeyDown?.(Mocks.keyboardEvent({ key: "ArrowLeft" }));
+      });
+      expect(mockCellActions.focusCell).toHaveBeenCalledWith({
+        cellId: cellId3,
+        where: "exact",
+      });
+
+      mockGetElementById.mockRestore();
+    });
+
     it("should move cell left when shortcut is pressed and canMoveX is true", () => {
       const optionsWithMoveX = { ...options, canMoveX: true };
 

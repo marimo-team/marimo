@@ -7,6 +7,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
+import { HTMLCellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import {
   hotkeysAtom,
@@ -18,6 +19,7 @@ import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
+import type { CollapsibleTree } from "@/utils/id-tree";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
@@ -194,6 +196,42 @@ export function useCellNavigationProps(
           actions.focusCell({ cellId, where: "after" });
           selectionActions.clear();
           return true;
+        },
+        // Move left across columns
+        ArrowLeft: () => {
+          if (canMoveX) {
+            const notebook = store.get(notebookAtom);
+            const column = notebook.cellIds.findWithId(cellId);
+            const columnIndex = notebook.cellIds.indexOf(column);
+            const leftColumn = notebook.cellIds.at(columnIndex - 1);
+
+            if (leftColumn && leftColumn.length > 0) {
+              const leftCellId = findClosestAdjacentCell(cellId, leftColumn);
+              actions.focusCell({ cellId: leftCellId, where: "exact" });
+
+              selectionActions.clear();
+              return true;
+            }
+          }
+          return false;
+        },
+        // Move right across columns
+        ArrowRight: () => {
+          if (canMoveX) {
+            const notebook = store.get(notebookAtom);
+            const column = notebook.cellIds.findWithId(cellId);
+            const columnIndex = notebook.cellIds.indexOf(column);
+            const rightColumn = notebook.cellIds.at(columnIndex + 1);
+
+            if (rightColumn && rightColumn.length > 0) {
+              const rightCellId = findClosestAdjacentCell(cellId, rightColumn);
+              actions.focusCell({ cellId: rightCellId, where: "exact" });
+
+              selectionActions.clear();
+              return true;
+            }
+          }
+          return false;
         },
         // Select up
         "Shift+ArrowUp": () => {
@@ -479,6 +517,8 @@ export function useCellNavigationProps(
         handleVimKeybinding(evt.nativeEvent || evt, {
           j: keymaps.ArrowDown,
           k: keymaps.ArrowUp,
+          h: keymaps.ArrowLeft,
+          l: keymaps.ArrowRight,
           i: keymaps.Enter,
           "shift+j": keymaps["Shift+ArrowDown"],
           "shift+k": keymaps["Shift+ArrowUp"],
@@ -575,4 +615,34 @@ export function useCellEditorNavigationProps(cellId: CellId) {
   });
 
   return keyboardProps;
+}
+
+function findClosestAdjacentCell(
+  currentCellId: CellId,
+  adjacentColumn: CollapsibleTree<CellId>,
+): CellId {
+  const current = document.getElementById(HTMLCellId.create(currentCellId));
+
+  if (!current) {
+    // fallback to first
+    return adjacentColumn.first();
+  }
+
+  const currentRect = current.getBoundingClientRect();
+  // first to to either overlap or contain the current cell's top edge
+  for (const candidateId of adjacentColumn.topLevelIds) {
+    const candidate = document.getElementById(HTMLCellId.create(candidateId));
+    if (candidate) {
+      const candidateRect = candidate.getBoundingClientRect();
+      if (
+        currentRect.top <= candidateRect.bottom &&
+        currentRect.bottom >= candidateRect.top
+      ) {
+        return candidateId;
+      }
+    }
+  }
+
+  // no aligned cells (column beyond other), jump to last element
+  return adjacentColumn.last();
 }
