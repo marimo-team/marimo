@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Callable, cast
 
 import marimo._utils.requests as requests
-from marimo import __version__ as current_version, _loggers
+from marimo import _loggers
 from marimo._cli.print import echo, green, orange
 from marimo._config.cli_state import (
     MarimoCLIState,
@@ -17,6 +17,7 @@ from marimo._config.cli_state import (
     write_cli_state,
 )
 from marimo._tracer import server_tracer
+from marimo._version import __version__ as current_version
 
 FETCH_TIMEOUT = 3
 

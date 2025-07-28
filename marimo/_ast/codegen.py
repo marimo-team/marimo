@@ -8,7 +8,6 @@ import sys
 import textwrap
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
-from marimo import __version__
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
@@ -19,6 +18,7 @@ from marimo._ast.visitor import Name, VariableData
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._types.ids import CellId_t
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from pathlib import Path

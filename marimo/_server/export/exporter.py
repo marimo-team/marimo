@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import Cell, CellImpl
 from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
@@ -56,6 +56,7 @@ from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path
+from marimo._version import __version__
 
 LOGGER = _loggers.marimo_logger()
 

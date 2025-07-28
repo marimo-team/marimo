@@ -37,7 +37,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.packages as packages
     import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
-    from marimo import __version__
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._config.config import MarimoConfig
     from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -49,6 +48,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._utils.dataclass_to_openapi import (
         PythonTypeToOpenAPI,
     )
+    from marimo._version import __version__
 
     # dataclass components used in websocket messages
     # these are always snake_case

@@ -12,7 +12,7 @@ from typing import Any, Literal, Optional
 
 import click
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
@@ -22,6 +22,7 @@ from marimo._utils.inline_script_metadata import (
 )
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
+from marimo._version import __version__
 
 LOGGER = _loggers.marimo_logger()
 
