@@ -7,6 +7,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
+import { HTMLCellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import {
   hotkeysAtom,
@@ -18,7 +19,7 @@ import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
-import type { CellIndex, CollapsibleTree } from "@/utils/id-tree";
+import type { CollapsibleTree } from "@/utils/id-tree";
 import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
@@ -205,9 +206,7 @@ export function useCellNavigationProps(
             const leftColumn = notebook.cellIds.at(columnIndex - 1);
 
             if (leftColumn && leftColumn.length > 0) {
-              const cellIndex = column.indexOfOrThrow(cellId);
-              const leftCellId = findClosestAdjacentCell(cellIndex, leftColumn);
-
+              const leftCellId = findClosestAdjacentCell(cellId, leftColumn);
               actions.focusCell({ cellId: leftCellId, where: "exact" });
 
               selectionActions.clear();
@@ -225,12 +224,7 @@ export function useCellNavigationProps(
             const rightColumn = notebook.cellIds.at(columnIndex + 1);
 
             if (rightColumn && rightColumn.length > 0) {
-              const cellIndex = column.indexOfOrThrow(cellId);
-              const rightCellId = findClosestAdjacentCell(
-                cellIndex,
-                rightColumn,
-              );
-
+              const rightCellId = findClosestAdjacentCell(cellId, rightColumn);
               actions.focusCell({ cellId: rightCellId, where: "exact" });
 
               selectionActions.clear();
@@ -624,18 +618,31 @@ export function useCellEditorNavigationProps(cellId: CellId) {
 }
 
 function findClosestAdjacentCell(
-  cellIndex: CellIndex,
+  currentCellId: CellId,
   adjacentColumn: CollapsibleTree<CellId>,
 ): CellId {
-  let closestCellId: CellId;
+  const current = document.getElementById(HTMLCellId.create(currentCellId));
 
-  if (cellIndex === 0) {
-    closestCellId = adjacentColumn.first();
-  } else if (cellIndex >= adjacentColumn.length) {
-    closestCellId = adjacentColumn.last();
-  } else {
-    closestCellId = adjacentColumn.atOrThrow(cellIndex);
+  if (!current) {
+    // fallback to first
+    return adjacentColumn.first();
   }
 
-  return closestCellId;
+  const currentRect = current.getBoundingClientRect();
+  // first to to either overlap or contain the current cell's top edge
+  for (const candidateId of adjacentColumn.inOrderIds) {
+    const candidate = document.getElementById(HTMLCellId.create(candidateId));
+    if (candidate) {
+      const candidateRect = candidate.getBoundingClientRect();
+      if (
+        currentRect.top <= candidateRect.bottom &&
+        currentRect.bottom >= candidateRect.top
+      ) {
+        return candidateId;
+      }
+    }
+  }
+
+  // no aligned cells (column beyond other), jump to last element
+  return adjacentColumn.last();
 }

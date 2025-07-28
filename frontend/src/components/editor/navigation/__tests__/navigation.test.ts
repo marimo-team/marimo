@@ -1220,11 +1220,30 @@ describe("useCellNavigationProps", () => {
       const optionsWithMoveX = { ...options, canMoveX: true };
 
       /**
-       * column 0  |  column 1
-       * --------- | ---------
-       * cellId1   | cellId2
-       * cellId3   | cellId4
-       *           | cellId5
+       * Layout visualization:
+       *
+       * | Column 0      | Column 1      |
+       * |---------------|---------------|
+       * | cellId1       | cellId2       |
+       * | top: 0        | top: 0        |
+       * | height: 100   | height: 80    |
+       * | (0-100)       | (0-80)        |
+       * |---------------|---------------|
+       * | cellId3       | cellId4       |
+       * | top: 100      | top: 80       |
+       * | height: 100   | height: 80    |
+       * | (100-200)     | (80-160)      |
+       * |               |---------------|
+       * |               | cellId5       |
+       * |               | top: 160      |
+       * |               | height: 80    |
+       * |               | (160-240)     |
+       *
+       * Expected navigation:
+       * - cellId2 → cellId1 (overlaps vertically)
+       * - cellId1 → cellId2 (overlaps vertically)
+       * - cellId3 → cellId4 (overlaps vertically)
+       * - cellId5 → cellId3 (closest center)
        */
       const notebookState = MockNotebook.notebookState({
         cellData: {
@@ -1256,6 +1275,36 @@ describe("useCellNavigationProps", () => {
         [cellId2, cellId4, cellId5],
       ]);
       store.set(notebookAtom, notebookState);
+
+      // Mock DOM elements and their positions
+      const mockGetElementById = vi.spyOn(document, "getElementById");
+      const createMockElement = (top: number, height: number) =>
+        ({
+          getBoundingClientRect: () => ({
+            top,
+            bottom: top + height,
+            height,
+            left: 0,
+            right: 100,
+            width: 100,
+            x: 0,
+            y: top,
+            toJSON: () => ({}),
+          }),
+        }) as HTMLElement;
+
+      // Setup mock positions:
+      // Column 0: cellId1 (0-100), cellId3 (100-200)
+      // Column 1: cellId2 (0-80), cellId4 (80-160), cellId5 (160-240)
+      mockGetElementById.mockImplementation((id) => {
+        const idToCellId = id.replace("cell-", "");
+        if (idToCellId === cellId1) return createMockElement(0, 100);
+        if (idToCellId === cellId2) return createMockElement(0, 80);
+        if (idToCellId === cellId3) return createMockElement(100, 100);
+        if (idToCellId === cellId4) return createMockElement(80, 80);
+        if (idToCellId === cellId5) return createMockElement(160, 80);
+        return null;
+      });
 
       const { result } = renderWithProvider(() =>
         useCellNavigationProps(cellId2, optionsWithMoveX),
@@ -1303,6 +1352,8 @@ describe("useCellNavigationProps", () => {
         cellId: cellId3,
         where: "exact",
       });
+
+      mockGetElementById.mockRestore();
     });
 
     it("should move cell left when shortcut is pressed and canMoveX is true", () => {
