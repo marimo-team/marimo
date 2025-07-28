@@ -7,7 +7,7 @@ import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING, Optional, Union, cast
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
@@ -18,6 +18,7 @@ from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
+from marimo._version import __version__
 
 if sys.platform == "win32":  # handling for windows
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

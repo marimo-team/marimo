@@ -44,16 +44,16 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
-      # patch __init__.py version to be of the form
+      # patch pyproject.toml version to be of the form
       # X.Y.<Z+1>-dev{n-commits-since-last-tag}
       - name: 🔨 Patch version number
         run: |
           # Get the version number and increment patch
           # - assumes version is on a line of the form __version__ == "x.y.z"
-          incremented_version=`grep '__version__' marimo/__init__.py | awk '{print $3}' | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}'`
+          incremented_version=`uv version --short | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}'`
           # Get the number of commits since last tag
           n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
           # Form the new version, which is one patch ahead of the last version
@@ -61,22 +61,24 @@ jobs:
           MARIMO_VERSION="${incremented_version}-dev${n_commits}"
           # Set the version in the environment for later steps
           echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
-          sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
+          uv version "$MARIMO_VERSION"
+        env:
+          NO_COLOR: 1
 
       - name: 📦 Build marimo
-        run: hatch build
+        run: uv build
 
       - name: 📤 Upload to TestPyPI (marimo)
         env:
           HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_PASSWORD }}
-        run: hatch publish --repo test
+        run: uvx hatch publish --repo test
 
       - name: Adapt pyproject.toml to build marimo-base
-        run: ./scripts/modify_pyproject_for_marimo_base.sh
+        run: ./scripts/modify_pyproject_for_marimo_base.py
 
       - name: 📦 Build marimo
-        run: hatch build --clean
+        run: uvx hatch build --clean
 
       - name: 📦 Validate wheel under 2mb
         run: ./scripts/validate_base_wheel_size.sh
@@ -85,7 +87,7 @@ jobs:
         env:
           HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_MARIMO_BASE_PASSWORD }}
-        run: hatch publish --repo test
+        run: uvx hatch publish --repo test
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

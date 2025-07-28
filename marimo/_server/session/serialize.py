@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
@@ -41,6 +41,7 @@ from marimo._types.ids import CellId_t
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.background_task import AsyncBackgroundTask
 from marimo._utils.lists import as_list
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

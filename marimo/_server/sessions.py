@@ -706,7 +706,7 @@ class Session:
         Overwrites the existing session view.
         Mutates the existing session.
         """
-        from marimo import __version__
+        from marimo._version import __version__
 
         LOGGER.debug("Syncing session view from cache")
         self.session_cache_manager = SessionCacheManager(

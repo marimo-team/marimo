@@ -5,7 +5,7 @@ import platform
 import sys
 from typing import Any, Union, cast
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._config.manager import get_default_config_manager
 from marimo._utils.health import (
     get_chrome_version,
@@ -14,6 +14,7 @@ from marimo._utils.health import (
     get_required_modules_list,
 )
 from marimo._utils.versions import is_editable
+from marimo._version import __version__
 
 LOGGER = _loggers.marimo_logger()
 
