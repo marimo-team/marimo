@@ -37,6 +37,7 @@ def convert(
 
     Behavior:
     - Jupyter notebooks: outputs are stripped.
+
     - Markdown files: only `{python}` fenced code blocks are converted.
 
     Example:
@@ -66,8 +67,10 @@ def convert(
         marimo edit your_nb.py
 
     Note:
-    Since marimo differs from traditional notebooks, expect to fix issues like
-    multiple definitions or cyclic dependencies after conversion.
+    Since marimo's reactive execution differs from traditional notebooks,
+    you may need to refactor code that mutates variables across cells
+    (e.g., modifying a dataframe in multiple cells), which can lead to
+    unexpected behavior.
     """
 
     ext = Path(filename).suffix
