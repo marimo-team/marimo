@@ -841,10 +841,10 @@ def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
 
         remaining = parser.extractor.contents[len(header.value) :]
         if len(remaining.strip()) != 0:
+            # just a header is fine, anything else we would ignore and override
             violations.append(
-                # TODO: Could be more specific if we have violation nums
                 Violation(
-                    _unknown_content_violation_description,
+                    _non_marimo_python_script_violation_description,
                     lineno=header.end_lineno + 2 if header.value else 1,
                 )
             )
@@ -906,11 +906,13 @@ def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
     )
 
 
-_unknown_content_violation_description = "Unknown content beyond header"
+_non_marimo_python_script_violation_description = (
+    "non-marimo Python content beyond header"
+)
 
 
-def is_unknown_python_script(notebook: NotebookSerialization) -> bool:
+def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:
     return any(
-        (v.description == _unknown_content_violation_description)
+        (v.description == _non_marimo_python_script_violation_description)
         for v in notebook.violations
     )

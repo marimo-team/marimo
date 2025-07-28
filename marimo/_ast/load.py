@@ -10,6 +10,7 @@ from marimo import _loggers
 from marimo._ast.app import App, InternalApp
 from marimo._ast.parse import (
     MarimoFileError,
+    is_non_marimo_python_script,
     parse_notebook,
 )
 from marimo._schemas.serialization import NotebookSerialization, UnparsableCell
@@ -67,9 +68,16 @@ def _static_load(filepath: Path) -> Optional[App]:
     contents = _maybe_contents(filepath)
     if not contents:
         return None
+
     notebook = parse_notebook(contents)
+
+    if notebook and is_non_marimo_python_script(notebook):
+        # Should fail instead of overriding contents
+        raise MarimoFileError(f"Python script {filepath} is not a marimo notebook.")
+
     if notebook is None or not notebook.valid:
         return None
+
     app = App(**notebook.app.options, _filename=str(filepath))
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
@@ -90,7 +98,6 @@ def get_notebook_status(filename: str) -> NotebookStatus:
 
     Raises:
         SyntaxError: If the file contains a syntax error
-        UnknownPythonScriptError: If the file is an unrecognized Python script format
     """
     path = Path(filename)
 
@@ -153,8 +160,7 @@ def load_app(filename: Optional[str]) -> Optional[App]:
         from marimo._convert.markdown.markdown import convert_from_md_to_app
 
         return convert_from_md_to_app(contents) if contents else None
-
-    if not path.suffix == ".py":
+    elif not path.suffix == ".py":
         raise MarimoFileError("File must end with .py or .md")
 
     try:

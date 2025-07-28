@@ -50,7 +50,9 @@ class MarimoConvert:
         return MarimoConverterIntermediate(ir)
 
     @staticmethod
-    def from_non_marimo_py_script(source: str) -> MarimoConverterIntermediate:
+    def from_non_marimo_python_script(
+        source: str,
+    ) -> MarimoConverterIntermediate:
         """Convert from a non-marimo Python script to marimo notebook.
 
         This should only be used when the .py file is not already a valid

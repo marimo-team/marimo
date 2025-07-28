@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 import click
 
+from marimo._ast.parse import is_non_marimo_python_script
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
@@ -57,21 +58,8 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
 
 
 def check_app_correctness(filename: str) -> None:
-    from marimo._ast.load import UnknownPythonScriptError
-
     try:
         status = get_notebook_status(filename)
-    except UnknownPythonScriptError:
-        import os
-
-        stem = os.path.splitext(os.path.basename(filename))[0]
-        raise click.ClickException(
-            f"Unknown script - {filename} not recognized as a marimo notebook.\n\n"
-            f"  {green('Tip:')} Try converting with"
-            "\n\n"
-            f"    marimo convert {filename} -o {stem}_nb.py\n\n"
-            f"  then open with marimo edit {stem}_nb.py"
-        ) from None
     except SyntaxError:
         import traceback
 
@@ -83,6 +71,19 @@ def check_app_correctness(filename: str) -> None:
         # SyntaxError: invalid syntax
         click.echo(f"Failed to parse notebook: {filename}\n", err=True)
         raise click.ClickException(traceback.format_exc(limit=0)) from None
+
+    if status == "invalid" and filename.endswith(".py"):
+        # fail for python scripts, almost certainly do not want to override contents
+        import os
+
+        stem = os.path.splitext(os.path.basename(filename))[0]
+        raise click.ClickException(
+            f"Python script not recognized as a marimo notebook.\n\n"
+            f"  {green('Tip:')} Try converting with"
+            "\n\n"
+            f"    marimo convert {filename} -o {stem}_nb.py\n\n"
+            f"  then open with marimo edit {stem}_nb.py"
+        ) from None
 
     # Only show the tip if we're in an interactive terminal
     if status == "invalid" and sys.stdin.isatty():
@@ -101,6 +102,7 @@ def check_app_correctness(filename: str) -> None:
             default=False,
             abort=True,
         )
+
     if status == "has_errors":
         # Provide a warning, but allow the user to open the notebook
         _loggers.marimo_logger().warning(

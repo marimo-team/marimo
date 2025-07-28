@@ -88,33 +88,24 @@ def convert(
             echo("File is already a valid marimo notebook.")
             return
 
-        # Check if it has the violation indicating it's an unknown Python script
-        if parsed and any(
-            v.description == "Unknown content beyond header"
-            for v in parsed.violations
-        ):
-            try:
-                notebook = MarimoConvert.from_non_marimo_py_script(
-                    text
-                ).to_py()
-            except ImportError as e:
-                # Check if jupytext is the missing module in the cause chain
-                if (
-                    e.__cause__
-                    and getattr(e.__cause__, "name", None) == "jupytext"
-                ):
-                    from marimo._cli.print import green
+        try:
+            notebook = MarimoConvert.from_non_marimo_python_script(
+                text
+            ).to_py()
+        except ImportError as e:
+            # Check if jupytext is the missing module in the cause chain
+            if (
+                e.__cause__
+                and getattr(e.__cause__, "name", None) == "jupytext"
+            ):
+                from marimo._cli.print import green
 
-                    raise click.ClickException(
-                        f"{e}\n\n"
-                        f"  {green('Tip:')} If you're using uv, run:\n\n"
-                        f"    uvx --with=jupytext marimo convert {filename}"
-                    ) from e
-                raise
-        else:
-            # File has other issues (syntax errors, etc.)
-            echo("File cannot be converted. It may have syntax errors.")
-            return
+                raise click.ClickException(
+                    f"{e}\n\n"
+                    f"  {green('Tip:')} If you're using uv, run:\n\n"
+                    f"    uvx --with=jupytext marimo convert {filename}"
+                ) from e
+            raise
 
     if output:
         output_path = Path(output)
