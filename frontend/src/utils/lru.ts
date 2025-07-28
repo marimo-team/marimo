@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { invariant } from "./invariant";
+
 interface LRUCacheOptions<K, V> {
-  create: (key: K) => V;
+  create?: (key: K) => V;
 }
 
 export class LRUCache<K, V> {
@@ -9,12 +11,14 @@ export class LRUCache<K, V> {
   private cache = new Map<K, V>();
   private options: LRUCacheOptions<K, V>;
 
-  constructor(maxSize: number, options: LRUCacheOptions<K, V>) {
+  constructor(maxSize: number, options: LRUCacheOptions<K, V> = {}) {
     this.maxSize = maxSize;
     this.options = options;
   }
 
   public getOrCreate(key: K): V {
+    invariant(this.options.create, "create function is required");
+
     const item = this.cache.get(key);
     if (item !== undefined) {
       return item;
