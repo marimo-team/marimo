@@ -84,31 +84,6 @@ export function vimKeymapExtension(): Extension[] {
         },
       },
     ]),
-    // Propagate Ctrl+[ to Escape for vim mode
-    EditorView.domEventHandlers({
-      keydown: (event, view) => {
-        if (
-          event.ctrlKey &&
-          event.key === "[" &&
-          !event.shiftKey &&
-          !event.altKey &&
-          !event.metaKey
-        ) {
-          event.preventDefault();
-          // Dispatch a synthetic Escape event to the editor
-          view.contentDOM.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: "Escape",
-              code: "Escape",
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-          return true;
-        }
-        return false;
-      },
-    }),
     ViewPlugin.define((view) => {
       // Wait for the next animation frame so the CodeMirror instance is ready
       requestAnimationFrame(() => {

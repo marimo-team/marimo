@@ -252,7 +252,15 @@ export const KeyboardShortcuts: React.FC = () => {
     renderGroup(
       group,
       <p className="text-xs text-muted-foreground">
-        Press <kbd>Esc</kbd> in a cell to enter command mode
+        Press{" "}
+        {config.keymap.preset === "vim" ? (
+          <>
+            <kbd>Shift</kbd>+<kbd>Esc</kbd>
+          </>
+        ) : (
+          <kbd>Esc</kbd>
+        )}{" "}
+        in a cell to enter command mode
       </p>,
     );
 

@@ -602,12 +602,22 @@ export function useCellNavigationProps(
  */
 export function useCellEditorNavigationProps(cellId: CellId) {
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
+  const keymapPreset = useAtomValue(keymapPresetAtom);
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
-      if (evt.key === "Escape") {
-        setTemporarilyShownCode(false);
-        focusCell(cellId);
+      // For vim mode, require Shift+Escape to exit to command mode
+      if (keymapPreset === "vim") {
+        if (evt.key === "Escape" && evt.shiftKey) {
+          setTemporarilyShownCode(false);
+          focusCell(cellId);
+        }
+      } else {
+        // For non-vim mode, regular Escape exits to command mode
+        if (evt.key === "Escape") {
+          setTemporarilyShownCode(false);
+          focusCell(cellId);
+        }
       }
 
       evt.continuePropagation();
