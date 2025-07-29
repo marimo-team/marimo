@@ -125,6 +125,7 @@ nav:
           - pytest: guides/testing/pytest.md
           - doctest: guides/testing/doctest.md
       - Export to other formats: guides/exporting.md
+      - Share cloud notebooks with molab: guides/molab.md
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - Embedding: guides/publishing/embedding.md
