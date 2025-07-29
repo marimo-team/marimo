@@ -113,14 +113,14 @@ export const PANELS: PanelDescriptor[] = [
     Icon: ActivityIcon,
     tooltip: "Tracing",
     position: "sidebar",
-    extraDescription: ["Tracing"],
+    extraDescription: ["Traces"],
   },
   {
     type: "snippets",
     Icon: SquareDashedBottomCodeIcon,
     tooltip: "Snippets",
     position: "sidebar",
-    extraDescription: ["Snippets"],
+    extraDescription: ["Code snippets"],
   },
   {
     // Not supported in WebAssembly yet
@@ -129,14 +129,14 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Secrets",
     hidden: isWasm(),
     position: "sidebar",
-    extraDescription: ["environment variables"],
+    extraDescription: ["Environment variables"],
   },
   {
     type: "scratchpad",
     Icon: NotebookPenIcon,
     tooltip: "Scratchpad",
     position: "sidebar",
-    extraDescription: ["Scratchpad"],
+    extraDescription: ["Notes"],
   },
   {
     type: "errors",
