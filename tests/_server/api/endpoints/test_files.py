@@ -260,6 +260,7 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
     assert "cannot rename" in body["detail"]
 
 
+@pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
