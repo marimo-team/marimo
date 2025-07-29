@@ -4,5 +4,6 @@
  * Whether the current environment is Pyodide/WASM
  */
 export function isWasm(): boolean {
+  // Document is sometimes undefined in CI so we check to reduce flakiness
   return document && document.querySelector("marimo-wasm") !== null;
 }
