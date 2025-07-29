@@ -146,6 +146,12 @@ marimo from `PyPI` if you need Copilot.
 marimo also comes with support for [other copilots](../guides/editor_features/ai_completion.md#custom-copilots),
 and a built-in [AI assistant](../guides/editor_features/ai_completion.md) that helps you write code.
 
+## Share links to cloud notebooks
+
+Use [molab](https://molab.marimo.io/notebooks), a cloud-based marimo notebook
+service similar to Google Colab, to create and share notebook links
+([docs](../guides/molab.md)).
+
 ## Coming from VS Code?
 
 The best way to use marimo is through the CLI. However, if you prefer VS Code
