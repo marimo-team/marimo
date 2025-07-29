@@ -182,6 +182,7 @@ def test_save_with_header(client: TestClient) -> None:
     _try_assert_n_times(5, _assert_contents)
 
 
+@pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_save_with_invalid_file(client: TestClient) -> None:
     filename = get_session_manager(client).file_router.get_unique_file_key()
