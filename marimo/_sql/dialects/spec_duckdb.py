@@ -63,7 +63,7 @@ def _(form, write_to_file):
 
     if mo.app_meta().mode == "script":
         savepath = args.savepath
-        print(f"Saving JSON file")
+        print("Saving JSON file")
         write_to_file(savepath)
         print(f"Saved file to {savepath}")
     else:
@@ -224,6 +224,7 @@ def _(df):
 def _(df):
     def write_to_file(file):
         df.select(pl.exclude("builtin")).write_json(file)
+
     return (write_to_file,)
 
 
