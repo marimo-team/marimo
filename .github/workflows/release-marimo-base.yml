@@ -32,7 +32,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Adapt pyproject.toml to build marimo-base
-        run: ./scripts/modify_pyproject_for_marimo_base.py
+        run: uv run ./scripts/modify_pyproject_for_marimo_base.py
 
       - name: 📦 Build marimo-base
         run: uv build
