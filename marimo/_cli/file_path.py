@@ -257,7 +257,7 @@ class LocalFileHandler(FileHandler):
                 f"Invalid NAME - {name} is not a Python file.\n\n"
                 f"  {green('Tip:')} Convert {name} to a marimo notebook with"
                 "\n\n"
-                f"    marimo convert {name} > {prefix}.py\n\n"
+                f"    marimo convert {name} -o {prefix}.py\n\n"
                 f"  then open with marimo edit {prefix}.py"
             )
 

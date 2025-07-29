@@ -266,8 +266,9 @@ extra-dependencies = [
     "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb
-    "nbformat >=5.10.4",
+    "nbformat>=5.10.4",
     "sympy>=1.13.3",
+    "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",

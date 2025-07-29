@@ -1,0 +1,26 @@
+import marimo
+
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    """A simple Python script."""
+
+    import sys
+
+    def main():
+        print("Hello, World!")
+
+    def _main_():
+        main()
+        sys.exit(0)
+
+    _main_()
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+
