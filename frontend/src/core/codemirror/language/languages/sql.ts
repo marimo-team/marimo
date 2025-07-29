@@ -220,19 +220,29 @@ export class SQLLanguageAdapter
 /**
  * Update the SQL dialect in the editor view.
  */
-export function updateSQLDialect(view: EditorView, dialect: SQLDialect) {
+function updateSQLDialect(view: EditorView, dialect: SQLDialect) {
   view.dispatch({
     effects: sqlConfigCompartment.reconfigure(sql({ dialect })),
   });
 }
 
-/**
- * Get the current dialect from editor state metadata.
- */
-export function getCurrentDialect(state: EditorState): SQLDialect {
-  const metadata = getSQLMetadata(state);
+// Helper functions to update the SQL dialect
+
+export function updateSQLDialectFromConnection(
+  view: EditorView,
+  connectionName: ConnectionName,
+) {
+  const dialect = SCHEMA_CACHE.getDialect(connectionName);
+  updateSQLDialect(view, dialect);
+}
+
+export function initializeSQLDialect(view: EditorView) {
+  // Get current engine and update dialect
+  const metadata = getSQLMetadata(view.state);
   const connectionName = metadata.engine;
-  return SCHEMA_CACHE.getDialect(connectionName);
+  const dialect = SCHEMA_CACHE.getDialect(connectionName);
+
+  updateSQLDialect(view, dialect);
 }
 
 type TableToCols = Record<string, string[]>;

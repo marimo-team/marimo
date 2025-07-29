@@ -5,17 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { normalizeName } from "@/core/cells/names";
-import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";
 import type { ConnectionName } from "@/core/datasets/engines";
-import { store } from "@/core/state/jotai";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { formatSQL } from "../../format";
 import { languageAdapterState } from "../extension";
 import { MarkdownLanguageAdapter } from "../languages/markdown";
 import {
-  guessDialect,
   SQLLanguageAdapter,
-  updateSQLDialect,
+  updateSQLDialectFromConnection,
 } from "../languages/sql";
 import {
   type LanguageMetadata,
@@ -70,16 +67,7 @@ export const LanguagePanelComponent: React.FC<{
 
     const switchEngine = (engine: ConnectionName) => {
       triggerUpdate<Metadata1>({ engine });
-
-      const connection = store
-        .get(dataSourceConnectionsAtom)
-        .connectionsMap.get(engine);
-      const dialect = connection && guessDialect(connection);
-
-      // Update the SQL dialect in the editor
-      if (dialect) {
-        updateSQLDialect(view, dialect);
-      }
+      updateSQLDialectFromConnection(view, engine);
     };
 
     actions = (

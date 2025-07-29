@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
@@ -8,6 +9,13 @@
 #     "sqlglot==27.4.1",
 # ]
 # ///
+
+# Ignores lack of return type for functions
+# ruff: noqa: ANN202
+# mypy: disable-error-code="no-untyped-def"
+
+# Ignore SQL Types
+# ruff: noqa: F541
 
 import marimo
 
@@ -22,10 +30,19 @@ with app.setup:
     import polars as pl
 
     import marimo as mo
+    from marimo import _loggers
+
+    LOGGER = _loggers.marimo_logger()
+
+
+@app.cell
+def _():
+    excluded_keywords = ["__internal", "icu", "has_", "pg_", "allocator"]
+    return (excluded_keywords,)
 
 
 @app.cell(hide_code=True)
-def _(form, num_keywords, num_types):
+def _(excluded_keywords, form, num_keywords, num_types):
     mo.md(
         rf"""
     ## DuckDB Schema
@@ -43,6 +60,7 @@ def _(form, num_keywords, num_types):
 
     ❗ And then update the duckdb spec under `frontend/src/core/codemirror/language/languages/sql-dialects/duckdb.ts`
 
+    *Excluded keywords: {excluded_keywords}
 
     _{mo.md(f"Ran on DuckDB {duckdb.__version__}").right()}_
     _{mo.md(f"Last updated: {datetime.today().date().strftime('%B %d %Y')}").right()}_
@@ -52,7 +70,7 @@ def _(form, num_keywords, num_types):
 
 
 @app.cell
-def _(form, write_to_file):
+def _(df, form):
     parser = argparse.ArgumentParser(
         prog="DuckDB Spec",
         description="Runs SQL to save types and keywords for DuckDB dialect in Codemirror",
@@ -63,13 +81,13 @@ def _(form, write_to_file):
 
     if mo.app_meta().mode == "script":
         savepath = args.savepath
-        print("Saving JSON file")
-        write_to_file(savepath)
-        print(f"Saved file to {savepath}")
+        LOGGER.info(f"Saving JSON file to {savepath}")
+        write_to_file(df, savepath)
+        LOGGER.info(f"Saved file to {savepath}")
     else:
         savepath = form.value
         if savepath is not None and savepath.strip() != "":
-            write_to_file(savepath)
+            write_to_file(df, savepath)
             mo.output.replace(mo.md(f"## Saved JSON file to {savepath}"))
     return
 
@@ -139,13 +157,13 @@ def _():
           FULL OUTER JOIN duckdb_keywords_cte AS k ON COALESCE(t.rn, s.rn, f.rn) = k.rn
         ORDER BY
           COALESCE(t.rn, s.rn, f.rn, k.rn);
-        """  # noqa: F541
+        """
     )
     return
 
 
 @app.cell(hide_code=True)
-def _():
+def _(excluded_keywords):
     df = mo.sql(
         f"""
         WITH
@@ -179,6 +197,7 @@ def _():
               STRING_AGG(DISTINCT keyword, ' ' ORDER BY keyword) AS keywords_str
             FROM
               stg_keywords
+            WHERE {filter_keywords_query("keyword", excluded_keywords)}
           ),
           builtin_keywords AS (
             SELECT
@@ -204,7 +223,7 @@ def _():
           all_keywords AS ak,
           builtin_keywords AS bk,
           duckdb_types_str AS dts;
-        """  # noqa: F541
+        """
     )
     return (df,)
 
@@ -220,12 +239,18 @@ def _(df):
     return form, num_keywords, num_types
 
 
-@app.cell
-def _(df):
-    def write_to_file(file):
-        df.select(pl.exclude("builtin")).write_json(file)
+@app.function
+def filter_keywords_query(column: str, excluded_keywords: list[str]) -> str:
+    like_conditions = [
+        f"{column} NOT LIKE '{kw}%'" for kw in excluded_keywords
+    ]
+    where_clause = " AND ".join(like_conditions)
+    return where_clause
 
-    return (write_to_file,)
+
+@app.function
+def write_to_file(df: pl.DataFrame, filepath: str) -> None:
+    df.select(pl.exclude("builtin")).write_json(filepath)
 
 
 if __name__ == "__main__":
