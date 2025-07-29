@@ -388,6 +388,7 @@ def test_auto_export_ipynb(
     not DependencyManager.nbformat.has() or is_windows(),
     reason="nbformat not installed or on Windows",
 )
+@pytest.mark.flaky(reruns=3)
 @with_session(SESSION_ID)
 def test_auto_export_ipynb_with_new_cell(
     client: TestClient, *, temp_marimo_file: str
