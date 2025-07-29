@@ -99,7 +99,7 @@ export const PANELS: PanelDescriptor[] = [
     Icon: TextSearchIcon,
     tooltip: "View live docs",
     position: "sidebar",
-    extraDescription: ["View live docs", "Show contextual help"],
+    extraDescription: ["View live docs", "Show contextual help", "Signature"],
   },
   {
     type: "logs",
