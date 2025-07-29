@@ -6,7 +6,7 @@ import { Constants } from "@/core/constants";
 import { RunApp } from "@/core/run-app";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
-import faviconUrl from "../../../public/favicon.ico?inline";
+import marimoIcon from "../../assets/icon-32x32.png";
 import { ContextAwarePanel } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { PanelsWrapper } from "../editor/chrome/wrapper/panels";
 import { createStorage } from "../editor/chrome/wrapper/storage";
@@ -46,7 +46,7 @@ const Watermark = () => {
         className="text-sm text-[var(--grass-11)] font-bold tracking-wide transition-colors bg-[var(--grass-4)] hover:bg-[var(--grass-5)] border-t border-l border-[var(--grass-8)] px-3 py-1 rounded-tl-md flex items-center gap-2"
       >
         <span>made with marimo</span>
-        <img src={faviconUrl} alt="marimo" className="h-4 w-auto" />
+        <img src={marimoIcon} alt="marimo" className="h-4 w-auto" />
       </a>
     </div>
   );

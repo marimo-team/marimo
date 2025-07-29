@@ -12,9 +12,6 @@ vi.mock("@/core/cells/cells", () => ({
 
 describe("DynamicFavicon", () => {
   let favicon: HTMLLinkElement;
-  let mockFetch: ReturnType<typeof vi.fn>;
-  let mockCreateObjectURL: ReturnType<typeof vi.fn>;
-  let mockRevokeObjectURL: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     // Mock favicon element
@@ -22,18 +19,6 @@ describe("DynamicFavicon", () => {
     favicon.rel = "icon";
     favicon.href = "./favicon.ico";
     document.head.append(favicon);
-
-    // Mock fetch
-    mockFetch = vi.fn().mockResolvedValue({
-      blob: () => new Blob(),
-    });
-    global.fetch = mockFetch;
-
-    // Mock URL methods
-    mockCreateObjectURL = vi.fn().mockReturnValue("blob:mock-url");
-    mockRevokeObjectURL = vi.fn();
-    global.URL.createObjectURL = mockCreateObjectURL;
-    global.URL.revokeObjectURL = mockRevokeObjectURL;
 
     // Mock document.hasFocus
     vi.spyOn(document, "hasFocus").mockReturnValue(true);
@@ -51,18 +36,73 @@ describe("DynamicFavicon", () => {
   it("should update favicon when running state changes", async () => {
     render(<DynamicFavicon isRunning={true} />);
 
-    expect(mockFetch).toHaveBeenCalledWith("./circle-play.ico");
+    // Wait for async favicon update
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const faviconElement =
+      document.querySelector<HTMLLinkElement>("link[rel~='icon']")!;
+    expect(faviconElement.href.endsWith("circle-play.ico")).toBe(true);
+  });
+
+  it("should show success favicon when run completes without errors", async () => {
+    const { rerender } = render(<DynamicFavicon isRunning={true} />);
+
+    // Wait for the running favicon to be set
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    rerender(<DynamicFavicon isRunning={false} />);
+
+    // Wait for async favicon update
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const faviconElement =
+      document.querySelector<HTMLLinkElement>("link[rel~='icon']")!;
+    expect(faviconElement.href.endsWith("circle-check.ico")).toBe(true);
+  });
+
+  it("should show error favicon when run completes with errors", async () => {
+    (useCellErrors as ReturnType<typeof vi.fn>).mockReturnValue([
+      { error: "mock error" },
+    ]);
+
+    const { rerender } = render(<DynamicFavicon isRunning={true} />);
+
+    // Wait for the running favicon to be set
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    rerender(<DynamicFavicon isRunning={false} />);
+
+    // Wait for async favicon update
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const faviconElement =
+      document.querySelector<HTMLLinkElement>("link[rel~='icon']")!;
+    expect(faviconElement.href.endsWith("circle-x.ico")).toBe(true);
   });
 
   it("should not reset favicon when not in focus", async () => {
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     vi.useFakeTimers();
-    render(<DynamicFavicon isRunning={false} />);
-    vi.clearAllMocks();
 
+    const { rerender } = render(<DynamicFavicon isRunning={true} />);
+
+    // Wait for the running favicon to be set
+    await vi.advanceTimersByTimeAsync(0);
+
+    rerender(<DynamicFavicon isRunning={false} />);
+
+    // Wait for async favicon update
+    await vi.advanceTimersByTimeAsync(0);
+
+    const faviconElement =
+      document.querySelector<HTMLLinkElement>("link[rel~='icon']")!;
+    expect(faviconElement.href.endsWith("circle-check.ico")).toBe(true);
+
+    // Advance timers beyond the 3-second reset timeout
     await vi.advanceTimersByTimeAsync(3000);
 
-    expect(mockFetch).not.toHaveBeenCalledWith("./favicon.ico");
+    // Favicon should still be the success one since document is not in focus
+    expect(faviconElement.href.endsWith("circle-check.ico")).toBe(true);
   });
 
   it("should create favicon link if none exists", () => {
@@ -71,13 +111,6 @@ describe("DynamicFavicon", () => {
 
     const newFavicon = document.querySelector("link[rel~='icon']");
     expect(newFavicon).not.toBeNull();
-  });
-
-  it("should cleanup object URLs on unmount", () => {
-    const { unmount } = render(<DynamicFavicon isRunning={true} />);
-    unmount();
-
-    expect(mockRevokeObjectURL).toHaveBeenCalled();
   });
 
   describe("notifications", () => {
@@ -95,7 +128,27 @@ describe("DynamicFavicon", () => {
         expect(title).toBe("Execution completed");
         expect(options).toEqual({
           body: "Your notebook run completed successfully.",
-          icon: expect.any(String),
+          icon: "/src/assets/circle-check.ico",
+        });
+      });
+      // @ts-expect-error ok in tests
+      global.Notification.permission = "granted";
+
+      const { rerender } = render(<DynamicFavicon isRunning={true} />);
+      rerender(<DynamicFavicon isRunning={false} />);
+    });
+
+    it("should send error notification when run completes with errors", () => {
+      (useCellErrors as ReturnType<typeof vi.fn>).mockReturnValue([
+        { error: "mock error" },
+      ]);
+
+      // @ts-expect-error ok in tests
+      global.Notification = vi.fn().mockImplementation((title, options) => {
+        expect(title).toBe("Execution failed");
+        expect(options).toEqual({
+          body: "Your notebook run encountered 1 error(s).",
+          icon: "/src/assets/circle-x.ico",
         });
       });
       // @ts-expect-error ok in tests
