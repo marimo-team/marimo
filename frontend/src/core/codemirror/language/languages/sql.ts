@@ -20,6 +20,8 @@ import {
   sql,
 } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
+import { Compartment } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parser } from "@lezer/python";
 import dedent from "string-dedent";
@@ -43,6 +45,11 @@ import { indentOneTab } from "../utils/indentOneTab";
 import type { QuotePrefixKind } from "../utils/quotes";
 import { MarkdownLanguageAdapter } from "./markdown";
 import { DuckDBDialect } from "./sql-dialects/duckdb";
+
+const DEFAULT_DIALECT = DuckDBDialect;
+
+// A compartment for the SQL config, so we can update the config of codemirror
+const sqlConfigCompartment = new Compartment();
 
 export interface SQLLanguageAdapterMetadata {
   dataframeName: string;
@@ -190,7 +197,8 @@ export class SQLLanguageAdapter
 
   getExtension(): Extension[] {
     return [
-      sql({}),
+      // This can be updated with a dispatch effect
+      sqlConfigCompartment.of(sql({ dialect: DEFAULT_DIALECT })),
       autocompletion({
         // We remove the default keymap because we use our own which
         // handles the Escape key correctly in Vim
@@ -207,6 +215,24 @@ export class SQLLanguageAdapter
       }),
     ];
   }
+}
+
+/**
+ * Update the SQL dialect in the editor view.
+ */
+export function updateSQLDialect(view: EditorView, dialect: SQLDialect) {
+  view.dispatch({
+    effects: sqlConfigCompartment.reconfigure(sql({ dialect })),
+  });
+}
+
+/**
+ * Get the current dialect from editor state metadata.
+ */
+export function getCurrentDialect(state: EditorState): SQLDialect {
+  const metadata = getSQLMetadata(state);
+  const connectionName = metadata.engine;
+  return SCHEMA_CACHE.getDialect(connectionName);
 }
 
 type TableToCols = Record<string, string[]>;
@@ -416,7 +442,7 @@ function getSingleTable(connection: DataSourceConnection): string | undefined {
   return schema.tables[0].name;
 }
 
-function guessDialect(
+export function guessDialect(
   connection: DataSourceConnection,
 ): SQLDialect | undefined {
   switch (connection.dialect) {
