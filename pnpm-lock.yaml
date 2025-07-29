@@ -128,8 +128,8 @@ importers:
         specifier: ^1.1.18
         version: 1.1.18
       '@marimo-team/codemirror-ai':
-        specifier: ^0.1.11
-        version: 0.1.11(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+        specifier: ^0.2.1
+        version: 0.2.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
       '@marimo-team/codemirror-languageserver':
         specifier: ^1.15.24
         version: 1.15.24(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
@@ -1761,8 +1761,8 @@ packages:
   '@marijn/find-cluster-break@1.0.2':
     resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
 
-  '@marimo-team/codemirror-ai@0.1.11':
-    resolution: {integrity: sha512-EGFdLmJP5i4fV0Mec0V48Wlav7bvzbC+GWPmOmYmX49v1LLo1ie1x4CcbcM4IC3baH8MP3AdGvzD/7fSXBoupg==}
+  '@marimo-team/codemirror-ai@0.2.1':
+    resolution: {integrity: sha512-/MNEximwqSDwadGPG57fLkedovi9tNjtehEMGOCcVMrPOUx7I1WDTqmj+ojXvGYAd5nm9alRoClJpKWOjcQpnw==}
     peerDependencies:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
@@ -5207,6 +5207,10 @@ packages:
   diff-sequences@29.6.3:
     resolution: {integrity: sha512-EjePK1srD3P08o2j4f0ExnylqRs5B9tJjcp9t1krH2qRi8CCdsYfwe9JgSLurFBWwq4uOlipzfk5fHNvwFKr8Q==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
+
+  diff@8.0.2:
+    resolution: {integrity: sha512-sSuxWU5j5SR9QQji/o2qMvqRNYRDOcBTgsJ/DeCf4iSN4gW+gNMXM7wFIP+fdXZxoNiAnHUTGjCr+TSWXdRDKg==}
+    engines: {node: '>=0.3.1'}
 
   dir-glob@3.0.1:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
@@ -10821,10 +10825,11 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.2': {}
 
-  '@marimo-team/codemirror-ai@0.1.11(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+  '@marimo-team/codemirror-ai@0.2.1(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.1
+      diff: 8.0.2
 
   '@marimo-team/codemirror-languageserver@1.15.24(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
     dependencies:
@@ -15065,6 +15070,8 @@ snapshots:
   diff-match-patch@1.0.5: {}
 
   diff-sequences@29.6.3: {}
+
+  diff@8.0.2: {}
 
   dir-glob@3.0.1:
     dependencies:

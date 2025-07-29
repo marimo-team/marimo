@@ -1630,6 +1630,29 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
+              name="experimental.next_edit_prediction"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Next Edit Prediction
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="inline-ai-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormDescription>
+                    Enable experimental next edit prediction.
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="experimental.rtc_v2"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
