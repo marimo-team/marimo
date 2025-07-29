@@ -54,12 +54,16 @@ python your_notebook.py
 
 You can also [pass CLI args](../guides/scripts.md) to your notebook.
 
-## Convert from Jupyter to marimo
+## Convert Jupyter notebooks and Python scripts to marimo
 
-Automatically convert Jupyter notebooks to marimo notebooks with `marimo convert`:
+Automatically convert Jupyter notebooks and Python scripts to marimo notebooks with `marimo convert`:
 
 ```bash
+# From Jupyter notebook
 marimo convert your_notebook.ipynb -o your_notebook.py
+
+# From Python script or jupytext py:percent format
+marimo convert your_script.py -o your_notebook.py
 ```
 
 Then open the notebook with `marimo edit your_notebook.py`
