@@ -36,7 +36,6 @@ def _():
     import polars as pl 
     import altair as alt
     from model2vec import StaticModel
-    from sklearn.decomposition import PCA
     from umap import UMAP
     return StaticModel, UMAP, alt, mo, pl
 
