@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Extension } from "@codemirror/state";
-import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
+import { type EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   type CodeMirror,
   type CodeMirrorV,
