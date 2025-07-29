@@ -139,6 +139,26 @@ function cellKeymaps({
         },
       },
       {
+        key: hotkeys.getHotkey("cell.moveLeft").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: true, direction: "left" });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.moveRight").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: false, direction: "right" });
+          return true;
+        },
+      },
+      {
         key: "ArrowUp",
         preventDefault: true,
         stopPropagation: true,
