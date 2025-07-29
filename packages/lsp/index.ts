@@ -1,13 +1,13 @@
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
 import { dirname } from "node:path";
-import type { IWebSocket } from "@sourcegraph/vscode-ws-jsonrpc";
-import { forward } from "@sourcegraph/vscode-ws-jsonrpc/lib/server/connection.js";
+import parseArgs from "minimist";
+import type { IWebSocket } from "vscode-ws-jsonrpc";
 import {
   createServerProcess,
   createWebSocketConnection,
-} from "@sourcegraph/vscode-ws-jsonrpc/lib/server/launch.js";
-import parseArgs from "minimist";
+  forward,
+} from "vscode-ws-jsonrpc/server";
 import type { CloseEvent, Data, ErrorEvent, MessageEvent, WebSocket } from "ws";
 import { WebSocketServer } from "ws";
 
@@ -118,6 +118,10 @@ function handleWebSocketConnection(
     languageServerCommand[0],
     languageServerCommand.slice(1),
   );
+
+  if (!jsonRpcConnection) {
+    throw new Error("Not able to create json-rpc connection.");
+  }
 
   const socket = new WebSocketAdapter(webSocket, logger);
   const connection = createWebSocketConnection(socket);
