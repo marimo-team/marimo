@@ -21,8 +21,7 @@ jobs:
         with:
           filters: |
             cli:
-              - '**'
-              - '!{docs/**,examples/**,README.md,tests/**,frontend/**}'
+              - 'marimo/**'
 
   build_wheel:
     needs: changes

@@ -22,9 +22,8 @@ jobs:
         with:
           filters: |
             playwright:
-              - '**'
-              - '!{docs/**,examples/**,README.md,tests/**}'
-
+              - 'frontend/**'
+              - 'marimo/**'
   test:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
