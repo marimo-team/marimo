@@ -111,12 +111,14 @@ export function usePendingDelete(cellId: CellId) {
     }
     const entries = [...state.values()];
     if (entries.every((entry) => entry.type === "simple")) {
-      if (state.size === 1) {
-        deleteCell({ cellId: entries[0].cellId });
-      } else {
-        deleteManyCells({ cellIds: entries.map((e) => e.cellId) });
-      }
-      setState(new Map());
+      setState(() => {
+        if (state.size === 1) {
+          deleteCell({ cellId: entries[0].cellId });
+        } else {
+          deleteManyCells({ cellIds: entries.map((e) => e.cellId) });
+        }
+        return new Map();
+      });
     }
   }, [state, deleteCell, deleteManyCells, setState]);
 
