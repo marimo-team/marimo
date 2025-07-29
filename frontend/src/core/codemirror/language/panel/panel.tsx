@@ -71,7 +71,7 @@ export const LanguagePanelComponent: React.FC<{
     };
 
     actions = (
-      <div className="flex flex-1 gap-2 relative items-center">
+      <div className="flex flex-1 gap-2 items-center">
         <label className="flex gap-2 items-center">
           <span className="select-none">Output variable: </span>
           <input

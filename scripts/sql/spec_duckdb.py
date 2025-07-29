@@ -197,7 +197,7 @@ def _(excluded_keywords):
               STRING_AGG(DISTINCT keyword, ' ' ORDER BY keyword) AS keywords_str
             FROM
               stg_keywords
-            WHERE {filter_keywords_query("keyword", excluded_keywords)}
+            WHERE {filter_keywords_query('keyword', excluded_keywords)}
           ),
           builtin_keywords AS (
             SELECT
