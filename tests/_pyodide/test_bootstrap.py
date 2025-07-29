@@ -97,7 +97,7 @@ async def test_create_session_with_invalid_script_config(
 ) -> None:
     # Create a file with invalid config
     filename = tmp_path / "test.py"
-    content = """# ---
+    content = f"""# ---
 # marimo:
 #   invalid: true
 # ---
