@@ -217,6 +217,37 @@ async def test_uv_install_not_in_project(mock_run: MagicMock):
 
 
 @patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_not_in_project_with_target(mock_run: MagicMock):
+    """Test UV install uses pip with target"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    # Explicitly set environ, since patch doesn't work in an asynchronous
+    # context.
+    import os
+
+    os.environ["MARIMO_UV_TARGET"] = "target_path"
+    result = await mgr._install("package1 package2", upgrade=False)
+    del os.environ["MARIMO_UV_TARGET"]
+
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--target=target_path",
+            "--compile",
+            "package1",
+            "package2",
+            "-p",
+            PY_EXE,
+        ],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
 @patch.object(UvPackageManager, "is_in_uv_project", True)
 async def test_uv_install_in_project(mock_run: MagicMock):
     """Test UV install uses add subcommand when in UV project"""

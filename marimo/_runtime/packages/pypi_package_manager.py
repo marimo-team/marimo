@@ -152,7 +152,13 @@ class UvPackageManager(PypiPackageManager):
             install_cmd = [self._uv_bin, "add"]
         else:
             LOGGER.info(f"Installing in {package} with 'uv pip install'")
+
             install_cmd = [self._uv_bin, "pip", "install"]
+
+            # Allow for explicit site directory location if needed
+            target = os.environ.get("MARIMO_UV_TARGET", None)
+            if target:
+                install_cmd.append(f"--target={target}")
 
         if upgrade:
             install_cmd.append("--upgrade")
