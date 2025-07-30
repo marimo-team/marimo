@@ -23,11 +23,17 @@ import tomlkit
 
 root = pathlib.Path(__file__).parent.parent
 
-force_exclude = [
-    str(item.relative_to(root))
-    for item in (root / "marimo/_static").iterdir()
-    if item.name != "index.html"
-]
+static_dir = root / "marimo/_static"
+
+if static_dir.exists():
+    force_exclude = [
+        str(item.relative_to(root))
+        for item in static_dir.iterdir()
+        if item.name != "index.html"
+    ]
+else:
+    print("No _static directory found, skipping")
+    force_exclude = []
 
 with (root / "pyproject.toml").open(encoding="utf-8", mode="r") as f:
     data = tomlkit.load(f)
