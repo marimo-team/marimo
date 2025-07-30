@@ -1620,12 +1620,12 @@ describe("useCellEditorNavigationProps", () => {
       });
     });
 
-    it("should focus cell when Shift+Escape is pressed in vim mode", () => {
+    it("should focus cell when Ctrl+Escape is pressed in vim mode", () => {
       const { result } = renderWithProvider(() =>
         useCellEditorNavigationProps(mockCellId),
       );
 
-      const mockEvent = Mocks.keyboardEvent({ key: "Escape", shiftKey: true });
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape", ctrlKey: true });
 
       act(() => {
         result.current.onKeyDown?.(mockEvent);
@@ -1635,7 +1635,7 @@ describe("useCellEditorNavigationProps", () => {
       expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
     });
 
-    it("should not focus cell when Escape (without Shift) is pressed in vim mode", () => {
+    it("should not focus cell when Escape (without Ctrl) is pressed in vim mode", () => {
       const { result } = renderWithProvider(() =>
         useCellEditorNavigationProps(mockCellId),
       );

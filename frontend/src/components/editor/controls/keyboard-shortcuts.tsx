@@ -255,7 +255,7 @@ export const KeyboardShortcuts: React.FC = () => {
         Press{" "}
         {config.keymap.preset === "vim" ? (
           <>
-            <kbd>Shift</kbd>+<kbd>Esc</kbd>
+            <kbd>Ctrl</kbd>+<kbd>Esc</kbd>
           </>
         ) : (
           <kbd>Esc</kbd>
