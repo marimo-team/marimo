@@ -23,9 +23,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.dataflow import induced_subgraph
 from marimo._runtime.primitives import (
-    CLONE_PRIMITIVES,
     FN_CACHE_TYPE,
-    build_ref_predicate_for_primitives,
     is_data_primitive,
     is_data_primitive_container,
     is_primitive,
