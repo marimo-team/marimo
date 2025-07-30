@@ -419,6 +419,7 @@ class KernelCapabilities:
     terminal: bool = False
     pylsp: bool = False
     ty: bool = False
+    basedpyright: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux

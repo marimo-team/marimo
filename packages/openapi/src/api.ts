@@ -3063,6 +3063,7 @@ export interface components {
         width: "normal" | "compact" | "medium" | "full" | "columns";
       };
       capabilities: {
+        basedpyright: boolean;
         pylsp: boolean;
         terminal: boolean;
         ty: boolean;
@@ -3231,6 +3232,9 @@ export interface components {
         vimrc?: string | null;
       };
       language_servers?: {
+        basedpyright?: {
+          enabled?: boolean;
+        };
         pylsp?: {
           enable_flake8?: boolean;
           enable_mypy?: boolean;
@@ -3238,9 +3242,6 @@ export interface components {
           enable_pyflakes?: boolean;
           enable_pylint?: boolean;
           enable_ruff?: boolean;
-          enabled?: boolean;
-        };
-        pyright?: {
           enabled?: boolean;
         };
         ty?: {

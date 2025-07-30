@@ -1280,6 +1280,8 @@ components:
           type: object
         capabilities:
           properties:
+            basedpyright:
+              type: boolean
             pylsp:
               type: boolean
             terminal:
@@ -1290,6 +1292,7 @@ components:
           - terminal
           - pylsp
           - ty
+          - basedpyright
           type: object
         cell_ids:
           items:
