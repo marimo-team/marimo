@@ -396,8 +396,9 @@ const CellEditorInternal = ({
   if (isMarkdown && hidden && hasOutput) {
     editorClassName = "h-0 overflow-hidden";
   } else if (hidden) {
+    // Shortens the editor and hides the cell panels
     editorClassName =
-      "opacity-20 h-8 [&>div.cm-editor]:h-full [&>div.cm-editor]:overflow-hidden";
+      "opacity-20 h-8 [&>div.cm-editor]:h-full [&>div.cm-editor]:overflow-hidden [&_.cm-panels]:hidden";
   }
 
   return (
