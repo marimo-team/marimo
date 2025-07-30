@@ -52,6 +52,7 @@ class MarimoConvert:
     @staticmethod
     def from_non_marimo_python_script(
         source: str,
+        aggressive: bool = False,
     ) -> MarimoConverterIntermediate:
         """Convert from a non-marimo Python script to marimo notebook.
 
@@ -60,13 +61,39 @@ class MarimoConvert:
 
         Args:
             source: Unknown Python script source code string
+            aggressive: If True, will attempt to convert aggressively,
+                        turning even invalid text into a notebook.
         """
         from marimo._convert.non_marimo_python_script import (
             convert_non_marimo_python_script_to_notebook_ir,
+            convert_non_marimo_script_to_notebook_ir,
+        )
+
+        if aggressive:
+            notebook_ir = convert_non_marimo_script_to_notebook_ir(source)
+        else:
+            notebook_ir = convert_non_marimo_python_script_to_notebook_ir(
+                source
+            )
+        return MarimoConvert.from_ir(notebook_ir)
+
+    @staticmethod
+    def from_text(
+        source: str,
+    ) -> MarimoConverterIntermediate:
+        """Convert text from a script into something that will open.
+
+        Used for cases with syntax errors or unparsable code.
+
+        Args:
+            source: Unknown source code string
+        """
+        from marimo._convert.non_marimo_python_script import (
+            convert_script_block_to_notebook_ir,
         )
 
         return MarimoConvert.from_ir(
-            convert_non_marimo_python_script_to_notebook_ir(source)
+            convert_script_block_to_notebook_ir(source)
         )
 
     @staticmethod
