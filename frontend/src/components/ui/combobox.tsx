@@ -175,8 +175,8 @@ export const Combobox = <TValue,>({
             )}
             aria-expanded={open}
           >
-            {renderValue()}{" "}
-            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50" />
+            <span className="truncate flex-1 min-w-0">{renderValue()}</span>
+            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50 flex-shrink-0" />
           </div>
         </PopoverTrigger>
         <PopoverContent

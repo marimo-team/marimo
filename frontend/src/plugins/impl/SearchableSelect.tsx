@@ -105,7 +105,9 @@ export const SearchableSelect = (props: SearchableSelectProps): JSX.Element => {
         }}
         placeholder="Select..."
         multiple={false}
-        className={cn("w-full", { "w-full": fullWidth })}
+        className={cn({
+          "w-full": fullWidth,
+        })}
         value={value ?? NONE_KEY}
         onValueChange={handleValueChange}
         shouldFilter={false}
