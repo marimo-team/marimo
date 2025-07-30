@@ -8,4 +8,5 @@ the Python dependencies of your notebooks.
 | [Importing packages](importing_packages.md)     | How marimo finds packages on import |
 | [Installing packages](installing_packages.md)     | Installing packages with marimo's UI                      |
 | [Inlining dependencies](inlining_dependencies.md)     | Create self-contained notebooks by inlining dependencies in notebook files                      |
+| [Notebooks in existing projects](notebooks_in_projects.md)     | Working with marimo notebooks in existing Python projects                      |
 | [Using uv](using_uv.md)     | A guide to using the uv package manager with marimo                     |
