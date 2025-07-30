@@ -643,7 +643,7 @@ def new(
         try:
             _maybe_path = Path(prompt)
             if _maybe_path.is_file():
-                prompt = _maybe_path.read_text()
+                prompt = _maybe_path.read_text(encoding="utf-8")
         except OSError:
             # is_file() fails when, for example, the "filename" (prompt) is too long
             pass
