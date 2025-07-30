@@ -708,4 +708,4 @@ def test_sqlalchemy_engine_get_cursor_metadata(
         assert SQLAlchemyEngine.is_cursor_result(result)
         metadata = SQLAlchemyEngine.get_cursor_metadata(result)
         assert metadata is not None
-        assert metadata["sql_statement_type"] == "Query"
+        assert metadata["sql_statement_type"] == "Query / Unknown"

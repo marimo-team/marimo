@@ -198,6 +198,10 @@ List all tutorials:
 marimo tutorial --help
 ```
 
+**Share cloud-based notebooks.** Use
+[molab](https://molab.marimo.io/notebooks), a cloud-based marimo notebook
+service similar to Google Colab, to create and share notebook links.
+
 ## Questions?
 
 See the [FAQ](https://docs.marimo.io/faq.html) at our docs.

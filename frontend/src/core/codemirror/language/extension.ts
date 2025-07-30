@@ -28,6 +28,7 @@ import { historyCompartment } from "../editing/extensions";
 import { formattingChangeEffect } from "../format";
 import { createPanel } from "../react-dom/createPanel";
 import { getLanguageAdapters, LanguageAdapters } from "./LanguageAdapters";
+import { initializeSQLDialect } from "./languages/sql";
 import type { LanguageMetadata } from "./metadata";
 import { languageMetadataField, setLanguageMetadata } from "./metadata";
 import { LanguagePanelComponent } from "./panel/panel";
@@ -192,6 +193,11 @@ function updateLanguageAdapterAndCode({
   view.dispatch({
     effects: [historyCompartment.reconfigure([history()])],
   });
+
+  // Initialize SQL dialect if switching to SQL
+  if (nextLanguage.type === "sql") {
+    initializeSQLDialect(view);
+  }
 }
 
 /**

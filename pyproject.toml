@@ -178,6 +178,7 @@ dependencies = [
     "pyiceberg>=0.9.0",
     "litellm>=1.70.0",
     "python-dotenv>=1.0.1",
+    "jupytext>=1.17.2",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
@@ -266,8 +267,9 @@ extra-dependencies = [
     "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb
-    "nbformat >=5.10.4",
+    "nbformat>=5.10.4",
     "sympy>=1.13.3",
+    "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",

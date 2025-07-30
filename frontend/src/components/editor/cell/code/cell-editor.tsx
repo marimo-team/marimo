@@ -49,7 +49,7 @@ export interface CellEditorProps
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;
-  editorViewRef: React.MutableRefObject<EditorView | null>;
+  editorViewRef: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
   userConfig: UserConfig;
   /**
@@ -65,7 +65,7 @@ export interface CellEditorProps
   >;
   // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
-  editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
+  editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
   showHiddenCode: (opts?: { focus?: boolean }) => void;
 }
 
@@ -216,6 +216,12 @@ const CellEditorInternal = ({
             showHiddenCode({ focus: false });
           }
         }
+      }),
+      // Whenever the editor is focused (e.g. via go-to-definition), show the cell if it is hidden.
+      EditorView.domEventHandlers({
+        focus: () => {
+          showHiddenCode({ focus: false });
+        },
       }),
     );
 
@@ -501,7 +507,6 @@ CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 function WithWaitUntilConnected<T extends {}>(
   Component: React.ComponentType<T>,
 ) {
-  // biome-ignore lint/nursery/noNestedComponentDefinitions: this is evaluated top-level
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);

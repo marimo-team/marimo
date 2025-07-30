@@ -32,18 +32,30 @@ export function usePendingDeleteService() {
 
   const submit = useCallback(
     (cellIds: CellId[]) => {
-      const entries = new Map<CellId, PendingDeleteEntry>();
+      const emptyCells = new Set(
+        notebook.cellIds.inOrderIds.filter(
+          (id) => notebook.cellData[id].code.trim() === "",
+        ),
+      );
 
+      const entries = new Map<CellId, PendingDeleteEntry>();
       for (const cellId of cellIds) {
+        if (emptyCells.has(cellId)) {
+          // Empty cells indicate user intent to delete already
+          entries.set(cellId, { cellId, type: "simple" });
+          continue;
+        }
+
         const runtimeInfo = notebook.cellRuntime[cellId];
 
         // Build defs map for this cell
         const defs = new Map<VariableName, readonly CellId[]>();
         for (const variable of Object.values(variables)) {
-          if (
-            variable.declaredBy.includes(cellId) &&
-            variable.usedBy.length > 0
-          ) {
+          const declaredByThisCell = variable.declaredBy.includes(cellId);
+          const usedByNonEmptyCell = variable.usedBy.some(
+            (cellId) => !emptyCells.has(cellId),
+          );
+          if (declaredByThisCell && usedByNonEmptyCell) {
             defs.set(variable.name, variable.usedBy);
           }
         }
@@ -99,12 +111,14 @@ export function usePendingDelete(cellId: CellId) {
     }
     const entries = [...state.values()];
     if (entries.every((entry) => entry.type === "simple")) {
-      if (state.size === 1) {
-        deleteCell({ cellId: entries[0].cellId });
-      } else {
-        deleteManyCells({ cellIds: entries.map((e) => e.cellId) });
-      }
-      setState(new Map());
+      setState(() => {
+        if (state.size === 1) {
+          deleteCell({ cellId: entries[0].cellId });
+        } else {
+          deleteManyCells({ cellIds: entries.map((e) => e.cellId) });
+        }
+        return new Map();
+      });
     }
   }, [state, deleteCell, deleteManyCells, setState]);
 

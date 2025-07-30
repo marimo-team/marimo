@@ -344,7 +344,7 @@ def latex(*, filename: Union[str, Path]) -> None:
         with urlopen(filename) as response:
             text = response.read().decode("utf-8")
     elif (file := Path(filename)).exists():
-        text = file.read_text()
+        text = file.read_text(encoding="utf-8")
     else:
         raise ValueError(f"Invalid filename: {filename}")
 

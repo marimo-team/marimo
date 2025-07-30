@@ -645,6 +645,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "9",
+        code: "Digit9",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -667,6 +668,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "9",
+        code: "Digit9",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -686,6 +688,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "0",
+        code: "Digit0",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -761,6 +764,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "9",
+        code: "Digit9",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -795,6 +799,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "0",
+        code: "Digit0",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -830,6 +835,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "1",
+        code: "Digit1",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -862,6 +868,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "2",
+        code: "Digit2",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1365,6 +1372,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "7",
+        code: "Digit7",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1389,6 +1397,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "8",
+        code: "Digit8",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1411,6 +1420,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "7",
+        code: "Digit7",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1430,6 +1440,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "8",
+        code: "Digit8",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1459,6 +1470,7 @@ describe("useCellNavigationProps", () => {
 
       const mockEvent = Mocks.keyboardEvent({
         key: "7",
+        code: "Digit7",
         ctrlKey: true,
         shiftKey: true,
       });
@@ -1561,6 +1573,9 @@ describe("useCellNavigationProps", () => {
 describe("useCellEditorNavigationProps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset config overrides
+    store.set(configOverridesAtom, {});
   });
 
   describe("keyboard shortcuts", () => {
@@ -1585,6 +1600,47 @@ describe("useCellEditorNavigationProps", () => {
       );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Enter" });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(focusCell).not.toHaveBeenCalled();
+      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("vim mode", () => {
+    beforeEach(() => {
+      // Set up vim mode in store
+      store.set(configOverridesAtom, {
+        keymap: {
+          preset: "vim",
+        },
+      });
+    });
+
+    it("should focus cell when Shift+Escape is pressed in vim mode", () => {
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape", shiftKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(focusCell).toHaveBeenCalledWith(mockCellId);
+      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+    });
+
+    it("should not focus cell when Escape (without Shift) is pressed in vim mode", () => {
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
 
       act(() => {
         result.current.onKeyDown?.(mockEvent);

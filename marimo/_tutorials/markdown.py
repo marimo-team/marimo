@@ -229,7 +229,7 @@ def _(mo, np):
         generates rich HTML for many Python types, including:
 
         - lists, dicts, and tuples,
-        - `pandas` dataframes and series,
+        - `pandas` and `polars` dataframes and series,
         - `seaborn` figures,
         - `plotly` figures, and
         - `altair` figures.

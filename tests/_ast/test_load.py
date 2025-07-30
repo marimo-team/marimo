@@ -9,6 +9,7 @@ import pytest
 
 from marimo import _loggers
 from marimo._ast import load
+from marimo._ast.parse import MarimoFileError
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -215,6 +216,13 @@ class TestGetCodes:
     def test_get_codes_app_with_only_comments(load_app) -> None:
         app = load_app(get_filepath("test_app_with_only_comments"))
         assert app is None
+
+    @staticmethod
+    def test_get_codes_non_marimo_python_script(static_load) -> None:
+        with pytest.raises(MarimoFileError, match="is not a marimo notebook."):
+            static_load(
+                get_filepath("test_get_codes_non_marimo_python_script")
+            )
 
     @staticmethod
     def test_get_codes_app_with_no_cells(load_app) -> None:

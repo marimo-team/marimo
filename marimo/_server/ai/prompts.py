@@ -93,7 +93,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             f"Your output must be valid {language} code.\n"
             "You can use the provided context to help you write the new cell.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format with no remarks. \n\n"
+            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
             "```\n{CELL_CODE}\n```"
         )
 
@@ -121,7 +121,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "<insert_here></insert_here> tags. Don't include the insert_here tags in your output.\n"
                 "Match the indentation in the original file in the inserted content, "
                 "don't include any indentation on blank lines.\n"
-                "Immediately start with the following format with no remarks:\n\n"
+                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
                 "```\n{INSERTED_CODE}\n```"
             )
         else:
@@ -131,7 +131,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "Start at the indentation level in the original file in the rewritten content. "
                 "Don't stop until you've rewritten the entire section, even if you have no more changes to make, "
                 "always write out the whole section with no unnecessary elisions.\n"
-                "Immediately start with the following format with no remarks:\n\n"
+                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
                 "```\n{REWRITTEN_CODE}\n```"
             )
 
@@ -155,6 +155,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt += "\n\n" + _tag(
             "code_from_other_cells", other_cell_codes
         )
+
+    system_prompt += "\n\nAgain, just output the code itself."
 
     return system_prompt
 
