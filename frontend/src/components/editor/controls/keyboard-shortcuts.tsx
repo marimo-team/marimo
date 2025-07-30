@@ -5,6 +5,7 @@ import { EditIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import {
@@ -251,14 +252,15 @@ export const KeyboardShortcuts: React.FC = () => {
   const renderCommandGroup = (group: HotkeyGroup) =>
     renderGroup(
       group,
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground flex items-center gap-1">
         Press{" "}
         {config.keymap.preset === "vim" ? (
           <>
-            <kbd>Shift</kbd>+<kbd>Esc</kbd>
+            <KeyboardHotkeys shortcut={isPlatformMac() ? "Cmd" : "Ctrl"} />
+            <Kbd>Esc</Kbd>
           </>
         ) : (
-          <kbd>Esc</kbd>
+          <Kbd>Esc</Kbd>
         )}{" "}
         in a cell to enter command mode
       </p>,

@@ -44,7 +44,7 @@ editing their contents.
 
 **Enter/Exit:**
 
-- Enter command mode: `Esc` (from cell editor) or `Shift+Esc` (when vim keybindings are enabled)
+- Enter command mode: `Esc` (from cell editor) or `Ctrl+Esc`/`Cmd+Esc` (when vim keybindings are enabled)
 - Exit command mode: `Enter` or click on a cell
 
 **Shortcuts:**
@@ -63,7 +63,7 @@ When [vim keybindings](#vim-keybindings) are enabled, additional shortcuts are a
 ### Vim keybindings
 
 marimo supports vim keybindings that extend to notebook editing. Within cells,
-use standard vim modes. Press `Shift+Esc` from normal mode to enter [command
+use standard vim modes. Press `Ctrl+Esc` (or `Cmd+Esc` on macOS) from normal mode to enter [command
 mode](#command-mode) for notebook navigation.
 
 **Cell editing additions:**
@@ -96,7 +96,7 @@ vimrc = relative/path/.vimrc
 
 **Command mode additions:**
 
-When vim keybindings are enabled, press `Shift+Esc` from normal mode to enter
+When vim keybindings are enabled, press `Ctrl+Esc` (or `Cmd+Esc` on macOS) from normal mode to enter
 [command mode](#command-mode) with additional vim-specific keybindings:
 
 - `j`/`k` - navigate cells
