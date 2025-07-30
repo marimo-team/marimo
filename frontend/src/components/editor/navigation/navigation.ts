@@ -606,9 +606,9 @@ export function useCellEditorNavigationProps(cellId: CellId) {
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
-      // For vim mode, require Ctrl+Escape to exit to command mode
+      // For vim mode, require Ctrl+Escape (or Cmd+Escape on Mac) to exit to command mode
       if (keymapPreset === "vim") {
-        if (evt.key === "Escape" && evt.ctrlKey) {
+        if (evt.key === "Escape" && (evt.ctrlKey || evt.metaKey)) {
           setTemporarilyShownCode(false);
           focusCell(cellId);
         }

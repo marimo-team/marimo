@@ -1635,6 +1635,21 @@ describe("useCellEditorNavigationProps", () => {
       expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
     });
 
+    it("should focus cell when Cmd+Escape (metaKey) is pressed in vim mode", () => {
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape", metaKey: true });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(focusCell).toHaveBeenCalledWith(mockCellId);
+      expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
+    });
+
     it("should not focus cell when Escape (without Ctrl) is pressed in vim mode", () => {
       const { result } = renderWithProvider(() =>
         useCellEditorNavigationProps(mockCellId),
