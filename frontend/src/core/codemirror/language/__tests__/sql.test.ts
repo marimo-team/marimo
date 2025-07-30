@@ -21,6 +21,7 @@ import {
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
 } from "../languages/sql";
+import { DuckDBDialect } from "../languages/sql-dialects/duckdb";
 import { languageMetadataField } from "../metadata";
 
 const adapter = new SQLLanguageAdapter();
@@ -724,7 +725,7 @@ describe("tablesCompletionSource", () => {
 
     const completionSource = completionStore.getCompletionSource(TEST_ENGINE);
     expect(completionSource?.defaultTable).toBeUndefined();
-    expect(completionSource?.dialect).toBe(undefined);
+    expect(completionSource?.dialect).toBe(DuckDBDialect);
     expect(completionSource?.schema).toMatchInlineSnapshot(`
       {
         "public": {

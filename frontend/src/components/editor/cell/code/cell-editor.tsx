@@ -507,7 +507,6 @@ CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 function WithWaitUntilConnected<T extends {}>(
   Component: React.ComponentType<T>,
 ) {
-  // biome-ignore lint/nursery/noNestedComponentDefinitions: this is evaluated top-level
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
