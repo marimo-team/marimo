@@ -22,7 +22,7 @@ def _(mo):
         r"""
         # Visualization: Embedding Summary and Bulk Selection 
 
-        Create interactive dashboards using `mo.altair_chart` and `UMAP`.
+        Create interactive scatterplots using `mo.altair_chart` and `UMAP`.
         This technique is generally useful for any kind of embedding, but we're demonstrating it with text embeddings below.
         """
     )
@@ -47,7 +47,7 @@ def _(StaticModel, UMAP, pl):
 
     df = pl.read_csv(DATASET).sample(10_000)
     
-    # We're using Model2Vec because it so lightweight, sentence-transformers will also work!
+    # We're using Model2Vec because it's lightweight; sentence-transformers will also work
     tfm = StaticModel.from_pretrained("minishlab/potion-base-8M")
     df = df.with_columns(emb=tfm.encode(df[TEXT_COL].to_list()))
 
