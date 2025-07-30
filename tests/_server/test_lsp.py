@@ -151,7 +151,11 @@ def test_composite_server():
         mock_dm.pylsp.has.return_value = True
         total_lsp_servers = 4
         config = LanguageServersConfig(
-            {"pylsp": {"enabled": True}, "ty": {"enabled": True}, "basedpyright": {"enabled": True}}
+            {
+                "pylsp": {"enabled": True},
+                "ty": {"enabled": True},
+                "basedpyright": {"enabled": True},
+            }
         )
         completion_config = CompletionConfig(
             {"copilot": True, "activate_on_typing": True}
@@ -180,7 +184,11 @@ def test_composite_server():
 
         # Test with only ty enabled
         config = LanguageServersConfig(
-            {"ty": {"enabled": True}, "pylsp": {"enabled": False}, "basedpyright": {"enabled": False}}
+            {
+                "ty": {"enabled": True},
+                "pylsp": {"enabled": False},
+                "basedpyright": {"enabled": False},
+            }
         )
         completion_config = CompletionConfig(
             {"copilot": False, "activate_on_typing": True}
@@ -195,7 +203,11 @@ def test_composite_server():
 
         # Test with only basedpyright enabled
         config = LanguageServersConfig(
-            {"basedpyright": {"enabled": True}, "pylsp": {"enabled": False}, "ty": {"enabled": False}}
+            {
+                "basedpyright": {"enabled": True},
+                "pylsp": {"enabled": False},
+                "ty": {"enabled": False},
+            }
         )
         completion_config = CompletionConfig(
             {"copilot": False, "activate_on_typing": True}
