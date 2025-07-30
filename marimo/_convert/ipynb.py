@@ -718,6 +718,7 @@ def _transform_sources(
     source_transforms: list[Transform] = [
         transform_strip_whitespace,
         transform_magic_commands,
+        transform_exclamation_mark,
         transform_remove_duplicate_imports,
         transform_fixup_multiple_definitions,
         transform_duplicate_definitions,
