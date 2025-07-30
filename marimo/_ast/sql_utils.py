@@ -1,6 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -19,7 +19,7 @@ SQLGLOT_DIALECTS = Literal[
 
 def classify_sql_statement(
     sql_statement: str, dialect: Optional[SQLGLOT_DIALECTS] = None
-) -> SQL_TYPE | Literal["unknown"]:
+) -> Union[SQL_TYPE, Literal["unknown"]]:
     """
     Identifies whether a SQL statement is a DDL, DML, or DQL statement.
     """
