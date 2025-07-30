@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
+from marimo._ast.sql_utils import classify_sql_statement
 from marimo._config.config import SqlOutputType
 from marimo._data.models import (
     Database,
@@ -234,6 +235,12 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
             return None
 
         query = query.strip()
+
+        sql_type = classify_sql_statement(query)
+        if sql_type == "DDL" or sql_type == "DML":
+            # TODO: Return the result of the command instead of an empty list
+            result = self._connection.command(query)
+            return []
 
         sql_output_format = self.sql_output_format()
         if sql_output_format == "native":
