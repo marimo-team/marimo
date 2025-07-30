@@ -1,0 +1,45 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    # (use marimo's built-in package management features instead) !pip install transformers
+    return
+
+
+@app.cell
+def _():
+    # (use marimo's built-in package management features instead) !pip install pandas numpy matplotlib
+    return
+
+
+@app.cell
+def _():
+    # Mixed cell with pip and other commands
+    # (use marimo's built-in package management features instead) !pip install scikit-learn
+    import numpy as np
+    # (use marimo's built-in package management features instead) !pip install seaborn
+    return
+
+
+app._unparsable_cell(
+    r"""
+    # Non-pip exclamation commands should remain unchanged
+    !ls -la
+    !echo 'Hello World'
+    """,
+    name="_"
+)
+
+
+@app.cell
+def _():
+    # Magic pip command should also be handled
+    # '%pip install requests' command supported automatically in marimo
+    return
+
+
+if __name__ == "__main__":
+    app.run()

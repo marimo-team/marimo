@@ -156,6 +156,17 @@ for i_1 in range(X_1.shape[0]):
         ],
     )
 
+    create_notebook_fixture(
+        "pip_commands",
+        [
+            "!pip install transformers",
+            "!pip install pandas numpy matplotlib",
+            "# Mixed cell with pip and other commands\n!pip install scikit-learn\nimport numpy as np\n!pip install seaborn",
+            "# Non-pip exclamation commands should remain unchanged\n!ls -la\n!echo 'Hello World'",
+            "# Magic pip command should also be handled\n%pip install requests",
+        ],
+    )
+
 
 if __name__ == "__main__":
     main()
