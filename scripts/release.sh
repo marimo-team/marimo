@@ -84,7 +84,6 @@ echo -e "\n${BOLD}Release Summary:${NC}"
 echo "  • New Version: $NEW_VERSION"
 echo "  • Files to be committed:"
 echo "    - pyproject.toml"
-echo "    - uv.lock"
 
 if ! confirm "Proceed with release?"; then
   print_warning "Release cancelled"
@@ -94,7 +93,6 @@ fi
 # Commit version change
 print_step "Committing version change"
 git add pyproject.toml
-git add uv.lock
 git commit -m "release: $NEW_VERSION"
 
 # Push changes
