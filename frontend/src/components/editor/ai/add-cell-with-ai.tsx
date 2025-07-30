@@ -127,6 +127,7 @@ export const AddCellWithAI: React.FC<{
       </DropdownMenu>
       <PromptInput
         theme={theme}
+        minHeight="2.5rem"
         onClose={() => {
           setCompletion("");
           onClose();
@@ -226,6 +227,7 @@ interface PromptInputProps {
   additionalCompletions?: AdditionalCompletions;
   theme: ResolvedTheme;
   maxHeight?: string;
+  minHeight?: string;
 }
 
 /**
@@ -239,12 +241,13 @@ export const PromptInput = ({
   placeholder,
   inputRef,
   className,
+  onClose,
   onChange,
   onSubmit,
-  onClose,
   additionalCompletions,
   theme,
   maxHeight,
+  minHeight = "2.5rem",
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
@@ -362,6 +365,7 @@ export const PromptInput = ({
       onChange={onChange}
       theme={theme === "dark" ? "dark" : "light"}
       placeholder={placeholder || "Generate with AI"}
+      minHeight={minHeight}
     />
   );
 };

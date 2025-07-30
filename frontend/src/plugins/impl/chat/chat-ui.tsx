@@ -375,6 +375,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           value={input}
           inputRef={codeMirrorInputRef}
           theme={theme}
+          minHeight="2.5rem"
           maxHeight={props.maxHeight ? `${props.maxHeight / 2}px` : undefined}
           onChange={setInput}
           onSubmit={(_evt, newValue) => {
