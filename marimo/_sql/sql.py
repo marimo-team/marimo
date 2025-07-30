@@ -115,13 +115,9 @@ def sql(
             # In this case, we need to convert it to a DataFrame
             display_df = df
             if SQLAlchemyEngine.is_cursor_result(df):
-                result = SQLAlchemyEngine.get_cursor_metadata(df)
-                if result is not None:
-                    display_df = result
+                display_df = SQLAlchemyEngine.get_cursor_metadata(df)
             elif DBAPIEngine.is_dbapi_cursor(df):
-                result = DBAPIEngine.get_cursor_metadata(df)
-                if result is not None:
-                    display_df = result
+                display_df = DBAPIEngine.get_cursor_metadata(df)
 
             t = table.table(
                 display_df,
