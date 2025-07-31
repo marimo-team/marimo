@@ -13,9 +13,12 @@ from marimo._output.formatters.formatter_factory import (
     Unregister,
 )
 from marimo._plugins.stateless.mermaid import mermaid
+from marimo._plugins.stateless.plain_text import plain_text
+
 from marimo._plugins.ui._impl import tabs
 from marimo._plugins.ui._impl.table import get_default_table_page_size, table
 from marimo._runtime.patches import patch_polars_write_json
+
 
 LOGGER = _loggers.marimo_logger()
 
@@ -206,3 +209,56 @@ class PySparkFormatter(FormatterFactory):
             @formatting.opinionated_formatter(pyspark_DataFrame)
             def _show_df(df: pyspark_DataFrame) -> tuple[KnownMimeType, str]:
                 return table.lazy(df)._mime_()
+
+
+class IbisFormatter(FormatterFactory):
+    @staticmethod
+    def package_name() -> str:
+        return "ibis"
+
+    def register(self) -> None:
+
+        import ibis  # type: ignore[import-not-found]
+        import ibis.expr.types as ir  # type: ignore[import-not-found]
+        from ibis.backends.sql import SQLBackend  # type: ignore[import-not-found]
+
+        from marimo._output import formatting
+
+        if not include_opinionated():
+            return
+
+        def _format_ibis_expression(expr) -> tuple[KnownMimeType, str]:
+            """Format Ibis expressions (tables or columns converted to tables).
+            
+            Handles both interactive and non-interactive modes:
+            - Interactive: Shows as interactive table
+            - Non-interactive: Shows expression + SQL for SQL backends
+            """
+            try:
+                # Check if ibis is in interactive mode (eager execution)
+                if ibis.options.interactive:
+                    return table(expr, selection=None, pagination=True)._mime_()
+                else:
+                    backend = expr.get_backend()
+                    supports_sql = isinstance(backend, SQLBackend)
+                    
+                    if supports_sql:
+                        return tabs.tabs(
+                            {
+                                "Expression": plain_text(str(expr)),
+                                "SQL": f"```sql\n{ibis.to_sql(expr)!s}\n```"
+                            }
+                        )._mime_()
+                    else:
+                        return plain_text(str(expr))._mime_()
+
+            except BaseException as e:
+                LOGGER.warning("Failed to format Ibis expression: %s", e)
+                # Fallback to string representation
+                return ("text/plain", str(expr))
+
+        @formatting.opinionated_formatter(ir.Table)
+        def _show_marimo_ibis_table(
+            table_expr: ir.Table,
+        ) -> tuple[KnownMimeType, str]:
+            return _format_ibis_expression(table_expr)
