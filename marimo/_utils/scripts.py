@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from marimo._utils.toml import read_toml_string
+
 REGEX = (
     r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$"
 )
@@ -26,10 +28,8 @@ def read_pyproject_from_script(script: str) -> dict[str, Any] | None:
             line[2:] if line.startswith("# ") else line[1:]
             for line in matches[0].group("content").splitlines(keepends=True)
         )
-        import tomlkit
 
-        pyproject = tomlkit.parse(content)
-
+        pyproject = read_toml_string(content)
         return pyproject
     else:
         return None

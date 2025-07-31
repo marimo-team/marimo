@@ -1,5 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
+
+import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
+import type { Column } from "@tanstack/react-table";
+import {
+  AlignJustifyIcon,
+  ArrowDownWideNarrowIcon,
+  ArrowUpNarrowWideIcon,
+  ChevronsUpDown,
+  CopyIcon,
+  FilterX,
+  FunnelPlusIcon,
+  ListFilterIcon,
+  ListFilterPlusIcon,
+  PinOffIcon,
+  WrapTextIcon,
+} from "lucide-react";
 import {
   DropdownMenuItem,
   DropdownMenuPortal,
@@ -8,28 +23,14 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { DataType } from "@/core/kernel/messages";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
 import { DATA_TYPE_ICON } from "../datasets/icons";
+import { Button } from "../ui/button";
 import { formattingExample } from "./column-formatting/feature";
 import { formatOptions } from "./column-formatting/types";
-import type { Column } from "@tanstack/react-table";
-import type { DataType } from "@/core/kernel/messages";
-import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
-import {
-  AlignJustifyIcon,
-  WrapTextIcon,
-  PinOffIcon,
-  CopyIcon,
-  ChevronsUpDown,
-  ArrowDownWideNarrowIcon,
-  FilterX,
-  ArrowUpNarrowWideIcon,
-  ListFilterPlusIcon,
-  FunnelPlusIcon,
-  ListFilterIcon,
-} from "lucide-react";
-import { copyToClipboard } from "@/utils/copy";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
-import { Button } from "../ui/button";
 
 export function renderFormatOptions<TData, TValue>(
   column: Column<TData, TValue>,
@@ -250,7 +251,7 @@ export function renderFilterByValues<TData, TValue>(
     return null;
   }
 
-  // there is not yet good support for filtering on lists, dicts, etc.
+  // there are some edge cases which do not support filtering (eg. dicts with None values)
   const filterType = column.columnDef.meta?.filterType;
   if (!filterType) {
     return null;

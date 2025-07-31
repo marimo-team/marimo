@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
-
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { Labeled } from "./common/labeled";
+import { NumberField } from "@/components/ui/number-field";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
-import { NumberField } from "@/components/ui/number-field";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { Labeled } from "./common/labeled";
 
 type T = number;
 
@@ -17,6 +16,7 @@ interface Data {
   label: string | null;
   debounce: boolean;
   fullWidth: boolean;
+  disabled?: boolean;
 }
 
 export class NumberPlugin implements IPlugin<T | null, Data> {
@@ -30,6 +30,7 @@ export class NumberPlugin implements IPlugin<T | null, Data> {
     step: z.number().optional(),
     debounce: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T | null, Data>): JSX.Element {
@@ -76,6 +77,7 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         onChange={onChange}
         id={id}
         aria-label={props.label || "Number input"}
+        isDisabled={props.disabled}
       />
     </Labeled>
   );

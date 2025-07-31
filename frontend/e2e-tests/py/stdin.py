@@ -1,26 +1,29 @@
-# Copyright 2024 Marimo. All rights reserved.
+# /// script
+# [tool.marimo.runtime]
+# auto_instantiate = true
+# ///
 import marimo
 
-__generated_with = "0.1.77"
+__generated_with = "0.13.15"
 app = marimo.App()
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
 
     return (mo,)
 
 
 @app.cell
-def __():
+def _():
     value = input("what is your name?")
     return (value,)
 
 
 @app.cell
-def __(mo, value):
-    mo.md(f"## 👋 Hi {value}")
+def _(mo, value):
+    mo.md(f"""## 👋 Hi {value}""")
     return
 
 

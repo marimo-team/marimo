@@ -1,11 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { byteStringToDataView } from "@/utils/data-views";
+import type { Base64String } from "@/utils/json/base64";
+import { typedAtob } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import type { CellId, UIElementId } from "../cells/ids";
 import {
-  type ValueType,
   MarimoIncomingMessageEvent,
   MarimoValueReadyEvent,
   MarimoValueUpdateEvent,
+  type ValueType,
 } from "./events";
 import { parseInitialValue } from "./htmlUtils";
 
@@ -132,20 +136,14 @@ export class UIElementRegistry {
   broadcastMessage(
     objectId: UIElementId,
     message: unknown,
-    buffers: string[] | undefined | null,
+    buffers: Base64String[] | undefined | null,
   ): void {
     const entry = this.entries.get(objectId);
     if (entry === undefined) {
       Logger.warn("UIElementRegistry missing entry", objectId);
     } else {
-      const base64ToDataView = (base64: string) => {
-        const bytes = window.atob(base64);
-        const buffer = new ArrayBuffer(bytes.length);
-        const view = new DataView(buffer);
-        for (let i = 0; i < bytes.length; i++) {
-          view.setUint8(i, bytes.charCodeAt(i));
-        }
-        return view;
+      const toDataView = (base64: Base64String) => {
+        return byteStringToDataView(typedAtob(base64));
       };
       entry.elements.forEach((element) => {
         element.dispatchEvent(
@@ -155,7 +153,7 @@ export class UIElementRegistry {
             detail: {
               objectId: objectId,
               message: message,
-              buffers: buffers ? buffers.map(base64ToDataView) : undefined,
+              buffers: buffers ? buffers.map(toDataView) : undefined,
             },
           }),
         );

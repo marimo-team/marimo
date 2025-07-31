@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  CollapsibleTree,
-  MultiColumn,
   type CellColumnId,
   type CellIndex,
+  CollapsibleTree,
+  MultiColumn,
 } from "../id-tree";
-import { beforeEach } from "vitest";
 
 let tree: CollapsibleTree<string>;
 
@@ -115,12 +114,72 @@ describe("CollapsibleTree", () => {
     ).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node one is before node two]",
     );
-
     expect(() => {
       tree = tree.collapse("two", undefined);
       tree = tree.collapse("two", undefined);
     }).toThrowErrorMatchingInlineSnapshot(
       "[Error: Node two is already collapsed]",
+    );
+  });
+
+  it("collapses all nodes from leaves to root in one call", () => {
+    const collapsedTree = tree.collapseAll([
+      { id: "one", until: undefined },
+      { id: "two", until: undefined },
+      { id: "three", until: undefined },
+      { id: "four", until: undefined },
+    ]);
+    expect(collapsedTree.toString()).toMatchInlineSnapshot(`
+      "one (collapsed)
+        two (collapsed)
+          three (collapsed)
+            four (collapsed)
+      "
+    `);
+  });
+
+  it("collapses some nodes from leaves to root in one call", () => {
+    const collapsedTree = tree.collapseAll([
+      { id: "one", until: undefined },
+      null,
+      { id: "three", until: "four" },
+      null,
+    ]);
+    expect(collapsedTree.toString()).toMatchInlineSnapshot(`
+      "one (collapsed)
+        two
+        three (collapsed)
+          four
+      "
+    `);
+  });
+
+  it("failures to collapse all", () => {
+    expect(() => tree.collapseAll([])).toThrowErrorMatchingInlineSnapshot(
+      "[Error: No collapse ranges provided]",
+    );
+    expect(() =>
+      tree.collapseAll([
+        { id: "one", until: undefined },
+        { id: "two", until: undefined },
+      ]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Collapse ranges length 2 does not match tree length 4]",
+    );
+    expect(() =>
+      tree.collapseAll([null, { id: "one", until: undefined }, null, null]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Node two does not match collapse range id one]",
+    );
+    expect(() =>
+      tree.collapseAll([{ id: "one", until: "five" }, null, null, null]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Node five not found in tree]",
+    );
+    expect(() =>
+      tree.collapseAll([null, { id: "two", until: "one" }, null, null]),
+    ).toThrowErrorMatchingInlineSnapshot(
+      "[Error: Node one is before node two]",
     );
   });
 
@@ -136,6 +195,22 @@ describe("CollapsibleTree", () => {
 			four
 			"
 		`);
+  });
+
+  it("expands all nested collapsed nodes correctly in one call", () => {
+    let collapsed = tree.collapse("three", undefined);
+    expect(collapsed.nodes[2].isCollapsed).toBe(true);
+    collapsed = collapsed.collapse("two", undefined);
+    expect(collapsed.nodes[1].isCollapsed).toBe(true);
+    const expandedTree = collapsed.expandAll();
+    expect(expandedTree.nodes[1].isCollapsed).toBe(false);
+    expect(expandedTree.toString()).toMatchInlineSnapshot(`
+      "one
+      two
+      three
+      four
+      "
+    `);
   });
 
   it("fails to expand", () => {
@@ -404,6 +479,109 @@ describe("CollapsibleTree", () => {
 
     // We only get descendants of the top level
     expect(tree.getDescendants("three")).toMatchInlineSnapshot("[]");
+  });
+
+  it("handles slice correctly", () => {
+    // Normal slice in middle
+    expect(tree.slice(1, 3)).toEqual(["two", "three"]);
+
+    // Slice from beginning
+    expect(tree.slice(0, 2)).toEqual(["one", "two"]);
+
+    // Slice to end
+    expect(tree.slice(2, 4)).toEqual(["three", "four"]);
+
+    // Slice entire array
+    expect(tree.slice(0, 4)).toEqual(["one", "two", "three", "four"]);
+
+    // Slice with out-of-bounds end
+    expect(tree.slice(2, 10)).toEqual(["three", "four"]);
+
+    // Slice with negative start (should work like normal array slice)
+    expect(tree.slice(-2, 4)).toEqual(["three", "four"]);
+
+    // Slice with start > end (should return empty array)
+    expect(tree.slice(3, 1)).toEqual([]);
+
+    // Slice with same start and end
+    expect(tree.slice(2, 2)).toEqual([]);
+
+    // Slice single element
+    expect(tree.slice(1, 2)).toEqual(["two"]);
+  });
+
+  it("handles slice with collapsed nodes", () => {
+    const collapsed = tree.collapse("two", "three");
+
+    // Should only return top-level nodes, not descendants
+    expect(collapsed.slice(0, 2)).toEqual(["one", "two"]);
+    expect(collapsed.slice(1, 3)).toEqual(["two", "four"]);
+  });
+
+  it("handles after correctly", () => {
+    // Normal case - get next node
+    expect(tree.after("one")).toBe("two");
+    expect(tree.after("two")).toBe("three");
+    expect(tree.after("three")).toBe("four");
+
+    // Edge case - last node should return undefined
+    expect(tree.after("four")).toBeUndefined();
+
+    // Edge case - non-existent node should throw
+    expect(() => tree.after("nonexistent")).toThrow(
+      "Node nonexistent not found in tree. Valid ids: one,two,three,four",
+    );
+  });
+
+  it("handles after with collapsed nodes", () => {
+    const collapsed = tree.collapse("two", "three");
+
+    // Should return next top-level node
+    expect(collapsed.after("one")).toBe("two");
+    expect(collapsed.after("two")).toBe("four");
+    expect(collapsed.after("four")).toBeUndefined();
+
+    // Should throw for collapsed children that aren't top-level
+    expect(() => collapsed.after("three")).toThrow();
+  });
+
+  it("handles before correctly", () => {
+    // Normal case - get previous node
+    expect(tree.before("two")).toBe("one");
+    expect(tree.before("three")).toBe("two");
+    expect(tree.before("four")).toBe("three");
+
+    // Edge case - first node should return undefined
+    expect(tree.before("one")).toBeUndefined();
+
+    // Edge case - non-existent node should throw
+    expect(() => tree.before("nonexistent")).toThrow(
+      "Node nonexistent not found in tree. Valid ids: one,two,three,four",
+    );
+  });
+
+  it("handles before with collapsed nodes", () => {
+    const collapsed = tree.collapse("two", "three");
+
+    // Should return previous top-level node
+    expect(collapsed.before("two")).toBe("one");
+    expect(collapsed.before("four")).toBe("two");
+    expect(collapsed.before("one")).toBeUndefined();
+
+    // Should throw for collapsed children that aren't top-level
+    expect(() => collapsed.before("three")).toThrow();
+  });
+
+  it("handles slice on empty tree", () => {
+    const emptyTree = CollapsibleTree.from([]);
+    expect(emptyTree.slice(0, 1)).toEqual([]);
+    expect(emptyTree.slice(0, 0)).toEqual([]);
+  });
+
+  it("handles after/before on single element tree", () => {
+    const singleTree = CollapsibleTree.from(["single"]);
+    expect(singleTree.after("single")).toBeUndefined();
+    expect(singleTree.before("single")).toBeUndefined();
   });
 
   it("handles split correctly", () => {
@@ -745,6 +923,17 @@ describe("MultiColumn", () => {
       tree.moveToFront("B2"),
     );
     expect(transformed.topLevelIds[1]).toEqual(["B2", "B1"]);
+  });
+
+  it("transforms all columns", () => {
+    const transformed = multiColumn.transformAll((tree) =>
+      tree.insertAtStart("NEW"),
+    );
+    expect(transformed.topLevelIds).toEqual([
+      ["NEW", "A1", "A2", "A3"],
+      ["NEW", "B1", "B2"],
+      ["NEW", "C1", "C2", "C3", "C4"],
+    ]);
   });
 
   it("inserts an id", () => {

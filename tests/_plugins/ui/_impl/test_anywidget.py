@@ -11,7 +11,9 @@ from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.anywidget.has()
+HAS_DEPS = (
+    DependencyManager.anywidget.has() and DependencyManager.traitlets.has()
+)
 
 if HAS_DEPS:
     import anywidget as _anywidget
@@ -405,3 +407,30 @@ x = as_marimo_element.count
         widget = UnhashableWidget()
         wrapped = from_anywidget(widget)
         assert wrapped is not None
+
+    @staticmethod
+    async def test_partial_state_updates() -> None:
+        class MultiTraitWidget(_anywidget.AnyWidget):
+            _esm = ""
+            a = traitlets.Int(1).tag(sync=True)
+            b = traitlets.Int(2).tag(sync=True)
+            c = traitlets.Int(3).tag(sync=True)
+
+        wrapped = anywidget(MultiTraitWidget())
+        assert wrapped.value == {"a": 1, "b": 2, "c": 3}
+
+        # Test partial update
+        wrapped._update({"a": 10})
+        assert wrapped.value == {"a": 10, "b": 2, "c": 3}
+
+        # Test multiple partial updates
+        wrapped._update({"b": 20})
+        assert wrapped.value == {"a": 10, "b": 20, "c": 3}
+
+        # Test updating all traits
+        wrapped._update({"a": 100, "b": 200, "c": 300})
+        assert wrapped.value == {"a": 100, "b": 200, "c": 300}
+
+        # Test updating with new traits
+        wrapped._update({"d": 4})
+        assert wrapped.value == {"a": 100, "b": 200, "c": 300, "d": 4}

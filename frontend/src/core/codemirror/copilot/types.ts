@@ -1,99 +1,41 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
-export type CopilotSignInInitiateParams = {};
-export interface CopilotSignInInitiateResult {
-  verificationUri: string;
-  status: string;
+export interface GitHubCopilotSignInInitiateResult {
+  verificationUri: string; // https://github.com/login/device
+  status: GitHubCopilotStatus; // PromptUserDeviceFlow
   userCode: string;
-  expiresIn: number;
-  interval: number;
+  expiresIn: number; // Seconds (usually 15 minutes)
+  interval: number; // For polling
+  command: {
+    command: string; // github.copilot.finishDeviceFlow
+    title: string; // Sign in with GitHub
+    arguments: string[];
+  };
 }
-export interface CopilotSignInConfirmParams {
+
+export interface GitHubCopilotSignInConfirmParams {
   userCode: string;
 }
 
 /**
  * Copilot account status.
  */
-export type CopilotStatus =
+export type GitHubCopilotStatus =
   | "SignedIn"
   | "AlreadySignedIn"
   | "MaybeOk"
   | "NotAuthorized"
   | "NotSignedIn"
+  | "PromptUserDeviceFlow"
   | "OK";
 
 /**
  * Copilot status.
  */
-export type CopilotRequestStatus = "InProgress" | "Warning" | "Normal";
+export type GitHubCopilotRequestStatus = "InProgress" | "Warning" | "Normal";
 
-export interface CopilotSignInConfirmResult {
-  status: CopilotStatus;
+export interface GitHubCopilotStatusResult {
+  status: GitHubCopilotStatus;
   user: string;
-}
-export type CopilotSignOutParams = {};
-export interface CopilotSignOutResult {
-  status: CopilotStatus;
-}
-export interface CopilotGetCompletionsParams {
-  doc: {
-    source: string;
-    tabSize: number;
-    indentSize: number;
-    insertSpaces: boolean;
-    path: string;
-    uri: string;
-    relativePath: string;
-    languageId: string;
-    version: number;
-    position: {
-      line: number;
-      character: number;
-    };
-  };
-}
-
-export interface CopilotGetCompletionsResult {
-  completions: Array<{
-    text: string;
-    docVersion: number;
-    position: {
-      line: number;
-      character: number;
-    };
-    uuid: string;
-    range: {
-      start: {
-        line: number;
-        character: number;
-      };
-      end: {
-        line: number;
-        character: number;
-      };
-    };
-    displayText: string;
-    point: {
-      line: number;
-      character: number;
-    };
-    region: {
-      start: {
-        line: number;
-        character: number;
-      };
-      end: {
-        line: number;
-        character: number;
-      };
-    };
-  }>;
-}
-export interface CopilotAcceptCompletionParams {
-  uuid: string;
-}
-export interface CopilotRejectCompletionParams {
-  uuids: string[];
 }

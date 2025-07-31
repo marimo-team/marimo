@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { FileTextIcon } from "lucide-react";
+import React from "react";
+import { ClearButton } from "@/components/buttons/clear-button";
 import { useCellActions, useCellLogs } from "@/core/cells/cells";
 import { type CellLog, formatLogTimestamp } from "@/core/cells/logs";
 import { cn } from "@/utils/cn";
-import React from "react";
-import { FileTextIcon } from "lucide-react";
 import { CellLink } from "../../links/cell-link";
 import { PanelEmptyState } from "./empty-state";
-import { ClearButton } from "@/components/buttons/clear-button";
 
 interface Props {
   className?: string;

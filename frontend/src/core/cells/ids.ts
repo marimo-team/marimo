@@ -7,6 +7,7 @@ import type { TypedString } from "../../utils/typed";
 const lowercase = "abcdefghijklmnopqrstuvwxyz";
 const uppercase = lowercase.toUpperCase();
 const alphabet = lowercase + uppercase;
+const seen = new Set<CellId>();
 
 /**
  * A typed CellId
@@ -17,11 +18,24 @@ export const CellId = {
    * Create a new CellId, a random 4 letter string.
    */
   create(): CellId {
-    let id = "";
-    for (let i = 0; i < 4; i++) {
-      id += alphabet[Math.floor(Math.random() * alphabet.length)];
+    let attempts = 0;
+    let cellId: CellId;
+
+    do {
+      let id = "";
+      for (let i = 0; i < 4; i++) {
+        id += alphabet[Math.floor(Math.random() * alphabet.length)];
+      }
+      cellId = id as CellId;
+      attempts++;
+    } while (seen.has(cellId) && attempts < 100);
+
+    if (attempts >= 100) {
+      throw new Error("Failed to generate unique CellId after 100 attempts");
     }
-    return id as CellId;
+
+    seen.add(cellId);
+    return cellId;
   },
 };
 
@@ -47,7 +61,45 @@ export const HTMLCellId = {
   findElement(element: Element): (Element & { id: HTMLCellId }) | null {
     return element.closest('div[id^="cell-"]');
   },
+
+  /**
+   * Find the cell element through shadow DOMs.
+   */
+  findElementThroughShadowDOMs(
+    element: Element,
+  ): (Element & { id: HTMLCellId }) | null {
+    let currentElement: Element | null = element;
+
+    while (currentElement) {
+      const cellElement = HTMLCellId.findElement(currentElement);
+      if (cellElement) {
+        return cellElement;
+      }
+
+      const root = currentElement.getRootNode();
+      currentElement =
+        root instanceof ShadowRoot ? root.host : currentElement.parentElement;
+
+      if (currentElement === root) {
+        break;
+      }
+    }
+
+    return null;
+  },
 };
+
+/**
+ * Find the cellId of an element
+ */
+export function findCellId(element: HTMLElement): CellId | null {
+  let cellId: CellId | null = null;
+  const cellContainer = HTMLCellId.findElement(element);
+  if (cellContainer) {
+    cellId = HTMLCellId.parse(cellContainer.id);
+  }
+  return cellId;
+}
 
 /**
  * A typed UIElementId

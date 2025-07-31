@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { createReducerAndAtoms } from "@/utils/createReducer";
+
 import { useAtomValue } from "jotai";
-import type { PanelType } from "./types";
-import { ZodLocalStorage } from "@/utils/localStorage";
 import { z } from "zod";
+import { createReducerAndAtoms } from "@/utils/createReducer";
+import { ZodLocalStorage } from "@/utils/localStorage";
+import type { PanelType } from "./types";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
@@ -11,8 +12,8 @@ export interface ChromeState {
   isTerminalOpen: boolean;
 }
 
+const KEY = "marimo:sidebar";
 const storage = new ZodLocalStorage<ChromeState>(
-  "marimo:sidebar",
   z.object({
     selectedPanel: z
       .string()
@@ -38,9 +39,14 @@ const {
   valueAtom: chromeAtom,
   useActions,
 } = createReducerAndAtoms(
-  () => storage.get(),
+  () => storage.get(KEY),
   {
     openApplication: (state, selectedPanel: PanelType) => ({
+      ...state,
+      selectedPanel,
+      isSidebarOpen: true,
+    }),
+    toggleApplication: (state, selectedPanel: PanelType) => ({
       ...state,
       selectedPanel,
       // If it was closed, open it
@@ -66,7 +72,7 @@ const {
       isTerminalOpen: isOpen,
     }),
   },
-  [(_prevState, newState) => storage.set(newState)],
+  [(_prevState, newState) => storage.set(KEY, newState)],
 );
 
 export const useChromeState = () => {

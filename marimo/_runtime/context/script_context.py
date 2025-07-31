@@ -149,7 +149,7 @@ def initialize_script_context(
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
-        cache_store=get_store(),
+        cache_store=get_store(filename),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(),

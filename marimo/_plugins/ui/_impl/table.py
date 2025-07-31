@@ -18,8 +18,10 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._data.models import NonNestedLiteral
+from marimo._data.models import BinValue, ColumnStats, ValueCount
+from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.ops import ColumnPreview
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -55,7 +57,9 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
+from marimo._utils.hashable import is_hashable
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
@@ -69,32 +73,41 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+class TableSearchError(Exception):
+    def __init__(self, error: str):
+        self.error = error
+        super().__init__(error)
+
+
 @dataclass
 class DownloadAsArgs:
     format: Literal["csv", "json", "parquet"]
 
 
 @dataclass
-class ColumnSummary:
-    column: str
-    nulls: Optional[int]
-    # int, float, datetime
-    min: Optional[NonNestedLiteral]
-    max: Optional[NonNestedLiteral]
-    # str
-    unique: Optional[int]
-    # bool
-    true: Optional[NonNestedLiteral] = None
-    false: Optional[NonNestedLiteral] = None
+class ColumnSummariesArgs:
+    """If enabled, we will precompute chart values."""
+
+    precompute: bool
 
 
 @dataclass
 class ColumnSummaries:
     data: Union[JSONType, str]
-    summaries: list[ColumnSummary]
+    stats: dict[ColumnName, ColumnStats]
+    bin_values: dict[ColumnName, list[BinValue]]
+    value_counts: dict[ColumnName, list[ValueCount]]
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
+
+
+DEFAULT_MAX_COLUMNS = 50
+
+MaxColumnsNotProvided = Literal["inherit"]
+MAX_COLUMNS_NOT_PROVIDED: MaxColumnsNotProvided = "inherit"
+
+MaxColumnsType = Union[int, None, MaxColumnsNotProvided]
 
 
 @dataclass(frozen=True)
@@ -105,6 +118,9 @@ class SearchTableArgs:
     sort: Optional[SortArgs] = None
     filters: Optional[list[Condition]] = None
     limit: Optional[int] = None
+    max_columns: Optional[Union[int, MaxColumnsNotProvided]] = (
+        MAX_COLUMNS_NOT_PROVIDED
+    )
 
 
 CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
@@ -112,7 +128,7 @@ CellStyles = dict[RowId, dict[ColumnName, dict[str, Any]]]
 
 @dataclass(frozen=True)
 class SearchTableResponse:
-    data: Union[JSONType, str]
+    data: str
     total_rows: Union[int, Literal["too_many"]]
     cell_styles: Optional[CellStyles] = None
 
@@ -147,6 +163,11 @@ class CalculateTopKRowsResponse:
     data: list[tuple[str, int]]
 
 
+@dataclass
+class PreviewColumnArgs:
+    column: ColumnName
+
+
 def get_default_table_page_size() -> int:
     """Get the default number of rows to display in a table."""
     try:
@@ -155,6 +176,16 @@ def get_default_table_page_size() -> int:
         return 10
     else:
         return ctx.marimo_config["display"]["default_table_page_size"]
+
+
+def get_default_table_max_columns() -> int:
+    """Get the default maximum number of columns to display in a table."""
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return DEFAULT_MAX_COLUMNS
+    else:
+        return ctx.marimo_config["display"]["default_table_max_columns"]
 
 
 @mddoc
@@ -279,11 +310,13 @@ class table(
         selection (Literal["single", "multi", "single-cell", "multi-cell"], optional): 'single' or 'multi' to enable row selection,
             'single-cell' or 'multi-cell' to enable cell selection
             or None to disable. Defaults to "multi".
-        initial_selection (Union[List[int], List[tuple[str, str]), optional): Indices of the rows you want selected by default.
+        initial_selection (Union[List[int], List[tuple[str, str]], optional): Indices of the rows you want selected by default.
         page_size (int, optional): The number of rows to show per page. Defaults to 10.
         show_column_summaries (Union[bool, Literal["stats", "chart"]], optional): Whether to show column summaries.
             Defaults to True when the table has less than 40 columns and at least 10 rows, False otherwise.
             If "stats", only show stats. If "chart", only show charts.
+        show_data_types (bool, optional): Whether to show data types of columns in the table header.
+            Defaults to True.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True for dataframes, False otherwise.
         format_mapping (Dict[str, Union[str, Callable[..., Any]]], optional): A mapping from
@@ -297,8 +330,9 @@ class table(
         on_change (Callable[[Union[List[JSONType], Dict[str, List[JSONType]], IntoDataFrame, List[TableCell]]], None], optional):
             Optional callback to run when this element's value changes.
         style_cell (Callable[[str, str, Any], Dict[str, Any]], optional): A function that takes the row id, column name and value and returns a dictionary of CSS styles.
-        max_columns (int, optional): Maximum number of columns to display. Defaults to 50.
-            Set to None to show all columns.
+        max_columns (int, optional): Maximum number of columns to display. Defaults to the
+            configured default_table_max_columns (50 by default). Set to None to show all columns.
+        label (str, optional): A descriptive name for the table. Defaults to "".
     """
 
     _name: Final[str] = "marimo-table"
@@ -350,7 +384,7 @@ class table(
             label="",
             on_change=None,
             style_cell=None,
-            max_columns=50,
+            max_columns=MAX_COLUMNS_NOT_PROVIDED,
             _internal_column_charts_row_limit=None,
             _internal_summary_row_limit=None,
             _internal_total_rows="too_many",
@@ -377,6 +411,7 @@ class table(
         show_column_summaries: Optional[
             Union[bool, Literal["stats", "chart"]]
         ] = None,
+        show_data_types: bool = True,
         format_mapping: Optional[
             dict[str, Union[str, Callable[..., Any]]]
         ] = None,
@@ -387,7 +422,7 @@ class table(
         ] = None,
         wrapped_columns: Optional[list[str]] = None,
         show_download: bool = True,
-        max_columns: Optional[int] = 50,
+        max_columns: MaxColumnsType = MAX_COLUMNS_NOT_PROVIDED,
         *,
         label: str = "",
         on_change: Optional[
@@ -419,6 +454,8 @@ class table(
         validate_page_size(page_size)
         self._lazy = _internal_lazy
         self._page_size = page_size
+        self._max_columns: Optional[int] = None
+        max_columns_arg: Union[int, str]
 
         has_stable_row_id = False
         if selection is not None:
@@ -429,7 +466,17 @@ class table(
         self._data = data
         # Holds the original data
         self._manager = get_table_manager(data)
-        self._max_columns = max_columns
+
+        # Handle max_columns: use config default if not provided, None means "all"
+        if max_columns == MAX_COLUMNS_NOT_PROVIDED:
+            self._max_columns = get_default_table_max_columns()
+            max_columns_arg = self._max_columns
+        elif max_columns is None:
+            self._max_columns = None
+            max_columns_arg = "all"
+        else:
+            self._max_columns = max_columns
+            max_columns_arg = max_columns
 
         if _internal_total_rows is not None:
             total_rows = _internal_total_rows
@@ -467,6 +514,15 @@ class table(
             self._column_summary_row_limit = (
                 TableManager.DEFAULT_SUMMARY_STATS_ROW_LIMIT
             )
+
+        app_mode = get_mode()
+        # These panels are not as useful in non-edit mode and require an external dependency
+        show_column_explorer = app_mode == "edit"
+        show_chart_builder = app_mode == "edit"
+
+        show_page_size_selector = True
+        if (isinstance(total_rows, int) and total_rows <= 5) or _internal_lazy:
+            show_page_size_selector = False
 
         # Holds the data after user searching from original data
         # (searching operations include query, sort, filter, etc.)
@@ -530,7 +586,7 @@ class table(
             )
             self._has_any_selection = True
 
-        # We will need this when calling table manager's to_data()
+        # We will need this when calling table manager's to_json_str()
         self._format_mapping = format_mapping
 
         if pagination is False and total_rows != "too_many":
@@ -575,11 +631,7 @@ class table(
                 text_justify_columns, wrapped_columns, column_names_set
             )
 
-            # Clamp field types to max columns
             field_types = self._manager.get_field_types()
-            field_types = _get_clamped_field_types(
-                field_types, self._max_columns
-            )
 
         super().__init__(
             component_name=table._name,
@@ -589,6 +641,7 @@ class table(
                 "data": search_result_data,
                 "total-rows": total_rows,
                 "total-columns": num_columns,
+                "max-columns": max_columns_arg,
                 "banner-text": self._get_banner_text(),
                 "pagination": pagination,
                 "page-size": page_size,
@@ -600,6 +653,10 @@ class table(
                 "show-download": show_download
                 and self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
+                "show-data-types": show_data_types,
+                "show-page-size-selector": show_page_size_selector,
+                "show-column-explorer": show_column_explorer,
+                "show-chart-builder": show_chart_builder,
                 "row-headers": self._manager.get_row_headers(),
                 "freeze-columns-left": freeze_columns_left,
                 "freeze-columns-right": freeze_columns_right,
@@ -619,7 +676,7 @@ class table(
                 ),
                 Function(
                     name="get_column_summaries",
-                    arg_cls=EmptyArgs,
+                    arg_cls=ColumnSummariesArgs,
                     function=self._get_column_summaries,
                 ),
                 Function(
@@ -642,13 +699,16 @@ class table(
                     arg_cls=CalculateTopKRowsArgs,
                     function=self._calculate_top_k_rows,
                 ),
+                Function(
+                    name="preview_column",
+                    arg_cls=PreviewColumnArgs,
+                    function=self._preview_column,
+                ),
             ),
         )
 
     @property
-    def data(
-        self,
-    ) -> TableData:
+    def data(self) -> TableData:
         """Get the original table data.
 
         Returns:
@@ -691,7 +751,9 @@ class table(
             self._has_any_selection = len(indices) > 0
             if self._has_stable_row_id:
                 # Search across the original data
-                self._selected_manager = self._manager.select_rows(indices)
+                self._selected_manager = self._manager.select_rows(
+                    indices
+                ).drop_columns([INDEX_COLUMN_NAME])
             else:
                 self._selected_manager = self._searched_manager.select_rows(
                     indices
@@ -744,7 +806,9 @@ class table(
                 "Download is not supported for this table format."
             )
 
-    def _get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
+    def _get_column_summaries(
+        self, args: ColumnSummariesArgs
+    ) -> ColumnSummaries:
         """Get statistical summaries for each column in the table.
 
         Calculates summaries like null counts, min/max values, unique counts, etc.
@@ -752,18 +816,20 @@ class table(
         is below the column summary row limit.
 
         Args:
-            args (EmptyArgs): Empty arguments object (unused).
+            args (ColumnSummariesArgs): Arguments specifying whether to precompute
+                the column summaries and bin values.
 
         Returns:
             ColumnSummaries: Object containing column summaries and chart data.
                 If summaries are disabled or row limit is exceeded, returns empty
                 summaries with is_disabled flag set appropriately.
         """
-        del args
         if not self._show_column_summaries:
             return ColumnSummaries(
                 data=None,
-                summaries=[],
+                stats={},
+                bin_values={},
+                value_counts={},
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
@@ -776,49 +842,175 @@ class table(
         if total_rows > self._column_summary_row_limit:
             return ColumnSummaries(
                 data=None,
-                summaries=[],
+                stats={},
+                bin_values={},
+                value_counts={},
                 is_disabled=True,
             )
-
-        # Get column summaries if not chart-only mode
-        summaries: list[ColumnSummary] = []
-        if self._show_column_summaries != "chart":
-            for column in self._manager.get_column_names():
-                try:
-                    summary = self._searched_manager.get_summary(column)
-                    summaries.append(
-                        ColumnSummary(
-                            column=column,
-                            nulls=summary.nulls,
-                            min=summary.min,
-                            max=summary.max,
-                            unique=summary.unique,
-                            true=summary.true,
-                            false=summary.false,
-                        )
-                    )
-                except BaseException:
-                    # Catch-all: some libraries like Polars have bugs and raise
-                    # BaseExceptions, which shouldn't crash the kernel
-                    LOGGER.warning(
-                        "Failed to get summary for column %s", column
-                    )
 
         # If we are above the limit to show charts,
         # or if we are in stats-only mode,
         # we don't return the chart data
-        chart_data = None
-        if (
+        should_get_chart_data = (
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
-        ):
-            chart_data = self._searched_manager.to_data({})
+        )
+
+        # Get column stats if not chart-only mode
+        should_get_stats = self._show_column_summaries != "chart"
+        stats: dict[ColumnName, ColumnStats] = {}
+
+        chart_data = None
+        bin_values: dict[ColumnName, list[BinValue]] = {}
+        value_counts: dict[ColumnName, list[ValueCount]] = {}
+        data = self._searched_manager
+
+        DEFAULT_BIN_SIZE = 9
+        DEFAULT_VALUE_COUNTS_SIZE = 15
+
+        for column in self._manager.get_column_names():
+            if should_get_stats:
+                try:
+                    statistic = self._searched_manager.get_stats(column)
+                    stats[column] = statistic
+                except BaseException:
+                    # Catch-all: some libraries like Polars have bugs and raise
+                    # BaseExceptions, which shouldn't crash the kernel
+                    LOGGER.warning("Failed to get stats for column %s", column)
+
+            if should_get_chart_data and args.precompute:
+                if not should_get_stats:
+                    LOGGER.warning("Please enable stats to precompute charts")
+
+                # For boolean columns, we can drop the column since we use stats
+                column_type = self._manager.get_field_type(column)
+                if column_type[0] == "boolean":
+                    data = data.drop_columns([column])
+
+                # Bin values are only supported for numeric and temporal columns
+                if column_type[0] not in [
+                    "integer",
+                    "number",
+                    "date",
+                    "datetime",
+                    "time",
+                    "string",
+                ]:
+                    continue
+
+                # For perf, we only compute value counts for categorical columns
+                external_type = column_type[1].lower()
+                if column_type[0] == "string" and (
+                    "cat" in external_type or "enum" in external_type
+                ):
+                    try:
+                        val_counts = self._get_value_counts(
+                            column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
+                        )
+                        if len(val_counts) > 0:
+                            value_counts[column] = val_counts
+                            data = data.drop_columns([column])
+                        continue
+                    except BaseException as e:
+                        LOGGER.warning(
+                            "Failed to get value counts for column %s: %s",
+                            column,
+                            e,
+                        )
+
+                try:
+                    bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
+                    if len(bins) > 0:
+                        bin_values[column] = bins
+                        data = data.drop_columns([column])
+                        continue
+                except BaseException as e:
+                    LOGGER.warning(
+                        "Failed to get bin values for column %s: %s", column, e
+                    )
+
+        if should_get_chart_data:
+            chart_data, _ = self._to_chart_data_url(data)
 
         return ColumnSummaries(
             data=chart_data,
-            summaries=summaries,
+            stats=stats,
+            bin_values=bin_values,
+            value_counts=value_counts,
             is_disabled=False,
         )
+
+    def _get_value_counts(
+        self, column: ColumnName, size: int, total_rows: int
+    ) -> list[ValueCount]:
+        """Get value counts for a column. The last item will be 'others' with the count of remaining
+        unique values. If there are only unique values, we return 'unique values' instead.
+
+        Args:
+            column (ColumnName): The column to get value counts for.
+            size (int): The number of value counts to return.
+            total_rows (int): The total number of rows in the table.
+
+        Returns:
+            list[ValueCount]: The value counts.
+        """
+        if size <= 0 or total_rows <= 0:
+            LOGGER.warning("Total rows and size is not valid")
+            return []
+
+        top_k_rows = self._manager.calculate_top_k_rows(column, size)
+        if len(top_k_rows) == 0:
+            return []
+
+        all_unique = top_k_rows[0][1] == 1
+        if all_unique:
+            return [ValueCount(value="unique values", count=total_rows)]
+
+        value_counts = []
+
+        if len(top_k_rows) == size:
+            # reserve 1 for others
+            top_k_rows = top_k_rows[:-1]
+
+        sum_count = 0
+        for value, count in top_k_rows:
+            sum_count += count
+            value = str(value) if value is not None else "null"
+            value_counts.append(ValueCount(value=value, count=count))
+
+        remaining = total_rows - sum_count
+        if remaining > 0:
+            unique_count = ValueCount(value="others", count=remaining)
+            if len(value_counts) == size:
+                value_counts[-1] = unique_count
+            else:
+                value_counts.append(unique_count)
+
+        return value_counts
+
+    @classmethod
+    def _to_chart_data_url(
+        cls, table_manager: TableManager[Any]
+    ) -> tuple[str, Literal["csv", "json", "arrow"]]:
+        """
+        Get the data for the column summaries.
+
+        Arrow is preferred (less memory and faster)
+        fallback to CSV (more compact than JSON)
+
+        We return a URL instead of the data directly
+        so the browser can cache requests
+        """
+        try:
+            data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
+            return data_url, "arrow"
+        except NotImplementedError:
+            try:
+                data_url = mo_data.csv(table_manager.to_csv({})).url
+                return data_url, "csv"
+            except ValueError:
+                data_url = mo_data.json(table_manager.to_json({})).url
+                return data_url, "json"
 
     def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
         """Get the data URL for the entire table. Used for charting."""
@@ -831,11 +1023,22 @@ class table(
                 format=result["format"]["type"],
             )
 
+        url, data_format = self._to_chart_data_url(self._searched_manager)
         return GetDataUrlResponse(
-            data_url=self._searched_manager.to_data({}), format="json"
+            data_url=url,
+            format=data_format,
         )
 
     @functools.lru_cache(maxsize=1)  # noqa: B019
+    def _apply_filters_query_sort_cached(
+        self,
+        filters: Optional[list[Condition]],
+        query: Optional[str],
+        sort: Optional[SortArgs],
+    ) -> TableManager[Any]:
+        """Cached version that expects hashable arguments."""
+        return self._apply_filters_query_sort(filters, query, sort)
+
     def _apply_filters_query_sort(
         self,
         filters: Optional[list[Condition]],
@@ -880,37 +1083,49 @@ class table(
             LOGGER.error("Failed to calculate top k rows: %s", e)
             return CalculateTopKRowsResponse(data=[])
 
-    def _style_cells(self, skip: int, take: int) -> Optional[CellStyles]:
+    def _preview_column(self, args: PreviewColumnArgs) -> ColumnPreview:
+        """Preview a column of a dataset."""
+        column = args.column
+
+        # We use a placeholder for table names
+        column_preview = get_column_preview_dataset(
+            self._searched_manager, "_df", column
+        )
+        return column_preview
+
+    def _style_cells(
+        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+    ) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
             return None
+
+        def do_style_cell(row: str, col: str) -> dict[str, Any]:
+            selected_cells = self._searched_manager.select_cells(
+                [TableCoordinate(row_id=row, column_name=col)]
+            )
+            if not selected_cells or self._style_cell is None:
+                return {}
+            return self._style_cell(row, col, selected_cells[0].value)
+
+        columns = self._searched_manager.get_column_names()
+        response = self._get_row_ids(EmptyArgs())
+
+        # Clamp the take to the total number of rows
+        if total_rows != "too_many" and skip + take > total_rows:
+            take = total_rows - skip
+
+        # Determine row range
+        row_ids: Union[list[int], range]
+        if response.all_rows or response.error:
+            row_ids = range(skip, skip + take)
         else:
+            row_ids = response.row_ids[skip : skip + take]
 
-            def do_style_cell(row: str, col: str) -> dict[str, Any]:
-                selected_cells = self._searched_manager.select_cells(
-                    [TableCoordinate(row_id=row, column_name=col)]
-                )
-                if len(selected_cells) == 0 or self._style_cell is None:
-                    return dict()
-                else:
-                    return self._style_cell(row, col, selected_cells[0].value)
-
-            columns = self._searched_manager.get_column_names()
-            response = self._get_row_ids(EmptyArgs())
-
-            row_ids: list[int] | range
-            if response.all_rows is True or response.error is not None:
-                # TODO: Handle sorted rows, they have reverse order of row_ids
-                row_ids = range(skip, skip + take)
-            else:
-                row_ids = response.row_ids[skip : skip + take]
-
-            return {
-                str(row): {
-                    col: do_style_cell(str(row), col) for col in columns
-                }
-                for row in row_ids
-            }
+        return {
+            str(row): {col: do_style_cell(str(row), col) for col in columns}
+            for row in row_ids
+        }
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         """Search and filter the table data.
@@ -926,6 +1141,8 @@ class table(
                 - sort: Optional sorting configuration
                 - filters: Optional list of filter conditions
                 - limit: Optional row limit
+                - max_columns: Optional max number of columns. None means show all columns,
+                  MAX_COLUMNS_NOT_PROVIDED means use the table's max_columns setting.
 
         Returns:
             SearchTableResponse: Response containing:
@@ -934,17 +1151,25 @@ class table(
                 - cell_styles: User defined styling information for each cell in the page
         """
         offset = args.page_number * args.page_size
+        max_columns = args.max_columns
+        if max_columns == MAX_COLUMNS_NOT_PROVIDED:
+            max_columns = self._max_columns
 
-        def clamp_rows_and_columns(manager: TableManager[Any]) -> JSONType:
+        def clamp_rows_and_columns(manager: TableManager[Any]) -> str:
             # Limit to page and column clamping for the frontend
             data = manager.take(args.page_size, offset)
             column_names = data.get_column_names()
-            if (
-                self._max_columns is not None
-                and len(column_names) > self._max_columns
-            ):
-                data = data.select_columns(column_names[: self._max_columns])
-            return data.to_data(self._format_mapping)
+
+            # Do not clamp if max_columns is None
+            if max_columns is not None and len(column_names) > max_columns:
+                data = data.select_columns(column_names[:max_columns])
+
+            try:
+                return data.to_json_str(self._format_mapping)
+            except BaseException as e:
+                # Catch and re-raise the error as a non-BaseException
+                # to avoid crashing the kernel
+                raise TableSearchError(str(e)) from e
 
         # If no query or sort, return nothing
         # The frontend will just show the original data
@@ -959,19 +1184,18 @@ class table(
             return SearchTableResponse(
                 data=clamp_rows_and_columns(self._manager),
                 total_rows=total_rows,
-                # The __init__ will just call this with an arbitrary offset,
-                # we need to check this is not larger than our actual number of rows.
                 cell_styles=self._style_cells(
-                    offset,
-                    min(total_rows, args.page_size)
-                    if total_rows != "too_many"
-                    else args.page_size,
+                    offset, args.page_size, total_rows
                 ),
             )
 
-        # Apply filters, query, and functools.sort using the cached method
-        result = self._apply_filters_query_sort(
-            tuple(args.filters) if args.filters else None,
+        filter_function = (
+            self._apply_filters_query_sort_cached
+            if is_hashable(args.filters, args.query, args.sort)
+            else self._apply_filters_query_sort
+        )
+        result = filter_function(
+            tuple(args.filters) if args.filters else None,  # type: ignore
             args.query,
             args.sort,
         )
@@ -987,7 +1211,7 @@ class table(
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,
-            cell_styles=self._style_cells(offset, args.page_size),
+            cell_styles=self._style_cells(offset, args.page_size, total_rows),
         )
 
     def _get_row_ids(self, args: EmptyArgs) -> GetRowIdsResponse:
@@ -1063,14 +1287,6 @@ class table(
 
     def __hash__(self) -> int:
         return id(self)
-
-
-def _get_clamped_field_types(
-    field_types: list[Any], max_columns: Optional[int]
-) -> list[Any]:
-    if max_columns is not None and len(field_types) > max_columns:
-        return field_types[:max_columns]
-    return field_types
 
 
 def _validate_frozen_columns(

@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import functools
+import json
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Optional, Union, cast
 
-from marimo._data.models import ColumnSummary, ExternalDataType
+from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
+from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -85,11 +87,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def supports_filters(self) -> bool:
         return False
 
-    def to_data(
-        self, format_mapping: Optional[FormatMapping] = None
-    ) -> JSONType:
-        return self._normalize_data(self.apply_formatting(format_mapping).data)
-
     def to_csv_str(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> str:
@@ -103,11 +100,10 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def to_json_str(
         self, format_mapping: Optional[FormatMapping] = None
     ) -> str:
-        if isinstance(self.data, dict) and not self.is_column_oriented:
-            return DefaultTableManager(
-                self._normalize_data(self.data)
-            ).to_json_str(format_mapping)
-        return self._as_table_manager().to_json_str(format_mapping)
+        return json.dumps(
+            self._normalize_data(self.apply_formatting(format_mapping).data),
+            cls=WebComponentEncoder,
+        )
 
     def to_parquet(self) -> bytes:
         if isinstance(self.data, dict) and not self.is_column_oriented:
@@ -260,7 +256,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
             ]
         )
 
-    def get_row_headers(self) -> list[str]:
+    def get_row_headers(self) -> FieldTypes:
         return []
 
     @functools.lru_cache(maxsize=5)  # noqa: B019
@@ -296,16 +292,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
         )
         top_k = sorted_grouped[:k]
 
-        chosen_column_name = None
-        for column_name in ["count", "number of rows", "count of rows"]:
-            if column_name not in column_names:
-                chosen_column_name = column_name
-                break
-        if chosen_column_name is None:
-            raise ValueError(
-                "Cannot specify a count column name, please rename your column"
-            )
-
         return [(value, count) for value, count in top_k]
 
     def get_field_type(
@@ -338,9 +324,13 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
         raise ValueError("No supported table libraries found.")
 
-    def get_summary(self, column: str) -> ColumnSummary:
+    def get_stats(self, column: str) -> ColumnStats:
         del column
-        return ColumnSummary()
+        return ColumnStats()
+
+    def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
+        del column, num_bins
+        return []
 
     def get_num_rows(self, force: bool = True) -> int:
         del force

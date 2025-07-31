@@ -6,8 +6,7 @@
 
 .markdown p:last-child,
 /* This is needed when markdown is used inside buttons or labels  */
-  .markdown
-  .paragraph:last-child {
+.markdown .paragraph:last-child {
   margin-block-end: 0;
 }
 
@@ -133,7 +132,9 @@ button .prose.prose {
   border-top-left-radius: var(--radius);
   border-top-right-radius: var(--radius);
   cursor: pointer;
-  transition: background-color var(--transition), color var(--transition);
+  transition:
+    background-color var(--transition),
+    color var(--transition);
   color: var(--muted-foreground);
 }
 

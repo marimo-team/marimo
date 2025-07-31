@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEventListener } from "@/hooks/useEventListener";
+
 import { useState } from "react";
+import { useEventListener } from "@/hooks/useEventListener";
 
 /**
  * Get the full screen element if we are in full screen mode

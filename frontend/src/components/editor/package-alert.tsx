@@ -1,6 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  BoxIcon,
+  CheckIcon,
+  DownloadCloudIcon,
+  PackageCheckIcon,
+  PackageXIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
+import type React from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Form,
@@ -9,45 +20,60 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { saveUserConfig } from "@/core/network/requests";
 import {
-  type UserConfig,
-  UserConfigSchema,
-} from "../../core/config/config-schema";
-import { NativeSelect } from "../ui/native-select";
-import { cn } from "@/utils/cn";
-import { sendInstallMissingPackages } from "@/core/network/requests";
-import {
-  useAlerts,
-  useAlertActions,
-  isMissingPackageAlert,
   isInstallingPackageAlert,
+  isMissingPackageAlert,
+  useAlertActions,
+  useAlerts,
 } from "@/core/alerts/state";
-import { Banner } from "@/plugins/impl/common/error-banner";
-import {
-  PackageXIcon,
-  BoxIcon,
-  CheckIcon,
-  DownloadCloudIcon,
-  PackageCheckIcon,
-  XIcon,
-} from "lucide-react";
-import type React from "react";
-import { Button } from "../ui/button";
-import type { PackageInstallationStatus } from "@/core/kernel/messages";
-import { logNever } from "@/utils/assertNever";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import type { PackageInstallationStatus } from "@/core/kernel/messages";
+import {
+  saveUserConfig,
+  sendInstallMissingPackages,
+} from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
+import { usePackageMetadata } from "@/hooks/usePackageMetadata";
+import { Banner } from "@/plugins/impl/common/error-banner";
+import { logNever } from "@/utils/assertNever";
+import { cn } from "@/utils/cn";
+import { Logger } from "@/utils/Logger";
 import {
   type PackageManagerName,
   PackageManagerNames,
+  type UserConfig,
+  UserConfigSchema,
 } from "../../core/config/config-schema";
-import { Logger } from "@/utils/Logger";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { Tooltip } from "../ui/tooltip";
-import { useState } from "react";
-import { cleanPythonModuleName, reverseSemverSort } from "@/utils/versions";
+import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { ExternalLink } from "../ui/links";
+import { NativeSelect } from "../ui/native-select";
+import { Tooltip } from "../ui/tooltip";
+
+function parsePackageSpecifier(spec: string): {
+  name: string;
+  extras: string[];
+} {
+  const match = spec.match(/^([^[]+)(?:\[([^\]]+)])?$/);
+  if (!match) {
+    return { name: spec, extras: [] };
+  }
+  const [, name, extrasStr] = match;
+  const extras = extrasStr ? extrasStr.split(",").map((e) => e.trim()) : [];
+  return { name, extras };
+}
+
+function buildPackageSpecifier(name: string, extras: string[]): string {
+  if (extras.length === 0) {
+    return name;
+  }
+  return `${name}[${extras.join(",")}]`;
+}
 
 export const PackageAlert: React.FC = () => {
   const { packageAlert } = useAlerts();
@@ -55,6 +81,9 @@ export const PackageAlert: React.FC = () => {
   const [userConfig] = useResolvedMarimoConfig();
   const [desiredPackageVersions, setDesiredPackageVersions] = useState<
     Record<string, string>
+  >({});
+  const [selectedExtras, setSelectedExtras] = useState<
+    Record<string, string[]>
   >({});
 
   if (packageAlert === null) {
@@ -89,27 +118,43 @@ export const PackageAlert: React.FC = () => {
             <div>
               <p>The following packages were not found:</p>
               <ul className="list-disc ml-4 mt-1">
-                {packageAlert.packages.map((pkg, index) => (
-                  <li
-                    className="flex items-center gap-1 font-mono text-sm"
-                    key={index}
-                  >
-                    <BoxIcon size="1rem" />
-                    {pkg}
-                    {doesSupportVersioning && (
-                      <PackageVersionSelect
-                        value={desiredPackageVersions[pkg] ?? "latest"}
-                        onChange={(value) =>
-                          setDesiredPackageVersions((prev) => ({
+                {packageAlert.packages.map((pkg, index) => {
+                  const parsed = parsePackageSpecifier(pkg);
+                  const currentExtras = selectedExtras[pkg] || parsed.extras;
+
+                  return (
+                    <li
+                      className="flex items-center gap-2 font-mono text-sm"
+                      key={index}
+                    >
+                      <BoxIcon size="1rem" />
+
+                      <ExtrasSelector
+                        packageName={parsed.name}
+                        selectedExtras={currentExtras}
+                        onExtrasChange={(extras) =>
+                          setSelectedExtras((prev) => ({
                             ...prev,
-                            [pkg]: value,
+                            [pkg]: extras,
                           }))
                         }
-                        packageName={pkg}
                       />
-                    )}
-                  </li>
-                ))}
+
+                      {doesSupportVersioning && (
+                        <PackageVersionSelect
+                          value={desiredPackageVersions[pkg] ?? "latest"}
+                          onChange={(value) =>
+                            setDesiredPackageVersions((prev) => ({
+                              ...prev,
+                              [pkg]: value,
+                            }))
+                          }
+                          packageName={parsed.name}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
             <div className="ml-auto flex flex-row items-baseline">
@@ -117,7 +162,12 @@ export const PackageAlert: React.FC = () => {
                 <>
                   <InstallPackagesButton
                     manager={userConfig.package_management.manager}
-                    packages={packageAlert.packages}
+                    packages={packageAlert.packages.map((pkg) => {
+                      const parsed = parsePackageSpecifier(pkg);
+                      const currentExtras =
+                        selectedExtras[pkg] || parsed.extras;
+                      return buildPackageSpecifier(parsed.name, currentExtras);
+                    })}
                     versions={desiredPackageVersions}
                     clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
                   />
@@ -362,32 +412,154 @@ interface PackageVersionSelectProps {
   packageName: string;
 }
 
-interface PyPiResponse {
-  releases: Record<string, unknown>;
+interface ExtrasSelectorProps {
+  packageName: string;
+  selectedExtras: string[];
+  onExtrasChange: (extras: string[]) => void;
 }
+
+const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
+  packageName,
+  selectedExtras,
+  onExtrasChange,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { isPending, error, data: pkgMeta } = usePackageMetadata(packageName);
+
+  const handleExtraToggle = (extra: string, checked: boolean) => {
+    if (checked) {
+      onExtrasChange([...selectedExtras, extra]);
+    } else {
+      onExtrasChange(selectedExtras.filter((e) => e !== extra));
+    }
+  };
+
+  const canSelectExtras = !isPending && !error;
+  const availableExtras = (pkgMeta?.extras ?? []).filter(
+    // Filter out common development-only extras like "dev" and "test".
+    (extra) => !/^(dev|test|testing)$/i.test(extra),
+  );
+
+  return (
+    <div className="flex items-center max-w-72">
+      <span className="shrink-0">{packageName}</span>
+
+      {selectedExtras.length > 0 ? (
+        <span className="flex items-center min-w-0 flex-1">
+          <span className="shrink-0">[</span>
+          <DropdownMenu
+            open={isOpen && canSelectExtras}
+            onOpenChange={(open) => {
+              if (canSelectExtras) {
+                setIsOpen(open);
+              }
+            }}
+          >
+            <DropdownMenuTrigger asChild={true}>
+              <button
+                className="hover:bg-muted/50 rounded text-sm px-1 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 min-w-0 flex-1 truncate text-left"
+                title={`Selected extras: ${selectedExtras.join(", ")}`}
+              >
+                {selectedExtras.join(",")}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-64 p-0 max-h-96 flex flex-col"
+            >
+              {selectedExtras.length > 0 && (
+                <div className="p-2 bg-popover border-b border-border">
+                  <div className="flex flex-wrap gap-1 p-1 min-h-[24px]">
+                    {selectedExtras.map((extra) => (
+                      <span
+                        key={extra}
+                        className="inline-flex items-center gap-1 px-1 py-0.5 text-sm font-mono border border-muted-foreground/30 hover:border-muted-foreground/60 rounded-sm cursor-pointer group transition-colors"
+                        onClick={() => handleExtraToggle(extra, false)}
+                      >
+                        {extra}
+                        <XIcon className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="overflow-y-auto flex-1">
+                {availableExtras.map((extra) => (
+                  <DropdownMenuCheckboxItem
+                    key={extra}
+                    checked={selectedExtras.includes(extra)}
+                    onCheckedChange={(checked) => {
+                      handleExtraToggle(extra, checked);
+                    }}
+                    className="font-mono text-sm"
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {extra}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <span className="shrink-0">]</span>
+        </span>
+      ) : availableExtras.length > 0 ? (
+        <DropdownMenu
+          open={isOpen && canSelectExtras}
+          onOpenChange={(open) => {
+            if (canSelectExtras) {
+              setIsOpen(open);
+            }
+          }}
+        >
+          <DropdownMenuTrigger asChild={true}>
+            <button
+              disabled={!canSelectExtras}
+              className={cn(
+                "hover:bg-muted/50 rounded text-sm ml-2 transition-colors border border-muted-foreground/30 hover:border-muted-foreground/60 h-5 w-5 flex items-center justify-center p-0",
+                !canSelectExtras && "opacity-50 cursor-not-allowed",
+              )}
+              title={canSelectExtras ? "Add extras" : "Loading extras..."}
+            >
+              <PlusIcon className="w-3 h-3 flex-shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="w-64 p-0 max-h-96 flex flex-col"
+          >
+            <div className="p-2 bg-popover border-b border-border">
+              <span className="text-muted-foreground italic text-sm">
+                Package extras
+              </span>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {availableExtras.map((extra) => (
+                <DropdownMenuCheckboxItem
+                  key={extra}
+                  checked={selectedExtras.includes(extra)}
+                  onCheckedChange={(checked) => {
+                    handleExtraToggle(extra, checked);
+                  }}
+                  className="font-mono text-sm"
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {extra}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
+  );
+};
 
 const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
   value,
   onChange,
   packageName,
 }) => {
-  const {
-    data = [],
-    loading,
-    error,
-  } = useAsyncData(async () => {
-    const response = await fetch(
-      `https://pypi.org/pypi/${cleanPythonModuleName(packageName)}/json`,
-      {
-        method: "GET",
-        signal: AbortSignal.timeout(5000), // 5s timeout
-      },
-    );
-    const json = await response.json<PyPiResponse>();
-    const versions = Object.keys(json.releases).sort(reverseSemverSort);
-    // Add latest, limit to 100 versions
-    return ["latest", ...versions.slice(0, 100)];
-  }, [packageName]);
+  const { error, isPending, data: pkgMeta } = usePackageMetadata(packageName);
 
   if (error) {
     return (
@@ -396,7 +568,7 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={true}
-          className="inline-flex ml-2"
+          className="inline-flex ml-2 w-24 text-ellipsis"
         >
           <option value="latest">latest</option>
         </NativeSelect>
@@ -408,13 +580,13 @@ const PackageVersionSelect: React.FC<PackageVersionSelectProps> = ({
     <NativeSelect
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      disabled={loading}
-      className="inline-flex ml-2"
+      disabled={isPending}
+      className="inline-flex ml-2 w-24 text-ellipsis"
     >
-      {loading ? (
+      {isPending ? (
         <option value="latest">latest</option>
       ) : (
-        data.map((version) => (
+        ["latest", ...pkgMeta.versions.slice(0, 100)].map((version) => (
           <option value={version} key={version}>
             {version}
           </option>

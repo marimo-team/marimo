@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { NumberField } from "@/components/ui/number-field";
+
 import { Label } from "@/components/ui/label";
+import { NumberField } from "@/components/ui/number-field";
 
 export default {
   title: "NumberField",

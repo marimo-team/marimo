@@ -28,5 +28,5 @@ def test_serialize_session_with_dict_error_missing_type():
     assert len(result["cells"]) == 1
     assert len(result["cells"][0]["outputs"]) == 1
     assert result["cells"][0]["outputs"][0]["type"] == "error"
-    assert result["cells"][0]["outputs"][0]["ename"] == "Unknown"
+    assert result["cells"][0]["outputs"][0]["ename"] == "UnknownError"
     assert result["cells"][0]["outputs"][0]["evalue"] == "Something went wrong"

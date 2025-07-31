@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import {
   getResolvedMarimoConfig,
   resolvedMarimoConfigAtom,
 } from "@/core/config/config";
 import { store, waitFor } from "@/core/state/jotai";
-import { atom } from "jotai";
-import { atomWithStorage } from "jotai/utils";
 
 const KEY = "marimo:copilot:signedIn";
 

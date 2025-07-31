@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { JSX } from "react";
 import { z } from "zod";
+import { EmotionCacheProvider } from "../../components/editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../../components/editor/output/JsonOutput";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import { EmotionCacheProvider } from "../../components/editor/output/EmotionCacheProvider";
 
 interface Data {
   name?: string | null;

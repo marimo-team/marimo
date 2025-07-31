@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "@/utils/Logger";
+
 import { z } from "zod";
+import { Logger } from "@/utils/Logger";
 
 /**
  * Get default values for a zod schema
@@ -25,7 +26,10 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
   };
 
   // If union, take the first one
-  if (schema instanceof z.ZodUnion) {
+  if (
+    schema instanceof z.ZodUnion ||
+    schema instanceof z.ZodDiscriminatedUnion
+  ) {
     return getDefaultValue(schema._def.options[0]) as T;
   }
 
@@ -75,7 +79,10 @@ export function getUnionLiteral<T extends z.ZodType<unknown>>(
     }
     throw new Error(`Invalid schema: ${schema._type}`);
   }
-  if (schema instanceof z.ZodUnion) {
+  if (
+    schema instanceof z.ZodUnion ||
+    schema instanceof z.ZodDiscriminatedUnion
+  ) {
     return getUnionLiteral(schema._def.options[0]);
   }
   Logger.warn(schema);

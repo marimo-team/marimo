@@ -2,6 +2,10 @@
 import { Logger } from "./Logger";
 
 export async function reportVitals() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
   const { onLCP, onINP, onCLS } = await import("web-vitals");
   Logger.log("Reporting vitals");
   const logMetric = (metric: {

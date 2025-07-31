@@ -6,14 +6,14 @@ import {
   type SHORT_WILDCARD,
   type WildcardProperty,
 } from "compassql/build/src/wildcard";
+import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
 import {
   fromFieldQueryFunctionMixins,
   toFieldQueryFunctionMixins,
 } from "./functions/function";
-import { invariant } from "@/utils/invariant";
 import type { FieldFunction } from "./functions/types";
 import { removeUndefined } from "./queries/removeUndefined";
-import { Logger } from "@/utils/Logger";
 
 // This code is adapted and simplified from https://github.com/vega/voyager
 

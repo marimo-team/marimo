@@ -63,7 +63,7 @@ def test_name_method() -> None:
     fb._value = [
         FileBrowserFileInfo(
             id="1",
-            path="/some/path/file.txt",
+            path=Path("/some/path/file.txt"),
             name="file.txt",
             is_directory=False,
         )
@@ -77,13 +77,116 @@ def test_path_method() -> None:
     fb._value = [
         FileBrowserFileInfo(
             id="1",
-            path="/some/path/file.txt",
+            path=Path("/some/path/file.txt"),
             name="file.txt",
             is_directory=False,
         )
     ]
-    assert fb.path(0) == "/some/path/file.txt"
+    assert fb.path(0) == Path("/some/path/file.txt")
     assert fb.path(1) is None
+
+
+def test_natural_sorting(tmp_path: Path) -> None:
+    """Test that files are sorted using natural sort order."""
+    # Create test files with names that should be naturally sorted
+    test_files = [
+        "file10.txt",
+        "file2.txt",
+        "file1.txt",
+        "file20.txt",
+        "fileB.txt",
+        "fileA.txt",
+        "file100.txt",
+    ]
+
+    for filename in test_files:
+        (tmp_path / filename).touch()
+
+    fb = file_browser(initial_path=tmp_path)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    # Extract file names from response
+    file_names = [f["name"] for f in response.files if not f["is_directory"]]
+
+    # Expected natural sort order
+    expected_order = [
+        "file1.txt",
+        "file2.txt",
+        "file10.txt",
+        "file20.txt",
+        "file100.txt",
+        "fileA.txt",
+        "fileB.txt",
+    ]
+
+    assert file_names == expected_order
+
+
+def test_directories_sorted_before_files(tmp_path: Path) -> None:
+    """Test that directories are sorted before files."""
+    # Create test directories and files
+    (tmp_path / "z_directory").mkdir()
+    (tmp_path / "a_directory").mkdir()
+    (tmp_path / "a_file.txt").touch()
+    (tmp_path / "z_file.txt").touch()
+
+    fb = file_browser(initial_path=tmp_path)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    # Extract names and types
+    items = [(f["name"], f["is_directory"]) for f in response.files]
+
+    # Check that all directories come before all files
+    directory_names = [name for name, is_dir in items if is_dir]
+    file_names = [name for name, is_dir in items if not is_dir]
+
+    # Directories should be sorted naturally among themselves
+    assert directory_names == ["a_directory", "z_directory"]
+    # Files should be sorted naturally among themselves
+    assert file_names == ["a_file.txt", "z_file.txt"]
+
+    # All directory names should come before all file names in the full list
+    all_names = [name for name, _ in items]
+    directory_end_index = len(directory_names)
+    assert all_names[:directory_end_index] == directory_names
+    assert all_names[directory_end_index:] == file_names
+
+
+def test_mixed_alphanumeric_sorting(tmp_path: Path) -> None:
+    """Test natural sorting with mixed alphanumeric patterns."""
+    test_items = [
+        ("dir100", True),  # directory
+        ("dir2", True),  # directory
+        ("dir10", True),  # directory
+        ("file100.txt", False),  # file
+        ("file2.txt", False),  # file
+        ("file10.txt", False),  # file
+    ]
+
+    # Create test directories and files
+    for name, is_dir in test_items:
+        if is_dir:
+            (tmp_path / name).mkdir()
+        else:
+            (tmp_path / name).touch()
+
+    fb = file_browser(initial_path=tmp_path)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    # Extract names preserving order from response
+    result_names = [f["name"] for f in response.files]
+
+    # Expected order: directories first (naturally sorted), then files (naturally sorted)
+    expected_order = [
+        "dir2",  # directories first, naturally sorted
+        "dir10",
+        "dir100",
+        "file2.txt",  # files second, naturally sorted
+        "file10.txt",
+        "file100.txt",
+    ]
+
+    assert result_names == expected_order
 
 
 @pytest.mark.skipif(

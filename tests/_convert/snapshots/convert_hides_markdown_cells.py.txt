@@ -1,0 +1,45 @@
+import marimo
+
+app = marimo.App()
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+        A markdown cell.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Cell tags: blah
+    mo.md(
+        r"""
+        A markdown cell with tags: ['blah'].
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Cell tags: blah
+    mo.md(
+        r"""
+        A markdown cell with tags: ['blah', 'hide-cell'].
+        """
+    )
+    return
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+if __name__ == "__main__":
+    app.run()

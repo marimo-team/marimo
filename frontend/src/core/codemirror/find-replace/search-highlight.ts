@@ -3,15 +3,15 @@ import { SearchQuery } from "@codemirror/search";
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
-  ViewPlugin,
   type DecorationSet,
   EditorView,
+  ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { type QueryType, asQueryCreator } from "./query";
-import { store } from "@/core/state/jotai";
-import { findReplaceAtom } from "./state";
 import { getAllEditorViews } from "@/core/cells/cells";
+import { store } from "@/core/state/jotai";
+import { asQueryCreator, type QueryType } from "./query";
+import { findReplaceAtom } from "./state";
 
 const setSearchQuery = StateEffect.define<SearchQuery>();
 

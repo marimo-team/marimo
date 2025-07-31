@@ -21,7 +21,7 @@ snapshot = snapshotter(__file__)
 
 
 # HTTP server for testing remote file conversion
-class TestHTTPServer:
+class MockHTTPServer:
     def __init__(self, directory: Path, port: int):
         self.directory = directory
         self.port = port
@@ -60,7 +60,7 @@ class TestHTTPServer:
 def http_server():
     tmp_path = tempfile.mkdtemp()
     port = find_free_port(1234)
-    server = TestHTTPServer(Path(tmp_path), port=port)
+    server = MockHTTPServer(Path(tmp_path), port=port)
     server.start()
     yield server
     server.stop()
@@ -167,10 +167,10 @@ print('Hello from Markdown!')
             text=True,
         )
         assert p.returncode != 0
-        assert "File must be an .ipynb or .md file" in p.stderr
+        assert "File must be an .ipynb, .md, or .py file" in p.stderr
 
     @staticmethod
-    def test_convert_remote_ipynb(http_server: TestHTTPServer) -> None:
+    def test_convert_remote_ipynb(http_server: MockHTTPServer) -> None:
         # Create a notebook file
         notebook_path = http_server.directory / "remote_notebook.ipynb"
         notebook_content = """
@@ -213,7 +213,7 @@ print('Hello from Markdown!')
         is_windows(),
         reason="Markdown conversion adds extra new line on Windows",
     )
-    def test_convert_remote_markdown(http_server: TestHTTPServer) -> None:
+    def test_convert_remote_markdown(http_server: MockHTTPServer) -> None:
         # Create a markdown file
         md_path = http_server.directory / "remote_markdown.md"
         md_content = """
@@ -241,7 +241,7 @@ print('Hello from Remote Markdown!')
         snapshot("remote_markdown_to_marimo.txt", output)
 
     @staticmethod
-    def test_convert_remote_invalid_file(http_server: TestHTTPServer) -> None:
+    def test_convert_remote_invalid_file(http_server: MockHTTPServer) -> None:
         # Create an invalid file
         invalid_file = http_server.directory / "invalid.txt"
         invalid_file.write_text(
@@ -255,11 +255,11 @@ print('Hello from Remote Markdown!')
             text=True,
         )
         assert p.returncode != 0
-        assert "File must be an .ipynb or .md file" in p.stderr
+        assert "File must be an .ipynb, .md, or .py file" in p.stderr
 
     @staticmethod
     def test_convert_nonexistent_remote_file(
-        http_server: TestHTTPServer,
+        http_server: MockHTTPServer,
     ) -> None:
         # Try to convert non-existent remote file
         p = subprocess.run(
@@ -274,3 +274,82 @@ print('Hello from Remote Markdown!')
         assert p.returncode != 0
         # The error message will be from urllib.error.HTTPError
         assert "HTTP Error 404" in p.stderr or "Not Found" in p.stderr
+
+    @staticmethod
+    def test_convert_existing_marimo_notebook(tmp_path: Path) -> None:
+        """Test that converting an existing marimo notebook prints a message."""
+        marimo_path = tmp_path / "existing_marimo.py"
+        marimo_content = """import marimo
+
+__generated_with = "0.10.0"
+app = marimo.App()
+
+
+@app.cell
+def __():
+    print("Hello from marimo!")
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        marimo_path.write_text(marimo_content)
+
+        p = subprocess.run(
+            ["marimo", "convert", str(marimo_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert p.returncode == 0
+        assert "File is already a valid marimo notebook." in p.stdout
+
+    @staticmethod
+    def test_convert_non_marimo_python_script(tmp_path: Path) -> None:
+        """Test converting a non-marimo Python script."""
+        script_path = tmp_path / "script.py"
+        script_content = '''"""A simple Python script."""
+
+import sys
+
+def main():
+    print("Hello, World!")
+
+if __name__ == "__main__":
+    main()
+    sys.exit(0)
+'''
+        script_path.write_text(script_content)
+
+        p = subprocess.run(
+            ["marimo", "convert", str(script_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert p.returncode == 0, p.stderr
+        output = p.stdout
+        output = re.sub(r"__generated_with = .*", "", output)
+        snapshot("python_script_to_marimo.txt", output)
+
+    @staticmethod
+    def test_convert_python_script_no_main(tmp_path: Path) -> None:
+        """Test converting a Python script without main block."""
+        script_path = tmp_path / "simple_script.py"
+        script_content = '''"""Simple calculation script."""
+
+x = 5
+y = 10
+result = x + y
+print(f"Result: {result}")
+'''
+        script_path.write_text(script_content)
+
+        p = subprocess.run(
+            ["marimo", "convert", str(script_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert p.returncode == 0, p.stderr
+        output = p.stdout
+        output = re.sub(r"__generated_with = .*", "", output)
+        snapshot("python_script_no_main_to_marimo.txt", output)

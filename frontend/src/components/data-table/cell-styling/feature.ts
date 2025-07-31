@@ -2,23 +2,19 @@
 "use no memo";
 
 import type {
-  Table,
   Cell,
   Column,
+  InitialTableState,
   Row,
   RowData,
+  Table,
   TableFeature,
-  InitialTableState,
 } from "@tanstack/react-table";
-
+import { getStableRowId } from "../utils";
 import type { CellStyleState, CellStylingTableState } from "./types";
-import { INDEX_COLUMN_NAME } from "../types";
 
 function getRowId<TData>(row: Row<TData>): string {
-  if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
-    return String(row[INDEX_COLUMN_NAME]);
-  }
-  return row.id;
+  return getStableRowId(row) ?? row.id;
 }
 
 export const CellStylingFeature: TableFeature = {

@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
+import { Maps } from "@/utils/maps";
 import type { TransformType } from "../schema";
 import type { ColumnDataTypes } from "../types";
-import { Maps } from "@/utils/maps";
 
 /**
  * Given a list of transforms, return the updated column names/types.
@@ -58,6 +58,7 @@ function handleTransform(
     case "sort_column":
     case "expand_dict":
     case "explode_columns":
+    case "unique":
       return next;
     default:
       logNever(transform);

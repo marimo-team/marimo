@@ -1,36 +1,38 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 "use no memo";
 
-import type { ColumnDef } from "@tanstack/react-table";
-import { DataTableColumnHeader } from "./column-header";
-import { Checkbox } from "../ui/checkbox";
-import { getMimeValues, MimeCell } from "./mime-cell";
+import { PopoverClose } from "@radix-ui/react-popover";
+import type { Column, ColumnDef } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
-import { TableColumnSummary } from "./column-summary";
+import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import { cn } from "@/utils/cn";
+import { exactDateTime } from "@/utils/dates";
+import { Logger } from "@/utils/Logger";
+import { Maps } from "@/utils/maps";
+import { Objects } from "@/utils/objects";
+import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
+import { JsonOutput } from "../editor/output/JsonOutput";
+import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { DataTableColumnHeader } from "./column-header";
+import type { ColumnChartSpecModel } from "./column-summary/chart-spec-model";
+import { TableColumnSummary } from "./column-summary/column-summary";
+import { DatePopover } from "./date-popover";
 import type { FilterType } from "./filters";
+import { getMimeValues, MimeCell } from "./mime-cell";
 import {
   type DataTableSelection,
-  INDEX_COLUMN_NAME,
-  type FieldTypesWithExternalType,
   extractTimezone,
+  type FieldTypesWithExternalType,
+  INDEX_COLUMN_NAME,
 } from "./types";
-import { parseContent, UrlDetector } from "./url-detector";
-import { cn } from "@/utils/cn";
 import { uniformSample } from "./uniformSample";
-import { DatePopover } from "./date-popover";
-import { Objects } from "@/utils/objects";
-import { Maps } from "@/utils/maps";
-import { exactDateTime } from "@/utils/dates";
-import { JsonOutput } from "../editor/output/JsonOutput";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
-import { PopoverClose } from "@radix-ui/react-popover";
-import { Button } from "../ui/button";
-import type { ColumnChartSpecModel } from "./chart-spec-model";
-import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
+import { parseContent, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
+const SELECT_ID = "__select__";
 
 function inferDataType(value: unknown): [type: DataType, displayType: string] {
   if (typeof value === "string") {
@@ -67,12 +69,12 @@ export function inferFieldTypes<T>(items: T[]): FieldTypesWithExternalType {
   // This can be slow for large datasets,
   // so only sample 10 evenly distributed rows
   uniformSample(items, 10).forEach((item) => {
-    if (typeof item !== "object") {
+    if (typeof item !== "object" || item === null) {
       return;
     }
     // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
-    Object.entries(item as object).forEach(([key, value], idx) => {
+    Object.entries(item).forEach(([key, value]) => {
       const currentValue = fieldTypes[key];
       if (!currentValue) {
         // Set for the first time
@@ -102,7 +104,7 @@ export function generateColumns<T>({
   showDataTypes,
   calculateTopKRows,
 }: {
-  rowHeaders: string[];
+  rowHeaders: FieldTypesWithExternalType;
   selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
   chartSpecModel?: ColumnChartSpecModel<unknown>;
@@ -111,7 +113,8 @@ export function generateColumns<T>({
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
 }): Array<ColumnDef<T>> {
-  const rowHeadersSet = new Set(rowHeaders);
+  // Row-headers are typically index columns
+  const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
 
   const typesByColumn = Maps.keyBy(fieldTypes, (entry) => entry[0]);
 
@@ -120,8 +123,11 @@ export function generateColumns<T>({
     const isRowHeader = rowHeadersSet.has(key);
 
     if (isRowHeader || !types) {
+      const types = rowHeaders.find(([columnName]) => columnName === key)?.[1];
       return {
         rowHeader: isRowHeader,
+        dtype: types?.[1],
+        dataType: types?.[0],
       };
     }
 
@@ -133,8 +139,8 @@ export function generateColumns<T>({
     };
   };
 
-  const columnKeys = [
-    ...rowHeaders,
+  const columnKeys: string[] = [
+    ...rowHeadersSet,
     ...fieldTypes.map(([columnName]) => columnName),
   ];
 
@@ -151,30 +157,27 @@ export function generateColumns<T>({
       // may have periods in them ...
       // https://github.com/TanStack/table/issues/1671
       accessorFn: (row) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (row as any)[key];
+        return row[key as keyof T];
       },
 
       header: ({ column }) => {
-        const summary = chartSpecModel?.getColumnSummary(key);
+        const stats = chartSpecModel?.getColumnStats(key);
         const dtype = column.columnDef.meta?.dtype;
         const dtypeHeader =
           showDataTypes && dtype ? (
             <div className="flex flex-row gap-1">
               <span className="text-xs text-muted-foreground">{dtype}</span>
-              {summary &&
-                typeof summary.nulls === "number" &&
-                summary.nulls > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    (nulls: {summary.nulls})
-                  </span>
-                )}
+              {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  (nulls: {stats.nulls})
+                </span>
+              )}
             </div>
           ) : null;
 
         const headerWithType = (
           <div className="flex flex-col">
-            <span className="font-bold">{key}</span>
+            <span className="font-bold">{key === "" ? " " : key}</span>
             {dtypeHeader}
           </div>
         );
@@ -201,13 +204,6 @@ export function generateColumns<T>({
       },
 
       cell: ({ column, renderValue, getValue, cell }) => {
-        // Row headers are bold
-        if (rowHeadersSet.has(key)) {
-          return <b>{String(renderValue())}</b>;
-        }
-
-        const value = getValue();
-
         function selectCell() {
           if (selection !== "single-cell" && selection !== "multi-cell") {
             return;
@@ -230,96 +226,20 @@ export function generateColumns<T>({
           isCellSelected,
         );
 
-        const format = column.getColumnFormatting?.();
-
-        if (typeof value === "string") {
-          const stringValue = format
-            ? String(column.applyColumnFormatting(value))
-            : String(renderValue());
-
-          const parts = parseContent(stringValue);
-          const hasMarkup = parts.some((part) => part.type !== "text");
-          if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
-            return (
-              <div onClick={selectCell} className={cellStyles}>
-                <UrlDetector parts={parts} />
-              </div>
-            );
-          }
-
-          return (
-            <PopoutColumn
-              cellStyles={cellStyles}
-              selectCell={selectCell}
-              rawStringValue={stringValue}
-              contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
-              buttonText="X"
-            >
-              <UrlDetector parts={parts} />
-            </PopoutColumn>
-          );
-        }
-
-        if (format) {
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              {column.applyColumnFormatting(value)}
-            </div>
-          );
-        }
-
-        if (isPrimitiveOrNullish(value)) {
-          const rendered = renderValue();
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              {rendered == null ? "" : String(rendered)}
-            </div>
-          );
-        }
-
-        if (value instanceof Date) {
-          // e.g. 2010-10-07 17:15:00
-          const type =
-            column.columnDef.meta?.dataType === "date" ? "date" : "datetime";
-          const timezone = extractTimezone(column.columnDef.meta?.dtype);
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              <DatePopover date={value} type={type}>
-                {exactDateTime(value, timezone)}
-              </DatePopover>
-            </div>
-          );
-        }
-
-        const mimeValues = getMimeValues(value);
-        if (mimeValues) {
-          return (
-            <div onClick={selectCell} className={cellStyles}>
-              {mimeValues.map((mimeValue, idx) => (
-                <MimeCell key={idx} value={mimeValue} />
-              ))}
-            </div>
-          );
-        }
-
-        if (Array.isArray(value) || typeof value === "object") {
-          const rawStringValue = renderAny(value);
-          return (
-            <PopoutColumn
-              cellStyles={cellStyles}
-              selectCell={selectCell}
-              rawStringValue={rawStringValue}
-            >
-              <JsonOutput data={value} format="tree" className="max-h-64" />
-            </PopoutColumn>
-          );
-        }
-
-        return (
-          <div onClick={selectCell} className={cellStyles}>
-            {renderAny(getValue())}
-          </div>
+        const renderedCell = renderCellValue(
+          column,
+          renderValue,
+          getValue,
+          selectCell,
+          cellStyles,
         );
+
+        // Row headers are bold
+        if (rowHeadersSet.has(key)) {
+          return <b>{renderedCell}</b>;
+        }
+
+        return renderedCell;
       },
       // Remove any default filtering
       filterFn: undefined,
@@ -332,7 +252,7 @@ export function generateColumns<T>({
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
-      id: "__select__",
+      id: SELECT_ID,
       maxSize: 40,
       header: ({ table }) =>
         selection === "multi" ? (
@@ -353,6 +273,10 @@ export function generateColumns<T>({
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
           className="mx-2"
+          onMouseDown={(e) => {
+            // Prevent cell underneath from being selected
+            e.stopPropagation();
+          }}
         />
       ),
       enableSorting: false,
@@ -371,8 +295,8 @@ const PopoutColumn = ({
   buttonText,
   children,
 }: {
-  cellStyles: string;
-  selectCell: () => void;
+  cellStyles?: string;
+  selectCell?: () => void;
   rawStringValue: string;
   contentClassName?: string;
   buttonText?: string;
@@ -381,7 +305,14 @@ const PopoutColumn = ({
   return (
     <EmotionCacheProvider container={null}>
       <Popover>
-        <PopoverTrigger className={cellStyles} onClick={selectCell}>
+        <PopoverTrigger
+          className={cn(cellStyles, "w-fit outline-none")}
+          onClick={selectCell}
+          onMouseDown={(e) => {
+            // Prevent cell underneath from being selected
+            e.stopPropagation();
+          }}
+        >
           <span
             className="cursor-pointer hover:text-link"
             title={rawStringValue}
@@ -389,7 +320,11 @@ const PopoutColumn = ({
             {rawStringValue}
           </span>
         </PopoverTrigger>
-        <PopoverContent className={contentClassName}>
+        <PopoverContent
+          className={contentClassName}
+          align="start"
+          alignOffset={10}
+        >
           <PopoverClose className="absolute top-2 right-2">
             <Button variant="link" size="xs">
               {buttonText ?? "Close"}
@@ -465,4 +400,121 @@ function renderAny(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function renderDate(
+  value: Date,
+  dataType?: DataType,
+  dtype?: string,
+): React.ReactNode {
+  const type = dataType === "date" ? "date" : "datetime";
+  const timezone = extractTimezone(dtype);
+  return (
+    <DatePopover date={value} type={type}>
+      {exactDateTime(value, timezone)}
+    </DatePopover>
+  );
+}
+
+export function renderCellValue<TData, TValue>(
+  column: Column<TData, TValue>,
+  renderValue: () => TValue | null,
+  getValue: () => TValue,
+  selectCell?: () => void,
+  cellStyles?: string,
+) {
+  const value = getValue();
+  const format = column.getColumnFormatting?.();
+
+  const dataType = column.columnDef.meta?.dataType;
+  const dtype = column.columnDef.meta?.dtype;
+
+  if (dataType === "datetime" && typeof value === "string") {
+    try {
+      const date = new Date(value);
+      return renderDate(date, dataType, dtype);
+    } catch (error) {
+      Logger.error("Error parsing datetime, fallback to string", error);
+    }
+  }
+
+  if (value instanceof Date) {
+    // e.g. 2010-10-07 17:15:00
+    return renderDate(value, dataType, dtype);
+  }
+
+  if (typeof value === "string") {
+    const stringValue = format
+      ? String(column.applyColumnFormatting(value))
+      : String(renderValue());
+
+    const parts = parseContent(stringValue);
+    const hasMarkup = parts.some((part) => part.type !== "text");
+    if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
+      return (
+        <div onClick={selectCell} className={cellStyles}>
+          <UrlDetector parts={parts} />
+        </div>
+      );
+    }
+
+    return (
+      <PopoutColumn
+        cellStyles={cellStyles}
+        selectCell={selectCell}
+        rawStringValue={stringValue}
+        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+        buttonText="X"
+      >
+        <UrlDetector parts={parts} />
+      </PopoutColumn>
+    );
+  }
+
+  if (format) {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {column.applyColumnFormatting(value)}
+      </div>
+    );
+  }
+
+  if (isPrimitiveOrNullish(value)) {
+    const rendered = renderValue();
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {rendered == null ? "" : String(rendered)}
+      </div>
+    );
+  }
+
+  const mimeValues = getMimeValues(value);
+  if (mimeValues) {
+    return (
+      <div onClick={selectCell} className={cellStyles}>
+        {mimeValues.map((mimeValue, idx) => (
+          <MimeCell key={idx} value={mimeValue} />
+        ))}
+      </div>
+    );
+  }
+
+  if (Array.isArray(value) || typeof value === "object") {
+    const rawStringValue = renderAny(value);
+    return (
+      <PopoutColumn
+        cellStyles={cellStyles}
+        selectCell={selectCell}
+        rawStringValue={rawStringValue}
+      >
+        <JsonOutput data={value} format="tree" className="max-h-64" />
+      </PopoutColumn>
+    );
+  }
+
+  return (
+    <div onClick={selectCell} className={cellStyles}>
+      {renderAny(value)}
+    </div>
+  );
 }

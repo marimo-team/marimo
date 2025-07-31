@@ -13,6 +13,15 @@ class CellLifecycleRegistry:
         default_factory=dict
     )
 
+    def inject(self, cell_id: CellId_t, item: CellLifecycleItem) -> None:
+        """Add a provisioned lifecycle item for a specific cell.
+
+        Prefer using `add` to add lifecycle items.
+        """
+        if cell_id not in self.registry:
+            self.registry[cell_id] = set()
+        self.registry[cell_id].add(item)
+
     def add(self, item: CellLifecycleItem) -> None:
         """Add a lifecycle item for the currently running cell.
 
@@ -27,10 +36,8 @@ class CellLifecycleRegistry:
         if cell_id is None:
             return
 
-        if cell_id not in self.registry:
-            self.registry[cell_id] = set()
         item.create(ctx)
-        self.registry[cell_id].add(item)
+        return self.inject(cell_id, item)
 
     def dispose(self, cell_id: CellId_t, deletion: bool) -> None:
         """Dispose lifecycle items associated with `cell_id`

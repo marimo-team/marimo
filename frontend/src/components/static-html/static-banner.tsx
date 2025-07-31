@@ -2,46 +2,53 @@
 /* eslint-disable react/jsx-no-comment-textnodes */
 /* eslint-disable react/jsx-no-target-blank */
 
-import { isStaticNotebook } from "@/core/static/static-state";
+import { useAtomValue } from "jotai";
+import { CopyIcon, DownloadIcon } from "lucide-react";
 import type React from "react";
-import { Button } from "../ui/button";
-import { toast } from "../ui/use-toast";
-import { getMarimoCode } from "@/core/dom/marimo-tag";
+import { Constants } from "@/core/constants";
+import { codeAtom } from "@/core/saving/file-state";
+import { useFilename } from "@/core/saving/filename";
+import { isStaticNotebook } from "@/core/static/static-state";
+import { createShareableLink } from "@/core/wasm/share";
+import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob } from "@/utils/download";
-import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
+import { Button } from "../ui/button";
 import {
-  DialogHeader,
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { CopyIcon, DownloadIcon } from "lucide-react";
-import { createShareableLink } from "@/core/wasm/share";
-import { copyToClipboard } from "@/utils/copy";
-import { Constants } from "@/core/constants";
+import { toast } from "../ui/use-toast";
 
 export const StaticBanner: React.FC = () => {
+  const code = useAtomValue(codeAtom);
+
   if (!isStaticNotebook()) {
     return null;
   }
 
-  const code = getMarimoCode();
   if (!code) {
     return null;
   }
 
   return (
-    <div className="px-4 py-2 bg-[var(--sky-2)] border-b border-[var(--sky-7)] text-md text-[var(--sky-11)] font-semibold flex justify-between items-center gap-4 no-print">
+    <div
+      className="px-4 py-2 bg-[var(--sky-2)] border-b border-[var(--sky-7)] text-[var(--sky-11)] flex justify-between items-center gap-4 no-print text-sm"
+      data-testid="static-notebook-banner"
+    >
       <span>
-        This is a static Python notebook built using{" "}
-        <a href={Constants.githubPage} target="_blank" className="underline">
+        Static{" "}
+        <a
+          href={Constants.githubPage}
+          target="_blank"
+          className="text-[var(--sky-11)] font-medium underline"
+        >
           marimo
-        </a>
-        .
-        <br />
-        Some interactive features may not work, see ways to run or edit this.
+        </a>{" "}
+        notebook - Run or edit for full interactivity
       </span>
       <span className="flex-shrink-0">
         <StaticBannerDialog code={code} />
@@ -51,7 +58,7 @@ export const StaticBanner: React.FC = () => {
 };
 
 const StaticBannerDialog = ({ code }: { code: string }) => {
-  let filename = getFilenameFromDOM() || "notebook.py";
+  let filename = useFilename() || "notebook.py";
   // Trim the path
   const lastSlash = filename.lastIndexOf("/");
   if (lastSlash !== -1) {
@@ -66,80 +73,89 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
       <DialogTrigger asChild={true}>
         <Button
           data-testid="static-notebook-dialog-trigger"
-          variant="secondary"
+          variant="outline"
+          size="xs"
         >
-          Run or edit this notebook
+          Run or Edit
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{filename}</DialogTitle>
-          <DialogDescription className="pt-4 text-md text-left">
-            This is a static notebook built using{" "}
-            <a
-              href={Constants.githubPage}
-              target="_blank"
-              className="text-link hover:underline"
-            >
-              marimo
-            </a>
-            . marimo is an open-source next-generation Python notebook.
-            <hr className="my-3" />
-            In order to edit this notebook, you will need to download the code
-            locally, install marimo, and run the following in your terminal:
-            <div className="font-mono text-sm bg-[var(--sky-2)] rounded-md my-3 p-2 border border-[var(--sky-7)]">
-              pip install marimo
-              <br />
-              marimo edit {filename}
+          <DialogDescription className="pt-3 text-left space-y-3">
+            <p>
+              This is a static{" "}
+              <a
+                href={Constants.githubPage}
+                target="_blank"
+                className="text-[var(--sky-11)] hover:underline font-medium"
+              >
+                marimo
+              </a>{" "}
+              notebook. To run interactively:
+            </p>
+
+            <div className="rounded-lg p-3 border bg-[var(--sky-2)] border-[var(--sky-7)]">
+              <div className="font-mono text-[var(--sky-11)] leading-relaxed">
+                pip install marimo
+                <br />
+                marimo edit {filename}
+              </div>
             </div>
+
             {!href.endsWith(".html") && (
-              <>
-                or
-                <div className="font-mono text-sm bg-[var(--sky-2)] rounded-md my-3 p-2 border border-[var(--sky-7)] break-all">
+              <div className="rounded-lg p-3 border bg-[var(--sky-2)] border-[var(--sky-7)]">
+                <div className="text-sm text-[var(--sky-12)] mb-1">
+                  Or run directly from URL:
+                </div>
+                <div className="font-mono text-[var(--sky-11)] break-all">
                   marimo edit {window.location.href}
                 </div>
-              </>
+              </div>
             )}
-            <hr className="my-3" />
-            You may also be able to run this notebook entirely in the browser
-            via WebAssembly at:{" "}
-            <a
-              href={wasmLink}
-              target="_blank"
-              className="text-link hover:underline"
-              rel="noreferrer"
-            >
-              {wasmLink.slice(0, 40)}...
-            </a>
-            <br />
-            <div className="text-sm text-muted-foreground pt-2">
-              <strong>Note:</strong> This feature is experimental and may not
-              work for all notebooks. Additionally, some dependencies may not be
-              available in the browser.
+
+            <div className="pt-3 border-t border-[var(--sky-7)]">
+              <p className="text-sm text-[var(--sky-12)] mb-2">
+                <strong>Try in browser with WebAssembly:</strong>{" "}
+                <a
+                  href={wasmLink}
+                  target="_blank"
+                  className="text-[var(--sky-11)] hover:underline break-all"
+                  rel="noreferrer"
+                >
+                  {wasmLink.slice(0, 50)}...
+                </a>
+              </p>
+              <p className="text-sm text-[var(--sky-12)]">
+                Note: WebAssembly may not work for all notebooks. Additionally,
+                some dependencies may not be available in the browser.
+              </p>
             </div>
           </DialogDescription>
         </DialogHeader>
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex gap-3 pt-2">
           <Button
             data-testid="copy-static-notebook-dialog-button"
-            variant="secondary"
+            variant="outline"
+            size="sm"
             onClick={async () => {
               await copyToClipboard(code);
               toast({ title: "Copied to clipboard" });
             }}
           >
-            <CopyIcon className="w-4 h-4 mr-1" />
+            <CopyIcon className="w-3 h-3 mr-2" />
             Copy code
           </Button>
           <Button
             data-testid="download-static-notebook-dialog-button"
-            variant="secondary"
+            variant="outline"
+            size="sm"
             onClick={() => {
               downloadBlob(new Blob([code], { type: "text/plain" }), filename);
             }}
           >
-            <DownloadIcon className="w-4 h-4 mr-1" />
-            Download code
+            <DownloadIcon className="w-3 h-3 mr-2" />
+            Download
           </Button>
         </div>
       </DialogContent>

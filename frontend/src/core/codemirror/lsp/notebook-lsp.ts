@@ -1,33 +1,89 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import type * as LSP from "vscode-languageserver-protocol";
-import { getTopologicalCodes } from "../copilot/getCodes";
-import { createNotebookLens } from "./lens";
-import { CellDocumentUri, type ILanguageServerClient } from "./types";
+import type { CellId } from "@/core/cells/ids";
+import { store } from "@/core/state/jotai";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
-import type { CellId } from "@/core/cells/ids";
-import type { EditorView } from "@codemirror/view";
+import { topologicalCodesAtom } from "../copilot/getCodes";
+import { createNotebookLens, type NotebookLens } from "./lens";
+import {
+  CellDocumentUri,
+  type ILanguageServerClient,
+  isClientWithNotify,
+  isClientWithPlugins,
+} from "./types";
 import { getLSPDocument } from "./utils";
 
-export class NotebookLanguageServerClient implements ILanguageServerClient {
-  public readonly documentUri: LSP.DocumentUri;
+class Snapshotter {
   private documentVersion = 0;
-  private readonly client: ILanguageServerClient;
+
+  constructor(
+    private readonly getNotebookCode: () => {
+      cellIds: CellId[];
+      codes: Record<CellId, string>;
+    },
+  ) {}
 
   /**
    * Map from the global document version to the cell id and version.
    */
-  private versionToCellNumberAndVersion = new LRUCache<
-    number,
-    {
-      cellDocumentUri: LSP.DocumentUri;
-      version: number;
-      lens: ReturnType<typeof createNotebookLens>;
-    }
-  >(20);
+  private versionToCellNumberAndVersion = new LRUCache<number, NotebookLens>(
+    20,
+  );
 
-  private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<LSP.DocumentUri>();
+  private lastSnapshot: NotebookLens | null = null;
+
+  public snapshot() {
+    const lens = this.getLens();
+    const didChange = this.lastSnapshot?.mergedText !== lens.mergedText;
+    if (!didChange) {
+      return {
+        lens,
+        didChange,
+        version: this.documentVersion,
+      };
+    }
+
+    // Increment the version and update the snapshot
+    this.documentVersion++;
+    this.lastSnapshot = lens;
+
+    return {
+      lens,
+      didChange,
+      version: this.documentVersion,
+    };
+  }
+
+  public getSnapshot(version: number) {
+    const snapshot = this.versionToCellNumberAndVersion.get(version);
+    if (!snapshot) {
+      throw new Error(`No snapshot for version ${version}`);
+    }
+    return snapshot;
+  }
+
+  public getLatestSnapshot() {
+    if (!this.lastSnapshot) {
+      throw new Error("No snapshots");
+    }
+    return { lens: this.lastSnapshot, version: this.documentVersion };
+  }
+
+  private getLens() {
+    const { cellIds, codes } = this.getNotebookCode();
+    return createNotebookLens(cellIds, codes);
+  }
+}
+
+export class NotebookLanguageServerClient implements ILanguageServerClient {
+  public readonly documentUri: LSP.DocumentUri;
+  private readonly client: ILanguageServerClient;
+  private readonly snapshotter: Snapshotter;
+
+  private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
   constructor(
     client: ILanguageServerClient,
@@ -41,245 +97,15 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     // Handle configuration after initialization
     this.initializePromise.then(() => {
       invariant(
-        "notify" in this.client,
+        isClientWithNotify(this.client),
         "notify is not a method on the client",
       );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.client as any).notify("workspace/didChangeConfiguration", {
+      this.client.notify("workspace/didChangeConfiguration", {
         settings: initialSettings,
       });
     });
-  }
 
-  textDocumentDefinition(
-    params: LSP.DefinitionParams,
-  ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
-    // Get the cell document URI from the params
-    const cellDocumentUri = params.textDocument.uri;
-    if (!CellDocumentUri.is(cellDocumentUri)) {
-      Logger.warn("Invalid cell document URI", cellDocumentUri);
-      return Promise.resolve(null);
-    }
-
-    // Find the lens for this cell
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
-    const versionInfo = [...this.versionToCellNumberAndVersion.values()].find(
-      (info) => info.cellDocumentUri === cellDocumentUri,
-    );
-
-    if (!versionInfo) {
-      Logger.warn("No lens found for cell", cellId);
-      return Promise.resolve(null);
-    }
-
-    // Use the lens to transform the position
-    const { lens } = versionInfo;
-    const transformedPosition = lens.transformPosition(params.position, cellId);
-
-    return this.client.textDocumentDefinition({
-      ...params,
-      textDocument: {
-        uri: this.documentUri,
-      },
-      position: transformedPosition,
-    });
-  }
-
-  async textDocumentSignatureHelp(
-    params: LSP.SignatureHelpParams,
-  ): Promise<LSP.SignatureHelp | null> {
-    const cellDocumentUri = params.textDocument.uri;
-    if (!CellDocumentUri.is(cellDocumentUri)) {
-      Logger.warn("Invalid cell document URI", cellDocumentUri);
-      return null;
-    }
-
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
-    const versionInfo = [...this.versionToCellNumberAndVersion.values()].find(
-      (info) => info.cellDocumentUri === cellDocumentUri,
-    );
-
-    if (!versionInfo) {
-      Logger.warn("No lens found for cell", cellId);
-      return null;
-    }
-
-    const { lens } = versionInfo;
-    const transformedPosition = lens.transformPosition(params.position, cellId);
-
-    const response = await this.client.textDocumentSignatureHelp({
-      ...params,
-      textDocument: {
-        uri: this.documentUri,
-      },
-      position: transformedPosition,
-    });
-
-    if (!response) {
-      return null;
-    }
-
-    return response;
-  }
-
-  textDocumentCodeAction(
-    params: LSP.CodeActionParams,
-  ): Promise<Array<LSP.Command | LSP.CodeAction> | null> {
-    const disabledCodeAction = true;
-    if (disabledCodeAction) {
-      return Promise.resolve(null);
-    }
-    return this.client.textDocumentCodeAction(params);
-  }
-
-  /**
-   * HACK
-   * This whole function is a hack to work around the fact that we don't have
-   * a great way to map the edits back to the appropriate LSP view plugin.
-   *
-   * Instead, we parse out the new text from the response and then update the
-   * code in the plugins manually, instead of using the LSP.
-   */
-  async textDocumentRename(
-    params: LSP.RenameParams,
-  ): Promise<LSP.WorkspaceEdit | null> {
-    // Get the cell document URI from the params
-    const cellDocumentUri = params.textDocument.uri;
-    if (!CellDocumentUri.is(cellDocumentUri)) {
-      Logger.warn("Invalid cell document URI", cellDocumentUri);
-      return null;
-    }
-
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
-
-    // Find the latest lens
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-    if (latestVersion === undefined) {
-      Logger.warn("No lens found for cell", cellDocumentUri);
-      return null;
-    }
-
-    // Use the lens to transform the position
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
-    const transformedPosition = lens.transformPosition(params.position, cellId);
-
-    // Request
-    const response = await this.client.textDocumentRename({
-      ...params,
-      textDocument: {
-        uri: this.documentUri,
-      },
-      position: transformedPosition,
-    });
-
-    if (!response) {
-      return null;
-    }
-
-    // Get all the edits from the response
-    const edits = response.documentChanges?.flatMap((change) => {
-      if ("edits" in change) {
-        return change.edits;
-      }
-      return [];
-    });
-
-    // Validate its a single edit
-    if (!edits || edits.length !== 1) {
-      Logger.warn("Expected exactly one edit", edits);
-      return response;
-    }
-
-    const edit = edits[0];
-    if (!("newText" in edit)) {
-      Logger.warn("Expected newText in edit", edit);
-      return response;
-    }
-
-    // Get the new text for all the cells (some may be unchanged)
-    const newEdits = lens.getEditsForNewText(edit.newText);
-    const editsToNewCode = new Map(newEdits.map((e) => [e.cellId, e.text]));
-
-    // Update the code in the plugins manually
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const plugin of (this.client as any).plugins) {
-      const documentUri: string = plugin.documentUri;
-      if (!CellDocumentUri.is(documentUri)) {
-        Logger.warn("Invalid cell document URI", documentUri);
-        continue;
-      }
-
-      const cellId = CellDocumentUri.parse(documentUri);
-      const newCode = editsToNewCode.get(cellId);
-      if (newCode == null) {
-        Logger.warn("No new code for cell", cellId);
-        continue;
-      }
-
-      const view: EditorView = plugin.view;
-      if (!view) {
-        Logger.warn("No view for plugin", plugin);
-        continue;
-      }
-
-      // Only update if it has changed
-      if (view.state.doc.toString() !== newCode) {
-        view.dispatch({
-          changes: { from: 0, to: view.state.doc.length, insert: newCode },
-        });
-      }
-    }
-
-    return {
-      ...response,
-      documentChanges: [
-        {
-          edits: [],
-          textDocument: {
-            uri: cellDocumentUri,
-            version: 0,
-          },
-        },
-      ],
-    };
-  }
-
-  completionItemResolve(
-    params: LSP.CompletionItem,
-  ): Promise<LSP.CompletionItem> {
-    return this.client.completionItemResolve(params);
-  }
-
-  async textDocumentPrepareRename(
-    params: LSP.PrepareRenameParams,
-  ): Promise<LSP.PrepareRenameResult | null> {
-    // Get the cell document URI from the params
-    const cellDocumentUri = params.textDocument.uri;
-    if (!CellDocumentUri.is(cellDocumentUri)) {
-      Logger.warn("Invalid cell document URI", cellDocumentUri);
-      return null;
-    }
-
-    // Get the latest updated lens
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-    if (!latestVersion) {
-      Logger.warn("No lens found for cell", cellDocumentUri);
-      return null;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
-
-    return this.client.textDocumentPrepareRename({
-      ...params,
-      textDocument: {
-        uri: this.documentUri,
-      },
-      position: lens.transformPosition(params.position, cellId),
-    });
+    this.snapshotter = new Snapshotter(this.getNotebookCode.bind(this));
   }
 
   get ready(): boolean {
@@ -329,7 +155,13 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   private getNotebookCode() {
-    return getTopologicalCodes();
+    return store.get(topologicalCodesAtom);
+  }
+
+  private assertCellDocumentUri(
+    uri: LSP.DocumentUri,
+  ): asserts uri is CellDocumentUri {
+    invariant(CellDocumentUri.is(uri), "Execpted URI to be CellDocumentUri");
   }
 
   /**
@@ -338,25 +170,19 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   public async textDocumentDidOpen(params: LSP.DidOpenTextDocumentParams) {
     Logger.debug("[lsp] textDocumentDidOpen", params);
     const cellDocumentUri = params.textDocument.uri;
-    const { cellIds, codes } = this.getNotebookCode();
-    const lens = createNotebookLens(cellIds, codes);
+    this.assertCellDocumentUri(cellDocumentUri);
 
-    // Store lens keyed by document version
-    const version = params.textDocument.version;
-    this.versionToCellNumberAndVersion.set(this.documentVersion, {
-      cellDocumentUri,
-      version,
-      lens,
-    });
+    const { lens, version } = this.snapshotter.snapshot();
+
     NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.add(cellDocumentUri);
 
-    // Pass merged doc to super
+    // Pass merged doc to LSP
     const result = await this.client.textDocumentDidOpen({
       textDocument: {
         languageId: params.textDocument.languageId,
         text: lens.mergedText,
         uri: this.documentUri,
-        version: this.documentVersion,
+        version: version,
       },
     });
 
@@ -373,33 +199,34 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     };
   }
 
+  async sync(): Promise<LSP.DidChangeTextDocumentParams> {
+    const { lens, version, didChange } = this.snapshotter.snapshot();
+    if (!didChange) {
+      return {
+        textDocument: {
+          uri: this.documentUri,
+          version: version,
+        },
+        contentChanges: [{ text: lens.mergedText }],
+      };
+    }
+
+    // Update changes for merged doc, etc.
+    return this.client.textDocumentDidChange({
+      textDocument: {
+        uri: this.documentUri,
+        version: version,
+      },
+      contentChanges: [{ text: lens.mergedText }],
+    });
+  }
+
   public async textDocumentDidChange(params: LSP.DidChangeTextDocumentParams) {
     Logger.debug("[lsp] textDocumentDidChange", params);
     // We know how to only handle single content changes
     // But that is all we expect to receive
     if (params.contentChanges.length === 1) {
-      const cellDocumentUri = params.textDocument.uri;
-      const { cellIds, codes } = this.getNotebookCode();
-      const lens = createNotebookLens(cellIds, codes);
-
-      const version = params.textDocument.version;
-      this.documentVersion++;
-      const globalDocumentVersion = this.documentVersion;
-
-      this.versionToCellNumberAndVersion.set(globalDocumentVersion, {
-        cellDocumentUri,
-        version,
-        lens,
-      });
-
-      // Update changes for merged doc, etc.
-      return this.client.textDocumentDidChange({
-        textDocument: {
-          uri: this.documentUri,
-          version: globalDocumentVersion,
-        },
-        contentChanges: [{ text: lens.mergedText }],
-      });
+      return this.sync();
     }
 
     Logger.warn("[lsp] Unhandled textDocumentDidChange", params);
@@ -407,21 +234,227 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return this.client.textDocumentDidChange(params);
   }
 
+  async textDocumentDefinition(
+    params: LSP.DefinitionParams,
+  ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
+
+    // Find the lens for this cell
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    return this.client.textDocumentDefinition({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      // Transform the position to the cell coordinates
+      position: lens.transformPosition(params.position, cellId),
+    });
+  }
+
+  async textDocumentSignatureHelp(
+    params: LSP.SignatureHelpParams,
+  ): Promise<LSP.SignatureHelp | null> {
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
+
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    const response = await this.client.textDocumentSignatureHelp({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      // Transform the position to the cell coordinates
+      position: lens.transformPosition(params.position, cellId),
+    });
+
+    if (!response) {
+      return null;
+    }
+
+    return response;
+  }
+
+  textDocumentCodeAction(
+    params: LSP.CodeActionParams,
+  ): Promise<Array<LSP.Command | LSP.CodeAction> | null> {
+    const disabledCodeAction = true;
+    if (disabledCodeAction) {
+      return Promise.resolve(null);
+    }
+    return this.client.textDocumentCodeAction(params);
+  }
+
+  /**
+   * HACK
+   * This whole function is a hack to work around the fact that we don't have
+   * a great way to map the edits back to the appropriate LSP view plugin.
+   *
+   * Instead, we parse out the new text from the response and then update the
+   * code in the plugins manually, instead of using the LSP.
+   */
+  async textDocumentRename(
+    params: LSP.RenameParams,
+  ): Promise<LSP.WorkspaceEdit | null> {
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
+
+    const transformedPosition = lens.transformPosition(params.position, cellId);
+
+    // Request
+    const response = await this.client.textDocumentRename({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: transformedPosition,
+    });
+
+    if (!response) {
+      return null;
+    }
+
+    // Get all the edits from the response
+    const edits = response.documentChanges?.flatMap((change) => {
+      if ("edits" in change) {
+        return change.edits;
+      }
+      return [];
+    });
+
+    // Validate its a single edit
+    if (!edits || edits.length !== 1) {
+      Logger.warn("Expected exactly one edit", edits);
+      return response;
+    }
+
+    const edit = edits[0];
+    if (!("newText" in edit)) {
+      Logger.warn("Expected newText in edit", edit);
+      return response;
+    }
+
+    // Get the new text for all the cells (some may be unchanged)
+    const newEdits = lens.getEditsForNewText(edit.newText);
+    const editsToNewCode = new Map(newEdits.map((e) => [e.cellId, e.text]));
+
+    invariant(
+      isClientWithPlugins(this.client),
+      "Expected client with plugins.",
+    );
+
+    // Update the code in the plugins manually
+    for (const plugin of this.client.plugins) {
+      const documentUri: string = plugin.documentUri;
+      if (!CellDocumentUri.is(documentUri)) {
+        Logger.warn("Invalid cell document URI", documentUri);
+        continue;
+      }
+
+      const cellId = CellDocumentUri.parse(documentUri);
+      const newCode = editsToNewCode.get(cellId);
+      if (newCode == null) {
+        Logger.warn("No new code for cell", cellId);
+        continue;
+      }
+
+      if (!plugin.view) {
+        Logger.warn("No view for plugin", plugin);
+        continue;
+      }
+
+      // Only update if it has changed
+      if (plugin.view.state.doc.toString() !== newCode) {
+        plugin.view.dispatch({
+          changes: {
+            from: 0,
+            to: plugin.view.state.doc.length,
+            insert: newCode,
+          },
+        });
+      }
+    }
+
+    return {
+      ...response,
+      documentChanges: [
+        {
+          edits: [],
+          textDocument: {
+            uri: cellDocumentUri,
+            version: 0,
+          },
+        },
+      ],
+    };
+  }
+
+  completionItemResolve(
+    params: LSP.CompletionItem,
+  ): Promise<LSP.CompletionItem> {
+    return this.client.completionItemResolve(params);
+  }
+
+  async textDocumentPrepareRename(
+    params: LSP.PrepareRenameParams,
+  ): Promise<LSP.PrepareRenameResult | null> {
+    // Get the cell document URI from the params
+    const cellDocumentUri = params.textDocument.uri;
+    if (!CellDocumentUri.is(cellDocumentUri)) {
+      Logger.warn("Invalid cell document URI", cellDocumentUri);
+      return null;
+    }
+
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
+
+    const cellId = CellDocumentUri.parse(cellDocumentUri);
+
+    return this.client.textDocumentPrepareRename({
+      ...params,
+      textDocument: {
+        uri: this.documentUri,
+      },
+      position: lens.transformPosition(params.position, cellId),
+    });
+  }
+
   public async textDocumentHover(params: LSP.HoverParams) {
     Logger.debug("[lsp] textDocumentHover", params);
 
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-    if (latestVersion === undefined) {
-      Logger.debug("[lsp] no latest version");
-      return this.client.textDocumentHover(params);
-    }
-    const payload = this.versionToCellNumberAndVersion.get(latestVersion);
-    if (!payload) {
-      Logger.debug("[lsp] no payload for latest version");
-      return this.client.textDocumentHover(params);
-    }
-    const { lens, cellDocumentUri } = payload;
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
+
+    const cellId = CellDocumentUri.parse(params.textDocument.uri);
 
     const hover = await this.client.textDocumentHover({
       ...params,
@@ -440,7 +473,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     if (typeof hover.contents === "object" && "kind" in hover.contents) {
       hover.contents = {
         kind: "markdown",
-        value: `<div class="docs-documentation mo-cm-tooltip">\n${hover.contents.value}\n</div>`,
+        value: hover.contents.value,
       };
     }
 
@@ -458,19 +491,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   public async textDocumentCompletion(params: LSP.CompletionParams) {
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-
-    if (latestVersion === undefined) {
-      return this.client.textDocumentCompletion(params);
-    }
-
-    const payload = this.versionToCellNumberAndVersion.get(latestVersion);
-    if (!payload) {
-      return this.client.textDocumentCompletion(params);
-    }
-
-    const { lens, cellDocumentUri } = payload;
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
+    const { lens } = this.snapshotter.getLatestSnapshot();
+    const cellId = CellDocumentUri.parse(params.textDocument.uri);
 
     return this.client.textDocumentCompletion({
       ...params,
@@ -507,31 +529,9 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       if (notification.method === "textDocument/publishDiagnostics") {
         Logger.debug("[lsp] handling diagnostics", notification);
         // Use the correct lens by version
-        const globalVersion = notification.params.version || 0;
-        const payload = this.versionToCellNumberAndVersion.get(globalVersion);
-
-        if (!payload) {
-          Logger.warn("[lsp] missing payload for version", globalVersion);
-          return previousProcessNotification(notification);
-        }
+        const payload = this.snapshotter.getLatestSnapshot();
 
         const diagnostics = notification.params.diagnostics;
-
-        // If diagnostics are empty, we can just clear them for all cells
-        if (diagnostics.length === 0) {
-          Logger.debug("[lsp] clearing diagnostics");
-
-          for (const cellDocumentUri of NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS) {
-            previousProcessNotification({
-              method: "textDocument/publishDiagnostics",
-              params: {
-                uri: cellDocumentUri,
-                diagnostics: [],
-              },
-            });
-          }
-          return;
-        }
 
         const { lens, version: cellVersion } = payload;
 
@@ -556,19 +556,41 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
           }
         }
 
+        const cellsToClear = new Set(
+          NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS,
+        );
+
         // Process each cell's diagnostics
         for (const [cellId, cellDiagnostics] of diagnosticsByCellId.entries()) {
           Logger.debug("[lsp] diagnostics for cell", cellId, cellDiagnostics);
+          const cellDocumentUri = CellDocumentUri.of(cellId);
+
+          cellsToClear.delete(cellDocumentUri);
 
           previousProcessNotification({
             ...notification,
             params: {
               ...notification.params,
-              uri: CellDocumentUri.of(cellId),
+              uri: cellDocumentUri,
               version: cellVersion,
               diagnostics: cellDiagnostics,
             },
           });
+        }
+
+        // Clear the rest of the diagnostics
+        if (cellsToClear.size > 0) {
+          Logger.debug("[lsp] clearing diagnostics", cellsToClear);
+
+          for (const cellDocumentUri of cellsToClear) {
+            previousProcessNotification({
+              method: "textDocument/publishDiagnostics",
+              params: {
+                uri: cellDocumentUri,
+                diagnostics: [],
+              },
+            });
+          }
         }
 
         return;

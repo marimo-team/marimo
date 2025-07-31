@@ -1,45 +1,84 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Prec, type Extension } from "@codemirror/state";
+
 import {
+  acceptCompletion,
   closeCompletion,
-  completionStatus,
   completionKeymap as defaultCompletionKeymap,
+  moveCompletionSelection,
 } from "@codemirror/autocomplete";
-import { keymap } from "@codemirror/view";
+import { type Extension, Prec } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { keymap } from "@codemirror/view";
+import { isInVimMode } from "../utils";
+
+const KEYS_TO_REMOVE = new Set<string | undefined>([
+  // Remove Escape since it affects exiting insert mode in Vim
+  // Issue: https://github.com/marimo-team/marimo/issues/4351
+  "Escape",
+
+  // Remove Alt-` since this affects Italian keyboards from using backticks.
+  // Issue: https://github.com/marimo-team/marimo/issues/5606
+  // Alt-` is set to startCompletion on macOS which is likely not used,
+  // Completions is still done via Ctrl-Space and Alt-i.
+  // See https://github.com/codemirror/autocomplete/blob/ab0a89942b237bbc13735604b018d10c0101b5ea/src/index.ts#L40-L42
+  "Alt-`",
+]);
 
 export function completionKeymap(): Extension {
-  const withoutEscape = defaultCompletionKeymap.filter(
-    (binding) => binding.key !== "Escape",
+  const withoutKeysToRemove = defaultCompletionKeymap.filter(
+    (binding) => !KEYS_TO_REMOVE.has(binding.key),
   );
 
-  const closeCompletionIfActive = (view: EditorView) => {
-    const status = completionStatus(view.state);
-    if (status === "pending") {
-      closeCompletion(view);
-      // Return false to propagate the Escape key
+  const closeCompletionAndPropagate = (view: EditorView) => {
+    const status = closeCompletion(view);
+    // When in vim mode, we need to propagate Escape to exit insert mode.
+    if (isInVimMode(view)) {
       return false;
     }
-    // Use the default behavior: when the completion is Active
-    // Return true to stop propagation of the Escape key
-    return closeCompletion(view);
+    return status;
   };
 
   return Prec.highest(
     keymap.of([
-      ...withoutEscape,
+      ...withoutKeysToRemove,
       // We add our own Escape binding to accept the completion
       // The default codemirror behavior is to close the completion
       // when Escape is pressed and the completion is Pending or Active.
       // We want to still close the completion, but allow propagation
-      // of the Escape key when it is pending, so downstream hotkeys will work
+      // of the Escape key, so downstream hotkeys (like leaving insert mode) will work.
       //
-      // This happens when using Vim. If a completion is Pending and Esc is hit quickly,
-      // we want to leave Insert mode AND close the completion.
-      // When the completion is Active, we just want to close the completion.
+      // This happens when using Vim.
       {
         key: "Escape",
-        run: closeCompletionIfActive,
+        run: closeCompletionAndPropagate,
+      },
+      // Vim-specific completion keybindings
+      {
+        key: "Ctrl-y",
+        run: (view) => {
+          if (isInVimMode(view)) {
+            return acceptCompletion(view);
+          }
+          return false;
+        },
+      },
+      {
+        key: "Ctrl-n",
+        run: (view) => {
+          if (isInVimMode(view)) {
+            return moveCompletionSelection(true)(view);
+          }
+          return false;
+        },
+      },
+      {
+        key: "Ctrl-p",
+        run: (view) => {
+          if (isInVimMode(view)) {
+            return moveCompletionSelection(false)(view);
+          }
+          return false;
+        },
       },
     ]),
   );

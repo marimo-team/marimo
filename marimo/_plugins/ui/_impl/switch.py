@@ -24,6 +24,7 @@ class switch(UIElement[bool, bool]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Optional[Callable[[bool], None]], optional): Optional callback to run
             when this element's value changes.
+        disabled (bool, optional): Whether the element is disabled. Defaults to False.
     """
 
     _name: Final[str] = "marimo-switch"
@@ -33,6 +34,7 @@ class switch(UIElement[bool, bool]):
         value: bool = False,
         *,
         label: str = "",
+        disabled: bool = False,
         on_change: Optional[Callable[[bool], None]] = None,
     ) -> None:
         if not isinstance(value, bool):
@@ -48,7 +50,7 @@ class switch(UIElement[bool, bool]):
             component_name=switch._name,
             initial_value=value,
             label=label,
-            args={},
+            args={"disabled": disabled},
             on_change=on_change,
         )
 

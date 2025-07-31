@@ -1,5 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
+
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -10,8 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
 
 const meta: Meta = {
   title: "Select",

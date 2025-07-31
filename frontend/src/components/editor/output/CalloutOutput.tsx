@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { memo } from "react";
-import { HtmlOutput } from "./HtmlOutput";
-import { calloutStyles } from "./CalloutOutput.styles";
 import type { Intent } from "@/plugins/impl/common/intent";
+import { calloutStyles } from "./CalloutOutput.styles";
+import { HtmlOutput } from "./HtmlOutput";
 
 interface Props {
   html: string;

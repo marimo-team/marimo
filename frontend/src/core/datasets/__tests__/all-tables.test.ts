@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { datasetsAtom } from "../state";
+import { store } from "@/core/state/jotai";
 import {
   allTablesAtom,
   dataSourceConnectionsAtom,
-  DUCKDB_ENGINE,
 } from "../data-source-connections";
-import { store } from "@/core/state/jotai";
+import { DUCKDB_ENGINE } from "../engines";
+import { datasetsAtom } from "../state";
 import type { DatasetsState } from "../types";
 
 describe("allTablesAtom", () => {

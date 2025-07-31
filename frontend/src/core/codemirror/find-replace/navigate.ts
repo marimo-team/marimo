@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { store } from "@/core/state/jotai";
+
 import { SearchQuery } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { findReplaceAtom } from "./state";
 import { getAllEditorViews } from "@/core/cells/cells";
-import { type QueryType, asQueryCreator } from "./query";
+import { store } from "@/core/state/jotai";
+import { asQueryCreator, type QueryType } from "./query";
+import { findReplaceAtom } from "./state";
 
 function searchCommand<T>(
   f: (state: { query: QueryType; search: SearchQuery }) => T,

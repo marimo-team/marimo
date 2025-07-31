@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { formatDate } from "date-fns";
+
 import { TZDate } from "@date-fns/tz";
+import { formatDate } from "date-fns";
 import { Logger } from "./Logger";
 
 export function prettyDate(
@@ -15,11 +16,15 @@ export function prettyDate(
     // If type is date, drop the timezone by rendering in UTC
     // since dates are absolute
     if (type === "date") {
-      value = new Date(value).toLocaleDateString(undefined, {
+      return new Date(value).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
         timeZone: "UTC",
       });
     }
 
+    // For datetime, we keep the original timezone
     return new Date(value).toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",

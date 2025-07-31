@@ -1,34 +1,34 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { PyodideInterface } from "pyodide";
-import type { RawBridge, SerializedBridge, WasmController } from "./types";
-import { Deferred } from "../../../utils/Deferred";
-import { WasmFileSystem } from "./fs";
-import { MessageBuffer } from "./message-buffer";
-import { prettyError } from "../../../utils/errors";
 import {
-  createWorkerParentTransport,
   createRPC,
   createRPCRequestHandler,
+  createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { ParentSchema } from "../rpc";
-import { Logger } from "../../../utils/Logger";
-import { TRANSPORT_ID } from "./constants";
-import { invariant } from "../../../utils/invariant";
-import type { OperationMessage } from "@/core/kernel/messages";
-import type { JsonString } from "@/utils/json/base64";
 import type { UserConfig } from "@/core/config/config-schema";
-import { getPyodideVersion } from "./getPyodideVersion";
-import { t } from "./tracer";
-import { once } from "@/utils/once";
-import { getController } from "./getController";
+import type { OperationMessage } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
   SaveNotebookRequest,
 } from "@/core/network/types";
+import type { JsonString } from "@/utils/json/base64";
+import { once } from "@/utils/once";
 import { decodeUtf8 } from "@/utils/strings";
+import { Deferred } from "../../../utils/Deferred";
+import { prettyError } from "../../../utils/errors";
+import { invariant } from "../../../utils/invariant";
+import { Logger } from "../../../utils/Logger";
+import type { ParentSchema } from "../rpc";
+import { TRANSPORT_ID } from "./constants";
+import { WasmFileSystem } from "./fs";
+import { getController } from "./getController";
+import { getPyodideVersion } from "./getPyodideVersion";
+import { MessageBuffer } from "./message-buffer";
+import { t } from "./tracer";
+import type { RawBridge, SerializedBridge, WasmController } from "./types";
 
 /**
  * Web worker responsible for running the notebook.

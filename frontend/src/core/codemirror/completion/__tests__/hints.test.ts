@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { Text } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { getPositionAtWordBounds } from "../hints";
-import { Text } from "@codemirror/state";
 
 const doc = Text.of([
   "# Update the data",

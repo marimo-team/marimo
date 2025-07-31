@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import React, { type PropsWithChildren } from "react";
 import { Label } from "@/components/ui/label";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import React, { type PropsWithChildren } from "react";
 import { cn } from "@/utils/cn";
 
 interface Props {
@@ -57,6 +58,7 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
         align === "left" && "flex-row items-center gap-x-1.5 pr-2",
         align === "right" && "flex-row-reverse items-center gap-x-1.5 pr-2",
         fullWidth && "block space-y-2",
+        !fullWidth && "w-fit",
         className,
       )}
     >

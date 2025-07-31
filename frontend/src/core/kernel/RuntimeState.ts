@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { Logger } from "@/utils/Logger";
 import {
   MarimoValueReadyEvent,
   type MarimoValueReadyEventType,
 } from "../dom/events";
 import { UI_ELEMENT_REGISTRY, type UIElementRegistry } from "../dom/uiregistry";
 import type { RunRequests } from "../network/types";
-import { Logger } from "@/utils/Logger";
 
 /**
  * Manager to track running cells.

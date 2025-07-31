@@ -11,6 +11,7 @@ from marimo._ai._types import ChatMessage, ChatModelConfig
 from marimo._ai.llm._impl import (
     DEFAULT_SYSTEM_MESSAGE,
     anthropic,
+    bedrock,
     google,
     groq,
     openai,
@@ -77,14 +78,14 @@ def mock_anthropic_client():
 @pytest.fixture
 def mock_google_client():
     """Fixture for mocking the Google client."""
-    with patch("google.generativeai.GenerativeModel") as mock_google_class:
+    with patch("google.genai.Client") as mock_google_class:
         mock_client = MagicMock()
         mock_google_class.return_value = mock_client
 
         # Setup the response structure
         mock_response = MagicMock()
         mock_response.text = "Test response"
-        mock_client.generate_content.return_value = mock_response
+        mock_client.models.generate_content.return_value = mock_response
 
         yield mock_client, mock_google_class
 
@@ -106,6 +107,22 @@ def mock_azure_openai_client():
         mock_client.chat.completions.create.return_value = mock_response
 
         yield mock_client, mock_azure_openai_class
+
+
+@pytest.fixture
+def mock_litellm_completion():
+    """Fixture for mocking the OpenAI client."""
+    with patch("litellm.completion") as mock_litellm_completion:
+        # Setup the response structure
+        mock_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = "Test response"
+        mock_choice.message = mock_message
+        mock_response.choices = [mock_choice]
+        mock_litellm_completion.return_value = mock_response
+
+        yield mock_litellm_completion
 
 
 @pytest.fixture
@@ -190,7 +207,7 @@ def test_anthropic_require() -> None:
 )
 def test_google_require() -> None:
     """Test that google.require raises ModuleNotFoundError."""
-    model = google("gemini-pro")
+    model = google("gemini-2.5-flash-preview-05-20")
     messages = [ChatMessage(role="user", content="Test prompt")]
     config = ChatModelConfig()
     with pytest.raises(ModuleNotFoundError):
@@ -657,38 +674,36 @@ class TestGroq:
 class TestGoogle:
     def test_init(self) -> None:
         """Test initialization of the google class."""
-        model = google("gemini-pro")
-        assert model.model == "gemini-pro"
+        model = google("gemini-2.5-flash-preview-05-20")
+        assert model.model == "gemini-2.5-flash-preview-05-20"
         assert model.system_message == DEFAULT_SYSTEM_MESSAGE
         assert model.api_key is None
 
         model = google(
-            "gemini-pro",
+            "gemini-2.5-flash-preview-05-20",
             system_message="Custom system message",
             api_key="test-key",
         )
-        assert model.model == "gemini-pro"
+        assert model.model == "gemini-2.5-flash-preview-05-20"
         assert model.system_message == "Custom system message"
         assert model.api_key == "test-key"
 
     @patch.object(google, "_require_api_key")
-    @patch("google.generativeai.configure")
-    @patch("google.generativeai.GenerativeModel")
+    @patch("google.genai.Client")
     def test_call(
         self,
-        mock_generative_model: MagicMock,
-        mock_configure: MagicMock,
+        mock_genai_client_class: MagicMock,
         mock_require_api_key: MagicMock,
     ) -> None:
         """Test calling the google class."""
         mock_require_api_key.return_value = "test-key"
         mock_client = MagicMock()
-        mock_generative_model.return_value = mock_client
+        mock_genai_client_class.return_value = mock_client
         mock_response = MagicMock()
         mock_response.text = "Test response"
-        mock_client.generate_content.return_value = mock_response
+        mock_client.models.generate_content.return_value = mock_response
 
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         # Patch the _require_api_key property to return the test key directly
         with patch.object(model, "_require_api_key", "test-key"):
             messages = [ChatMessage(role="user", content="Test prompt")]
@@ -704,24 +719,24 @@ class TestGoogle:
             result = model(messages, config)
             assert result == "Test response"
 
-            mock_configure.assert_called_once_with(api_key="test-key")
-        mock_generative_model.assert_called_once()
-        call_args = mock_generative_model.call_args[1]
-        assert call_args["model_name"] == "gemini-pro"
-        generation_config = call_args["generation_config"]
-        assert generation_config.max_output_tokens == 100
-        assert generation_config.temperature == 0.7
-        assert generation_config.top_p == 0.9
-        assert generation_config.top_k == 10
-        assert generation_config.frequency_penalty == 0.5
-        assert generation_config.presence_penalty == 0.5
+            mock_genai_client_class.assert_called_once_with(api_key="test-key")
 
-        mock_client.generate_content.assert_called_once()
+        mock_client.models.generate_content.assert_called_once()
+        call_args = mock_client.models.generate_content.call_args[1]
+        assert call_args["model"] == "gemini-2.5-flash-preview-05-20"
+        config_arg = call_args["config"]
+        assert config_arg["system_instruction"] == DEFAULT_SYSTEM_MESSAGE
+        assert config_arg["max_output_tokens"] == 100
+        assert config_arg["temperature"] == 0.7
+        assert config_arg["top_p"] == 0.9
+        assert config_arg["top_k"] == 10
+        assert config_arg["frequency_penalty"] == 0.5
+        assert config_arg["presence_penalty"] == 0.5
 
     @patch.dict(os.environ, {"GOOGLE_AI_API_KEY": "env-key"})
     def test_require_api_key_env(self) -> None:
         """Test _require_api_key with environment variable."""
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         assert model._require_api_key == "env-key"
 
     @patch.dict(os.environ, {}, clear=True)
@@ -734,7 +749,7 @@ class TestGoogle:
         }
         mock_get_context.return_value = mock_context
 
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         assert model._require_api_key == "config-key"
 
     @patch.dict(os.environ, {}, clear=True)
@@ -747,7 +762,7 @@ class TestGoogle:
         mock_context.marimo_config = {"ai": {"google": {"api_key": ""}}}
         mock_get_context.return_value = mock_context
 
-        model = google("gemini-pro")
+        model = google("gemini-2.5-flash-preview-05-20")
         with pytest.raises(ValueError):
             _ = model._require_api_key
 
@@ -892,3 +907,76 @@ class TestAnthropic:
         model = anthropic("claude-3-opus-20240229")
         with pytest.raises(ValueError):
             _ = model._require_api_key
+
+
+@pytest.mark.skipif(
+    not DependencyManager.boto3.has() or not DependencyManager.litellm.has(),
+    reason="boto3 or litellm is not installed",
+)
+class TestBedrock:
+    """Test the Bedrock model class"""
+
+    def test_init(self):
+        """Test initialization of the bedrock model class"""
+        model = bedrock(
+            "anthropic.claude-3-sonnet-20240229",
+            system_message="Test system message",
+            region_name="us-east-1",
+        )
+
+        # bedrock automatically prefixes with bedrock/ for litellm usage
+        assert model.model == "bedrock/anthropic.claude-3-sonnet-20240229"
+        assert model.system_message == "Test system message"
+        assert model.region_name == "us-east-1"
+        assert model.profile_name is None
+        assert model.aws_access_key_id is None
+        assert model.aws_secret_access_key is None
+
+    def test_init_with_credentials(self):
+        """Test initialization with explicit credentials"""
+        model = bedrock(
+            "anthropic.claude-3-sonnet-20240229",
+            aws_access_key_id="test-key",
+            aws_secret_access_key="test-secret",
+        )
+
+        assert model.aws_access_key_id == "test-key"
+        assert model.aws_secret_access_key == "test-secret"
+
+    def test_init_with_profile(self):
+        """Test initialization with AWS profile"""
+        model = bedrock(
+            "anthropic.claude-3-sonnet-20240229",
+            profile_name="test-profile",
+        )
+
+        assert model.profile_name == "test-profile"
+
+    def test_call(self, mock_litellm_completion, test_messages, test_config):
+        """Test calling the bedrock class with LiteLLM client."""
+        model_name = "anthropic.claude-3-sonnet-20240229"
+
+        # Create model with API key to avoid _require_api_key
+        model = bedrock(model_name)
+
+        result = model(test_messages, test_config)
+
+        # Verify result
+        assert result == "Test response"
+
+        # Verify API call
+        mock_litellm_completion.assert_called_once()
+        call_args = mock_litellm_completion.call_args[1]
+        assert call_args["model"] == f"bedrock/{model_name}"
+        assert len(call_args["messages"]) == 2
+        assert call_args["messages"][0]["role"] == "system"
+        assert call_args["messages"][0]["content"] == DEFAULT_SYSTEM_MESSAGE
+        assert call_args["messages"][1]["role"] == "user"
+        assert call_args["messages"][1]["content"] == "Test prompt"
+        assert call_args["max_tokens"] == 100
+        # Use pytest.approx for floating point comparisons
+        assert call_args["temperature"] == pytest.approx(0.7)
+        assert call_args["top_p"] == pytest.approx(0.9)
+        assert call_args["frequency_penalty"] == pytest.approx(0.5)
+        assert call_args["presence_penalty"] == pytest.approx(0.5)
+        assert call_args["stream"] is False

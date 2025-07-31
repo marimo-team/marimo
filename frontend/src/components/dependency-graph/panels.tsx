@@ -1,31 +1,32 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo } from "react";
-import { type Edge, Panel } from "reactflow";
-import { Button } from "../ui/button";
+
 import {
-  Rows3Icon,
-  NetworkIcon,
   ArrowRightFromLineIcon,
   ArrowRightIcon,
   ArrowRightToLineIcon,
-  WorkflowIcon,
-  SquareFunction,
-  SettingsIcon,
   MoreVerticalIcon,
+  NetworkIcon,
+  Rows3Icon,
+  SettingsIcon,
+  SquareFunction,
+  WorkflowIcon,
   XIcon,
 } from "lucide-react";
-import type { GraphLayoutView, GraphSelection, GraphSettings } from "./types";
-import { CellLink } from "../editor/links/cell-link";
-import { CellLinkList } from "../editor/links/cell-link-list";
-import { VariableName } from "../variables/common";
-import type { Variable, Variables } from "@/core/variables/types";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Checkbox } from "../ui/checkbox";
-import { Label } from "../ui/label";
-import { ConnectionCellActionsDropdown } from "../editor/cell/cell-actions";
+import React, { memo } from "react";
+import { type Edge, Panel } from "reactflow";
 import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
+import type { Variable, Variables } from "@/core/variables/types";
+import { ConnectionCellActionsDropdown } from "../editor/cell/cell-actions";
+import { CellLink } from "../editor/links/cell-link";
+import { CellLinkList } from "../editor/links/cell-link-list";
+import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
+import { Label } from "../ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { VariableName } from "../variables/common";
+import type { GraphLayoutView, GraphSelection, GraphSettings } from "./types";
 
 interface Props {
   view: GraphLayoutView;

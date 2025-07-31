@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { AppConfig } from "@/core/config/config-schema";
-import type { CellData, CellRuntimeState } from "@/core/cells/types";
+
 import type { ZodType, ZodTypeDef } from "zod";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { AppConfig } from "@/core/config/config-schema";
 import type { AppMode } from "@/core/mode";
 
 /**

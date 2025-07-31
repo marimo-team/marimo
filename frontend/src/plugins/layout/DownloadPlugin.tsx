@@ -1,16 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { z } from "zod";
 import { DownloadIcon, Loader2 } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/utils/cn";
 import { useState } from "react";
+import { z } from "zod";
+import { buttonVariants } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
+import { cn } from "@/utils/cn";
 import { downloadByURL } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
-import { toast } from "@/components/ui/use-toast";
 import { createPlugin } from "../core/builder";
-import { rpc } from "../core/rpc";
 import { renderHTML } from "../core/RenderHTML";
+import { rpc } from "../core/rpc";
 
 interface Data {
   /**
@@ -73,7 +73,10 @@ export const DownloadPlugin = createPlugin("marimo-download")
 const DownloadButton = ({
   data,
   load,
-}: { data: Data; load: Functions["load"] }) => {
+}: {
+  data: Data;
+  load: Functions["load"];
+}) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async (e: React.MouseEvent) => {

@@ -105,7 +105,7 @@ def test_data_to_csv_string(df: IntoDataFrame):
     assert isinstance(result, str)
     lines = result.strip().split("\n")
     assert len(lines) == 4  # header + 3 data rows
-    assert lines[0] == "A,B" or lines[0] == "A,B\r"
+    assert lines[0].startswith('"A","B"') or lines[0].startswith("A,B")
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -161,13 +161,9 @@ def test_to_marimo_inline_csv_large_dataset(df: IntoDataFrame):
     # Verify the content of the inline CSV
     base64_data = result["url"].split(",")[1]
     decoded_data = base64.b64decode(base64_data).decode("utf-8")
-    assert decoded_data.startswith("A,B")
-    assert (
-        decoded_data.endswith("9999,value_9999\n")
-        or
-        # for windows
-        decoded_data.endswith("9999,value_9999\r\n")
-    )
+    assert decoded_data.startswith('"A","B"') or decoded_data.startswith("A,B")
+    lines = decoded_data.strip().split("\n")
+    assert len(lines) == 10001  # header + 10000 data rows
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -233,7 +229,7 @@ def test_register_transformers(mock_data_transformers: MagicMock):
     )
 
 
-SUPPORTS_ARROW_IPC = ["pandas", "polars"]
+SUPPORTS_ARROW_IPC = ["pandas", "polars", "lazy-polars"]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

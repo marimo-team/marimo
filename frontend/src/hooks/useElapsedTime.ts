@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type Milliseconds, Time } from "@/utils/time";
+
 import { useEffect, useRef, useState } from "react";
+import { type Milliseconds, Time } from "@/utils/time";
 
 /**
  * Returns the elapsed time since mount, in milliseconds.

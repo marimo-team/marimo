@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { useInternalStateWithSync } from "../useInternalStateWithSync";
-import { describe, it, expect, vi } from "vitest";
 
 describe("useInternalStateWithSync", () => {
   it("should initialize with the given initial value", () => {

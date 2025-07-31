@@ -121,3 +121,52 @@ The `request` object provides access to:
 - `request.user`: User data added by authentication middleware
 - `request.url`: URL information including path, query parameters
 - `request.meta`: Metadata added by your custom middleware
+
+
+### Documenting and Validating Query Parameters
+
+When mounted apps accept [query parameters](../../api/query_params.md), it can be helpful to declare, validate, and document them with the help of a [Pydantic model](https://fastapi.tiangolo.com/tutorial/query-param-models/).
+
+If a marimo app called `notebooks/items.py` is mounted to `/items`, declaring an endpoint with the same route will take the query parameters through Pydantic model validation first, then redirect to the marimo endpoint.
+
+
+```python
+# src/main.py
+from fastapi import FastAPI, Request, Query
+from fastapi.responses import RedirectResponse
+from marimo import create_asgi_app
+from pathlib import Path
+from pydantic import BaseModel, Field
+from typing import Annotated, Literal
+from urllib.parse import urlencode
+
+
+app = FastAPI()
+
+
+class FilterParams(BaseModel):
+    limit: int = Field(100, gt=0, le=100)
+    offset: int = Field(0, ge=0)
+    order_by: Literal["created_at", "updated_at"] = "created_at"
+    tags: list[str] = []
+
+
+@app.get("/items")
+async def marimo_items(
+    request: Request, filter_query: Annotated[FilterParams, Query()]
+):
+    query_params = urlencode(filter_query.model_dump(), doseq=True)
+    return RedirectResponse(url=f"/items/?{query_params}")
+
+
+server = create_asgi_app(include_code=True, quiet=False)
+notebooks_dir = Path(__file__).parent.parent / "notebooks"
+
+for filename in notebooks_dir.iterdir():
+    if filename.suffix == ".py":
+        app_name = filename.stem
+        server = server.with_app(path=f"/{app_name}", root=filename)
+
+
+app.mount("/", server.build())
+```

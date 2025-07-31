@@ -1,4 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import {
   afterAll,
   beforeAll,
@@ -8,28 +12,25 @@ import {
   it,
   vi,
 } from "vitest";
-import {
-  type NotebookState,
-  SETUP_CELL_ID,
-  exportedForTesting,
-  flattenTopLevelNotebookCells,
-} from "../cells";
-import { CellId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
-import type { Seconds } from "@/utils/time";
-import { EditorView } from "@codemirror/view";
-import { python } from "@codemirror/lang-python";
-import { EditorState } from "@codemirror/state";
 import type { CellHandle } from "@/components/editor/Cell";
+import { CellId } from "@/core/cells/ids";
 import { foldAllBulk, unfoldAllBulk } from "@/core/codemirror/editing/commands";
 import { adaptiveLanguageConfiguration } from "@/core/codemirror/language/extension";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import type { OutputMessage } from "@/core/kernel/messages";
+import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
+import type { Seconds } from "@/utils/time";
+import {
+  exportedForTesting,
+  flattenTopLevelNotebookCells,
+  type NotebookState,
+  SETUP_CELL_ID,
+} from "../cells";
 import {
   focusAndScrollCellIntoView,
-  scrollToTop,
   scrollToBottom,
+  scrollToTop,
 } from "../scrollCellIntoView";
-import { type CollapsibleTree, MultiColumn } from "@/utils/id-tree";
 import type { CellData } from "../types";
 
 vi.mock("@/core/codemirror/editing/commands", () => ({
@@ -48,6 +49,7 @@ vi.mock("../scrollCellIntoView", async (importOriginal) => {
 });
 
 const FIRST_COLUMN = 0;
+const SECOND_COLUMN = 1;
 
 const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
@@ -110,8 +112,10 @@ describe("cell reducer", () => {
     state = reducer(state, action);
     for (const [cellId, handle] of Object.entries(state.cellHandles)) {
       if (!handle.current) {
+        const view = createEditor(state.cellData[cellId as CellId].code);
         const handle: CellHandle = {
-          editorView: createEditor(state.cellData[cellId as CellId].code),
+          editorView: view,
+          editorViewOrNull: view,
         };
         state.cellHandles[cellId as CellId] = { current: handle };
       }
@@ -1278,7 +1282,7 @@ describe("cell reducer", () => {
     actions.createNewCell({ cellId: firstCellId, before: false });
     actions.createNewCell({ cellId: "1" as CellId, before: false });
 
-    actions.focusCell({ cellId: "1" as CellId, before: true });
+    actions.focusCell({ cellId: "1" as CellId, where: "before" });
     expect(focusAndScrollCellIntoView).toHaveBeenCalledWith(
       expect.objectContaining({
         cellId: "0" as CellId,
@@ -1444,6 +1448,128 @@ describe("cell reducer", () => {
 
     actions.expandCell({ cellId: id });
     expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(id)).toBe(false);
+  });
+
+  it("can collapse and expand all cells in multiple columns", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# First Column Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## First Column Subheader",
+    });
+
+    actions.addColumnBreakpoint({ cellId: "2" as CellId });
+
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "# Second Column Header",
+    });
+    actions.createNewCell({
+      cellId: "4" as CellId,
+      before: false,
+      code: "## Second Column Subheader",
+    });
+
+    const firstColumnHeaderId = state.cellIds
+      .atOrThrow(FIRST_COLUMN)
+      .atOrThrow(1);
+    state.cellRuntime[firstColumnHeaderId] = {
+      ...state.cellRuntime[firstColumnHeaderId],
+      outline: {
+        items: [
+          { name: "First Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    const secondColumnHeaderId = state.cellIds
+      .atOrThrow(SECOND_COLUMN)
+      .atOrThrow(0);
+    state.cellRuntime[secondColumnHeaderId] = {
+      ...state.cellRuntime[secondColumnHeaderId],
+      outline: {
+        items: [
+          { name: "Second Column Header", level: 1, by: { id: "header" } },
+        ],
+      },
+    };
+
+    actions.collapseAllCells();
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(true);
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(true);
+
+    actions.expandAllCells();
+    expect(
+      state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(firstColumnHeaderId),
+    ).toBe(false);
+    expect(
+      state.cellIds.atOrThrow(SECOND_COLUMN).isCollapsed(secondColumnHeaderId),
+    ).toBe(false);
+  });
+
+  it("can collapse and expand nested cells in one call", () => {
+    actions.createNewCell({ cellId: firstCellId, before: false });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+      code: "# Header",
+    });
+    actions.createNewCell({
+      cellId: "2" as CellId,
+      before: false,
+      code: "## Subheader",
+    });
+    actions.createNewCell({
+      cellId: "3" as CellId,
+      before: false,
+      code: "### Subsubheader",
+    });
+
+    const headerId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(1);
+    state.cellRuntime[headerId] = {
+      ...state.cellRuntime[headerId],
+      outline: {
+        items: [{ name: "Header", level: 1, by: { id: "header" } }],
+      },
+    };
+
+    const subheaderId = state.cellIds.atOrThrow(FIRST_COLUMN).atOrThrow(2);
+    state.cellRuntime[subheaderId] = {
+      ...state.cellRuntime[subheaderId],
+      outline: {
+        items: [{ name: "Subheader", level: 2, by: { id: "subheader" } }],
+      },
+    };
+
+    // Check if both the parent and child are collapsed
+    actions.collapseAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      true,
+    );
+    actions.expandCell({ cellId: headerId });
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      true,
+    );
+    actions.collapseCell({ cellId: headerId });
+
+    // Check if both the parent and child are expanded
+    actions.expandAllCells();
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(headerId)).toBe(
+      false,
+    );
+    expect(state.cellIds.atOrThrow(FIRST_COLUMN).isCollapsed(subheaderId)).toBe(
+      false,
+    );
   });
 
   it("can show hidden cells", () => {
@@ -1826,6 +1952,57 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs).toEqual([]);
   });
 
+  it("can clear console output of a single cell", () => {
+    // Set up initial state with output
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "test output",
+        timestamp: 0,
+      },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "console output",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
+    });
+
+    // Add a stdin console output that should be preserved
+    actions.handleCellMessage({
+      cell_id: firstCellId,
+      console: {
+        channel: "stdin",
+        mimetype: "text/plain",
+        data: "stdin prompt",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(34).getTime() as Seconds,
+    });
+
+    // Verify initial state has output and console outputs
+    let cell = cells[0];
+    expect(cell.output).not.toBeNull();
+    expect(cell.consoleOutputs.length).toBe(2);
+
+    // Clear console output
+    actions.clearCellConsoleOutput({ cellId: firstCellId });
+
+    // Verify only console output is cleared, but stdin is preserved
+    cell = cells[0];
+    expect(cell.output).not.toBeNull(); // Output should remain
+    expect(cell.consoleOutputs.length).toBe(1);
+    expect(cell.consoleOutputs[0].channel).toBe("stdin");
+    expect(cell.consoleOutputs[0].data).toBe("stdin prompt");
+  });
+
   it("can clear output of all cells", () => {
     // Create multiple cells with output
     actions.createNewCell({ cellId: firstCellId, before: false });
@@ -1964,5 +2141,476 @@ describe("cell reducer", () => {
     expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+  });
+
+  it("can clear all outputs", () => {
+    // Add a cell and give it output
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+
+    const cell1Id = cells[0].id;
+    const cell2Id = cells[1].id;
+
+    // Manually set output for the cells
+    state.cellRuntime[cell1Id].output = {
+      channel: "output",
+      mimetype: "text/plain",
+      data: "output1",
+      timestamp: 0 as Seconds,
+    };
+    state.cellRuntime[cell2Id].output = {
+      channel: "output",
+      mimetype: "text/plain",
+      data: "output2",
+      timestamp: 0 as Seconds,
+    };
+
+    actions.clearAllCellOutputs();
+
+    expect(state.cellRuntime[cell1Id].output).toBeNull();
+    expect(state.cellRuntime[cell2Id].output).toBeNull();
+  });
+
+  describe("moveToNextCell", () => {
+    let cell1Id: CellId;
+    let cell2Id: CellId;
+    let cell3Id: CellId;
+
+    beforeEach(() => {
+      // Create a few cells to work with
+      actions.createNewCell({ cellId: "__end__", before: false });
+      actions.createNewCell({ cellId: "__end__", before: false });
+
+      cell1Id = state.cellIds.inOrderIds[0];
+      cell2Id = state.cellIds.inOrderIds[1];
+      cell3Id = state.cellIds.inOrderIds[2];
+    });
+
+    it("creates new cell when moving after last cell with noCreate=false", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+
+      actions.moveToNextCell({
+        cellId: cell3Id,
+        before: false,
+        noCreate: false,
+      });
+
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
+    });
+
+    it("creates new cell when moving before first cell with noCreate=false", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+
+      actions.moveToNextCell({
+        cellId: cell1Id,
+        before: true,
+        noCreate: false,
+      });
+
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
+    });
+
+    it("does not create new cell when moving after last cell with noCreate=true", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+      const initialState = { ...state };
+
+      actions.moveToNextCell({
+        cellId: cell3Id,
+        before: false,
+        noCreate: true,
+      });
+
+      // Should not create a new cell
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount);
+      // Should not crash or throw an error
+      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
+    });
+
+    it("does not create new cell when moving before first cell with noCreate=true", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+      const initialState = { ...state };
+
+      actions.moveToNextCell({ cellId: cell1Id, before: true, noCreate: true });
+
+      // Should not create a new cell
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount);
+      // Should not crash or throw an error
+      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
+    });
+
+    it("focuses next cell when moving within bounds", () => {
+      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
+      focusSpy.mockClear();
+
+      actions.moveToNextCell({
+        cellId: cell1Id,
+        before: false,
+        noCreate: true,
+      });
+
+      expect(focusSpy).toHaveBeenCalledWith({
+        cellId: cell2Id,
+        cell: state.cellHandles[cell2Id],
+        isCodeHidden: false,
+        codeFocus: "top",
+        variableName: undefined,
+      });
+    });
+
+    it("focuses previous cell when moving backward within bounds", () => {
+      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
+      focusSpy.mockClear();
+
+      actions.moveToNextCell({ cellId: cell2Id, before: true, noCreate: true });
+
+      expect(focusSpy).toHaveBeenCalledWith({
+        cellId: cell1Id,
+        cell: state.cellHandles[cell1Id],
+        isCodeHidden: false,
+        codeFocus: "bottom",
+        variableName: undefined,
+      });
+    });
+
+    it("does not move focus from scratch cell", () => {
+      const focusSpy = vi.mocked(focusAndScrollCellIntoView);
+      focusSpy.mockClear();
+      const initialState = { ...state };
+
+      actions.moveToNextCell({
+        cellId: "__scratch__" as CellId,
+        before: false,
+        noCreate: false,
+      });
+
+      expect(focusSpy).not.toHaveBeenCalled();
+      expect(state.cellIds.inOrderIds).toEqual(initialState.cellIds.inOrderIds);
+    });
+  });
+
+  describe("untouched cells functionality", () => {
+    it("starts with empty untouchedNewCells set", () => {
+      expect(state.untouchedNewCells).toEqual(new Set());
+    });
+
+    it("can create a new cell with hideCode option", () => {
+      const initialCellCount = state.cellIds.inOrderIds.length;
+
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+
+      expect(state.cellIds.inOrderIds.length).toBe(initialCellCount + 1);
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+    });
+
+    it("does not add cell to untouchedNewCells when hideCode is false", () => {
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: false,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
+    });
+
+    it("does not add cell to untouchedNewCells when hideCode is undefined", () => {
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
+    });
+
+    it("can mark a cell as touched", () => {
+      // Create a cell with hideCode
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+
+      // Mark it as touched
+      actions.markTouched({ cellId: newCellId });
+
+      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
+    });
+
+    it("markTouched is idempotent", () => {
+      // Create a cell with hideCode
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+
+      // Mark it as touched multiple times
+      actions.markTouched({ cellId: newCellId });
+      actions.markTouched({ cellId: newCellId });
+      actions.markTouched({ cellId: newCellId });
+
+      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
+    });
+
+    it("can mark a non-existent cell as touched without error", () => {
+      const nonExistentCellId = "non-existent" as CellId;
+
+      expect(() => {
+        actions.markTouched({ cellId: nonExistentCellId });
+      }).not.toThrow();
+
+      expect(state.untouchedNewCells.has(nonExistentCellId)).toBe(false);
+    });
+
+    it("can handle multiple untouched cells", () => {
+      // Create multiple cells with hideCode
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: false,
+      });
+
+      const cellIds = state.cellIds.inOrderIds;
+      const cell1Id = cellIds[cellIds.length - 3];
+      const cell2Id = cellIds[cellIds.length - 2];
+      const cell3Id = cellIds[cellIds.length - 1];
+
+      expect(state.untouchedNewCells.has(cell1Id)).toBe(true);
+      expect(state.untouchedNewCells.has(cell2Id)).toBe(true);
+      expect(state.untouchedNewCells.has(cell3Id)).toBe(false);
+
+      // Mark one as touched
+      actions.markTouched({ cellId: cell1Id });
+
+      expect(state.untouchedNewCells.has(cell1Id)).toBe(false);
+      expect(state.untouchedNewCells.has(cell2Id)).toBe(true);
+      expect(state.untouchedNewCells.has(cell3Id)).toBe(false);
+    });
+
+    it("preserves untouched state when cells are moved", () => {
+      // Create cells with hideCode
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+
+      const cellIds = state.cellIds.inOrderIds;
+      const cell1Id = cellIds[cellIds.length - 2];
+      const cell2Id = cellIds[cellIds.length - 1];
+
+      expect(state.untouchedNewCells.has(cell1Id)).toBe(true);
+      expect(state.untouchedNewCells.has(cell2Id)).toBe(true);
+
+      // Move cell1 to the end
+      actions.moveCell({
+        cellId: cell1Id,
+        before: false,
+      });
+
+      // Both cells should still be untouched
+      expect(state.untouchedNewCells.has(cell1Id)).toBe(true);
+      expect(state.untouchedNewCells.has(cell2Id)).toBe(true);
+    });
+
+    it("does not remove untouched state when cell is deleted", () => {
+      // We could implement this, but it doesn't actually affect downstream behavior.
+      // It is easier to leave it, so `undo` works as expected.
+
+      // Create a cell with hideCode
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+
+      // Delete the cell
+      actions.deleteCell({ cellId: newCellId });
+
+      // Does not actually remove untouched state
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+    });
+
+    it("restores untouched state when cell deletion is undone", () => {
+      // Create a cell with hideCode
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+
+      // Delete the cell
+      actions.deleteCell({ cellId: newCellId });
+      // Still exists in untouchedNewCells
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+
+      // Undo the deletion
+      actions.undoDeleteCell();
+
+      // The cell should be restored but no longer untouched
+      // (this is expected behavior - undoing doesn't restore untouched state)
+      const restoredCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+      expect(state.untouchedNewCells.has(restoredCellId)).toBe(false);
+    });
+
+    it("untouched cell behavior with hide_code config", () => {
+      // Create a cell with hideCode and hide_code config
+      actions.createNewCell({
+        cellId: "__end__",
+        before: false,
+        hideCode: true,
+      });
+
+      const newCellId =
+        state.cellIds.inOrderIds[state.cellIds.inOrderIds.length - 1];
+
+      // Update the cell config to hide code
+      actions.updateCellConfig({
+        cellId: newCellId,
+        config: { hide_code: true },
+      });
+
+      // Cell should be untouched and have hide_code config
+      expect(state.untouchedNewCells.has(newCellId)).toBe(true);
+      expect(state.cellData[newCellId].config.hide_code).toBe(true);
+
+      // Code should not be hidden because cell is untouched
+      expect(exportedForTesting.isCellCodeHidden(state, newCellId)).toBe(false);
+
+      // Mark as touched
+      actions.markTouched({ cellId: newCellId });
+
+      // Now code should be hidden
+      expect(state.untouchedNewCells.has(newCellId)).toBe(false);
+      expect(exportedForTesting.isCellCodeHidden(state, newCellId)).toBe(true);
+    });
+  });
+});
+
+describe("isCellCodeHidden", () => {
+  const state = initialNotebookState();
+  const firstCellId = state.cellIds.inOrderIds[0];
+
+  it("returns false when hide_code is false and cell is not untouched", () => {
+    const testCellId = "test-cell" as CellId;
+    const testState: NotebookState = {
+      ...state,
+      cellData: {
+        ...state.cellData,
+        [testCellId]: {
+          ...state.cellData[firstCellId],
+          id: testCellId,
+          config: { hide_code: false, disabled: false, column: null },
+        },
+      },
+      untouchedNewCells: new Set(),
+    };
+
+    expect(exportedForTesting.isCellCodeHidden(testState, testCellId)).toBe(
+      false,
+    );
+  });
+
+  it("returns true when hide_code is true and cell is not untouched", () => {
+    const testCellId = "test-cell" as CellId;
+    const testState: NotebookState = {
+      ...state,
+      cellData: {
+        ...state.cellData,
+        [testCellId]: {
+          ...state.cellData[firstCellId],
+          id: testCellId,
+          config: { hide_code: true, disabled: false, column: null },
+        },
+      },
+      untouchedNewCells: new Set(),
+    };
+
+    expect(exportedForTesting.isCellCodeHidden(testState, testCellId)).toBe(
+      true,
+    );
+  });
+
+  it("returns false when hide_code is true but cell is untouched", () => {
+    const testCellId = "test-cell" as CellId;
+    const testState: NotebookState = {
+      ...state,
+      cellData: {
+        ...state.cellData,
+        [testCellId]: {
+          ...state.cellData[firstCellId],
+          id: testCellId,
+          config: { hide_code: true, disabled: false, column: null },
+        },
+      },
+      untouchedNewCells: new Set([testCellId]),
+    };
+
+    expect(exportedForTesting.isCellCodeHidden(testState, testCellId)).toBe(
+      false,
+    );
+  });
+
+  it("returns false when hide_code is false and cell is untouched", () => {
+    const testCellId = "test-cell" as CellId;
+    const testState: NotebookState = {
+      ...state,
+      cellData: {
+        ...state.cellData,
+        [testCellId]: {
+          ...state.cellData[firstCellId],
+          id: testCellId,
+          config: { hide_code: false, disabled: false, column: null },
+        },
+      },
+      untouchedNewCells: new Set([testCellId]),
+    };
+
+    expect(exportedForTesting.isCellCodeHidden(testState, testCellId)).toBe(
+      false,
+    );
   });
 });

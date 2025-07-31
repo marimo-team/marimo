@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import io
 from functools import cached_property
 from typing import Any, Optional, Union
@@ -32,6 +33,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
         return "polars"
 
     @staticmethod
+    @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
 
@@ -56,6 +58,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @cached_property
             def schema(self) -> dict[str, pl.DataType]:
+                if isinstance(self._original_data, pl.LazyFrame):
+                    # Less expensive operation
+                    return self._original_data.collect_schema()
                 return self._original_data.schema
 
             def to_arrow_ipc(self) -> bytes:
@@ -117,18 +122,25 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 except (
                     BaseException
                 ):  # Sometimes, polars throws a generic exception
-                    LOGGER.debug(
-                        "Failed to write json. Trying to convert columns to strings."
+                    LOGGER.info(
+                        "Failed to write json. Converting columns to string values."
                     )
+                    converted_columns = []
                     for column in result.get_columns():
                         dtype = column.dtype
                         if isinstance(dtype, pl.Object):
                             result = self._cast_object_to_string(
                                 result, column
                             )
+                            converted_columns.append(column.name)
+                        elif isinstance(dtype, pl.Binary):
+                            result = self._cast_binary_to_base64(
+                                result, column
+                            )
+                            converted_columns.append(column.name)
                         elif str(dtype) == "Int128":
                             # Use string comparison because pl.Int128 doesn't exist on older versions
-                            # As of writing this, Int128 is not supported by polars
+                            # As of writing this, Int128 to json is not supported by polars
                             LOGGER.warning(
                                 "Column %s is of type Int128, which is not supported. Converting to string.",
                                 column.name,
@@ -136,10 +148,27 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = result.with_columns(
                                 column.cast(pl.String)
                             )
+                            converted_columns.append(column.name)
                         elif isinstance(dtype, pl.Duration):
                             result = self._convert_time_to_string(
                                 result, column
                             )
+                            converted_columns.append(column.name)
+                        # https://github.com/pola-rs/polars/issues/23459
+                        elif isinstance(dtype, pl.List) and isinstance(
+                            dtype.inner, (pl.Enum, pl.Categorical)
+                        ):
+                            # Convert each element in the list to a string
+                            result = result.with_columns(
+                                pl.col(column.name).cast(pl.List(pl.String))
+                            )
+                            converted_columns.append(column.name)
+
+                    if converted_columns:
+                        LOGGER.info(
+                            "Converted columns %s to safe values.",
+                            ", ".join(f"'{col}'" for col in converted_columns),
+                        )
 
                     return sanitize_json_bigint(result.write_json())
 
@@ -166,6 +195,14 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         )
                     )
 
+            def _cast_binary_to_base64(
+                self, df: pl.DataFrame, column: pl.Series
+            ) -> pl.DataFrame:
+                try:
+                    return df.with_columns(column.cast(pl.String))
+                except pl.exceptions.ComputeError:
+                    return self._cast_object_to_string(df, column)
+
             def apply_formatting(
                 self, format_mapping: Optional[FormatMapping]
             ) -> PolarsTableManager:
@@ -188,7 +225,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             @staticmethod
             def is_type(value: Any) -> bool:
-                return isinstance(value, pl.DataFrame)
+                return isinstance(value, (pl.DataFrame, pl.LazyFrame))
 
             def search(self, query: str) -> PolarsTableManager:
                 query = query.lower()

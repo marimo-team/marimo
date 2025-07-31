@@ -1,21 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { PyodideInterface } from "pyodide";
-import { prettyError } from "../../../utils/errors";
 import {
-  createWorkerParentTransport,
   createRPC,
   createRPCRequestHandler,
+  createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { ParentSchema } from "../rpc";
-import { Logger } from "../../../utils/Logger";
-import { TRANSPORT_ID } from "./constants";
-import { getPyodideVersion } from "./getPyodideVersion";
 import type { SaveNotebookRequest } from "@/core/network/types";
+import { decodeUtf8 } from "@/utils/strings";
+import { prettyError } from "../../../utils/errors";
+import { Logger } from "../../../utils/Logger";
+import type { ParentSchema } from "../rpc";
+import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
-import { decodeUtf8 } from "@/utils/strings";
+import { getPyodideVersion } from "./getPyodideVersion";
 
 /**
  * Web worker responsible for saving the notebook.

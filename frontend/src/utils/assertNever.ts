@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { invariant } from "./invariant";
 import { Logger } from "./Logger";
 
 /**
  * Type-safe exhaustiveness check for discriminated unions.
  */
 export function assertNever(x: never): never {
-  throw new Error(`Unexpected object: ${x}`);
+  invariant(false, `Unexpected object: ${x}`);
 }
 
 /**

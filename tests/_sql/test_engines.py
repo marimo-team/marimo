@@ -1,8 +1,8 @@
-"""General tests for the SQL engines."""
+# Copyright 2025 Marimo. All rights reserved.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,7 +10,11 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
+from marimo._sql.utils import (
+    raise_df_import_error,
+    sql_type_to_data_type,
+    try_convert_to_polars,
+)
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -47,7 +51,7 @@ def test_raise_df_import_error() -> None:
 
 @pytest.mark.skipif(
     not (HAS_DUCKDB and HAS_SQLALCHEMY and HAS_CLICKHOUSE),
-    reason="Duckdb, sqlalchemy and Clickhouse not installed",
+    reason="Duckdb, sqlalchemy, and Clickhouse not installed",
 )
 def test_engine_name_initialization() -> None:
     """Test engine name initialization."""
@@ -105,7 +109,7 @@ def test_sqlalchemy_source_and_dialect() -> None:
     sqlite_engine = sa.create_engine("sqlite:///:memory:")
     engine = SQLAlchemyEngine(sqlite_engine)
 
-    assert engine.source == "sqlite"
+    assert engine.source == "sqlalchemy"
     assert engine.dialect == "sqlite"
 
     # We can test multiple dialects without mocking by creating different engines
@@ -113,7 +117,7 @@ def test_sqlalchemy_source_and_dialect() -> None:
     mock_engine = MagicMock()
     mock_engine.dialect.name = "postgresql"
     pg_engine = SQLAlchemyEngine(mock_engine)
-    assert pg_engine.source == "postgresql"
+    assert pg_engine.source == "sqlalchemy"
     assert pg_engine.dialect == "postgresql"
 
 
@@ -319,6 +323,9 @@ def test_sql_type_to_data_type() -> None:
     # Test date type
     assert sql_type_to_data_type("DATE") == "date"
 
+    # Test time type
+    assert sql_type_to_data_type("TIME") == "time"
+
     # Test boolean type
     assert sql_type_to_data_type("BOOLEAN") == "boolean"
 
@@ -355,3 +362,41 @@ def test_sqlalchemy_type_conversion() -> None:
             raise NotImplementedError("Not implemented")
 
     assert engine._get_python_type(CustomType()) is None
+
+
+@pytest.mark.skipif(
+    not HAS_POLARS and not HAS_SQLALCHEMY,
+    reason="Polars and SQLAlchemy not installed",
+)
+def test_try_convert_to_polars() -> None:
+    """Test try_convert_to_polars function."""
+    import polars as pl
+    import sqlalchemy as sa
+
+    sqlite_engine = sa.create_engine("sqlite:///:memory:")
+    engine = SQLAlchemyEngine(sqlite_engine)
+
+    df, error = try_convert_to_polars(
+        query="SELECT 1", connection=engine._connection, lazy=False
+    )
+    assert isinstance(df, pl.DataFrame)
+    assert error is None
+
+    # Lazy frame
+    df, error = try_convert_to_polars(
+        query="SELECT 1", connection=engine._connection, lazy=True
+    )
+    assert isinstance(df, pl.LazyFrame)
+    assert error is None
+
+    # Polars error
+    with patch(
+        "polars.read_database",
+        side_effect=pl.exceptions.ComputeError("Test error"),
+    ):
+        df, error = try_convert_to_polars(
+            query="SELECT 1", connection=engine._connection, lazy=False
+        )
+        assert df is None
+        assert isinstance(error, pl.exceptions.ComputeError)
+        assert str(error) == "Test error"

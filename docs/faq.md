@@ -67,9 +67,9 @@ value. This is difficult to get working in Jupyter notebooks.
 marimo notebooks can be executed as Python scripts from the command-line (since
 they're stored as `.py` files). In contrast, this requires extra steps to
 do for Jupyter, such as copying and pasting the code out or using external
-frameworks. In the future, we'll also let you import symbols (functions,
-classes) defined in a marimo notebook into other Python programs/notebooks,
-something you can't easily do with Jupyter.
+frameworks. We also let you import symbols (functions, classes) defined in a 
+marimo notebook into other Python programs/notebooks, something you can't 
+easily do with Jupyter.
 
 **Shareability.**
 Every marimo notebook can double as an interactive web app, complete with UI

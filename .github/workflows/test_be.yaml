@@ -22,7 +22,6 @@ jobs:
           filters: |
             backend:
               - 'marimo/**'
-              - '!marimo/_smoke_tests/**'
               - 'tests/**'
               - 'pyproject.toml'
             docs:
@@ -51,7 +50,7 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' }}
     name: ${{ matrix.os }} / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash

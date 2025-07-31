@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { assertNever } from "@/utils/assertNever";
-import { DatabaseConnectionSchema, type DatabaseConnection } from "./schemas";
-// @ts-expect-error: no declaration file
+
 import dedent from "string-dedent";
+import { assertNever } from "@/utils/assertNever";
+import { type DatabaseConnection, DatabaseConnectionSchema } from "./schemas";
 import { isSecret, unprefixSecret } from "./secrets";
 
 export type ConnectionLibrary =
@@ -10,7 +10,11 @@ export type ConnectionLibrary =
   | "sqlalchemy"
   | "duckdb"
   | "clickhouse_connect"
-  | "chdb";
+  | "chdb"
+  | "pyiceberg"
+  | "ibis"
+  | "motherduck"
+  | "redshift";
 
 export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   sqlmodel: "SQLModel",
@@ -18,6 +22,10 @@ export const ConnectionDisplayNames: Record<ConnectionLibrary, string> = {
   duckdb: "DuckDB",
   clickhouse_connect: "ClickHouse Connect",
   chdb: "chDB",
+  pyiceberg: "PyIceberg",
+  ibis: "Ibis",
+  motherduck: "MotherDuck",
+  redshift: "Redshift",
 };
 
 abstract class CodeGenerator<T extends DatabaseConnection["type"]> {
@@ -323,6 +331,34 @@ class DuckDBGenerator extends CodeGenerator<"duckdb"> {
   }
 }
 
+class MotherDuckGenerator extends CodeGenerator<"motherduck"> {
+  generateImports(): string[] {
+    return [];
+  }
+
+  generateConnectionCode(): string {
+    const database = this.secrets.printInFString(
+      "database",
+      this.connection.database,
+    );
+
+    if (!this.connection.token) {
+      return dedent(`
+        conn = duckdb.connect("md:${database}")
+        `);
+    }
+
+    const token = this.secrets.printPassword(
+      this.connection.token,
+      "MOTHERDUCK_TOKEN",
+      false,
+    );
+    return dedent(`
+      conn = duckdb.connect("md:${database}", config={"motherduck_token": ${token}})
+    `);
+  }
+}
+
 class ClickHouseGenerator extends CodeGenerator<"clickhouse_connect"> {
   generateImports(): string[] {
     return ["import clickhouse_connect"];
@@ -352,6 +388,7 @@ ${formatUrlParams(params, (inner) => `        ${inner}`)},
     `);
   }
 }
+
 class TimeplusGenerator extends CodeGenerator<"timeplus"> {
   generateImports(): string[] {
     return [];
@@ -425,6 +462,212 @@ class TrinoGenerator extends CodeGenerator<"trino"> {
   }
 }
 
+class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
+  generateImports(): string[] {
+    switch (this.connection.catalog.type) {
+      case "REST":
+        return ["from pyiceberg.catalog.rest import RestCatalog"];
+      case "SQL":
+        return ["from pyiceberg.catalog.sql import SqlCatalog"];
+      case "Hive":
+        return ["from pyiceberg.catalog.hive import HiveCatalog"];
+      case "Glue":
+        return ["from pyiceberg.catalog.glue import GlueCatalog"];
+      case "DynamoDB":
+        return ["from pyiceberg.catalog.dynamodb import DynamoDBCatalog"];
+      default:
+        assertNever(this.connection.catalog);
+    }
+  }
+
+  generateConnectionCode(): string {
+    let options: Record<string, string | number | boolean> = {
+      ...this.connection.catalog,
+    };
+    // Remove k='type' and v=nullish values
+    options = Object.fromEntries(
+      Object.entries(options).filter(
+        ([k, v]) => v != null && v !== "" && k !== "type",
+      ),
+    );
+    // Convert to secrets if they are secrets
+    for (const [k, v] of Object.entries(options)) {
+      if (isSecret(v)) {
+        options[k] = this.secrets.print(k, v);
+      } else if (typeof v === "string") {
+        options[k] = `"${v}"`;
+      }
+    }
+
+    const indent = "              ";
+    const optionsAsPython = formatDictionaryEntries(
+      options,
+      (line) => `${indent}${line}`,
+    );
+
+    const name = `"${this.connection.name}"`;
+
+    switch (this.connection.catalog.type) {
+      case "REST":
+        return dedent(`
+          catalog = RestCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "SQL":
+        return dedent(`
+          catalog = SqlCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "Hive":
+        return dedent(`
+          catalog = HiveCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "Glue":
+        return dedent(`
+          catalog = GlueCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      case "DynamoDB":
+        return dedent(`
+          catalog = DynamoDBCatalog(
+            ${name},
+            **{\n${optionsAsPython}
+            },
+          )
+        `);
+      default:
+        assertNever(this.connection.catalog);
+    }
+  }
+}
+
+class DataFusionGenerator extends CodeGenerator<"datafusion"> {
+  generateImports(): string[] {
+    // To trigger installation of ibis-datafusion
+    return ["import ibis", "from datafusion import SessionContext"];
+  }
+
+  generateConnectionCode(): string {
+    if (this.connection.sessionContext) {
+      return dedent(`
+        ctx = SessionContext()
+        # Sample table
+        _ = ctx.from_pydict({"a": [1, 2, 3]}, "my_table")
+
+        con = ibis.datafusion.connect(ctx)
+      `);
+    }
+    return dedent(`
+      con = ibis.datafusion.connect()
+    `);
+  }
+}
+
+class PySparkGenerator extends CodeGenerator<"pyspark"> {
+  generateImports(): string[] {
+    return ["import ibis", "from pyspark.sql import SparkSession"];
+  }
+
+  generateConnectionCode(): string {
+    if (this.connection.host || this.connection.port) {
+      const host = this.secrets.printInFString("host", this.connection.host);
+      const port = this.secrets.printInFString("port", this.connection.port);
+      return dedent(`
+        session = SparkSession.builder.remote(f"sc://${host}:${port}").getOrCreate()
+        con = ibis.pyspark.connect(session)
+      `);
+    }
+    return dedent(`
+      con = ibis.pyspark.connect()
+    `);
+  }
+}
+
+class RedshiftGenerator extends CodeGenerator<"redshift"> {
+  generateImports(): string[] {
+    return ["import redshift_connector"];
+  }
+
+  generateConnectionCode(): string {
+    const host = this.secrets.print("host", this.connection.host);
+    const port = this.secrets.print("port", this.connection.port);
+    const database = this.secrets.print("database", this.connection.database);
+
+    if (this.connection.connectionType.type === "IAM credentials") {
+      const accessKeyId = this.secrets.print(
+        "aws_access_key_id",
+        this.connection.connectionType.aws_access_key_id,
+      );
+      const secretAccessKey = this.secrets.print(
+        "aws_secret_access_key",
+        this.connection.connectionType.aws_secret_access_key,
+      );
+      const sessionToken = this.connection.connectionType.aws_session_token
+        ? this.secrets.print(
+            "aws_session_token",
+            this.connection.connectionType.aws_session_token,
+          )
+        : undefined;
+
+      const params = {
+        iam: true,
+        host: host,
+        port: port,
+        region: `"${this.connection.connectionType.region}"`,
+        database: database,
+        access_key_id: accessKeyId,
+        secret_access_key: secretAccessKey,
+        ...(sessionToken && { session_token: sessionToken }),
+      };
+
+      return dedent(`
+        con = redshift_connector.connect(
+${formatUrlParams(params, (inner) => `          ${inner}`)},
+        )
+      `);
+    }
+
+    // DB credentials
+    const user = this.connection.connectionType.user
+      ? this.secrets.print("user", this.connection.connectionType.user)
+      : undefined;
+    const password = this.connection.connectionType.password
+      ? this.secrets.printPassword(
+          this.connection.connectionType.password,
+          "REDSHIFT_PASSWORD",
+          false,
+        )
+      : undefined;
+
+    const params = {
+      host: host,
+      port: port,
+      database: database,
+      ...(user && { user: user }),
+      ...(password && { password: password }),
+    };
+
+    return dedent(`
+      con = redshift_connector.connect(
+${formatUrlParams(params, (inner) => `          ${inner}`)},
+      )
+    `);
+  }
+}
+
 class CodeGeneratorFactory {
   public secrets = new SecretContainer();
 
@@ -445,6 +688,8 @@ class CodeGeneratorFactory {
         return new BigQueryGenerator(connection, orm, this.secrets);
       case "duckdb":
         return new DuckDBGenerator(connection, orm, this.secrets);
+      case "motherduck":
+        return new MotherDuckGenerator(connection, orm, this.secrets);
       case "clickhouse_connect":
         return new ClickHouseGenerator(connection, orm, this.secrets);
       case "timeplus":
@@ -453,6 +698,14 @@ class CodeGeneratorFactory {
         return new ChDBGenerator(connection, orm, this.secrets);
       case "trino":
         return new TrinoGenerator(connection, orm, this.secrets);
+      case "iceberg":
+        return new PyIcebergGenerator(connection, orm, this.secrets);
+      case "datafusion":
+        return new DataFusionGenerator(connection, orm, this.secrets);
+      case "pyspark":
+        return new PySparkGenerator(connection, orm, this.secrets);
+      case "redshift":
+        return new RedshiftGenerator(connection, orm, this.secrets);
       default:
         assertNever(connection);
     }
@@ -509,6 +762,25 @@ function formatUrlParams(
         return formatLine(`${k}=${v}`);
       }
       return formatLine(`${k}=${v}`);
+    })
+    .join(",\n");
+}
+
+function formatDictionaryEntries(
+  params: Record<string, string | number | boolean | undefined>,
+  formatLine: (line: string) => string,
+): string {
+  return Object.entries(params)
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k, v]) => {
+      const key = `"${k}"`;
+      if (typeof v === "boolean") {
+        return formatLine(`${key}: ${formatBoolean(v)}`);
+      }
+      if (typeof v === "number") {
+        return formatLine(`${key}: ${v}`);
+      }
+      return formatLine(`${key}: ${v}`);
     })
     .join(",\n");
 }

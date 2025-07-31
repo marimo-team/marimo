@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
-import { type VariantProps, cva } from "class-variance-authority";
 
 import { cn } from "@/utils/cn";
 
@@ -12,6 +13,7 @@ const alertVariants = cva(
         default: "bg-background text-foreground",
         destructive:
           "text-destructive border-destructive/50 dark:border-destructive [&>svg]:text-destructive text-destructive",
+        info: "bg-[var(--sky-2)] border-[var(--sky-7)] text-[var(--sky-11)]",
       },
     },
     defaultVariants: {

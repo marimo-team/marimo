@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
-import { isWasm } from "../wasm/utils";
-import { isPlatformMac } from "../hotkeys/shortcuts";
 import { KnownQueryParams } from "../constants";
+import { isPlatformMac } from "../hotkeys/shortcuts";
+import { isWasm } from "../wasm/utils";
 
 export const isEmbedded =
   // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope

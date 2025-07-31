@@ -1,14 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorState, EditorView, basicSetup } from "@uiw/react-codemirror";
+import { basicSetup, EditorState, EditorView } from "@uiw/react-codemirror";
 import {
-  describe,
-  afterEach,
-  test,
-  expect,
-  vi,
-  beforeEach,
   afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
 } from "vitest";
+import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/file-state";
+import { store } from "@/core/state/jotai";
 import {
   insertBlockquote,
   insertBoldMarker,
@@ -20,9 +23,6 @@ import {
   insertTextFile,
   insertUL,
 } from "../commands";
-import { sendCreateFileOrFolder } from "@/core/network/requests";
-import { filenameAtom } from "@/core/saving/filename";
-import { store } from "@/core/state/jotai";
 
 function createEditor(content: string) {
   const state = EditorState.create({
@@ -374,7 +374,7 @@ describe("insertTextFile", () => {
 });
 
 describe("insertBoldMarker", () => {
-  test("inserts bold marker at cursor position", () => {
+  test("do not insert bold marker at cursor position", () => {
     view = createEditor("Hello, world!");
     view.dispatch({
       selection: { anchor: 7, head: 7 },
@@ -382,7 +382,7 @@ describe("insertBoldMarker", () => {
 
     insertBoldMarker(view);
 
-    expect(view.state.doc.toString()).toBe("Hello, **world**!");
+    expect(view.state.doc.toString()).toBe("Hello, world!");
   });
 
   test("inserts bold marker at cursor position with selected text", () => {

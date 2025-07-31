@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import difflib
-import os
 from pathlib import Path
 from typing import Callable
+
+import pytest
 
 from marimo import __version__
 from marimo._utils.paths import maybe_make_dirs
@@ -37,21 +38,19 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
         result = normalize(result)
 
         # If doesn't exist, create snapshot
-        if not os.path.exists(filepath):
-            with open(filepath, "w") as f:
-                f.write(result)
+        if not filepath.exists():
+            filepath.write_text(result)
             print("Snapshot updated")
+            return
 
         # Read snapshot
-        with open(filepath) as f:
-            expected = normalize(f.read())
+        expected = normalize(filepath.read_text())
 
         assert result, "Result is empty"
         assert expected, "Expected is empty"
 
         def write_result() -> None:
-            with open(filepath, "w") as f:
-                f.write(result)
+            filepath.write_text(result)
 
         is_json = filename.endswith(".json")
         if is_json:
@@ -76,11 +75,16 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
                 )
             )
 
-            if text_diff != "":
+            if result != expected:
                 write_result()
                 print("Snapshot updated")
 
-            assert result == expected, f"Snapshot differs:\n{text_diff}"
+                # If the snapshot only differs by whitespace,
+                # provide a more helpful error message.
+                if result.strip() == expected.strip():
+                    print("Snapshot only differs by whitespace (.strip())")
+
+                pytest.fail(f"Snapshot differs: '{text_diff}'")
 
     return snapshot
 

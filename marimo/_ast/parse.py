@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import io
 import token as token_types
+from pathlib import Path
 from textwrap import dedent
 from tokenize import TokenInfo, tokenize
 from typing import (
@@ -51,19 +52,12 @@ class MarimoFileError(Exception):
 class Extractor:
     """Helper to extract AST nodes to schema/serialization ir."""
 
-    def __init__(
-        self, filename: Optional[str] = None, contents: Optional[str] = None
-    ):
-        self.contents = None
-        if filename is not None:
-            assert contents is None, (
-                "Cannot provide both filename and contents"
-            )
-            with open(filename, encoding="utf-8") as f:
-                self.contents = f.read().strip()
-        elif contents is not None:
-            self.contents = contents
+    @staticmethod
+    def from_file(filename: Union[str, Path]) -> Extractor:
+        return Extractor(contents=Path(filename).read_text(encoding="utf-8"))
 
+    def __init__(self, contents: str):
+        self.contents = contents.strip()
         self.lines = self.contents.splitlines() if self.contents else []
 
     def extract_from_offsets(
@@ -340,8 +334,12 @@ class Parser:
     the notebook.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any):
-        self.extractor = Extractor(*args, **kwargs)
+    @staticmethod
+    def from_file(filename: Union[str, Path]) -> Parser:
+        return Parser(contents=Path(filename).read_text(encoding="utf-8"))
+
+    def __init__(self, contents: str):
+        self.extractor = Extractor(contents=contents)
 
     def node_stack(self) -> PeekStack[Node]:
         return PeekStack(iter(ast.parse(self.extractor.contents or "").body))
@@ -658,6 +656,39 @@ def extract_offsets_post_colon(
     return start_line, col_offset
 
 
+def is_equal_ast(
+    basis: Optional[Union[ast.AST, list[ast.AST]]],
+    other: Optional[Union[ast.AST, list[ast.AST]]],
+) -> bool:
+    """Compare two AST nodes for equality."""
+    if type(basis) is not type(other):
+        return False
+    elif basis is None or other is None:
+        return basis == other
+    elif isinstance(basis, list):
+        assert isinstance(other, list)
+        if len(basis) != len(other):
+            return False
+        return all(is_equal_ast(a, b) for a, b in zip(basis, other))
+
+    for key, value in vars(basis).items():
+        # Scrub positional data not relevant for comparison.
+        if key in {
+            "lineno",
+            "end_lineno",
+            "col_offset",
+            "end_col_offset",
+            "ctx",
+        }:
+            continue
+        other_value = getattr(other, key, None)
+        if isinstance(value, (ast.AST, list, type(None))):
+            return is_equal_ast(value, other_value)
+        elif value != other_value:
+            return False
+    return True
+
+
 def get_valid_decorator(
     node: CellNode,
 ) -> Optional[Union[ast.Attribute, ast.Call]]:
@@ -782,14 +813,12 @@ def is_cell(node: Optional[Node]) -> bool:
 
 
 def is_run_guard(node: Optional[Node]) -> bool:
-    return bool(
-        node
-        and (node == ast.parse('if __name__ == "__main__": app.run()').body[0])
-    )
+    basis = ast.parse('if __name__ == "__main__": app.run()').body[0]
+    return bool(node and is_equal_ast(basis, node))
 
 
-def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
-    parser = Parser(filename)
+def parse_notebook(contents: str) -> Optional[NotebookSerialization]:
+    parser = Parser(contents)
     if not parser.extractor.contents:
         return None
 
@@ -809,6 +838,17 @@ def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
                 lineno=1,
             )
         )
+
+        remaining = parser.extractor.contents[len(header.value) :]
+        if remaining.strip():
+            # just a header is fine, anything else we would ignore and override
+            violations.append(
+                Violation(
+                    _non_marimo_python_script_violation_description,
+                    lineno=header.end_lineno + 2 if header.value else 1,
+                )
+            )
+
         return NotebookSerialization(
             header=Header(
                 lineno=0,
@@ -863,4 +903,16 @@ def parse_notebook(filename: str) -> Optional[NotebookSerialization]:
         app=app,
         cells=cells,
         violations=violations,
+    )
+
+
+_non_marimo_python_script_violation_description = (
+    "non-marimo Python content beyond header"
+)
+
+
+def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:
+    return any(
+        (v.description == _non_marimo_python_script_violation_description)
+        for v in notebook.violations
     )

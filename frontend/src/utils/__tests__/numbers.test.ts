@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import {
+  prettyEngineeringNumber,
   prettyNumber,
   prettyScientificNumber,
-  prettyEngineeringNumber,
 } from "../numbers";
 
 describe("prettyNumber", () => {

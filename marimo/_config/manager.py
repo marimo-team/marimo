@@ -11,10 +11,12 @@ from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
     CompletionConfig,
+    ExportType,
     LanguageServersConfig,
     MarimoConfig,
     PartialMarimoConfig,
     RuntimeConfig,
+    SqlOutputType,
     Theme,
     WidthType,
     merge_config,
@@ -79,6 +81,14 @@ class MarimoConfigReader:
         return self._config["display"]["default_width"]
 
     @property
+    def default_auto_download(self) -> list[ExportType]:
+        return self._config["runtime"].get("default_auto_download", [])
+
+    @property
+    def default_sql_output(self) -> SqlOutputType:
+        return self._config["runtime"]["default_sql_output"]
+
+    @property
     def theme(self) -> Theme:
         return self._config["display"]["theme"]
 
@@ -92,12 +102,6 @@ class MarimoConfigReader:
 
     @property
     def language_servers(self) -> LanguageServersConfig:
-        # LSP is behind an experimental flag,
-        # if it's not enabled, return an empty config
-        lsp_enabled = self.experimental.get("lsp", False)
-        if not lsp_enabled:
-            return {}
-
         if "language_servers" in self._config:
             return self._config["language_servers"]
         return {}
@@ -336,7 +340,7 @@ class UserConfigManager(MarimoConfigReader):
         import tomlkit
 
         config_path = self.get_config_path()
-        LOGGER.debug("Saving user configuration to %s", config_path)
+        LOGGER.info("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config

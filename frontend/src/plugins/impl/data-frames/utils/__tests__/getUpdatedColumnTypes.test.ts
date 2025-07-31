@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { getUpdatedColumnTypes } from "../getUpdatedColumnTypes";
+import { describe, expect, it } from "vitest";
 import type { TransformType } from "../../schema";
 import type { ColumnId } from "../../types";
+import { getUpdatedColumnTypes } from "../getUpdatedColumnTypes";
 
 const INITIAL_COLUMN_TYPES = new Map<ColumnId, string>([
   ["col1" as ColumnId, "str"],
@@ -55,6 +55,11 @@ const Transforms = {
   EXPAND_DICT: {
     type: "expand_dict",
     column_id: "col1" as ColumnId,
+  } satisfies TransformType,
+  UNIQUE: {
+    type: "unique",
+    column_ids: ["col1"] as ColumnId[],
+    keep: "first",
   } satisfies TransformType,
 };
 
@@ -141,6 +146,20 @@ describe("getUpdatedColumnTypes", () => {
   it("should update column types for expand-dict conversion", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.EXPAND_DICT],
+      INITIAL_COLUMN_TYPES,
+    );
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "col1" => "str",
+        2 => "bool",
+        "col3" => "int",
+      }
+    `);
+  });
+
+  it("should update column types for unique conversion", () => {
+    const result = getUpdatedColumnTypes(
+      [Transforms.UNIQUE],
       INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`

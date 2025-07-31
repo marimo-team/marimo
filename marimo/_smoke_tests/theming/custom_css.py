@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.11.5"
+__generated_with = "0.13.10"
 app = marimo.App(width="medium", css_file="custom.css")
 
 
@@ -41,10 +41,10 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        # heading
+    # heading
 
-        Here is a paragraph
-        """
+    Here is a paragraph
+    """
     )
     return
 

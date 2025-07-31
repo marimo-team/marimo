@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { Meta, StoryObj } from "@storybook/react";
-import React, { useEffect, useRef } from "react";
+
+import { python } from "@codemirror/lang-python";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import React, { useEffect, useRef } from "react";
 import { basicBundle, type CodeMirrorSetupOpts } from "../core/codemirror/cm";
-import { python } from "@codemirror/lang-python";
-import { OverridingHotkeyProvider } from "../core/hotkeys/hotkeys";
 import { darkTheme } from "../core/codemirror/theme/dark";
 import { lightTheme } from "../core/codemirror/theme/light";
+import { OverridingHotkeyProvider } from "../core/hotkeys/hotkeys";
 
 // Partial config for storybook demo
 const demoConfig: Partial<CodeMirrorSetupOpts> = {

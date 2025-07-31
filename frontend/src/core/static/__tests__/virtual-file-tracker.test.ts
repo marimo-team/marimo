@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
-import { VirtualFileTracker, findVirtualFiles } from "../virtual-file-tracker";
+import { describe, expect, it } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
+import { findVirtualFiles, VirtualFileTracker } from "../virtual-file-tracker";
 
 describe("findVirtualFiles", () => {
   it("should return a set containing all virtual file paths in a string", () => {

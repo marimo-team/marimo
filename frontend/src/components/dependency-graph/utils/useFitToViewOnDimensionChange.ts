@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useDebouncedCallback } from "@/hooks/useDebounce";
+
 import { useEffect } from "react";
 import { useReactFlow, useStore } from "reactflow";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 
 /**
  * Call fitToView whenever the dimensions changes

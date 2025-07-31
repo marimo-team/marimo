@@ -85,13 +85,11 @@ def arrow(data: bytes) -> VirtualFile:
 def parquet(data: bytes) -> VirtualFile:
     """Create a virtual file for Parquet data.
 
-    **Args.**
+    Args:
+        data: Parquet data in bytes
 
-    - data: Parquet data in bytes
-
-    **Returns.**
-
-    A `VirtualFile` object.
+    Returns:
+        A `VirtualFile` object.
     """
     return any_data(data, ext="parquet")  # type: ignore
 
@@ -218,4 +216,9 @@ def sanitize_json_bigint(
     else:
         as_json = data
 
-    return dumps(convert_bigint(as_json), indent=None, separators=(",", ":"))
+    return dumps(
+        convert_bigint(as_json),
+        indent=None,
+        separators=(",", ":"),
+        default=str,
+    )

@@ -7,11 +7,14 @@ are stored as `.py` files by default. However, Jupytext works with IPython
 notebooks, whereas marimo works with marimo notebooks, which are not based
 on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 
+!!! tip "marimo also has a markdown fileformat"
+    Learn more by running `marimo tutorial markdown-format` at the command-line.
+
 ## Notebook Format
 
 | Jupytext | marimo |
 |----------|--------|
-| Jupytext uses comments or special markers to define cell types in notebooks. | Notebooks are pure Python (`.py`) files by default, using standard Python syntax, such as decorators and functions, to define cells. |
+| Jupytext uses comments or special markers to define cell types in notebooks. | Notebooks are pure Python (`.py`) files by default, using standard Python syntax, such as decorators and functions, to define cells. In markdown form (`.md`), marimo has no special syntax, meaning your notebook will render well in locations like Github. |
 
 ## Converting Jupyter notebooks
 
@@ -22,12 +25,17 @@ on IPython/Jupyter. Here's a comparison to help you transition smoothly.
 | `jupytext --to py notebook.ipynb` | `marimo convert notebook.ipynb > notebook.py` |
 
 !!! tip "From py:percent notebooks to marimo notebooks"
-    If you have a Python file encoded in the [py:percent](https://jupytext.readthedocs.io/en/latest/#text-notebooks)
-    format, you can convert it to a marimo notebook in two steps:
+    marimo can directly convert Python files in the [py:percent](https://jupytext.readthedocs.io/en/latest/#text-notebooks)
+    format (requires jupytext):
 
     ```
-    jupytext --to notebook.ipynb percent_notebook.py
-    marimo convert notebook.ipynb > marimo_notebook.py
+    marimo convert percent_notebook.py -o marimo_notebook.py
+    ```
+
+    If using uv:
+
+    ```
+    uvx --with=jupytext marimo convert percent_notebook.py -o marimo_notebook.py
     ```
 
 ### To `.ipynb`

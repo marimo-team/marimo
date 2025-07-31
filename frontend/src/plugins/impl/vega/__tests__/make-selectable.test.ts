@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { makeSelectable } from "../make-selectable";
-import type { VegaLiteSpec } from "../types";
 import { getSelectionParamNames } from "../params";
+import type { VegaLiteSpec } from "../types";
 
 describe("makeSelectable", () => {
   it("should return correctly if mark is not string", () => {

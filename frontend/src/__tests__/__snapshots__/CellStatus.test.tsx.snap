@@ -27,6 +27,7 @@ exports[`CellStatusComponent > renders disabled and stale state 1`] = `
       class="multi-icon relative w-fit"
     >
       <svg
+        aria-hidden="true"
         class="lucide lucide-ban h-5 w-5"
         fill="none"
         height="24"
@@ -51,6 +52,7 @@ exports[`CellStatusComponent > renders disabled and stale state 1`] = `
         class="second-icon absolute bottom-[-2px] right-[-2px] rounded-full"
       >
         <svg
+          aria-hidden="true"
           class="lucide lucide-refresh-cw h-3 w-3"
           fill="none"
           height="24"
@@ -90,6 +92,7 @@ exports[`CellStatusComponent > renders disabled state 1`] = `
     data-testid="cell-status"
   >
     <svg
+      aria-hidden="true"
       class="lucide lucide-ban h-5 w-5"
       fill="none"
       height="24"
@@ -126,6 +129,7 @@ exports[`CellStatusComponent > renders disabled transitively state 1`] = `
       class="multi-icon relative w-fit"
     >
       <svg
+        aria-hidden="true"
         class="lucide lucide-workflow h-5 w-5"
         fill="none"
         height="24"
@@ -159,6 +163,7 @@ exports[`CellStatusComponent > renders disabled transitively state 1`] = `
         class="second-icon absolute top-[-2px] left-[-2px] rounded-full"
       >
         <svg
+          aria-hidden="true"
           class="lucide lucide-ban h-3 w-3"
           fill="none"
           height="24"
@@ -197,6 +202,7 @@ exports[`CellStatusComponent > renders edited state 1`] = `
       data-testid="cell-status"
     >
       <svg
+        aria-hidden="true"
         class="lucide lucide-refresh-cw h-5 w-5"
         fill="none"
         height="24"
@@ -248,6 +254,7 @@ exports[`CellStatusComponent > renders interrupted state 1`] = `
       data-testid="cell-status"
     >
       <svg
+        aria-hidden="true"
         class="lucide lucide-refresh-cw h-5 w-5"
         fill="none"
         height="24"
@@ -296,6 +303,7 @@ exports[`CellStatusComponent > renders queued state 1`] = `
     data-testid="cell-status"
   >
     <svg
+      aria-hidden="true"
       class="lucide lucide-ellipsis h-5 w-5"
       fill="none"
       height="24"
@@ -354,6 +362,7 @@ exports[`CellStatusComponent > renders stale and disabled transitively state 1`]
       class="multi-icon relative w-fit"
     >
       <svg
+        aria-hidden="true"
         class="lucide lucide-refresh-cw h-5 w-5"
         fill="none"
         height="24"
@@ -382,6 +391,7 @@ exports[`CellStatusComponent > renders stale and disabled transitively state 1`]
         class="second-icon absolute bottom-[-2px] right-[-2px] rounded-full"
       >
         <svg
+          aria-hidden="true"
           class="lucide lucide-ban h-3 w-3"
           fill="none"
           height="24"
@@ -420,6 +430,7 @@ exports[`CellStatusComponent > renders stale inputs state 1`] = `
       data-testid="cell-status"
     >
       <svg
+        aria-hidden="true"
         class="lucide lucide-refresh-cw h-5 w-5"
         fill="none"
         height="24"
@@ -471,6 +482,7 @@ exports[`CellStatusComponent > renders uninstantiated state 1`] = `
       data-testid="cell-status"
     >
       <svg
+        aria-hidden="true"
         class="lucide lucide-refresh-cw h-5 w-5"
         fill="none"
         height="24"

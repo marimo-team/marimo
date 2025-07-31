@@ -1,24 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { z } from "zod";
 
-import type { IPluginProps } from "@/plugins/types";
+import type { AnyWidget, Experimental } from "@anywidget/types";
+import { isEqual } from "lodash-es";
 import { useEffect, useMemo, useRef } from "react";
+import { z } from "zod";
+import { MarimoIncomingMessageEvent } from "@/core/dom/events";
+import { asRemoteURL } from "@/core/runtime/config";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
-import { ErrorBanner } from "../common/error-banner";
-import { createPlugin } from "@/plugins/core/builder";
-import { rpc } from "@/plugins/core/rpc";
-import type { AnyWidget, Experimental } from "@anywidget/types";
-import { Logger } from "@/utils/Logger";
 import {
   type HTMLElementNotDerivedFromRef,
   useEventListener,
 } from "@/hooks/useEventListener";
-import { MarimoIncomingMessageEvent } from "@/core/dom/events";
+import { createPlugin } from "@/plugins/core/builder";
+import { rpc } from "@/plugins/core/rpc";
+import type { IPluginProps } from "@/plugins/types";
 import { updateBufferPaths } from "@/utils/data-views";
-import { Model } from "./model";
-import { isEqual } from "lodash-es";
+import { Logger } from "@/utils/Logger";
+import { ErrorBanner } from "../common/error-banner";
+import { MODEL_MANAGER, Model } from "./model";
 
 interface Data {
   jsUrl: string;
@@ -62,8 +63,7 @@ const AnyWidgetSlot = (props: Props) => {
   // export function render({ model, el }) {
   //   ...
   const { data: module, error } = useAsyncData(async () => {
-    const baseUrl = document.baseURI;
-    const url = new URL(jsUrl, baseUrl).toString();
+    const url = asRemoteURL(jsUrl).toString();
     return await import(/* @vite-ignore */ url);
     // Re-render on jsHash change instead of url change (since URLs may change)
   }, [jsHash]);
@@ -190,6 +190,12 @@ export function getDirtyFields(value: T, initialValue: T): Set<keyof T> {
   );
 }
 
+function hasModelId(message: unknown): message is { model_id: string } {
+  return (
+    typeof message === "object" && message !== null && "model_id" in message
+  );
+}
+
 const LoadedSlot = ({
   value,
   setValue,
@@ -199,6 +205,7 @@ const LoadedSlot = ({
   host,
 }: Props & { widget: AnyWidget }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
+
   const model = useRef<Model<T>>(
     new Model(
       // Merge the initial value with the current value
@@ -215,7 +222,14 @@ const LoadedSlot = ({
     host as HTMLElementNotDerivedFromRef,
     MarimoIncomingMessageEvent.TYPE,
     (e) => {
-      model.current.receiveCustomMessage(e.detail.message, e.detail.buffers);
+      const message = e.detail.message;
+      if (hasModelId(message)) {
+        MODEL_MANAGER.get(message.model_id).then((model) => {
+          model.receiveCustomMessage(message, e.detail.buffers);
+        });
+      } else {
+        model.current.receiveCustomMessage(message, e.detail.buffers);
+      }
     },
   );
 

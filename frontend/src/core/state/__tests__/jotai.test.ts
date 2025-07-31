@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { expect, describe, it } from "vitest";
-import { store, waitFor } from "../jotai";
 import { atom } from "jotai";
+import { describe, expect, it } from "vitest";
+import { store, waitFor } from "../jotai";
 
 describe("waitFor function", () => {
   it("should resolve when the atom satisfies the predicate", async () => {

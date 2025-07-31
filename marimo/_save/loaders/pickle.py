@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 class PickleLoader(BasePersistenceLoader):
     """General loader for serializable objects."""
 
-    def __init__(self, name: str, save_path: str, **kwargs: Any) -> None:
-        super().__init__(name, "pickle", save_path, **kwargs)
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        super().__init__(name, "pickle", **kwargs)
 
     def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
         del key

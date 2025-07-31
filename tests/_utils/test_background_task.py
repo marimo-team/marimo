@@ -83,20 +83,15 @@ async def test_stop_timeout():
     assert task.task.done()
 
 
-@pytest.mark.xfail(
-    reason="""
-    Works locally, but fails in CI.
-    RuntimeError: There is no current event loop in thread 'MainThread'
-"""
-)
-def test_stop_sync():
+async def test_stop_sync():
     task = SimpleTask()
 
     async def run():
         task.start()
 
-    asyncio.run(run())
-    task.stop_sync(timeout=0.1)
+    await run()
+    task.stop_sync(timeout=0.5)
     assert not task.running
     assert task.task is not None
-    assert task.task.done()
+    await asyncio.sleep(0)  # Wait a tick
+    assert task.task.done(), "Task should be done"

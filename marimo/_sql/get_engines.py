@@ -15,31 +15,44 @@ from marimo._sql.engines.clickhouse import (
     ClickhouseEmbedded,
     ClickhouseServer,
 )
+from marimo._sql.engines.dbapi import DBAPIEngine
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
 )
+from marimo._sql.engines.ibis import IbisEngine
+from marimo._sql.engines.pyiceberg import PyIcebergEngine
+from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.engines.types import SQLEngine
+from marimo._sql.engines.types import (
+    BaseEngine,
+    EngineCatalog,
+)
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
+# TODO: this is O(n) and can be O(1) using similar logic to the
+# formatters, but order does matter here
+SUPPORTED_ENGINES: list[type[BaseEngine[Any]]] = [
+    SQLAlchemyEngine,
+    IbisEngine,
+    DuckDBEngine,
+    ClickhouseEmbedded,
+    ClickhouseServer,
+    PyIcebergEngine,
+    RedshiftEngine,
+    DBAPIEngine,
+]
+
 
 def get_engines_from_variables(
     variables: list[tuple[VariableName, object]],
-) -> list[tuple[VariableName, SQLEngine]]:
-    engines: list[tuple[VariableName, SQLEngine]] = []
-
-    supported_engines: list[type[SQLEngine]] = [
-        SQLAlchemyEngine,
-        DuckDBEngine,
-        ClickhouseEmbedded,
-        ClickhouseServer,
-    ]
+) -> list[tuple[VariableName, BaseEngine[Any]]]:
+    engines: list[tuple[VariableName, BaseEngine[Any]]] = []
 
     for variable_name, value in variables:
-        for sql_engine in supported_engines:
+        for sql_engine in SUPPORTED_ENGINES:
             if sql_engine.is_compatible(value):
                 engines.append(
                     (
@@ -49,17 +62,25 @@ def get_engines_from_variables(
                         ),
                     )
                 )
+                break
 
     return engines
 
 
 def engine_to_data_source_connection(
-    variable_name: VariableName,
-    engine: SQLEngine,
+    variable_name: VariableName, engine: BaseEngine[Any]
 ) -> DataSourceConnection:
     databases: list[Database] = []
     default_database: Optional[str] = None
     default_schema: Optional[str] = None
+
+    if not isinstance(engine, EngineCatalog):
+        return DataSourceConnection(
+            source=engine.source,
+            dialect=engine.dialect,
+            name=variable_name,
+            display_name=variable_name,
+        )
 
     default_database = engine.get_default_database()
     default_schema = engine.get_default_schema()

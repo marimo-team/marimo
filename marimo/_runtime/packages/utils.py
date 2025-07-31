@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import os
+import re
 import sys
 from typing import Optional
 
@@ -27,6 +29,10 @@ def is_dockerized() -> bool:
     return os.path.exists("/.dockerenv")
 
 
+def is_modal_image() -> bool:
+    return os.environ.get("MODAL_TASK_ID") is not None
+
+
 def is_python_isolated() -> bool:
     """Returns True if not using system Python"""
     return (
@@ -34,6 +40,7 @@ def is_python_isolated() -> bool:
         or in_conda_env()
         or is_pyodide()
         or is_dockerized()
+        or is_modal_image()
     )
 
 
@@ -98,3 +105,27 @@ def split_packages(package: str) -> list[str]:
         packages.append(" ".join(current_package))
 
     return [pkg.strip() for pkg in packages]
+
+
+@dataclasses.dataclass
+class PackageRequirement:
+    """A package requirement with name and optional extras."""
+
+    name: str
+    extras: set[str] = dataclasses.field(default_factory=set)
+
+    @classmethod
+    def parse(cls, requirement: str) -> PackageRequirement:
+        """Parse a package requirement string into name and extras."""
+        match = re.match(r"^([^\[\]]+)(?:\[([^\[\]]+)\])?$", requirement)
+        if not match:
+            return cls(name=requirement)
+        name = match.group(1)
+        extras = set(match.group(2).split(",")) if match.group(2) else set()
+        return cls(name=name, extras=extras)
+
+    def __str__(self) -> str:
+        """Convert back to a package requirement string."""
+        if not self.extras:
+            return self.name
+        return f"{self.name}[{','.join(sorted(self.extras))}]"

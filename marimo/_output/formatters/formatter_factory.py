@@ -9,6 +9,8 @@ from marimo._config.config import Theme
 
 LOGGER = _loggers.marimo_logger()
 
+Unregister = Callable[[], None]
+
 
 # Abstract base class for formatters that are installed at runtime.
 class FormatterFactory(abc.ABC):
@@ -25,7 +27,7 @@ class FormatterFactory(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def register(self) -> Callable[[], None] | None:
+    def register(self) -> Unregister | None:
         """Registers formatters.
 
         Formatters can be registered using the formatters.formatter decorator.

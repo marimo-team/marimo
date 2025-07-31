@@ -11,12 +11,12 @@
 
 import marimo
 
-__generated_with = "0.8.2"
+__generated_with = "0.13.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def __():
+def _():
     import marimo as mo
     import polars as pl
     import quak
@@ -24,15 +24,17 @@ def __():
 
 
 @app.cell
-def __(mo, pl, quak):
-    df = pl.read_parquet("https://github.com/uwdata/mosaic/raw/main/data/athletes.parquet")
+def _(mo, pl, quak):
+    df = pl.read_csv(
+        "https://raw.githubusercontent.com/uwdata/mosaic/main/data/athletes.csv"
+    )
     widget = mo.ui.anywidget(quak.Widget(df))
     widget
-    return df, widget
+    return (widget,)
 
 
 @app.cell
-def __(grouped_selection, mo):
+def _(grouped_selection, mo):
     import altair as alt
 
 
@@ -46,20 +48,25 @@ def __(grouped_selection, mo):
         .transform_filter(alt.datum.rank < 10)
         .properties(height=400)
     )
-    return alt,
+    return
 
 
 @app.cell
-def __(widget):
+def _(widget):
     selection = widget.data().df()
-    return selection,
+    return (selection,)
 
 
 @app.cell
-def __(selection):
+def _(selection):
     selection["count"] = 1
-    grouped_selection = selection[["nationality", "count"]].groupby(["nationality"]).agg("count").reset_index()
-    return grouped_selection,
+    grouped_selection = (
+        selection[["nationality", "count"]]
+        .groupby(["nationality"])
+        .agg("count")
+        .reset_index()
+    )
+    return (grouped_selection,)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Arrays } from "@/utils/arrays";
 import { Chatbot } from "./chat-ui";
 import type { ChatMessage, SendMessageRequest } from "./types";
-import { Arrays } from "@/utils/arrays";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type PluginFunctions = {
@@ -24,12 +24,12 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
       showConfigurationControls: z.boolean(),
       maxHeight: z.number().optional(),
       config: z.object({
-        max_tokens: z.number().default(100),
-        temperature: z.number().default(0.5),
-        top_p: z.number().default(1),
-        top_k: z.number().default(40),
-        frequency_penalty: z.number().default(0),
-        presence_penalty: z.number().default(0),
+        max_tokens: z.number(),
+        temperature: z.number(),
+        top_p: z.number(),
+        top_k: z.number(),
+        frequency_penalty: z.number(),
+        presence_penalty: z.number(),
       }),
       allowAttachments: z.union([z.boolean(), z.string().array()]),
     }),

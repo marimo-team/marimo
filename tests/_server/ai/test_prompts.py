@@ -182,9 +182,7 @@ def test_chat_system_prompts():
     result: str = ""
     result += _header("no custom rules")
     result += get_chat_system_prompt(
-        custom_rules=None,
-        include_other_code="",
-        context=None,
+        custom_rules=None, include_other_code="", context=None, mode="manual"
     )
 
     result += _header("with custom rules")
@@ -192,6 +190,7 @@ def test_chat_system_prompts():
         custom_rules="Always be polite.",
         include_other_code="",
         context=None,
+        mode="manual",
     )
 
     result += _header("with variables")
@@ -201,6 +200,7 @@ def test_chat_system_prompts():
         context=AiCompletionContext(
             variables=["var1", "var2"],
         ),
+        mode="manual",
     )
 
     result += _header("with VariableContext objects")
@@ -221,6 +221,7 @@ def test_chat_system_prompts():
                 ),
             ]
         ),
+        mode="manual",
     )
 
     result += _header("with context")
@@ -255,6 +256,7 @@ def test_chat_system_prompts():
                 ),
             ],
         ),
+        mode="manual",
     )
 
     result += _header("with other code")
@@ -262,6 +264,7 @@ def test_chat_system_prompts():
         custom_rules=None,
         include_other_code="import pandas as pd\nimport numpy as np\n",
         context=None,
+        mode="manual",
     )
 
     result += _header("kitchen sink")
@@ -286,6 +289,7 @@ def test_chat_system_prompts():
                 ),
             ],
         ),
+        mode="manual",
     )
 
     snapshot("chat_system_prompts.txt", result)

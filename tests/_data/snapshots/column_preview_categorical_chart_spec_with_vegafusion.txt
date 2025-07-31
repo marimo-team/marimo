@@ -6,22 +6,6 @@
   },
   "axes": [
     {
-      "aria": false,
-      "domain": false,
-      "grid": true,
-      "gridScale": "y",
-      "labels": false,
-      "maxExtent": 0,
-      "minExtent": 0,
-      "orient": "bottom",
-      "scale": "x",
-      "tickCount": {
-        "signal": "ceil(width/40)"
-      },
-      "ticks": false,
-      "zindex": 0
-    },
-    {
       "grid": false,
       "labelFlush": true,
       "labelOverlap": true,
@@ -30,38 +14,60 @@
       "tickCount": {
         "signal": "ceil(width/40)"
       },
-      "title": "Count of Records",
+      "title": "Number of records",
       "zindex": 0
     },
     {
       "grid": false,
       "orient": "left",
       "scale": "y",
-      "title": "category_col",
       "zindex": 0
     }
   ],
   "background": "white",
+  "config": {
+    "axis": {
+      "grid": false
+    },
+    "style": {
+      "cell": {
+        "stroke": null
+      }
+    }
+  },
   "data": [
     {
-      "name": "source_0",
+      "name": "source_0"
+    },
+    {
+      "name": "data_1",
       "values": [
         {
-          "__count": 2,
-          "category_col": "cat1"
+          "category_col": "cat1",
+          "count": 2,
+          "percentage": 0.6666666666666666
         },
         {
-          "__count": 1,
-          "category_col": "cat2"
+          "category_col": "cat2",
+          "count": 1,
+          "percentage": 0.3333333333333333
         }
       ]
     },
     {
-      "name": "source_0_x_domain___count",
+      "name": "data_2",
       "values": [
         {
-          "max": 2,
-          "min": 1
+          "category_col": "cat1",
+          "count": 2,
+          "count_end": 2.0,
+          "count_start": 0.0
+        },
+        {
+          "category_col": "cat2",
+          "count": 1,
+          "count_end": 1.0,
+          "count_start": 0.0
         }
       ]
     },
@@ -69,10 +75,12 @@
       "name": "source_0_y_domain_category_col",
       "values": [
         {
-          "category_col": "cat1"
+          "category_col": "cat1",
+          "sort_field": 2
         },
         {
-          "category_col": "cat2"
+          "category_col": "cat2",
+          "sort_field": 1
         }
       ]
     }
@@ -82,18 +90,21 @@
       "encode": {
         "update": {
           "fill": {
-            "value": "#4c78a8"
+            "value": "#8ec8f6"
           },
           "height": {
             "signal": "max(0.25, bandwidth('y'))"
           },
+          "tooltip": {
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
           "x": {
-            "field": "__count",
+            "field": "count_end",
             "scale": "x"
           },
           "x2": {
-            "scale": "x",
-            "value": 0
+            "field": "count_start",
+            "scale": "x"
           },
           "y": {
             "field": "category_col",
@@ -102,26 +113,75 @@
         }
       },
       "from": {
-        "data": "source_0"
+        "data": "data_2"
       },
-      "name": "marks",
+      "name": "layer_0_marks",
       "style": [
         "bar"
       ],
       "type": "rect"
+    },
+    {
+      "encode": {
+        "update": {
+          "align": {
+            "value": "left"
+          },
+          "baseline": {
+            "value": "middle"
+          },
+          "dx": {
+            "value": 3
+          },
+          "fill": {
+            "value": "black"
+          },
+          "text": {
+            "signal": "format(datum[\"percentage\"], \".2%\")"
+          },
+          "tooltip": {
+            "signal": "{\"category_col\": isValid(datum[\"category_col\"]) ? datum[\"category_col\"] : \"\"+datum[\"category_col\"], \"Number of records\": format(datum[\"count\"], \",.0f\")}"
+          },
+          "x": {
+            "field": "count",
+            "scale": "x"
+          },
+          "y": {
+            "band": 0.5,
+            "field": "category_col",
+            "scale": "y"
+          }
+        }
+      },
+      "from": {
+        "data": "data_1"
+      },
+      "name": "layer_1_marks",
+      "style": [
+        "text"
+      ],
+      "type": "text"
     }
   ],
   "padding": 5,
   "scales": [
     {
-      "domain": [
-        {
-          "signal": "(data(\"source_0_x_domain___count\")[0] || {}).min"
-        },
-        {
-          "signal": "(data(\"source_0_x_domain___count\")[0] || {}).max"
-        }
-      ],
+      "domain": {
+        "fields": [
+          {
+            "data": "data_2",
+            "field": "count_start"
+          },
+          {
+            "data": "data_2",
+            "field": "count_end"
+          },
+          {
+            "data": "data_1",
+            "field": "count"
+          }
+        ]
+      },
       "name": "x",
       "nice": true,
       "range": [
@@ -137,7 +197,11 @@
       "domain": {
         "data": "source_0_y_domain_category_col",
         "field": "category_col",
-        "sort": true
+        "sort": {
+          "field": "sort_field",
+          "op": "max",
+          "order": "descending"
+        }
       },
       "name": "y",
       "paddingInner": 0.1,
@@ -170,5 +234,9 @@
       "update": "bandspace(domain('y').length, 0.1, 0.05) * y_step"
     }
   ],
-  "style": "cell"
+  "style": "cell",
+  "title": {
+    "frame": "group",
+    "text": "category_col"
+  }
 }

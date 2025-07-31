@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi } from "vitest";
-import { extractCells, pasteBundle } from "../paste";
-import { EditorView } from "@codemirror/view";
+
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { describe, expect, it, vi } from "vitest";
 import {
-  cellActionsState,
   type CodemirrorCellActions,
+  cellActionsState,
 } from "../../cells/state";
+import { extractCells, pasteBundle } from "../paste";
 
 describe("extractCells", () => {
   it("returns empty array for non-marimo text", () => {

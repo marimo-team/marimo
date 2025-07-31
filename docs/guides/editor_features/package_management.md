@@ -1,6 +1,8 @@
 # Package management
 
-marimo supports package management for `pip, rye, uv, poetry, pixi`. When marimo comes across a module that is not installed, you will be prompted to install it using your preferred package manager.
+marimo supports package management for `pip`, `uv`, `poetry`, `pixi`, and
+`rye`. When marimo comes across a module that is not installed, you will be
+prompted to install it using your preferred package manager.
 
 Once the module is installed, all cells that depend on the module will be rerun.
 
@@ -15,4 +17,4 @@ they use. This makes it possible to share standalone notebooks without shipping
 `requirements.txt` files alongside them, and guarantees your notebooks will
 work weeks, months, even years into the future.
 
-To learn more, see the [Package Reproducibility Guide](../package_reproducibility.md).
+To learn more, see the [package reproducibility guide](../package_management/inlining_dependencies.md).

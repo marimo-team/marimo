@@ -1,76 +1,90 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
-import {
-  memo,
-  type FocusEvent,
-  type KeyboardEvent,
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
-import { saveCellConfig, sendStdin } from "@/core/network/requests";
-import { autocompletionKeymap } from "@/core/codemirror/cm";
-import type { UserConfig } from "../../core/config/config-schema";
-import type { CellData, CellRuntimeState } from "../../core/cells/types";
-import { SETUP_CELL_ID, type CellActions } from "../../core/cells/cells";
-import { isUninstantiated } from "../../core/cells/utils";
-import { derefNotNull } from "../../utils/dereference";
-import { OutputArea } from "./Output";
-import { ConsoleOutput } from "./output/ConsoleOutput";
-import { CreateCellButton } from "./cell/CreateCellButton";
-import { RunButton } from "./cell/RunButton";
-import { DeleteButton } from "./cell/DeleteButton";
-import { CellStatusComponent } from "./cell/CellStatus";
 import clsx from "clsx";
-import { renderShortcut } from "../shortcuts/renderShortcut";
-import { useCellRenderCount } from "../../hooks/useCellRenderCount";
-import { Functions } from "../../utils/functions";
-import { Logger } from "../../utils/Logger";
-import { CellDragHandle, SortableCell } from "./SortableCell";
-import { type CellId, HTMLCellId } from "../../core/cells/ids";
-import type { Theme } from "../../theme/useTheme";
-import {
-  CellActionsDropdown,
-  type CellActionsDropdownHandle,
-} from "./cell/cell-actions";
-import { CellActionsContextMenu } from "./cell/cell-context-menu";
-import type { AppMode } from "@/core/mode";
-import useEvent from "react-use-event-hook";
-import { CellEditor } from "./cell/code/cell-editor";
-import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
-import { isOutputEmpty } from "@/core/cells/outputs";
-import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
-import { useSetAtom } from "jotai";
-import { aiCompletionCellAtom } from "@/core/ai/state";
-import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
-import { canCollapseOutline } from "@/core/dom/outline";
-import { StopButton } from "@/components/editor/cell/StopButton";
-import type { CellConfig, RuntimeState } from "@/core/network/types";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { ScopeProvider } from "jotai-scope";
 import {
   HelpCircleIcon,
   MoreHorizontalIcon,
   SquareFunctionIcon,
 } from "lucide-react";
+import {
+  type FocusEvent,
+  forwardRef,
+  type KeyboardEvent,
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { mergeProps } from "react-aria";
+import useEvent from "react-use-event-hook";
+import { StopButton } from "@/components/editor/cell/StopButton";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
-import { cn } from "@/utils/cn";
-import { isErrorMime } from "@/core/mime";
-import { HideCodeButton } from "./code/readonly-python-code";
-import { useResizeObserver } from "@/hooks/useResizeObserver";
-import type { LanguageAdapterType } from "@/core/codemirror/language/types";
-import { Events } from "@/utils/events";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { useRunCell } from "./cell/useRunCells";
+import { aiCompletionCellAtom } from "@/core/ai/state";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
+import { isOutputEmpty } from "@/core/cells/outputs";
+import { autocompletionKeymap } from "@/core/codemirror/cm";
+import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { canCollapseOutline } from "@/core/dom/outline";
+import { isErrorMime } from "@/core/mime";
+import type { AppMode } from "@/core/mode";
+import { sendStdin } from "@/core/network/requests";
+import type { CellConfig, RuntimeState } from "@/core/network/types";
+import { useResizeObserver } from "@/hooks/useResizeObserver";
+import { cn } from "@/utils/cn";
 import type { Milliseconds, Seconds } from "@/utils/time";
+import {
+  type CellActions,
+  createUntouchedCellAtom,
+  SETUP_CELL_ID,
+} from "../../core/cells/cells";
+import type { CellId } from "../../core/cells/ids";
+import type { CellData, CellRuntimeState } from "../../core/cells/types";
+import { isUninstantiated } from "../../core/cells/utils";
+import type { UserConfig } from "../../core/config/config-schema";
+import {
+  isAppConnected,
+  isAppInteractionDisabled,
+} from "../../core/websocket/connection-utils";
+import type { WebSocketState } from "../../core/websocket/types";
+import { useCellRenderCount } from "../../hooks/useCellRenderCount";
+import type { Theme } from "../../theme/useTheme";
+import { derefNotNull } from "../../utils/dereference";
+import { Functions } from "../../utils/functions";
+import { Logger } from "../../utils/Logger";
+import { renderShortcut } from "../shortcuts/renderShortcut";
+import { CellStatusComponent } from "./cell/CellStatus";
+import { CreateCellButton } from "./cell/CreateCellButton";
+import {
+  CellActionsDropdown,
+  type CellActionsDropdownHandle,
+} from "./cell/cell-actions";
+import { CellActionsContextMenu } from "./cell/cell-context-menu";
+import { CellEditor } from "./cell/code/cell-editor";
+import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
+import { DeleteButton } from "./cell/DeleteButton";
+import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
+import { RunButton } from "./cell/RunButton";
+import { useRunCell } from "./cell/useRunCells";
+import { HideCodeButton } from "./code/readonly-python-code";
+import { cellDomProps } from "./common";
+import { useCellNavigationProps } from "./navigation/navigation";
+import { temporarilyShownCodeAtom } from "./navigation/state";
+import { OutputArea } from "./Output";
+import { ConsoleOutput } from "./output/ConsoleOutput";
+import { CellDragHandle, SortableCell } from "./SortableCell";
 
 /**
  * Hook for handling cell completion logic
  */
 function useCellCompletion(
-  cellRef: React.RefObject<HTMLDivElement>,
-  editorView: React.RefObject<EditorView>,
+  cellRef: React.RefObject<HTMLDivElement | null>,
+  editorView: React.RefObject<EditorView | null>,
 ) {
   // Close completion when focus leaves the cell's subtree.
   const closeCompletionHandler = useEvent((e: FocusEvent) => {
@@ -120,152 +134,41 @@ function useCellCompletion(
 }
 
 /**
- * Hook for handling cell hotkeys
+ * Hook for handling hidden cell logic.
+ *
+ * The code is shown if:
+ * - hide_code is false
+ * - the cell-editor is focused (temporarily shown)
+ * - the cell is newly created (untouched)
  */
-function useCellHotkeys(
-  cellRef: React.RefObject<HTMLDivElement> | null,
-  cellId: CellId,
-  runCell: () => void,
-  actions: CellComponentActions,
-  canMoveX: boolean,
-  cellConfig: CellConfig,
-  editorView: React.RefObject<EditorView | null>,
-  setAiCompletionCell: ReturnType<
-    typeof useSetAtom<typeof aiCompletionCellAtom>
-  >,
-  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle>,
-) {
-  useHotkeysOnElement(cellRef, {
-    "cell.run": runCell,
-    "cell.runAndNewBelow": () => {
-      runCell();
-      actions.moveToNextCell({ cellId, before: false });
-    },
-    "cell.runAndNewAbove": () => {
-      runCell();
-      actions.moveToNextCell({ cellId, before: true });
-    },
-    "cell.createAbove": () => actions.createNewCell({ cellId, before: true }),
-    "cell.createBelow": () => actions.createNewCell({ cellId, before: false }),
-    "cell.moveUp": () => actions.moveCell({ cellId, before: true }),
-    "cell.moveDown": () => actions.moveCell({ cellId, before: false }),
-    "cell.moveLeft": () =>
-      canMoveX ? actions.moveCell({ cellId, direction: "left" }) : undefined,
-    "cell.moveRight": () =>
-      canMoveX ? actions.moveCell({ cellId, direction: "right" }) : undefined,
-    "cell.hideCode": () => {
-      const nextHideCode = !cellConfig.hide_code;
-      // Fire-and-forget
-      void saveCellConfig({
-        configs: { [cellId]: { hide_code: nextHideCode } },
-      });
-      actions.updateCellConfig({ cellId, config: { hide_code: nextHideCode } });
-      if (nextHideCode) {
-        // Move focus from the editor to the cell
-        editorView.current?.contentDOM.blur();
-        cellRef?.current?.focus();
-      } else {
-        // Focus the editor
-        editorView.current?.focus();
-      }
-    },
-    "cell.focusDown": () =>
-      actions.moveToNextCell({ cellId, before: false, noCreate: true }),
-    "cell.focusUp": () =>
-      actions.moveToNextCell({ cellId, before: true, noCreate: true }),
-    "cell.sendToBottom": () => actions.sendToBottom({ cellId }),
-    "cell.sendToTop": () => actions.sendToTop({ cellId }),
-    "cell.aiCompletion": () => {
-      let closed = false;
-      setAiCompletionCell((v) => {
-        // Toggle close
-        if (v?.cellId === cellId) {
-          closed = true;
-          return null;
-        }
-        return { cellId };
-      });
-      if (closed) {
-        derefNotNull(editorView).focus();
-      }
-    },
-    "cell.cellActions": () => {
-      cellActionDropdownRef.current?.toggle();
-    },
-  });
-}
-
-/**
- * Hook for handling cell keyboard listeners
- */
-function useCellKeyboardListener(
-  cellRef: React.RefObject<HTMLDivElement> | null,
-  cellId: CellId,
-  actions: CellComponentActions,
-  showHiddenMarkdownCode: () => void,
-  userConfig: UserConfig,
-  isCellCodeShown: boolean,
-) {
-  useKeydownOnElement(cellRef, {
-    ArrowDown: (evt) => {
-      if (evt && Events.fromInput(evt)) {
-        return false;
-      }
-      actions.moveToNextCell({ cellId, before: false, noCreate: true });
-      return true;
-    },
-    ArrowUp: (evt) => {
-      if (evt && Events.fromInput(evt)) {
-        return false;
-      }
-      actions.moveToNextCell({ cellId, before: true, noCreate: true });
-      return true;
-    },
-    Enter: () => {
-      showHiddenMarkdownCode();
-      return false;
-    },
-    // only register j/k movement if the cell is hidden, so as to not
-    // interfere with editing
-    ...(userConfig.keymap.preset === "vim" && !isCellCodeShown
-      ? {
-          j: (evt) => {
-            if (evt && Events.fromInput(evt)) {
-              return false;
-            }
-            actions.moveToNextCell({ cellId, before: false, noCreate: true });
-            return true;
-          },
-          k: (evt) => {
-            if (evt && Events.fromInput(evt)) {
-              return false;
-            }
-            actions.moveToNextCell({ cellId, before: true, noCreate: true });
-            return true;
-          },
-        }
-      : {}),
-  });
-}
-
-/**
- * Hook for handling hidden cell logic
- */
-function useCellHiddenLogic(
-  cellConfig: CellConfig,
-  languageAdapter: LanguageAdapterType | undefined,
-  editorView: React.RefObject<EditorView | null>,
-  editorViewParentRef: React.RefObject<HTMLDivElement>,
-) {
-  const [temporarilyVisible, setTemporarilyVisible] = useState(false);
+function useCellHiddenLogic({
+  cellId,
+  cellConfig,
+  languageAdapter,
+  editorView,
+}: {
+  cellId: CellId;
+  cellConfig: CellConfig;
+  languageAdapter: LanguageAdapterType | undefined;
+  editorView: React.RefObject<EditorView | null>;
+  editorViewParentRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [temporarilyVisible, setTemporarilyVisible] = useAtom(
+    temporarilyShownCodeAtom,
+  );
+  const isUntouched = useAtomValue(
+    useMemo(() => createUntouchedCellAtom(cellId), [cellId]),
+  );
 
   // The cell code is shown if the cell is not configured to be hidden or if the code is temporarily visible (i.e. when focused).
-  const isCellCodeShown = !cellConfig.hide_code || temporarilyVisible;
+  const isCellCodeShown =
+    !cellConfig.hide_code || temporarilyVisible || isUntouched;
   const isMarkdown = languageAdapter === "markdown";
   const isMarkdownCodeHidden = isMarkdown && !isCellCodeShown;
 
   // Callback to show the code editor temporarily
-  const temporarilyShowCode = useEvent((opts?: { focus?: boolean }) => {
+  const showHiddenCode = useEvent((opts?: { focus?: boolean }) => {
+    // Already shown, do nothing
     if (isCellCodeShown) {
       return;
     }
@@ -278,29 +181,12 @@ function useCellHiddenLogic(
       editorView.current?.focus();
     }
 
-    // Reach one parent up
-    const parent = editorViewParentRef.current?.parentElement;
-    if (!parent) {
-      Logger.error("Cell: No parent element found for editor view");
-      return;
-    }
-
-    const handleFocusOut = () => {
-      requestAnimationFrame(() => {
-        if (!parent.contains(document.activeElement)) {
-          // Hide the code editor
-          setTemporarilyVisible(false);
-          editorView.current?.dom.blur();
-          parent.removeEventListener("focusout", handleFocusOut);
-        }
-      });
-    };
-    parent.addEventListener("focusout", handleFocusOut);
+    // Undoing happens in editor/focus/focus.ts, when the cell is blurred.
   });
 
-  const showHiddenMarkdownCode = useEvent(() => {
+  const showHiddenCodeIfMarkdown = useEvent(() => {
     if (isMarkdownCodeHidden) {
-      temporarilyShowCode({ focus: true });
+      showHiddenCode({ focus: true });
     }
   });
 
@@ -308,8 +194,8 @@ function useCellHiddenLogic(
     isCellCodeShown,
     isMarkdown,
     isMarkdownCodeHidden,
-    temporarilyShowCode,
-    showHiddenMarkdownCode,
+    showHiddenCode,
+    showHiddenCodeIfMarkdown,
   };
 }
 
@@ -325,6 +211,7 @@ export type CellComponentActions = Pick<
   | "updateCellConfig"
   | "clearSerializedEditorState"
   | "setStdinResponse"
+  | "clearCellConsoleOutput"
   | "sendToBottom"
   | "sendToTop"
 >;
@@ -337,6 +224,10 @@ export interface CellHandle {
    * The CodeMirror editor view.
    */
   editorView: EditorView;
+  /**
+   * The CodeMirror editor view, or null if it is not yet mounted.
+   */
+  editorViewOrNull: EditorView | null;
 }
 
 export interface CellProps
@@ -365,16 +256,11 @@ export interface CellProps
   theme: Theme;
   showPlaceholder: boolean;
   mode: AppMode;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   /**
    * False only when there is only one cell in the notebook.
    */
   canDelete: boolean;
-  /**
-   * If true, the cell is allowed to be focus on.
-   * This is false when the app is initially loading.
-   */
-  allowFocus: boolean;
   userConfig: UserConfig;
   /**
    * If true, the cell is allowed to be moved left and right.
@@ -417,6 +303,9 @@ const CellComponent = (
       get editorView() {
         return derefNotNull(editorView);
       },
+      get editorViewOrNull() {
+        return editorView.current;
+      },
     }),
     [editorView],
   );
@@ -443,14 +332,16 @@ const CellComponent = (
 
   if (mode === "edit") {
     return (
-      <EditableCellComponent
-        {...props}
-        editorView={editorView}
-        setEditorView={(ev) => {
-          editorView.current = ev;
-        }}
-        outputStale={outputStale}
-      />
+      <ScopeProvider atoms={[temporarilyShownCodeAtom]}>
+        <EditableCellComponent
+          {...props}
+          editorView={editorView}
+          setEditorView={(ev) => {
+            editorView.current = ev;
+          }}
+          outputStale={outputStale}
+        />
+      </ScopeProvider>
     );
   }
 
@@ -489,8 +380,6 @@ const ReadonlyCellComponent = forwardRef(
       published: true,
     });
 
-    const HTMLId = HTMLCellId.create(cellId);
-
     const outputIsError = isErrorMime(output?.mimetype);
 
     // Hide the output if it's an error or stopped.
@@ -502,11 +391,9 @@ const ReadonlyCellComponent = forwardRef(
     return (
       <div
         tabIndex={-1}
-        id={HTMLId}
         ref={ref}
         className={className}
-        data-cell-id={cellId}
-        data-cell-name={name}
+        {...cellDomProps(cellId, name)}
       >
         <OutputArea
           allowExpand={false}
@@ -526,7 +413,6 @@ ReadonlyCellComponent.displayName = "ReadonlyCellComponent";
 const EditableCellComponent = ({
   theme,
   showPlaceholder,
-  allowFocus,
   id: cellId,
   code,
   output,
@@ -543,7 +429,7 @@ const EditableCellComponent = ({
   serializedEditorState,
   serialization,
   debuggerActive,
-  appClosed,
+  connectionState,
   canDelete,
   actions,
   deleteCell,
@@ -558,7 +444,7 @@ const EditableCellComponent = ({
   setEditorView,
   outputStale,
 }: CellProps & {
-  editorView: React.RefObject<EditorView>;
+  editorView: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
   outputStale: boolean;
 }) => {
@@ -606,38 +492,22 @@ const EditableCellComponent = ({
     isCellCodeShown,
     isMarkdown,
     isMarkdownCodeHidden,
-    temporarilyShowCode,
-    showHiddenMarkdownCode,
-  } = useCellHiddenLogic(
+    showHiddenCode,
+    showHiddenCodeIfMarkdown,
+  } = useCellHiddenLogic({
+    cellId,
     cellConfig,
     languageAdapter,
     editorView,
     editorViewParentRef,
-  );
+  });
 
-  // Hotkey listeners
-  useCellHotkeys(
-    cellRef,
-    cellId,
-    runCell,
-    actions,
+  // Hotkey and focus props
+  const navigationProps = useCellNavigationProps(cellId, {
     canMoveX,
-    cellConfig,
     editorView,
-    setAiCompletionCell,
     cellActionDropdownRef,
-  );
-
-  // Other keyboard listeners
-  useCellKeyboardListener(
-    cellRef,
-    cellId,
-    actions,
-    showHiddenMarkdownCode,
-    userConfig,
-    isCellCodeShown,
-  );
-
+  });
   const canCollapse = canCollapseOutline(outline);
   const hasOutput = !isOutputEmpty(output);
   const hasConsoleOutput = consoleOutputs.length > 0;
@@ -672,12 +542,12 @@ const EditableCellComponent = ({
     <HideCodeButton
       tooltip="Edit markdown"
       className={cn("z-20 relative", className)}
-      onClick={temporarilyShowCode}
+      onClick={showHiddenCode}
     />
   );
 
   const outputArea = hasOutput && (
-    <div className="relative" onDoubleClick={showHiddenMarkdownCode}>
+    <div className="relative" onDoubleClick={showHiddenCodeIfMarkdown}>
       <div className="absolute top-5 -left-8 z-10 print:hidden">
         <CollapseToggle
           isCollapsed={isCollapsed}
@@ -716,10 +586,9 @@ const EditableCellComponent = ({
     stopped: stopped,
     disabled: cellConfig.disabled,
     stale: status === "disabled-transitively",
-    borderless: isMarkdownCodeHidden && hasOutput,
+    borderless:
+      isMarkdownCodeHidden && hasOutput && !navigationProps["data-selected"],
   });
-
-  const HTMLId = HTMLCellId.create(cellId);
 
   const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
     setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
@@ -764,18 +633,22 @@ const EditableCellComponent = ({
           title={renderCellTitle()}
         >
           <div
-            className={className}
-            id={HTMLId}
+            tabIndex={-1}
+            {...navigationProps}
+            className={cn(
+              className,
+              navigationProps.className,
+              "focus:ring-1 focus:ring-[var(--blue-7)] focus:ring-offset-0",
+            )}
             ref={cellContainerRef}
-            data-cell-id={cellId}
-            data-cell-name={name}
+            {...cellDomProps(cellId, name)}
           >
             {cellOutput === "above" && outputArea}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
                   edited={edited}
-                  appClosed={appClosed}
+                  connectionState={connectionState}
                   status={status}
                   cellConfig={cellConfig}
                   needsRun={needsRun}
@@ -797,13 +670,12 @@ const EditableCellComponent = ({
                     isCellButtonsInline &&
                     "-left-[3.8rem]",
                 )}
-                appClosed={appClosed}
+                connectionState={connectionState}
                 actions={actions}
               />
               <CellEditor
                 theme={theme}
                 showPlaceholder={showPlaceholder}
-                allowFocus={allowFocus}
                 id={cellId}
                 code={code}
                 config={cellConfig}
@@ -816,7 +688,7 @@ const EditableCellComponent = ({
                 editorViewParentRef={editorViewParentRef}
                 hidden={!isCellCodeShown}
                 hasOutput={hasOutput}
-                temporarilyShowCode={temporarilyShowCode}
+                showHiddenCode={showHiddenCode}
                 languageAdapter={languageAdapter}
                 setLanguageAdapter={setLanguageAdapter}
               />
@@ -838,10 +710,13 @@ const EditableCellComponent = ({
               <div className="shoulder-bottom hover-action">
                 {canDelete && isCellCodeShown && (
                   <DeleteButton
-                    appClosed={appClosed}
+                    connectionState={connectionState}
                     status={status}
                     onClick={() => {
-                      if (!loading && !appClosed) {
+                      if (
+                        !loading &&
+                        !isAppInteractionDisabled(connectionState)
+                      ) {
                         deleteCell({ cellId });
                       }
                     }}
@@ -855,6 +730,7 @@ const EditableCellComponent = ({
                 href="https://links.marimo.app/reusable-definitions"
                 target="_blank"
                 className="hover:underline py-1 px-2 flex items-center justify-end gap-2 last:rounded-b"
+                rel="noopener"
               >
                 {isToplevel && (
                   <span className="text-muted-foreground text-xs font-bold">
@@ -901,6 +777,9 @@ const EditableCellComponent = ({
               // Empty name if serialization triggered
               cellName={serialization ? "_" : name}
               onRefactorWithAI={handleRefactorWithAI}
+              onClear={() => {
+                actions.clearCellConsoleOutput({ cellId });
+              }}
               onSubmitDebugger={(text, index) => {
                 actions.setStdinResponse({
                   cellId,
@@ -912,6 +791,7 @@ const EditableCellComponent = ({
               cellId={cellId}
               debuggerActive={debuggerActive}
             />
+            <PendingDeleteConfirmation cellId={cellId} />
           </div>
           {isCollapsed && (
             <CollapsedCellBanner
@@ -982,17 +862,21 @@ const CellRightSideActions = (props: {
 const CellLeftSideActions = (props: {
   className?: string;
   cellId: CellId;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   actions: CellComponentActions;
 }) => {
-  const { className, appClosed, actions, cellId } = props;
+  const { className, connectionState, actions, cellId } = props;
 
-  const createBelow = useEvent((opts: { code?: string } = {}) =>
-    actions.createNewCell({ cellId, before: false, ...opts }),
+  const createBelow = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: false, ...opts }),
   );
-  const createAbove = useEvent((opts: { code?: string } = {}) =>
-    actions.createNewCell({ cellId, before: true, ...opts }),
+  const createAbove = useEvent(
+    (opts: { code?: string; hideCode?: boolean } = {}) =>
+      actions.createNewCell({ cellId, before: true, ...opts }),
   );
+
+  const isConnected = isAppConnected(connectionState);
 
   return (
     <div
@@ -1003,14 +887,14 @@ const CellLeftSideActions = (props: {
     >
       <CreateCellButton
         tooltipContent={renderShortcut("cell.createAbove")}
-        appClosed={appClosed}
-        onClick={appClosed ? undefined : createAbove}
+        connectionState={connectionState}
+        onClick={isConnected ? createAbove : undefined}
       />
       <div className="flex-1" />
       <CreateCellButton
         tooltipContent={renderShortcut("cell.createBelow")}
-        appClosed={appClosed}
-        onClick={appClosed ? undefined : createBelow}
+        connectionState={connectionState}
+        onClick={isConnected ? createBelow : undefined}
       />
     </div>
   );
@@ -1018,13 +902,13 @@ const CellLeftSideActions = (props: {
 
 interface CellToolbarProps {
   edited: boolean;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   status: RuntimeState;
   cellConfig: CellConfig;
   needsRun: boolean;
   hasOutput: boolean;
   hasConsoleOutput: boolean;
-  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle>;
+  cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>;
   cellId: CellId;
   name: string;
   includeCellActions?: boolean;
@@ -1034,7 +918,7 @@ interface CellToolbarProps {
 
 const CellToolbar = ({
   edited,
-  appClosed,
+  connectionState,
   status,
   cellConfig,
   needsRun,
@@ -1047,6 +931,8 @@ const CellToolbar = ({
   name,
   includeCellActions = true,
 }: CellToolbarProps) => {
+  const isConnected = isAppConnected(connectionState);
+
   return (
     <Toolbar
       className={cn(
@@ -1056,13 +942,13 @@ const CellToolbar = ({
     >
       <RunButton
         edited={edited}
-        onClick={appClosed ? Functions.NOOP : onRun}
-        appClosed={appClosed}
+        onClick={isConnected ? onRun : Functions.NOOP}
+        connectionState={connectionState}
         status={status}
         config={cellConfig}
         needsRun={needsRun}
       />
-      <StopButton status={status} appClosed={appClosed} />
+      <StopButton status={status} connectionState={connectionState} />
       {includeCellActions && (
         <CellActionsDropdown
           ref={cellActionDropdownRef}
@@ -1094,7 +980,6 @@ const CellToolbar = ({
 const SetupCellComponent = ({
   theme,
   showPlaceholder,
-  allowFocus,
   id: cellId,
   code,
   output,
@@ -1110,7 +995,7 @@ const SetupCellComponent = ({
   staleInputs,
   serializedEditorState,
   debuggerActive,
-  appClosed,
+  connectionState,
   canDelete,
   actions,
   deleteCell,
@@ -1121,7 +1006,7 @@ const SetupCellComponent = ({
   editorView,
   setEditorView,
 }: CellProps & {
-  editorView: React.RefObject<EditorView>;
+  editorView: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
   outputStale: boolean;
 }) => {
@@ -1162,29 +1047,12 @@ const SetupCellComponent = ({
     editorView,
   );
 
-  // Hotkey listeners
-  useCellHotkeys(
-    cellRef,
-    cellId,
-    runCell,
-    actions,
+  // Hotkeys and focus props
+  const navigationProps = useCellNavigationProps(cellId, {
     canMoveX,
-    cellConfig,
     editorView,
-    setAiCompletionCell,
     cellActionDropdownRef,
-  );
-
-  // Other keyboard listeners
-  useCellKeyboardListener(
-    cellRef,
-    cellId,
-    actions,
-    Functions.NOOP,
-    userConfig,
-    true,
-  );
-
+  });
   const hasOutput = !isOutputEmpty(output);
   const hasConsoleOutput = consoleOutputs.length > 0;
   const isErrorOutput = isErrorMime(output?.mimetype);
@@ -1199,8 +1067,6 @@ const SetupCellComponent = ({
       stopped: stopped,
     },
   );
-
-  const HTMLId = HTMLCellId.create(cellId);
 
   const handleRefactorWithAI = useEvent((opts: { prompt: string }) => {
     setAiCompletionCell({ cellId, initialPrompt: opts.prompt });
@@ -1231,22 +1097,22 @@ const SetupCellComponent = ({
         name={name}
       >
         <div
-          className={className}
           data-status={status}
-          id={HTMLId}
           ref={cellRef}
-          onBlur={closeCompletionHandler}
-          onKeyDown={resumeCompletionHandler}
+          {...mergeProps(navigationProps, {
+            className,
+            onBlur: closeCompletionHandler,
+            onKeyDown: resumeCompletionHandler,
+          })}
+          {...cellDomProps(cellId, name)}
           title={renderCellTitle()}
-          data-cell-id={cellId}
-          data-cell-name={name}
           data-setup-cell={true}
         >
           <div className={cn("tray")} data-hidden={false}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={edited}
-                appClosed={appClosed}
+                connectionState={connectionState}
                 status={status}
                 cellConfig={cellConfig}
                 needsRun={needsRun}
@@ -1263,7 +1129,6 @@ const SetupCellComponent = ({
             <CellEditor
               theme={theme}
               showPlaceholder={showPlaceholder}
-              allowFocus={allowFocus}
               id={cellId}
               code={code}
               config={cellConfig}
@@ -1276,7 +1141,7 @@ const SetupCellComponent = ({
               editorViewParentRef={editorViewParentRef}
               hidden={false}
               hasOutput={hasOutput}
-              temporarilyShowCode={Functions.NOOP}
+              showHiddenCode={Functions.NOOP}
               languageAdapter={"python"}
               setLanguageAdapter={Functions.NOOP}
               showLanguageToggles={false}
@@ -1296,10 +1161,13 @@ const SetupCellComponent = ({
             <div className="shoulder-bottom hover-action">
               {canDelete && (
                 <DeleteButton
-                  appClosed={appClosed}
+                  connectionState={connectionState}
                   status={status}
                   onClick={() => {
-                    if (!loading && !appClosed) {
+                    if (
+                      !loading &&
+                      !isAppInteractionDisabled(connectionState)
+                    ) {
                       deleteCell({ cellId });
                     }
                   }}
@@ -1345,6 +1213,9 @@ const SetupCellComponent = ({
             // Don't show name
             cellName={"_"}
             onRefactorWithAI={handleRefactorWithAI}
+            onClear={() => {
+              actions.clearCellConsoleOutput({ cellId });
+            }}
             onSubmitDebugger={(text, index) => {
               actions.setStdinResponse({
                 cellId,

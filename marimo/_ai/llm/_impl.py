@@ -27,10 +27,9 @@ class simple(ChatModel):
     Convenience class for wrapping a ChatModel or callable to
     take a single prompt
 
-    **Args:**
-
-    - delegate: A callable that takes a
-        single prompt and returns a response
+    Args:
+        delegate: A callable that takes a
+            single prompt and returns a response
     """
 
     def __init__(self, delegate: Callable[[str], object]):
@@ -48,15 +47,14 @@ class openai(ChatModel):
     """
     OpenAI ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the OPENAI_API_KEY environment variable or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the OPENAI_API_KEY environment variable or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -110,9 +108,6 @@ class openai(ChatModel):
             AzureOpenAI,
             OpenAI,
         )
-        from openai.types.chat import (  # type: ignore[import-not-found]
-            ChatCompletionMessageParam,
-        )
 
         # Azure OpenAI clients are instantiated slightly differently
         # To check if we're using Azure, we check the base_url for the format
@@ -142,7 +137,7 @@ class openai(ChatModel):
         )
         response = client.chat.completions.create(
             model=self.model,
-            messages=cast(list[ChatCompletionMessageParam], openai_messages),
+            messages=openai_messages,
             max_completion_tokens=config.max_tokens,
             temperature=config.temperature,
             top_p=config.top_p,
@@ -160,16 +155,15 @@ class anthropic(ChatModel):
     """
     Anthropic ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Anthropic models page](https://docs.anthropic.com/en/docs/about-claude/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the ANTHROPIC_API_KEY environment variable
-        or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [Anthropic models page](https://docs.anthropic.com/en/docs/about-claude/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the ANTHROPIC_API_KEY environment variable
+            or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -184,7 +178,6 @@ class anthropic(ChatModel):
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
-        self.system_message = system_message
 
     @property
     def _require_api_key(self) -> str:
@@ -222,9 +215,6 @@ class anthropic(ChatModel):
             NOT_GIVEN,
             Anthropic,
         )
-        from anthropic.types.message_param import (  # type: ignore[import-not-found]
-            MessageParam,
-        )
 
         client = Anthropic(
             api_key=self._require_api_key,
@@ -236,7 +226,7 @@ class anthropic(ChatModel):
             model=self.model,
             system=self.system_message,
             max_tokens=config.max_tokens or 4096,
-            messages=cast(list[MessageParam], anthropic_messages),
+            messages=anthropic_messages,
             top_p=config.top_p if config.top_p is not None else NOT_GIVEN,
             top_k=config.top_k if config.top_k is not None else NOT_GIVEN,
             stream=False,
@@ -258,15 +248,14 @@ class google(ChatModel):
     """
     Google AI ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Gemini models page](https://ai.google.dev/gemini-api/docs/models/gemini)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the GOOGLE_AI_API_KEY environment variable
-        or the user's config.
+    Args:
+        model: The model to use.
+            Can be found on the [Gemini models page](https://ai.google.dev/gemini-api/docs/models/gemini)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the GOOGLE_AI_API_KEY environment variable
+            or the user's config.
     """
 
     def __init__(
@@ -310,25 +299,26 @@ class google(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
-            "chat model requires google. `pip install google-generativeai`"
+            "chat model requires google. `pip install google-genai`"
         )
-        import google.generativeai as genai  # type: ignore[import-not-found]
+        from google import genai  # type: ignore[import-not-found]
 
-        genai.configure(api_key=self._require_api_key)
-        client = genai.GenerativeModel(
-            model_name=self.model,
-            generation_config=genai.GenerationConfig(
-                max_output_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                top_k=config.top_k,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-            ),
-        )
+        client = genai.Client(api_key=self._require_api_key)
 
         google_messages = convert_to_google_messages(messages)
-        response = client.generate_content(google_messages)
+        response = client.models.generate_content(
+            model=self.model,
+            contents=google_messages,
+            config={
+                "system_instruction": self.system_message,
+                "max_output_tokens": config.max_tokens,
+                "temperature": config.temperature,
+                "top_p": config.top_p,
+                "top_k": config.top_k,
+                "frequency_penalty": config.frequency_penalty,
+                "presence_penalty": config.presence_penalty,
+            },
+        )
 
         content = response.text
         return content or ""
@@ -338,15 +328,14 @@ class groq(ChatModel):
     """
     Groq ChatModel
 
-    **Args:**
-
-    - model: The model to use.
-        Can be found on the [Groq models page](https://console.groq.com/docs/models)
-    - system_message: The system message to use
-    - api_key: The API key to use.
-        If not provided, the API key will be retrieved
-        from the GROQ_API_KEY environment variable or the user's config.
-    - base_url: The base URL to use
+    Args:
+        model: The model to use.
+            Can be found on the [Groq models page](https://console.groq.com/docs/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the GROQ_API_KEY environment variable or the user's config.
+        base_url: The base URL to use
     """
 
     def __init__(
@@ -416,3 +405,106 @@ class groq(ChatModel):
         choice = response.choices[0]
         content = choice.message.content
         return content or ""
+
+
+class bedrock(ChatModel):
+    """
+    AWS Bedrock ChatModel
+
+    Args:
+        model: The model ID to use.
+            Format: [<cross-region>.]<provider>.<model> (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+        system_message: The system message to use
+        region_name: The AWS region to use (e.g., "us-east-1")
+        profile_name: The AWS profile to use for credentials (optional)
+        credentials: AWS credentials (optional)
+            Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
+            If not provided, credentials will be retrieved from the environment
+            or the AWS configuration files.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        region_name: str = "us-east-1",
+        profile_name: Optional[str] = None,
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None,
+    ):
+        if not model.startswith("bedrock/"):
+            model = f"bedrock/{model}"
+        self.model = model
+        self.system_message = system_message
+        self.region_name = region_name
+        self.profile_name = profile_name
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+
+    def _setup_credentials(self) -> None:
+        # Use profile name if provided, otherwise use API key
+        if self.profile_name:
+            os.environ["AWS_PROFILE"] = self.profile_name
+        elif self.aws_access_key_id and self.aws_secret_access_key:
+            os.environ["AWS_ACCESS_KEY_ID"] = self.aws_access_key_id
+            os.environ["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
+        else:
+            pass  # Use default credential chain
+
+    def __call__(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> object:
+        DependencyManager.boto3.require(
+            "bedrock chat model requires boto3. `pip install boto3`"
+        )
+        DependencyManager.litellm.require(
+            "bedrock chat model requires litellm. `pip install litellm`"
+        )
+        from litellm import completion as litellm_completion
+
+        self._setup_credentials()
+
+        try:
+            # Make API call
+            response = litellm_completion(
+                model=self.model,
+                messages=convert_to_openai_messages(
+                    [ChatMessage(role="system", content=self.system_message)]
+                    + messages
+                ),
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+                stream=False,
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            # Handle common AWS exceptions with helpful messages
+            error_msg = str(e)
+
+            if "AccessDenied" in error_msg:
+                raise ValueError(
+                    f"Access denied to AWS Bedrock model {self.model}. "
+                    "Make sure your credentials have the necessary permissions."
+                ) from e
+            elif (
+                "ValidationException" in error_msg
+                and "model id" in error_msg.lower()
+            ):
+                raise ValueError(
+                    f"Model {self.model} not found or not enabled for your account. "
+                    "Make sure you've enabled model access in the AWS Bedrock console."
+                ) from e
+            elif "ResourceNotFoundException" in error_msg:
+                raise ValueError(
+                    f"Model {self.model} not found in region {self.region_name}. "
+                    "Check that the model ID is correct and available in this region."
+                ) from e
+            else:
+                # Re-raise original exception if not handled
+                raise

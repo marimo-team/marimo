@@ -1,42 +1,48 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
 import {
-  LayoutTemplateIcon,
   EditIcon,
+  LayoutTemplateIcon,
   PlayIcon,
   SquareIcon,
   Undo2Icon,
 } from "lucide-react";
-
-import { Button } from "@/components/editor/inputs/Inputs";
+import type { JSX } from "react";
 import { KeyboardShortcuts } from "@/components/editor/controls/keyboard-shortcuts";
+import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
 import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
-
-import { Tooltip } from "../../ui/tooltip";
-import { renderShortcut } from "../../shortcuts/renderShortcut";
+import { Button } from "@/components/editor/inputs/Inputs";
+import { FindReplace } from "@/components/find-replace/find-replace";
+import type { AppConfig } from "@/core/config/config-schema";
+import { isConnectedAtom } from "@/core/network/connection";
+import { SaveComponent } from "@/core/saving/save-component";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import { WebSocketState } from "@/core/websocket/types";
+import { cn } from "@/utils/cn";
+import { Functions } from "@/utils/functions";
 import {
   canUndoDeletesAtom,
   needsRunAtom,
   useCellActions,
 } from "../../../core/cells/cells";
 import { ConfigButton } from "../../app-config/app-config-button";
-import { LayoutSelect } from "../renderers/layout-select";
-import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
-import { FindReplace } from "@/components/find-replace/find-replace";
-import type { AppConfig } from "@/core/config/config-schema";
+import { renderShortcut } from "../../shortcuts/renderShortcut";
+import { Tooltip } from "../../ui/tooltip";
 import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
-import { CommandPaletteButton } from "./command-palette-button";
-import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../kiosk-mode";
-import { Functions } from "@/utils/functions";
-import { SaveComponent } from "@/core/saving/save-component";
-import { useAtomValue } from "jotai";
+import { LayoutSelect } from "../renderers/layout-select";
+import { CommandPaletteButton } from "./command-palette-button";
 
 interface ControlsProps {
   presenting: boolean;
   onTogglePresenting: () => void;
   onInterrupt: () => void;
   onRun: () => void;
-  closed: boolean;
+  connectionState: WebSocketState;
   running: boolean;
   appConfig: AppConfig;
 }
@@ -46,7 +52,7 @@ export const Controls = ({
   onTogglePresenting,
   onInterrupt,
   onRun,
-  closed,
+  connectionState,
   running,
   appConfig,
 }: ControlsProps): JSX.Element => {
@@ -54,6 +60,7 @@ export const Controls = ({
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
+  const closed = connectionState === WebSocketState.CLOSED;
 
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
@@ -72,6 +79,10 @@ export const Controls = ({
     );
   }
 
+  const disabled = isAppInteractionDisabled(connectionState);
+  const connectionTooltip = disabled
+    ? getConnectionTooltip(connectionState)
+    : undefined;
   return (
     <>
       {!presenting && <FindReplace />}
@@ -79,9 +90,16 @@ export const Controls = ({
       {!closed && (
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
-          <NotebookMenuDropdown />
-          <ConfigButton />
-          <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
+          <NotebookMenuDropdown
+            disabled={disabled}
+            tooltip={connectionTooltip}
+          />
+          <ConfigButton disabled={disabled} tooltip={connectionTooltip} />
+          <ShutdownButton
+            description="This will terminate the Python kernel. You'll lose all data that's in memory."
+            disabled={disabled}
+            tooltip={connectionTooltip}
+          />
         </div>
       )}
 
@@ -137,6 +155,8 @@ const RunControlButton = ({
   needsRun: boolean;
   onRun: () => void;
 }) => {
+  const isConnected = useAtomValue(isConnectedAtom);
+
   if (needsRun) {
     return (
       <Tooltip content={renderShortcut("global.runStale")}>
@@ -145,7 +165,8 @@ const RunControlButton = ({
           size="medium"
           color="yellow"
           shape="circle"
-          onClick={onRun}
+          onClick={isConnected ? onRun : undefined}
+          disabled={!isConnected}
         >
           <PlayIcon strokeWidth={1.5} size={16} />
         </Button>
@@ -161,6 +182,7 @@ const RunControlButton = ({
         color="disabled"
         size="medium"
         shape="circle"
+        disabled={!isConnected}
       >
         <PlayIcon strokeWidth={1.5} size={16} />
       </Button>

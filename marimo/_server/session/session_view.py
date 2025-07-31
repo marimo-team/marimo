@@ -13,6 +13,7 @@ from marimo._messaging.ops import (
     DataSourceConnections,
     Interrupted,
     MessageOperation,
+    SendUIElementMessage,
     UpdateCellCodes,
     UpdateCellIdsRequest,
     Variables,
@@ -27,7 +28,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
-from marimo._types.ids import CellId_t
+from marimo._types.ids import CellId_t, WidgetModelId
 from marimo._utils.lists import as_list
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -55,16 +56,23 @@ class AutoExportState:
 
 
 class SessionView:
-    """
-    This stores the current view of the session.
+    """A representation of a session state for replay and serialization.
 
-    Which are the cell's outputs, status, and console.
+    Of note, a SessionView stores:
+    * the last-seen notebook-order of Cell IDs
+    * a mapping from cell IDs to their last seen operation of interest,
+      such as an output, status, or console output
+    * various other state needed for replay
+
+    A notebook session can be hydrated from a serialized SessionView,
+    for example on notebook startup when auto-instantiate is off, or
+    on reconnection via a replay.
     """
 
     def __init__(self) -> None:
-        # Last seen cell IDs
+        # Last seen notebook-order of cell IDs
         self.cell_ids: Optional[UpdateCellIdsRequest] = None
-        # List of operations we care about keeping track of.
+        # A mapping from cell (IDs) to their last seen operation
         self.cell_operations: dict[CellId_t, CellOp] = {}
         # The most recent datasets operation.
         self.datasets = Datasets(tables=[])
@@ -82,6 +90,10 @@ class SessionView:
         self.last_execution_time: dict[CellId_t, float] = {}
         # Any stale code that was read from a file-watcher
         self.stale_code: Optional[UpdateCellCodes] = None
+        # Model messages
+        self.model_messages: dict[
+            WidgetModelId, list[SendUIElementMessage]
+        ] = {}
 
         # Auto-saving
         self.auto_export_state = AutoExportState()
@@ -240,6 +252,14 @@ class SessionView:
         ):
             self.stale_code = operation
 
+        elif isinstance(operation, SendUIElementMessage):
+            if operation.model_id is None:
+                return
+            messages = self.model_messages.get(operation.model_id, [])
+            messages.append(operation)
+            # TODO: cleanup/merge previous 'update' messages
+            self.model_messages[operation.model_id] = messages
+
     def get_cell_outputs(
         self, ids: list[CellId_t]
     ) -> dict[CellId_t, CellOutput]:
@@ -298,7 +318,16 @@ class SessionView:
         all_ops.extend(self.cell_operations.values())
         if self.stale_code:
             all_ops.append(self.stale_code)
+        if self.model_messages:
+            for messages in self.model_messages.values():
+                all_ops.extend(messages)
         return all_ops
+
+    def is_empty(self) -> bool:
+        return all(
+            op.output is None and op.console is None
+            for op in self.cell_operations.values()
+        )
 
     def mark_auto_export_html(self) -> None:
         self.auto_export_state.mark_exported("html")

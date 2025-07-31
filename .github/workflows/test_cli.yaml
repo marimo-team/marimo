@@ -21,10 +21,7 @@ jobs:
         with:
           filters: |
             cli:
-              - '**'
-              - '!docs/**'
-              - '!examples/**'
-              - '!README.md'
+              - 'marimo/**'
 
   build_wheel:
     needs: changes
@@ -45,9 +42,7 @@ jobs:
         with:
           fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v4
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
@@ -88,6 +83,8 @@ jobs:
             fi
           done
 
+      - name: Run LSP binary
+        run: ./scripts/test-lsp.sh
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
@@ -164,9 +161,3 @@ jobs:
         run: |
           uv add pytest pytest-asyncio
           uv pip install marimo*whl
-
-      - name: Test examples
-        shell: bash
-        run: uv run pytest -v -s tests/_smoke_tests/run_all.py
-        # TODO(msconick) remove continue-on-error when all tests pass
-        continue-on-error: true

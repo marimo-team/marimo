@@ -14,10 +14,12 @@ from marimo._utils.narwhals_utils import (
     dataframe_to_csv,
     empty_df,
     is_narwhals_integer_type,
+    is_narwhals_lazyframe,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
     unwrap_narwhals_dataframe,
     unwrap_py_scalar,
+    upgrade_narwhals_df,
 )
 from tests._data.mocks import create_dataframes
 
@@ -31,14 +33,18 @@ if TYPE_CHECKING:
     "df",
     create_dataframes(
         {"a": [1, 2, 3], "b": ["x", "y", "z"]},
-        exclude=["ibis", "duckdb", "lazy-polars"],
     ),
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_empty_df(df: IntoDataFrame) -> None:
     empty: Any = empty_df(df)
-    assert len(empty) == 0
-    assert len(empty.columns) == 2
+
+    # Assert shape is empty
+    n_df = upgrade_narwhals_df(nw.from_native(empty))
+    if is_narwhals_lazyframe(n_df):
+        n_df = n_df.collect()
+
+    assert n_df.shape == (0, 2)
 
 
 @pytest.mark.parametrize(

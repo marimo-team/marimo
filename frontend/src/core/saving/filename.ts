@@ -1,18 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { getFilenameFromDOM } from "../dom/htmlUtils";
-import { sendRename } from "../network/requests";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import useEvent from "react-use-event-hook";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { Paths } from "@/utils/paths";
 import { updateQueryParams } from "@/utils/urls";
-import useEvent from "react-use-event-hook";
-import { KnownQueryParams } from "../constants";
-import { WebSocketState } from "../websocket/types";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import { connectionAtom } from "../network/connection";
 import { getAppConfig } from "../config/config";
-
-export const filenameAtom = atom<string | null>(getFilenameFromDOM());
+import { KnownQueryParams } from "../constants";
+import { connectionAtom } from "../network/connection";
+import { sendRename } from "../network/requests";
+import { WebSocketState } from "../websocket/types";
+import { filenameAtom } from "./file-state";
 
 export function useFilename() {
   return useAtomValue(filenameAtom);

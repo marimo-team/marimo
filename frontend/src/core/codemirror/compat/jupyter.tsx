@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { toast } from "../../../components/ui/use-toast";
-import { store } from "@/core/state/jotai";
-import { chromeAtom } from "@/components/editor/chrome/state";
-import { saveUserConfig } from "@/core/network/requests";
-import type { UserConfig } from "@/core/config/config-schema";
-import { userConfigAtom } from "@/core/config/config";
 import { PACKAGES_INPUT_ID } from "@/components/editor/chrome/panels/constants";
+import { chromeAtom } from "@/components/editor/chrome/state";
 import { Kbd } from "@/components/ui/kbd";
+import { userConfigAtom } from "@/core/config/config";
+import type { UserConfig } from "@/core/config/config-schema";
+import { saveUserConfig } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
+import { toast } from "../../../components/ui/use-toast";
 
 interface ReplaceCommand {
   match: string;

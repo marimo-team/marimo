@@ -23,7 +23,7 @@ def construct_interrupt_handler(
         del signum
         del frame
 
-        LOGGER.debug("Interrupt request received")
+        LOGGER.info("Interrupt request received")
         # TODO(akshayka): if kernel is in `run` but not executing,
         # it won't be interrupted, which isn't right ... but the
         # probability of that happening is low.

@@ -30,7 +30,7 @@ class AuthToken:
 
     @staticmethod
     def from_code(code: str) -> AuthToken:
-        return AuthToken(str(hash(code)))
+        return AuthToken(str(hash("auth:" + code)))
 
     @staticmethod
     def is_empty(token: AuthToken) -> bool:
@@ -51,7 +51,7 @@ class SkewProtectionToken:
 
     @staticmethod
     def from_code(code: str) -> SkewProtectionToken:
-        return SkewProtectionToken(str(hash(code)))
+        return SkewProtectionToken(str(hash("skew:" + code)))
 
     @staticmethod
     def random() -> SkewProtectionToken:

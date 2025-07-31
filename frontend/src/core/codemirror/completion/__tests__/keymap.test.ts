@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, it, vi } from "vitest";
+
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { describe, expect, it, vi } from "vitest";
 import { completionKeymap } from "../keymap";
 
 describe("completionKeymap", () => {

@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { cn } from "@/utils/cn";
-import { SidebarToggle } from "./toggle";
 import { SidebarSlot } from "./sidebar-slot";
 import { CLOSED_WIDTH } from "./state";
+import { SidebarToggle } from "./toggle";
 import "./sidebar.css";
 
 interface SidebarProps {

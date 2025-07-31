@@ -19,7 +19,7 @@ def _():
         ErrorOutput,
         DataOutput,
         Cell,
-        NotebookMetadata,
+        NotebookSessionMetadata,
         NotebookSessionV1,
     )
 
@@ -29,7 +29,7 @@ def _():
         ErrorOutput,
         DataOutput,
         Cell,
-        NotebookMetadata,
+        NotebookSessionMetadata,
         NotebookSessionV1,
     ]
     return (
@@ -37,7 +37,7 @@ def _():
         DataOutput,
         ErrorOutput,
         MESSAGES,
-        NotebookMetadata,
+        NotebookSessionMetadata,
         NotebookSessionV1,
         StreamOutput,
         TimeMetadata,

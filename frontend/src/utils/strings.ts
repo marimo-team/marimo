@@ -37,11 +37,24 @@ export const Strings = {
       .replaceAll("\n", " ");
   },
 
+  withTrailingSlash(url: string): string {
+    return url.endsWith("/") ? url : `${url}/`;
+  },
   withoutTrailingSlash(url: string): string {
     return url.endsWith("/") ? url.slice(0, -1) : url;
   },
   withoutLeadingSlash(url: string): string {
     return url.startsWith("/") ? url.slice(1) : url;
+  },
+  asString: (value: unknown): string => {
+    if (typeof value === "string") {
+      return value;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   },
 };
 

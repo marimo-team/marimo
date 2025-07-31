@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { DataFrameComponent } from "@/plugins/impl/data-frames/DataFramePlugin";
 import type { Transformations } from "@/plugins/impl/data-frames/schema";
@@ -39,6 +39,7 @@ export const DataFrame: StoryObj = {
         }}
         get_dataframe={() => Promise.reject(new Error("not implemented"))}
         search={Functions.THROW}
+        host={document.body}
       />
     );
   },

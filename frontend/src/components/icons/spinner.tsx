@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { cn } from "@/utils/cn";
-import { type VariantProps, cva } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2Icon } from "lucide-react";
 import React from "react";
+import { cn } from "@/utils/cn";
 
 const spinnerVariants = cva("animate-spin", {
   variants: {

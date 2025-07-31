@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
 import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "../data-table";
-import { describe, expect, it } from "vitest";
-import { vi } from "vitest";
-import type { ColumnDef } from "@tanstack/react-table";
-import type { RowSelectionState } from "@tanstack/react-table";
 
 interface TestData {
   id: number;
@@ -36,13 +35,21 @@ describe("DataTable", () => {
       onRowSelectionChange: mockOnRowSelectionChange,
     };
 
-    const { rerender } = render(<DataTable {...commonProps} />);
+    const { rerender } = render(
+      <TooltipProvider>
+        <DataTable {...commonProps} />
+      </TooltipProvider>,
+    );
 
     // Verify initial selection is not cleared
     expect(mockOnRowSelectionChange).not.toHaveBeenCalledWith({});
 
     // Simulate remount (as would happen in accordion toggle)
-    rerender(<DataTable {...commonProps} />);
+    rerender(
+      <TooltipProvider>
+        <DataTable {...commonProps} />
+      </TooltipProvider>,
+    );
 
     // Verify selection is still not cleared after remount
     expect(mockOnRowSelectionChange).not.toHaveBeenCalledWith({});

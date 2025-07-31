@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it, beforeEach, vi } from "vitest";
-import { renderHook } from "@testing-library/react-hooks";
+
+import { renderHook } from "@testing-library/react";
 import { useRef } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type HTMLElementNotDerivedFromRef,
   isRefObject,
@@ -11,7 +12,7 @@ import {
 describe("isRefObject", () => {
   it("should return true for React ref objects", () => {
     const { result } = renderHook(() => useRef(null));
-    expect(isRefObject(result)).toBe(true);
+    expect(isRefObject(result.current)).toBe(true);
   });
 
   it("should return false for non-ref values", () => {

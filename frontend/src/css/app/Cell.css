@@ -42,6 +42,12 @@
       overflow: auto;
     }
 
+    /* Special case for particular components */
+    .output-area:has(> .output > marimo-ui-element > marimo-table) {
+      max-height: none;
+      overflow: hidden;
+    }
+
     & > :first-child {
       border-top-left-radius: 9px;
       border-top-right-radius: 9px;
@@ -214,8 +220,8 @@
     justify-content: flex-end;
     height: 100%;
     position: absolute;
-    right: -90px;
-    width: 80px;
+    left: calc(100% + 12px);
+    width: fit-content;
     gap: 4px;
   }
 
@@ -328,6 +334,10 @@
   font-size: var(--marimo-code-editor-font-size, 0.9rem);
 }
 
+.cm-lineNumbers {
+  font-size: var(--marimo-code-editor-font-size, 0.9rem);
+}
+
 /* .marimo-cell is needed to take precedence over codemirror's generated class ... */
 .marimo-cell .cm-editor {
   border: 1px solid transparent;
@@ -339,12 +349,12 @@
       background: #e2f2ff;
     }
 
-    .cm-activeLine {
+    .cm-activeLine:not(.cm-error-line) {
       background: hsl(210deg 100% 50% / 3%);
     }
   }
 
-  .cm-activeLine {
+  .cm-activeLine:not(.cm-error-line) {
     background: transparent;
 
     /* Soften the corners of the active-line highlight. */

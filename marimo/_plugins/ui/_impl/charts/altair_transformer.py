@@ -9,6 +9,7 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.utils import (
     get_table_manager,
     get_table_manager_or_none,
@@ -112,14 +113,25 @@ def _data_to_json_string(data: _DataType) -> str:
 def _data_to_csv_string(data: _DataType) -> str:
     """Return a CSV string representation of the input data"""
     data = _maybe_sanitize_dataframe(data)
-
-    return get_table_manager(data).to_csv().decode("utf-8")
+    return get_table_manager(data).to_csv_str()
 
 
 def _maybe_sanitize_dataframe(data: Any) -> Any:
     """Sanitize a pandas or narwhals DataFrame for JSON serialization"""
     import altair as alt
 
+    # First try to sanitize with sanitize_pandas_dataframe
+    # because sanitize_narwhals_dataframe on pandas does not
+    # produce a correct result.
+    if DependencyManager.pandas.imported():
+        import pandas as pd
+
+        if isinstance(
+            data, pd.DataFrame
+        ) and "sanitize_pandas_dataframe" in dir(alt.utils):
+            return alt.utils.sanitize_pandas_dataframe(data)  # type: ignore[attr-defined]
+
+    # Then try to sanitize with sanitize_narwhals_dataframe
     if can_narwhalify(data) and "sanitize_narwhals_dataframe" in dir(
         alt.utils
     ):
@@ -140,14 +152,16 @@ def sanitize_nan_infs(data: Any) -> Any:
     """Sanitize NaN and Inf values in Dataframes for JSON serialization."""
     if can_narwhalify(data):
         narwhals_data = nw.from_native(data)
-        res = narwhals_data.with_columns(
-            nw.when(nw.col(col).is_nan() | ~nw.col(col).is_finite())
-            .then(None)
-            .otherwise(nw.col(col))
-            .name.keep()
-            for col in narwhals_data.columns
-        )
-        return res.to_native()
+        for col, dtype in narwhals_data.schema.items():
+            # Only numeric columns can have NaN or Inf values
+            if dtype.is_numeric():
+                narwhals_data = narwhals_data.with_columns(
+                    nw.when(nw.col(col).is_nan() | ~nw.col(col).is_finite())
+                    .then(None)
+                    .otherwise(nw.col(col))
+                    .name.keep()
+                )
+        return narwhals_data.to_native()
     return data
 
 

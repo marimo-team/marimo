@@ -23,16 +23,13 @@ from marimo._output.hypertext import Html
 )
 def test_register_with_dummy_google(mock_md: MagicMock):
     GoogleAiFormatter().register()
-    import google.generativeai as genai
+    from google.genai.types import GenerateContentResponse
 
     mock_md.side_effect = lambda x: Html(f"<md>{x}</md>")
 
-    mock_response = MagicMock(genai.types.GenerateContentResponse)
+    # Test direct GenerateContentResponse
+    mock_response = MagicMock(spec=GenerateContentResponse)
     mock_response.text = "# Hello"
-    mock_response._iterator = None
-    mock_response.candidates = [
-        MagicMock(content="# Hello", index=0, finish_reason="STOP")
-    ]
     formatter = get_formatter(mock_response)
     assert formatter is not None
     result = formatter(mock_response)
@@ -43,28 +40,24 @@ def test_register_with_dummy_google(mock_md: MagicMock):
     # Verify md.md was called with the normal response text
     mock_md.assert_called_with("# Hello")
 
-    # Streaming response
-    mock_response._iterator = iter(
-        [
-            MagicMock(
-                text="```python\ndef foo():\n",
-                index=0,
-                finish_reason="INCOMPLETE",
-            ),
-            MagicMock(text="    pass\n```", index=1, finish_reason="STOP"),
-        ]
-    )
-    mock_response.__iter__ = lambda self: iter(self._iterator)
+    # Test streaming response (iterator)
+    mock_chunk1 = MagicMock(spec=GenerateContentResponse)
+    mock_chunk1.text = "```python\ndef foo():\n"
+    mock_chunk2 = MagicMock(spec=GenerateContentResponse)
+    mock_chunk2.text = "    pass\n```"
+
+    # Create an iterator that is NOT a GenerateContentResponse
+    mock_iterator = iter([mock_chunk1, mock_chunk2])
 
     # Reset the mock before the streaming call
     mock_md.reset_mock()
-    result = formatter(mock_response)
-    # Check that md.md was called 3 times
+    result = formatter(mock_iterator)
+    # Check that md.md was called 3 times (once for each chunk, then final)
     assert mock_md.call_count == 3
     assert mock_md.call_args_list == [
-        call("```python\ndef foo():\n\n```"),  # First chunk
-        call("```python\ndef foo():\n    pass\n```"),  # First + second chunk
-        call("```python\ndef foo():\n    pass\n```"),  # End result
+        call("```python\ndef foo():\n\n```"),  # First chunk with closing fence
+        call("```python\ndef foo():\n    pass\n```"),  # Accumulated chunks
+        call("```python\ndef foo():\n    pass\n```"),  # Final result
     ]
 
 

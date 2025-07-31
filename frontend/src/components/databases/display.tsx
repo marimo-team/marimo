@@ -3,6 +3,8 @@ export function dbDisplayName(name: string) {
   switch (name) {
     case "duckdb":
       return "DuckDB";
+    case "motherduck":
+      return "MotherDuck";
     case "sqlite":
       return "SQLite";
     case "postgres":
@@ -48,6 +50,8 @@ export function dbDisplayName(name: string) {
       return "Apache Cassandra";
     case "mongodb":
       return "MongoDB";
+    case "iceberg":
+      return "Apache Iceberg";
     default:
       return name;
   }

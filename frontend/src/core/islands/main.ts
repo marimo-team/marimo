@@ -2,35 +2,36 @@
 import "./islands.css";
 import "iconify-icon";
 
+import { toast } from "@/components/ui/use-toast";
+import { renderHTML } from "@/plugins/core/RenderHTML";
 import { initializePlugins } from "@/plugins/plugins";
-import { IslandsPyodideBridge } from "./bridge";
-import { store } from "../state/jotai";
+import { logNever } from "@/utils/assertNever";
+import { Functions } from "@/utils/functions";
+import type { Base64String } from "@/utils/json/base64";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { Logger } from "@/utils/Logger";
 import {
   createNotebookActions,
   notebookAtom,
   notebookReducer,
 } from "../cells/cells";
-import { toast } from "@/components/ui/use-toast";
-import { renderHTML } from "@/plugins/core/RenderHTML";
-import { logNever } from "@/utils/assertNever";
-import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import type { UIElementId } from "../cells/ids";
+import { defineCustomElement } from "../dom/defineCustomElement";
+import { MarimoValueInputEvent } from "../dom/events";
+import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
+  handleCellOperation,
   handleKernelReady,
   handleRemoveUIElements,
-  handleCellOperation,
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
-import { Logger } from "@/utils/Logger";
-import { Functions } from "@/utils/functions";
-import { defineCustomElement } from "../dom/defineCustomElement";
-import { MarimoIslandElement } from "./components/web-components";
 import { RuntimeState } from "../kernel/RuntimeState";
-import { sendComponentValues } from "../network/requests";
 import type { RequestId } from "../network/DeferredRequestRegistry";
-import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
-import type { UIElementId } from "../cells/ids";
-import { MarimoValueInputEvent } from "../dom/events";
+import { sendComponentValues } from "../network/requests";
+import { store } from "../state/jotai";
+import { IslandsPyodideBridge } from "./bridge";
+import { MarimoIslandElement } from "./components/web-components";
 import {
   shouldShowIslandsWarningIndicatorAtom,
   userTriedToInteractWithIslandsAtom,
@@ -130,7 +131,7 @@ export async function initialize() {
         UI_ELEMENT_REGISTRY.broadcastMessage(
           msg.data.ui_element as UIElementId,
           msg.data.message,
-          msg.data.buffers,
+          msg.data.buffers as Base64String[],
         );
         return;
 

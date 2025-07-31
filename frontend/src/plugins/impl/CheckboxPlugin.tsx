@@ -1,23 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId } from "react";
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps } from "../types";
-import { Checkbox } from "../../components/ui/checkbox";
 import type { CheckedState } from "@radix-ui/react-checkbox";
+import { type JSX, useId } from "react";
+import { z } from "zod";
+import { Checkbox } from "../../components/ui/checkbox";
+import type { IPlugin, IPluginProps } from "../types";
 import { Labeled } from "./common/labeled";
 
-export class CheckboxPlugin
-  implements IPlugin<boolean, { label: string | null }>
-{
+type T = boolean;
+
+interface Data {
+  label: string | null;
+  disabled?: boolean;
+}
+
+export class CheckboxPlugin implements IPlugin<T, Data> {
   tagName = "marimo-checkbox";
 
   validator = z.object({
     initialValue: z.boolean(),
     label: z.string().nullable(),
+    disabled: z.boolean().optional(),
   });
 
-  render(props: IPluginProps<boolean, { label: string | null }>): JSX.Element {
+  render(props: IPluginProps<T, Data>): JSX.Element {
     return <CheckboxComponent {...props} />;
   }
 }
@@ -26,7 +32,7 @@ const CheckboxComponent = ({
   value,
   setValue,
   data,
-}: IPluginProps<boolean, { label: string | null }>): JSX.Element => {
+}: IPluginProps<T, Data>): JSX.Element => {
   const onClick = (newValue: CheckedState) => {
     // unsupported state
     if (newValue === "indeterminate") {
@@ -43,6 +49,7 @@ const CheckboxComponent = ({
         checked={value}
         onCheckedChange={onClick}
         id={id}
+        disabled={data.disabled}
       />
     </Labeled>
   );

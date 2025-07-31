@@ -9,5 +9,3 @@
 ::: marimo.notebook_dir
 
 ::: marimo.notebook_location
-
-::: marimo.Thread

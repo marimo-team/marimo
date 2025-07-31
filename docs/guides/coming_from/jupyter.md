@@ -145,6 +145,24 @@ Convert Jupyter notebooks to marimo notebooks at the command-line:
 marimo convert your_notebook.ipynb -o your_notebook.py
 ```
 
+### Converting Python scripts to marimo notebooks
+
+marimo can also convert regular Python scripts to marimo notebooks:
+
+```bash
+marimo convert your_script.py -o your_notebook.py
+```
+
+This supports:
+- **py:percent format**: If your script uses `# %%` cell markers, marimo will convert it to a multi-cell notebook (requires jupytext)
+- **Regular Python scripts**: Scripts without cell markers are converted to a single-cell notebook
+
+For py:percent conversion with uv:
+
+```bash
+uvx --with=jupytext marimo convert your_script.py -o your_notebook.py
+```
+
 ### Exporting marimo notebooks to Jupyter notebooks
 
 Export to an `ipynb` file with

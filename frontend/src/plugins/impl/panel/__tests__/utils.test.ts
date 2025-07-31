@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MessageSchema, extractBuffers, EventBuffer } from "../utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EventBuffer, extractBuffers, MessageSchema } from "../utils";
 
 describe("MessageSchema", () => {
   it("should validate ACK message", () => {

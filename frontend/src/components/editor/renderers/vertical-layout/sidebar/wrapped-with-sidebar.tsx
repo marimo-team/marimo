@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type React from "react";
-import { SheetMenu } from "./sheet-sidebar";
-import { useAtom } from "jotai";
-import { normalizeWidth, sidebarAtom } from "./state";
-import { Sidebar } from "./sidebar";
 import { useSlot } from "@marimo-team/react-slotz";
+import { useAtom } from "jotai";
+import type React from "react";
 import { SlotNames } from "@/core/slots/slots";
+import { SheetMenu } from "./sheet-sidebar";
+import { Sidebar } from "./sidebar";
+import { normalizeWidth, sidebarAtom } from "./state";
 
 interface Props {
   children: React.ReactNode;

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, it } from "vitest";
-import { jsonParseWithSpecialChar } from "../json/json-parser";
+import { jsonParseWithSpecialChar, jsonToTSV } from "../json/json-parser";
 
 it("can jsonParseWithSpecialChar happy path", () => {
   expect(jsonParseWithSpecialChar('"hello"')).toEqual("hello");
@@ -53,4 +53,27 @@ it("can fail to jsonParseWithSpecialChar", () => {
   expect(jsonParseWithSpecialChar("undefined")).toMatchInlineSnapshot("{}");
   expect(jsonParseWithSpecialChar(undefined!)).toMatchInlineSnapshot("{}");
   expect(jsonParseWithSpecialChar("[nan]")).toMatchInlineSnapshot("{}");
+});
+
+it("can convert json to tsv", () => {
+  expect(jsonToTSV([])).toEqual("");
+
+  expect(jsonToTSV([{ a: 1, b: 2 }])).toEqual("a\tb\n1\t2");
+
+  expect(
+    jsonToTSV([
+      { a: 1, b: 2 },
+      { a: 3, b: 4 },
+    ]),
+  ).toEqual("a\tb\n1\t2\n3\t4");
+
+  // Does not handle sparse arrays
+  expect(jsonToTSV([{ a: 1 }, { a: 2, b: 3 }])).toMatchInlineSnapshot(
+    '"a\n1\n2"',
+  );
+
+  // Handles special characters
+  expect(
+    jsonToTSV([{ a: "hello\tworld", b: "new\nline" }]),
+  ).toMatchInlineSnapshot('"a\tb\nhello\tworld\tnew\nline"');
 });

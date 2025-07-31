@@ -1,30 +1,31 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useMemo, useState, useCallback } from "react";
+
 import {
-  DndContext,
+  type AutoScrollOptions,
+  type CollisionDetection,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
+  type DragStartEvent,
+  getFirstCollision,
   KeyboardSensor,
   PointerSensor,
-  useSensor,
-  type DragEndEvent,
-  useSensors,
-  type AutoScrollOptions,
-  type UniqueIdentifier,
-  type DragStartEvent,
   pointerWithin,
   rectIntersection,
-  getFirstCollision,
-  type CollisionDetection,
+  type UniqueIdentifier,
+  useSensor,
+  useSensors,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { getNotebook, useCellActions } from "../../core/cells/cells";
-import { useEvent } from "../../hooks/useEvent";
+import React, { useCallback, useMemo, useState } from "react";
 import type { CellId } from "@/core/cells/ids";
 import { useAppConfig } from "@/core/config/config";
 import { Arrays } from "@/utils/arrays";
 import type { CellColumnId, MultiColumn } from "@/utils/id-tree";
 import { invariant } from "@/utils/invariant";
+import { getNotebook, useCellActions } from "../../core/cells/cells";
+import { useEvent } from "../../hooks/useEvent";
 
 interface SortableCellsProviderProps {
   multiColumn: boolean;

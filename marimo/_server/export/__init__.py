@@ -5,8 +5,9 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
+from marimo import _loggers
 from marimo._cli.print import echo
 from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
@@ -29,6 +30,11 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.parse_dataclass import parse_raw
 
+LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 @dataclass
 class ExportResult:
@@ -45,7 +51,10 @@ def export_as_script(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    result = Exporter().export_as_script(file_manager)
+    result = Exporter().export_as_script(
+        filename=file_manager.filename,
+        app=file_manager.app,
+    )
     return ExportResult(
         contents=result[0],
         download_filename=result[1],
@@ -55,13 +64,21 @@ def export_as_script(
 
 def export_as_md(
     path: MarimoPath,
+    new_filename: Optional[Path] = None,
 ) -> ExportResult:
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    result = Exporter().export_as_md(file_manager)
+    # py -> md
+    if new_filename:
+        file_manager.filename = str(new_filename)
+    result = Exporter().export_as_md(
+        notebook=file_manager.app.to_ir(),
+        filename=file_manager.filename,
+        previous=path.path,
+    )
     return ExportResult(
         contents=result[0],
         download_filename=result[1],
@@ -78,7 +95,11 @@ def export_as_ipynb(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    result = Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
+    result = Exporter().export_as_ipynb(
+        filename=file_manager.filename,
+        app=file_manager.app,
+        sort_mode=sort_mode,
+    )
     return ExportResult(
         contents=result[0],
         download_filename=result[1],
@@ -101,7 +122,8 @@ def export_as_wasm(
     config = get_default_config_manager(current_path=file_manager.path)
 
     result = Exporter().export_as_wasm(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         display_config=config.get_config()["display"],
         mode=mode,
         code=file_manager.to_code(),
@@ -116,18 +138,15 @@ def export_as_wasm(
 
 
 async def run_app_then_export_as_ipynb(
-    path_or_file_manager: Union[MarimoPath, AppFileManager],
+    filepath: MarimoPath,
     sort_mode: Literal["top-down", "topological"],
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
 ) -> ExportResult:
-    if isinstance(path_or_file_manager, AppFileManager):
-        file_manager = path_or_file_manager
-    else:
-        file_router = AppFileRouter.from_filename(path_or_file_manager)
-        file_key = file_router.get_unique_file_key()
-        assert file_key is not None
-        file_manager = file_router.get_file_manager(file_key)
+    file_router = AppFileRouter.from_filename(filepath)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
 
     with patch_html_for_non_interactive_output():
         (session_view, did_error) = await run_app_until_completion(
@@ -137,7 +156,10 @@ async def run_app_then_export_as_ipynb(
         )
 
     result = Exporter().export_as_ipynb(
-        file_manager, sort_mode=sort_mode, session_view=session_view
+        filename=file_manager.filename,
+        app=file_manager.app,
+        sort_mode=sort_mode,
+        session_view=session_view,
     )
     return ExportResult(
         contents=result[0],
@@ -169,7 +191,8 @@ async def run_app_then_export_as_html(
     )
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=config.get_config()["display"],
         request=ExportAsHTMLRequest(
@@ -226,12 +249,13 @@ async def run_app_until_completion(
                 # Print errors to stderr
                 if message[0] == "cell-op":
                     op_data = message[1]
+                    output = op_data.get("output")
+                    console_output = op_data.get("console")
                     if (
-                        op_data.get("output")
-                        and op_data["output"]["channel"]
-                        == CellChannel.MARIMO_ERROR
+                        output
+                        and output["channel"] == CellChannel.MARIMO_ERROR
                     ):
-                        errors = cast(list[Any], op_data["output"]["data"])
+                        errors = cast(list[Any], output["data"])
 
                         @dataclass
                         class Container:
@@ -246,6 +270,26 @@ async def run_app_until_completion(
                                     file=sys.stderr,
                                 )
                                 self.did_error = True
+
+                    if console_output:
+                        console_as_list: list[dict[str, Any]] = (
+                            console_output
+                            if isinstance(console_output, list)
+                            else [console_output]
+                        )
+                        try:
+                            for line in console_as_list:
+                                # We print to stderr to not interfere with the
+                                # piped output
+                                mimetype = line.get("mimetype")
+                                if mimetype == "text/plain":
+                                    echo(
+                                        line["data"], file=sys.stderr, nl=False
+                                    )
+                        except Exception:
+                            LOGGER.warning("Error printing console output")
+                            pass
+
                 if message[0] == "completed-run":
                     instantiated_event.set()
 
@@ -319,4 +363,5 @@ async def run_app_until_completion(
     # Stop distributor, terminate kernel process, etc -- all information is
     # captured by the session view.
     session.close()
+
     return session.session_view, session_consumer.did_error

@@ -1,14 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
-import { Button } from "../inputs/Inputs";
-import { Tooltip } from "../../ui/tooltip";
-import { useImperativeModal } from "../../modal/ImperativeModal";
 import { XIcon } from "lucide-react";
 import { sendShutdown } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
+import { useImperativeModal } from "../../modal/ImperativeModal";
+import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
+import { Tooltip } from "../../ui/tooltip";
+import { Button } from "../inputs/Inputs";
 
-export const ShutdownButton: React.FC<{ description: string }> = (props) => {
+interface Props {
+  description: string;
+  disabled?: boolean;
+  tooltip?: string;
+}
+
+export const ShutdownButton: React.FC<Props> = ({
+  description,
+  disabled = false,
+  tooltip = "Shutdown",
+}) => {
   const { openConfirm, closeModal } = useImperativeModal();
   const handleShutdown = () => {
     sendShutdown();
@@ -23,19 +33,20 @@ export const ShutdownButton: React.FC<{ description: string }> = (props) => {
   }
 
   return (
-    <Tooltip content="Shutdown">
+    <Tooltip content={tooltip}>
       <Button
         aria-label="Shutdown"
         data-testid="shutdown-button"
         shape="circle"
         size="small"
-        color="red"
+        color={disabled ? "disabled" : "red"}
         className="h-[27px] w-[27px]"
+        disabled={disabled}
         onClick={(e) => {
           e.stopPropagation();
           openConfirm({
             title: "Shutdown",
-            description: props.description,
+            description: description,
             variant: "destructive",
             confirmAction: (
               <AlertDialogDestructiveAction

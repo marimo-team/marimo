@@ -2,42 +2,46 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import React, { memo, useEffect, useRef, useMemo } from "react";
-
-import { setupCodeMirror } from "@/core/codemirror/cm";
-import { getFeatureFlag } from "@/core/config/feature-flag";
+import { useAtom, useAtomValue } from "jotai";
+import React, { memo, useEffect, useMemo, useRef } from "react";
 import useEvent from "react-use-event-hook";
-import { notebookAtom, useCellActions } from "@/core/cells/cells";
-import type { CellRuntimeState, CellData } from "@/core/cells/types";
-import type { UserConfig } from "@/core/config/config-schema";
-import type { Theme } from "@/theme/useTheme";
+import { Button } from "@/components/ui/button";
+import { DelayMount } from "@/components/utils/delay-mount";
+import { aiCompletionCellAtom } from "@/core/ai/state";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { useCellActions } from "@/core/cells/cells";
+import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import { setupCodeMirror } from "@/core/codemirror/cm";
 import {
   getInitialLanguageAdapter,
   languageAdapterState,
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
-import { LanguageToggles } from "./language-toggle";
-import { cn } from "@/utils/cn";
-import { saveCellConfig } from "@/core/network/requests";
-import { HideCodeButton } from "../../code/readonly-python-code";
-import { AiCompletionEditor } from "../../ai/ai-completion-editor";
-import { useAtom, useAtomValue } from "jotai";
-import { aiCompletionCellAtom } from "@/core/ai/state";
-import { mergeRefs } from "@/utils/mergeRefs";
-import { useSetLastFocusedCellId } from "@/core/cells/focus";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import {
+  connectedDocAtom,
+  realTimeCollaboration,
+} from "@/core/codemirror/rtc/extension";
 import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
-import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { useSplitCellCallback } from "../useSplitCell";
-import { invariant } from "@/utils/invariant";
 import { connectionAtom } from "@/core/network/connection";
-import { WebSocketState } from "@/core/websocket/types";
-import { realTimeCollaboration } from "@/core/codemirror/rtc/extension";
-import { store } from "@/core/state/jotai";
-import { useDeleteCellCallback } from "../useDeleteCell";
+import { saveCellConfig } from "@/core/network/requests";
+import { isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
+import { WebSocketState } from "@/core/websocket/types";
+import type { Theme } from "@/theme/useTheme";
+import { cn } from "@/utils/cn";
+import { invariant } from "@/utils/invariant";
+import { mergeRefs } from "@/utils/mergeRefs";
+import { AiCompletionEditor } from "../../ai/ai-completion-editor";
+import { HideCodeButton } from "../../code/readonly-python-code";
+import { useCellEditorNavigationProps } from "../../navigation/navigation";
+import { useDeleteCellCallback } from "../useDeleteCell";
+import { useSplitCellCallback } from "../useSplitCell";
+import { LanguageToggles } from "./language-toggle";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -45,13 +49,8 @@ export interface CellEditorProps
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;
-  editorViewRef: React.MutableRefObject<EditorView | null>;
+  editorViewRef: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
-  /**
-   * If true, the cell is allowed to be focus on.
-   * This is false when the app is initially loading.
-   */
-  allowFocus: boolean;
   userConfig: UserConfig;
   /**
    * If true, the cell code is hidden.
@@ -66,14 +65,13 @@ export interface CellEditorProps
   >;
   // Props below are not used by scratchpad.
   // DOM node where the editorView will be mounted
-  editorViewParentRef?: React.MutableRefObject<HTMLDivElement | null>;
-  temporarilyShowCode: (opts?: { focus?: boolean }) => void;
+  editorViewParentRef?: React.RefObject<HTMLDivElement | null>;
+  showHiddenCode: (opts?: { focus?: boolean }) => void;
 }
 
 const CellEditorInternal = ({
   theme,
   showPlaceholder,
-  allowFocus,
   id: cellId,
   config: cellConfig,
   code,
@@ -86,15 +84,15 @@ const CellEditorInternal = ({
   editorViewParentRef,
   hidden,
   hasOutput,
-  temporarilyShowCode,
+  showHiddenCode,
   languageAdapter,
   setLanguageAdapter,
   showLanguageToggles = true,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
-  const setLastFocusedCellId = useSetLastFocusedCellId();
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
+  const pendingDeleteService = usePendingDeleteService();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -108,7 +106,20 @@ const CellEditorInternal = ({
       return false;
     }
 
+    if (pendingDeleteService.idle && userConfig.keymap.destructive_delete) {
+      pendingDeleteService.submit([cellId]);
+      return true;
+    }
+
     deleteCell({ cellId });
+    return true;
+  });
+
+  const handleRunCell = useEvent(() => {
+    if (loading) {
+      return false;
+    }
+    runCell();
     return true;
   });
 
@@ -123,7 +134,10 @@ const CellEditorInternal = ({
 
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const afterToggleMarkdown = useEvent(() => {
-    maybeAddMarimoImport(autoInstantiate, cellActions.createNewCell);
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell: cellActions.createNewCell,
+    });
   });
 
   const aiEnabled = isAiEnabled(userConfig);
@@ -136,7 +150,7 @@ const CellEditorInternal = ({
       cellActions: {
         ...cellActions,
         afterToggleMarkdown,
-        onRun: runCell,
+        onRun: handleRunCell,
         deleteCell: handleDelete,
         saveNotebook: saveOrNameNotebook,
         createManyBelow: (cells) => {
@@ -171,6 +185,7 @@ const CellEditorInternal = ({
       theme,
       hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
       diagnosticsConfig: userConfig.diagnostics,
+      displayConfig: userConfig.display,
     });
 
     extensions.push(
@@ -198,9 +213,15 @@ const CellEditorInternal = ({
           );
 
           if (hasSelection) {
-            temporarilyShowCode({ focus: false });
+            showHiddenCode({ focus: false });
           }
         }
+      }),
+      // Whenever the editor is focused (e.g. via go-to-definition), show the cell if it is hidden.
+      EditorView.domEventHandlers({
+        focus: () => {
+          showHiddenCode({ focus: false });
+        },
       }),
     );
 
@@ -210,6 +231,7 @@ const CellEditorInternal = ({
     userConfig.keymap,
     userConfig.completion,
     userConfig.language_servers,
+    userConfig.display,
     userConfig.diagnostics,
     aiEnabled,
     theme,
@@ -218,17 +240,18 @@ const CellEditorInternal = ({
     splitCell,
     toggleHideCode,
     handleDelete,
-    runCell,
+    handleRunCell,
     setAiCompletionCell,
     afterToggleMarkdown,
     setLanguageAdapter,
-    temporarilyShowCode,
+    showHiddenCode,
     saveOrNameNotebook,
   ]);
 
+  const rtcEnabled = isRtcEnabled();
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -251,13 +274,17 @@ const CellEditorInternal = ({
     });
     setEditorView(ev);
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, {
+        language: getInitialLanguageAdapter(ev.state).type,
+      });
+    }
   });
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
     // If rtc is enabled, use collaborative editing
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(cellId, (code) => {
         // It's not really a formatting change,
         // but this means it won't be marked as stale
@@ -269,22 +296,23 @@ const CellEditorInternal = ({
     editorViewRef.current.dispatch({
       effects: [
         StateEffect.reconfigure.of([extensions]),
-        reconfigureLanguageEffect(
-          editorViewRef.current,
-          userConfig.completion,
-          new OverridingHotkeyProvider(userConfig.keymap.overrides ?? {}),
-          {
+        reconfigureLanguageEffect(editorViewRef.current, {
+          completionConfig: userConfig.completion,
+          hotkeysProvider: new OverridingHotkeyProvider(
+            userConfig.keymap.overrides ?? {},
+          ),
+          lspConfig: {
             ...userConfig.language_servers,
             diagnostics: userConfig.diagnostics,
           },
-        ),
+        }),
       ],
     });
   });
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    if (getFeatureFlag("rtc_v2")) {
+    if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
         (code) => {
@@ -295,6 +323,7 @@ const CellEditorInternal = ({
         code,
       );
       extensions.push(rtc.extension);
+      code = rtc.code;
     }
 
     const ev = new EditorView({
@@ -308,7 +337,11 @@ const CellEditorInternal = ({
       ),
     });
     // Initialize the language adapter
-    switchLanguage(ev, getInitialLanguageAdapter(ev.state).type);
+    if (!rtcEnabled) {
+      switchLanguage(ev, {
+        language: getInitialLanguageAdapter(ev.state).type,
+      });
+    }
     setEditorView(ev);
     // Clear the serialized state so that we don't re-create the editor next time
     cellActions.clearSerializedEditorState({ cellId });
@@ -345,29 +378,6 @@ const CellEditorInternal = ({
     extensions,
   ]);
 
-  // Auto-focus. Should focus newly created editors.
-  const shouldFocus =
-    editorViewRef.current === null || serializedEditorState !== null;
-  useEffect(() => {
-    // Perf:
-    // We don't pass this in from the props since it causes lots of re-renders for unrelated cells
-    const hasNotebookKey = store.get(notebookAtom).scrollKey !== null;
-
-    // Only focus if the notebook does not currently have a scrollKey (which means we are focusing on another cell)
-    if (shouldFocus && allowFocus && !hasNotebookKey) {
-      // Focus and scroll into view; request an animation frame to
-      // avoid a race condition when new editors are created
-      // very rapidly by holding a hotkey
-      requestAnimationFrame(() => {
-        editorViewRef.current?.focus();
-        editorViewRef.current?.dom.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
-      });
-    }
-  }, [shouldFocus, allowFocus, editorViewRef]);
-
   // Destroy the editor when the component is unmounted
   useEffect(() => {
     const ev = editorViewRef.current;
@@ -375,6 +385,8 @@ const CellEditorInternal = ({
       ev?.destroy();
     };
   }, [editorViewRef]);
+
+  const navigationProps = useCellEditorNavigationProps(cellId);
 
   // Completely hide the editor & icons if it's markdown and hidden. If there is output, we show.
   const showHideButton =
@@ -384,7 +396,9 @@ const CellEditorInternal = ({
   if (isMarkdown && hidden && hasOutput) {
     editorClassName = "h-0 overflow-hidden";
   } else if (hidden) {
-    editorClassName = "opacity-20 h-8 overflow-hidden";
+    // Shortens the editor and hides the cell panels
+    editorClassName =
+      "opacity-20 h-8 [&>div.cm-editor]:h-full [&>div.cm-editor]:overflow-hidden [&_.cm-panels]:hidden";
   }
 
   return (
@@ -418,15 +432,12 @@ const CellEditorInternal = ({
         setAiCompletionCell(null);
       })}
     >
-      <div
-        className="relative w-full"
-        onFocus={() => setLastFocusedCellId(cellId)}
-      >
+      <div className="relative w-full" {...navigationProps}>
         {showHideButton && (
           <HideCodeButton
             tooltip="Edit code"
             className="absolute inset-0 z-10"
-            onClick={temporarilyShowCode}
+            onClick={showHiddenCode}
           />
         )}
         <CellCodeMirrorEditor
@@ -499,9 +510,27 @@ function WithWaitUntilConnected<T extends {}>(
 ) {
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
+    const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
-    if (connection.state === WebSocketState.CONNECTING) {
-      return null;
+    if (
+      connection.state === WebSocketState.CONNECTING ||
+      rtcDoc === undefined
+    ) {
+      return (
+        <div className="flex h-full w-full items-baseline p-4">
+          <DelayMount milliseconds={1000} fallback={null}>
+            <span>Waiting for real-time collaboration connection...</span>
+            <Button
+              variant="link"
+              onClick={() => {
+                setRtcDoc("disabled");
+              }}
+            >
+              Turn off real-time collaboration
+            </Button>
+          </DelayMount>
+        </div>
+      );
     }
 
     return <Component {...props} />;
@@ -511,6 +540,6 @@ function WithWaitUntilConnected<T extends {}>(
   return WaitUntilConnectedComponent;
 }
 
-export const CellEditor = getFeatureFlag("rtc_v2")
+export const CellEditor = isRtcEnabled()
   ? WithWaitUntilConnected(memo(CellEditorInternal))
   : memo(CellEditorInternal);

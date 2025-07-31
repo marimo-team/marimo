@@ -18,6 +18,7 @@ from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
     MultipleDefinitionError,
+    SetupRootError,
     UnparsableError,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -493,6 +494,73 @@ class TestApp:
         assert defs["y"] == 1
 
     @staticmethod
+    def test_run_mo_stop_descendant() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        def _(x) -> tuple[int]:
+            y = 1
+            x
+            return
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert "y" not in defs
+
+    @staticmethod
+    def test_run_mo_stop_descendant_multiple() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            y = 0
+            return (y,)
+
+
+        @app.cell
+        def _(x) -> tuple[int]:
+            x
+            a = 0
+            return
+
+        @app.cell
+        def _(y) -> tuple[int]:
+            y
+            b = 0
+            return
+
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert "y" not in defs
+        assert "a" not in defs
+        assert "b" not in defs
+
+
+    @staticmethod
     def test_run_mo_stop_async() -> None:
         app = App()
 
@@ -515,6 +583,31 @@ class TestApp:
         _, defs = app.run()
         assert "x" not in defs
         assert defs["y"] == 1
+
+    @staticmethod
+    def test_run_mo_stop_descendant_async() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> Any:
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def _(mo) -> tuple[int]:
+            mo.stop(True)
+            x = 0
+            return (x,)
+
+        @app.cell
+        async def _(x) -> tuple[int]:
+            y = 1
+            x
+            return
+
+        _, defs = app.run()
+        assert "x" not in defs
+        assert "y" not in defs
 
 
     @pytest.mark.skipif(
@@ -648,6 +741,32 @@ class TestApp:
         assert list(InternalApp(clone).cell_manager.cell_ids()) != list(
             InternalApp(app).cell_manager.cell_ids()
         )
+
+    def test_to_py(self) -> None:
+        """Test that InternalApp.to_py() returns the Python code representation."""
+        app = App()
+
+        @app.cell
+        def cell_one():
+            x = 1
+            return (x,)
+
+        @app.cell
+        def cell_two(x):
+            y = x + 1
+            return (y,)
+
+        internal_app = InternalApp(app)
+        python_code = internal_app.to_py()
+
+        # Verify it returns a string containing Python code
+        assert isinstance(python_code, str)
+        assert "import marimo" in python_code
+        assert "app = marimo.App(" in python_code
+        assert "x = 1" in python_code
+        assert "y = x + 1" in python_code
+        assert "cell_one" in python_code
+        assert "cell_two" in python_code
 
 
 class TestInvalidSetup:
@@ -888,6 +1007,40 @@ class TestAppComposition:
 
         assert x.value == 2
         assert y.value == 3
+
+    @staticmethod
+    def test_app_not_changed() -> None:
+        app = App()
+
+        with pytest.raises(SetupRootError):
+            with app.setup:
+                app = 1
+
+
+
+    @staticmethod
+    def test_setup_not_exposed() -> None:
+        app = App()
+
+        with pytest.raises(SetupRootError):
+            with app.setup:
+                try:
+                    x = app is not None
+                except NameError:
+                    x = False
+
+
+    @staticmethod
+    def test_setup_in_memory() -> None:
+        app = App()
+
+        with app.setup:
+            x = 0
+
+        assert x == 0
+        _, defs = app.run()
+        assert defs["x"] == 0
+        assert "app" not in defs
 
 
 class TestAppKernelRunnerRegistry:

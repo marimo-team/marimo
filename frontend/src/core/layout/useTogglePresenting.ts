@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useSetAtom } from "jotai";
 import { useCallback } from "react";
 import { type CellId, HTMLCellId } from "../cells/ids";
 import { toggleAppMode, viewStateAtom } from "../mode";
-import { useSetAtom } from "jotai";
 
 /**
  * Toggle the notebook's presentation state and scroll to current visible cell

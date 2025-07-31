@@ -11,13 +11,13 @@ print(foo, bar)
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `foo` | `str` | Lorem ipsum |
-| `bar` | `int` | Dolor sit amet |
+| `bar` | `int` | Dolor sit amet. |
 
 # Attributes
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `baz` | `str` | Lorem ipsum |
-| `boo` | `int` | Dolor sit amet |
+| `boo` | `int` | Dolor sit amet. |
 
 # Returns
 | Type | Description |

@@ -6,10 +6,11 @@ import type {
   ColumnFiltersState,
   Table,
 } from "@tanstack/react-table";
+import { XIcon } from "lucide-react";
+import { logNever } from "@/utils/assertNever";
 import { Badge } from "../ui/badge";
 import type { ColumnFilterValue } from "./filters";
-import { logNever } from "@/utils/assertNever";
-import { XIcon } from "lucide-react";
+import { renderUnknownValue } from "./renderers";
 
 interface Props<TData> {
   filters: ColumnFiltersState | undefined;
@@ -55,6 +56,14 @@ function formatValue(value: ColumnFilterValue) {
   if (!("type" in value)) {
     return;
   }
+
+  if (value.operator === "is_null") {
+    return "is null";
+  }
+  if (value.operator === "is_not_null") {
+    return "is not null";
+  }
+
   if (value.type === "number") {
     return formatMinMax(value.min, value.max);
   }
@@ -79,7 +88,10 @@ function formatValue(value: ColumnFilterValue) {
     return `is ${value.value ? "True" : "False"}`;
   }
   if (value.type === "select") {
-    return `is in [${value.options.join(", ")}]`;
+    const stringifiedOptions = value.options.map((o) =>
+      renderUnknownValue({ value: o }),
+    );
+    return `is in [${stringifiedOptions.join(", ")}]`;
   }
   if (value.type === "text") {
     return `contains "${value.text}"`;

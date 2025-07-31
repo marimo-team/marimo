@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
-import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
-import { cn } from "@/utils/cn";
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
+import * as React from "react";
 import { buttonVariants } from "@/components/ui/button";
-import { useRestoreFocus } from "./use-restore-focus";
-import { withFullScreenAsRoot } from "./fullscreen";
 import { StyleNamespace } from "@/theme/namespace";
+import { cn } from "@/utils/cn";
+import { withFullScreenAsRoot } from "./fullscreen";
+import { useRestoreFocus } from "./use-restore-focus";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 

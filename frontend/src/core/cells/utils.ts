@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CellId } from "./ids";
-import { Objects } from "@/utils/objects";
+
 import type { EditorView } from "@codemirror/view";
-import type { NotebookState } from "./cells";
+import { Objects } from "@/utils/objects";
 import type { RuntimeState } from "../network/types";
+import type { NotebookState } from "./cells";
+import type { CellId } from "./ids";
 
 export function notebookIsRunning(state: NotebookState) {
   return Object.values(state.cellRuntime).some(

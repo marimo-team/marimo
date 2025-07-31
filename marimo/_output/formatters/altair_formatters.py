@@ -2,19 +2,24 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Literal
+from typing import Any, Literal
+from urllib.request import urlopen
 
 from marimo._config.config import Theme
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._loggers import marimo_logger
 from marimo._messaging.mimetypes import KnownMimeType, MimeBundleOrTuple
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
-from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
+from marimo._plugins.ui._impl.altair_chart import (
+    AltairChartType,
+    maybe_make_full_width,
+)
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     sanitize_nan_infs,
 )
 
-if TYPE_CHECKING:
-    import altair
+LOGGER = marimo_logger()
 
 
 class AltairFormatter(FormatterFactory):
@@ -34,7 +39,7 @@ class AltairFormatter(FormatterFactory):
         register_transformers()
 
         @formatting.formatter(altair.TopLevelMixin)
-        def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
+        def _show_chart(chart: AltairChartType) -> tuple[KnownMimeType, str]:
             import altair as alt
 
             # Try to get the _repr_mimebundle_ method from the chart
@@ -72,6 +77,9 @@ class AltairFormatter(FormatterFactory):
                         return mime_type, mime_response
                     return mime_type, json.dumps(mime_response)
 
+            chart = _apply_embed_options(chart)
+            chart = maybe_make_full_width(chart)
+
             # If vegafusion is enabled, just wrap in altair_chart
             if alt.data_transformers.active.startswith("vegafusion"):
                 return (
@@ -83,10 +91,6 @@ class AltairFormatter(FormatterFactory):
             # since we are able to handle the larger sizes (default is 5000)
             if "max_rows" not in alt.data_transformers.options:
                 alt.data_transformers.options["max_rows"] = 20_000
-
-            chart = _apply_embed_options(chart)
-
-            chart = maybe_make_full_width(chart)
 
             # Return the chart as a vega-lite chart with embed options
             return (
@@ -104,7 +108,7 @@ class AltairFormatter(FormatterFactory):
 # This is only needed since it seems that altair does not
 # handle this internally.
 # https://github.com/marimo-team/marimo/issues/2302
-def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
+def _apply_embed_options(chart: AltairChartType) -> AltairChartType:
     import altair as alt
 
     # Respect user-set embed options
@@ -113,6 +117,9 @@ def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
     # The javascript key is `embedOptions`
     embed_options = alt.renderers.options.get("embed_options", {})
     prev_usermeta = {} if alt.Undefined is chart.usermeta else chart.usermeta
+
+    embed_options = _apply_format_locales(embed_options)
+
     chart["usermeta"] = {
         **prev_usermeta,
         "embedOptions": {
@@ -123,8 +130,65 @@ def _apply_embed_options(chart: altair.Chart) -> altair.Chart:
     return chart
 
 
+FETCH_TIMEOUT = 3
+TIME_FORMAT_LOCALE_URL = (
+    "https://unpkg.com/d3-time-format@latest/locale/{locale}.json"
+)
+FORMAT_LOCALE_URL = "https://unpkg.com/d3-format@latest/locale/{locale}.json"
+
+
+def _apply_format_locales(embed_options: dict[str, Any]) -> dict[str, Any]:
+    """Apply format localizations to embed options using either vl_convert or d3 format files."""
+
+    def get_time_format_locale(locale: str) -> dict[str, Any]:
+        try:
+            if DependencyManager.vl_convert_python.has():
+                import vl_convert as vlc  # type: ignore
+
+                return dict(vlc.get_time_format_locale(locale))
+            else:
+                with urlopen(
+                    TIME_FORMAT_LOCALE_URL.format(locale=locale),
+                    timeout=FETCH_TIMEOUT,
+                ) as response:
+                    return dict(json.loads(response.read()))
+        except Exception as e:
+            LOGGER.warning(f"Error getting time format locale: {e}")
+            return {}
+
+    def get_format_locale(locale: str) -> dict[str, Any]:
+        try:
+            if DependencyManager.vl_convert_python.has():
+                import vl_convert as vlc  # type: ignore
+
+                return dict(vlc.get_format_locale(locale))
+            else:
+                with urlopen(
+                    FORMAT_LOCALE_URL.format(locale=locale),
+                    timeout=FETCH_TIMEOUT,
+                ) as response:
+                    return dict(json.loads(response.read()))
+        except Exception as e:
+            LOGGER.warning(f"Error getting format locale: {e}")
+            return {}
+
+    if "timeFormatLocale" in embed_options:
+        time_format_locale = embed_options["timeFormatLocale"]
+        if isinstance(time_format_locale, str):
+            embed_options["timeFormatLocale"] = get_time_format_locale(
+                time_format_locale
+            )
+
+    if "formatLocale" in embed_options:
+        format_locale = embed_options["formatLocale"]
+        if isinstance(format_locale, str):
+            embed_options["formatLocale"] = get_format_locale(format_locale)
+
+    return embed_options
+
+
 def chart_to_json(
-    chart: altair.Chart,
+    chart: AltairChartType,
     spec_format: Literal["vega", "vega-lite"] = "vega-lite",
     validate: bool = True,
 ) -> str:
@@ -136,8 +200,16 @@ def chart_to_json(
     """
     try:
         return chart.to_json(
-            format=spec_format, validate=validate, allow_nan=False
+            format=spec_format,
+            validate=validate,
+            allow_nan=False,
+            default=str,
         )
     except ValueError:
         chart.data = sanitize_nan_infs(chart.data)
-        return chart.to_json(format=spec_format, validate=validate)
+        return chart.to_json(
+            format=spec_format,
+            validate=validate,
+            allow_nan=False,
+            default=str,
+        )

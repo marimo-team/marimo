@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CellMessage } from "../kernel/messages";
+
 import type { CellId } from "../cells/ids";
+import type { CellMessage } from "../kernel/messages";
 
 // Virtual files are of the form /@file/<file-name>.<extension>
 const VIRTUAL_FILE_REGEX = /\/@file\/([^\s/]+)\.([\dA-Za-z]+)/g;

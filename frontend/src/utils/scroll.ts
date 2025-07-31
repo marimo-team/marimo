@@ -5,8 +5,13 @@
  */
 export function smartScrollIntoView(
   element: HTMLElement,
-  offset?: { top: number; bottom: number },
-  body: HTMLElement | typeof window = window,
+  {
+    offset,
+    body = window,
+  }: {
+    offset?: { top: number; bottom: number };
+    body?: HTMLElement | typeof window;
+  },
 ) {
   const topOffset = offset?.top ?? 0;
   const bottomOffset = offset?.bottom ?? 0;

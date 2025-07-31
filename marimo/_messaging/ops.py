@@ -27,7 +27,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig, RuntimeStateType
 from marimo._ast.toplevel import TopLevelHints, TopLevelStatus
 from marimo._data.models import (
-    ColumnSummary,
+    ColumnStats,
     DataSourceConnection,
     DataTable,
     DataTableSource,
@@ -54,7 +54,7 @@ from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
-from marimo._types.ids import CellId_t, RequestId
+from marimo._types.ids import CellId_t, RequestId, WidgetModelId
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
@@ -394,9 +394,10 @@ class SendUIElementMessage(Op):
     """Send a message to a UI element."""
 
     name: ClassVar[str] = "send-ui-element-message"
-    ui_element: str
+    ui_element: Optional[str]
+    model_id: Optional[WidgetModelId]
     message: dict[str, Any]
-    buffers: Optional[list[str]]
+    buffers: Optional[list[str]] = None
 
 
 @dataclass
@@ -417,11 +418,15 @@ class CompletedRun(Op):
 class KernelCapabilities:
     terminal: bool = False
     pylsp: bool = False
+    ty: bool = False
+    basedpyright: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
         self.pylsp = DependencyManager.pylsp.has()
+        self.basedpyright = DependencyManager.basedpyright.has()
+        self.ty = DependencyManager.ty.has()
 
 
 @dataclass
@@ -618,18 +623,23 @@ class SQLTableListPreview(Op):
 
 
 @dataclass
-class DataColumnPreview(Op):
-    """Preview of a column in a dataset."""
-
-    name: ClassVar[str] = "data-column-preview"
-    table_name: str
-    column_name: str
+class ColumnPreview:
     chart_spec: Optional[str] = None
-    chart_max_rows_errors: bool = False
     chart_code: Optional[str] = None
     error: Optional[str] = None
     missing_packages: Optional[list[str]] = None
-    summary: Optional[ColumnSummary] = None
+    stats: Optional[ColumnStats] = None
+
+
+# We shouldn't need to make table_name and column_name have default values.
+# We can use kw_only=True once we drop support for Python 3.9.
+@dataclass()
+class DataColumnPreview(Op, ColumnPreview):
+    """Preview of a column in a dataset."""
+
+    name: ClassVar[str] = "data-column-preview"
+    table_name: str = ""
+    column_name: str = ""
 
 
 @dataclass

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import time
 import unittest
 from math import isnan
 from typing import Any
@@ -9,7 +10,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -25,6 +26,7 @@ from marimo._utils.narwhals_utils import unwrap_py_scalar
 from tests._data.mocks import (
     EAGER_LIBS,
     NON_EAGER_LIBS,
+    DFType,
     create_dataframes,
 )
 from tests.mocks import snapshotter
@@ -32,6 +34,15 @@ from tests.mocks import snapshotter
 HAS_DEPS = DependencyManager.polars.has()
 
 snapshot = snapshotter(__file__)
+
+SUPPORTED_LIBS: list[DFType] = [
+    "pandas",
+    "polars",
+    # TODO: Either we can import narwhals `main` or wait for v0.1.0
+    # "ibis",
+    "lazy-polars",
+    "pyarrow",
+]
 
 
 def assert_frame_equal(a: Any, b: Any) -> None:
@@ -146,21 +157,18 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
     )
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_csv()
-        assert isinstance(data, bytes)
-        snapshot("narwhals.csv", data.decode("utf-8"))
+        data = complex_data.to_csv_str()
+        assert isinstance(data, str)
+        snapshot("narwhals.csv", data)
 
     def test_to_json(self) -> None:
         assert isinstance(self.manager.to_json(), bytes)
 
-    @pytest.mark.xfail(
-        reason="Narwhals (polars) doesn't support writing nested lists to csv"
-    )
     def test_to_json_complex(self) -> None:
         complex_data = self.get_complex_data()
-        data = complex_data.to_json()
-        assert isinstance(data, bytes)
-        snapshot("narwhals.json", data.decode("utf-8"))
+        data = complex_data.to_json_str()
+        assert isinstance(data, str)
+        snapshot("narwhals.json", data)
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
@@ -282,6 +290,17 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert self.manager.take(2, 1).data["A"].to_list() == [2, 3]
         assert self.manager.take(2, 2).data["A"].to_list() == [3]
 
+    def test_take_lazyframe(self) -> None:
+        lazy_df = self.data.lazy()
+        lazy_manager = NarwhalsTableManager.from_dataframe(lazy_df)
+
+        assert lazy_manager.take(1, 0).data.collect()["A"].to_list() == [1]
+        assert lazy_manager.take(2, 0).data.collect()["A"].to_list() == [1, 2]
+
+        # Converted to eager frame
+        assert lazy_manager.take(2, 1).data["A"].to_list() == [2, 3]
+        assert lazy_manager.take(2, 2).data["A"].to_list() == [3]
+
     def test_take_zero(self) -> None:
         limited_manager = self.manager.take(0, 0)
         assert limited_manager.data.is_empty()
@@ -304,8 +323,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_integer(self) -> None:
         column = "A"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -322,8 +341,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_string(self) -> None:
         column = "B"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -331,8 +350,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_number(self) -> None:
         column = "C"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             min=1.0,
@@ -348,8 +367,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_boolean(self) -> None:
         column = "D"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             true=2,
@@ -358,8 +377,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
 
     def test_summary_datetime(self) -> None:
         column = "E"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        summary = self.manager.get_stats(column)
+        assert summary == ColumnStats(
             total=3,
             nulls=0,
             min=datetime.datetime(2021, 1, 1, 0, 0),
@@ -377,8 +396,8 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             }
         )
         manager = NarwhalsTableManager.from_dataframe(data)
-        summary = manager.get_summary("A")
-        assert summary == ColumnSummary(
+        summary = manager.get_stats("A")
+        assert summary == ColumnStats(
             total=2,
             nulls=0,
             min=datetime.date(2021, 1, 1),
@@ -390,7 +409,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
     def test_summary_does_fail_on_each_column(self) -> None:
         complex_data = self.get_complex_data()
         for column in complex_data.get_column_names():
-            assert complex_data.get_summary(column) is not None
+            assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
@@ -724,31 +743,34 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         )
         assert_frame_equal(formatted_data, expected_data)
 
-    def test_to_json_bigint(self) -> None:
-        import polars as pl
 
-        data = pl.DataFrame(
-            {
-                "A": [
-                    20,
-                    9007199254740992,
-                ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
-                "B": [
-                    -20,
-                    -9007199254740992,
-                ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
-            }
-        )
-        manager = NarwhalsTableManager.from_dataframe(data)
-        json_data = json.loads(manager.to_json())
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [
+                20,
+                9007199254740992,
+            ],  # MAX_SAFE_INTEGER and MAX_SAFE_INTEGER + 1
+            "B": [
+                -20,
+                -9007199254740992,
+            ],  # MIN_SAFE_INTEGER and MIN_SAFE_INTEGER - 1
+        },
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_to_json_bigint(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    json_data = json.loads(manager.to_json())
 
-        # These get converted to strings because narwhals uses csv parsing
-        assert json_data[0]["A"] == "20"
-        assert json_data[0]["B"] == "-20"
+    assert json_data[0]["A"] == 20
+    assert json_data[0]["B"] == -20
 
-        # Large integers should be converted to strings
-        assert json_data[1]["A"] == "9007199254740992"
-        assert json_data[1]["B"] == "-9007199254740992"
+    # Large integers should be converted to strings
+    assert json_data[1]["A"] == "9007199254740992"
+    assert json_data[1]["B"] == "-9007199254740992"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -760,6 +782,7 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             "B": ["a", "b", "c"],
             "C": [1.0, 2.0, 3.0],
         },
+        include=SUPPORTED_LIBS,
     ),
 )
 def test_to_csv(df: Any) -> None:
@@ -800,17 +823,10 @@ def test_to_json(df: Any) -> None:
     assert isinstance(manager.to_json(), bytes)
 
 
-@pytest.mark.xfail(
-    reason="Format mapping is not supported when converting to JSON"
-)
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
-    create_dataframes(
-        {
-            "A": [1, 2, 3],
-        }
-    ),
+    create_dataframes({"A": [1, 2, 3]}),
 )
 def test_to_json_format_mapping(df: Any) -> None:
     format_mapping = {"A": lambda x: x * 2}
@@ -843,7 +859,7 @@ def test_empty_dataframe(df: Any) -> None:
 )
 def test_dataframe_with_all_null_column(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
-    summary = manager.get_summary("B")
+    summary = manager.get_stats("B")
     assert summary.nulls == 3
     assert summary.total == 3
 
@@ -858,6 +874,275 @@ def test_dataframe_with_all_null_column(df: Any) -> None:
 def test_dataframe_with_mixed_types(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     assert manager.get_field_type("A") == ("string", "String")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_summary_all_types() -> None:
+    dfs = create_dataframes(
+        {
+            "integer": [1, 2, 3],
+            "float": [1.1, 2.2, 3.3],
+            "string": ["a", "b", "c"],
+            "boolean": [True, False, True],
+            "datetime": [
+                datetime.datetime(2021, 1, 1),
+                datetime.datetime(2021, 1, 2),
+                datetime.datetime(2021, 1, 3),
+            ],
+            "date": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 2),
+                datetime.date(2021, 1, 3),
+            ],
+            "list": [["a", "b"], ["c", "d"], ["e", "f"]],
+            "null": [None, None, None],
+            "duration": [
+                datetime.timedelta(days=1),
+                datetime.timedelta(hours=2),
+                datetime.timedelta(minutes=3),
+            ],
+        },
+        exclude=["duckdb", "ibis"],
+    )
+
+    error_count = 0
+    for df in dfs:
+        manager: NarwhalsTableManager[Any] = (
+            NarwhalsTableManager.from_dataframe(df)
+        )
+
+        for column in manager.get_column_names():
+            try:
+                summary = manager._get_stats_internal(column)
+                assert isinstance(summary, ColumnStats)
+                assert summary.total == 3
+            except Exception as e:
+                error_count += 1
+                print(f"Error getting summary for column {column}: {e}")
+
+    assert error_count == 0, (
+        f"Got {error_count} errors when getting column summaries"
+    )
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "int": [1, 2, 2, 3, 4, 4, 5],
+            "float": [0.8, 1.2, 1.2, 1.6, 2.0, None, 2.4],
+            "string": ["a", "b", "b", "c", "d", "d", "e"],
+            "boolean": [True, False, False, True, False, False, True],
+        },
+        exclude=["ibis", "duckdb"],
+        strict=False,
+    ),
+)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_bin_values(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    bin_values = manager.get_bin_values("int", 3)
+    assert _round_bin_values(bin_values) == [
+        BinValue(bin_start=1, bin_end=2.33, count=3),
+        BinValue(bin_start=2.33, bin_end=3.67, count=1),
+        BinValue(bin_start=3.67, bin_end=5.0, count=3),
+    ]
+
+    bin_values = manager.get_bin_values("float", 5)
+    assert _round_bin_values(bin_values) == [
+        BinValue(bin_start=0.8, bin_end=1.12, count=1),
+        BinValue(bin_start=1.12, bin_end=1.44, count=2),
+        BinValue(bin_start=1.44, bin_end=1.76, count=1),
+        BinValue(bin_start=1.76, bin_end=2.08, count=1),
+        BinValue(bin_start=2.08, bin_end=2.4, count=1),
+    ]
+
+    # Not supported for other column types
+    bin_values = manager.get_bin_values("string", 10)
+    assert bin_values == []
+
+    bin_values = manager.get_bin_values("boolean", 10)
+    assert bin_values == []
+
+
+def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
+    return [
+        BinValue(
+            bin_start=round(bin_value.bin_start, 2),
+            bin_end=round(bin_value.bin_end, 2),
+            count=bin_value.count,
+        )
+        for bin_value in bin_values
+    ]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "int": [1, 2, 3, 4, 5],
+            "time": [
+                datetime.time(12, 0, 0),
+                datetime.time(13, 0, 0),
+                datetime.time(14, 0, 0),
+                datetime.time(15, 0, 0),
+                datetime.time(16, 0, 0),
+            ],
+            "dates_with_nulls": [
+                datetime.datetime(2021, 1, 1),
+                datetime.datetime(2021, 1, 2),
+                datetime.datetime(2021, 1, 3),
+                None,
+                None,
+            ],
+            "datetime_1_day": [
+                datetime.datetime(2021, 1, 1, 1, 1, 1),
+                datetime.datetime(2021, 1, 1, 2, 2, 2),
+                datetime.datetime(2021, 1, 1, 3, 3, 3),
+                datetime.datetime(2021, 1, 1, 4, 4, 4),
+                datetime.datetime(2021, 1, 1, 5, 5, 5),
+            ],
+            "timedelta": [
+                datetime.timedelta(days=1, hours=1, minutes=1, seconds=1),
+                datetime.timedelta(days=2, hours=2, minutes=2, seconds=2),
+                datetime.timedelta(days=3, hours=3, minutes=3, seconds=3),
+                datetime.timedelta(days=4, hours=4, minutes=4, seconds=4),
+                datetime.timedelta(days=5, hours=5, minutes=5, seconds=5),
+            ],
+            "datetime_with_tz": [
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 2, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 3, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 4, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 5, 1, tzinfo=datetime.timezone.utc),
+            ],
+            "dates_multiple": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+            ],
+        },
+        exclude=["ibis", "duckdb"],
+    ),
+)
+class TestGetBinValuesTemporal:
+    # Testing the exact values are quite flaky,
+    # so instead we just test the count and length of the bin values
+
+    def _normalize_bin_values(
+        self, bin_values: list[BinValue]
+    ) -> list[BinValue]:
+        import pandas as pd
+
+        return [
+            BinValue(
+                bin_start=pd.Timestamp(bin_value.bin_start),
+                bin_end=pd.Timestamp(bin_value.bin_end),
+                count=bin_value.count,
+            )
+            for bin_value in bin_values
+        ]
+
+    def test_datetime(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("datetime_1_day", 3)
+        assert len(bin_values) == 3
+        assert sum(bin_value.count for bin_value in bin_values) == 5
+
+        assert bin_values[0].count == 2
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 2
+
+    def test_dates_with_nulls(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("dates_with_nulls", 3)
+        assert len(bin_values) == 3
+        assert sum(bin_value.count for bin_value in bin_values) == 3
+
+        assert bin_values[0].count == 1
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 1
+
+    def test_get_bin_values_time(self, df: Any) -> None:
+        import pandas as pd
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("time", 3)
+
+        # Pandas doesn't support time types
+        if isinstance(df, pd.DataFrame):
+            assert bin_values == []
+            return
+
+        assert len(bin_values) == 3
+        assert sum(bin_value.count for bin_value in bin_values) == 5
+
+        assert bin_values[0].count == 2
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 2
+
+    @pytest.mark.xfail(reason="Timedelta is not supported yet", strict=False)
+    def test_timedelta(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("timedelta", 3)
+
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.timedelta(
+                    days=1, hours=1, minutes=1, seconds=1
+                ),
+                bin_end=datetime.timedelta(
+                    days=2, hours=2, minutes=2, seconds=2
+                ),
+                count=1,
+            )
+        ]
+
+    @pytest.mark.xfail(
+        reason="Datetime with timezone not fully supported, loses timezone info"
+    )
+    def test_datetime_with_tz(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("datetime_with_tz", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 1, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 5, 1, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+        ]
+
+    def test_dates_multiple(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("dates_multiple", 3)
+
+        assert len(bin_values) == 1
+        assert bin_values[0].count == 5
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1000,64 +1285,62 @@ def test_get_sample_values(df: Any) -> None:
     "df",
     create_dataframes(
         {
-            "A": [1, 2, 3, 3, None, None],
-            "B": [4, 5, 6, 6, None, None],
+            "A": [1, 2, 3, 3, 3, None, None],
+            "B": [4, 5, 6, 6, 6, None, None],
         },
-        include=["pandas", "polars"],
+        include=SUPPORTED_LIBS,
     ),
 )
 def test_calculate_top_k_rows(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 2), (None, 2), (2, 1), (1, 1)]
+    assert normalized_result == [(3, 3), (None, 2), (1, 1), (2, 1)]
 
     # Test with limit
     result = manager.calculate_top_k_rows("A", 2)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 2), (None, 2)]
+    assert normalized_result == [(3, 3), (None, 2)]
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.parametrize(
-    "df",
-    create_dataframes(
-        {"count": [1, 2, 3, 3, None, None]},
-        include=["pandas", "polars"],
-    ),
+@pytest.mark.skipif(
+    not DependencyManager.ibis.has(),
+    reason="Ibis not installed",
 )
-def test_calculate_top_k_rows_conflicting_colname(df: Any) -> None:
-    manager = NarwhalsTableManager.from_dataframe(df)
-
-    # Test original column A
-    result_a = manager.calculate_top_k_rows("count", 10)
-    normalized_result_a = _normalize_result(result_a)
-    assert normalized_result_a == [(3, 2), (None, 2), (2, 1), (1, 1)]
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_calculate_top_k_rows_lazy_frame() -> None:
-    import polars as pl
-
-    df = pl.DataFrame({"A": [1, 2, 3, 3, None, None]}).lazy()
-    manager = NarwhalsTableManager.from_dataframe(df)
-    with pytest.raises(
-        ValueError, match="Cannot calculate top k rows for lazy frames"
-    ):
-        manager.calculate_top_k_rows("A", 10)
-
-
-@pytest.mark.xfail(
-    reason="Narwhals doesn't support group_by for metadata-only frames"
-)
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_calculate_top_k_rows_metadata_only_frame() -> None:
     import ibis
 
     df = ibis.memtable({"A": [1, 2, 3, 3, None, None]})
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
-    assert result == [(3, 2), (None, 2), (2, 1), (1, 1)]
+    assert result == [(None, 2), (3, 2), (1, 1), (2, 1)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [[1, 2], [1, 2], [3, 4]]}, include=["polars", "pandas"]
+    ),
+)
+def test_calculate_top_k_rows_nested_lists(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+    assert result == [([1, 2], 2), ([3, 4], 1)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [{"a": 1, "b": 2}, {"a": 1, "b": 2}, {"a": 3, "b": 4}]},
+        include=["polars", "pandas"],
+    ),
+)
+def test_calculate_top_k_rows_dicts(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+    assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
 
 
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
@@ -1168,8 +1451,6 @@ def test_get_sample_values_returns_primitives() -> None:
     create_dataframes({f"col_{i}": [1, 2, 3] for i in range(2000)}),
 )
 def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
-    import time
-
     manager = get_table_manager(df)
 
     start_time = time.time()
@@ -1185,52 +1466,58 @@ def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-class TestCalculateTopKRowsCaching(unittest.TestCase):
-    def setUp(self) -> None:
-        import polars as pl
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"name": ["Alice", "Eve", None], "age": [25, 35, None]}),
+)
+def test_calculate_top_k_rows_caching(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    """Test that calculate_top_k_rows caching works correctly."""
+    # First call should compute the result
+    result1 = manager.calculate_top_k_rows("name", 10)
 
-        self.data = pl.DataFrame(
-            {"name": ["Alice", "Eve", None], "age": [25, 35, None]}
-        )
-        self.manager = NarwhalsTableManager.from_dataframe(self.data)
+    # Second call with same args should use cache and return same object
+    result2 = manager.calculate_top_k_rows("name", 10)
+    assert result1 is result2
 
-    def test_calculate_top_k_rows_caching(self) -> None:
-        """Test that calculate_top_k_rows caching works correctly."""
-        # First call should compute the result
-        result1 = self.manager.calculate_top_k_rows("name", 10)
+    # Different k value should compute new result
+    result3 = manager.calculate_top_k_rows("name", 5)
+    assert result3 is not result1
 
-        # Second call with same args should use cache and return same object
-        result2 = self.manager.calculate_top_k_rows("name", 10)
-        assert result1 is result2
+    # Different column name should compute new result
+    result4 = manager.calculate_top_k_rows("age", 10)
+    assert result4 is not result1
 
-        # Different k value should compute new result
-        result3 = self.manager.calculate_top_k_rows("name", 5)
-        assert result3 is not result1
 
-        # Different column name should compute new result
-        result4 = self.manager.calculate_top_k_rows("age", 10)
-        assert result4 is not result1
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"name": ["Alice", "Eve", None], "age": [25, 35, None]},
+        exclude=["ibis", "duckdb"],
+    ),
+)
+def test_calculate_top_k_rows_cache_invalidation(df: Any) -> None:
+    """Test that cache is properly invalidated when data changes."""
+    manager = NarwhalsTableManager.from_dataframe(df)
 
-    def test_calculate_top_k_rows_cache_invalidation(self) -> None:
-        """Test that cache is properly invalidated when data changes."""
-        # Initial calculation
-        result1 = self.manager.calculate_top_k_rows("name", 2)
+    # Initial calculation
+    result1 = manager.calculate_top_k_rows("name", 2)
 
-        # Modify the data
-        import polars as pl
+    # Modify the data
+    new_data = nw.from_dict(
+        {
+            "name": ["Alice", "Alice", "Eve", "Bob", None],
+        },
+        backend=nw.get_native_namespace(manager.as_frame()),
+    )
 
-        new_data = pl.DataFrame(
-            {
-                "name": ["Alice", "Eve", "Bob", None],
-            }
-        )
+    # Create a new manager with the new data
+    manager = NarwhalsTableManager.from_dataframe(new_data)
 
-        # Create a new manager with the new data
-        self.manager = NarwhalsTableManager.from_dataframe(new_data)
+    # New calculation should be performed and return different result
+    result2 = manager.calculate_top_k_rows("name", 2)
+    assert result2 is not result1  # Different result due to data change
 
-        # New calculation should be performed and return different result
-        result2 = self.manager.calculate_top_k_rows("name", 2)
-        assert result2 is not result1  # Different result due to data change
-
-        # Verify the actual results are different
-        assert result1 != result2
+    # Verify the actual results are different
+    assert result1 != result2

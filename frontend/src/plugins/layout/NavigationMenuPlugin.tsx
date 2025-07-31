@@ -1,24 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { PropsWithChildren } from "react";
-
+import type { JSX, PropsWithChildren } from "react";
+import React from "react";
 import { z } from "zod";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { renderHTML } from "@/plugins/core/RenderHTML";
+import { cn } from "@/utils/cn";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import {
-  NavigationMenu,
-  NavigationMenuList,
-  NavigationMenuItem,
-  NavigationMenuTrigger,
-  NavigationMenuContent,
-  NavigationMenuLink,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation";
-import { cn } from "@/utils/cn";
-import React from "react";
-import { renderHTML } from "@/plugins/core/RenderHTML";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import "./navigation-menu.css";
 
 interface MenuItem {

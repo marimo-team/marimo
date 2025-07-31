@@ -23,28 +23,29 @@ T = TypeVar("T")
 def _handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
     if transform.type is TransformType.COLUMN_CONVERSION:
         return handler.handle_column_conversion(df, transform)
-    elif transform.type is TransformType.RENAME_COLUMN:
+    if transform.type is TransformType.RENAME_COLUMN:
         return handler.handle_rename_column(df, transform)
-    elif transform.type is TransformType.SORT_COLUMN:
+    if transform.type is TransformType.SORT_COLUMN:
         return handler.handle_sort_column(df, transform)
-    elif transform.type is TransformType.FILTER_ROWS:
+    if transform.type is TransformType.FILTER_ROWS:
         return handler.handle_filter_rows(df, transform)
-    elif transform.type is TransformType.GROUP_BY:
+    if transform.type is TransformType.GROUP_BY:
         return handler.handle_group_by(df, transform)
-    elif transform.type is TransformType.AGGREGATE:
+    if transform.type is TransformType.AGGREGATE:
         return handler.handle_aggregate(df, transform)
-    elif transform.type is TransformType.SELECT_COLUMNS:
+    if transform.type is TransformType.SELECT_COLUMNS:
         return handler.handle_select_columns(df, transform)
-    elif transform.type is TransformType.SHUFFLE_ROWS:
+    if transform.type is TransformType.SHUFFLE_ROWS:
         return handler.handle_shuffle_rows(df, transform)
-    elif transform.type is TransformType.SAMPLE_ROWS:
+    if transform.type is TransformType.SAMPLE_ROWS:
         return handler.handle_sample_rows(df, transform)
-    elif transform.type is TransformType.EXPLODE_COLUMNS:
+    if transform.type is TransformType.EXPLODE_COLUMNS:
         return handler.handle_explode_columns(df, transform)
-    elif transform.type is TransformType.EXPAND_DICT:
+    if transform.type is TransformType.EXPAND_DICT:
         return handler.handle_expand_dict(df, transform)
-    else:
-        assert_never(transform.type)
+    if transform.type is TransformType.UNIQUE:
+        return handler.handle_unique(df, transform)
+    assert_never(transform.type)
 
 
 def _apply_transforms(

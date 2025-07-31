@@ -68,6 +68,9 @@ def test_memory(client: TestClient) -> None:
     computer = response.json()["kernel"]
     assert computer["memory"] is None
 
+    gpu = response.json()["gpu"]
+    assert len(gpu) == 0
+
 
 def test_connections(client: TestClient) -> None:
     response = client.get("/api/status/connections")

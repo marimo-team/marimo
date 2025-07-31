@@ -2,9 +2,9 @@
 import type { EncodingQuery } from "compassql/build/src/query/encoding";
 import type { SpecQuery } from "compassql/build/src/query/spec";
 import {
+  type EncodingChannel,
   type SpecificEncoding,
   toFieldQuery,
-  type EncodingChannel,
 } from "./encoding";
 import type { ChartSpec } from "./state/types";
 
@@ -16,7 +16,12 @@ export function toSpecQuery(spec: ChartSpec): SpecQuery {
   };
 }
 
-function adaptEncodings(encoding: SpecificEncoding): EncodingQuery[] {
+function adaptEncodings(
+  encoding: SpecificEncoding | undefined,
+): EncodingQuery[] {
+  if (!encoding) {
+    return [];
+  }
   return Object.entries(encoding).map(([channel, def]) => {
     return toFieldQuery(def, channel as EncodingChannel);
   });

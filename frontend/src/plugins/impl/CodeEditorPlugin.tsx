@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-import type { IPlugin, IPluginProps, Setter } from "../types";
 
-import { Labeled } from "./common/labeled";
-import { type Theme, useTheme } from "@/theme/useTheme";
-import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useCallback, useState, useMemo } from "react";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { EditorView } from "@codemirror/view";
+import { type JSX, useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { z } from "zod";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { type Theme, useTheme } from "@/theme/useTheme";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
+import { Labeled } from "./common/labeled";
 
 type T = string;
 
@@ -71,17 +71,19 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
     disabled: !Number.isFinite(props.debounce),
   });
 
-  const handleChange = useCallback(
-    (newValue: string) => {
-      setLocalValue((_) => newValue);
-      if (typeof props.debounce === "number") {
-        setValueDebounced(newValue);
-      } else if (!props.debounce) {
-        props.setValue(newValue);
-      }
-    },
-    [setValueDebounced, props.debounce, props.setValue],
-  );
+  const handleChange = useEvent((newValue: string) => {
+    setLocalValue((_) => newValue);
+    if (typeof props.debounce === "number") {
+      setValueDebounced(newValue);
+    } else if (!props.debounce) {
+      props.setValue(newValue);
+    }
+  });
+  // This is to sync the value from Python whenever the cell is updated
+  // as useState doesn't reinitialize on re-renders
+  useEffect(() => {
+    setLocalValue(props.value);
+  }, [props.value]);
 
   const onBlur = useEvent(() => {
     props.setValue(localValue);

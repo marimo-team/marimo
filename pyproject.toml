@@ -1,11 +1,11 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"
 
 [project]
 name = "marimo"
+version = "0.14.15"
 description = "A library for making reactive notebooks and apps"
-dynamic = ["version"]
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments;we need a very compelling reason for each dependency added.
 # Dependencies should have lower bounds, which should be as loose as possible.
@@ -34,8 +34,8 @@ dependencies = [
     "starlette>=0.26.1,!=0.36.0",
     # websockets for use with starlette, and for lsp
     "websockets >= 10.0.0",
-    # pycrdt for collaborative editing
-    "pycrdt >=0.11.0,<0.12.0",
+    # loro for collaborative editing
+    "loro>=1.5.0; python_version >= '3.11'",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < '3.11'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
@@ -46,9 +46,6 @@ dependencies = [
     "itsdangerous>=2.0.0",
     # for dataframe support
     "narwhals>=1.12.0",
-    # for cell formatting; if user version is not compatible, no-op
-    # so no lower bound needed
-    "ruff",
     # for packaging.version; not sure what the lower bound is.
     "packaging",
 ]
@@ -102,7 +99,7 @@ recommended = [
 ]
 
 dev = [
-    "click <8.1.4",   # https://github.com/pallets/click/issues/2558
+    "click>=8.0,<9",
     "black~=23.12.1",
     # For tracing debugging
     "opentelemetry-api~=1.26.0",
@@ -117,7 +114,7 @@ dev = [
 ]
 
 lsp = [
-    "python-lsp-server>=1.10.0",
+    "python-lsp-server>=1.13.0",
     "python-lsp-ruff>=2.0.0",
 ]
 
@@ -134,7 +131,7 @@ docs = [
     "mkdocs-redirects>=1.2.2",
     "mkdocs-click>=0.8.1",
     "mike>=2.0.0",  # for versioning
-    "pillow>=10.2.0",  # for social cards
+    "pillow>=10.2.0,!=11.3.0",  # for social cards, 11.3.0 doesn't have manylinux wheels
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.7",
@@ -142,24 +139,6 @@ docs = [
 
 [tool.hatch]
 installer = "uv"
-
-[tool.hatch.build.hooks.custom]
-path = "build_hook.py"
-
-[tool.hatch.version]
-path = "marimo/__init__.py"
-
-[tool.hatch.build.targets.sdist]
-include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
-exclude = ["marimo/_smoke_tests"]
-force-include = { "build_hook.py" = "build_hook.py" }
-
-[tool.hatch.build.targets.wheel]
-include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
-exclude = ["marimo/_smoke_tests"]
-force-include = { "build_hook.py" = "build_hook.py" }
 
 # Override the default uv version to use the latest version
 [tool.hatch.envs.hatch-uv]
@@ -194,13 +173,19 @@ dependencies = [
     "matplotlib>=3.8.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
+    "loro>=1.5.0",
     "pandas-stubs>=1.5.3.230321",
+    "pyiceberg>=0.9.0",
+    "litellm>=1.70.0",
+    "python-dotenv>=1.0.1",
+    "jupytext>=1.17.2",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
     "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
+    "mcp>=1.0.0; python_version >= '3.10'",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
@@ -219,7 +204,8 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-rerunfailures~=15.1",
+    "pytest-asyncio~=0.26.0",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -247,7 +233,8 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-asyncio~=0.25.2",
+    "pytest-rerunfailures~=15.1",
+    "pytest-asyncio~=0.26.0",
     "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
@@ -255,14 +242,16 @@ extra-dependencies = [
     "pyarrow>=19.0.1",
     "pyarrow_hotfix",
     "altair>=5.4.0",
-    "polars~=1.24.0",
+    "polars>=1.30.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
+    "pyiceberg>=0.9.0",
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
-    "clickhouse-connect>=0.8.16",
+    "clickhouse-connect>=0.8.18",
+    "redshift-connector[full]>=2.1.7",
     "pandas>=1.5.3",
-    "hvplot~=0.11.2",
+    "hvplot~=0.11.3",
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1; python_version > '3.9'",
     # FOr testing sql
@@ -273,28 +262,38 @@ extra-dependencies = [
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
-    "anthropic==0.34.1",
-    "google-generativeai==0.8.4",
+    "anthropic==0.52.2; python_version > '3.9'",
+    "google-genai>=0.2.0",
+    "boto3>=1.38.46",
+    "litellm>=1.70.0",
     # exporting as ipynb
-    "nbformat >=5.10.4",
+    "nbformat>=5.10.4",
     "sympy>=1.13.3",
+    "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
+    "mcp>=1.0.0; python_version >= '3.10'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
-features = ["dev", "docs"]
+features = ["docs"]
 dependencies = [
     "marimo_docs @ file://docs",
 ]
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
+
+[tool.uv.build-backend]
+module-name = "marimo"
+module-root = ""
+source-include = ["third_party.txt", "third_party_licenses.txt"]
+wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.hatch.envs.docs.scripts]
 build = "mkdocs build {args}"
@@ -321,6 +320,7 @@ exclude = [
     "tests/_cli/ipynb_data",
     "tests/_runtime/runtime_data",
     "tests/_ast/test_app.py",
+    "tests/_convert/ipynb_data/*.ipynb",
     "frontend",
     "docs",
     "build",
@@ -406,6 +406,7 @@ extend-select = [
     "D211",  # No blank lines allowed before class docstring
     "D214",  # Section is over-indented
     "D215",  # Section underline is over-indented
+    "PLW1514", # Unspecified encoding in open()
     "UP",  # Upgrades
 ]
 
@@ -416,7 +417,7 @@ unfixable = ["F401"]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841"]
+"**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
 
 [tool.ruff.lint.isort]
@@ -435,19 +436,24 @@ ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = [
-    "numpy",
-    "pandas",
-    "tomlkit",
-    "polars",
-    "sqlglot",
-    "duckdb",
-    "sqlalchemy",
     "altair",
-    "ipython",
     "anywidget",
+    "chdb",
+    "clickhouse_connect",
+    "duckdb",
+    "ipython",
+    "numpy",
     "packaging",
+    "pandas",
+    "polars",
+    "pyarrow",
     "redis",
+    "sqlalchemy",
+    "sqlglot",
+    "tomlkit",
     "typing_extensions",
+    "pyiceberg",
+    "redshift_connector",
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
@@ -474,6 +480,7 @@ minversion = "6.0"
 addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
 
 [tool.coverage.run]
@@ -487,6 +494,7 @@ wheres = "wheres"
 Ue = "Ue"         # Used in one of the cell IDs
 Nd = "Nd"         # Confused with And
 pn = "pn"         # Panel
+caf = "caf"       # cafe
 
 [tool.typos.files]
 extend-exclude = [
@@ -496,6 +504,7 @@ extend-exclude = [
     "**/snapshots/*",
     "**/__demo__/*",
     "base64.test.ts",
+    "SECURITY.md", # Contains usernames that trigger typos
 ]
 
 [tool.black]
@@ -511,18 +520,35 @@ format_on_save = true
 
 [tool.marimo.experimental]
 multi_column = true
-chat_sidebar = true
-# Very experimental!
-lsp = true
+performant_table_charts = true
+mcp_docs = true
 
 [tool.marimo.display]
 dataframes = "rich"
 
 [tool.marimo.runtime]
+auto_instantiate = false
 watcher_on_save = "autorun"
 output_max_bytes = 10_000_000
 std_stream_max_bytes = 2_000_000
 dotenv = [".env"]
 
+[tool.marimo.package_management]
+manager = "uv"
+
 [tool.marimo.keymap]
 vimrc = "configs/.vimrc"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tool.pixi.dependencies]
+nodejs = "22.*"
+pnpm = "10.*"
+hatch = ">=1.14.0,<2"
+make = ">=4.4.1,<5"
+pre_commit = ">=4.2.0,<5"
+uv = ">=0.6.12,<0.7"
+python = "3.12.*"
+pip = ">=25.0.1,<26"

@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+
+import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { Functions } from "@/utils/functions";
 import { Sidebar } from "../sidebar";
 import { normalizeWidth } from "../state";
-import { Functions } from "@/utils/functions";
-import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 
 describe("Sidebar", () => {
   it("should use default width when no width is provided", () => {

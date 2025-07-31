@@ -2,11 +2,23 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, Callable, Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+
+from marimo._loggers import marimo_logger
+from marimo._types.ids import WidgetModelId
+
+if TYPE_CHECKING:
+    from marimo._plugins.ui._impl.anywidget.types import (
+        TypedModelMessagePayload,
+    )
+    from marimo._runtime.requests import ModelMessage
+
+LOGGER = marimo_logger()
 
 
 class MarimoCommManager:
-    comms: dict[str, MarimoComm] = {}
+    comms: dict[WidgetModelId, MarimoComm] = {}
 
     def register_comm(self, comm: MarimoComm) -> str:
         comm_id = comm.comm_id
@@ -16,15 +28,49 @@ class MarimoCommManager:
     def unregister_comm(self, comm: MarimoComm) -> MarimoComm:
         return self.comms.pop(comm.comm_id)
 
+    def receive_comm_message(
+        self,
+        comm_id: WidgetModelId,
+        message: ModelMessage,
+        buffers: Optional[list[bytes]],
+    ) -> None:
+        if comm_id not in self.comms:
+            LOGGER.warning("Received message for unknown comm", comm_id)
+            return
 
-MsgCallback = Callable[[dict[str, object]], None]
-DataType = Optional[dict[str, object]]
-MetadataType = Optional[dict[str, object]]
+        comm = self.comms[comm_id]
+
+        msg: TypedModelMessagePayload = {
+            "content": {
+                "data": {
+                    "state": message.state,
+                    "method": "update",
+                    "buffer_paths": message.buffer_paths,
+                }
+            },
+            "buffers": buffers or [],
+        }
+
+        comm.handle_msg(cast(Msg, msg))
+
+
+Msg = dict[str, Any]
+MsgCallback = Callable[[Msg], None]
+DataType = Optional[dict[str, Any]]
+MetadataType = Optional[dict[str, Any]]
 BufferType = Optional[list[bytes]]
 
 COMM_MESSAGE_NAME = "marimo_comm_msg"
 COMM_OPEN_NAME = "marimo_comm_open"
 COMM_CLOSE_NAME = "marimo_comm_close"
+
+
+@dataclass
+class MessageBufferData:
+    data: dict[str, Any]
+    metadata: dict[str, Any]
+    buffers: list[bytes]
+    model_id: WidgetModelId
 
 
 # Compare to `ipykernel.comm.Comm`
@@ -36,14 +82,9 @@ class MarimoComm:
     # `if self.comm.kernel is not None`
     kernel = "marimo"
 
-    _msg_callback: Optional[MsgCallback]
-    _close_callback: Optional[MsgCallback]
-    _closed: bool = False
-    _closed_data: dict[str, object] = {}
-
     def __init__(
         self,
-        comm_id: str,
+        comm_id: WidgetModelId,
         comm_manager: MarimoCommManager,
         target_name: str,
         data: DataType = None,
@@ -51,12 +92,17 @@ class MarimoComm:
         buffers: BufferType = None,
         **keys: object,
     ) -> None:
+        self._msg_callback: Optional[MsgCallback] = None
+        self._close_callback: Optional[MsgCallback] = None
+        self._closed: bool = False
+        self._closed_data: dict[str, object] = {}
+
         self.comm_id = comm_id
         self.comm_manager = comm_manager
         self.target_name = target_name
-        self.open(data=data, metadata=metadata, buffers=buffers, **keys)
         self.ui_element_id: Optional[str] = None
-        self._publish_message_buffer: list[Any] = []
+        self._publish_message_buffer: list[MessageBufferData] = []
+        self.open(data=data, metadata=metadata, buffers=buffers, **keys)
 
     def open(
         self,
@@ -139,28 +185,53 @@ class MarimoComm:
         metadata = {} if metadata is None else metadata
         buffers = [] if buffers is None else buffers
 
-        if msg_type == COMM_MESSAGE_NAME:
-            self._publish_message_buffer.append((data, metadata, buffers))
+        if msg_type == COMM_OPEN_NAME:
+            self._publish_message_buffer.append(
+                MessageBufferData(
+                    data, metadata, buffers, model_id=self.comm_id
+                )
+            )
             self.flush()
-
-    def flush(self) -> None:
-        if not self.ui_element_id:
-            # If there is no ui_element_id, then it has not been rendered
-            # to the frontend, and just exists in python
-            # We can drop these instead of holding onto them.
-            self._publish_message_buffer = []
             return
 
+        if msg_type == COMM_MESSAGE_NAME:
+            self._publish_message_buffer.append(
+                MessageBufferData(
+                    data, metadata, buffers, model_id=self.comm_id
+                )
+            )
+            self.flush()
+            return
+
+        if msg_type == COMM_CLOSE_NAME:
+            self._publish_message_buffer.append(
+                MessageBufferData(
+                    data, metadata, buffers, model_id=self.comm_id
+                )
+            )
+            self.flush()
+            return
+
+        LOGGER.warning(
+            "Unknown message type",
+            msg_type,
+            data,
+        )
+
+    def flush(self) -> None:
         from marimo._messaging.ops import SendUIElementMessage
 
         while self._publish_message_buffer:
-            data, _metadata, buffers = self._publish_message_buffer.pop(0)
-
+            item = self._publish_message_buffer.pop(0)
             SendUIElementMessage(
+                # ui_element_id can be None. In this case, we are creating a model
+                # not tied to a specific UI element
                 ui_element=self.ui_element_id,
-                message=data,
+                model_id=item.model_id,
+                message=item.data,
                 buffers=[
-                    base64.b64encode(buffer).decode() for buffer in buffers
+                    base64.b64encode(buffer).decode()
+                    for buffer in item.buffers
                 ],
             ).broadcast()
 
@@ -172,10 +243,22 @@ class MarimoComm:
     def on_close(self, callback: MsgCallback) -> None:
         self._close_callback = callback
 
-    def handle_msg(self, msg: dict[str, object]) -> None:
+    def handle_msg(self, msg: Msg) -> None:
         if self._msg_callback is not None:
             self._msg_callback(msg)
+        else:
+            LOGGER.warning(
+                "Received message for comm but no callback registered",
+                self.comm_id,
+                msg,
+            )
 
-    def handle_close(self, msg: dict[str, object]) -> None:
+    def handle_close(self, msg: Msg) -> None:
         if self._close_callback is not None:
             self._close_callback(msg)
+        else:
+            LOGGER.warning(
+                "Received close for comm but no callback registered",
+                self.comm_id,
+                msg,
+            )

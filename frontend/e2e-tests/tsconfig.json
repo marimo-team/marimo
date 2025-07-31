@@ -1,20 +1,15 @@
 {
+  "extends": "../tsconfig.json",
   "compilerOptions": {
-    "lib": ["ES2022", "DOM"],
-    "noEmit": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "types": ["@types/node"],
+    "types": ["node", "@playwright/test"],
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitAny": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true,
-    "useUnknownInCatchVariables": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["../src/*"]
+    }
   },
-  "include": ["*"]
+  "include": ["**/*.ts", "**/*.spec.ts", "../playwright.config.ts"],
+  "exclude": ["node_modules", "playwright-report", "test-results"]
 }

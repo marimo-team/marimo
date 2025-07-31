@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { UIElementRegistry } from "@/core/dom/uiregistry";
+
 import {
-  describe,
   beforeEach,
+  describe,
   expect,
-  vi,
-  test,
   type MockedFunction,
+  test,
+  vi,
 } from "vitest";
-import { RuntimeState } from "../RuntimeState";
-import type { RunRequests } from "@/core/network/types";
 import { MarimoValueReadyEvent } from "@/core/dom/events";
+import { UIElementRegistry } from "@/core/dom/uiregistry";
+import type { RunRequests } from "@/core/network/types";
+import { RuntimeState } from "../RuntimeState";
 
 const addEventListenerSpy = vi.spyOn(document, "addEventListener");
 const removeEventListenerSpy = vi.spyOn(document, "removeEventListener");

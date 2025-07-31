@@ -1,11 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId } from "react";
+import { type JSX, useId } from "react";
 import { z } from "zod";
-
-import type { IPlugin, IPluginProps } from "../types";
 import { NativeSelect } from "../../components/ui/native-select";
-import { Labeled } from "./common/labeled";
 import { cn } from "../../utils/cn";
+import type { IPlugin, IPluginProps } from "../types";
+import { Labeled } from "./common/labeled";
 import { SearchableSelect } from "./SearchableSelect";
 
 interface Data {

@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type * as PopoverPrimitive from "@radix-ui/react-popover";
+import { GripHorizontalIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
-import { GripHorizontalIcon } from "lucide-react";
-import type * as PopoverPrimitive from "@radix-ui/react-popover";
 
 interface DraggablePopoverProps extends PopoverPrimitive.PopoverProps {
   children: React.ReactNode;

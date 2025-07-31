@@ -1,4 +1,4 @@
-"""Tests for SQLAlchemy engines."""
+# Copyright 2025 Marimo. All rights reserved.
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.sqlalchemy import (
     SQLAlchemyEngine,
 )
+from marimo._sql.engines.types import EngineCatalog, QueryEngine
 from marimo._sql.sql import sql
 from marimo._types.ids import VariableName
 
@@ -116,6 +117,17 @@ def test_sqlalchemy_engine_dialect(sqlite_engine: sa.Engine) -> None:
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_is_instance(sqlite_engine: sa.Engine) -> None:
+    """Test SQLAlchemyEngine is an instance of the correct types."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("sqlite")
+    )
+    assert isinstance(engine, SQLAlchemyEngine)
+    assert isinstance(engine, EngineCatalog)
+    assert isinstance(engine, QueryEngine)
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_invalid_engine() -> None:
     """Test SQLAlchemyEngine with an invalid engine and inspector does not raise errors."""
 
@@ -206,6 +218,7 @@ def test_sqlalchemy_sql_types() -> None:
     assert len(tables) == 1
     table = tables[0]
     assert table.source == "sqlite"
+    assert table.source_type == "connection"
     assert table.name == "all_types"
     assert table.num_columns == 6
     assert table.num_rows is None
@@ -695,4 +708,4 @@ def test_sqlalchemy_engine_get_cursor_metadata(
         assert SQLAlchemyEngine.is_cursor_result(result)
         metadata = SQLAlchemyEngine.get_cursor_metadata(result)
         assert metadata is not None
-        assert metadata["sql_statement_type"] == "Query"
+        assert metadata["sql_statement_type"] == "Query / Unknown"

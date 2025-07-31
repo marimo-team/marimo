@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type {
-  TableFeature,
+  Column,
   RowData,
   Table,
-  Column,
+  TableFeature,
 } from "@tanstack/react-table";
 import type { CopyColumnOptions } from "./types";
 

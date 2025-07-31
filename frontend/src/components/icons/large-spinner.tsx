@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
+
 import { Loader2Icon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { cn } from "@/utils/cn";
 
 export const LargeSpinner = ({ title }: { title?: string }) => {
   const [currentTitle, setCurrentTitle] = useState(title);

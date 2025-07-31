@@ -91,6 +91,8 @@ class dictionary(_batch_base):
         elements (dict[str, UIElement[Any, Any]]): A dict mapping names to UI
             elements to include.
         label (str, optional): A descriptive name for the dictionary. Defaults to "".
+        on_change (Callable[[dict[str, object]], None], optional): Optional callback
+            to run when this element's value changes.
     """
 
     def __init__(

@@ -9,7 +9,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.polars_table import (
@@ -109,6 +109,18 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                         [],
                     ],
                 ),
+                "enum_list": pl.Series(
+                    [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]],
+                    dtype=pl.List(pl.Enum(categories=["A", "B", "C"])),
+                ),
+                "binary": pl.Series(
+                    [
+                        b"\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83",
+                        b"world",
+                        b"foo",
+                    ],
+                    dtype=pl.Binary,
+                ),
             },
             strict=False,
         )
@@ -151,7 +163,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     )
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
-        # CSV does not support nested data types
+        # CSV does not support nested data types and binary data
         columns = [
             col
             for col in complex_data.get_column_names()
@@ -161,6 +173,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "nested_arrays",
                 "list_with_structs",
                 "structs_with_list",
+                "binary",
             ]
         ]
         manager = complex_data.select_columns(columns)
@@ -349,10 +362,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         # Too large of page and offset
         assert self.manager.take(10, 10).data.is_empty()
 
-    def test_summary_integer(self) -> None:
+    def test_stats_integer(self) -> None:
         column = "A"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
@@ -367,19 +380,19 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             p95=3.0,
         )
 
-    def test_summary_string(self) -> None:
+    def test_stats_string(self) -> None:
         column = "B"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             unique=3,
         )
 
-    def test_summary_number(self) -> None:
+    def test_stats_number(self) -> None:
         column = "C"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             min=1.0,
@@ -393,20 +406,20 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             p95=3.0,
         )
 
-    def test_summary_boolean(self) -> None:
+    def test_stats_boolean(self) -> None:
         column = "D"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             true=2,
             false=1,
         )
 
-    def test_summary_datetime(self) -> None:
+    def test_stats_datetime(self) -> None:
         column = "E"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             min=datetime.datetime(2021, 1, 1, 0, 0),
@@ -417,7 +430,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             # median=datetime.datetime(2021, 1, 2, 0, 0),
         )
 
-    def test_summary_date(self) -> None:
+    def test_stats_date(self) -> None:
         import polars as pl
 
         data = pl.DataFrame(
@@ -426,8 +439,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             }
         )
         manager = self.factory.create()(data)
-        summary = manager.get_summary("A")
-        assert summary == ColumnSummary(
+        stats = manager.get_stats("A")
+        assert stats == ColumnStats(
             total=2,
             nulls=0,
             min=datetime.date(2021, 1, 1),
@@ -438,10 +451,10 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             # median=datetime.datetime(2021, 1, 1, 12, 0),
         )
 
-    def test_summary_does_fail_on_each_column(self) -> None:
+    def test_stats_does_fail_on_each_column(self) -> None:
         complex_data = self.get_complex_data()
         for column in complex_data.get_column_names():
-            assert complex_data.get_summary(column) is not None
+            assert complex_data.get_stats(column) is not None
 
     def test_sort_values(self) -> None:
         sorted_df = self.manager.sort_values("A", descending=True).data
@@ -793,9 +806,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
         df = pl.DataFrame({"A": [1, 2, 3], "B": [None, None, None]})
         manager = self.factory.create()(df)
-        summary = manager.get_summary("B")
-        assert summary.nulls == 3
-        assert summary.total == 3
+        stats = manager.get_stats("B")
+        assert stats.nulls == 3
+        assert stats.total == 3
 
     def test_dataframe_with_mixed_types(self) -> None:
         import polars as pl
@@ -912,12 +925,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             ]
             assert manager.take(count=10, offset=0).get_num_rows() == 10
 
-            # This is ok and expected, since we don't support pagination for lazy frames
-            with pytest.raises(TypeError):
-                manager.take(count=10, offset=10)
+            result = manager.take(count=5, offset=10)
+            assert result.get_num_rows() == 5
+            assert result.data["A"].to_list() == [10, 11, 12, 13, 14]
 
-        # TODO: Fix this, it should be 1
-        assert len(recorded_warnings) == 1
+        assert len(recorded_warnings) == 0
 
     def test_to_json_bigint(self) -> None:
         import polars as pl
@@ -944,3 +956,57 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         # Large integers should be converted to strings
         assert json_data[1]["A"] == "9007199254740992"
         assert json_data[1]["B"] == "-9007199254740992"
+
+    def test_to_json_enum_list(self) -> None:
+        import polars as pl
+
+        data = {"A": [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]]}
+
+        data_enum = pl.DataFrame(
+            data, schema={"A": pl.List(pl.Enum(categories=["A", "B", "C"]))}
+        )
+        manager = self.factory.create()(data_enum)
+        json_data = json.loads(manager.to_json())
+        assert json_data[0]["A"] == ["A", "B", "C"]
+        assert json_data[1]["A"] == ["A", "B", "C"]
+        assert json_data[2]["A"] == ["A", "B", "C"]
+
+        data_categorical = pl.DataFrame(
+            data, schema={"A": pl.List(pl.Categorical())}
+        )
+        manager = self.factory.create()(data_categorical)
+        json_data = json.loads(manager.to_json())
+        assert json_data[0]["A"] == ["A", "B", "C"]
+        assert json_data[1]["A"] == ["A", "B", "C"]
+        assert json_data[2]["A"] == ["A", "B", "C"]
+
+    def test_to_json_enum_list_not_supported(self) -> None:
+        # When this is supported, we can remove the casting to string
+        import polars as pl
+
+        data = {"A": [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]]}
+
+        data_enum = pl.DataFrame(
+            data, schema={"A": pl.List(pl.Enum(categories=["A", "B", "C"]))}
+        )
+        with pytest.raises(pl.exceptions.PanicException):
+            data_enum.write_json()
+
+        data_list = pl.DataFrame(data, schema={"A": pl.List(pl.Categorical())})
+        with pytest.raises(pl.exceptions.PanicException):
+            data_list.write_json()
+
+    def test_to_json_binary(self) -> None:
+        # Remove casting to string once binary is supported
+        import polars as pl
+
+        data = pl.DataFrame(
+            {
+                "A": [
+                    b"\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83"
+                ]
+            }
+        )
+
+        with pytest.raises(pl.exceptions.PanicException):
+            data.write_json()

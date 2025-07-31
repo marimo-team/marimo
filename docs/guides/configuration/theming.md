@@ -85,7 +85,7 @@ You can target a cell's styles from the `data-cell-name` attribute. You can also
 
 ## Community Themes
 
-The marimo community maintains a [library of custom themes](https://github.com/metaboulie/marimo-themes) that you can use in your notebooks. The library includes various themes like "coldme", "nord", "mininini", and "wigwam", each supporting both light and dark modes.
+The marimo community maintains a [library of custom themes](https://github.com/Haleshot/marimo-themes) that you can use in your notebooks. The library includes various themes like "coldme", "nord", "mininini", and "wigwam", each supporting both light and dark modes.
 
 You can:
 
@@ -93,7 +93,7 @@ You can:
 - Use them in your own notebooks
 - Contribute your own themes to share with the community
 
-Visit the [marimo-themes repository](https://github.com/metaboulie/marimo-themes) to explore available themes and learn how to contribute your own.
+Visit the [marimo-themes repository](https://github.com/Haleshot/marimo-themes) to explore available themes and learn how to contribute your own.
 
 ## More customizations
 

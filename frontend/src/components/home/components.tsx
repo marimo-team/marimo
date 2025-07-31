@@ -1,36 +1,37 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { openTutorial } from "@/core/network/requests";
-import type React from "react";
+
+import { CaretDownIcon } from "@radix-ui/react-icons";
 import {
   ActivityIcon,
   BarChart2Icon,
+  BookMarkedIcon,
   BookOpenIcon,
   DatabaseIcon,
   FileIcon,
   FileTextIcon,
+  GithubIcon,
   GraduationCapIcon,
   GridIcon,
   LayoutIcon,
-  OrbitIcon,
-  GithubIcon,
   LinkIcon,
-  BookMarkedIcon,
   MessagesSquareIcon,
+  OrbitIcon,
   YoutubeIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import type { TutorialId } from "@/core/network/types";
+import type React from "react";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
-import { asURL } from "@/utils/url";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Objects } from "@/utils/objects";
-import { CaretDownIcon } from "@radix-ui/react-icons";
 import { Constants } from "@/core/constants";
+import { openTutorial } from "@/core/network/requests";
+import type { TutorialId } from "@/core/network/types";
+import { openNotebook } from "@/utils/links";
+import { Objects } from "@/utils/objects";
 
 const TUTORIALS: Record<
   TutorialId,
@@ -88,7 +89,7 @@ export const OpenTutorialDropDown: React.FC = () => {
                 if (!file) {
                   return;
                 }
-                window.open(asURL(`?file=${file.path}`).toString(), "_blank");
+                openNotebook(file.path);
               }}
             >
               <Icon

@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { cva, type VariantProps } from "class-variance-authority";
+import React from "react";
+import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";
 import { withFullScreenAsRoot } from "./fullscreen";
-import { StyleNamespace } from "@/theme/namespace";
 
 const Sheet = SheetPrimitive.Root;
 

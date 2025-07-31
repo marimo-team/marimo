@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+
 import {
   highlightSelectionMatches,
   selectNextOccurrence,
 } from "@codemirror/search";
 import { keymap } from "@codemirror/view";
-import { closeFindReplacePanel, openFindReplacePanel } from "./state";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
   highlightTheme,
   searchHighlighter,
   searchState,
 } from "./search-highlight";
+import { closeFindReplacePanel, openFindReplacePanel } from "./state";
 
 export function findReplaceBundle(hotkeys: HotkeyProvider) {
   return [

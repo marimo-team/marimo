@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CellId } from "@/core/cells/ids";
+
 import type React from "react";
-import { CellLink } from "./cell-link";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useCellIds } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import { CellLink } from "./cell-link";
 
 interface Props {
   maxCount: number;

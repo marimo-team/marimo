@@ -53,3 +53,13 @@ export function jsonParseWithSpecialChar<T = unknown>(
     return {} as T;
   }
 }
+
+export function jsonToTSV(json: Array<Record<string, unknown>>) {
+  if (json.length === 0) {
+    return "";
+  }
+
+  const keys = Object.keys(json[0]);
+  const values = json.map((row) => keys.map((key) => row[key]).join("\t"));
+  return `${keys.join("\t")}\n${values.join("\n")}`;
+}

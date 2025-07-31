@@ -9,6 +9,7 @@
  */
 import React, {
   createRef,
+  type JSX,
   type ReactNode,
   type SetStateAction,
   Suspense,
@@ -18,34 +19,33 @@ import React, {
   useState,
 } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
-
+import useEvent from "react-use-event-hook";
+import type { ZodSchema } from "zod";
 import { createInputEvent, MarimoValueUpdateEvent } from "@/core/dom/events";
+import { getUIElementObjectId } from "@/core/dom/ui-element";
+import { UIElementRegistry } from "@/core/dom/uiregistry";
+import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
+import {
+  type HTMLElementNotDerivedFromRef,
+  useEventListener,
+} from "@/hooks/useEventListener";
+import { StyleNamespace } from "@/theme/namespace";
+import { useTheme } from "@/theme/useTheme";
+import { Functions } from "@/utils/functions";
+import { shallowCompare } from "@/utils/shallow-compare";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
 import {
   parseAttrValue,
   parseDataset,
   parseInitialValue,
 } from "../../core/dom/htmlUtils";
-import type { IPlugin } from "../types";
-import { Objects } from "../../utils/objects";
-import { renderError } from "./BadPlugin";
-import { renderHTML } from "./RenderHTML";
 import { invariant } from "../../utils/invariant";
 import { Logger } from "../../utils/Logger";
-import { useTheme } from "@/theme/useTheme";
-import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
-import { getUIElementObjectId } from "@/core/dom/ui-element";
+import { Objects } from "../../utils/objects";
+import type { IPlugin } from "../types";
+import { renderError } from "./BadPlugin";
+import { renderHTML } from "./RenderHTML";
 import type { PluginFunctions } from "./rpc";
-import type { ZodSchema } from "zod";
-import useEvent from "react-use-event-hook";
-import { Functions } from "@/utils/functions";
-import { StyleNamespace } from "@/theme/namespace";
-import { UIElementRegistry } from "@/core/dom/uiregistry";
-import {
-  type HTMLElementNotDerivedFromRef,
-  useEventListener,
-} from "@/hooks/useEventListener";
-import { shallowCompare } from "@/utils/shallow-compare";
 
 export interface PluginSlotHandle {
   /**

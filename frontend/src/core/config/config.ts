@@ -1,22 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
+import { merge } from "lodash-es";
+import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
+import { store } from "../state/jotai";
 import {
   type AppConfig,
-  type UserConfig,
   parseAppConfig,
-  parseConfigOverrides,
   parseUserConfig,
+  type UserConfig,
 } from "./config-schema";
-import { store } from "../state/jotai";
-import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
-import { merge } from "lodash-es";
 
 /**
  * Atom for storing the user config.
  */
-export const userConfigAtom = atom<UserConfig>(parseUserConfig());
+export const userConfigAtom = atom<UserConfig>(parseUserConfig({}));
 
-export const configOverridesAtom = atom<{}>(parseConfigOverrides());
+export const configOverridesAtom = atom<{}>({});
 
 export const resolvedMarimoConfigAtom = atom<UserConfig>((get) => {
   const overrides = get(configOverridesAtom);
@@ -43,6 +42,10 @@ export const autoSaveConfigAtom = atom((get) => {
 
 export const aiAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).ai;
+});
+
+export const keymapPresetAtom = atom((get) => {
+  return get(resolvedMarimoConfigAtom).keymap.preset;
 });
 
 /**
@@ -75,14 +78,15 @@ export function isAiEnabled(config: UserConfig) {
   return (
     Boolean(config.ai?.open_ai?.api_key) ||
     Boolean(config.ai?.anthropic?.api_key) ||
-    Boolean(config.ai?.google?.api_key)
+    Boolean(config.ai?.google?.api_key) ||
+    Boolean(config.ai?.bedrock?.profile_name)
   );
 }
 
 /**
  * Atom for storing the app config.
  */
-export const appConfigAtom = atom<AppConfig>(parseAppConfig());
+export const appConfigAtom = atom<AppConfig>(parseAppConfig({}));
 
 /**
  * Returns the app config.

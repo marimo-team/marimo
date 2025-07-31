@@ -1,19 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { EditRequests, RunRequests } from "../network/types";
-import { Deferred } from "@/utils/Deferred";
-import { getMarimoVersion } from "../dom/marimo-tag";
+
 import { getWorkerRPC } from "@/core/wasm/rpc";
-import type { OperationMessage } from "../kernel/messages";
-import type { JsonString } from "@/utils/json/base64";
+import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
-import type { WorkerSchema } from "./worker/worker";
-import workerUrl from "./worker/worker.tsx?worker&url";
+import type { JsonString } from "@/utils/json/base64";
+import { Logger } from "@/utils/Logger";
+import type { OperationMessage } from "../kernel/messages";
+import { getMarimoVersion } from "../meta/globals";
+import type { EditRequests, RunRequests } from "../network/types";
+import { store } from "../state/jotai";
 
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
-import { Logger } from "@/utils/Logger";
-import { store } from "../state/jotai";
 import { islandsInitializedAtom } from "./state";
+import type { WorkerSchema } from "./worker/worker";
+import workerUrl from "./worker/worker.tsx?worker&url";
 
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
@@ -124,6 +125,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  sendModelValue: RunRequests["sendModelValue"] = async (request) => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
   getUsageStats = throwNotImplemented;
   sendRename = throwNotImplemented;
   sendSave = throwNotImplemented;
@@ -146,8 +152,10 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   previewDatasetColumn = throwNotImplemented;
   previewSQLTable = throwNotImplemented;
   previewSQLTableList = throwNotImplemented;
+  previewDataSourceConnection = throwNotImplemented;
   openFile = throwNotImplemented;
   sendListFiles = throwNotImplemented;
+  sendPdb = throwNotImplemented;
   sendCreateFileOrFolder = throwNotImplemented;
   sendDeleteFileOrFolder = throwNotImplemented;
   sendRenameFileOrFolder = throwNotImplemented;
@@ -162,12 +170,14 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   addPackage = throwNotImplemented;
   removePackage = throwNotImplemented;
   getPackageList = throwNotImplemented;
+  getDependencyTree = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;
   getRunningNotebooks = throwNotImplemented;
   shutdownSession = throwNotImplemented;
   listSecretKeys = throwNotImplemented;
   writeSecret = throwNotImplemented;
+  invokeAiTool = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({

@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 from functools import partial
 from inspect import cleandoc
 from textwrap import dedent
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import codegen_data.test_main as mod
 import pytest
@@ -18,6 +17,10 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
+from marimo._schemas.notebook import NotebookV1
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -62,9 +65,12 @@ def wrap_generate_filecontents(
         resolved_configs = [CellConfig() for _ in range(len(codes))]
     else:
         resolved_configs = cell_configs
-    return codegen.generate_filecontents(
+    filecontents = codegen.generate_filecontents(
         codes, names, cell_configs=resolved_configs, **kwargs
     )
+    # leading spaces should be removed too
+    assert filecontents.lstrip() == filecontents
+    return filecontents
 
 
 def get_idempotent_marimo_source(name: str) -> str:
@@ -74,11 +80,11 @@ def get_idempotent_marimo_source(name: str) -> str:
     app = load.load_app(path)
     header_comments = codegen.get_header_comments(path)
     generated_contents = codegen.generate_filecontents(
-        list(app._cell_manager.codes()),
-        list(app._cell_manager.names()),
-        list(app._cell_manager.configs()),
-        app._config,
-        header_comments,
+        codes=list(app._cell_manager.codes()),
+        names=list(app._cell_manager.names()),
+        cell_configs=list(app._cell_manager.configs()),
+        config=app._config,
+        header_comments=header_comments,
     )
     generated_contents = sanitized_version(generated_contents)
 
@@ -264,6 +270,111 @@ class TestGeneration:
             "test_generate_filecontents_shadowed_builtin"
         )
 
+    def test_with_second_type_noop(self) -> None:
+        referring = "x = 1; x: int = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_types(self) -> None:
+        referring = "x: int = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: int):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_toplevel_types(self) -> None:
+        referring = "x: T = 1"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z: T = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"T"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: T):",
+                "    z: T = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_string_types(self) -> None:
+        referring = 'x: "int" = 0'
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "int"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_nested_string_types(self) -> None:
+        referring = '''x: "TT[\\"i\\"]" = 0; A:"""
+        a new line type"""'''
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo(x: 'TT[\"i\"]'):",
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_with_unknown_types(self) -> None:
+        referring = "x: something = 0"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x + 0"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(cell, "foo", variable_data=ref_vars)
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "something"):',
+                "    z = x + 0",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
         config = _AppConfig(
@@ -320,6 +431,13 @@ class TestGeneration:
     def test_generate_filecontents_toplevel_pytest() -> None:
         source = get_idempotent_marimo_source(
             "test_generate_filecontents_toplevel_pytest"
+        )
+        assert "import marimo" in source
+
+    @staticmethod
+    def test_generate_filecontents_with_annotation_typing() -> None:
+        source = get_idempotent_marimo_source(
+            "test_app_with_annotation_typing"
         )
         assert "import marimo" in source
 
@@ -478,27 +596,21 @@ class TestToFunctionDef:
         assert fndef == expected
 
 
-def test_recover() -> None:
-    cells = {
+def test_recover(tmp_path: Path) -> None:
+    cells: NotebookV1 = {
+        "version": "1",
+        "metadata": {"marimo_version": __version__},
         "cells": [
             {"name": "a", "code": '"santa"\n\n"clause"\n\n\n'},
             {"name": "b", "code": ""},
             {"name": "c", "code": "\n123"},
-        ]
+        ],
     }
     filecontents = json.dumps(cells)
     # keep open for windows compat
-    tempfile_name = ""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False
-    ) as f:
-        f.write(filecontents)
-        f.seek(0)
-        tempfile_name = f.name
-    try:
-        recovered = codegen.recover(tempfile_name)
-    finally:
-        os.remove(tempfile_name)
+    tempfile_name = tmp_path / "test.py"
+    tempfile_name.write_text(filecontents)
+    recovered = codegen.recover(tempfile_name)
 
     codes = [
         "\n".join(['"santa"', "", '"clause"', "", "", ""]),

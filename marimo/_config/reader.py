@@ -26,7 +26,7 @@ def read_pyproject_marimo_config(
     )
     if marimo_tool_config is None:
         return None
-    LOGGER.debug("Found marimo config in pyproject.toml at %s", pyproject_path)
+    LOGGER.info("Found marimo config in pyproject.toml at %s", pyproject_path)
     return marimo_tool_config
 
 

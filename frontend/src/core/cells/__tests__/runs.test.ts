@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { CellMessage } from "@/core/kernel/messages";
+import { invariant } from "@/utils/invariant";
 import {
   exportedForTesting,
   MAX_CODE_LENGTH,
@@ -8,8 +10,6 @@ import {
   type RunId,
   type RunsState,
 } from "../runs";
-import type { CellMessage } from "@/core/kernel/messages";
-import { invariant } from "@/utils/invariant";
 
 const { reducer, initialState, isPureMarkdown } = exportedForTesting;
 

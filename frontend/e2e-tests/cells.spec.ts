@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
 import {
   exportAsHTMLAndTakeScreenshot,
-  pressShortcut,
   maybeRestartKernel,
+  pressShortcut,
 } from "./helper";
 
 const appUrl = getAppUrl("cells.py");

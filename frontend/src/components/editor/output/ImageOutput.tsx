@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { JSX } from "react";
+
 interface Props {
   src: string;
   alt?: string;

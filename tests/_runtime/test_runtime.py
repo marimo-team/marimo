@@ -6,6 +6,7 @@ import sys
 import textwrap
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -1157,38 +1158,31 @@ class TestExecution:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="Windows paths behave differently"
     )
+    @patch.dict(
+        sys.modules,
+        {
+            "pyodide": Mock(),
+            "js": Mock(
+                location="https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
+            ),
+        },
+    )
     async def test_notebook_location_for_pyodide(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
         k = any_kernel
-        import sys
-        from types import ModuleType
 
-        # Mock pyodide and js modules
-        sys.modules["pyodide"] = ModuleType("pyodide")
-        js = ModuleType("js")
-        js.location = "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/assets/worker-BxJ8HeOy.js"
-        sys.modules["js"] = js
-
-        try:
-            await k.run(
-                [
-                    exec_req.get(
-                        "import marimo as mo; loc = mo.notebook_location()"
-                    )
-                ]
-            )
-            assert (
-                str(k.globals["loc"])
-                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
-            )
-            assert (
-                str(k.globals["loc"] / "public" / "data.csv")
-                == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
-            )
-        finally:
-            del sys.modules["pyodide"]
-            del sys.modules["js"]
+        await k.run(
+            [exec_req.get("import marimo as mo; loc = mo.notebook_location()")]
+        )
+        assert (
+            str(k.globals["loc"])
+            == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks"
+        )
+        assert (
+            str(k.globals["loc"] / "public" / "data.csv")
+            == "https://marimo-team.github.io/marimo-gh-pages-template/notebooks/public/data.csv"
+        )
 
     async def test_notebook_dir_for_unnamed_notebook(
         self, tmp_path: pathlib.Path, exec_req: ExecReqProvider
@@ -2955,7 +2949,7 @@ class TestStateTransitions:
         assert k.graph.cells[er_2.cell_id].runtime_state == "idle"
 
     @staticmethod
-    async def test_variables_broadcast_only_on_change(
+    async def test_variables_broadcast_always(
         mocked_kernel: MockedKernel, exec_req: ExecReqProvider
     ) -> None:
         k = mocked_kernel.k
@@ -2969,10 +2963,10 @@ class TestStateTransitions:
         )
         assert initial_messages == 1
 
-        # Re-running same cell shouldn't broadcast Variables
+        # Re-running same cell should now broadcast Variables
         stream.messages.clear()
         await k.run([er])
-        assert not any(m[0] == "variables" for m in stream.messages)
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
 
         # Adding a new variable should broadcast Variables
         stream.messages.clear()
@@ -2985,16 +2979,66 @@ class TestStateTransitions:
         await k.run([exec_req.get("z = y")])
         assert sum(1 for m in stream.messages if m[0] == "variables") == 1
 
-        # Modifying value without changing edges/defs shouldn't broadcast
+        # Modifying value without changing edges/defs should now broadcast
         stream.messages.clear()
         er_2.code = "y = 2"
         await k.run([exec_req.get_with_id(er_2.cell_id, er_2.code)])
-        assert not any(m[0] == "variables" for m in stream.messages)
+        assert sum(1 for m in stream.messages if m[0] == "variables") == 1
 
         # Deleting a cell should broadcast Variables
         stream.messages.clear()
         await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
         assert sum(1 for m in stream.messages if m[0] == "variables") == 1
+
+    @staticmethod
+    async def test_variables_broadcast_on_usage_change(
+        mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that changing which variables a cell uses triggers a broadcast.
+
+        This captures the bug where editing a cell to use fewer variables
+        from an imported module wouldn't update the frontend's dependency info.
+        """
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Cell 1: Define multiple variables
+        await k.run([exec_req.get("a = 1\nb = 2")])
+        stream.messages.clear()
+
+        # Cell 2: Use both variables
+        er_2 = exec_req.get("print(a)\nprint(b)")
+        await k.run([er_2])
+        variables_msg_count = sum(
+            1 for m in stream.messages if m[0] == "variables"
+        )
+        assert variables_msg_count == 1
+
+        # Check that both a and b show cell 2 in their used_by
+        variables_msg = next(m for m in stream.messages if m[0] == "variables")
+        variables = variables_msg[1]["variables"]
+        var_a = next(v for v in variables if v["name"] == "a")
+        var_b = next(v for v in variables if v["name"] == "b")
+        assert er_2.cell_id in var_a["used_by"]
+        assert er_2.cell_id in var_b["used_by"]
+
+        # Edit cell 2 to only use variable 'a'
+        stream.messages.clear()
+        await k.run([exec_req.get_with_id(er_2.cell_id, "print(a)")])
+
+        # Should broadcast Variables because usage changed
+        variables_msg_count = sum(
+            1 for m in stream.messages if m[0] == "variables"
+        )
+        assert variables_msg_count == 1
+
+        # Check that only a shows cell 2 in used_by now
+        variables_msg = next(m for m in stream.messages if m[0] == "variables")
+        variables = variables_msg[1]["variables"]
+        var_a = next(v for v in variables if v["name"] == "a")
+        var_b = next(v for v in variables if v["name"] == "b")
+        assert er_2.cell_id in var_a["used_by"]
+        assert er_2.cell_id not in var_b["used_by"]
 
 
 class TestErrorHandling:

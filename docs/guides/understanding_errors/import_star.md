@@ -27,12 +27,13 @@ Even Python's [official style guide](https://peps.python.org/pep-0008/) discoura
 > Wildcard imports (from <module> import *) should be avoided, as they make it unclear which names are present in the namespace, confusing both readers and many automated tools. 
 
 **What do I get in return?**
+
 By accepting this constraint on imports, marimo makes your notebooks:
 
 - **reproducible**, with a well-defined execution order, no hidden state, and no hidden bugs;
 - **executable** as a script;
 - **interactive** with UI elements that work without callbacks;
-- **shareable as a web app**, with far better performance that streamlit.
+- **shareable as a web app**, with far better performance than streamlit.
 
 As a bonus, you'll find that you end up with cleaner, reusable code.
 

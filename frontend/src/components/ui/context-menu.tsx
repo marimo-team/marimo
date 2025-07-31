@@ -1,13 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import {
   CheckIcon,
   ChevronRightIcon,
   DotFilledIcon,
 } from "@radix-ui/react-icons";
-
+import type { VariantProps } from "class-variance-authority";
+import * as React from "react";
+import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";
+import { withFullScreenAsRoot } from "./fullscreen";
 import {
   MenuShortcut,
   menuContentCommon,
@@ -17,9 +20,6 @@ import {
   menuSeparatorVariants,
   menuSubTriggerVariants,
 } from "./menu-items";
-import type { VariantProps } from "class-variance-authority";
-import { withFullScreenAsRoot } from "./fullscreen";
-import { StyleNamespace } from "@/theme/namespace";
 
 const ContextMenu = ContextMenuPrimitive.Root;
 const ContextMenuTrigger = ContextMenuPrimitive.Trigger;

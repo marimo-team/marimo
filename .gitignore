@@ -4,6 +4,9 @@
 *.txt
 !tests/**/*.txt
 
+node_modules/
+.turbo/
+
 # Byte-compiled / optimized / DLL files
 __pycache__
 __pycache__/
@@ -120,3 +123,7 @@ marimo/_lsp/
 .mypy_cache/
 __marimo__
 .aider*
+
+# pixi environments
+.pixi
+*.egg-info

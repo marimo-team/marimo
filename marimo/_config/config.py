@@ -84,15 +84,25 @@ class KeymapConfig(TypedDict):
     - `preset`: one of `"default"` or `"vim"`
     - `overrides`: a dict of keymap actions to their keymap override
     - `vimrc`: path to a vimrc file to load keymaps from
+    - `destructive_delete`: if `True`, allows deleting cells with content.
     """
 
     preset: Literal["default", "vim"]
     overrides: NotRequired[dict[str, str]]
     vimrc: NotRequired[Optional[str]]
+    destructive_delete: NotRequired[bool]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
 ExecutionType = Literal["relaxed", "strict"]
+
+
+# TODO(akshayka): remove normal, migrate to compact
+# normal == compact
+WidthType = Literal["normal", "compact", "medium", "full", "columns"]
+Theme = Literal["light", "dark", "system"]
+ExportType = Literal["html", "markdown", "ipynb"]
+SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
 
 
 @mddoc
@@ -130,6 +140,12 @@ class RuntimeConfig(TypedDict):
     - `dotenv`: a list of paths to `.env` files to load.
         If the file does not exist, it will be silently ignored.
         The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+    - `default_sql_output`: the default output format for SQL queries. Can be one of:
+        `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
+        The default is `"auto"`.
+    - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
+       `html`, `markdown`, `ipynb`.
+       The default is None.
     """
 
     auto_instantiate: bool
@@ -141,13 +157,8 @@ class RuntimeConfig(TypedDict):
     std_stream_max_bytes: int
     pythonpath: NotRequired[list[str]]
     dotenv: NotRequired[list[str]]
-
-
-# TODO(akshayka): remove normal, migrate to compact
-# normal == compact
-WidthType = Literal["normal", "compact", "medium", "full", "columns"]
-Theme = Literal["light", "dark", "system"]
-SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
+    default_sql_output: SqlOutputType
+    default_auto_download: NotRequired[list[ExportType]]
 
 
 @mddoc
@@ -163,6 +174,8 @@ class DisplayConfig(TypedDict):
     - `dataframes`: `"rich"` or `"plain"`
     - `custom_css`: list of paths to custom CSS files
     - `default_table_page_size`: default number of rows to display in tables
+    - `default_table_max_columns`: default maximum number of columns to display in tables
+    - `reference_highlighting`: if `True`, highlight reactive variable references
     """
 
     theme: Theme
@@ -172,6 +185,8 @@ class DisplayConfig(TypedDict):
     dataframes: Literal["rich", "plain"]
     custom_css: NotRequired[list[str]]
     default_table_page_size: int
+    default_table_max_columns: int
+    reference_highlighting: NotRequired[bool]
 
 
 @mddoc
@@ -215,6 +230,9 @@ class PackageManagementConfig(TypedDict):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
+CopilotMode = Literal["ask", "manual"]
+
+
 @dataclass
 class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
@@ -223,16 +241,20 @@ class AiConfig(TypedDict, total=False):
 
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
+    - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
+    - `bedrock`: the Bedrock config
     """
 
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
+    mode: NotRequired[CopilotMode]
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig
+    bedrock: BedrockConfig
 
 
 @dataclass
@@ -264,7 +286,7 @@ class AnthropicConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Anthropic
+    - `api_key`: the Anthropic API key
     """
 
     api_key: str
@@ -280,6 +302,24 @@ class GoogleAiConfig(TypedDict, total=False):
     """
 
     api_key: str
+
+
+@dataclass
+class BedrockConfig(TypedDict, total=False):
+    """Configuration options for Bedrock.
+
+    **Keys.**
+
+    - `profile_name`: the AWS profile to use
+    - `region_name`: the AWS region to use
+    - `aws_access_key_id`: the AWS access key ID
+    - `aws_secret_access_key`: the AWS secret access key
+    """
+
+    profile_name: NotRequired[str]
+    region_name: NotRequired[str]
+    aws_access_key_id: NotRequired[str]
+    aws_secret_access_key: NotRequired[str]
 
 
 @dataclass
@@ -300,6 +340,30 @@ class PythonLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class BasedpyrightServerConfig(TypedDict, total=False):
+    """
+    Configuration options for basedpyright Language Server.
+
+    basedpyright handles completion, hover, go-to-definition, and diagnostics,
+    but we only use it for diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
+class TyLanguageServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Ty Language Server.
+
+    ty handles completion, hover, go-to-definition, and diagnostics,
+    but we only use it for diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class LanguageServersConfig(TypedDict, total=False):
     """Configuration options for language servers.
 
@@ -309,6 +373,8 @@ class LanguageServersConfig(TypedDict, total=False):
     """
 
     pylsp: PythonLanguageServerConfig
+    basedpyright: BasedpyrightServerConfig
+    ty: TyLanguageServerConfig
 
 
 @dataclass
@@ -354,6 +420,21 @@ class DatasourcesConfig(TypedDict):
 
 @mddoc
 @dataclass
+class SharingConfig(TypedDict):
+    """Configuration for sharing features.
+
+    **Keys.**
+
+    - `html`: if `False`, HTML sharing options will be hidden from the UI
+    - `wasm`: if `False`, WebAssembly sharing options will be hidden from the UI
+    """
+
+    html: NotRequired[bool]
+    wasm: NotRequired[bool]
+
+
+@mddoc
+@dataclass
 class MarimoConfig(TypedDict):
     """Configuration for the marimo editor"""
 
@@ -371,6 +452,58 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[dict[str, Any]]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
+    # We don't support configuring MCP servers yet
+    # mcp: NotRequired[MCPConfig]
+
+
+@mddoc
+@dataclass
+class MCPServerStdioConfig(TypedDict):
+    """Configuration for STDIO transport MCP servers"""
+
+    command: str
+    args: NotRequired[Optional[list[str]]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
+
+
+@mddoc
+@dataclass
+class MCPServerStreamableHttpConfig(TypedDict):
+    """Configuration for Streamable HTTP transport MCP servers"""
+
+    url: str
+    headers: NotRequired[Optional[dict[str, str]]]
+    timeout: NotRequired[Optional[float]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
+
+
+MCPServerConfig = Union[MCPServerStdioConfig, MCPServerStreamableHttpConfig]
+
+
+@mddoc
+@dataclass
+class MCPConfig(TypedDict):
+    """
+    Configuration for MCP servers
+
+    Note: the field name `mcpServers` is camelCased to match MCP server
+    config conventions used by popular AI applications (e.g. Cursor, Claude Desktop, etc.)
+    """
+
+    mcpServers: dict[str, MCPServerConfig]
+
+
+DEFAULT_MCP_CONFIG: MCPConfig = MCPConfig(
+    mcpServers={
+        "marimo": MCPServerStreamableHttpConfig(
+            url="https://mcp.marimo.app/mcp"
+        ),
+        # TODO(bjoaquinc): add more Marimo MCP servers here after they are implemented
+    }
+)
 
 
 @mddoc
@@ -392,6 +525,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     experimental: NotRequired[dict[str, Any]]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
+    sharing: NotRequired[SharingConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -403,6 +537,8 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_width": "medium",
         "dataframes": "rich",
         "default_table_page_size": 10,
+        "default_table_max_columns": 50,
+        "reference_highlighting": False,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
@@ -418,6 +554,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "std_stream_max_bytes": int(
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
+        "default_sql_output": "auto",
     },
     "save": {
         "autosave": "after_delay",
@@ -457,7 +594,16 @@ def merge_default_config(
 def merge_config(
     config: MarimoConfig, new_config: PartialMarimoConfig | MarimoConfig
 ) -> MarimoConfig:
-    """Merge a user configuration with a new configuration."""
+    """Merge a user configuration with a new configuration. The new config
+    will take precedence over the default config.
+
+    Args:
+        config: The default configuration.
+        new_config: The new configuration to merge with the default config.
+
+    Returns:
+        A merged configuration.
+    """
     # Remove the keymap overrides from the incoming config,
     # so that they don't get merged into the new config
     if new_config.get("keymap", {}).get("overrides") is not None:

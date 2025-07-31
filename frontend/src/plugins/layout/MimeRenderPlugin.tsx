@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { JSX } from "react";
 import { z } from "zod";
+import type { OutputMessage } from "@/core/kernel/messages";
+import { OutputRenderer } from "../../components/editor/Output";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import { OutputRenderer } from "../../components/editor/Output";
-import type { OutputMessage } from "@/core/kernel/messages";
 
 interface Data {
   mime: OutputMessage["mimetype"];

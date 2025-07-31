@@ -1,42 +1,41 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect } from "react";
 
-import { sendComponentValues, sendInterrupt } from "@/core/network/requests";
-
-import { Controls } from "@/components/editor/controls/Controls";
-import { FilenameForm } from "@/components/editor/header/filename-form";
-import { WebSocketState } from "./websocket/types";
-import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
-import {
-  notebookIsRunningAtom,
-  useCellActions,
-  cellIdsAtom,
-  numColumnsAtom,
-  hasCellsAtom,
-} from "./cells/cells";
-import { CellEffects } from "./cells/effects";
-import type { AppConfig, UserConfig } from "./config/config-schema";
-import { viewStateAtom } from "./mode";
-import { useHotkey } from "../hooks/useHotkey";
-import { CellArray } from "../components/editor/renderers/CellArray";
-import { RuntimeState } from "./kernel/RuntimeState";
-import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
+import { usePrevious } from "@dnd-kit/utilities";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { useAtomValue, useSetAtom } from "jotai";
+import { useEffect } from "react";
+import { Controls } from "@/components/editor/controls/Controls";
+import { AppHeader } from "@/components/editor/header/app-header";
+import { FilenameForm } from "@/components/editor/header/filename-form";
+import { MultiCellActionToolbar } from "@/components/editor/navigation/multi-cell-action-toolbar";
+import { sendComponentValues, sendInterrupt } from "@/core/network/requests";
+import { cn } from "@/utils/cn";
+import { Paths } from "@/utils/paths";
+import { AppContainer } from "../components/editor/app-container";
 import {
   useRunAllCells,
   useRunStaleCells,
 } from "../components/editor/cell/useRunCells";
-import { cn } from "@/utils/cn";
-import { useFilename } from "./saving/filename";
+import { CellArray } from "../components/editor/renderers/CellArray";
+import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
+import { useHotkey } from "../hooks/useHotkey";
+import {
+  cellIdsAtom,
+  hasCellsAtom,
+  notebookIsRunningAtom,
+  numColumnsAtom,
+  useCellActions,
+} from "./cells/cells";
+import { CellEffects } from "./cells/effects";
+import type { AppConfig, UserConfig } from "./config/config-schema";
+import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
-import { AppHeader } from "@/components/editor/header/app-header";
-import { AppContainer } from "../components/editor/app-container";
-import { useJotaiEffect } from "./state/jotai";
-import { Paths } from "@/utils/paths";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
-import { usePrevious } from "@dnd-kit/utilities";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { viewStateAtom } from "./mode";
+import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
+import { useJotaiEffect } from "./state/jotai";
+import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 
 interface AppProps {
   /**
@@ -60,7 +59,8 @@ export const EditApp: React.FC<AppProps> = ({
 }) => {
   useJotaiEffect(cellIdsAtom, CellEffects.onCellIdsChange);
 
-  const { setCells, mergeAllColumns } = useCellActions();
+  const { setCells, mergeAllColumns, collapseAllCells, expandAllCells } =
+    useCellActions();
   const viewState = useAtomValue(viewStateAtom);
   const numColumns = useAtomValue(numColumnsAtom);
   const hasCells = useAtomValue(hasCellsAtom);
@@ -125,6 +125,12 @@ export const EditApp: React.FC<AppProps> = ({
   useHotkey("global.runAll", () => {
     runAllCells();
   });
+  useHotkey("global.collapseAllSections", () => {
+    collapseAllCells();
+  });
+  useHotkey("global.expandAllSections", () => {
+    expandAllCells();
+  });
 
   const editableCellsArray = (
     <CellArray
@@ -164,6 +170,7 @@ export const EditApp: React.FC<AppProps> = ({
           </CellsRenderer>
         )}
       </AppContainer>
+      <MultiCellActionToolbar />
       {!hideControls && (
         <TooltipProvider>
           <Controls
@@ -171,7 +178,7 @@ export const EditApp: React.FC<AppProps> = ({
             onTogglePresenting={togglePresenting}
             onInterrupt={sendInterrupt}
             onRun={runStaleCells}
-            closed={connection.state === WebSocketState.CLOSED}
+            connectionState={connection.state}
             running={isRunning}
             appConfig={appConfig}
           />

@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { init } from "@paralleldrive/cuid2";
+import { Logger } from "@/utils/Logger";
 import type { TypedString } from "@/utils/typed";
 import { updateQueryParams } from "@/utils/urls";
-import { Logger } from "@/utils/Logger";
 import { KnownQueryParams } from "../constants";
 
 export type SessionId = TypedString<"SessionId">;

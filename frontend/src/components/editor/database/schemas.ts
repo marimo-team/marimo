@@ -16,6 +16,40 @@ function passwordField() {
     );
 }
 
+function tokenField() {
+  return z
+    .string()
+    .optional()
+    .describe(
+      FieldOptions.of({
+        label: "Token",
+        inputType: "password",
+        placeholder: "token",
+        optionRegex: ".*token.*",
+      }),
+    );
+}
+
+function warehouseNameField() {
+  return z
+    .string()
+    .optional()
+    .describe(
+      FieldOptions.of({
+        label: "Warehouse Name",
+        placeholder: "warehouse",
+        optionRegex: ".*warehouse.*",
+      }),
+    );
+}
+
+function uriField() {
+  return z
+    .string()
+    .optional()
+    .describe(FieldOptions.of({ label: "URI", optionRegex: ".*uri.*" }));
+}
+
 function hostField() {
   return z
     .string()
@@ -73,7 +107,7 @@ function portField(defaultPort?: number) {
       }),
     )
     .transform(Number)
-    .refine((n) => n >= 0 && n <= 65_535, {
+    .refine((n: number) => n >= 0 && n <= 65_535, {
       message: "Port must be between 0 and 65535",
     });
 
@@ -137,6 +171,16 @@ export const DuckDBConnectionSchema = z
       FieldOptions.of({ label: "Database Path" }),
     ),
     read_only: readOnlyField(),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
+export const MotherDuckConnectionSchema = z
+  .object({
+    type: z.literal("motherduck"),
+    database: databaseField()
+      .default("my_db")
+      .describe(FieldOptions.of({ label: "Database Name" })),
+    token: tokenField(),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
@@ -259,17 +303,183 @@ export const TrinoConnectionSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const IcebergConnectionSchema = z.object({
+  type: z.literal("iceberg"),
+  name: z.string().describe(FieldOptions.of({ label: "Catalog Name" })),
+  catalog: z
+    .discriminatedUnion("type", [
+      z.object({
+        type: z.literal("REST"),
+        warehouse: warehouseNameField(),
+        uri: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "URI",
+              placeholder: "https://",
+              optionRegex: ".*uri.*",
+            }),
+          ),
+        token: tokenField(),
+      }),
+      z.object({
+        type: z.literal("SQL"),
+        warehouse: warehouseNameField(),
+        uri: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "URI",
+              placeholder: "jdbc:iceberg://host:port/database",
+              optionRegex: ".*uri.*",
+            }),
+          ),
+      }),
+      z.object({
+        type: z.literal("Hive"),
+        warehouse: warehouseNameField(),
+        uri: uriField(),
+      }),
+      z.object({
+        type: z.literal("Glue"),
+        warehouse: warehouseNameField(),
+        uri: uriField(),
+      }),
+      z.object({
+        type: z.literal("DynamoDB"),
+        "dynamodb.profile-name": z
+          .string()
+          .optional()
+          .describe(FieldOptions.of({ label: "Profile Name" })),
+        "dynamodb.region": z
+          .string()
+          .optional()
+          .describe(FieldOptions.of({ label: "Region" })),
+        "dynamodb.access-key-id": z
+          .string()
+          .optional()
+          .describe(FieldOptions.of({ label: "Access Key ID" })),
+        "dynamodb.secret-access-key": z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Secret Access Key",
+              inputType: "password",
+            }),
+          ),
+        "dynamodb.session-token": z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Session Token",
+              inputType: "password",
+            }),
+          ),
+      }),
+    ])
+    .default({
+      type: "REST",
+    })
+    .describe(FieldOptions.of({ special: "tabs" })),
+});
+
+export const DataFusionConnectionSchema = z.object({
+  type: z.literal("datafusion"),
+  sessionContext: z
+    .boolean()
+    .optional()
+    .describe(
+      FieldOptions.of({
+        label: "Use Session Context",
+      }),
+    ),
+});
+
+// Ideally, we can conditionally render the username, host, and port fields.
+export const PySparkConnectionSchema = z.object({
+  type: z.literal("pyspark"),
+  host: hostField().optional(),
+  port: portField().optional(),
+});
+
+// Ref: https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/001%20-%20Connecting%20to%20Amazon%20Redshift.ipynb
+export const RedshiftConnectionSchema = z
+  .object({
+    type: z.literal("redshift"),
+    host: hostField(),
+    port: portField(5439),
+    connectionType: z
+      .discriminatedUnion("type", [
+        z.object({
+          type: z.literal("IAM credentials"),
+          region: z.string().describe(FieldOptions.of({ label: "Region" })),
+          aws_access_key_id: z
+            .string()
+            .nonempty()
+            .describe(
+              FieldOptions.of({
+                label: "AWS Access Key ID",
+                inputType: "password",
+                optionRegex: ".*aws_access_key_id.*",
+              }),
+            ),
+          aws_secret_access_key: z
+            .string()
+            .nonempty()
+            .describe(
+              FieldOptions.of({
+                label: "AWS Secret Access Key",
+                inputType: "password",
+                optionRegex: ".*aws_secret_access_key.*",
+              }),
+            ),
+          aws_session_token: z
+            .string()
+            .optional()
+            .describe(
+              FieldOptions.of({
+                label: "AWS Session Token",
+                inputType: "password",
+                optionRegex: ".*aws_session_token.*",
+              }),
+            ),
+        }),
+        z.object({
+          type: z.literal("DB credentials"),
+          user: usernameField(),
+          password: passwordField(),
+        }),
+      ])
+      .default({
+        type: "IAM credentials",
+        aws_access_key_id: "",
+        aws_secret_access_key: "",
+        region: "",
+      }),
+    database: databaseField(),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const DatabaseConnectionSchema = z.discriminatedUnion("type", [
   PostgresConnectionSchema,
   MySQLConnectionSchema,
   SQLiteConnectionSchema,
   DuckDBConnectionSchema,
+  MotherDuckConnectionSchema,
   SnowflakeConnectionSchema,
   BigQueryConnectionSchema,
   ClickhouseConnectionSchema,
   TimeplusConnectionSchema,
   ChdbConnectionSchema,
   TrinoConnectionSchema,
+  IcebergConnectionSchema,
+  DataFusionConnectionSchema,
+  PySparkConnectionSchema,
+  RedshiftConnectionSchema,
 ]);
 
 export type DatabaseConnection = z.infer<typeof DatabaseConnectionSchema>;

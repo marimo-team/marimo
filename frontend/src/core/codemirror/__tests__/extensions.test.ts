@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EditorView } from "@codemirror/view";
+
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as scrollUtils from "../../../utils/scroll";
 import { scrollActiveLineIntoView } from "../extensions";
 import { formattingChangeEffect } from "../format";
@@ -72,8 +73,10 @@ describe("scrollActiveLineIntoView", () => {
     // Check that smartScrollIntoView was called with the right arguments
     expect(vi.mocked(scrollUtils.smartScrollIntoView)).toHaveBeenCalledWith(
       activeLine,
-      { top: 30, bottom: 150 },
-      mockAppElement,
+      {
+        offset: { top: 30, bottom: 150 },
+        body: mockAppElement,
+      },
     );
   });
 

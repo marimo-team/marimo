@@ -1,23 +1,31 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
+import type { JSX } from "react";
 import type { RuntimeState } from "@/core/network/types";
-import { Tooltip } from "../../ui/tooltip";
-import { Button } from "../../ui/button";
+import {
+  getConnectionTooltip,
+  isAppInteractionDisabled,
+} from "@/core/websocket/connection-utils";
+import type { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { Button } from "../../ui/button";
+import { Tooltip } from "../../ui/tooltip";
 
 export const DeleteButton = (props: {
   status: RuntimeState;
-  appClosed: boolean;
+  connectionState: WebSocketState;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }): JSX.Element => {
-  const { status, appClosed, onClick } = props;
+  const { status, connectionState, onClick } = props;
 
   const loading = status === "running" || status === "queued";
+  const isDisabled = isAppInteractionDisabled(connectionState);
 
   let tooltipMsg = null;
-  if (appClosed) {
-    tooltipMsg = "App disconnected";
+
+  if (isDisabled) {
+    tooltipMsg = getConnectionTooltip(connectionState);
   } else if (status === "running") {
     tooltipMsg = "A cell can't be deleted when it's running";
   } else if (status === "queued") {
@@ -39,7 +47,7 @@ export const DeleteButton = (props: {
         onMouseDown={Events.preventFocus}
         className={cn(
           "hover:bg-transparent text-destructive/60 hover:text-destructive",
-          (appClosed || loading) && "inactive-button",
+          (isDisabled || loading) && "inactive-button",
         )}
         style={{ boxShadow: "none" }}
       >

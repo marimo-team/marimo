@@ -1,37 +1,41 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren, useEffect, Suspense } from "react";
+import React, { type PropsWithChildren, Suspense, useEffect } from "react";
 import {
-  PanelGroup,
-  Panel,
-  PanelResizeHandle,
   type ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
 } from "react-resizable-panels";
 import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
-import { useChromeActions, useChromeState } from "../state";
-import { cn } from "@/utils/cn";
-import { createStorage } from "./storage";
-import { Button } from "@/components/ui/button";
-import { XIcon } from "lucide-react";
-import { ErrorsPanel } from "../panels/error-panel";
-import { OutlinePanel } from "../panels/outline-panel";
-import { DependencyGraphPanel } from "@/components/editor/chrome/panels/dependency-graph-panel";
-import { VariablePanel } from "../panels/variable-panel";
-import { LogsPanel } from "../panels/logs-panel";
-import { DocumentationPanel } from "../panels/documentation-panel";
-import { FileExplorerPanel } from "../panels/file-explorer-panel";
-import { SnippetsPanel } from "../panels/snippets-panel";
-import { ErrorBoundary } from "../../boundary/ErrorBoundary";
-import { DataSourcesPanel } from "../panels/datasources-panel";
-import { LazyMount } from "@/components/utils/lazy-mount";
-import { ScratchpadPanel } from "../panels/scratchpad-panel";
-import { IfCapability } from "@/core/config/if-capability";
-import { PackagesPanel } from "../panels/packages-panel";
-import { ChatPanel } from "@/components/chat/chat-panel";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { TracingPanel } from "../panels/tracing-panel";
+import { XIcon } from "lucide-react";
+import { ChatPanel } from "@/components/chat/chat-panel";
+import { DependencyGraphPanel } from "@/components/editor/chrome/panels/dependency-graph-panel";
+import { Button } from "@/components/ui/button";
+import { LazyMount } from "@/components/utils/lazy-mount";
+import { IfCapability } from "@/core/config/if-capability";
+import { cn } from "@/utils/cn";
+import { ErrorBoundary } from "../../boundary/ErrorBoundary";
+import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
+import { DataSourcesPanel } from "../panels/datasources-panel";
+import { DocumentationPanel } from "../panels/documentation-panel";
+import { ErrorsPanel } from "../panels/error-panel";
+import { FileExplorerPanel } from "../panels/file-explorer-panel";
+import { LogsPanel } from "../panels/logs-panel";
+import { OutlinePanel } from "../panels/outline-panel";
+import { PackagesPanel } from "../panels/packages-panel";
+import { ScratchpadPanel } from "../panels/scratchpad-panel";
 import { SecretsPanel } from "../panels/secrets-panel";
+import { SnippetsPanel } from "../panels/snippets-panel";
+import { TracingPanel } from "../panels/tracing-panel";
+import { VariablePanel } from "../panels/variable-panel";
+import { useChromeActions, useChromeState } from "../state";
+import { Minimap } from "./minimap";
+import { PanelsWrapper } from "./panels";
+import { createStorage } from "./storage";
+import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
 
@@ -95,13 +99,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     </Panel>
   );
 
-  const handleDragging = (isDragging: boolean) => {
-    if (!isDragging) {
-      // Once the user is done dragging, dispatch a resize event
-      window.dispatchEvent(new Event("resize"));
-    }
-  };
-
   const helperResizeHandle = (
     <PanelResizeHandle
       onDragging={handleDragging}
@@ -126,22 +123,22 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const helpPaneBody = (
     <ErrorBoundary>
-      <Suspense>
-        <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
-          <div className="p-3 border-b flex justify-between items-center">
-            <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
-              {selectedPanel}
-            </div>
-            <Button
-              data-testid="close-helper-pane"
-              className="m-0"
-              size="xs"
-              variant="text"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <XIcon className="w-4 h-4" />
-            </Button>
+      <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
+        <div className="p-3 border-b flex justify-between items-center">
+          <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
+            {selectedPanel}
           </div>
+          <Button
+            data-testid="close-helper-pane"
+            className="m-0"
+            size="xs"
+            variant="text"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <XIcon className="w-4 h-4" />
+          </Button>
+        </div>
+        <Suspense>
           <TooltipProvider>
             {selectedPanel === "files" && <FileExplorerPanel />}
             {selectedPanel === "errors" && <ErrorsPanel />}
@@ -158,8 +155,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "tracing" && <TracingPanel />}
             {selectedPanel === "secrets" && <SecretsPanel />}
           </TooltipProvider>
-        </div>
-      </Suspense>
+        </Suspense>
+      </div>
     </ErrorBoundary>
   );
 
@@ -219,16 +216,18 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     >
       {terminalResizeHandle}
       <LazyMount isOpen={isTerminalOpen}>
-        <LazyTerminal
-          visible={isTerminalOpen}
-          onClose={() => setIsTerminalOpen(false)}
-        />
+        <Suspense fallback={<div />}>
+          <LazyTerminal
+            visible={isTerminalOpen}
+            onClose={() => setIsTerminalOpen(false)}
+          />
+        </Suspense>
       </LazyMount>
     </Panel>
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden absolute inset-0 print:relative">
+    <PanelsWrapper>
       <PanelGroup
         autoSaveId="marimo:chrome:v1:l2"
         direction={"horizontal"}
@@ -244,12 +243,14 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             <IfCapability capability="terminal">{terminalPanel}</IfCapability>
           </PanelGroup>
         </Panel>
+        <ContextAwarePanel />
       </PanelGroup>
+      <Minimap />
       <ErrorBoundary>
         <TooltipProvider>
           <Footer />
         </TooltipProvider>
       </ErrorBoundary>
-    </div>
+    </PanelsWrapper>
   );
 };

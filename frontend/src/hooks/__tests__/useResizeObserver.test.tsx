@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, beforeEach, vi, expect, it, afterAll } from "vitest";
+
 import { renderHook } from "@testing-library/react";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useResizeObserver } from "../useResizeObserver";
 
 describe("useResizeObserver", () => {

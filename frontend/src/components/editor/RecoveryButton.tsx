@@ -1,51 +1,60 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Button as EditorButton } from "@/components/editor/inputs/Inputs";
-import { Button } from "components/ui/button";
-import { useHotkey } from "../../hooks/useHotkey";
+
+import type { Notebook } from "@marimo-team/marimo-api";
 import { SaveIcon } from "lucide-react";
-import { Tooltip } from "../ui/tooltip";
-import { renderShortcut } from "../shortcuts/renderShortcut";
+import type { JSX } from "react";
+import { Button as EditorButton } from "@/components/editor/inputs/Inputs";
+import { Button } from "@/components/ui/button";
+import { getNotebook } from "@/core/cells/cells";
+import { notebookCells } from "@/core/cells/utils";
+import { getMarimoVersion } from "@/core/meta/globals";
+import { useEvent } from "@/hooks/useEvent";
+import { downloadBlob } from "@/utils/download";
+import { Paths } from "@/utils/paths";
+import { useHotkey } from "../../hooks/useHotkey";
 import { useImperativeModal } from "../modal/ImperativeModal";
+import { renderShortcut } from "../shortcuts/renderShortcut";
 import {
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "../ui/dialog";
-import { downloadBlob } from "@/utils/download";
-import { useEvent } from "@/hooks/useEvent";
-import { getNotebook } from "@/core/cells/cells";
-import { notebookCells } from "@/core/cells/utils";
-import { useFilename } from "@/core/saving/filename";
+import { Tooltip } from "../ui/tooltip";
 
 const RecoveryModal = (props: {
   proposedName: string;
   closeModal: () => void;
 }): JSX.Element => {
-  const filename = useFilename();
-
   const downloadRecoveryFile = () => {
     downloadBlob(
-      new Blob([getCellsAsJSON()], { type: "text/plain" }),
+      new Blob([getNotebookJSON()], { type: "text/plain" }),
       `${props.proposedName}.json`,
     );
   };
 
-  const getCellsAsJSON = useEvent(() => {
+  const getNotebookJSON = useEvent(() => {
     const notebook = getNotebook();
     const cells = notebookCells(notebook);
-    return JSON.stringify(
-      {
-        filename: filename,
-        cells: cells.map((cell) => {
-          return { name: cell.name, code: cell.code };
-        }),
+    const notbook: Notebook["NotebookV1"] = {
+      version: "1",
+      metadata: {
+        marimo_version: getMarimoVersion(),
       },
-      // no replacer
-      null,
-      // whitespace for indentation
-      2,
-    );
+      cells: cells.map((cell) => {
+        return {
+          id: cell.id,
+          name: cell.name,
+          code: cell.code,
+          code_hash: null,
+          config: {
+            column: 0,
+            ...cell.config,
+          },
+        };
+      }),
+    };
+    return JSON.stringify(notbook, null, 2);
   });
 
   // NB: we use markdown class to have sane styling for list, paragraph
@@ -123,7 +132,8 @@ export const RecoveryButton = (props: {
   const { filename, needsSave } = props;
   const { openModal, closeModal } = useImperativeModal();
 
-  const proposedName = filename === null ? "app" : filename.slice(0, -3);
+  const proposedName =
+    filename === null ? "app" : Paths.basename(filename).split(".")[0];
 
   const openRecoveryModal = () => {
     if (needsSave) {

@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect, useRef } from "react";
-import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 import type { UserConfig } from "../config/config-schema";
 import type { CellConfig } from "../network/types";
+import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 
 export function useAutoSave(opts: {
   codes: string[];

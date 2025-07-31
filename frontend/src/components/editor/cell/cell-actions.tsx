@@ -1,12 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
+
+import { CommandList } from "cmdk";
+import { useAtomValue } from "jotai";
+/* Copyright 2024 Marimo. All rights reserved. */
+import React, {
   Fragment,
   type PropsWithChildren,
   useImperativeHandle,
   useMemo,
   useState,
 } from "react";
-
+import {
+  renderMinimalShortcut,
+  renderShortcut,
+} from "@/components/shortcuts/renderShortcut";
 import {
   Command,
   CommandEmpty,
@@ -26,21 +33,15 @@ import {
   TooltipRoot,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  renderMinimalShortcut,
-  renderShortcut,
-} from "@/components/shortcuts/renderShortcut";
-import React from "react";
+import { useRestoreFocus } from "@/components/ui/use-restore-focus";
+import { cellFocusDetailsAtom } from "@/core/cells/focus";
+import type { CellId } from "@/core/cells/ids";
+import { cn } from "@/utils/cn";
 import {
   type CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
-import { useRestoreFocus } from "@/components/ui/use-restore-focus";
-import { useAtomValue } from "jotai";
-import { cellFocusDetailsAtom } from "@/core/cells/focus";
-import type { CellId } from "@/core/cells/ids";
-import { CommandList } from "cmdk";
-import { cn } from "@/utils/cn";
+
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
   showTooltip?: boolean;

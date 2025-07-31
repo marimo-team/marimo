@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-import { useDropzone } from "react-dropzone";
-import { Upload, MousePointerSquareDashedIcon } from "lucide-react";
 
-import { cn } from "@/utils/cn";
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { filesToBase64 } from "../../utils/fileToBase64";
-import { buttonVariants } from "../../components/ui/button";
-import { renderHTML } from "../core/RenderHTML";
-import { toast } from "@/components/ui/use-toast";
+import { MousePointerSquareDashedIcon, Upload } from "lucide-react";
+import type { JSX } from "react";
+import { useDropzone } from "react-dropzone";
+import { z } from "zod";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/use-toast";
+import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { buttonVariants } from "../../components/ui/button";
+import { filesToBase64 } from "../../utils/fileToBase64";
+import { renderHTML } from "../core/RenderHTML";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 
 type FileUploadType = "button" | "area";
 
@@ -20,12 +21,14 @@ type FileUploadType = "button" | "area";
  * @param filetypes - file types to accept (same as HTML input's accept attr)
  * @param multiple - whether to allow the user to upload multiple files
  * @param label - a label for the file upload area
+ * @param max_size - the maximum size of the file to upload (in bytes)
  */
 interface Data {
   filetypes: string[];
   multiple: boolean;
   kind: FileUploadType;
   label: string | null;
+  max_size: number;
 }
 
 type T = Array<[string, string]>;
@@ -38,6 +41,7 @@ export class FileUploadPlugin implements IPlugin<T, Data> {
     multiple: z.boolean(),
     kind: z.enum(["button", "area"]),
     label: z.string().nullable(),
+    max_size: z.number(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -49,6 +53,7 @@ export class FileUploadPlugin implements IPlugin<T, Data> {
         kind={props.data.kind}
         value={props.value}
         setValue={props.setValue}
+        max_size={props.data.max_size}
       />
     );
   }
@@ -68,7 +73,7 @@ function groupFileTypesByMIMEType(extensions: string[]) {
   const filesByMIMEType: Record<string, string[]> = {};
 
   const appendExt = (mimetype: string, extension: string) => {
-    if (Object.hasOwnProperty.call(filesByMIMEType, mimetype)) {
+    if (Object.hasOwn(filesByMIMEType, mimetype)) {
       filesByMIMEType[mimetype].push(extension);
     } else {
       filesByMIMEType[mimetype] = [extension];
@@ -110,28 +115,16 @@ function groupFileTypesByMIMEType(extensions: string[]) {
   return filesByMIMEType;
 }
 
-// We may want to increase this based on user feedback
-//
-// But rather than forever increasing this, we should consider
-// adding a non-browser file-chooser which allows users to select files from
-// their local filesystem, and we only return the path.
-//
-// By using the browser's file chooser, it is more secure as we don
-// not get access to the uploaded file's path but
-// we are forced to upload the file to browser memory before
-// sending it to the server.
-const MAX_SIZE = 100_000_000; // 100 MB
-
 /* TODO(akshayka): Allow uploading files one-by-one and removing uploaded files
  * when multiple is `True`*/
 export const FileUpload = (props: FileUploadProps): JSX.Element => {
   const acceptGroups = groupFileTypesByMIMEType(props.filetypes);
-  const { setValue, kind, multiple, value } = props;
+  const { setValue, kind, multiple, value, max_size } = props;
   const { getRootProps, getInputProps, isFocused, isDragAccept, isDragReject } =
     useDropzone({
       accept: acceptGroups,
       multiple: multiple,
-      maxSize: MAX_SIZE,
+      maxSize: max_size,
       onError: (error) => {
         Logger.error(error);
         toast({
@@ -192,7 +185,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     const label = props.label ?? "Upload";
     return (
       <TooltipProvider>
-        <div className="flex flex-row items-center justify-start flex-grow gap-2">
+        <div className="flex flex-row items-center justify-start gap-2">
           <button
             data-testid="marimo-plugin-file-upload-button"
             {...getRootProps({})}
@@ -221,6 +214,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
                   "text-xs cursor-pointer text-destructive hover:underline",
                 )}
                 onClick={() => setValue([])}
+                type="button"
               >
                 Click to clear files.
               </button>
@@ -295,6 +289,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
               <button
                 className={cn("text-destructive", "hover:underline")}
                 onClick={() => setValue([])}
+                type="button"
               >
                 Click to clear {multiple ? "files" : "file"}.
               </button>

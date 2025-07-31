@@ -37,6 +37,12 @@ describe("generateDatabaseCode", () => {
     read_only: true,
   };
 
+  const motherduckConnection: DatabaseConnection = {
+    type: "motherduck",
+    database: "my_db",
+    token: "my_token",
+  };
+
   const snowflakeConnection: DatabaseConnection = {
     type: "snowflake",
     account: "account",
@@ -88,24 +94,134 @@ describe("generateDatabaseCode", () => {
     async_support: false,
   };
 
+  const icebergRestConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "REST",
+      uri: "http://localhost:8181",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergSqlConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "SQL",
+      uri: "postgresql://localhost:5432/iceberg",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergHiveConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "Hive",
+      uri: "thrift://localhost:9083",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergGlueConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "Glue",
+      warehouse: "/path/to/warehouse",
+    },
+  };
+
+  const icebergDynamoDBConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "DynamoDB",
+      "dynamodb.profile-name": "my_profile",
+      "dynamodb.region": "us-east-1",
+      "dynamodb.access-key-id": "my_access_key_id",
+      "dynamodb.secret-access-key": "my_secret_access_key",
+      "dynamodb.session-token": "my_session_token",
+    },
+  };
+
+  const datafusionConnection: DatabaseConnection = {
+    type: "datafusion",
+    sessionContext: false,
+  };
+
+  const datafusionConnSession: DatabaseConnection = {
+    type: "datafusion",
+    sessionContext: true,
+  };
+
+  const pysparkConnection: DatabaseConnection = {
+    type: "pyspark",
+  };
+
+  const pysparkConnSession: DatabaseConnection = {
+    type: "pyspark",
+    host: "localhost",
+    port: 15_002,
+  };
+
+  const redshiftDBConnection: DatabaseConnection = {
+    type: "redshift",
+    host: "localhost",
+    port: 5439,
+    database: "test",
+    connectionType: {
+      type: "DB credentials",
+      user: "my_user",
+      password: "my_password",
+    },
+  };
+
+  const redshiftIAMConnection: DatabaseConnection = {
+    type: "redshift",
+    host: "localhost",
+    port: 5439,
+    database: "test",
+    connectionType: {
+      type: "IAM credentials",
+      aws_access_key_id: "my_access_key_id",
+      aws_secret_access_key: "my_secret_access_key",
+      aws_session_token: "my_session_token",
+      region: "ap-southeast-1",
+    },
+  };
+
   describe("basic connections", () => {
-    it.each([
+    const testCases: Array<[string, DatabaseConnection, ConnectionLibrary]> = [
       ["postgres with SQLModel", basePostgres, "sqlmodel"],
       ["postgres with SQLAlchemy", basePostgres, "sqlalchemy"],
       ["mysql with SQLModel", baseMysql, "sqlmodel"],
       ["mysql with SQLAlchemy", baseMysql, "sqlalchemy"],
       ["sqlite", sqliteConnection, "sqlmodel"],
       ["duckdb", duckdbConnection, "duckdb"],
+      ["motherduck", motherduckConnection, "duckdb"],
       ["snowflake", snowflakeConnection, "sqlmodel"],
       ["bigquery", bigqueryConnection, "sqlmodel"],
       ["clickhouse", clickhouseConnection, "clickhouse_connect"],
       ["chdb", chdbConnection, "chdb"],
       ["timeplus", timeplusConnection, "sqlalchemy"],
       ["trino", trinoConnection, "sqlmodel"],
-    ])("%s", (name, connection, orm) => {
-      expect(
-        generateDatabaseCode(connection, orm as ConnectionLibrary),
-      ).toMatchSnapshot();
+      ["iceberg rest", icebergRestConnection, "pyiceberg"],
+      ["iceberg sql", icebergSqlConnection, "pyiceberg"],
+      ["iceberg hive", icebergHiveConnection, "pyiceberg"],
+      ["iceberg glue", icebergGlueConnection, "pyiceberg"],
+      ["iceberg dynamodb", icebergDynamoDBConnection, "pyiceberg"],
+      ["datafusion", datafusionConnection, "ibis"],
+      ["datafusion with session", datafusionConnSession, "ibis"],
+      ["pyspark", pysparkConnection, "ibis"],
+      ["pyspark with session", pysparkConnSession, "ibis"],
+      ["redshift with DB credentials", redshiftDBConnection, "redshift"],
+      ["redshift with IAM credentials", redshiftIAMConnection, "redshift"],
+    ];
+
+    it.each(testCases)("%s", (name, connection, orm) => {
+      expect(generateDatabaseCode(connection, orm)).toMatchSnapshot();
     });
   });
 
@@ -167,6 +283,14 @@ describe("generateDatabaseCode", () => {
           password: prefixSecret("ENV_PASSWORD"),
         },
         "sqlalchemy",
+      ],
+      [
+        "motherduck with token as secret",
+        {
+          ...motherduckConnection,
+          token: prefixSecret("ENV_TOKEN"),
+        },
+        "duckdb",
       ],
     ])("%s", (name, connection, orm) => {
       expect(
@@ -369,6 +493,14 @@ describe("generateDatabaseCode", () => {
           async_support: true,
         },
         "sqlalchemy",
+      ],
+      [
+        "motherduck with special chars in database name",
+        {
+          ...motherduckConnection,
+          database: "test-db.special",
+        },
+        "duckdb",
       ],
     ];
 

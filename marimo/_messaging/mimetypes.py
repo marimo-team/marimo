@@ -13,6 +13,7 @@ KnownMimeType = Literal[
     "application/vnd.marimo+mimebundle",
     "application/vnd.vega.v5+json",
     "application/vnd.vegalite.v5+json",
+    "application/vnd.jupyter.widget-view+json",
     "image/png",
     "image/svg+xml",
     "image/tiff",

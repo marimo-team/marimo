@@ -1,25 +1,40 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo } from "react";
-import { mergeRefs } from "../../../utils/mergeRefs";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, X } from "lucide-react";
-import type { CellColumnId } from "@/utils/id-tree";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  GripHorizontal,
+  MoreHorizontal,
+  PlusIcon,
+  X,
+} from "lucide-react";
+import React, { memo } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useCellActions } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
+import type { CellColumnId } from "@/utils/id-tree";
+import { mergeRefs } from "../../../utils/mergeRefs";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   columnId: CellColumnId;
   canDelete: boolean;
   canMoveLeft: boolean;
   canMoveRight: boolean;
+  footer?: React.ReactNode;
 }
 
 const SortableColumnInternal = React.forwardRef(
   (
-    { columnId, canDelete, canMoveLeft, canMoveRight, ...props }: Props,
+    { columnId, canDelete, canMoveLeft, canMoveRight, footer, ...props }: Props,
     ref: React.Ref<HTMLDivElement>,
   ) => {
     const {
@@ -50,7 +65,7 @@ const SortableColumnInternal = React.forwardRef(
 
     const { deleteColumn, moveColumn, addColumn } = useCellActions();
 
-    const buttonClasses = cn("h-full hover:bg-muted rounded-none");
+    const buttonClasses = "hover:bg-[var(--gray-3)] aspect-square p-0 w-7 h-7";
 
     const handleScrollAppRight = () => {
       const app = document.getElementById("App");
@@ -63,11 +78,11 @@ const SortableColumnInternal = React.forwardRef(
     };
 
     const dragHandle = (
-      <div className="h-6 group flex items-center rounded-t-lg border hover:border-border border-[var(--slate-3)] overflow-hidden bg-[var(--slate-1)]">
+      <div className="px-2 pt-3 pb-0 group flex items-center rounded-t-lg overflow-hidden">
         <Tooltip content="Move column left" side="top" delayDuration={300}>
           <Button
             variant="text"
-            size="sm"
+            size="xs"
             className={buttonClasses}
             onClick={() =>
               moveColumn({ column: columnId, overColumn: "_left_" })
@@ -80,7 +95,7 @@ const SortableColumnInternal = React.forwardRef(
         <Tooltip content="Move column right" side="top" delayDuration={300}>
           <Button
             variant="text"
-            size="sm"
+            size="xs"
             className={buttonClasses}
             onClick={() =>
               moveColumn({ column: columnId, overColumn: "_right_" })
@@ -91,27 +106,33 @@ const SortableColumnInternal = React.forwardRef(
           </Button>
         </Tooltip>
         <div
-          className="flex gap-2 h-full flex-grow active:bg-accent cursor-grab"
+          className="flex gap-2 h-full flex-grow cursor-grab active:cursor-grabbing items-center justify-center"
+          data-testid="column-drag-spacer"
           {...attributes}
           {...listeners}
-          data-testid="column-drag-button"
-        />
-        {canDelete && (
-          <Tooltip content="Delete column" side="top" delayDuration={300}>
-            <Button
-              variant="text"
-              size="sm"
-              className="opacity-0 group-hover:opacity-70 group-hover:hover:opacity-100 text-destructive h-full hover:bg-destructive/20 rounded-none"
-              onClick={() => deleteColumn({ columnId })}
-            >
-              <X className="size-4" />
+        >
+          <GripHorizontal className="size-4 opacity-0 group-hover:opacity-50 transition-opacity duration-200" />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild={true}>
+            <Button variant="text" size="xs" className={buttonClasses}>
+              <MoreHorizontal className="size-4" />
             </Button>
-          </Tooltip>
-        )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() => deleteColumn({ columnId })}
+              disabled={!canDelete}
+            >
+              <X className="mr-2 size-4" />
+              Delete column
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Tooltip content="Add column" side="top" delayDuration={300}>
           <Button
             variant="text"
-            size="sm"
+            size="xs"
             className={buttonClasses}
             onClick={() => {
               addColumn({ columnId });
@@ -140,8 +161,11 @@ const SortableColumnInternal = React.forwardRef(
           isOver && "bg-accent/20", // Add a background color when dragging over
         )}
       >
-        {dragHandle}
-        {props.children}
+        <div className="bg-[var(--slate-1)] rounded-lg">
+          {dragHandle}
+          {props.children}
+        </div>
+        {footer}
       </div>
     );
   },

@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
 
+import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import * as React from "react";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
-import { useDebounceControlledState } from "@/hooks/useDebounce";
-import { useControllableState } from "@radix-ui/react-use-controllable-state";
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {

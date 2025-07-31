@@ -22,6 +22,7 @@ __all__ = [
     "MarimoIslandGenerator",
     "MarimoStopError",
     "Thread",
+    "current_thread",
     # Other namespaces
     "ai",
     "ui",
@@ -46,6 +47,8 @@ __all__ = [
     "icon",
     "iframe",
     "image",
+    "image_compare",
+    "json",
     "latex",
     "lazy",
     "left",
@@ -78,14 +81,14 @@ __all__ = [
     "style",
     "tabs",
     "tree",
-    "json",
     "video",
     "vstack",
+    "watch",
+    "__version__",
 ]
-__version__ = "0.13.0"
-
 import marimo._ai as ai
 import marimo._islands as islands
+import marimo._runtime.watch as watch
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
 from marimo._islands._island_generator import MarimoIslandGenerator
@@ -105,6 +108,7 @@ from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.image_compare import image_compare
 from marimo._plugins.stateless.json_component import json
 from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid
@@ -137,7 +141,8 @@ from marimo._runtime.runtime import (
     refs,
 )
 from marimo._runtime.state import state
-from marimo._runtime.threads import Thread
+from marimo._runtime.threads import Thread, current_thread
 from marimo._save.save import cache, lru_cache, persistent_cache
 from marimo._server.asgi import create_asgi_app
 from marimo._sql.sql import sql
+from marimo._version import __version__

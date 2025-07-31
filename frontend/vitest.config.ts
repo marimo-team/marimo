@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { defineConfig } from "vitest/config";
+
+import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -10,6 +12,7 @@ export default defineConfig({
     sequence: {
       hooks: "parallel", // Maintain parallel hook execution from Vitest 1.x
     },
+    watch: false,
   },
-  plugins: [tsconfigPaths()],
+  plugins: [tsconfigPaths(), react()],
 });
