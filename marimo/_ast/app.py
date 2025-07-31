@@ -111,17 +111,17 @@ class _SetupContext:
 
     def __init__(
         self,
-        app: Optional[App] = None,
-        cell: Optional[Cell] = None,
-        hide_code: bool = False,
+        cell: Cell,
+        app: App,
+        hide_code: bool,
     ):
         super().__init__()
         self._app = app
         self._cell = cell
+        self._hide_code = hide_code
         self._glbls: dict[str, Any] = {}
         self._frame: Optional[FrameType] = None
         self._previous: dict[str, Any] = {}
-        self._hide_code = hide_code
 
     def __enter__(self) -> None:
         if maybe_frame := inspect.currentframe():
@@ -172,11 +172,6 @@ class _SetupContext:
         **kwargs: Any,  # noqa: ARG002
     ) -> _SetupContext:
         """When called with parameters, create a new context with those parameters."""
-        if self._app is None:
-            raise RuntimeError(
-                "Cannot call setup() on an uninitialized context"
-            )
-
         cell = self._app._cell_manager.cell_context(
             app=InternalApp(self._app),
             frame=inspect.stack()[1].frame,
