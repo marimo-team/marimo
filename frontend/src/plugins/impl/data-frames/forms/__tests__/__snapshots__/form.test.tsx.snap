@@ -36,10 +36,14 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
             data-state="closed"
             type="button"
           >
-            Select columns 
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select columns
+            </span>
             <svg
               aria-hidden="true"
-              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
               fill="none"
               height="24"
               stroke="currentColor"
@@ -87,10 +91,14 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
             data-state="closed"
             type="button"
           >
-            Select aggregations 
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select aggregations
+            </span>
             <svg
               aria-hidden="true"
-              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
               fill="none"
               height="24"
               stroke="currentColor"
@@ -400,10 +408,14 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
             data-state="closed"
             type="button"
           >
-            Select columns 
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select columns
+            </span>
             <svg
               aria-hidden="true"
-              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
               fill="none"
               height="24"
               stroke="currentColor"
@@ -591,10 +603,14 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
             data-state="closed"
             type="button"
           >
-            Select columns 
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select columns
+            </span>
             <svg
               aria-hidden="true"
-              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
               fill="none"
               height="24"
               stroke="currentColor"
@@ -1007,10 +1023,14 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
             data-state="closed"
             type="button"
           >
-            Select columns 
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select columns
+            </span>
             <svg
               aria-hidden="true"
-              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
               fill="none"
               height="24"
               stroke="currentColor"
@@ -1286,10 +1306,14 @@ exports[`renderZodSchema > should render a form unique 1`] = `
             data-state="closed"
             type="button"
           >
-            Select columns 
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select columns
+            </span>
             <svg
               aria-hidden="true"
-              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
               fill="none"
               height="24"
               stroke="currentColor"
@@ -1441,10 +1465,14 @@ exports[`renders custom forms column_id_array 1`] = `
         data-state="closed"
         type="button"
       >
-        Select columns 
+        <span
+          class="truncate flex-1 min-w-0"
+        >
+          Select columns
+        </span>
         <svg
           aria-hidden="true"
-          class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+          class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
           fill="none"
           height="24"
           stroke="currentColor"
@@ -1487,10 +1515,14 @@ exports[`renders custom forms column_id_dot_array 1`] = `
         data-state="closed"
         type="button"
       >
-        -- 
+        <span
+          class="truncate flex-1 min-w-0"
+        >
+          --
+        </span>
         <svg
           aria-hidden="true"
-          class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+          class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 flex-shrink-0"
           fill="none"
           height="24"
           stroke="currentColor"
