@@ -64,7 +64,7 @@ class AppKernelRunner:
             else:
                 self.outputs[cell.cell_id] = run_result.output
 
-        filename = "<unknown>"
+        filename = app.filename if app.filename is not None else "<unknown>"
         self._kernel = Kernel(
             cell_configs={},
             app_metadata=AppMetadata(
