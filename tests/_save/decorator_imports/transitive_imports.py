@@ -4,10 +4,10 @@ __generated_with = "0.14.15"
 app = marimo.App(width="medium")
 
 with app.setup:
-    import marimo as mo
     import math
-    import tests._save.decorator_imports.module_1 as my_module
 
+    import marimo as mo
+    import tests._save.decorator_imports.module_1 as my_module
 
 
 @app.function
@@ -26,6 +26,7 @@ def doesnt_have_import():
 @mo.cache(pin_modules=True)
 def doesnt_have_namespace_pinned() -> None:
     return my_module.__version__
+
 
 @app.function
 @mo.cache
