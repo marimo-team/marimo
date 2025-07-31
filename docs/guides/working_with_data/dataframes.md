@@ -43,9 +43,9 @@ df
 /// tab | polars
 
 ```python
-import pandas as pd
+import pandas as pl
 
-df = pd.read_json(
+df = pl.read_json(
 "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
 df
@@ -152,28 +152,6 @@ transformed_df
 transformed_df.value
 ```
 
-///
-
-/// tab | polars
-
-```python
-# Cell 1
-import marimo as mo
-import polars as pl
-
-df = pl.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
-transformed_df = mo.ui.dataframe(df)
-transformed_df
-```
-
-```python
-# Cell 2
-# transformed_df.value holds the transformed dataframe
-transformed_df.value
-```
-
-///
-
 /// marimo-embed
     size: large
 
@@ -196,6 +174,50 @@ def __():
 
 ///
 
+///
+
+
+/// tab | polars
+
+```python
+# Cell 1
+import marimo as mo
+import polars as pl
+
+df = pl.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+transformed_df = mo.ui.dataframe(df)
+transformed_df
+```
+
+```python
+# Cell 2
+# transformed_df.value holds the transformed dataframe
+transformed_df.value
+```
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import pandas as pl
+
+    df = pl.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+    transformed_df = mo.ui.dataframe(df)
+    transformed_df
+    return
+
+@app.cell
+def __():
+    transformed_df.value
+
+    return
+```
+
+///
+
+///
 
 
 ### Custom filters
