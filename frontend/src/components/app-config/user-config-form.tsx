@@ -486,6 +486,49 @@ export const UserConfigForm: React.FC = () => {
               />
               <FormField
                 control={form.control}
+                name="language_servers.basedpyright.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        basedpyright (
+                        <ExternalLink href="https://github.com/DetachHead/basedpyright">
+                          docs
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="basedpyright-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.basedpyright.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.basedpyright && (
+                      <Banner kind="danger">
+                        basedpyright is not available in your current
+                        environment. Please install{" "}
+                        <Kbd className="inline">basedpyright</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="language_servers.ty.enabled"
                 render={({ field }) => (
                   <div className="flex flex-col gap-1">

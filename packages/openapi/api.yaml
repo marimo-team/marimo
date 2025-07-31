@@ -1280,6 +1280,8 @@ components:
           type: object
         capabilities:
           properties:
+            basedpyright:
+              type: boolean
             pylsp:
               type: boolean
             terminal:
@@ -1290,6 +1292,7 @@ components:
           - terminal
           - pylsp
           - ty
+          - basedpyright
           type: object
         cell_ids:
           items:
@@ -1638,6 +1641,11 @@ components:
           type: object
         language_servers:
           properties:
+            basedpyright:
+              properties:
+                enabled:
+                  type: boolean
+              type: object
             pylsp:
               properties:
                 enable_flake8:
@@ -2741,7 +2749,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.13
+  version: 0.14.15
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

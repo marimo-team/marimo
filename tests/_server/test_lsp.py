@@ -149,9 +149,13 @@ def test_composite_server():
     with mock.patch("marimo._server.lsp.DependencyManager") as mock_dm:
         mock_dm.pylsp = mock.MagicMock()
         mock_dm.pylsp.has.return_value = True
-        total_lsp_servers = 3
+        total_lsp_servers = 4
         config = LanguageServersConfig(
-            {"pylsp": {"enabled": True}, "ty": {"enabled": True}}
+            {
+                "pylsp": {"enabled": True},
+                "ty": {"enabled": True},
+                "basedpyright": {"enabled": True},
+            }
         )
         completion_config = CompletionConfig(
             {"copilot": True, "activate_on_typing": True}
@@ -164,6 +168,7 @@ def test_composite_server():
         assert server._is_enabled("pylsp") is True
         assert server._is_enabled("copilot") is True
         assert server._is_enabled("ty") is True
+        assert server._is_enabled("basedpyright") is True
 
         # Test with only pylsp
         config = LanguageServersConfig({"pylsp": {"enabled": True}})
@@ -179,7 +184,11 @@ def test_composite_server():
 
         # Test with only ty enabled
         config = LanguageServersConfig(
-            {"ty": {"enabled": True}, "pylsp": {"enabled": False}}
+            {
+                "ty": {"enabled": True},
+                "pylsp": {"enabled": False},
+                "basedpyright": {"enabled": False},
+            }
         )
         completion_config = CompletionConfig(
             {"copilot": False, "activate_on_typing": True}
@@ -188,8 +197,28 @@ def test_composite_server():
         server = CompositeLspServer(config_reader, min_port=8000)
         assert len(server.servers) == total_lsp_servers
         assert server._is_enabled("pylsp") is False
+        assert server._is_enabled("basedpyright") is False
         assert server._is_enabled("copilot") is False
         assert server._is_enabled("ty") is True
+
+        # Test with only basedpyright enabled
+        config = LanguageServersConfig(
+            {
+                "basedpyright": {"enabled": True},
+                "pylsp": {"enabled": False},
+                "ty": {"enabled": False},
+            }
+        )
+        completion_config = CompletionConfig(
+            {"copilot": False, "activate_on_typing": True}
+        )
+        config_reader = as_reader(completion_config, config)
+        server = CompositeLspServer(config_reader, min_port=8000)
+        assert len(server.servers) == total_lsp_servers
+        assert server._is_enabled("pylsp") is False
+        assert server._is_enabled("basedpyright") is True
+        assert server._is_enabled("copilot") is False
+        assert server._is_enabled("ty") is False
 
         # Test with nothing enabled
         config = LanguageServersConfig({"pylsp": {"enabled": False}})

@@ -12,7 +12,9 @@ import { getRuntimeManager } from "../../runtime/config";
  * @param serverName - The name of the LSP server.
  * @returns The transport.
  */
-export function createTransport(serverName: "pylsp" | "copilot" | "ty") {
+export function createTransport(
+  serverName: "pylsp" | "basedpyright" | "copilot" | "ty",
+) {
   const runtimeManager = getRuntimeManager();
   const transport = new WebSocketTransport(
     runtimeManager.getLSPURL(serverName).toString(),

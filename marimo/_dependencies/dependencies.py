@@ -222,6 +222,7 @@ class DependencyManager:
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
     pylsp = Dependency("pylsp")
+    basedpyright = Dependency("basedpyright")
     ty = Dependency("ty")
     pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
