@@ -47,6 +47,7 @@ export const TableColumnSummary = <TData, TValue>({
             spec={spec}
             width={70}
             height={30}
+            renderer="svg"
             // @ts-expect-error - Our `loader.load` method is broader than VegaLite's typings but is functionally supported.
             loader={batchedLoader}
             style={{ minWidth: "unset", maxHeight: "40px" }}

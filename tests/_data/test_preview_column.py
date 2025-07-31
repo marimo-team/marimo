@@ -493,3 +493,23 @@ def test_sanitize_dtypes() -> None:
 
     result = _sanitize_dtypes(nw_df, "int128_col")
     assert result.schema["int128_col"] == nw.Int64
+
+
+@pytest.mark.skipif(
+    not DependencyManager.narwhals.has(), reason="narwhals not installed"
+)
+@pytest.mark.xfail(reason="Sanitizing is failing")  # TODO: Fix this
+def test_sanitize_dtypes_enum() -> None:
+    import narwhals as nw
+    import polars as pl
+
+    df = pl.DataFrame(
+        {
+            "enum_col": ["A", "B", "A"],
+        },
+        schema={"enum_col": pl.Enum(["A", "B"])},
+    )
+    nw_df = nw.from_native(df)
+
+    result = _sanitize_dtypes(nw_df, "enum_col")
+    assert result.schema["enum_col"] == nw.String
