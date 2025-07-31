@@ -336,7 +336,7 @@ def _sanitize_dtypes(
     """Sanitize dtypes for vegafusion"""
     try:
         dtype = column_data.schema[column_name]
-        if dtype == nw.Categorical:
+        if dtype == nw.Categorical or dtype == nw.Enum:
             column_data = column_data.with_columns(
                 nw.col(column_name).cast(nw.String)
             )
