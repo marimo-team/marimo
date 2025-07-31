@@ -7,6 +7,7 @@ import DataEditor, {
   type GridCell,
   GridCellKind,
   type GridColumn,
+  GridColumnIcon,
   type GridKeyEventArgs,
   type GridSelection,
   type Item,
@@ -188,11 +189,18 @@ export const GlideDataEditor = <T,>({
   const columns: ModifiedGridColumn[] = useMemo(() => {
     const columns: ModifiedGridColumn[] = [];
     for (const [columnName, fieldType] of Object.entries(columnFields)) {
+      const editable =
+        editableColumns === "all" || editableColumns.includes(columnName);
+
       columns.push({
         id: columnName,
         title: columnName,
         width: columnWidths[columnName], // Enables resizing
         icon: getColumnHeaderIcon(fieldType),
+        overlayIcon: editable
+          ? undefined
+          : GridColumnIcon.ProtectedColumnOverlay, // Lock icon
+        style: "normal",
         kind: getColumnKind(fieldType),
         dataType: fieldType,
         hasMenu: true,
@@ -200,7 +208,7 @@ export const GlideDataEditor = <T,>({
     }
 
     return columns;
-  }, [columnFields, columnWidths]);
+  }, [columnFields, columnWidths, editableColumns]);
 
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
@@ -608,6 +616,7 @@ export const GlideDataEditor = <T,>({
           rowMarkers={{
             kind: "both",
           }}
+          // highlightRegions={highlightedRegions}
           rowSelectionMode={"multi"}
           onCellEdited={onCellEdited}
           onColumnResize={onColumnResize}
