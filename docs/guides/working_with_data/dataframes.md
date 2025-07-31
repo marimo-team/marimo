@@ -43,7 +43,7 @@ df
 /// tab | polars
 
 ```python
-import pandas as pl
+import polars as pl
 
 df = pl.read_json(
 "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
@@ -201,7 +201,7 @@ transformed_df.value
 ```python
 @app.cell
 def __():
-    import pandas as pl
+    import polars as pl
 
     df = pl.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
     transformed_df = mo.ui.dataframe(df)
