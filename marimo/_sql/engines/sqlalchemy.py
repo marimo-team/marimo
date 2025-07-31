@@ -74,18 +74,20 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             if rows is None:
                 return None
 
+            column_names = list(result.keys())
+
             if sql_output_format == "polars":
                 import polars as pl
 
-                return pl.DataFrame(rows)  # type: ignore
+                return pl.DataFrame(rows, schema=column_names)  # type: ignore
             if sql_output_format == "lazy-polars":
                 import polars as pl
 
-                return pl.DataFrame(rows).lazy()  # type: ignore
+                return pl.DataFrame(rows, schema=column_names).lazy()  # type: ignore
             if sql_output_format == "pandas":
                 import pandas as pd
 
-                return pd.DataFrame(rows)
+                return pd.DataFrame(rows, columns=column_names)
 
             # Auto
 
@@ -93,7 +95,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 import polars as pl
 
                 try:
-                    return pl.DataFrame(rows)  # type: ignore
+                    return pl.DataFrame(rows, schema=column_names)  # type: ignore
                 except (
                     pl.exceptions.PanicException,
                     pl.exceptions.ComputeError,
@@ -105,7 +107,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 import pandas as pd
 
                 try:
-                    return pd.DataFrame(rows)
+                    return pd.DataFrame(rows, columns=column_names)
                 except Exception as e:
                     LOGGER.warning("Failed to convert dataframe", exc_info=e)
                     return None
