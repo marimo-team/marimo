@@ -116,6 +116,9 @@ This approach:
 - Shares dependencies between notebooks and your project
 - Follows standard Python project practices
 
+!!! note "Importing from other directories"
+    If your notebooks need to import modules from directories outside your project, marimo supports configuring the Python path via `pyproject.toml`. However, when possible, it's preferred to avoid path manipulation. We recommend creating a package (`uv init --lib`) and including marimo as a development dependency. For multiple packages, consider configuring [uv workspaces](https://docs.astral.sh/uv/concepts/workspaces/). See the [runtime configuration guide](../configuration/runtime_configuration.md#python-path) for details.
+
 ## Examples
 
 ### Library with example notebooks
