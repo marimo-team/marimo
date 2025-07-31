@@ -209,7 +209,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
               () => columnValue,
               () => columnValue,
               undefined,
-              "text-left break-all",
+              "text-left break-word",
             );
 
             const copyValue =
