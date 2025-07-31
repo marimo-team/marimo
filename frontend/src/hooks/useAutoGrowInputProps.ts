@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type React from "react";
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { useOnMount } from "./useLifecycle";
 
 export function useAutoGrowInputProps(opts: {
@@ -31,7 +31,7 @@ export function useAutoGrowInputProps(opts: {
   });
 
   const inputProps: React.InputHTMLAttributes<HTMLInputElement> & {
-    ref: React.RefObject<HTMLInputElement>;
+    ref: React.RefObject<HTMLInputElement | null>;
   } = {
     ref: inputRef,
     type: "text",
@@ -42,7 +42,7 @@ export function useAutoGrowInputProps(opts: {
   };
 
   const spanProps: React.HTMLAttributes<HTMLSpanElement> & {
-    ref: React.RefObject<HTMLSpanElement>;
+    ref: React.RefObject<HTMLSpanElement | null>;
   } = {
     ref: spanRef,
     style: {

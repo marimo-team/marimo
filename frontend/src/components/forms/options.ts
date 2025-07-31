@@ -26,7 +26,8 @@ export interface FieldOptions {
     | "column_values"
     | "date"
     | "datetime"
-    | "time";
+    | "time"
+    | "tabs";
   /**
    * Only show options that match the regex
    */

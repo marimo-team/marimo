@@ -1,8 +1,6 @@
 import marimo
 
-__generated_with = '0.1.0'
 app = marimo.App()
-
 
 # We want a wrapper as a proof of concept. Note, that this will not serialize
 # in this form.
@@ -28,7 +26,3 @@ def fn(a,
 @app.cell
 def wrapped():
     return
-
-
-if __name__ == "__main__":
-    app.run()

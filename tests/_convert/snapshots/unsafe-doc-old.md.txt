@@ -1,0 +1,88 @@
+---
+title: Casually malicious md
+marimo-version: 0.0.0
+---
+
+What happens if I just leave a \"\"\"
+" ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \ /
+
+# Notebook
+<!--
+\
+
+```python {.marimo}
+print("Hello, World!")
+```
+
+````python {.marimo hide_code="true"}
+mo.md(
+    r"""
+    -->
+
+    ```marimo run convert document.md```
+    """
+)
+````
+
+```python {.marimo unparsable="true"}
+it's an unparsable cell
+```
+
+````python {.marimo hide_code="true"}
+mo.md(
+    r"""
+    <!-- Actually markdown -->
+    ```{python} `
+      print("Hello, World!")
+
+    <!-- Disabled code block -->
+    """
+)
+````
+
+```python {.marimo disabled="true"}
+1 + 1
+```
+
+<!-- Hidden code block -->
+
+```python {.marimo hide_code="true"}
+1 + 1
+```
+
+<!-- Empty code block -->
+
+```python {.marimo}
+
+```
+
+<!-- Improperly nested code block -->
+
+````python {.marimo unparsable="true"}
+"""
+```{python}
+print("Hello, World!")
+````
+
+\"\"\"
+```
+
+<!-- Improperly nested code block -->
+```{python}
+````{python}
+print("Hello, World!")
+````
+```
+
+-->
+
+<!-- from the notebook, should remain unchanged -->
+
+````python {.marimo}
+mo.md("""
+  This is a markdown cell with an execution block in it
+  ```{python}
+  # To ambiguous to convert
+  ```
+  """)
+````

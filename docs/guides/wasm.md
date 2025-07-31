@@ -138,6 +138,15 @@ amount of data, and also lets you sync notebooks (and their data) from GitHub.
 While WASM notebooks let you share marimo notebooks seamlessly, they have some
 limitations.
 
+**Packages.** Many but not all packages are supported. All packages with pure
+Python wheels on PyPI are supported, as well as additional packages like NumPy,
+SciPy, scikit-learn, duckdb, polars, and more. For a full list of supported
+packages, see [Pyodide's documentation on supported
+packages.](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
+
+If you want a package to be supported, consider [filing an
+issue](https://github.com/pyodide/pyodide/issues/new?assignees=&labels=new+package+request&projects=&template=package_request.md&title=).
+
 **PDB.** PDB is not currently supported.
 
 **Threading and multi-processing.** WASM notebooks do not support multithreading

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { StoryFn, Meta } from "@storybook/react";
-import { Button, Input } from "../components/editor/inputs/Inputs";
+import type { Meta, StoryFn } from "@storybook/react-vite";
 import { PlayIcon } from "lucide-react";
+import { Button, Input } from "../components/editor/inputs/Inputs";
 
 export default {
   title: "Editor Inputs",

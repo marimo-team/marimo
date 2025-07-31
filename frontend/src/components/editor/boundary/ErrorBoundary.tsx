@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PropsWithChildren } from "react";
 import {
-  ErrorBoundary as ReactErrorBoundary,
   type FallbackProps,
+  ErrorBoundary as ReactErrorBoundary,
 } from "react-error-boundary";
-import { Button } from "../../ui/button";
 import { Constants } from "@/core/constants";
+import { Button } from "../../ui/button";
 
 export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
   return (

@@ -1,20 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { CalendarIcon } from "lucide-react";
+import { useState } from "react";
 import {
+  Button as AriaButton,
   DatePicker as AriaDatePicker,
   type DatePickerProps as AriaDatePickerProps,
   DateRangePicker as AriaDateRangePicker,
-  Dialog as AriaDialog,
-  Button as AriaButton,
   type DateRangePickerProps as AriaDateRangePickerProps,
   type DateValue as AriaDateValue,
+  Dialog as AriaDialog,
   type DialogProps as AriaDialogProps,
   type PopoverProps as AriaPopoverProps,
   type ValidationResult as AriaValidationResult,
   composeRenderProps,
   Text,
 } from "react-aria-components";
-
+import { cn } from "@/utils/cn";
+import { Popover } from "./aria-popover";
 import { buttonVariants } from "./button";
 import {
   Calendar,
@@ -26,11 +28,8 @@ import {
   CalendarHeading,
   RangeCalendar,
 } from "./calendar";
-import { cn } from "@/utils/cn";
-import { FieldGroup, FieldError, Label } from "./field";
 import { DateInput } from "./date-input";
-import { Popover } from "./aria-popover";
-import { useState } from "react";
+import { FieldError, FieldGroup, Label } from "./field";
 
 const DatePickerContent = ({
   className,

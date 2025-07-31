@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 from marimo._save.stores import Store
-
-if TYPE_CHECKING:
-    from marimo._save.cache import Cache
-    from marimo._save.hash import HashKey
-    from marimo._save.loaders import Loader
 
 
 class MockStore(Store):
@@ -15,11 +10,12 @@ class MockStore(Store):
         super().__init__()
         self._cache: dict[str, Any] = {}
 
-    def get(self, key: HashKey, _loader: Loader) -> Optional[bytes]:
-        return self._cache.get(key.hash, None)
+    def get(self, key: str) -> Optional[bytes]:
+        return self._cache.get(key, None)
 
-    def put(self, cache: Cache, _loader: Loader) -> None:
-        self._cache[cache.key.hash] = cache
+    def put(self, key: str, value: bytes) -> bool:
+        self._cache[key] = value
+        return True
 
-    def hit(self, key: HashKey, _loader: Loader) -> bool:
+    def hit(self, key: str) -> bool:
         return key in self._cache

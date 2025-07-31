@@ -6,6 +6,9 @@ from __future__ import annotations
 # on PyPI
 def module_name_to_pypi_name() -> dict[str, str]:
     return {
+        "lilypad": "lilypad-sdk",
+        "fasthtml": "python-fasthtml",
+        "hulearn": "human-learn",
         "agents": "openai-agents",
         "whisper": "openai-whisper",
         "cv2": "opencv-python",
@@ -687,6 +690,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "skbio": "scikit-bio",
         "skimage": "scikit-image",
         "sklearn": "scikit-learn",
+        "sklego": "scikit-lego",
         "skvideo": "scikit-video",
         "slack": "slackclient",
         "slugify": "unicode-slugify",

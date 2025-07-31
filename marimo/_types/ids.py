@@ -14,3 +14,6 @@ ConsumerId = NewType("ConsumerId", str)
 VariableName = NewType("VariableName", str)
 
 RequestId = NewType("RequestId", str)
+
+# AnyWidget model id
+WidgetModelId = NewType("WidgetModelId", str)

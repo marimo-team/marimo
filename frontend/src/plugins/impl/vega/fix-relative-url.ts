@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { asURL } from "@/utils/url";
+import { asRemoteURL } from "@/core/runtime/config";
 import type { VegaLiteSpec } from "./types";
 
 /**
@@ -9,7 +9,7 @@ import type { VegaLiteSpec } from "./types";
  */
 export function fixRelativeUrl(spec: VegaLiteSpec) {
   if (spec.data && "url" in spec.data) {
-    spec.data.url = asURL(spec.data.url).href;
+    spec.data.url = asRemoteURL(spec.data.url).href;
   }
   return spec;
 }

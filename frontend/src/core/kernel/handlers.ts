@@ -1,23 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { deserializeLayout } from "@/components/editor/renderers/plugins";
+import type { LayoutType } from "@/components/editor/renderers/types";
 import { Objects } from "@/utils/objects";
+import type { CellId, UIElementId } from "../cells/ids";
+import { type CellData, createCell } from "../cells/types";
+import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import {
+  initialLayoutState,
   type LayoutData,
   type LayoutState,
-  initialLayoutState,
 } from "../layout/layout";
 import { sendInstantiate } from "../network/requests";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type {
   Capabilities,
   CellMessage,
   OperationMessageData,
 } from "./messages";
-import type { LayoutType } from "@/components/editor/renderers/types";
-import { AppConfigSchema, type AppConfig } from "../config/config-schema";
-import { type CellData, createCell } from "../cells/types";
-import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import type { CellId, UIElementId } from "../cells/ids";
 
 export function handleKernelReady(
   data: OperationMessageData<"kernel-ready">,
@@ -84,7 +84,11 @@ export function handleKernelReady(
   const layoutState = initialLayoutState();
   if (layout) {
     const layoutType = layout.type as LayoutType;
-    const layoutData = deserializeLayout(layoutType, layout.data, cells);
+    const layoutData = deserializeLayout({
+      type: layoutType,
+      data: layout.data,
+      cells,
+    });
     layoutState.selectedLayout = layoutType;
     layoutState.layoutData[layoutType] = layoutData;
     setLayoutData({ layoutView: layoutType, data: layoutData });

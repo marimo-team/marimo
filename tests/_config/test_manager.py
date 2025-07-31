@@ -272,6 +272,7 @@ def test_marimo_config_reader_properties() -> None:
 
     manager = get_default_config_manager(current_path=None)
     assert manager.default_width is not None
+    assert manager.default_sql_output is not None
     assert manager.theme is not None
     assert manager.package_manager is not None
 

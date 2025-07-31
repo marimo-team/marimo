@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { exportedForTesting } from "../extension";
+
 import { EditorView } from "@codemirror/view";
-import type { CopilotGetCompletionsResult } from "../types";
+import { describe, expect, it } from "vitest";
+import type { InlineCompletionList } from "vscode-languageserver-protocol";
+import { exportedForTesting } from "../extension";
 
 const { getCopilotRequest, getSuggestion } = exportedForTesting;
 
@@ -18,8 +19,7 @@ describe("getCopilotRequest", () => {
     const allCode = state.doc.toString();
     const result = getCopilotRequest(state, allCode);
 
-    expect(result.doc.source).toMatchInlineSnapshot(`""`);
-    expect(result.doc.position).toMatchInlineSnapshot(`
+    expect(result.position).toMatchInlineSnapshot(`
       {
         "character": 0,
         "line": 0,
@@ -36,11 +36,7 @@ describe("getCopilotRequest", () => {
     const allCode = state.doc.toString();
     const result = getCopilotRequest(state, allCode);
 
-    expect(result.doc.source).toMatchInlineSnapshot(`
-      "x = 1
-      y ="
-    `);
-    expect(result.doc.position).toMatchInlineSnapshot(`
+    expect(result.position).toMatchInlineSnapshot(`
       {
         "character": 0,
         "line": 0,
@@ -61,11 +57,7 @@ describe("getCopilotRequest", () => {
     const allCode = state.doc.toString();
     const result = getCopilotRequest(state, allCode);
 
-    expect(result.doc.source).toMatchInlineSnapshot(`
-      "x = 1
-      y ="
-    `);
-    expect(result.doc.position).toMatchInlineSnapshot(`
+    expect(result.position).toMatchInlineSnapshot(`
       {
         "character": 3,
         "line": 1,
@@ -82,13 +74,7 @@ describe("getCopilotRequest", () => {
     const allCode = `${OTHER_CODE}\n${state.doc.toString()}`;
     const result = getCopilotRequest(state, allCode);
 
-    expect(result.doc.source).toMatchInlineSnapshot(`
-      "import numpy as np
-      import pandas as pd
-      x = 1
-      y ="
-    `);
-    expect(result.doc.position).toMatchInlineSnapshot(`
+    expect(result.position).toMatchInlineSnapshot(`
       {
         "character": 0,
         "line": 2,
@@ -109,13 +95,11 @@ describe("getCopilotRequest", () => {
     const allCode = `${OTHER_CODE}\n${state.doc.toString()}`;
     const result = getCopilotRequest(state, allCode);
 
-    expect(result.doc.source).toMatchInlineSnapshot(`
-      "import numpy as np
-      import pandas as pd
-      x = 1
+    expect(state.doc.toString()).toMatchInlineSnapshot(`
+      "x = 1
       y ="
     `);
-    expect(result.doc.position).toMatchInlineSnapshot(`
+    expect(result.position).toMatchInlineSnapshot(`
       {
         "character": 3,
         "line": 3,
@@ -130,7 +114,7 @@ describe("getSuggestion", () => {
       doc: "mo",
       extensions: [],
     });
-    const response = { completions: [] };
+    const response: InlineCompletionList = { items: [] };
     const position = { line: 0, character: 0 };
 
     const result = getSuggestion(response, position, view.state);
@@ -143,14 +127,17 @@ describe("getSuggestion", () => {
       doc: "mo",
       extensions: [],
     });
-    const response = {
-      completions: [
+    const response: InlineCompletionList = {
+      items: [
         {
-          displayText: "mo.ui.table(",
-          position: { line: 0, character: 0 },
+          insertText: "mo.ui.table(",
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
+          },
         },
       ],
-    } as CopilotGetCompletionsResult;
+    };
 
     // We are 2 characters into the line
     const position = { line: 0, character: 0 };
@@ -164,14 +151,17 @@ describe("getSuggestion", () => {
       doc: "mo",
       extensions: [],
     });
-    const response = {
-      completions: [
+    const response: InlineCompletionList = {
+      items: [
         {
-          displayText: ".ui.table(",
-          position: { line: 0, character: 2 },
+          insertText: ".ui.table(",
+          range: {
+            start: { line: 0, character: 2 },
+            end: { line: 0, character: 2 },
+          },
         },
       ],
-    } as CopilotGetCompletionsResult;
+    };
 
     // We are 2 characters into the line
     const position = { line: 0, character: 2 };
@@ -180,19 +170,22 @@ describe("getSuggestion", () => {
     expect(result).toBe(".ui.table(");
   });
 
-  it("should trim the beginning of displayText when startOffset is negative", () => {
+  it("should trim the beginning of insertText when startOffset is negative", () => {
     const view = new EditorView({
       doc: "mo",
       extensions: [],
     });
-    const response = {
-      completions: [
+    const response: InlineCompletionList = {
+      items: [
         {
-          displayText: "mo.ui.table(",
-          position: { line: 0, character: 0 },
+          insertText: "mo.ui.table(",
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
+          },
         },
       ],
-    } as CopilotGetCompletionsResult;
+    };
 
     // We are 2 characters into the line
     const position = { line: 0, character: 2 };
@@ -201,7 +194,7 @@ describe("getSuggestion", () => {
     expect(result).toBe(".ui.table(");
   });
 
-  it("should trim end of displayText when it matches the next characters - on the same line", () => {
+  it("should trim end of insertText when it matches the next characters - on the same line", () => {
     const view = new EditorView({
       doc: "print('hello') # comment",
       // Cursor ------- ^
@@ -211,14 +204,17 @@ describe("getSuggestion", () => {
     view.dispatch({
       selection: { anchor: 12 },
     });
-    const response = {
-      completions: [
+    const response: InlineCompletionList = {
+      items: [
         {
-          displayText: " world')",
-          position: { line: 0, character: 12 },
+          insertText: " world')",
+          range: {
+            start: { line: 0, character: 12 },
+            end: { line: 0, character: 12 },
+          },
         },
       ],
-    } as CopilotGetCompletionsResult;
+    };
 
     // We are 2 characters into the line
     const position = { line: 0, character: 12 };
@@ -228,7 +224,7 @@ describe("getSuggestion", () => {
     expect(result).toBe(" world");
   });
 
-  it("should trim end of displayText when it matches the next characters - on the next line", () => {
+  it("should trim end of insertText when it matches the next characters - on the next line", () => {
     const view = new EditorView({
       doc: `mo.md("""\nhello\n""")`,
       // Cursor ----------- ^
@@ -242,14 +238,17 @@ describe("getSuggestion", () => {
     const textUpToCursor = view.state.doc.sliceString(0, 15);
     expect(textUpToCursor).toBe(`mo.md("""\nhello`);
 
-    const response = {
-      completions: [
+    const response: InlineCompletionList = {
+      items: [
         {
-          displayText: `hello world\n""")`,
-          position: { line: 1, character: 0 },
+          insertText: `hello world\n""")`,
+          range: {
+            start: { line: 1, character: 0 },
+            end: { line: 1, character: 0 },
+          },
         },
       ],
-    } as CopilotGetCompletionsResult;
+    };
 
     // We are 5 characters into the line (past the hello)
     const position = { line: 1, character: 5 };

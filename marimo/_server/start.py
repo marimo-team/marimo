@@ -15,6 +15,7 @@ from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
+from marimo._server.registry import LIFESPAN_REGISTRY
 from marimo._server.sessions import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import (
@@ -24,6 +25,7 @@ from marimo._server.utils import (
 )
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._tracer import LOGGER
+from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
@@ -86,6 +88,8 @@ def start(
     allow_origins: Optional[tuple[str, ...]] = None,
     auth_token: Optional[AuthToken],
     redirect_console_to_browser: bool,
+    skew_protection: bool,
+    remote_url: Optional[str] = None,
 ) -> None:
     """
     Start the server.
@@ -93,7 +97,7 @@ def start(
 
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
-    port = port or find_free_port(DEFAULT_PORT)
+    port = port or find_free_port(DEFAULT_PORT, addr=host)
 
     # This is the path that will be used to read the project configuration
     start_path: Optional[str] = None
@@ -161,13 +165,15 @@ def start(
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
-        lifespan=lifespans.Lifespans(
+        lifespan=Lifespans(
             [
                 lifespans.lsp,
+                lifespans.mcp,
                 lifespans.etc,
                 lifespans.signal_handler,
                 lifespans.logging,
                 lifespans.open_browser,
+                *LIFESPAN_REGISTRY.get_all(),
             ]
         ),
         allow_origins=allow_origins,
@@ -175,6 +181,7 @@ def start(
         lsp_servers=list(lsp_composite_server.servers.values())
         if lsp_composite_server is not None
         else None,
+        skew_protection=skew_protection,
     )
 
     app.state.port = external_port
@@ -185,6 +192,7 @@ def start(
     app.state.session_manager = session_manager
     app.state.base_url = base_url
     app.state.config_manager = config_reader
+    app.state.remote_url = remote_url
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource

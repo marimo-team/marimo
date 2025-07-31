@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Logger } from "@/utils/Logger";
 import { createReducer, createReducerAndAtoms } from "../createReducer";
 
@@ -137,5 +137,48 @@ describe("createReducerAndAtoms", () => {
     reducer(state, action);
 
     expect(middleware).toHaveBeenCalledWith(state, { count: 5 }, action);
+  });
+
+  it("should log an error for non-existent action types", () => {
+    const initialState = () => ({ count: 0 });
+    const reducers = {
+      increment: (state: State, payload: number) => ({
+        count: state.count + payload,
+      }),
+    };
+    const loggerSpy = vi.spyOn(Logger, "error");
+
+    const { reducer } = createReducerAndAtoms(initialState, reducers);
+    const state = { count: 0 };
+    const newState = reducer(state, { type: "nonexistent", payload: null });
+
+    expect(newState).toBe(state);
+    expect(loggerSpy).toHaveBeenCalledWith(
+      "Action type nonexistent is not defined in reducers.",
+    );
+  });
+
+  it("should handle errors thrown by actions", () => {
+    const initialState = () => ({ count: 0 });
+    const errorMessage = "Test error in reducer";
+    const reducers = {
+      buggyAction: () => {
+        throw new Error(errorMessage);
+      },
+    };
+    const originalLoggerError = Logger.error;
+    Logger.error = vi.fn();
+
+    const { reducer } = createReducerAndAtoms(initialState, reducers);
+    const state = { count: 0 };
+    const newState = reducer(state, { type: "buggyAction", payload: null });
+
+    expect(newState).toBe(state);
+    expect(Logger.error).toHaveBeenCalledWith(
+      "Error in reducer for action buggyAction:",
+      expect.any(Error),
+    );
+
+    Logger.error = originalLoggerError;
   });
 });

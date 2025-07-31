@@ -3,7 +3,8 @@
   "config": {
     "view": {
       "continuousHeight": 300,
-      "continuousWidth": 300
+      "continuousWidth": 300,
+      "stroke": null
     }
   },
   "data": {
@@ -13,17 +14,35 @@
     "url": "data:text/csv;base64,QQoxCjIKMwo="
   },
   "encoding": {
+    "tooltip": [
+      {
+        "bin": true,
+        "field": "A",
+        "title": "A",
+        "type": "quantitative"
+      },
+      {
+        "aggregate": "count",
+        "format": ",.0f",
+        "title": "Number of records",
+        "type": "quantitative"
+      }
+    ],
     "x": {
       "bin": true,
       "field": "A",
+      "title": "A",
       "type": "quantitative"
     },
     "y": {
       "aggregate": "count",
+      "title": "Number of records",
       "type": "quantitative"
     }
   },
   "mark": {
+    "color": "#be93e4",
+    "stroke": "#8e4ec6",
     "type": "bar"
   },
   "width": "container"

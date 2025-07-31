@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
-import { getEditorCodeAsPython } from "./utils";
 import { languageAdapterState, switchLanguage } from "./extension";
 import { LanguageAdapters } from "./LanguageAdapters";
 import type { LanguageAdapterType } from "./types";
+import { getEditorCodeAsPython } from "./utils";
 
 /**
  * Get the current mode of the editor view.
@@ -19,12 +19,13 @@ export function getCurrentLanguageAdapter(
 }
 
 /**
- *
+ * Check if we can toggle to a given language
  */
-export function canToggleToLanguage(
+function canToggleToLanguage(
   editorView: EditorView | null,
   language: LanguageAdapterType,
 ): boolean {
+  // If there is no editor view or we are already in the language, return false
   if (!editorView || getCurrentLanguageAdapter(editorView) === language) {
     return false;
   }
@@ -34,11 +35,14 @@ export function canToggleToLanguage(
     return true;
   }
 
-  return LanguageAdapters[language]().isSupported(
+  return LanguageAdapters[language].isSupported(
     getEditorCodeAsPython(editorView),
   );
 }
 
+/**
+ * Toggle to a given language
+ */
 export function toggleToLanguage(
   editorView: EditorView,
   language: LanguageAdapterType,
@@ -49,7 +53,7 @@ export function toggleToLanguage(
     return false;
   }
 
-  switchLanguage(editorView, language);
+  switchLanguage(editorView, { language });
 
   return language;
 }

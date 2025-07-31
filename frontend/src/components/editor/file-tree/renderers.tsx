@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { PaginationState } from "@tanstack/react-table";
+import type React from "react";
+import { useMemo, useState } from "react";
 import {
   generateColumns,
   inferFieldTypes,
 } from "@/components/data-table/columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { parseCsvData } from "@/plugins/impl/vega/loader";
-import { Objects } from "@/utils/objects";
-import type React from "react";
-import { useMemo, useState } from "react";
-import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
-import type { PaginationState } from "@tanstack/react-table";
 import { Arrays } from "@/utils/arrays";
+import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
+import { Objects } from "@/utils/objects";
 
 const PAGE_SIZE = 25;
 
@@ -58,7 +59,6 @@ export const AudioViewer: React.FC<{ base64: Base64String; mime: string }> = ({
   mime,
   base64,
 }) => {
-  // eslint-disable-next-line jsx-a11y/media-has-caption
   return <audio controls={true} src={base64ToDataURL(base64, mime)} />;
 };
 
@@ -66,6 +66,18 @@ export const VideoViewer: React.FC<{ base64: Base64String; mime: string }> = ({
   mime,
   base64,
 }) => {
-  // eslint-disable-next-line jsx-a11y/media-has-caption
   return <video controls={true} src={base64ToDataURL(base64, mime)} />;
+};
+
+export const PdfViewer: React.FC<{ base64: Base64String; mime: string }> = ({
+  mime,
+  base64,
+}) => {
+  return (
+    <iframe
+      src={base64ToDataURL(base64, mime)}
+      title="PDF Viewer"
+      className="w-full h-full"
+    />
+  );
 };

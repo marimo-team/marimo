@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { Slot } from "@radix-ui/react-slot";
+import React, { type PropsWithChildren } from "react";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { Slot } from "@radix-ui/react-slot";
-import React, { type PropsWithChildren } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
 

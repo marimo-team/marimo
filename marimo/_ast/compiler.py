@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import inspect
 import io
 import linecache
@@ -193,6 +194,7 @@ def compile_cell(
 
     expr: ast.Expression
     final_expr = module.body[-1]
+    original_module = copy.deepcopy(module)
     # Use final expression if it exists doesn't end in a
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
@@ -272,7 +274,7 @@ def compile_cell(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
         code=code,
-        mod=module,
+        mod=original_module,
         defs=nonlocals,
         refs=v.refs,
         temporaries=temporaries,
@@ -296,8 +298,15 @@ def get_source_position(
     # Fallback won't capture embedded scripts
     if inspect.isclass(f):
         is_script = f.__module__ == "__main__"
-    else:
+    # Could be something wrapped in a decorator, like
+    # functools._lru_cache_wrapper.
+    elif hasattr(f, "__wrapped__"):
+        return get_source_position(f.__wrapped__, lineno, col_offset)
+    # Larger catch all than if inspect.isfunction(f):
+    elif hasattr(f, "__globals__") and hasattr(f, "__name__"):
         is_script = f.__globals__["__name__"] == "__main__"  # type: ignore
+    else:
+        return None
     # TODO: spec is None for markdown notebooks, which is fine for now
     if module := inspect.getmodule(f):
         spec = module.__spec__

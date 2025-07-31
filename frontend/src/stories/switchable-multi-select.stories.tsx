@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { SwitchableMultiSelect } from "@/components/forms/switchable-multi-select";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +23,7 @@ export const Primary: Story = {
           options={["apple", "banana", "blueberry", "grapes", "pineapple"]}
           value={value}
           placeholder="Select a fruit"
-          onChange={(value) => setValue(value)}
+          onChange={(value) => setValue(value ?? [])}
         />
       </TooltipProvider>
     );

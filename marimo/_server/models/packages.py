@@ -23,6 +23,7 @@ class AddPackageRequest:
     """
 
     package: str
+    upgrade: Optional[bool] = False
 
 
 @dataclass
@@ -33,6 +34,20 @@ class RemovePackageRequest:
 @dataclass
 class ListPackagesResponse:
     packages: list[PackageDescription]
+
+
+@dataclass
+class DependencyTreeNode:
+    name: str
+    version: Optional[str]
+    # List of {"kind": "extra"|"group", "value": str}
+    tags: list[dict[str, str]]
+    dependencies: list[DependencyTreeNode]
+
+
+@dataclass
+class DependencyTreeResponse:
+    tree: Optional[DependencyTreeNode]
 
 
 @dataclass

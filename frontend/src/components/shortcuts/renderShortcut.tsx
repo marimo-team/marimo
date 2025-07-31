@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
+import { hotkeysAtom } from "@/core/config/config";
 import { type HotkeyAction, NOT_SET } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
-import { Kbd } from "../ui/kbd";
-import { DropdownMenuShortcut } from "../ui/dropdown-menu";
-import { Tooltip } from "../ui/tooltip";
-import { hotkeysAtom } from "@/core/config/config";
-import { useAtomValue } from "jotai";
 import { cn } from "@/utils/cn";
+import { DropdownMenuShortcut } from "../ui/dropdown-menu";
+import { Kbd } from "../ui/kbd";
+import { Tooltip } from "../ui/tooltip";
 
 export function renderShortcut(shortcut: HotkeyAction, includeName = true) {
   return <Shortcut shortcut={shortcut} includeName={includeName} />;

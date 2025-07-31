@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useId, useState } from "react";
-import { z } from "zod";
 
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { RangeSlider } from "../../components/ui/range-slider";
-import { Labeled } from "./common/labeled";
+import { isEqual } from "lodash-es";
+import { type JSX, useEffect, useId, useState } from "react";
+import { z } from "zod";
 import { cn } from "@/utils/cn";
 import { prettyScientificNumber } from "@/utils/numbers";
-import { isEqual } from "lodash-es";
+import { RangeSlider } from "../../components/ui/range-slider";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { Labeled } from "./common/labeled";
 
 type T = number[];
 
@@ -21,6 +21,7 @@ interface Data {
   orientation: "horizontal" | "vertical";
   showValue: boolean;
   fullWidth: boolean;
+  disabled?: boolean;
 }
 
 export class RangeSliderPlugin implements IPlugin<T, Data> {
@@ -37,6 +38,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
     showValue: z.boolean().default(false),
     fullWidth: z.boolean().default(false),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -76,6 +78,7 @@ const RangeSliderComponent = ({
   orientation,
   showValue,
   fullWidth,
+  disabled,
   valueMap,
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
@@ -116,6 +119,7 @@ const RangeSliderComponent = ({
           max={stop}
           step={step}
           orientation={orientation}
+          disabled={disabled}
           // Triggered on all value changes
           onValueChange={(nextValue: number[]) => {
             setInternalValue(nextValue);

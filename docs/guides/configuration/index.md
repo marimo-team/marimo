@@ -23,9 +23,9 @@ Configure these settings through the notebook menu (⚙️) in the top-right cor
 ## User Configuration
 
 User Configuration applies globally across all marimo notebooks and is stored
-in a `.marimo.toml` file.
+in a `$XDG_CONFIG_HOME/marimo/marimo.toml` file.
 
-While you can edit the `.marimo.toml` file directly, we recommend using the
+While you can edit the `$XDG_CONFIG_HOME/marimo/marimo.toml` file directly, we recommend using the
 marimo UI for a more user-friendly experience.
 
 <video controls width="100%" height="100%" align="center" src="/_static/docs-user-config.mp4"> </video>
@@ -84,6 +84,9 @@ line_length = 120
 
 [tool.marimo.display]
 default_width = "full"
+
+[tool.marimo.runtime]
+default_sql_output = "native"
 ```
 
 You can override any user configuration setting in this way. To find these settings run `marimo config show`.

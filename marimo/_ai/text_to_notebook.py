@@ -5,9 +5,9 @@ import datetime
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Optional, cast
+from typing import Optional
 
-from marimo import __version__
+import marimo._utils.requests as requests
 from marimo._cli.print import bold, green, muted
 from marimo._config.cli_state import (
     get_cli_state,
@@ -70,11 +70,8 @@ def text_to_notebook(prompt: str) -> str:
         print_(muted("Generating notebook this may take a few seconds..."))
 
         # Create a request with a proper User-Agent header
-        headers = {"User-Agent": f"marimo-cli/{__version__}"}
-        req = urllib.request.Request(url, headers=headers)
-
-        with urllib.request.urlopen(req) as response:
-            result = response.read().decode("utf-8")  # type: ignore[attr-defined]
+        headers = {"User-Agent": requests.MARIMO_USER_AGENT}
+        result = requests.get(url, headers=headers).raise_for_status().text()
 
         print_(green("Notebook generated successfully."))
 
@@ -84,7 +81,7 @@ def text_to_notebook(prompt: str) -> str:
                 "Invalid response from API: missing 'marimo.App' key"
             )
 
-        return cast(str, result)
+        return result
 
     except Exception as e:
         raise RuntimeError(f"Failed to generate notebook: {str(e)}") from e

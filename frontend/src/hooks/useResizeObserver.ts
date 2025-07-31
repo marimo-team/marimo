@@ -4,9 +4,8 @@
  * Use this when you want to attach a resize observer conditionally using the `skip` option.
  */
 
-import { useEffect, useRef } from "react";
-
 import type { RefObject } from "react";
+import { useEffect, useRef } from "react";
 
 interface Size {
   width: number | undefined;
@@ -14,7 +13,7 @@ interface Size {
 }
 
 interface UseResizeObserverOptions<T extends HTMLElement = HTMLElement> {
-  ref: RefObject<T>;
+  ref: RefObject<T | null>;
   skip?: boolean;
   onResize?: (size: Size) => void;
   box?: "border-box" | "content-box" | "device-pixel-content-box";
@@ -32,7 +31,7 @@ export function useResizeObserver<T extends HTMLElement = HTMLElement>(
   // eslint-disable-next-line react/hook-use-state
   const previousSize = useRef<Size>({ ...initialSize });
   const onResize = useRef<((size: Size) => void) | undefined>(undefined);
-  // eslint-disable-next-line react-compiler/react-compiler
+  // eslint-disable-next-line react-hooks/react-compiler
   onResize.current = options.onResize;
 
   useEffect(() => {

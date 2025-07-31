@@ -1,3 +1,7 @@
+# /// script
+# [tool.marimo.runtime]
+# auto_instantiate = true
+# ///
 import marimo
 
 __generated_with = "0.9.15"
@@ -14,7 +18,7 @@ def __(mo):
 def __(basic_ui_elements, mo):
     mo.md(
         f"""### Basic elements
-                                    
+
         {basic_ui_elements}
         """
     )

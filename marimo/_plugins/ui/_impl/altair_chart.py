@@ -31,10 +31,16 @@ from marimo._utils.narwhals_utils import (
     empty_df,
 )
 
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
+
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     import altair
+    import altair.vegalite
 
 # Selection is a dictionary of the form:
 # {
@@ -49,6 +55,9 @@ RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
 
 ChartDataType = Union[IntoDataFrame, RowOrientedData, ColumnOrientedData]
+
+# Union of all possible chart types
+AltairChartType: TypeAlias = "altair.vegalite.v5.api.ChartType"
 
 
 def _has_binning(spec: VegaSpec) -> bool:
@@ -214,20 +223,20 @@ def _is_numeric_or_date(value: Any) -> bool:
 
 
 def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
-    import altair
+    import altair as alt
 
     # vegafusion requires creating a vega spec,
     # instead of using a vega-lite spec
-    if altair.data_transformers.active.startswith("vegafusion"):
+    if alt.data_transformers.active.startswith("vegafusion"):
         return spec.to_dict(format="vega")  # type: ignore
 
     # If this is a geoshape, use default transformer
     # since ours does not support geoshapes
     if _has_geoshape(spec):
-        with altair.data_transformers.enable("default"):
+        with alt.data_transformers.enable("default"):
             return spec.to_dict()  # type: ignore
 
-    with altair.data_transformers.enable("marimo_arrow"):
+    with alt.data_transformers.enable("marimo_arrow"):
         return spec.to_dict(validate=False)  # type: ignore
 
 
@@ -294,7 +303,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     def __init__(
         self,
-        chart: altair.Chart,
+        chart: AltairChartType,
         chart_selection: Literal["point"] | Literal["interval"] | bool = True,
         legend_selection: list[str] | bool = True,
         *,
@@ -317,19 +326,18 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         # Make full-width if no width is specified
         chart = maybe_make_full_width(chart)
 
+        # Fix the sizing for vconcat charts
+        if isinstance(chart, alt.VConcatChart):
+            chart = _update_vconcat_width(chart)
+
+            # without autosize, vconcat will overflow
+            if chart.autosize is alt.Undefined:
+                chart.autosize = "fit-x"
+
         vega_spec = _parse_spec(chart)
 
         if label:
             vega_spec["title"] = label
-
-        # Fix the sizing for vconcat charts
-        if "vconcat" in vega_spec:
-            for subchart in vega_spec["vconcat"]:
-                if "width" not in subchart:
-                    subchart["width"] = "container"
-            # without autosize, vconcat will overflow
-            if "autosize" not in vega_spec:
-                vega_spec["autosize"] = "fit-x"
 
         # Types say this is not possible,
         # but a user still may pass none
@@ -349,6 +357,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                     f"Ignoring chart_selection={chart_selection}"
                 )
             chart_selection = False
+
         if _has_legend_param(chart):
             # Log a warning if the user has set legend_selection
             # but the chart already has a legend param
@@ -420,7 +429,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @staticmethod
     def _get_dataframe_from_chart(
-        chart: altair.Chart,
+        chart: Union[altair.Chart, altair.LayerChart],
     ) -> Optional[ChartDataType]:
         if not isinstance(chart.data, str):
             return cast(ChartDataType, chart.data)
@@ -447,9 +456,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             if url.endswith(".json"):
                 return pd.read_json(url)
 
-        import altair
+        import altair as alt
 
-        if chart.data is altair.Undefined:  # type: ignore[comparison-overlap]
+        if chart.data is alt.Undefined:  # type: ignore[comparison-overlap]
             return None
 
         return cast(ChartDataType, chart.data)
@@ -560,13 +569,19 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @property
     def value(self) -> ChartDataType:
-        from altair import Undefined
+        from altair import InlineData, InlineDataset, Undefined
 
         value = super().value
-        if value is Undefined:
+        if value is Undefined:  # type: ignore
             sys.stderr.write(
                 "The underlying chart data is not available in layered"
                 " or stacked charts. "
+                "Use `.apply_selection(df)` to filter a DataFrame"
+                " based on the selection.",
+            )
+        elif isinstance(value, (InlineData, InlineDataset)):
+            sys.stderr.write(
+                "The underlying chart data is not available with inline specification. "
                 "Use `.apply_selection(df)` to filter a DataFrame"
                 " based on the selection.",
             )
@@ -578,13 +593,13 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         raise RuntimeError("Setting the value of a UIElement is not allowed.")
 
 
-def maybe_make_full_width(chart: altair.Chart) -> altair.Chart:
-    import altair
+def maybe_make_full_width(chart: AltairChartType) -> AltairChartType:
+    import altair as alt
 
     try:
         if (
-            isinstance(chart, (altair.Chart, altair.LayerChart))
-            and chart.width is altair.Undefined
+            isinstance(chart, (alt.Chart, alt.LayerChart))
+            and chart.width is alt.Undefined
         ):
             return chart.properties(width="container")
         return chart
@@ -596,11 +611,14 @@ def maybe_make_full_width(chart: altair.Chart) -> altair.Chart:
         return chart
 
 
-def _has_selection_param(chart: altair.Chart) -> bool:
+def _has_selection_param(chart: AltairChartType) -> bool:
     import altair as alt
 
+    if not hasattr(chart, "params"):
+        return False
+
     try:
-        for param in chart.params:
+        for param in chart.params:  # type: ignore
             try:
                 if isinstance(
                     param,
@@ -615,11 +633,14 @@ def _has_selection_param(chart: altair.Chart) -> bool:
     return False
 
 
-def _has_legend_param(chart: altair.Chart) -> bool:
+def _has_legend_param(chart: AltairChartType) -> bool:
     import altair as alt
 
+    if not hasattr(chart, "params"):
+        return False
+
     try:
-        for param in chart.params:
+        for param in chart.params:  # type: ignore
             try:
                 if isinstance(
                     param,
@@ -632,3 +653,31 @@ def _has_legend_param(chart: altair.Chart) -> bool:
     except Exception:
         pass
     return False
+
+
+def _update_vconcat_width(chart: AltairChartType) -> AltairChartType:
+    """Mutate the chart to set the width to the container."""
+
+    import altair as alt
+
+    if isinstance(chart, alt.VConcatChart):
+        chart.vconcat = [
+            _update_vconcat_width(subchart) for subchart in chart.vconcat
+        ]
+        return chart  # type: ignore[no-any-return]
+
+    if isinstance(chart, alt.LayerChart):
+        chart.layer = [_update_vconcat_width(layer) for layer in chart.layer]
+        return chart  # type: ignore[no-any-return]
+
+    if isinstance(chart, alt.HConcatChart):
+        chart.hconcat = [
+            _update_vconcat_width(subchart) for subchart in chart.hconcat
+        ]
+        return chart  # type: ignore[no-any-return]
+
+    if isinstance(chart, alt.Chart):
+        return maybe_make_full_width(chart)
+
+    # Not handled
+    return chart

@@ -2,10 +2,10 @@
 import { CheckIcon, Copy } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { Tooltip } from "../ui/tooltip";
 import { cn } from "@/utils/cn";
-import { Events } from "@/utils/events";
 import { copyToClipboard } from "@/utils/copy";
+import { Events } from "@/utils/events";
+import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 
 interface Props {
@@ -35,13 +35,13 @@ export const CopyClipboardIcon: React.FC<Props> = ({
   });
 
   const button = (
-    <span onClick={handleCopy}>
+    <button type="button" onClick={handleCopy} aria-label="Copy to clipboard">
       {isCopied ? (
         <CheckIcon className={cn(className, "text-[var(--grass-11)]")} />
       ) : (
         <Copy className={className} />
       )}
-    </span>
+    </button>
   );
 
   if (tooltip === false) {

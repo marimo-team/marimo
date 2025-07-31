@@ -1,15 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useAtomValue } from "jotai";
+import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
+import { connectionAtom } from "../network/connection";
 import {
   autoExportAsHTML,
-  autoExportAsMarkdown,
   autoExportAsIPYNB,
+  autoExportAsMarkdown,
 } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import { connectionAtom } from "../network/connection";
 import { WebSocketState } from "../websocket/types";
-import { appConfigAtom } from "@/core/config/config";
 
 const DELAY = 5000; // 5 seconds;
 

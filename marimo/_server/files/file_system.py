@@ -19,8 +19,13 @@ class FileSystem(ABC):
         pass
 
     @abstractmethod
-    def get_details(self, path: str) -> FileDetailsResponse:
-        """Get details of a specific file or directory."""
+    def get_details(
+        self,
+        path: str,
+        encoding: str | None = None,
+        contents: str | None = None,
+    ) -> FileDetailsResponse:
+        """Get details of a specific file or directory. If contents is provided, use it instead of reading from disk."""
         pass
 
     @abstractmethod

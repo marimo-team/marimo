@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi } from "vitest";
-import { CellSelectionFeature } from "../feature";
-import type { Table, Row, Cell, Column } from "@tanstack/react-table";
+
+import type { Cell, Column, Row, Table } from "@tanstack/react-table";
+import { describe, expect, it, vi } from "vitest";
 import { INDEX_COLUMN_NAME } from "../../types";
+import { CellSelectionFeature } from "../feature";
 import type { CellSelectionTableState } from "../types";
 
 describe("CellSelectionFeature", () => {
@@ -33,7 +34,15 @@ describe("CellSelectionFeature", () => {
     return { table, state };
   };
 
-  const createMockCell = (rowId: string, columnId: string, table: any) => {
+  const createMockCell = ({
+    rowId,
+    columnId,
+    table,
+  }: {
+    rowId: string;
+    columnId: string;
+    table: any;
+  }) => {
     // Create mock row
     const row: Partial<Row<any>> = {
       id: rowId,
@@ -62,7 +71,11 @@ describe("CellSelectionFeature", () => {
   describe("toggleSelected", () => {
     it("should add cell to selection when not selected", () => {
       const { table } = createMockTable();
-      const { cell } = createMockCell("row1", "col1", table);
+      const { cell } = createMockCell({
+        rowId: "row1",
+        columnId: "col1",
+        table,
+      });
 
       cell.toggleSelected!(true);
 
@@ -82,7 +95,11 @@ describe("CellSelectionFeature", () => {
         { rowId: "row2", columnName: "col1" },
       ];
 
-      const { cell } = createMockCell("row1", "col1", table);
+      const { cell } = createMockCell({
+        rowId: "row1",
+        columnId: "col1",
+        table,
+      });
 
       // Deselect the cell
       cell.toggleSelected!(false);
@@ -104,7 +121,11 @@ describe("CellSelectionFeature", () => {
         { rowId: "row1", columnName: "col3" },
       ];
 
-      const { cell } = createMockCell("row1", "col1", table);
+      const { cell } = createMockCell({
+        rowId: "row1",
+        columnId: "col1",
+        table,
+      });
 
       // Deselect the cell
       cell.toggleSelected!(false);
@@ -126,7 +147,11 @@ describe("CellSelectionFeature", () => {
         { rowId: "row3", columnName: "col1" },
       ];
 
-      const { cell } = createMockCell("row1", "col1", table);
+      const { cell } = createMockCell({
+        rowId: "row1",
+        columnId: "col1",
+        table,
+      });
 
       // Deselect the cell
       cell.toggleSelected!(false);
@@ -140,7 +165,11 @@ describe("CellSelectionFeature", () => {
 
     it("should toggle cell selection correctly", () => {
       const { table } = createMockTable();
-      const { cell } = createMockCell("row1", "col1", table);
+      const { cell } = createMockCell({
+        rowId: "row1",
+        columnId: "col1",
+        table,
+      });
 
       // First select
       cell.toggleSelected!();

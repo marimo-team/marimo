@@ -1,5 +1,6 @@
 import time
 
+from marimo._runtime.requests import DeleteCellRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -135,3 +136,101 @@ async def test_thread_print(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert thread_stream.messages[0][1]["console"]["channel"] == "stdout"
     assert "world" in thread_stream.messages[1][1]["console"]["data"]
     assert thread_stream.messages[1][1]["console"]["channel"] == "stdout"
+
+
+async def test_thread_should_exit_on_rerun(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that a thread's exit event is set when cell lifecycle is disposed."""
+
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                """
+                def target():
+                    ...
+                """
+            ),
+            er := exec_req.get(
+                """
+                thread = mo.Thread(target=target)
+                thread.start()
+                """
+            ),
+        ]
+    )
+
+    thread = k.globals["thread"]
+    assert not thread.should_exit
+
+    # rerunning the cell should trigger the cell lifecycle disposal and set its exit event
+    await k.run([er])
+    assert thread.should_exit
+
+
+async def test_thread_should_not_exit_on_other_cell_run(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that a thread's exit event is set when cell lifecycle is disposed."""
+
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                """
+                def target():
+                    ...
+                """
+            ),
+            exec_req.get(
+                """
+                thread = mo.Thread(target=target)
+                thread.start()
+                """
+            ),
+            er := exec_req.get(
+                """
+                ...
+                """
+            ),
+        ]
+    )
+
+    thread = k.globals["thread"]
+    assert not thread.should_exit
+
+    # rerunning a cell that is not related to the spawning cell should _not_
+    # signal the thread to exit
+    await k.run([er])
+    assert not thread.should_exit
+
+
+async def test_thread_should_exit_on_deletion(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that a thread's exit event is set when cell lifecycle is disposed."""
+
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                """
+                def target():
+                    ...
+                """
+            ),
+            er := exec_req.get(
+                """
+                thread = mo.Thread(target=target)
+                thread.start()
+                """
+            ),
+        ]
+    )
+
+    thread = k.globals["thread"]
+    assert not thread.should_exit
+
+    await k.delete_cell(DeleteCellRequest(er.cell_id))
+    assert thread.should_exit

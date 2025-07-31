@@ -20,8 +20,8 @@ from marimo._runtime.exceptions import (
     MarimoRuntimeException,
 )
 from marimo._runtime.executor import (
-    execute_cell,
-    execute_cell_async,
+    ExecutionConfig,
+    get_executor,
 )
 from marimo._runtime.patches import (
     create_main_module,
@@ -44,7 +44,7 @@ class AppScriptRunner:
     ) -> None:
         self.app = app
         self.filename = filename
-        self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        self.cells_cancelled: set[CellId_t] = set()
         self._glbls = glbls if glbls else {}
         self.cells_to_run = [
             cid
@@ -52,17 +52,19 @@ class AppScriptRunner:
             if app.cell_manager.cell_data_at(cid).cell is not None
             and not self.app.graph.is_disabled(cid)
         ]
+        self._executor = get_executor(ExecutionConfig())
 
     def _cancel(self, cell_id: CellId_t) -> None:
-        self.cells_cancelled[cell_id] = set(
+        cancelled = set(
             cid
             for cid in dataflow.transitive_closure(
                 self.app.graph, set([cell_id])
             )
             if cid in self.cells_to_run
         )
-        for cid in self.cells_cancelled[cell_id]:
+        for cid in cancelled:
             self.app.graph.cells[cid].set_run_result_status("cancelled")
+        self.cells_cancelled |= cancelled
 
     def _run_synchronous(
         self,
@@ -78,6 +80,8 @@ class AppScriptRunner:
             outputs: dict[CellId_t, Any] = {}
             while self.cells_to_run:
                 cid = self.cells_to_run.pop(0)
+                if cid in self.cells_cancelled:
+                    continue
                 # Set up has already run in this case.
                 if cid == CellId_t(SETUP_CELL_NAME):
                     for hook in post_execute_hooks:
@@ -87,7 +91,9 @@ class AppScriptRunner:
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
-                        output = execute_cell(cell, glbls, self.app.graph)
+                        output = self._executor.execute_cell(
+                            cell, glbls, self.app.graph
+                        )
                         outputs[cid] = output
                     except MarimoRuntimeException as e:
                         unwrapped_exception: BaseException | None = e.__cause__
@@ -116,6 +122,9 @@ class AppScriptRunner:
 
             while self.cells_to_run:
                 cid = self.cells_to_run.pop(0)
+                if cid in self.cells_cancelled:
+                    continue
+
                 if cid == CellId_t(SETUP_CELL_NAME):
                     for hook in post_execute_hooks:
                         hook()
@@ -124,7 +133,7 @@ class AppScriptRunner:
                 cell = self.app.graph.cells[cid]
                 with get_context().with_cell_id(cid):
                     try:
-                        output = await execute_cell_async(
+                        output = await self._executor.execute_cell_async(
                             cell, glbls, self.app.graph
                         )
                         outputs[cid] = output

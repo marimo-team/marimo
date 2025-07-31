@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { documentationAtom } from "@/core/documentation/state";
-import { renderHTML } from "@/plugins/core/RenderHTML";
+
 import { useAtomValue } from "jotai";
 import React from "react";
+import { documentationAtom } from "@/core/documentation/state";
+import { renderHTML } from "@/plugins/core/RenderHTML";
 import "../../documentation.css";
 import { TextSearchIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";

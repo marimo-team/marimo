@@ -1,29 +1,37 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { AnsiUp } from "ansi_up";
+import type { JSX } from "react";
 import type { OutputChannel } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
-import { AnsiUp } from "ansi_up";
 
 const ansiUp = new AnsiUp();
 
 interface Props {
   text: string;
   channel?: OutputChannel;
+  wrapText?: boolean;
 }
 
-export const TextOutput = ({ text, channel }: Props): JSX.Element => {
+export const TextOutput = ({ text, channel, wrapText }: Props): JSX.Element => {
   const shouldRenderAnsi = channel === "stdout" || channel === "stderr";
 
   const renderAnsiText = (text: string) => {
     return (
-      <span dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }} />
+      <span
+        className={
+          wrapText ? "whitespace-pre-wrap break-words" : "whitespace-pre"
+        }
+        dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }}
+      />
     );
   };
 
   return (
     <span
       className={cn(
-        "whitespace-pre",
+        !shouldRenderAnsi &&
+          (wrapText ? "whitespace-pre-wrap break-words" : "whitespace-pre"),
         channel === "output" && "font-prose",
         channel,
       )}

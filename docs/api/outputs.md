@@ -11,6 +11,10 @@
     programmatically, using `mo.output.replace()` and `mo.output.append()`.
 
 ::: marimo.output.replace
+
+!!! tip "**Watch `mo.output.replace` in action**"
+    See a demo of how `mo.output.replace` works in this [short YouTube video](https://youtube.com/shorts/tCMeQb-PqNU?si=7PeFzQJzNvXsLoXN).
+
 ::: marimo.output.append
 
 ::: marimo.output.clear

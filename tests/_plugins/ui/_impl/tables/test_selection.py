@@ -41,7 +41,7 @@ def test_selection_with_index_column(backend: Any):
             "name": ["Alice", "Bob", "Charlie"],
             "age": [30, 25, 35],
         },
-        native_namespace=backend,
+        backend=backend,
     )
     manager = NarwhalsTableManager(data)
 
@@ -63,7 +63,7 @@ def test_selection_with_index_column_and_sort(backend: Any):
             "name": ["Alice", "Bob", "Charlie"],
             "age": [30, 25, 35],
         },
-        native_namespace=backend,
+        backend=backend,
     )
     manager = NarwhalsTableManager(data)
 
@@ -86,7 +86,7 @@ def test_selection_with_index_column_and_search(backend: Any):
             "name": ["Alice", "Bob", "Charlie"],
             "age": [30, 25, 35],
         },
-        native_namespace=backend,
+        backend=backend,
     )
     manager = NarwhalsTableManager(data)
 
@@ -105,7 +105,7 @@ def test_selection_with_index_column_empty(backend: Any):
     # Create test data with index column
     data = nw.from_dict(
         {INDEX_COLUMN_NAME: [0, 1], "name": ["Alice", "Bob"], "age": [30, 25]},
-        native_namespace=backend,
+        backend=backend,
     )
     manager = NarwhalsTableManager(data)
 
@@ -123,7 +123,7 @@ def test_selection_without_index_column(backend: Any):
     # Create test data without index column
     data = nw.from_dict(
         {"name": ["Alice", "Bob", "Charlie"], "age": [30, 25, 35]},
-        native_namespace=backend,
+        backend=backend,
     )
     manager = NarwhalsTableManager(data)
 
@@ -145,7 +145,7 @@ def test_selection_with_index_column_take(backend: Any):
             "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
             "age": [30, 25, 35, 28, 22],
         },
-        native_namespace=backend,
+        backend=backend,
     )
     manager = NarwhalsTableManager(data)
 
@@ -162,7 +162,7 @@ def test_selection_with_index_column_take(backend: Any):
 def test_add_selection_to_dataframe(backend: Any):
     data = nw.from_dict(
         {"name": ["Alice", "Bob", "Charlie"], "age": [30, 25, 35]},
-        native_namespace=backend,
+        backend=backend,
     )
     with_selection, has_stable_row_id = add_selection_column(data.to_native())
 
@@ -183,7 +183,7 @@ def test_add_selection_to_dataframe_already_has_index(backend: Any):
             "name": ["Alice", "Bob", "Charlie"],
             "age": [30, 25, 35],
         },
-        native_namespace=backend,
+        backend=backend,
     )
     with_selection, has_stable_row_id = add_selection_column(data.to_native())
 
@@ -200,7 +200,7 @@ def test_add_selection_to_dataframe_already_has_index(backend: Any):
 def test_remove_selection_column(backend: Any):
     data = nw.from_dict(
         {"name": ["Alice", "Bob", "Charlie"], "age": [30, 25, 35]},
-        native_namespace=backend,
+        backend=backend,
     )
     with_selection, has_stable_row_id = add_selection_column(data.to_native())
     assert has_stable_row_id is True

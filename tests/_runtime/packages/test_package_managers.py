@@ -38,7 +38,10 @@ def test_update_script_metadata() -> None:
 
     pm = MockUvPackageManager()
     pm.update_notebook_script_metadata(
-        "nb.py", packages_to_add=["foo"], packages_to_remove=["bar"]
+        "nb.py",
+        packages_to_add=["foo"],
+        packages_to_remove=["bar"],
+        upgrade=False,
     )
     assert runs_calls == [
         ["uv", "--quiet", "add", "--script", "nb.py", "foo==1.0"],
@@ -62,11 +65,15 @@ def test_update_script_metadata_with_version_map() -> None:
     pm = MockUvPackageManager()
     # It should ignore when not in the version map
     # as this implies it failed to install
-    pm.update_notebook_script_metadata("nb.py", packages_to_add=["baz"])
+    pm.update_notebook_script_metadata(
+        "nb.py", packages_to_add=["baz"], upgrade=False
+    )
     assert runs_calls == []
 
     # It will attempt to uninstall even if not in the version map
-    pm.update_notebook_script_metadata("nb.py", packages_to_remove=["baz"])
+    pm.update_notebook_script_metadata(
+        "nb.py", packages_to_remove=["baz"], upgrade=False
+    )
     assert runs_calls == [
         ["uv", "--quiet", "remove", "--script", "nb.py", "baz"],
     ]
@@ -85,7 +92,9 @@ def test_update_script_metadata_with_mapping() -> None:
 
     pm = MockUvPackageManager()
     # It should not canonicalize when passed explicitly
-    pm.update_notebook_script_metadata("nb.py", packages_to_add=["ibis"])
+    pm.update_notebook_script_metadata(
+        "nb.py", packages_to_add=["ibis"], upgrade=False
+    )
     assert runs_calls == [
         ["uv", "--quiet", "add", "--script", "nb.py", "ibis==2.0"],
     ]
@@ -94,7 +103,7 @@ def test_update_script_metadata_with_mapping() -> None:
     # It should not canonicalize when passed as an import name
     # case-insensitive
     pm.update_notebook_script_metadata(
-        "nb.py", import_namespaces_to_add=["yaml"]
+        "nb.py", import_namespaces_to_add=["yaml"], upgrade=False
     )
     assert runs_calls == [
         ["uv", "--quiet", "add", "--script", "nb.py", "PyYAML==1.0"],
@@ -104,7 +113,7 @@ def test_update_script_metadata_with_mapping() -> None:
     # It should not canonicalize when passed as an import name
     # and works with brackets
     pm.update_notebook_script_metadata(
-        "nb.py", import_namespaces_to_add=["ibis"]
+        "nb.py", import_namespaces_to_add=["ibis"], upgrade=False
     )
     assert runs_calls == [
         [
@@ -142,6 +151,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "marimo-ai",  # Should have version (different package)
             "pandas",  # Should have version
         ],
+        upgrade=False,
     )
     assert runs_calls == [
         [
@@ -164,6 +174,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "marimo[sql]",
             "pandas",
         ],
+        upgrade=False,
     )
     assert runs_calls == [
         [
@@ -188,6 +199,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "marimo[recommended]",
             "pandas",
         ],
+        upgrade=False,
     )
     assert runs_calls == [
         [
@@ -211,6 +223,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "marimo",
             "pandas",
         ],
+        upgrade=False,
     )
     assert runs_calls == [
         [
@@ -225,6 +238,25 @@ def test_update_script_metadata_marimo_packages() -> None:
     ]
     runs_calls.clear()
 
+    # Test 5: Upgrade
+    pm.update_notebook_script_metadata(
+        filepath="nb.py",
+        packages_to_add=["pandas"],
+        upgrade=True,
+    )
+    assert runs_calls == [
+        [
+            "uv",
+            "--quiet",
+            "add",
+            "--script",
+            "nb.py",
+            "--upgrade",
+            "pandas==2.0.0",
+        ],
+    ]
+    runs_calls.clear()
+
 
 async def test_uv_pip_install() -> None:
     runs_calls: list[list[str]] = []
@@ -235,7 +267,7 @@ async def test_uv_pip_install() -> None:
             return True
 
     pm = MockUvPackageManager()
-    await pm._install("foo")
+    await pm._install("foo", upgrade=False)
     assert runs_calls == [
         ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
     ]

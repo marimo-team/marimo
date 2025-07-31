@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { exportAsHTML } from "../network/requests";
+
 import { downloadBlob } from "@/utils/download";
-import { Paths } from "@/utils/paths";
-import { VirtualFileTracker } from "./virtual-file-tracker";
 import { Filenames } from "@/utils/filenames";
+import { Paths } from "@/utils/paths";
+import { exportAsHTML } from "../network/requests";
+import { VirtualFileTracker } from "./virtual-file-tracker";
 
 /**
  * Downloads the current notebook as an HTML file.

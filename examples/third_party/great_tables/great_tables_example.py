@@ -1,32 +1,32 @@
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
-#     "great-tables==0.11.1",
+#     "great-tables==0.17.0",
 #     "marimo",
-#     "polars==1.8.2",
+#     "polars==1.30.0",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.8.19"
+__generated_with = "0.13.13"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def __(mo):
+def _(mo):
     mo.md(
         r"""
-        # [Great-tables](https://github.com/posit-dev/great-tables) + marimo
+    # [Great-tables](https://github.com/posit-dev/great-tables) + marimo
 
-        Adapted from https://github.com/machow/coffee-sales-data
-        """
+    Adapted from https://github.com/machow/coffee-sales-data
+    """
     )
     return
 
 
 @app.cell
-def __(__file__):
+def _():
     import polars as pl
     import polars.selectors as cs
     import os
@@ -38,17 +38,17 @@ def __(__file__):
     coffee_sales = pl.DataFrame.deserialize(
         Path(current_dir) / "coffee-sales.json", format="json"
     )
-    return GT, Path, coffee_sales, cs, current_dir, loc, mo, os, pl, style
+    return GT, coffee_sales, cs, loc, mo, pl, style
 
 
 @app.cell
-def __(coffee_sales, mo):
+def _(coffee_sales, mo):
     revenue = mo.ui.range_slider.from_series(coffee_sales["revenue_dollars"])
     return (revenue,)
 
 
 @app.cell(hide_code=True)
-def __(mo, revenue):
+def _(mo, revenue):
     mo.hstack(
         [revenue, f"${revenue.value[0]:,.0f} - ${revenue.value[1]:,.0f}"]
     ).left()
@@ -56,18 +56,18 @@ def __(mo, revenue):
 
 
 @app.cell(hide_code=True)
-def __(coffee_sales, revenue):
+def _(coffee_sales, revenue):
     lower = revenue.value[0]
     upper = revenue.value[1]
     filterered_coffee_sales = coffee_sales.filter(
         (coffee_sales["revenue_dollars"] >= lower)
         & (coffee_sales["revenue_dollars"] <= upper)
     )
-    return filterered_coffee_sales, lower, upper
+    return (filterered_coffee_sales,)
 
 
 @app.cell(hide_code=True)
-def __(GT, cs, filterered_coffee_sales, loc, pl, style):
+def _(GT, cs, filterered_coffee_sales, loc, pl, style):
     sel_rev = cs.starts_with("revenue")
     sel_prof = cs.starts_with("profit")
 
@@ -111,7 +111,7 @@ def __(GT, cs, filterered_coffee_sales, loc, pl, style):
     )
 
     coffee_table
-    return coffee_table, sel_prof, sel_rev
+    return
 
 
 if __name__ == "__main__":

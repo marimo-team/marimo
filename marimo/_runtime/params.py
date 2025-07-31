@@ -117,7 +117,12 @@ class QueryParams(State[SerializedQueryParams]):
         self[key] = value
 
     def append(self, key: str, value: str) -> None:
-        """Append a value to a list of values"""
+        """Append a value to a list of values
+
+        Args:
+            key: The key identifying the list; the list will be created if needed.
+            value: The value to append.
+        """
         if key not in self._params:
             self._params[key] = value
             QueryParamsAppend(key, value).broadcast(self._stream)
@@ -134,7 +139,12 @@ class QueryParams(State[SerializedQueryParams]):
         self._set_value(self._params)
 
     def remove(self, key: str, value: Optional[str] = None) -> None:
-        """Remove a value from a list of values."""
+        """Remove a value from a list of values.
+
+        Args:
+            key: The key identifying the list; no-op if absent.
+            value: The optional value to remove; if not given the entire list gets removed.
+        """
         if key not in self._params:
             return
         # If value is None, remove the key

@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { loadPyodide, type PyodideInterface } from "pyodide";
-import { WasmFileSystem } from "./fs";
-import { Logger } from "../../../utils/Logger";
-import type { SerializedBridge, WasmController } from "./types";
-import { invariant } from "../../../utils/invariant";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OperationMessage } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
+import { invariant } from "../../../utils/invariant";
+import { Logger } from "../../../utils/Logger";
+import { WasmFileSystem } from "./fs";
 import { t } from "./tracer";
+import type { SerializedBridge, WasmController } from "./types";
 
 const MAKE_SNAPSHOT = false;
 

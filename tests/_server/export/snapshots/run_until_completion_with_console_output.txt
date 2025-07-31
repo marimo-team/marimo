@@ -1,0 +1,16 @@
+[
+  {
+    "output": "",
+    "console": [
+      "hello stderr"
+    ],
+    "status": "idle"
+  },
+  {
+    "output": "",
+    "console": [
+      "hello stdout"
+    ],
+    "status": "idle"
+  }
+]

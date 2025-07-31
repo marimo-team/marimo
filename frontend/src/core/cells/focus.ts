@@ -1,26 +1,73 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import type { CellId } from "./ids";
-import { type NotebookState, SCRATCH_CELL_ID, notebookAtom } from "./cells";
+
 import type { EditorView } from "@codemirror/view";
+import { atom, useAtomValue } from "jotai";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { CellConfig, RuntimeState } from "../network/types";
+import { type NotebookState, notebookAtom, SCRATCH_CELL_ID } from "./cells";
+import type { CellId } from "./ids";
+export interface CellFocusState {
+  focusedCellId: CellId | null;
+  lastFocusedCellId: CellId | null;
+}
+
+function initialState(): CellFocusState {
+  return {
+    focusedCellId: null,
+    lastFocusedCellId: null,
+  };
+}
+
+const {
+  reducer,
+  createActions,
+  valueAtom: cellFocusAtom,
+  useActions: useCellFocusActions,
+} = createReducerAndAtoms(initialState, {
+  // Focus a cell
+  focusCell: (
+    state: CellFocusState,
+    payload: { cellId: CellId },
+  ): CellFocusState => ({
+    ...state,
+    focusedCellId: payload.cellId,
+    lastFocusedCellId: payload.cellId,
+  }),
+  // Toggle focus on a cell
+  // If the cell is already focused, blur it
+  // If the cell is not focused, focus it
+  toggleCell: (
+    state: CellFocusState,
+    payload: { cellId: CellId },
+  ): CellFocusState => {
+    if (state.focusedCellId === payload.cellId) {
+      return {
+        ...state,
+        focusedCellId: null,
+      };
+    }
+    return {
+      ...state,
+      focusedCellId: payload.cellId,
+      lastFocusedCellId: payload.cellId,
+    };
+  },
+  // Blur the focused cell
+  blurCell: (state: CellFocusState): CellFocusState => ({
+    ...state,
+    focusedCellId: null,
+  }),
+});
 
 /**
  * Holds state for the last focused cell.
  */
-export const lastFocusedCellIdAtom = atom<CellId | null>(null);
+export const lastFocusedCellIdAtom = atom(
+  (get) => get(cellFocusAtom).lastFocusedCellId,
+);
 
 export function useLastFocusedCellId() {
   return useAtomValue(lastFocusedCellIdAtom);
-}
-export function useSetLastFocusedCellId() {
-  const setter = useSetAtom(lastFocusedCellIdAtom);
-  return (cellId: CellId | null) => {
-    if (SCRATCH_CELL_ID === cellId) {
-      return;
-    }
-    setter(cellId);
-  };
 }
 
 export const lastFocusedCellAtom = atom<{
@@ -70,3 +117,12 @@ function cellFocusDetails(cellId: CellId, notebookState: NotebookState) {
     hasConsoleOutput: runtime?.consoleOutputs != null,
   };
 }
+
+export { useCellFocusActions, cellFocusAtom };
+
+export const exportedForTesting = {
+  reducer,
+  createActions,
+  initialState,
+  cellFocusAtom,
+};

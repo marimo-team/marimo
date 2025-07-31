@@ -1,13 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useId, useMemo, useState } from "react";
-import { z } from "zod";
-
-import type { IPlugin, IPluginProps, Setter } from "../types";
-import { Combobox, ComboboxItem } from "../../components/ui/combobox";
-import { Labeled } from "./common/labeled";
-import { cn } from "@/utils/cn";
+import { type JSX, useId, useMemo, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
+import { z } from "zod";
+import { cn } from "@/utils/cn";
+import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { CommandSeparator } from "../../components/ui/command";
+import type { IPlugin, IPluginProps, Setter } from "../types";
+import { Labeled } from "./common/labeled";
 import { multiselectFilterFn } from "./multiselectFilterFn";
 
 interface Data {
@@ -78,7 +77,7 @@ export const Multiselect = ({
   }, [options, searchQuery]);
 
   const handleValueChange = (newValues: string[] | null) => {
-    if (!newValues) {
+    if (!newValues || newValues.length === 0) {
       setValue([]);
       return;
     }

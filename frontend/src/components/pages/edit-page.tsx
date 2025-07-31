@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { AppConfig, UserConfig } from "@/core/config/config-schema";
+import { KnownQueryParams } from "@/core/constants";
 import { EditApp } from "@/core/edit-app";
 import { AppChrome } from "../editor/chrome/wrapper/app-chrome";
 import { CommandPalette } from "../editor/controls/command-palette";
-import type { AppConfig, UserConfig } from "@/core/config/config-schema";
-import { KnownQueryParams } from "@/core/constants";
 
 interface Props {
   userConfig: UserConfig;

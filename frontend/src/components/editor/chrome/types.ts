@@ -1,22 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { isWasm } from "@/core/wasm/utils";
+
 import {
-  XCircleIcon,
+  ActivityIcon,
+  BotMessageSquareIcon,
+  BoxIcon,
+  DatabaseIcon,
+  FileTextIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
-  NetworkIcon,
-  ScrollTextIcon,
-  TextSearchIcon,
-  FileTextIcon,
-  type LucideIcon,
-  SquareDashedBottomCodeIcon,
-  DatabaseIcon,
-  NotebookPenIcon,
-  BoxIcon,
-  BotMessageSquareIcon,
-  ActivityIcon,
   KeyRoundIcon,
+  type LucideIcon,
+  NetworkIcon,
+  NotebookPenIcon,
+  ScrollTextIcon,
+  SquareDashedBottomCodeIcon,
+  TextSearchIcon,
+  XCircleIcon,
 } from "lucide-react";
+import { isWasm } from "@/core/wasm/utils";
 
 export type PanelType =
   | "files"

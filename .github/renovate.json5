@@ -75,7 +75,7 @@
     // Group React Aria dependencies
     {
       "groupName": "react-aria dependencies",
-      "matchPackageNames": ["@react-aria/**", "react-aria-**"],
+      "matchPackageNames": ["@react-aria/**", "react-aria**"],
       "matchUpdateTypes": ["minor", "patch", "major"],
       "schedule": ["on the 14th day of the month"]
     },

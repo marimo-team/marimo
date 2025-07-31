@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { defineCustomElement } from "@/core/dom/defineCustomElement";
-import { renderHTML } from "./RenderHTML";
-import { SlotNames, slotsController } from "@/core/slots/slots";
+
 import { init } from "@paralleldrive/cuid2";
-import { store } from "@/core/state/jotai";
 import { sidebarAtom } from "@/components/editor/renderers/vertical-layout/sidebar/state";
+import { defineCustomElement } from "@/core/dom/defineCustomElement";
+import { SlotNames, slotsController } from "@/core/slots/slots";
+import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
+import { renderHTML } from "./RenderHTML";
 
 const createId = init({ length: 6 });
 

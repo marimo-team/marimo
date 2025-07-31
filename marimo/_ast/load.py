@@ -3,12 +3,17 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from typing import Optional
+from pathlib import Path
+from typing import Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._ast.app import App, InternalApp
-from marimo._ast.parse import MarimoFileError, parse_notebook
-from marimo._schemas.serialization import UnparsableCell
+from marimo._ast.parse import (
+    MarimoFileError,
+    is_non_marimo_python_script,
+    parse_notebook,
+)
+from marimo._schemas.serialization import NotebookSerialization, UnparsableCell
 
 LOGGER = _loggers.marimo_logger()
 
@@ -22,15 +27,14 @@ LOGGER = _loggers.marimo_logger()
 # However for "managed" marimo (i.e. run/ edit), the expectation is to not fail
 # on startup and defer errors to the runtime.
 
+NotebookStatus = Literal["empty", "has_errors", "invalid", "valid"]
 
-def _maybe_contents(filename: Optional[str]) -> Optional[str]:
+
+def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
     if filename is None:
         return None
 
-    with open(filename, encoding="utf-8") as f:
-        contents = f.read().strip()
-
-    return contents
+    return Path(filename).read_text(encoding="utf-8").strip()
 
 
 # Used in tests and current fallback
@@ -60,17 +64,73 @@ def _dynamic_load(filename: str) -> Optional[App]:
     return app
 
 
-def _static_load(filename: str) -> Optional[App]:
-    notebook = parse_notebook(filename)
+def _static_load(filepath: Path) -> Optional[App]:
+    contents = _maybe_contents(filepath)
+    if not contents:
+        return None
+
+    notebook = parse_notebook(contents)
+
+    if notebook and is_non_marimo_python_script(notebook):
+        # Should fail instead of overriding contents
+        raise MarimoFileError(
+            f"Python script {filepath} is not a marimo notebook."
+        )
+
     if notebook is None or not notebook.valid:
         return None
-    app = App(**notebook.app.options, _filename=filename)
+
+    app = App(**notebook.app.options, _filename=str(filepath))
     for cell in notebook.cells:
         if isinstance(cell, UnparsableCell):
             app._unparsable_cell(cell.code, **cell.options)
             continue
         app._cell_manager.register_ir_cell(cell, InternalApp(app))
     return app
+
+
+def get_notebook_status(filename: str) -> NotebookStatus:
+    """Attempts to parse an app- should raise SyntaxError on failure.
+
+    Args:
+        filename: Path to a marimo notebook file (.py or .md)
+
+    Returns:
+        True if a falid code path.
+
+    Raises:
+        SyntaxError: If the file contains a syntax error
+    """
+    path = Path(filename)
+
+    contents = _maybe_contents(filename)
+    if not contents:
+        return "empty"
+
+    notebook: Optional[NotebookSerialization] = None
+    if path.suffix in (".md", ".qmd"):
+        from marimo._convert.markdown.markdown import (
+            convert_from_md_to_marimo_ir,
+        )
+
+        notebook = convert_from_md_to_marimo_ir(contents)
+    elif path.suffix == ".py":
+        notebook = parse_notebook(contents)
+    else:
+        raise MarimoFileError("File must end with .py, .md, or .qmd.")
+
+    # NB. A invalid notebook can still be opened.
+    if notebook is None:
+        return "empty"
+    if not notebook.valid:
+        return "invalid"
+    if len(notebook.violations) > 0:
+        LOGGER.debug(
+            "Notebook has violations: \n%s",
+            "\n".join(map(repr, notebook.violations)),
+        )
+        return "has_errors"
+    return "valid"
 
 
 def load_app(filename: Optional[str]) -> Optional[App]:
@@ -93,19 +153,20 @@ def load_app(filename: Optional[str]) -> Optional[App]:
     if filename is None:
         return None
 
-    if filename.endswith(".md"):
+    path = Path(filename)
+
+    if path.suffix in (".md", ".qmd"):
         contents = _maybe_contents(filename)
         if not contents:
             return None
-        from marimo._cli.convert.markdown import convert_from_md_to_app
+        from marimo._convert.markdown.markdown import convert_from_md_to_app
 
         return convert_from_md_to_app(contents) if contents else None
-
-    if not filename.endswith(".py"):
+    elif not path.suffix == ".py":
         raise MarimoFileError("File must end with .py or .md")
 
     try:
-        return _static_load(filename)
+        return _static_load(path)
     except MarimoFileError:
         # Security advantages of static load are lost here, but reasonable
         # fallback for now.

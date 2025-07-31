@@ -47,12 +47,19 @@ fe: marimo/_static marimo/_lsp
 
 # 🔧 Install/build frontend if anything under frontend/
 marimo/_static: $(shell find frontend/src) $(wildcard frontend/*)
-	@command -v pnpm >/dev/null 2>&1 || { echo "pnpm is required. See https://pnpm.io/installation"; exit 1; }
-	cd frontend; pnpm install; cd ..; ./scripts/buildfrontend.sh
+	./scripts/buildfrontend.sh
 
 # 🔧 Install/build lsp if anything in lsp/ has changed
-marimo/_lsp: $(shell find lsp)
-	cd lsp; pnpm install; cd ..; ./scripts/buildlsp.sh
+marimo/_lsp: $(shell find packages/lsp)
+	./scripts/buildlsp.sh
+
+.PHONY: dev
+dev:
+	@echo "Starting development servers..."
+	@# Start both processes, with marimo in background
+	@(trap 'kill %1; exit' INT; \
+	marimo edit --no-token --headless /tmp & \
+	pnpm dev)
 
 #############
 # Testing   #
@@ -73,7 +80,7 @@ fe-check: fe-lint fe-typecheck
 .PHONY: fe-test
 # 🧪 Test frontend
 fe-test:
-	cd frontend; CI=true pnpm turbo test
+	CI=true pnpm turbo --filter @marimo-team/frontend test -- --run
 
 .PHONY: e2e
 # 🧪 Test end-to-end
@@ -83,19 +90,19 @@ e2e:
 .PHONY: fe-lint
 # 🧹 Lint frontend
 fe-lint:
-	cd frontend/src && hatch run typos && cd - && cd frontend && pnpm lint
+	cd frontend/src && hatch run typos && cd - && pnpm --filter @marimo-team/frontend lint
 
 .PHONY: fe-typecheck
 # 🔍 Typecheck frontend
 fe-typecheck:
-	cd frontend; pnpm turbo typecheck
+	pnpm turbo --filter @marimo-team/frontend typecheck
 
 .PHONY: fe-codegen
 # 🔄 Generate frontend API
 fe-codegen:
-	uv run marimo development openapi > openapi/api.yaml; \
-	cd openapi; pnpm install; pnpm codegen; \
-	biome format --fix src/api.ts;
+	uv run ./marimo development openapi > packages/openapi/api.yaml
+	pnpm run --filter @marimo-team/marimo-api codegen
+	pnpm format packages/openapi/
 
 .PHONY: py-check
 # 🔍 Typecheck, lint, format python
@@ -148,4 +155,4 @@ docs-serve:
 .PHONY: storybook
 # 🧩 Start Storybook for UI development
 storybook:
-	cd frontend; pnpm storybook
+	pnpm --filter @marimo-team/frontend storybook

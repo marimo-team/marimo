@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type {
-  Node,
-  NodeAddChange,
-  NodeRemoveChange,
   Edge,
   EdgeAddChange,
   EdgeRemoveChange,
+  Node,
+  NodeAddChange,
+  NodeRemoveChange,
 } from "reactflow";
 
 export function getNodeChanges(

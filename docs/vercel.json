@@ -1,6 +1,11 @@
 {
   "redirects": [
     {
+      "source": "/guides/package_reproducibility/",
+      "destination": "/guides/package_management/inlining_dependencies/",
+      "permanent": true
+    },
+    {
       "source": "/guides/sql.html",
       "destination": "/guides/working_with_data/sql.html",
       "permanent": true

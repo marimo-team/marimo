@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from textwrap import dedent
 
+from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._convert import utils
 
@@ -26,7 +27,11 @@ def test_markdown_to_marimo():
 def test_generate_from_sources():
     # Test with basic sources
     sources = ["print('Hello')", "x = 5"]
-    result = utils.generate_from_sources(sources=sources)
+    result = codegen.generate_filecontents(
+        codes=sources,
+        names=["_", "_"],
+        cell_configs=[CellConfig(), CellConfig()],
+    )
     result = re.sub(r"__generated_with = .*", "", result)
 
     assert result == dedent(
@@ -58,8 +63,10 @@ if __name__ == "__main__":
 def test_generate_from_sources_with_cell_configs():
     sources = ["print('Hello')", "x = 5"]
     cell_configs = [CellConfig(hide_code=True), CellConfig(hide_code=False)]
-    result = utils.generate_from_sources(
-        sources=sources, cell_configs=cell_configs
+    result = codegen.generate_filecontents(
+        codes=sources,
+        names=["_", "_"],
+        cell_configs=cell_configs,
     )
     result = re.sub(r"__generated_with = .*", "", result)
     assert result == dedent(

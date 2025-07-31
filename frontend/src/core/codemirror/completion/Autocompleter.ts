@@ -1,18 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { CompletionResult } from "@codemirror/autocomplete";
-
+import type { Tooltip } from "@codemirror/view";
+import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";
+import { sendCodeCompletionRequest } from "@/core/network/requests";
+import type { CodeCompletionRequest } from "@/core/network/types";
+import { isPlatformMac } from "../../hotkeys/shortcuts";
 import type {
   CompletionOption,
   CompletionResultMessage,
 } from "../../kernel/messages";
-import { sendCodeCompletionRequest } from "@/core/network/requests";
-import type { Tooltip } from "@codemirror/view";
-import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";
-import type { CodeCompletionRequest } from "@/core/network/types";
 import "../../../components/editor/documentation.css";
 
 function constructCompletionInfoNode(
   innerHtml?: string | null,
+  showGoToDefinitionHint = false,
 ): HTMLElement | null {
   if (!innerHtml) {
     return null;
@@ -20,10 +21,40 @@ function constructCompletionInfoNode(
   const container = document.createElement("span");
   container.classList.add("mo-cm-tooltip");
   container.classList.add("docs-documentation");
+  if (showGoToDefinitionHint) {
+    container.classList.add("cm-tooltip-section");
+  }
   container.style.display = "flex";
   container.style.flexDirection = "column";
   container.style.gap = ".8rem";
   container.innerHTML = innerHtml;
+
+  if (showGoToDefinitionHint) {
+    const instructionDiv = document.createElement("div");
+    instructionDiv.classList.add(
+      "text-xs",
+      "text-muted-foreground",
+      "font-medium",
+      "pt-1",
+      "-mt-2",
+      "border-t",
+      "border-border",
+    );
+
+    // Create kbd element for the key symbol
+    const kbd = document.createElement("kbd");
+    kbd.className =
+      "ml-1 rounded-md bg-muted/40 px-2 text-[0.75rem] font-prose center border border-foreground/20 text-muted-foreground inline whitespace-nowrap";
+    kbd.textContent = isPlatformMac() ? "⌘" : "Ctrl";
+
+    // Add the instruction text
+    instructionDiv.append(document.createTextNode("Jump to defining cell "));
+    instructionDiv.append(kbd);
+    instructionDiv.append(document.createTextNode(" + Click"));
+
+    container.append(instructionDiv);
+  }
+
   return container;
 }
 
@@ -80,12 +111,14 @@ export const Autocompleter = {
     limitToType,
     excludeTypes,
     exactName,
+    showGoToDefinitionHint = false,
   }: {
     position: number;
     message: CompletionResultMessage;
     limitToType?: "tooltip";
     excludeTypes?: string[];
     exactName?: string;
+    showGoToDefinitionHint?: boolean;
   }): (Tooltip & { html?: string | null }) | undefined {
     const firstOption = getFirstOption(message.options, exactName);
     if (!firstOption) {
@@ -93,7 +126,10 @@ export const Autocompleter = {
     }
 
     const from = position - message.prefix_length;
-    const dom = constructCompletionInfoNode(firstOption.completion_info);
+    const dom = constructCompletionInfoNode(
+      firstOption.completion_info,
+      showGoToDefinitionHint,
+    );
     if (!dom) {
       return;
     }

@@ -94,7 +94,7 @@ def _(mo):
 
         @app.cell
         def _(mo):
-            text = mo.ui.text(value="Hello, World!")
+            text = mo.ui.text(value=say_hello())
             text
             return (text,)
 

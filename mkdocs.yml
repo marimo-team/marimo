@@ -12,8 +12,6 @@ extra:
       link: https://marimo.io/discord?ref=docs
     - icon: material/email-newsletter
       link: https://marimo.io/newsletter
-    - icon: material/forum
-      link: https://community.marimo.io
     - icon: fontawesome/brands/mastodon
       link: https://mastodon.social/@marimo_io
     - icon: fontawesome/brands/twitter
@@ -73,7 +71,7 @@ markdown_extensions:
   - pymdownx.tilde
   - mkdocs-click
 nav:
-  - Marimo: index.md
+  - marimo: index.md
   - Getting Started:
       - Getting Started: getting_started/index.md
       - Installation: getting_started/installation.md
@@ -98,14 +96,21 @@ nav:
           - DataFrames: guides/working_with_data/dataframes.md
           - SQL: guides/working_with_data/sql.md
           - Plotting: guides/working_with_data/plotting.md
-      - Package reproducibility: guides/package_reproducibility.md
+      - Package management:
+          - Package management: guides/package_management/index.md
+          - Importing packages: guides/package_management/importing_packages.md
+          - Installing packages: guides/package_management/installing_packages.md
+          - Inlining dependencies: guides/package_management/inlining_dependencies.md
+          - Using uv: guides/package_management/using_uv.md
       - Generate with AI:
           - Generate with AI: guides/generate_with_ai/index.md
           - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
           - AI-assisted coding: guides/editor_features/ai_completion.md
+          - Prompts for the marimo editor: guides/generate_with_ai/prompts.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
+          - Understanding dataflow: guides/editor_features/dataflow.md
           - AI completion: guides/editor_features/ai_completion.md
           - Language Server: guides/editor_features/language_server.md
           - Package management: guides/editor_features/package_management.md
@@ -120,13 +125,14 @@ nav:
           - pytest: guides/testing/pytest.md
           - doctest: guides/testing/doctest.md
       - Export to other formats: guides/exporting.md
+      - Share cloud notebooks with molab: guides/molab.md
       - Publish to the web:
           - Publish to the web: guides/publishing/index.md
           - Embedding: guides/publishing/embedding.md
           - From code snippets: guides/publishing/from_code_snippets.md
           - From GitHub: guides/publishing/from_github.md
           - GitHub Pages: guides/publishing/github_pages.md
-          - Cloudflare Pages: guides/publishing/cloudflare_pages.md
+          - Cloudflare: guides/publishing/cloudflare.md
           - Online playground: guides/publishing/playground.md
           - Community Cloud: guides/publishing/community_cloud/index.md
           - Self-host WASM: guides/publishing/self_host_wasm.md
@@ -143,6 +149,7 @@ nav:
           - nginx: guides/deploying/deploying_nginx.md
           - Prebuilt containers: guides/deploying/prebuilt_containers.md
           - Programmatic: guides/deploying/programmatically.md
+          - Scheduled jobs: guides/deploying/scheduled.md
       - WebAssembly notebooks: guides/wasm.md
       - Configuration:
           - Configuration: guides/configuration/index.md
@@ -236,6 +243,7 @@ nav:
       - Miscellaneous: api/miscellaneous.md
   - Commands: cli.md
   - FAQ: faq.md
+  - Readings & Videos: reading.md
   - Community:
       - Community: community.md
       - Contributing: https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md

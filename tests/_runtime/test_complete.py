@@ -1,10 +1,32 @@
 from __future__ import annotations
 
+import random
+import threading
+from collections.abc import Mapping
+from inspect import signature
+from types import ModuleType
+from typing import Any
+from unittest import mock
+
+import jedi
+import pytest
+
+import marimo
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.complete import _build_docstring_cached
+from marimo._messaging.ops import CompletionResult
+from marimo._messaging.types import Stream
+from marimo._runtime.complete import (
+    _build_docstring_cached,
+    _maybe_get_key_options,
+    complete,
+)
+from marimo._runtime.patches import patch_jedi_parameter_completion
+from marimo._runtime.requests import CodeCompletionRequest
+from marimo._types.ids import CellId_t
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
+HAS_PANDAS = DependencyManager.pandas.has()
 
 
 def test_build_docstring_function_no_init():
@@ -17,7 +39,7 @@ def test_build_docstring_function_no_init():
     )
     assert "my_func" in result
     assert "This is a simple docstring for a function." in result
-    assert '<div class="codehilite">' in result
+    assert '<div class="language-python3 codehilite">' in result
     if DependencyManager.docstring_to_markdown.has():
         snapshot("docstrings_function.txt", result)
 
@@ -94,3 +116,382 @@ def test_build_docstring_no_signature_no_body():
         init_docstring=None,
     )
     assert len(result.strip()) == 0
+
+
+def collect_modules_to_check():
+    top_level_modules_to_check = [marimo]
+    submodules_to_check = []
+
+    # Collect all public exported sub-modules
+    for module in top_level_modules_to_check:
+        for attribute in dir(module):
+            if attribute.startswith("_"):
+                continue
+            candidate = getattr(module, attribute)
+            if isinstance(candidate, ModuleType):
+                submodules_to_check.append(candidate)
+
+    return top_level_modules_to_check + submodules_to_check
+
+
+def collect_functions_to_check():
+    modules_to_check = collect_modules_to_check()
+    assert len(modules_to_check) > 1
+    objects_to_check = set()
+    for module in modules_to_check:
+        for attribute in dir(module):
+            if attribute.startswith("_"):
+                continue
+            obj = getattr(module, attribute)
+            if not callable(obj):
+                continue
+            objects_to_check.add(obj)
+    assert len(objects_to_check) > 1
+    return objects_to_check
+
+
+def dummy_func(arg1: str, arg2: str) -> None:
+    """
+    Parameters
+    ----------
+    arg1
+        polars often uses this format
+    arg2 : str, required
+        while other libraries prefer this format (which polars uses too)
+    """
+    del arg1, arg2
+
+
+@pytest.mark.skipif(
+    not DependencyManager.docstring_to_markdown.has(),
+    reason="docstring_to_markdown is not installed",
+)
+@pytest.mark.parametrize(
+    ("obj", "runtime_inference"),
+    [[obj, False] for obj in collect_functions_to_check()]
+    + [
+        # Test runtime inference for a subset of values
+        [marimo.accordion, True],
+        [dummy_func, False],
+    ],
+    ids=lambda obj: f"{obj}"
+    if isinstance(obj, bool)
+    else f"{obj.__module__}.{obj.__qualname__}",
+)
+def test_parameter_descriptions(obj: Any, runtime_inference: bool):
+    patch_jedi_parameter_completion()
+    import_name = obj.__module__
+    marimo_export = obj.__name__
+    path = f"{import_name}.{marimo_export}"
+    if path == "marimo._output.hypertext.Html":
+        pytest.skip("Known issue with `Html` being a quasi-dataclass")
+    if path.startswith("marimo._save.save."):
+        pytest.skip(
+            "Cache functions use overloads to distinguish calls and context managers"
+            " this can be fixed by splitting docstring on per-oveload basis, but that"
+            " is not yet supported by mkdocstrings for documentation rendering, see"
+            " https://github.com/mkdocstrings/python/issues/135"
+        )
+    if path.endswith("dummy_func"):
+        pytest.skip("Not picking up parameters for dummy_func")
+    call = f"{path}("
+    code = f"import {import_name};{call}"
+    jedi.settings.auto_import_modules = ["marimo"] if runtime_inference else []
+    script = jedi.Script(code=code)
+    completions: list[Any] = script.complete(line=1, column=len(code))
+    param_completions: dict[str, Any] = {
+        completion.name[:-1]: completion
+        for completion in completions
+        if completion.name.endswith("=")
+    }
+    for param_name, param in signature(obj).parameters.items():
+        if param_name.startswith("_"):
+            continue
+        if param.kind in {param.VAR_KEYWORD, param.VAR_POSITIONAL}:
+            continue
+        assert param_name in param_completions, (
+            f"Jedi did not suggest {param_name} in {call}"
+        )
+        jedi_param = param_completions[param_name]
+        docstring = jedi_param.docstring()
+        assert docstring != "", f"Empty docstring result: {call}{param_name}"
+        assert "NoneType" not in docstring, (
+            f"NoneType found in docstring: {call}{param_name}"
+        )
+
+
+def cases_key_completions_code() -> tuple[tuple[str, bool], ...]:
+    """Text content when key completion is triggered."""
+    return (
+        ("obj['", True),
+        ('obj["', True),
+        ("assigned = obj['", True),
+        ("multiline = 'foo'\nobj['", True),
+        ("for i in iterator:\n\tobj['", True),
+        # shouldn't trigger on the following notations
+        ("obj.", False),
+        ("obj", False),
+    )
+
+
+def cases_objects_supporting_key_completion() -> tuple[
+    tuple[Any, list[str]], ...
+]:
+    """Values stored in `globals` when key completion is triggered."""
+
+    class IPythonImplemented:
+        def __init__(self):
+            self._table = {
+                "foo": [0, 1],
+                "bar": [1.0, 3.0],
+            }
+
+        @property
+        def a_property(self) -> str:
+            """This is a property"""
+            return "prop value"
+
+        def __getitem__(self, key: str) -> list:
+            """Returns a mock column"""
+            return self._table[key]
+
+        def _ipython_key_completions_(self) -> list[str]:
+            return list(self._table.keys())
+
+    class CustomMapping(Mapping):
+        def __init__(self):
+            self._data = {
+                "foo": [0, 1],
+                "bar": [1.0, 3.0],
+            }
+
+        def __iter__(self):
+            return iter(self._data.keys())
+
+        def __getitem__(self, key):
+            raise NotImplementedError
+
+        def __len__(self):
+            raise NotImplementedError
+
+    static_key_dict = ({"foo": [0, 1], "bar": [1.0, 3.0]}, ["foo", "bar"])
+    # use different ranges to prevent key collisions
+    dynamic_key_1 = str(random.randint(0, 9))
+    dynamic_key_2 = str(random.randint(10, 19))
+    dynamic_key_dict = (
+        {dynamic_key_1: "val1", dynamic_key_2: "val2"},
+        [dynamic_key_1, dynamic_key_2],
+    )
+    mixed_keys_dict = (
+        {"foo": [0, 1], dynamic_key_1: "val2"},
+        ["foo", dynamic_key_1],
+    )
+    ipython_case = (IPythonImplemented(), ["foo", "bar"])
+    custom_mapping_case = (CustomMapping(), ["foo", "bar"])
+
+    return (
+        static_key_dict,
+        dynamic_key_dict,
+        mixed_keys_dict,
+        ipython_case,
+        custom_mapping_case,
+    )
+
+
+@pytest.mark.parametrize(
+    "code_and_expects_completions", cases_key_completions_code()
+)
+@pytest.mark.parametrize(
+    "obj_and_expected_completions", cases_objects_supporting_key_completion()
+)
+def test_maybe_get_key_options(
+    code_and_expects_completions: tuple[str, bool],
+    obj_and_expected_completions: tuple[Any, list[str]],
+):
+    """Low-level test for `_maybe_get_key_options()`"""
+    code, expects_completions = code_and_expects_completions
+    obj, expected_completions = obj_and_expected_completions
+
+    glbls = {"obj": obj, "other": 10}
+    lock = threading.RLock()
+    script = jedi.Script(code=code)
+    mock_request = mock.MagicMock()
+    mock_request.document = code
+
+    completions = _maybe_get_key_options(
+        request=mock_request, script=script, glbls=glbls, glbls_lock=lock
+    )
+
+    if expects_completions is True:
+        assert [c.name for c in completions] == expected_completions
+    else:
+        assert completions == []
+
+
+# TODO case could be added to `cases_objects_supporting_key_completions()`
+# the test has the same logic of `test_maybe_get_key_options()`
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed.")
+@pytest.mark.parametrize(
+    "code_and_expects_completions", cases_key_completions_code()
+)
+def test_maybe_get_key_options_pandas_dataframe(
+    code_and_expects_completions: tuple[str, bool],
+):
+    import pandas as pd
+
+    glbls = {
+        "obj": pd.DataFrame({"foo": [0, 1], "bar": [9.0, 2.0]}),
+        "other": 10,
+    }
+    lock = threading.RLock()
+    code, expects_completions = code_and_expects_completions
+    expected_completions = ["foo", "bar"]
+    mock_request = mock.MagicMock()
+    mock_request.document = code
+
+    script = jedi.Script(code=code)
+    completions = _maybe_get_key_options(
+        request=mock_request,
+        script=script,
+        glbls=glbls,
+        glbls_lock=lock,
+    )
+
+    if expects_completions is True:
+        assert [c.name for c in completions] == expected_completions
+    else:
+        assert completions == []
+
+
+class CaptureStream(Stream):
+    def __init__(self):
+        self.messages: list[tuple[str, dict[Any, Any]]] = []
+
+    def write(self, op: str, data: dict[Any, Any]) -> None:
+        self.messages.append((op, data))
+
+
+# TODO add test cases for all other completion modalities
+# TODO improve coupling between variable name, source code, and assertions
+@pytest.mark.parametrize(
+    "code_and_expects_completions", cases_key_completions_code()
+)
+@pytest.mark.parametrize(
+    "object_name", ["static_key", "dynamic_key", "mixed_keys", "ipython_data"]
+)
+def test_complete_main_entrypoint(
+    code_and_expects_completions: tuple[str, bool],
+    object_name: str,
+) -> None:
+    trigger_code, expects_completions = code_and_expects_completions
+
+    # parameterize the test (object type, trigger code)
+    # `trigger_code` includes different ways to trigger autocompletion (or not)
+    # All `trigger_code` cases trigger completion on variable `obj`
+    # To test different object types, we assign different values to `obj`
+    other_cells_code = f'''\
+import random
+
+class CustomData:
+    def __init__(self):
+        self._table = {{
+            "foo": [0, 1],
+            "bar": [1., 3.],
+            "baz": [True, True],
+        }}
+
+    @property
+    def a_property(self) -> str:
+        """This is a property"""
+        return "prop value"
+
+    def __getitem__(self, key: str) -> list:
+        """Returns a mock column"""
+        return self._table[key]
+
+    def _ipython_key_completions_(self) -> list[str]:
+        return list(self._table.keys())
+
+ipython_data = CustomData()
+static_key = {{"static_key": "foo"}}
+dynamic_key = {{str(random.randint(0, 10)): "foo"}}
+mixed_keys = {{"static_key": "foo", str(random.randint(0, 10)): "bar"}}
+obj = {object_name}\
+'''
+    mock_other_cell = mock.MagicMock()
+    mock_other_cell.code = other_cells_code
+
+    mock_current_cell = mock.MagicMock()
+    mock_current_cell.code = trigger_code
+    current_cell_id = CellId_t("my-request-id")
+
+    mock_graph = mock.MagicMock()
+    mock_graph.cells = {
+        "other-cell-id": mock_other_cell,
+        current_cell_id: mock_current_cell,
+    }
+
+    glbls = {}
+    exec(other_cells_code, {}, glbls)
+    # check existence of variables in globals and their type
+    assert isinstance(
+        glbls.get("ipython_data"), glbls.get("CustomData", Exception)
+    )
+    assert isinstance(glbls.get("static_key"), dict)
+    assert isinstance(glbls.get("dynamic_key"), dict)
+    assert isinstance(glbls.get("mixed_keys"), dict)
+
+    lock = threading.RLock()
+    local_stream = CaptureStream()
+
+    completion_request = CodeCompletionRequest(
+        id="request_id",
+        document=trigger_code,
+        cell_id=current_cell_id,
+    )
+
+    complete(
+        request=completion_request,
+        graph=mock_graph,
+        glbls=glbls,
+        glbls_lock=lock,
+        stream=local_stream,
+    )
+
+    messages = local_stream.messages
+    message_name, content = messages[0]
+    prefix_length = content["prefix_length"]
+    options = content["options"]
+    options_values = [option["name"] for option in options]
+
+    assert len(messages) == 1
+    assert message_name == CompletionResult.name
+    # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
+    # could be returning values
+    if expects_completions is False:
+        return
+
+    assert prefix_length == 0
+    assert all(option["type"] == "property" for option in options)
+    assert all(option["completion_info"] == "key" for option in options)
+
+    expected_keys: list[str]
+    if object_name == "static_key":
+        # from source code in variable `other_cells_code`
+        expected_keys = ["static_key"]
+    elif object_name == "dynamic_key":
+        expected_keys = list(glbls["dynamic_key"].keys())
+    elif object_name == "mixed_keys":
+        expected_keys = list(glbls["mixed_keys"].keys())
+    elif object_name == "ipython_data":
+        # from source code in variable `other_cells_code`
+        expected_keys = ["foo", "bar", "baz"]
+    else:
+        RuntimeError(
+            f"Make sure you defined `expected_keys` for `{object_name}`"
+            " Currently, the test is improperly defined."
+        )
+
+    # check `len()` to ensure `set()` operation doesn't deduplicate keys
+    assert len(options_values) == len(expected_keys)
+    assert set(options_values) == set(expected_keys)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Optional, Union
 
+from marimo._config.config import CopilotMode
 from marimo._server.models.completion import (
     AiCompletionContext,
     Language,
@@ -92,7 +93,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             f"Your output must be valid {language} code.\n"
             "You can use the provided context to help you write the new cell.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format with no remarks. \n\n"
+            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
             "```\n{CELL_CODE}\n```"
         )
 
@@ -120,7 +121,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "<insert_here></insert_here> tags. Don't include the insert_here tags in your output.\n"
                 "Match the indentation in the original file in the inserted content, "
                 "don't include any indentation on blank lines.\n"
-                "Immediately start with the following format with no remarks:\n\n"
+                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
                 "```\n{INSERTED_CODE}\n```"
             )
         else:
@@ -130,7 +131,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "Start at the indentation level in the original file in the rewritten content. "
                 "Don't stop until you've rewritten the entire section, even if you have no more changes to make, "
                 "always write out the whole section with no unnecessary elisions.\n"
-                "Immediately start with the following format with no remarks:\n\n"
+                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
                 "```\n{REWRITTEN_CODE}\n```"
             )
 
@@ -155,6 +156,8 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "code_from_other_cells", other_cell_codes
         )
 
+    system_prompt += "\n\nAgain, just output the code itself."
+
     return system_prompt
 
 
@@ -165,16 +168,43 @@ def get_inline_system_prompt(*, language: Language) -> str:
     )
 
 
+def _get_mode_intro_message(mode: CopilotMode) -> str:
+    base_intro = (
+        "You are Marimo Copilot, an AI assistant integrated into the marimo notebook code editor.\n"
+        "Your primary function is to help users create, analyze, and improve data science notebooks using marimo's reactive programming model.\n"
+    )
+    if mode == "manual":
+        return (
+            f"{base_intro}"
+            "## Capabilities\n"
+            "- Answer questions and provide guidance using only your internal knowledge and the notebook context provided by the user.\n"
+            "\n"
+            "## Limitations\n"
+            "- You do NOT have access to any external tools, plugins, or APIs.\n"
+            "- You may not perform any actions beyond generating text and code suggestions.\n"
+        )
+    elif mode == "ask":
+        return (
+            f"{base_intro}"
+            "## Capabilities\n"
+            "- You can use a set of read-only tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation).\n"
+            "- You may use these tools ONLY to gather information, not to modify code or state.\n"
+            "\n"
+            "## Limitations\n"
+            "- All tool use is strictly read-only. You may not perform write, edit, or execution actions.\n"
+            "- You must always explain to the user why you are using a tool before invoking it.\n"
+        )
+
+
 def get_chat_system_prompt(
     *,
     custom_rules: Optional[str],
     context: Optional[AiCompletionContext],
     include_other_code: str,
+    mode: CopilotMode,
 ) -> str:
-    system_prompt: str = """
-You are an AI assistant integrated into the marimo notebook code editor.
-You are a specialized AI assistant designed to help create data science notebooks using marimo.
-You focus on creating clear, efficient, and reproducible data analysis workflows with marimo's reactive programming model.
+    system_prompt: str = f"""
+{_get_mode_intro_message(mode)}
 
 Your goal is to do one of the following two things:
 
@@ -269,7 +299,7 @@ y = np.random.rand(n_points.value)
 
 plt.figure(figsize=(8, 6))
 plt.scatter(x, y, alpha=0.7)
-plt.title(f"Scatter plot with {n_points.value} points")
+plt.title(f"Scatter plot with {{n_points.value}} points")
 plt.xlabel("X axis")
 plt.ylabel("Y axis")
 plt.gca()  # Return the current axes to display the plot

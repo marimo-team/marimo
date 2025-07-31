@@ -1,0 +1,47 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`create vega spec > should create and augment a spec 1`] = `
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "background": "white",
+  "config": {
+    "axis": {
+      "grid": false,
+    },
+  },
+  "data": {
+    "values": [],
+  },
+  "encoding": {
+    "color": undefined,
+    "tooltip": undefined,
+    "x": {
+      "aggregate": undefined,
+      "bin": undefined,
+      "field": "category",
+      "sort": undefined,
+      "stack": undefined,
+      "timeUnit": undefined,
+      "title": undefined,
+      "type": "nominal",
+    },
+    "xOffset": undefined,
+    "y": {
+      "aggregate": undefined,
+      "bin": undefined,
+      "field": "value",
+      "sort": undefined,
+      "stack": undefined,
+      "timeUnit": undefined,
+      "title": undefined,
+      "type": "nominal",
+    },
+  },
+  "height": 300,
+  "mark": {
+    "type": "bar",
+  },
+  "title": "Test Chart",
+  "width": 400,
+}
+`;

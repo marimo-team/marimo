@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { test, expect } from "@playwright/test";
+
+import { fileURLToPath } from "node:url";
+import { expect, test } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
 import { maybeRestartKernel, takeScreenshot } from "./helper";
-import { fileURLToPath } from "node:url";
 
 const _filename = fileURLToPath(import.meta.url);
 

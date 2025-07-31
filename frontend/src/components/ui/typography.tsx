@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable jsx-a11y/heading-has-content */
 import * as React from "react";
 import { cn } from "@/utils/cn";
 

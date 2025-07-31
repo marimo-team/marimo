@@ -42,6 +42,7 @@ export type HotkeyGroup =
   | "Navigation"
   | "Editing"
   | "Markdown"
+  | "Command"
   | "Other";
 
 const DEFAULT_HOT_KEY = {
@@ -197,7 +198,7 @@ const DEFAULT_HOT_KEY = {
     key: "Ctrl-Alt-]",
   },
   "cell.delete": {
-    name: "Delete empty cell",
+    name: "Delete cell",
     group: "Editing",
     key: "Shift-Backspace",
   },
@@ -221,11 +222,17 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-'",
   },
-  "cell.toggleLineComment": {
-    name: "Toggle line comment",
+  "cell.toggleComment": {
+    name: "Toggle comment",
     group: "Editing",
+    // https://github.com/codemirror/commands/blob/6.8.1/src/commands.ts#L1067
     key: "Mod-/",
-    editable: false,
+  },
+  "cell.toggleBlockComment": {
+    name: "Toggle block comment",
+    group: "Editing",
+    // https://github.com/codemirror/commands/blob/6.8.1/src/commands.ts#L1068
+    key: "Alt-A",
   },
   "cell.renameSymbol": {
     name: "Rename symbol",
@@ -332,6 +339,21 @@ const DEFAULT_HOT_KEY = {
     group: "Other",
     key: "Ctrl-`",
   },
+  "global.collapseAllSections": {
+    name: "Collapse all sections",
+    group: "Editing",
+    key: "Mod-Shift-\\",
+  },
+  "global.expandAllSections": {
+    name: "Expand all sections",
+    group: "Editing",
+    key: "Mod-Shift-/",
+  },
+  "global.toggleMinimap": {
+    name: "Toggle Minimap",
+    group: "Other",
+    key: "Mod-Shift-i",
+  },
 
   // Global Navigation
   "global.focusTop": {
@@ -363,6 +385,28 @@ const DEFAULT_HOT_KEY = {
     name: "Move completion selection up",
     group: "Editing",
     key: "Ctrl-k",
+  },
+
+  // Command mode (edit a cell, not the editor)
+  "command.createCellBefore": {
+    name: "Create a cell before current cell",
+    group: "Command",
+    key: "a",
+  },
+  "command.createCellAfter": {
+    name: "Create a cell after current cell",
+    group: "Command",
+    key: "b",
+  },
+  "command.copyCell": {
+    name: "Copy cell",
+    group: "Command",
+    key: "c",
+  },
+  "command.pasteCell": {
+    name: "Paste cell",
+    group: "Command",
+    key: "v",
   },
 } satisfies Record<string, Hotkey>;
 

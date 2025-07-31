@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, fireEvent } from "@testing-library/react";
-import { NumberPlugin } from "../NumberPlugin";
+
+import { act, fireEvent, render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IPluginProps } from "../../types";
+import { NumberPlugin } from "../NumberPlugin";
 
 describe("NumberPlugin", () => {
   beforeEach(() => {

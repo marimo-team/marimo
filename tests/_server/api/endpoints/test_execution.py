@@ -90,6 +90,25 @@ class TestExecutionRoutes_EditMode:
 
     @staticmethod
     @with_session(SESSION_ID)
+    def test_set_model_value(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/set_model_value",
+            headers=HEADERS,
+            json={
+                "model_id": "model-1",
+                "message": {
+                    "state": {"key": "value"},
+                    "buffer_paths": [["a"], ["b"]],
+                },
+                "buffers": ["buffer1", "buffer2"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_session(SESSION_ID)
     def test_interrupt(client: TestClient) -> None:
         response = client.post("/api/kernel/interrupt", headers=HEADERS)
         assert response.status_code == 200, response.text
@@ -270,6 +289,25 @@ class TestExecutionRoutes_RunMode:
                 "namespace": "namespace1",
                 "function_name": "function1",
                 "args": {"arg1": "value1"},
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert "success" in response.json()
+
+    @staticmethod
+    @with_read_session(SESSION_ID)
+    def test_set_model_value(client: TestClient) -> None:
+        response = client.post(
+            "/api/kernel/set_model_value",
+            headers=HEADERS,
+            json={
+                "model_id": "model-1",
+                "message": {
+                    "state": {"key": "value"},
+                    "buffer_paths": [["a"], ["b"]],
+                },
+                "buffers": ["buffer1", "buffer2"],
             },
         )
         assert response.status_code == 200, response.text

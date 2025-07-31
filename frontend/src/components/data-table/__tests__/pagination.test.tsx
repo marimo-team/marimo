@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, test } from "vitest";
+
 import { render } from "@testing-library/react";
-import { PageSelector } from "../pagination";
+import { expect, test } from "vitest";
 import { Functions } from "@/utils/functions";
+import { PageSelector } from "../pagination";
 
 function getOptions(currentPage: number) {
   const { container } = render(

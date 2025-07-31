@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
-import { Strings, decodeUtf8 } from "../strings";
+import { describe, expect, it } from "vitest";
+import { decodeUtf8, Strings } from "../strings";
 
 describe("Strings", () => {
   describe("startCase", () => {

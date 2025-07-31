@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
+
 import { cva } from "class-variance-authority";
 import React from "react";
+import { cn } from "@/utils/cn";
 
 export const menuContentCommon = cva(
   "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",

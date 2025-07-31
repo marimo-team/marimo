@@ -22,8 +22,11 @@ class CondaPackageManager(CanonicalizingPackageManager):
 class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
-    async def _install(self, package: str) -> bool:
-        return self.run(["pixi", "add", *split_packages(package)])
+    async def _install(self, package: str, *, upgrade: bool) -> bool:
+        if upgrade:
+            return self.run(["pixi", "upgrade", *split_packages(package)])
+        else:
+            return self.run(["pixi", "add", *split_packages(package)])
 
     async def uninstall(self, package: str) -> bool:
         return self.run(["pixi", "remove", *split_packages(package)])

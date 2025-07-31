@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useState, useRef, useEffect } from "react";
-import { useTimer } from "./useTimer";
+import { useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
+import { useOnUnmount } from "./useLifecycle";
+import { useTimer } from "./useTimer";
 
 export type RecordingStatus = "recording" | "paused" | "stopped";
 
@@ -14,7 +15,7 @@ export function useAudioRecorder(opts: {
 
   const [recordingStatus, setRecordingStatus] =
     useState<RecordingStatus>("stopped");
-  const mediaRecorder = useRef<MediaRecorder>();
+  const mediaRecorder = useRef<MediaRecorder>(undefined);
   const [allowed, setAllowed] = useState<boolean>(true);
   const [recordingBlob, setRecordingBlob] = useState<Blob>();
 
@@ -69,14 +70,11 @@ export function useAudioRecorder(opts: {
   });
 
   // Cleanup
-  useEffect(() => {
-    return () => {
-      mediaRecorder.current?.stream.getTracks().forEach((t) => t.stop());
-      mediaRecorder.current?.stop();
-      timer.stop();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useOnUnmount(() => {
+    mediaRecorder.current?.stream.getTracks().forEach((t) => t.stop());
+    mediaRecorder.current?.stop();
+    timer.stop();
+  });
 
   return {
     start,

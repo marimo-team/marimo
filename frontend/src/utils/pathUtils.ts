@@ -3,12 +3,17 @@
 /**
  * Get the protocol and parent directories of a path.
  */
-export function getProtocolAndParentDirectories(
-  path: string,
-  delimiter: string,
-  initialPath: string,
-  restrictNavigation: boolean,
-) {
+export function getProtocolAndParentDirectories({
+  path,
+  delimiter,
+  initialPath,
+  restrictNavigation,
+}: {
+  path: string;
+  delimiter: string;
+  initialPath: string;
+  restrictNavigation: boolean;
+}) {
   // Determine protocol (http://, gs://, C:\, s3://, or /)
   const protocolMatch = path.match(/^[\dA-Za-z]+:\/\//);
   const isWindowsPath = /^[A-Za-z]:\\/.test(path);
@@ -61,4 +66,11 @@ export function getProtocolAndParentDirectories(
   }
 
   return { protocol, parentDirectories };
+}
+
+export function fileSplit(path: string): [name: string, extension: string] {
+  const lastDotIndex = path.lastIndexOf(".");
+  const name = lastDotIndex > 0 ? path.slice(0, lastDotIndex) : path;
+  const extension = lastDotIndex > 0 ? path.slice(lastDotIndex) : "";
+  return [name, extension];
 }

@@ -1,17 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { WrenchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useCellActions, notebookAtom } from "@/core/cells/cells";
+import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
-import { WrenchIcon } from "lucide-react";
 
 export const AutoFixButton = ({
   errors,
   cellId,
-}: { errors: MarimoError[]; cellId: CellId; className?: string }) => {
+}: {
+  errors: MarimoError[];
+  cellId: CellId;
+  className?: string;
+}) => {
   const { createNewCell } = useCellActions();
   const autoFixes = errors.flatMap((error) => getAutoFixes(error));
 

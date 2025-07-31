@@ -1,22 +1,22 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { cn } from "../../../utils/cn";
-import type { MarimoError } from "../../../core/kernel/messages";
-import { Alert } from "../../ui/alert";
-import { AlertTitle } from "../../ui/alert";
-
+import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import { Fragment, type JSX } from "react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Fragment } from "react";
-import { CellLinkError } from "../links/cell-link";
-import type { CellId } from "@/core/cells/ids";
-import { AutoFixButton } from "../errors/auto-fix";
-import { SquareArrowOutUpRightIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ExternalLink } from "@/components/ui/links";
+import type { CellId } from "@/core/cells/ids";
+import type { MarimoError } from "../../../core/kernel/messages";
+import { cn } from "../../../utils/cn";
+import { Alert, AlertTitle } from "../../ui/alert";
+import { useChromeActions } from "../chrome/state";
+import { AutoFixButton } from "../errors/auto-fix";
+import { CellLinkError } from "../links/cell-link";
 
 const Tip = (props: {
   title?: string;
@@ -51,6 +51,8 @@ export const MarimoErrorOutput = ({
   cellId,
   className,
 }: Props): JSX.Element => {
+  const chromeActions = useChromeActions();
+
   let titleContents = "This cell wasn't run because it has errors";
   let alertVariant: "destructive" | "default" = "destructive";
   let titleColor = "text-error";
@@ -129,12 +131,16 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "unknown" }> => e.type === "unknown",
   );
 
+  const openScratchpad = () => {
+    chromeActions.openApplication("scratchpad");
+  };
+
   const renderMessages = () => {
     const messages: JSX.Element[] = [];
 
     if (syntaxErrors.length > 0 || unknownErrors.length > 0) {
       messages.push(
-        <li key="syntax-unknown">
+        <div key="syntax-unknown">
           {syntaxErrors.map((error, idx) => (
             <p key={`syntax-${idx}`}>{error.msg}</p>
           ))}
@@ -147,13 +153,13 @@ export const MarimoErrorOutput = ({
               cellId={cellId}
             />
           )}
-        </li>,
+        </div>,
       );
     }
 
     if (setupErrors.length > 0) {
       messages.push(
-        <li key="setup-refs">
+        <div key="setup-refs">
           <p className="text-muted-foreground font-medium">
             The setup cell cannot be run because it has references.
           </p>
@@ -198,13 +204,13 @@ export const MarimoErrorOutput = ({
               .
             </p>
           </Tip>
-        </li>,
+        </div>,
       );
     }
 
     if (cycleErrors.length > 0) {
       messages.push(
-        <li key="cycle">
+        <div key="cycle">
           <p className="text-muted-foreground font-medium">
             This cell is in a cycle.
           </p>
@@ -247,13 +253,13 @@ export const MarimoErrorOutput = ({
               .
             </p>
           </Tip>
-        </li>,
+        </div>,
       );
     }
 
     if (multipleDefsErrors.length > 0) {
       messages.push(
-        <li key="multiple-defs">
+        <div key="multiple-defs">
           <p className="text-muted-foreground font-medium">
             This cell redefines variables from other cells.
           </p>
@@ -270,9 +276,11 @@ export const MarimoErrorOutput = ({
               </ul>
             </Fragment>
           ))}
+
           {cellId && (
             <AutoFixButton errors={multipleDefsErrors} cellId={cellId} />
           )}
+
           <Tip title="Why can't I redefine variables?">
             <p className="pb-2">
               marimo requires that each variable is defined in just one cell.
@@ -295,13 +303,28 @@ export const MarimoErrorOutput = ({
               .
             </p>
           </Tip>
-        </li>,
+
+          <Tip title="Need a scratchpad?">
+            <div className="flex flex-row gap-2 items-center">
+              <Button
+                size="xs"
+                variant="link"
+                className="my-2 font-normal mx-0 px-0"
+                onClick={openScratchpad}
+              >
+                <NotebookPenIcon className="h-3" />
+                <span>Try the scratchpad</span>
+              </Button>
+              <span>to experiment without restrictions on variable names.</span>
+            </div>
+          </Tip>
+        </div>,
       );
     }
 
     if (importStarErrors.length > 0) {
       messages.push(
-        <li key="import-star">
+        <div key="import-star">
           {importStarErrors.map((error, idx) => (
             <p key={`import-star-${idx}`} className="text-muted-foreground">
               {error.msg}
@@ -336,13 +359,13 @@ export const MarimoErrorOutput = ({
               .
             </p>
           </Tip>
-        </li>,
+        </div>,
       );
     }
 
     if (deleteNonlocalErrors.length > 0) {
       messages.push(
-        <li key="delete-nonlocal">
+        <div key="delete-nonlocal">
           {deleteNonlocalErrors.map((error, idx) => (
             <div key={`delete-nonlocal-${idx}`}>
               {`The variable '${error.name}' can't be deleted because it was defined by another cell (`}
@@ -360,13 +383,13 @@ export const MarimoErrorOutput = ({
             order. Try refactoring so that you can delete variables in the cells
             that create them.
           </Tip>
-        </li>,
+        </div>,
       );
     }
 
     if (interruptionErrors.length > 0) {
       messages.push(
-        <li key="interruption">
+        <div key="interruption">
           {interruptionErrors.map((_, idx) => (
             <p key={`interruption-${idx}`}>
               {"This cell was interrupted and needs to be re-run."}
@@ -375,22 +398,22 @@ export const MarimoErrorOutput = ({
           {cellId && (
             <AutoFixButton errors={interruptionErrors} cellId={cellId} />
           )}
-        </li>,
+        </div>,
       );
     }
 
     if (exceptionErrors.length > 0) {
       messages.push(
-        <li key="exception">
+        <ul key="exception">
           {exceptionErrors.map((error, idx) => (
             <li className="my-2" key={`exception-${idx}`}>
               {error.raising_cell == null ? (
-                <li>
+                <div>
                   <p className="text-muted-foreground">{error.msg}</p>
                   <div className="text-muted-foreground mt-2">
                     See the console area for a traceback.
                   </div>
-                </li>
+                </div>
               ) : (
                 <div>
                   {error.msg}
@@ -406,13 +429,13 @@ export const MarimoErrorOutput = ({
             </Tip>
           )}
           {cellId && <AutoFixButton errors={exceptionErrors} cellId={cellId} />}
-        </li>,
+        </ul>,
       );
     }
 
     if (strictExceptionErrors.length > 0) {
       messages.push(
-        <li key="strict-exception">
+        <ul key="strict-exception">
           {strictExceptionErrors.map((error, idx) => (
             <li className="my-2" key={`strict-exception-${idx}`}>
               {error.blamed_cell == null ? (
@@ -433,24 +456,24 @@ export const MarimoErrorOutput = ({
               ? "Ensure that the referenced cells define the required variables, or turn off strict execution."
               : "Something is wrong with your declarations. Fix any discrepancies, or turn off strict execution."}
           </Tip>
-        </li>,
+        </ul>,
       );
     }
 
     if (internalErrors.length > 0) {
       messages.push(
-        <li key="internal">
+        <div key="internal">
           {internalErrors.map((error, idx) => (
             <p key={`internal-${idx}`}>{error.msg}</p>
           ))}
           {cellId && <AutoFixButton errors={internalErrors} cellId={cellId} />}
-        </li>,
+        </div>,
       );
     }
 
     if (ancestorPreventedErrors.length > 0) {
       messages.push(
-        <li key="ancestor-prevented">
+        <div key="ancestor-prevented">
           {ancestorPreventedErrors.map((error, idx) => (
             <div key={`ancestor-prevented-${idx}`}>
               {error.msg}
@@ -470,13 +493,13 @@ export const MarimoErrorOutput = ({
           {cellId && (
             <AutoFixButton errors={ancestorPreventedErrors} cellId={cellId} />
           )}
-        </li>,
+        </div>,
       );
     }
 
     if (ancestorStoppedErrors.length > 0) {
       messages.push(
-        <li key="ancestor-stopped">
+        <div key="ancestor-stopped">
           {ancestorStoppedErrors.map((error, idx) => (
             <div key={`ancestor-stopped-${idx}`}>
               {error.msg}
@@ -486,7 +509,7 @@ export const MarimoErrorOutput = ({
           {cellId && (
             <AutoFixButton errors={ancestorStoppedErrors} cellId={cellId} />
           )}
-        </li>,
+        </div>,
       );
     }
 
@@ -509,7 +532,7 @@ export const MarimoErrorOutput = ({
     >
       {title}
       <div>
-        <ul className="flex flex-col gap-8">{renderMessages()}</ul>
+        <div className="flex flex-col gap-8">{renderMessages()}</div>
       </div>
     </Alert>
   );

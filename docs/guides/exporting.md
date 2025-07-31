@@ -104,6 +104,9 @@ marimo export md notebook.py -o notebook.md
 
 This can be useful to plug into other tools that read markdown, such as [Quarto](https://quarto.org/) or [MyST](https://myst-parser.readthedocs.io/).
 
+!!! tip "marimo can directly open markdown files as notebooks"
+    Learn more with `marimo tutorial markdown-format` at the command line.
+
 You can also convert the markdown back to a marimo notebook:
 
 ```bash
@@ -121,7 +124,10 @@ marimo export ipynb notebook.py -o notebook.ipynb
 
 ## Exporting to PDF, slides, or rst
 
-If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
+The marimo [Quarto](https://www.github.com/marimo-team/quarto-marimo) plugin
+enables exporting to PDF and other formats with Pandoc. See this [publishing](./publishing/quarto.md) for more details.
+
+However, if you export to a Jupyter notebook, you can leverage various other Jupyter ecosystem tools. For PDFs, you will
 need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
@@ -162,7 +168,7 @@ You can also use other tools that work with Jupyter notebooks:
 
 ## Export to WASM-powered HTML
 
-Export your notebook to a self-contained HTML file that runs using WebAssembly:
+Export your notebook to a self-contained HTML file that runs using [WebAssembly](wasm.md):
 
 ```bash
 # export as readonly, with code locked
@@ -179,6 +185,10 @@ Options:
 - `--output`: Directory to save the HTML and required assets
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
+- `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
+
+Note that WebAssembly notebooks have [limitations](wasm.md#limitations); in particular,
+[many but not all packages work](wasm.md#packages).
 
 !!! note "Note"
 
@@ -186,8 +196,28 @@ Options:
     cannot be opened directly from the filesystem (`file://`). Your server must
     also serve the assets in the `assets` directory, next to the HTML file. For
     a simpler publishing experience, publish to [GitHub
-    Pages](publishing/github_pages.md), [Cloudflare Pages](publishing/cloudflare_pages.md) or use the [online
+    Pages](publishing/github_pages.md), [Cloudflare](publishing/cloudflare.md) or use the [online
     playground](publishing/playground.md).
+
+??? note "Deploying to Cloudflare"
+
+    You can include `--include-cloudflare` for deploying to Cloudflare. For example:
+
+    ```
+    marimo export html-wasm notebook.py -o my_app/dist --include-cloudflare
+    ```
+
+    To run locally, run:
+
+    ```
+    npx wrangler dev
+    ```
+
+    To deploy to Cloudflare, run:
+
+    ```
+    npx wrangler deploy
+    ```
 
 ### Testing the export
 
@@ -208,7 +238,6 @@ to include data files in exported WASM HTML notebooks.
 After exporting your notebook to WASM HTML, you can publish it to
 [GitHub Pages](https://pages.github.com/) for free. See our [guide on
 GitHub Pages](publishing/github_pages.md) to learn more.
-
 
 ### Exporting multiple notebooks
 
@@ -357,6 +386,5 @@ In order to use marimo islands, you need to import the necessary JS/CSS headers 
   </marimo-island>
 </body>
 ```
-
 
 ::: marimo.MarimoIslandGenerator

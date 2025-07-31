@@ -1,14 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView, keymap } from "@codemirror/view";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { invariant } from "@/utils/invariant";
+import { smartScrollIntoView } from "../../utils/scroll";
+import { cellActionsState, cellIdState } from "./cells/state";
 import { formatEditorViews, formattingChangeEffect } from "./format";
 import {
   getCurrentLanguageAdapter,
   toggleToLanguage,
 } from "./language/commands";
-import { smartScrollIntoView } from "../../utils/scroll";
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { invariant } from "@/utils/invariant";
-import { cellActionsState, cellIdState } from "./cells/state";
 
 /**
  * Add a keymap to format the code in the editor.
@@ -85,7 +85,10 @@ export function scrollActiveLineIntoView() {
         const activeLine = activeLines[0] as HTMLElement;
         const appEl = document.getElementById("App");
         invariant(appEl, "App not found");
-        smartScrollIntoView(activeLine, { top: 30, bottom: 150 }, appEl);
+        smartScrollIntoView(activeLine, {
+          offset: { top: 30, bottom: 150 },
+          body: appEl,
+        });
       }
     }
   });

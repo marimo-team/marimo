@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -28,8 +28,11 @@ from marimo._server.api.status import (
 )
 from marimo._server.errors import handle_error
 from marimo._server.lsp import LspServer
+from marimo._server.registry import MIDDLEWARE_REGISTRY
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from starlette.types import Lifespan
 
 LOGGER = _loggers.marimo_logger()
@@ -51,6 +54,7 @@ def create_starlette_app(
     enable_auth: bool = True,
     allow_origins: Optional[tuple[str, ...]] = None,
     lsp_servers: Optional[list[LspServer]] = None,
+    skew_protection: bool = True,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
 
@@ -84,10 +88,12 @@ def create_starlette_app(
                 allow_methods=["*"],
                 allow_headers=["*"],
             ),
-            Middleware(SkewProtectionMiddleware),
-            _create_mpl_proxy_middleware(),
+            _create_mpl_proxy_middleware(base_url=base_url),
         ]
     )
+
+    if skew_protection:
+        final_middlewares.append(Middleware(SkewProtectionMiddleware))
 
     if lsp_servers is not None:
         final_middlewares.extend(
@@ -97,6 +103,8 @@ def create_starlette_app(
     if middleware:
         final_middlewares.extend(middleware)
 
+    final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
+
     return Starlette(
         routes=build_routes(base_url=base_url),
         middleware=final_middlewares,
@@ -105,25 +113,59 @@ def create_starlette_app(
             Exception: handle_error,
             HTTPException: handle_error,
             MarimoHTTPException: handle_error,
+            ModuleNotFoundError: handle_error,
         },
     )
 
 
-def _create_mpl_proxy_middleware() -> Middleware:
-    # MPL proxy logic
+def _create_mpl_proxy_middleware(base_url: str) -> Middleware:
+    # Construct the full proxy path with base_url
+    # Normalize base_url to avoid double slashes
+    normalized_base_url = base_url.rstrip("/")
+    proxy_path = f"{normalized_base_url}/mpl"
+
     def mpl_target_url(path: str) -> str:
-        # Path format: /mpl/<port>/rest/of/path
-        port = path.split("/", 3)[2]
+        # Path format: {base_url}/mpl/<port>/rest/of/path
+        # Remove the proxy_path prefix to get /<port>/rest/of/path
+        if not path.startswith(proxy_path):
+            raise ValueError(
+                f"Path {path} does not start with proxy path {proxy_path}"
+            )
+
+        remaining = path[len(proxy_path) :]
+        if not remaining.startswith("/"):
+            raise ValueError(f"Invalid MPL path format: {path}")
+
+        # Parse /<port>/rest/of/path to get the port
+        parts = remaining.split("/")
+        if len(parts) < 2 or not parts[1]:
+            raise ValueError(f"Invalid MPL path format: {path}")
+
+        port = parts[1]
         return f"http://localhost:{port}"
 
     def mpl_path_rewrite(path: str) -> str:
-        # Remove the /mpl/<port>/ prefix
-        rest = path.split("/", 3)[3]
-        return f"/{rest}"
+        # Remove the {base_url}/mpl/<port>/ prefix
+        # Remove the proxy_path prefix first
+        if not path.startswith(proxy_path):
+            return "/"
+
+        remaining = path[len(proxy_path) :]
+        if not remaining.startswith("/"):
+            return "/"
+
+        # Parse /<port>/rest/of/path and return /rest/of/path
+        parts = remaining.split("/")
+        if len(parts) < 2:
+            return "/"
+
+        # Skip the empty first part and the port to get the rest
+        rest_parts = parts[2:]
+        return "/" + "/".join(rest_parts) if rest_parts else "/"
 
     return Middleware(
         ProxyMiddleware,
-        proxy_path="/mpl",
+        proxy_path=proxy_path,
         target_url=mpl_target_url,
         path_rewrite=mpl_path_rewrite,
     )
@@ -131,22 +173,12 @@ def _create_mpl_proxy_middleware() -> Middleware:
 
 def _create_lsps_proxy_middleware(
     *, servers: list[LspServer]
-) -> list[Middleware]:
-    middlewares: list[Middleware] = []
-    for server in servers:
-
-        def path_rewrite(server_id: str) -> Callable[[str], str]:
-            to_replace = (
-                "/copilot" if server_id == "copilot" else f"/lsp/{server_id}"
-            )
-            return lambda _: to_replace
-
-        middlewares.append(
-            Middleware(
-                ProxyMiddleware,
-                proxy_path=f"/lsp/{server.id}",
-                target_url=f"http://localhost:{server.port}",
-                path_rewrite=path_rewrite(server.id),
-            )
+) -> Iterator[Middleware]:
+    return (
+        Middleware(
+            ProxyMiddleware,
+            proxy_path=f"/lsp/{server.id}",
+            target_url=f"http://localhost:{server.port}",
         )
-    return middlewares
+        for server in servers
+    )

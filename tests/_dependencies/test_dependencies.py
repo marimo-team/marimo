@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+from unittest.mock import patch
+
 import pytest
 
 from marimo._dependencies.dependencies import (
@@ -40,6 +43,44 @@ def test_without_dependencies() -> None:
     assert excinfo.value.name == "missing"
 
     assert "for testing" in str(excinfo.value)
+
+
+def test_subpackage_cache_invalidation() -> None:
+    """Test that subpackage dependencies properly invalidate importlib cache."""
+    # Create a dependency for a missing subpackage
+    missing_subpackage = Dependency("google.missing_package")
+
+    with patch("importlib.invalidate_caches") as mock_invalidate:
+        with pytest.raises(ModuleNotFoundError) as excinfo:
+            missing_subpackage.require("for testing subpackage handling")
+
+        # Verify the behavior
+        assert excinfo.value.name == "google.missing_package"
+        assert "for testing subpackage handling" in str(excinfo.value)
+
+        # Verify that invalidate_caches was called for subpackage
+        mock_invalidate.assert_called_once()
+
+        # Verify that the module was removed from sys.modules
+        assert "google.missing_package" not in sys.modules
+
+
+def test_regular_package_no_cache_invalidation() -> None:
+    """Test that regular packages (no dot) don't trigger cache invalidation."""
+
+    # Create a dependency for a missing regular package
+    missing_package = Dependency("missing_regular_package")
+
+    with patch("importlib.invalidate_caches") as mock_invalidate:
+        with pytest.raises(ModuleNotFoundError) as excinfo:
+            missing_package.require("for testing regular package")
+
+        # Verify the behavior
+        assert excinfo.value.name == "missing_regular_package"
+        assert "for testing regular package" in str(excinfo.value)
+
+        # Verify that invalidate_caches was NOT called for regular package
+        mock_invalidate.assert_not_called()
 
 
 @pytest.mark.skipif(

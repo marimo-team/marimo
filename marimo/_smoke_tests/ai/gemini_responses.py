@@ -52,19 +52,11 @@ def _(mo):
 
 
 @app.cell
-def _(api_token, tools):
-    import google.generativeai as genai
+def _(api_token):
+    from google import genai
 
-    genai.configure(api_key=api_token.value)
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash-exp", tools=tools.value
-    )
-
-    model.generate_content(
-        "Create a function that takes a list of numbers and returns the sum of all the numbers in the list.",
-        stream=True,
-    )
-    return genai, model
+    client = genai.Client(api_key=api_token.value)
+    return genai, client
 
 
 @app.cell(hide_code=True)
@@ -74,9 +66,13 @@ def _(mo):
 
 
 @app.cell
-def _(model):
-    model.generate_content(
-        "Create a function that takes a list of numbers and returns the sum of all the numbers in the list."
+def _(client, tools):
+    client.models.generate_content_stream(
+        model="gemini-2.5-flash-preview-05-20",
+        contents="Create a function that takes a list of numbers and returns the sum of all the numbers in the list.",
+        config={
+            "tools": tools.value,
+        }
     )
     return
 

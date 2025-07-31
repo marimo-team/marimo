@@ -66,9 +66,9 @@ def python_print_pandas(
             )
         elif operator in [">", ">=", "<", "<="]:
             return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
-        elif operator == "is_nan":
+        elif operator == "is_null":
             return f"{df_name}[{_as_literal(column_id)}].isna()"
-        elif operator == "is_not_nan":
+        elif operator == "is_not_null":
             return f"{df_name}[{_as_literal(column_id)}].notna()"
         elif operator == "is_true":
             return f"{df_name}[{_as_literal(column_id)}].eq(True)"
@@ -178,6 +178,10 @@ def python_print_pandas(
         args = f"{df_name}.pop({column_id}).values.tolist()"
         return f"{df_name}.join(pd.DataFrame({args}))"
 
+    elif transform.type == TransformType.UNIQUE:
+        column_ids = transform.column_ids
+        return f"{df_name}.drop_duplicates({_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"
+
     assert_never(transform.type)
 
 
@@ -207,9 +211,9 @@ def python_print_polars(
             return f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
         elif operator in [">", ">=", "<", "<="]:
             return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"  # noqa: E501
-        elif operator == "is_nan":
+        elif operator == "is_null":
             return f"pl.col({_as_literal(column_id)}).is_null()"
-        elif operator == "is_not_nan":
+        elif operator == "is_not_null":
             return f"pl.col({_as_literal(column_id)}).is_not_null()"
         elif operator == "is_true":
             return f"pl.col({_as_literal(column_id)}) == True"
@@ -233,6 +237,11 @@ def python_print_polars(
             transform.column_id,
             transform.new_column_id,
         )
+        # Update column names in place
+        all_columns[:] = [
+            str(new_column_id) if col == column_id else col
+            for col in all_columns
+        ]
         return f"{df_name}.rename({{{_as_literal(column_id)}: {_as_literal(new_column_id)}}})"  # noqa: E501
 
     elif transform.type == TransformType.SORT_COLUMN:
@@ -266,10 +275,10 @@ def python_print_polars(
         for agg_func in aggregations:
             agg_df = f"{selected_df}.{agg_func}()"
             rename_dict = {
-                f"{column}: f'{column}_{agg_func}'" for column in all_columns
+                column: f"{column}_{agg_func}" for column in column_ids
             }
             agg_df = f"{agg_df}.rename({rename_dict})"
-            result_df = f"{result_df}.join({agg_df})"
+            result_df = f"{result_df}.hstack({agg_df})"
         return result_df
 
     elif transform.type == TransformType.GROUP_BY:
@@ -309,6 +318,8 @@ def python_print_polars(
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
+        # Update columns in place for subsequent transforms
+        all_columns[:] = [str(col) for col in column_ids]
         return f"{df_name}.select({_list_of_strings(column_ids)})"
 
     elif transform.type == TransformType.SAMPLE_ROWS:
@@ -325,6 +336,11 @@ def python_print_polars(
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)
         return f"{df_name}.hstack(pl.DataFrame({df_name}.select({column_id}).to_series().to_list())).drop({column_id})"  # noqa: E501
+
+    elif transform.type == TransformType.UNIQUE:
+        column_ids = transform.column_ids
+        return f"{df_name}.unique(subset={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
+
     assert_never(transform.type)
 
 
@@ -358,9 +374,9 @@ def python_print_ibis(
             return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
         elif operator in [">", ">=", "<", "<="]:
             return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
-        elif operator == "is_nan":
+        elif operator == "is_null":
             return f"{df_name}[{_as_literal(column_id)}].isnull()"
-        elif operator == "is_not_nan":
+        elif operator == "is_not_null":
             return f"{df_name}[{_as_literal(column_id)}].notnull()"
         elif operator == "is_true":
             return f"{df_name}[{_as_literal(column_id)}] == True"
@@ -452,6 +468,10 @@ def python_print_ibis(
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = transform.column_id
         return f"{df_name}.unpack({_as_literal(column_id)})"
+
+    elif transform.type == TransformType.UNIQUE:
+        column_ids = transform.column_ids
+        return f"{df_name}.distinct(on={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
 
     assert_never(transform.type)
 

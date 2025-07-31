@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { expect, describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { findEncodedFields, makeEncodingInteractive } from "../encodings";
-import type { EncodingType, Encodings, VegaLiteSpec } from "../types";
+import type { Encodings, EncodingType, VegaLiteSpec } from "../types";
 
 describe("findEncodedFields", () => {
   it("should return an empty array when spec is undefined", () => {

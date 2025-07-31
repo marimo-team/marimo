@@ -13,7 +13,7 @@ meet the following **criteria**:
 
 1. The cell must define just a single function or class.
 2. The defined function or class can only refer to symbols defined in the
-   [setup cell](#create-a-setup-cell), or to other top-level symbols.
+   [setup cell](#1-create-a-setup-cell), or to other top-level symbols.
 
 
 ### Example
@@ -57,7 +57,7 @@ To add a setup cell in the editor, open the notebook menu and select "Add setup 
 ### 2. Define your function
 
 Define a single function in a cell. If the
-[criteria](overview) for top-level
+[criteria](#overview) for top-level
 functions are met, a marker in the bottom right will indicate that it is a
 reusable function.
 
@@ -102,8 +102,8 @@ print(stats)
 
 ## Best practices
 
-- Use setup cells for immediate, widely used imports
-- Keep function dependencies limited to setup-cell references, or other top-level declarations.
+- Use setup cells for widely used imports
+- Keep function dependencies limited to setup-cell references, or other top-level declarations
 - Use descriptive names for your functions
 - Add docstrings to document your functions' behavior
 
@@ -116,6 +116,7 @@ print(stats)
 
 - Functions cannot depend on variables defined in regular cells
 - Like other cells, cyclic dependencies between functions are not allowed
+- Functions cannot be exported from notebooks in [marimo's markdown format](editor_features/watching.md#as-markdown).
 
 ## Learn more
 

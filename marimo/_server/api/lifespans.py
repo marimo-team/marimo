@@ -4,68 +4,31 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import socket
-import sys
-from collections.abc import AsyncIterator, Callable, Sequence
-from contextlib import AbstractAsyncContextManager
-
-from starlette.applications import Starlette
-
-from marimo._server.api.deps import AppState, AppStateBase
-from marimo._server.file_router import AppFileRouter
-from marimo._server.lsp import any_lsp_server_running
-from marimo._server.sessions import SessionManager
-from marimo._server.tokens import AuthToken
-
-if sys.version_info < (3, 10):
-    from typing_extensions import TypeAlias
-else:
-    from typing import TypeAlias
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.utils import open_url_in_browser
+from marimo._server.file_router import AppFileRouter
+from marimo._server.lsp import any_lsp_server_running
 from marimo._server.model import SessionMode
 from marimo._server.print import (
     print_experimental_features,
     print_shutdown,
     print_startup,
 )
+from marimo._server.sessions import SessionManager
+from marimo._server.tokens import AuthToken
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
 
-LifespanList: TypeAlias = Sequence[
-    Callable[[Starlette], AbstractAsyncContextManager[None]]
-]
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from starlette.applications import Starlette
 
 LOGGER = _loggers.marimo_logger()
-
-
-# Compound lifespans
-class Lifespans:
-    def __init__(
-        self,
-        lifespans: LifespanList,
-    ) -> None:
-        self.lifespans = lifespans
-
-    @contextlib.asynccontextmanager
-    async def _manager(
-        self,
-        app: Starlette,
-        lifespans: LifespanList,
-    ) -> AsyncIterator[None]:
-        exit_stack = contextlib.AsyncExitStack()
-        try:
-            async with exit_stack:
-                for lifespan in lifespans:
-                    LOGGER.debug(f"Setup: {lifespan.__name__}")
-                    await exit_stack.enter_async_context(lifespan(app))
-                yield
-        except asyncio.CancelledError:
-            pass
-
-    def __call__(self, app: Starlette) -> AbstractAsyncContextManager[None]:
-        return self._manager(app, lifespans=self.lifespans)
 
 
 @contextlib.asynccontextmanager
@@ -79,6 +42,38 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
         if any_lsp_server_running(user_config):
             LOGGER.debug("Language Servers are enabled")
             await session_mgr.start_lsp_server()
+
+    yield
+
+
+@contextlib.asynccontextmanager
+async def mcp(app: Starlette) -> AsyncIterator[None]:
+    state = AppState.from_app(app)
+    session_mgr = state.session_manager
+    user_config = state.config_manager.get_config()
+    mcp_docs_enabled = user_config.get("experimental", {}).get(
+        "mcp_docs", False
+    )
+
+    # Only start MCP servers in Edit mode
+    if session_mgr.mode == SessionMode.EDIT and mcp_docs_enabled:
+        # add MCP server here after it is implemented
+        try:
+            from marimo._server.ai.mcp import get_mcp_client
+
+            mcp_client = get_mcp_client()
+            if mcp_client and mcp_client.servers:
+                LOGGER.debug(
+                    f"Starting MCP servers: {list(mcp_client.servers.keys())}"
+                )
+                await mcp_client.connect_to_all_servers()
+                LOGGER.info(
+                    f"MCP servers connected: {len(mcp_client.servers)}"
+                )
+            else:
+                LOGGER.debug("No MCP servers configured")
+        except Exception as e:
+            LOGGER.warning(f"Failed to connect MCP servers: {e}")
 
     yield
 

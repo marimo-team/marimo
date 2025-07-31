@@ -1,25 +1,36 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
-import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { type Extension, Prec } from "@codemirror/state";
-import { formatKeymapExtension } from "../extensions";
-import { getEditorCodeAsPython } from "../language/utils";
-import { formattingChangeEffect } from "../format";
+
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
-import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
+import { type Extension, Prec } from "@codemirror/state";
+import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
+import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import type { KeymapConfig } from "@/core/config/config-schema";
+import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { store } from "@/core/state/jotai";
+import { createObservable } from "@/core/state/observable";
+import { formatKeymapExtension } from "../extensions";
+import { formattingChangeEffect } from "../format";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
+import { getEditorCodeAsPython } from "../language/utils";
+import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import {
+  type CodemirrorCellActions,
   cellActionsState,
   cellIdState,
-  type CodemirrorCellActions,
 } from "./state";
-import { SCRATCH_CELL_ID } from "@/core/cells/cells";
+import { errorLineHighlighter } from "./traceback-decorations";
 
 /**
  * Extensions for cell actions
  */
-function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
+function cellKeymaps({
+  cellId,
+  hotkeys,
+}: {
+  cellId: CellId;
+  hotkeys: HotkeyProvider;
+}): Extension[] {
   const keybindings: KeyBinding[] = [];
 
   keybindings.push(
@@ -94,7 +105,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         preventDefault: true,
         stopPropagation: true,
         run: (cm) => {
-          // Cannot delete non-empty cells for safety
+          // When editing (not command mode), only allow deletion of empty cells
           if (cm.state.doc.length === 0) {
             const actions = cm.state.facet(cellActionsState);
             actions.deleteCell();
@@ -124,6 +135,26 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
           actions.moveCell({ cellId, before: false });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.moveLeft").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: true, direction: "left" });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.moveRight").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: false, direction: "right" });
           return true;
         },
       },
@@ -240,9 +271,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
             ev.contentDOM.blur();
             // Focus on the parent element
             // https://github.com/marimo-team/marimo/issues/2941
-            document
-              .getElementById(HTMLCellId.create(cellId))
-              ?.parentElement?.focus();
+            document.getElementById(HTMLCellId.create(cellId))?.focus();
           } else {
             ev.contentDOM.focus();
           }
@@ -301,7 +330,11 @@ function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
 /**
  * Extension for auto-running markdown cells
  */
-export function markdownAutoRunExtension(): Extension {
+export function markdownAutoRunExtension({
+  predicate,
+}: {
+  predicate: () => boolean;
+}): Extension {
   return EditorView.updateListener.of((update) => {
     // If the doc didn't change, ignore
     if (!update.docChanged) {
@@ -311,6 +344,10 @@ export function markdownAutoRunExtension(): Extension {
     // If not focused, ignore
     // This can cause multiple runs when in RTC mode
     if (!update.view.hasFocus) {
+      return;
+    }
+
+    if (!predicate()) {
       return;
     }
 
@@ -328,15 +365,23 @@ export function markdownAutoRunExtension(): Extension {
   });
 }
 
-export function cellBundle(
-  cellId: CellId,
-  hotkeys: HotkeyProvider,
-  cellActions: CodemirrorCellActions,
-): Extension[] {
+export function cellBundle({
+  cellId,
+  hotkeys,
+  cellActions,
+}: {
+  cellId: CellId;
+  hotkeys: HotkeyProvider;
+  cellActions: CodemirrorCellActions;
+  keymapConfig: KeymapConfig;
+}): Extension[] {
   return [
     cellActionsState.of(cellActions),
     cellIdState.of(cellId),
-    cellKeymaps(cellId, hotkeys),
+    cellKeymaps({ cellId, hotkeys }),
     cellCodeEditing(hotkeys),
+    errorLineHighlighter(
+      createObservable(createTracebackInfoAtom(cellId), store),
+    ),
   ];
 }

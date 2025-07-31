@@ -22,11 +22,8 @@ jobs:
         with:
           filters: |
             playwright:
-              - '**'
-              - '!docs/**'
-              - '!examples/**'
-              - '!README.md'
-
+              - 'frontend/**'
+              - 'marimo/**'
   test:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
@@ -51,9 +48,7 @@ jobs:
           echo "[experimental]" > .marimo.toml
           echo "layouts=true" >> .marimo.toml
 
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v4
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4

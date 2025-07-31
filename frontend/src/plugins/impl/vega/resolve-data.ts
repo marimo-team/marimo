@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { asURL } from "@/utils/url";
+
+import { asRemoteURL } from "@/core/runtime/config";
 import { vegaLoadData } from "./loader";
 import type {
+  FacetedUnitSpec,
   Field,
-  VegaLiteSpec,
+  GenericFacetSpec,
   LayerSpec,
   UnitSpec,
-  GenericFacetSpec,
-  FacetedUnitSpec,
+  VegaLiteSpec,
 } from "./types";
 
 type AnySpec =
@@ -75,7 +76,7 @@ export async function resolveVegaSpecData(
     // Parse URL
     let url: URL;
     try {
-      url = asURL(spec.data.url);
+      url = asRemoteURL(spec.data.url);
     } catch {
       return spec;
     }

@@ -215,10 +215,12 @@ def expensive_computation(args):
 marimo:
 
 ```python
-@functools.cache
+@mo.cache
 def expensive_computation(args):
     # ...
 ```
+
+marimo provides [`mo.cache`](../../api/caching.md/#marimo.cache) and [`mo.lru_cache`](../../api/caching.md/#marimo.lru_cache) for caching function return values, as well as [`mo.persistent_cache`](../../api/caching.md/#marimo.persistent_cache) for caching variables to disk.
 
 ### 8. Session State
 

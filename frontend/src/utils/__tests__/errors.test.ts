@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { prettyError } from "../errors";
 
 describe("prettyError", () => {
@@ -11,6 +11,11 @@ describe("prettyError", () => {
   it("extracts details from Error objects with cause", () => {
     const error = new Error("Original message");
     error.cause = { detail: "Detailed error message" };
+    expect(prettyError(error)).toBe("Detailed error message");
+  });
+
+  it("extracts details from Error objects with error", () => {
+    const error = { error: "Detailed error message" };
     expect(prettyError(error)).toBe("Detailed error message");
   });
 

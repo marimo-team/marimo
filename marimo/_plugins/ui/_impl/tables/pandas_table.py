@@ -1,14 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import io
 from functools import cached_property
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import narwhals.stable.v1 as nw
 
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
@@ -17,12 +19,32 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     FieldType,
+    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
 
+if TYPE_CHECKING:
+    import pandas as pd
+
 LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    from pandas._typing import DtypeObj
+
+
+def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
+    # Convert to pandas dataframe since geopandas will fail on
+    # certain operations (like to_json(orient="records"))
+    if DependencyManager.geopandas.has():
+        import geopandas as gpd  # type: ignore
+        import pandas as pd
+
+        if isinstance(data, gpd.GeoDataFrame):
+            return pd.DataFrame(data)
+    return data
 
 
 class PandasTableManagerFactory(TableManagerFactory):
@@ -31,6 +53,7 @@ class PandasTableManagerFactory(TableManagerFactory):
         return "pandas"
 
     @staticmethod
+    @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import pandas as pd
 
@@ -38,6 +61,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
+                data = _maybe_convert_geopandas_to_pandas(data)
                 self._original_data = self._handle_multi_col_indexes(data)
                 super().__init__(nw.from_native(self._original_data))
 
@@ -91,6 +115,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                             result[col] = result[col].apply(
                                 self._sanitize_table_value
                             )
+                            # Cast bytes to string to avoid overflow error
+                            if self._infer_dtype(col) == "bytes":
+                                result[col] = result[col].apply(str)
 
                 except Exception as e:
                     LOGGER.error(
@@ -98,7 +125,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                         exc_info=e,
                     )
                     return sanitize_json_bigint(
-                        result.to_json(orient="records")
+                        result.to_json(
+                            orient="records",
+                            date_format="iso",
+                            default_handler=str,
+                        )
                     )
 
                 # Flatten row multi-index
@@ -106,24 +137,42 @@ class PandasTableManagerFactory(TableManagerFactory):
                     isinstance(result.index, pd.Index)
                     and not isinstance(result.index, pd.RangeIndex)
                 ):
-                    unnamed_indexes = result.index.names[0] is None
+                    index_names = result.index.names
+                    unnamed_indexes = any(
+                        idx is None for idx in result.index.names
+                    )
+
                     index_levels = result.index.nlevels
                     result = result.reset_index()
 
                     if unnamed_indexes:
-                        # We could rename, but it doesn't work cleanly for multi-col indexes
-                        result.columns = pd.Index(
-                            [""] + list(result.columns[1:])
-                        )
+                        # After reset_index, the index is converted to a column
+                        # We need to rename the new columns to empty strings
+                        # And it must be unique for each column
+                        # TODO: On the frontend this still displays the original index, not the renamed one
+                        empty_name = ""
+                        for i, idx_name in enumerate(index_names):
+                            if idx_name is None:
+                                result.columns.values[i] = empty_name
+                                empty_name += " "
 
                         if index_levels > 1:
                             LOGGER.warning(
-                                "Indexes with more than one level are not supported properly, call reset_index() to flatten"
+                                "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
                             )
 
                 return sanitize_json_bigint(
-                    result.to_json(orient="records", date_format="iso")
+                    result.to_json(
+                        orient="records",
+                        date_format="iso",
+                        default_handler=str,
+                    )
                 )
+
+            def _infer_dtype(self, column: ColumnName) -> str:
+                # Typically, pandas dtypes returns a generic dtype
+                # This provides more specific dtypes like bytes, floating, categorical, etc.
+                return pd.api.types.infer_dtype(self._original_data[column])
 
             def to_arrow_ipc(self) -> bytes:
                 out = io.BytesIO()
@@ -163,14 +212,18 @@ class PandasTableManagerFactory(TableManagerFactory):
                     LOGGER.info(
                         "Multi-column indexes are not supported, converting to single index"
                     )
+                    _cols = data_copy.columns
                     if INDEX_COLUMN_NAME in data_copy.columns:
                         data_copy.columns = pd.Index(
                             [INDEX_COLUMN_NAME]
-                            + [",".join(col) for col in data_copy.columns[1:]]
+                            + [
+                                ",".join([str(lev) for lev in c])
+                                for c in _cols[1:]
+                            ]
                         )
                     else:
                         data_copy.columns = pd.Index(
-                            [",".join(col) for col in data_copy.columns]
+                            [",".join([str(lev) for lev in c]) for c in _cols]
                         )
                     return data_copy
 
@@ -178,10 +231,8 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             # We override the default implementation to use pandas
             # headers
-            def get_row_headers(
-                self,
-            ) -> list[str]:
-                return PandasTableManager._get_row_headers_for_index(
+            def get_row_headers(self) -> FieldTypes:
+                return self._get_row_headers_for_index(
                     self._original_data.index
                 )
 
@@ -189,26 +240,27 @@ class PandasTableManagerFactory(TableManagerFactory):
             def is_type(value: Any) -> bool:
                 return isinstance(value, pd.DataFrame)
 
-            @staticmethod
             def _get_row_headers_for_index(
-                index: pd.Index[Any],
-            ) -> list[str]:
+                self, index: pd.Index[Any]
+            ) -> FieldTypes:
                 # Ignore if it's the default index with no name
                 if index.name is None and isinstance(index, pd.RangeIndex):
                     return []
 
                 if isinstance(index, pd.MultiIndex):
                     # recurse
-                    headers: list[Any] = []
+                    headers: FieldTypes = []
                     for i in range(index.nlevels):
                         headers.extend(
-                            PandasTableManager._get_row_headers_for_index(
+                            self._get_row_headers_for_index(
                                 index.get_level_values(i)
                             )
                         )
                     return headers
 
-                return [str(index.name or "")]
+                dtype = index.dtype
+                field_type = self._map_dtype_to_field_type(dtype)
+                return [(str(index.name or ""), field_type)]
 
             # We override the default implementation to use pandas's
             # internal fields since they get displayed in the UI.
@@ -216,6 +268,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]
+                return self._map_dtype_to_field_type(dtype)
+
+            def _map_dtype_to_field_type(
+                self, dtype: str | pd.DataFrame | DtypeObj
+            ) -> tuple[FieldType, ExternalDataType]:
                 # If a df has duplicate columns, it won't be a series, but
                 # a dataframe. In this case, we take the dtype of the columns
                 if isinstance(dtype, pd.DataFrame):
@@ -223,27 +280,33 @@ class PandasTableManagerFactory(TableManagerFactory):
                 else:
                     dtype = str(dtype)
 
-                if dtype.startswith("interval"):
+                lower_dtype = dtype.lower()
+
+                if lower_dtype.startswith("interval"):
                     return ("string", dtype)
-                if dtype.startswith("int") or dtype.startswith("uint"):
+                if lower_dtype.startswith("int") or lower_dtype.startswith(
+                    "uint"
+                ):
                     return ("integer", dtype)
-                if dtype.startswith("float"):
+                if lower_dtype.startswith("float"):
                     return ("number", dtype)
-                if dtype == "object":
+                if lower_dtype == "object":
                     return ("string", dtype)
-                if dtype == "bool":
+                if lower_dtype == "bool":
                     return ("boolean", dtype)
-                if dtype == "datetime64[ns]":
+                if lower_dtype.startswith("datetime"):
                     return ("datetime", dtype)
-                if dtype == "date":
+                if lower_dtype == "date":
                     return ("date", dtype)
-                if dtype == "time":
+                if lower_dtype == "time":
                     return ("time", dtype)
-                if dtype == "timedelta64[ns]":
+                if lower_dtype == "timedelta64[ns]":
                     return ("string", dtype)
-                if dtype == "category":
+                if lower_dtype == "category":
                     return ("string", dtype)
-                if dtype.startswith("complex"):
+                if lower_dtype == "string":
+                    return ("string", dtype)
+                if lower_dtype.startswith("complex"):
                     return ("unknown", dtype)
                 return ("unknown", dtype)
 

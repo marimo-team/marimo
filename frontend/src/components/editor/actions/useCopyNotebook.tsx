@@ -2,6 +2,7 @@
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { toast } from "@/components/ui/use-toast";
 import { sendCopy } from "@/core/network/requests";
+import { openNotebook } from "@/utils/links";
 import { PathBuilder, Paths } from "@/utils/paths";
 
 export function useCopyNotebook(source: string | null) {
@@ -31,7 +32,7 @@ export function useCopyNotebook(source: string | null) {
             title: "Notebook copied",
             description: "A copy of the notebook has been created.",
           });
-          window.open(`/?file=${destination}`, "_blank");
+          openNotebook(destination);
         });
       },
     });

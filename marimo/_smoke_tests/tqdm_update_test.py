@@ -7,9 +7,9 @@ app = marimo.App(width="medium")
 
 @app.cell
 def __():
-    from tqdm.notebook import tqdm
+    from tqdm.notebook import tqdm, trange
     import time
-    return time, tqdm
+    return time, tqdm, trange
 
 
 @app.cell
@@ -19,12 +19,19 @@ def __(time, tqdm):
         time.sleep(0.1)
     return i,
 
+@app.cell
+def __(time, tqdm):
+    # Test regular iteration
+    for i in trange(5):
+        time.sleep(0.1)
+    return i,
+
 
 @app.cell
 def __(time, tqdm):
     # Test manual update method
-    pbar = tqdm(total=10)
-    for i in range(10):
+    pbar = tqdm(total=5)
+    for i in range(5):
         time.sleep(0.1)
         pbar.update(1)  # Explicitly calling update
     pbar.close()
@@ -34,10 +41,10 @@ def __(time, tqdm):
 @app.cell
 def __(time, tqdm):
     # Test update with different increment
-    pbar = tqdm(total=100)
-    for i in range(0, 100, 10):
+    pbar = tqdm(total=50)
+    for i in range(0, 50, 5):
         time.sleep(0.1)
-        pbar.update(10)  # Update by 10 each time
+        pbar.update(5)  # Update by 5 each time
     pbar.close()
     return i,
 

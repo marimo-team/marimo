@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { fileURLToPath } from "node:url";
 import { test } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import {
@@ -6,7 +8,6 @@ import {
   exportAsPNG,
   takeScreenshot,
 } from "./helper";
-import { fileURLToPath } from "node:url";
 
 const _filename = fileURLToPath(import.meta.url);
 

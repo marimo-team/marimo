@@ -392,11 +392,9 @@ def test_dropdown_with_non_string_options() -> None:
     assert dd.value == "2"
 
 
-def test_dropdown_too_many_options() -> None:
-    with pytest.raises(ValueError) as e:
-        ui.dropdown(options={str(i): i for i in range(2000)})
-
-    assert "maximum number" in str(e.value)
+def test_dropdown_lots_of_options() -> None:
+    dropdown = ui.dropdown(options={str(i): i for i in range(2000)})
+    assert dropdown._component_args["searchable"] is True
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
@@ -607,6 +605,23 @@ def test_file_validation() -> None:
     assert "must start with a dot" in str(e.value)
     assert "or contain a forward slash" in str(e.value)
     assert "doc, pdf" in str(e.value)
+
+    # Test max_size validation
+    with pytest.raises(ValueError) as e:
+        ui.file(max_size=0)
+    assert "max_size must be greater than 0" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.file(max_size=-1)
+    assert "max_size must be greater than 0" in str(e.value)
+
+    # Test default max_size
+    f = ui.file()
+    assert f._component_args["max_size"] == 100_000_000  # 100MB
+
+    # Test custom max_size
+    f = ui.file(max_size=50_000_000)  # 50MB
+    assert f._component_args["max_size"] == 50_000_000
 
 
 @pytest.mark.skipif(not HAS_NUMPY, reason="numpy not installed")

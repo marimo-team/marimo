@@ -66,7 +66,7 @@ class MemoryLoader(Loader):
                 self._cache.move_to_end(path)
         return self._cache[path]
 
-    def save_cache(self, cache: Cache) -> None:
+    def save_cache(self, cache: Cache) -> bool:
         path = self.build_path(cache.key)
         # LRU
         if self.is_lru:
@@ -78,6 +78,7 @@ class MemoryLoader(Loader):
                 if len(self._cache) > self.max_size:
                     self._cache.popitem(last=False)
         self._cache[path] = cache
+        return True
 
     def resize(self, max_size: int) -> None:
         if not self.is_lru:

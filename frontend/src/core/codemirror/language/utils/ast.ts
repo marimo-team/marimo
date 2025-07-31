@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Logger } from "@/utils/Logger";
+
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
+import { Logger } from "@/utils/Logger";
 
 const SYNTAX_TOKENS = new Set(["(", "[", "{", ",", ")", "]", "}"]);
 
@@ -15,14 +16,14 @@ export function parseArgsKwargs(
   const name = argCursor.name;
 
   if (name !== "ArgList") {
-    Logger.warn("Not an ArgList");
+    Logger.warn(`Not an ArgList, name: ${name}`);
     return { args: [], kwargs: [] };
   }
 
   return { args: parseArgs(argCursor), kwargs: parseKwargs(argCursor, code) };
 }
 
-export function parseArgs(argCursor: TreeCursor): SyntaxNode[] {
+function parseArgs(argCursor: TreeCursor): SyntaxNode[] {
   // Move to first argument
   argCursor.firstChild();
 
@@ -50,7 +51,7 @@ export function parseArgs(argCursor: TreeCursor): SyntaxNode[] {
   return args;
 }
 
-export function parseKwargs(
+function parseKwargs(
   argCursor: TreeCursor,
   code: string,
 ): Array<{ key: string; value: string }> {

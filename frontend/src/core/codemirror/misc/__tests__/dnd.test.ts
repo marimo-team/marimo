@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { EditorView } from "@codemirror/view";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dndBundle } from "../dnd";
-import { describe, beforeEach, afterEach, it, expect } from "vitest";
 
 describe("dnd", () => {
   let view: EditorView;

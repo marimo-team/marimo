@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.ibis_table import (
     IbisTableManagerFactory,
@@ -198,10 +198,10 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         # Too large of page and offset
         assert self.manager.take(10, 10).data.count().execute() == 0
 
-    def test_summary_integer(self) -> None:
+    def test_stats_integer(self) -> None:
         column = "A"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
             min=1,
@@ -211,10 +211,10 @@ class TestIbisTableManagerFactory(unittest.TestCase):
             std=1.0,
         )
 
-    def test_summary_string(self) -> None:
+    def test_stats_string(self) -> None:
         column = "B"
-        summary = self.manager.get_summary(column)
-        assert summary == ColumnSummary(
+        stats = self.manager.get_stats(column)
+        assert stats == ColumnStats(
             total=3,
             nulls=0,
         )
@@ -291,9 +291,9 @@ class TestIbisTableManagerFactory(unittest.TestCase):
 
         table = ibis.memtable({"A": [1, 2, 3], "B": [None, None, None]})
         manager = self.factory.create()(table)
-        summary = manager.get_summary("B")
-        assert summary.nulls == 3
-        assert summary.total == 3
+        stats = manager.get_stats("B")
+        assert stats.nulls == 3
+        assert stats.total == 3
 
     def test_table_with_mixed_types(self) -> None:
         import ibis
@@ -382,3 +382,197 @@ class TestIbisTableManagerFactory(unittest.TestCase):
         assert pd.isna(result[0][0])
         assert result[0][1] == 3
         assert set(result[1:]) == {(1, 1), (2, 1), (3, 1)}
+
+    def test_calculate_top_k_rows_nested_lists(self) -> None:
+        import ibis
+
+        # Test nested lists
+        table = ibis.memtable({"A": [[1, 2], [1, 2], [3, 4]]})
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert result == [([1, 2], 2), ([3, 4], 1)]
+
+    def test_calculate_top_k_rows_dicts(self) -> None:
+        import ibis
+
+        # Test dicts
+        table = ibis.memtable(
+            {"A": [{"a": 1, "b": 2}, {"a": 1, "b": 2}, {"a": 3, "b": 4}]}
+        )
+        manager = self.factory.create()(table)
+        result = manager.calculate_top_k_rows("A", 10)
+        assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
+
+    def test_get_bin_values(self) -> None:
+        import ibis
+
+        table = ibis.memtable(
+            {
+                "int": [3, 5, -1, 6, 8, 10, 11, 23, 25],
+                "float": [3.2, 4.8, -1.0, 8.0, 7.5, 9.5, 11.0, None, 24.8],
+                "string": ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+            }
+        )
+        manager = self.factory.create()(table)
+        result = manager.get_bin_values("int", 5)
+        assert result == [
+            BinValue(bin_start=-1.0, bin_end=4.2, count=2),
+            BinValue(bin_start=4.2, bin_end=9.4, count=3),
+            BinValue(bin_start=9.4, bin_end=14.6, count=2),
+            BinValue(bin_start=14.6, bin_end=19.8, count=0),
+            BinValue(bin_start=19.8, bin_end=25.0, count=2),
+        ]
+
+        result = manager.get_bin_values("float", 3)
+        print(result)
+        assert result == [
+            BinValue(bin_start=-1.0, bin_end=7.6, count=4),
+            BinValue(bin_start=7.6, bin_end=16.2, count=3),
+            BinValue(bin_start=16.2, bin_end=24.8, count=1),
+        ]
+
+        # Not supported for other column types
+        result = manager.get_bin_values("string", 3)
+        assert result == []
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+class TestTemporalColSummaries(unittest.TestCase):
+    """Tests are quite flaky with exact values, so we test length and counts"""
+
+    manager: TableManager[Any]
+
+    def setUp(self) -> None:
+        import ibis
+
+        self.factory = IbisTableManagerFactory()
+        self.data = ibis.memtable(
+            {
+                "date": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 2),
+                    datetime.date(2021, 1, 3),
+                    datetime.date(2021, 1, 4),
+                    datetime.date(2021, 1, 5),
+                ],
+                "datetime": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                    datetime.datetime(2021, 1, 4),
+                    datetime.datetime(2021, 1, 5),
+                ],
+                "datetime_with_tz": [
+                    datetime.datetime(
+                        2021, 1, 1, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 2, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 3, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 4, tzinfo=datetime.timezone.utc
+                    ),
+                    datetime.datetime(
+                        2021, 1, 5, tzinfo=datetime.timezone.utc
+                    ),
+                ],
+                "time": [
+                    datetime.time(1, 2, 3),
+                    datetime.time(4, 5, 6),
+                    datetime.time(7, 8, 9),
+                    datetime.time(10, 11, 12),
+                    datetime.time(13, 14, 15),
+                ],
+                "dates_multiple": [
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                    datetime.date(2021, 1, 1),
+                ],
+                "timedelta": [
+                    datetime.timedelta(days=1),
+                    datetime.timedelta(days=2),
+                    datetime.timedelta(days=3),
+                    datetime.timedelta(days=4),
+                    datetime.timedelta(days=5),
+                ],
+            }
+        )
+        self.manager = self.factory.create()(self.data)
+
+    def test_date_column(self) -> None:
+        bin_values = self.manager.get_bin_values("date", 3)
+
+        assert len(bin_values) == 3
+        assert bin_values[0].count == 2
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 2
+
+    def test_datetime_column(self) -> None:
+        bin_values = self.manager.get_bin_values("datetime", 3)
+
+        assert len(bin_values) == 3
+        assert bin_values[0].count == 2
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 2
+
+    def test_time_column(self) -> None:
+        bin_values = self.manager.get_bin_values("time", 3)
+
+        assert len(bin_values) == 3
+        assert bin_values[0].count == 2
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 2
+
+    def test_dates_multiple(self) -> None:
+        bin_values = self.manager.get_bin_values("dates_multiple", 3)
+        assert len(bin_values) == 1
+        assert bin_values[0].count == 5
+
+    @pytest.mark.xfail(reason="datetime with tz is not supported")
+    def test_datetime_with_tz(self) -> None:
+        bin_values = self.manager.get_bin_values("datetime_with_tz", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 1, 8, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 2, 16, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 4, 0, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 1, 5, 8, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+        ]
+
+    @pytest.mark.xfail(reason="timedelta is not supported")
+    def test_timedelta_column(self) -> None:
+        bin_values = self.manager.get_bin_values("timedelta", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.timedelta(days=1),
+                bin_end=datetime.timedelta(days=2),
+                count=2,
+            )
+        ]

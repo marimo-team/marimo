@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { render } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import type { CellId } from "@/core/cells/ids";
+import type { UserConfig } from "@/core/config/config-schema";
+import type { OutputMessage } from "@/core/kernel/messages";
+import type { AppMode } from "@/core/mode";
+import { WebSocketState } from "@/core/websocket/types";
+import { Functions } from "@/utils/functions";
 import { Cell, type CellComponentActions } from "../Cell";
 import { OutputArea } from "../Output";
-import type { CellId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
-import type { UserConfig } from "@/core/config/config-schema";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import type { AppMode } from "@/core/mode";
-import { Functions } from "@/utils/functions";
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {
@@ -40,8 +41,10 @@ describe("Cell data attributes", () => {
           code_editor_font_size: 14,
           dataframes: "rich",
           default_table_page_size: 10,
+          default_table_max_columns: 10,
           default_width: "normal",
           theme: "light",
+          reference_highlighting: false,
         },
         keymap: { preset: "default" },
         completion: {
@@ -52,6 +55,7 @@ describe("Cell data attributes", () => {
         package_management: { manager: "pip" },
         runtime: {
           auto_instantiate: false,
+          default_sql_output: "native",
           auto_reload: "off",
           on_cell_change: "lazy",
           watcher_on_save: "lazy",
@@ -89,7 +93,7 @@ describe("Cell data attributes", () => {
             serializedEditorState={null}
             mode={mode as AppMode}
             debuggerActive={false}
-            appClosed={false}
+            connectionState={WebSocketState.OPEN}
             canDelete={true}
             actions={{} as CellComponentActions}
             userConfig={userConfig}
@@ -105,7 +109,6 @@ describe("Cell data attributes", () => {
             canMoveX={false}
             theme="light"
             showPlaceholder={false}
-            allowFocus={true}
           />
         </TooltipProvider>,
       );

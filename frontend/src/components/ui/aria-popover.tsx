@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
+
 import {
   Dialog as AriaDialog,
   type DialogProps as AriaDialogProps,
@@ -8,6 +8,7 @@ import {
   type PopoverProps as AriaPopoverProps,
   composeRenderProps,
 } from "react-aria-components";
+import { cn } from "@/utils/cn";
 
 const PopoverTrigger = AriaDialogTrigger;
 

@@ -1,29 +1,27 @@
-from typing import Any, Tuple
-
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.14.11"
 app = marimo.App()
 
 
 @app.cell
-def one() -> Tuple[Any]:
-    x = 0
+def one():
+    x: int = 0
     return (x,)
 
 
 @app.cell
-def two(x: Any) -> Tuple[Any, Any]:
-    y = x + 1
-    z = y + 1
+def two(x: int):
+    y: int = x + 1
+    z: int = y + 1
     "z"
-    return y, z
+    return (y,)
 
 
 @app.cell
-def three(x: Any, y: Any) -> Tuple[Any]:
-    a = x + y
-    return (a,)
+def three(x: int, y: int):
+    a: int = x + y
+    return
 
 
 if __name__ == "__main__":

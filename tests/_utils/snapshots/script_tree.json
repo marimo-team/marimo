@@ -1,0 +1,223 @@
+{
+  "name": "<root>",
+  "version": null,
+  "tags": [],
+  "dependencies": [
+    {
+      "name": "polars",
+      "version": "1.31.0",
+      "tags": [],
+      "dependencies": []
+    },
+    {
+      "name": "pandas",
+      "version": "2.3.0",
+      "tags": [],
+      "dependencies": [
+        {
+          "name": "numpy",
+          "version": "2.3.0",
+          "tags": [],
+          "dependencies": []
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0",
+          "tags": [],
+          "dependencies": [
+            {
+              "name": "six",
+              "version": "1.17.0",
+              "tags": [],
+              "dependencies": []
+            }
+          ]
+        },
+        {
+          "name": "pytz",
+          "version": "2025.2",
+          "tags": [],
+          "dependencies": []
+        },
+        {
+          "name": "tzdata",
+          "version": "2025.2",
+          "tags": [],
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "name": "anywidget",
+      "version": "0.9.18",
+      "tags": [],
+      "dependencies": [
+        {
+          "name": "ipywidgets",
+          "version": "8.1.7",
+          "tags": [],
+          "dependencies": [
+            {
+              "name": "comm",
+              "version": "0.2.2",
+              "tags": [],
+              "dependencies": [
+                {
+                  "name": "traitlets",
+                  "version": "5.14.3",
+                  "tags": [],
+                  "dependencies": []
+                }
+              ]
+            },
+            {
+              "name": "ipython",
+              "version": "9.3.0",
+              "tags": [],
+              "dependencies": [
+                {
+                  "name": "decorator",
+                  "version": "5.2.1",
+                  "tags": [],
+                  "dependencies": []
+                },
+                {
+                  "name": "ipython-pygments-lexers",
+                  "version": "1.1.1",
+                  "tags": [],
+                  "dependencies": [
+                    {
+                      "name": "pygments",
+                      "version": "2.19.1",
+                      "tags": [],
+                      "dependencies": []
+                    }
+                  ]
+                },
+                {
+                  "name": "jedi",
+                  "version": "0.19.2",
+                  "tags": [],
+                  "dependencies": [
+                    {
+                      "name": "parso",
+                      "version": "0.8.4",
+                      "tags": [],
+                      "dependencies": []
+                    }
+                  ]
+                },
+                {
+                  "name": "matplotlib-inline",
+                  "version": "0.1.7",
+                  "tags": [],
+                  "dependencies": [
+                    {
+                      "name": "traitlets",
+                      "version": "5.14.3",
+                      "tags": [],
+                      "dependencies": []
+                    }
+                  ]
+                },
+                {
+                  "name": "pexpect",
+                  "version": "4.9.0",
+                  "tags": [],
+                  "dependencies": [
+                    {
+                      "name": "ptyprocess",
+                      "version": "0.7.0",
+                      "tags": [],
+                      "dependencies": []
+                    }
+                  ]
+                },
+                {
+                  "name": "prompt-toolkit",
+                  "version": "3.0.51",
+                  "tags": [],
+                  "dependencies": [
+                    {
+                      "name": "wcwidth",
+                      "version": "0.2.13",
+                      "tags": [],
+                      "dependencies": []
+                    }
+                  ]
+                },
+                {
+                  "name": "pygments",
+                  "version": "2.19.1",
+                  "tags": [],
+                  "dependencies": []
+                },
+                {
+                  "name": "stack-data",
+                  "version": "0.6.3",
+                  "tags": [],
+                  "dependencies": [
+                    {
+                      "name": "asttokens",
+                      "version": "3.0.0",
+                      "tags": [],
+                      "dependencies": []
+                    },
+                    {
+                      "name": "executing",
+                      "version": "2.2.0",
+                      "tags": [],
+                      "dependencies": []
+                    },
+                    {
+                      "name": "pure-eval",
+                      "version": "0.2.3",
+                      "tags": [],
+                      "dependencies": []
+                    }
+                  ]
+                },
+                {
+                  "name": "traitlets",
+                  "version": "5.14.3",
+                  "tags": [],
+                  "dependencies": []
+                }
+              ]
+            },
+            {
+              "name": "jupyterlab-widgets",
+              "version": "3.0.15",
+              "tags": [],
+              "dependencies": []
+            },
+            {
+              "name": "traitlets",
+              "version": "5.14.3",
+              "tags": [],
+              "dependencies": []
+            },
+            {
+              "name": "widgetsnbextension",
+              "version": "4.0.14",
+              "tags": [],
+              "dependencies": []
+            }
+          ]
+        },
+        {
+          "name": "psygnal",
+          "version": "0.13.0",
+          "tags": [],
+          "dependencies": []
+        },
+        {
+          "name": "typing-extensions",
+          "version": "4.14.0",
+          "tags": [],
+          "dependencies": []
+        }
+      ]
+    }
+  ]
+}

@@ -207,6 +207,13 @@ def test_bytes_encoding() -> None:
     assert encoded == '"hello"'
 
 
+def test_memoryview_encoding() -> None:
+    bytes_obj = b"hello"
+    memview = memoryview(bytes_obj)
+    encoded = json.dumps(memview, cls=WebComponentEncoder)
+    assert encoded == '"hello"'
+
+
 def test_set_encoding() -> None:
     set_obj = set(["a", "b"])
     encoded = json.dumps(set_obj, cls=WebComponentEncoder)
@@ -453,3 +460,11 @@ def test_empty_slots() -> None:
 
     encoded = json.dumps(obj, cls=WebComponentEncoder)
     assert encoded == "{}"
+
+
+def test_decimal_encoding() -> None:
+    from decimal import Decimal
+
+    decimal_obj = Decimal("123.45")
+    encoded = json.dumps(decimal_obj, cls=WebComponentEncoder)
+    assert encoded == "123.45"

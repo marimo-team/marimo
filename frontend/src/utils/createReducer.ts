@@ -1,8 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Logger } from "@/utils/Logger";
+
 import { atom, useSetAtom } from "jotai";
 import type { Reducer } from "react";
+import { Logger } from "@/utils/Logger";
 
 export type NoInfer<T> = [T][T extends any ? 0 : never];
 
@@ -86,13 +87,25 @@ export function createReducerAndAtoms<
   const { reducer, createActions } = createReducer(initialState, reducers);
 
   const reducerWithMiddleware = (state: State, action: ReducerAction<any>) => {
-    const newState = reducer(state, action);
-    if (middleware) {
-      for (const mw of middleware) {
-        mw(state, newState, action);
+    try {
+      const newState = reducer(state, action);
+      if (middleware) {
+        for (const mw of middleware) {
+          try {
+            mw(state, newState, action);
+          } catch (error) {
+            Logger.error(
+              `Error in middleware for action ${action.type}:`,
+              error,
+            );
+          }
+        }
       }
+      return newState;
+    } catch (error) {
+      Logger.error(`Error in reducer for action ${action.type}:`, error);
+      return state;
     }
-    return newState;
   };
 
   const valueAtom = atom(initialState());

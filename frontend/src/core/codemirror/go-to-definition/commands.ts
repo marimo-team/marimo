@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorView } from "@codemirror/view";
+
 import { syntaxTree } from "@codemirror/language";
+import { EditorView } from "@codemirror/view";
 
 function goToPosition(view: EditorView, from: number): void {
   view.focus();

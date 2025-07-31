@@ -4,7 +4,7 @@ from __future__ import annotations
 import tempfile
 import urllib.error
 from pathlib import Path
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 
 import click
 import pytest
@@ -19,6 +19,7 @@ from marimo._cli.file_path import (
     is_github_src,
     validate_name,
 )
+from marimo._utils.requests import Response
 
 temp_dir = tempfile.TemporaryDirectory()
 
@@ -79,13 +80,12 @@ def test_github_issue_reader() -> None:
     assert reader.can_read(valid_url) is True
     assert reader.can_read(invalid_url) is False
 
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(
-            read_data=b"""{
-                "body": "Some content.```python\\nprint('Hello, world!')\\n```"}
-            """  # noqa: E501
+    with patch("marimo._utils.requests.get") as mock_get:
+        mock_get.return_value = Response(
+            200,
+            b'{"body": "Some content.```python\\nprint(\'Hello, world!\')```"}',
+            {},
         )
-        mock_urlopen.return_value = mock_response()
 
         content, filename = reader.read(valid_url)
         assert content.strip() == "print('Hello, world!')"
@@ -108,9 +108,12 @@ def test_github_source_reader() -> None:
     assert reader.can_read(valid_url) is True
     assert reader.can_read(invalid_url) is False
 
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data=b"print('Hello, world!')")
-        mock_urlopen.return_value = mock_response()
+    with patch("marimo._utils.requests.get") as mock_get:
+        mock_get.return_value = Response(
+            200,
+            b"print('Hello, world!')",
+            {},
+        )
 
         content, filename = reader.read(valid_url)
         assert content == "print('Hello, world!')"
@@ -131,7 +134,7 @@ def test_local_file_reader(tmp_path: Path) -> None:
 
 def test_static_notebook_reader() -> None:
     reader = StaticNotebookReader()
-    valid_url = "https://static.marimo.app/example"
+    valid_url = "https://static.marimo.app/static/example"
     invalid_url = "https://example.com/file.py"
 
     with patch.object(
@@ -155,9 +158,12 @@ def test_generic_url_reader() -> None:
     assert reader.can_read("https://example.com/file.py") is True
     assert reader.can_read("local_file.py") is False
 
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data=b"print('Hello, world!')")
-        mock_urlopen.return_value = mock_response()
+    with patch("marimo._utils.requests.get") as mock_get:
+        mock_get.return_value = Response(
+            200,
+            b"print('Hello, world!')",
+            {},
+        )
 
         content, filename = reader.read("https://example.com/file.py")
         assert content == "print('Hello, world!')"
@@ -221,9 +227,9 @@ def test_find_python_code_in_github_issue_multiple_codes() -> None:
     """
     try:
         GitHubIssueReader._find_python_code_in_github_issue(body)
-        raise AssertionError("Expected an IndexError")
-    except IndexError:
-        # IndexError if there are no code blocks
+        raise AssertionError("Expected a ValueError")
+    except ValueError:
+        # ValueError if there are no code blocks
         pass
 
     body = """
@@ -251,6 +257,13 @@ def test_validate_name_with_markdown_file():
     )
 
 
+def test_validate_name_with_markdown_file_remote() -> None:
+    markdown_tutorial = "https://github.com/marimo-team/marimo/blob/main/marimo/_tutorials/markdown_format.md"
+    assert validate_name(
+        markdown_tutorial, allow_new_file=True, allow_directory=False
+    )[0].endswith("markdown_format.md")
+
+
 def test_validate_name_with_jupyter_notebook():
     with pytest.raises(click.ClickException) as excinfo:
         validate_name(
@@ -263,9 +276,12 @@ def test_generic_url_reader_with_query_params():
     reader = GenericURLReader()
     url = "https://example.com/file.py?param=value"
     assert reader.can_read(url) is True
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = mock_open(read_data=b"print('Hello, world!')")
-        mock_urlopen.return_value = mock_response()
+    with patch("marimo._utils.requests.get") as mock_get:
+        mock_get.return_value = Response(
+            200,
+            b"print('Hello, world!')",
+            {},
+        )
         content, filename = reader.read(url)
         assert content == "print('Hello, world!')"
         assert filename == "file.py"
@@ -274,9 +290,9 @@ def test_generic_url_reader_with_query_params():
 def test_static_notebook_reader_url_formats():
     reader = StaticNotebookReader()
     urls = [
-        "https://static.marimo.app/example",
-        "https://static.marimo.app/example/",
-        "https://static.marimo.app/example.html",
+        "https://static.marimo.app/static/example",
+        "https://static.marimo.app/static/example/",
+        "https://static.marimo.app/static/example.html",
     ]
     for url in urls:
         with patch.object(
@@ -295,8 +311,8 @@ def test_static_notebook_reader_url_formats():
 def test_github_issue_reader_nonexistent_issue():
     reader = GitHubIssueReader()
     url = "https://github.com/marimo-team/marimo/issues/999999"  # noqa: E501
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_urlopen.side_effect = urllib.error.HTTPError(
+    with patch("marimo._utils.requests.get") as mock_get:
+        mock_get.side_effect = urllib.error.HTTPError(
             url,
             404,
             "Not Found",
@@ -315,9 +331,12 @@ def test_github_source_reader_different_extensions():
     ]
     for url in urls:
         assert reader.can_read(url) is True
-        with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_response = mock_open(read_data=b"content")
-            mock_urlopen.return_value = mock_response()
+        with patch("marimo._utils.requests.get") as mock_get:
+            mock_get.return_value = Response(
+                200,
+                b"content",
+                {},
+            )
             content, filename = reader.read(url)
             assert content == "content"
             assert filename in ["example.py", "README.md"]

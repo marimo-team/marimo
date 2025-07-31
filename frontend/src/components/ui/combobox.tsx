@@ -1,8 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { ChevronDownIcon, Check, XCircle } from "lucide-react";
-import React, { createContext, useContext } from "react";
-import { cn } from "../../utils/cn";
+
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { Check, ChevronDownIcon, XCircle } from "lucide-react";
+import React, { createContext } from "react";
+import { cn } from "../../utils/cn";
+import { Functions } from "../../utils/functions";
+import { Badge } from "./badge";
 import {
   Command,
   CommandEmpty,
@@ -11,8 +14,6 @@ import {
   CommandList,
 } from "./command";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
-import { Functions } from "../../utils/functions";
-import { Badge } from "./badge";
 
 interface ComboboxContextValue {
   isSelected: (value: unknown) => boolean;
@@ -56,7 +57,7 @@ type ComboboxValueProps<TValue> =
       chipsClassName?: never;
       value?: TValue | null;
       defaultValue?: TValue | null;
-      onValueChange?(value: TValue | null): void;
+      onValueChange?: (value: TValue | null) => void;
     }
   | {
       multiple: true;
@@ -64,7 +65,7 @@ type ComboboxValueProps<TValue> =
       chipsClassName?: string;
       value?: TValue[] | null;
       defaultValue?: TValue[] | null;
-      onValueChange?(value: TValue[] | null): void;
+      onValueChange?: (value: TValue[] | null) => void;
     };
 
 export type ComboboxProps<TValue> = ComboboxCommonProps<TValue> &
@@ -96,7 +97,7 @@ export const Combobox = <TValue,>({
 }: ComboboxProps<TValue>) => {
   const [open = false, setOpen] = useControllableState({
     prop: openProp,
-    defaultProp: defaultOpen,
+    defaultProp: defaultOpen ?? false,
     onChange: onOpenChange,
   });
   const [value, setValue] = useControllableState({
@@ -174,8 +175,8 @@ export const Combobox = <TValue,>({
             )}
             aria-expanded={open}
           >
-            {renderValue()}{" "}
-            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50" />
+            <span className="truncate flex-1 min-w-0">{renderValue()}</span>
+            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50 flex-shrink-0" />
           </div>
         </PopoverTrigger>
         <PopoverContent
@@ -192,11 +193,9 @@ export const Combobox = <TValue,>({
             />
             <CommandList className="max-h-60 py-.5">
               <CommandEmpty>{emptyState}</CommandEmpty>
-              <ComboboxContext.Provider
-                value={{ isSelected, onSelect: handleSelect }}
-              >
+              <ComboboxContext value={{ isSelected, onSelect: handleSelect }}>
                 {children}
-              </ComboboxContext.Provider>
+              </ComboboxContext>
             </CommandList>
           </Command>
         </PopoverContent>
@@ -236,7 +235,7 @@ export interface ComboboxItemProps<TValue>
       React.ComponentProps<typeof CommandItem>,
       keyof ComboboxItemOptions<TValue> | "onSelect" | "role"
     > {
-  onSelect?(value: TValue): void;
+  onSelect?: (value: TValue) => void;
 }
 
 export const ComboboxItem = React.forwardRef(
@@ -254,7 +253,7 @@ export const ComboboxItem = React.forwardRef(
       typeof value === "object" && "value" in value
         ? value.value
         : String(value);
-    const context = useContext(ComboboxContext);
+    const context = React.use(ComboboxContext);
 
     return (
       <CommandItem

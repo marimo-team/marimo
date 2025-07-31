@@ -5,10 +5,9 @@ import ast
 import os
 import re
 from textwrap import dedent
-from typing import Optional
+from typing import Optional, Union
 
-from marimo._ast.cell import Cell
-from marimo._server.file_manager import AppFileManager
+from marimo._ast.cell import Cell, CellImpl
 
 
 def format_filename_title(filename: str) -> str:
@@ -18,24 +17,14 @@ def format_filename_title(filename: str) -> str:
     return title.title()
 
 
-def get_filename(
-    file_manager: AppFileManager, default: str = "notebook.py"
-) -> str:
-    filename = file_manager.filename
+def get_filename(filename: Optional[str], default: str = "notebook.py") -> str:
     if not filename:
         filename = default
     return filename
 
 
-def get_app_title(file_manager: AppFileManager) -> str:
-    if file_manager.app.config.app_title:
-        return f"{file_manager.app.config.app_title}"
-    filename = get_filename(file_manager)
-    return format_filename_title(filename)
-
-
-def get_download_filename(file_manager: AppFileManager, extension: str) -> str:
-    filename = get_filename(file_manager, f"notebook.{extension}")
+def get_download_filename(filename: Optional[str], extension: str) -> str:
+    filename = filename or f"notebook.{extension}"
     basename = os.path.basename(filename)
     if basename.endswith(f".{extension}"):
         return basename
@@ -56,7 +45,7 @@ def _const_or_id(args: ast.stmt) -> str:
 
 
 def get_markdown_from_cell(
-    cell: Cell, code: str, native_callout: bool = False
+    cell: Union[CellImpl, Cell], code: str
 ) -> Optional[str]:
     """Attempt to extract markdown from a cell, or return None"""
 
@@ -73,24 +62,13 @@ def get_markdown_from_cell(
     # Wish there was a more compact to ignore ignore[attr-defined] for all.
     try:
         (body,) = ast.parse(code).body
-        callout = None
         if body.value.func.attr == "md":  # type: ignore[attr-defined]
             value = body.value  # type: ignore[attr-defined]
-        elif body.value.func.attr == "callout":  # type: ignore[attr-defined]
-            if not native_callout:
-                return None
-            if body.value.args:  # type: ignore[attr-defined]
-                callout = _const_string(body.value.args)  # type: ignore[attr-defined]
-            else:
-                (keyword,) = body.value.keywords  # type: ignore[attr-defined]
-                assert keyword.arg == "kind"
-                callout = _const_string([keyword.value])  # type: ignore
-            value = body.value.func.value  # type: ignore[attr-defined]
         else:
             return None
         assert value.func.value.id == "mo"
         md_lines = _const_string(value.args).split("\n")
-    except (AssertionError, AttributeError, ValueError):
+    except (AssertionError, AttributeError, ValueError, SyntaxError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
         return None
@@ -100,14 +78,6 @@ def get_markdown_from_cell(
     md_lines = [line.rstrip() for line in md_lines]
     md = dedent(md_lines[0]) + "\n" + dedent("\n".join(md_lines[1:]))
     md = md.strip()
-
-    if callout:
-        md = dedent(
-            f"""
-          ::: {{.callout-{callout}}}
-          {md}
-          :::"""
-        )
     return md
 
 

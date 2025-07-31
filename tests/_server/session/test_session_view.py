@@ -12,6 +12,7 @@ from marimo._messaging.ops import (
     Datasets,
     DataSourceConnection,
     DataSourceConnections,
+    SendUIElementMessage,
     UpdateCellCodes,
     UpdateCellIdsRequest,
     VariableDeclaration,
@@ -28,7 +29,7 @@ from marimo._runtime.requests import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
-from marimo._types.ids import CellId_t
+from marimo._types.ids import CellId_t, WidgetModelId
 from marimo._utils.parse_dataclass import parse_raw
 
 cell_id = CellId_t("cell_1")
@@ -174,6 +175,48 @@ def test_ui_values() -> None:
         )
     )
     assert "test_ui3" in session_view.ui_values
+
+
+def test_model_message_values() -> None:
+    session_view = SessionView()
+    model_id = WidgetModelId("test_model")
+    model_id2 = WidgetModelId("test_model2")
+
+    session_view.add_operation(
+        SendUIElementMessage(
+            model_id=model_id,
+            message={"key": "value"},
+            ui_element=None,
+        )
+    )
+    assert model_id in session_view.model_messages
+    assert session_view.model_messages[model_id][0].message == {"key": "value"}
+
+    # Can add to existing model
+    session_view.add_operation(
+        SendUIElementMessage(
+            model_id=model_id,
+            message={"key": "new_value"},
+            ui_element=None,
+        )
+    )
+    assert len(session_view.model_messages[model_id]) == 2
+    assert session_view.model_messages[model_id][1].message == {
+        "key": "new_value"
+    }
+
+    # Can add multiple models
+    session_view.add_operation(
+        SendUIElementMessage(
+            model_id=model_id2,
+            message={"key2": "value2"},
+            ui_element=None,
+        )
+    )
+    assert model_id2 in session_view.model_messages
+    assert session_view.model_messages[model_id2][0].message == {
+        "key2": "value2"
+    }
 
 
 def test_last_run_code() -> None:
@@ -883,3 +926,52 @@ def test_dataset_filter_by_engine_and_variable() -> None:
     session_view.add_operation(Variables(variables=[]))
     table_names = [t.name for t in session_view.datasets.tables]
     assert table_names == ["table_none"]
+
+
+def test_is_empty() -> None:
+    """Test that SessionView.is_empty() correctly detects empty session views."""
+    session_view = SessionView()
+
+    # Initially empty
+    assert session_view.is_empty()
+
+    # Add a cell operation without output or console
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            status=initial_status,
+        )
+    )
+
+    # Add a cell operation
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            output=initial_output,
+            status=initial_status,
+        )
+    )
+
+    # No longer empty
+    assert not session_view.is_empty()
+
+    # Clear operations by creating a new session view
+    session_view = SessionView()
+    assert session_view.is_empty()
+
+    # Add multiple operations - should still not be empty
+    session_view.add_operation(
+        CellOp(
+            cell_id="cell1",
+            output=initial_output,
+            status="idle",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id="cell2",
+            output=updated_output,
+            status="idle",
+        )
+    )
+    assert not session_view.is_empty()

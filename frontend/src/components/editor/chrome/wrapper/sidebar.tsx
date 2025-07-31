@@ -1,18 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { useAtomValue } from "jotai";
+import { MessageCircleQuestionIcon } from "lucide-react";
 import type React from "react";
 import type { PropsWithChildren } from "react";
-import { MessageCircleQuestionIcon } from "lucide-react";
-import { cn } from "@/utils/cn";
-import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FeedbackButton } from "../components/feedback-button";
-import { type PanelDescriptor, PANELS } from "../types";
 import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
-import { useAtomValue } from "jotai";
+import { cn } from "@/utils/cn";
+import { FeedbackButton } from "../components/feedback-button";
+import { useChromeActions, useChromeState } from "../state";
+import { PANELS, type PanelDescriptor } from "../types";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel } = useChromeState();
-  const { openApplication } = useChromeActions();
+  const { toggleApplication } = useChromeActions();
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
@@ -29,7 +30,7 @@ export const Sidebar: React.FC = () => {
           key={p.type}
           tooltip={p.tooltip}
           selected={selectedPanel === p.type}
-          onClick={() => openApplication(p.type)}
+          onClick={() => toggleApplication(p.type)}
         >
           {renderIcon(p)}
         </SidebarItem>
@@ -78,12 +79,12 @@ const SidebarItem: React.FC<
     {
       selected: boolean;
       tooltip: React.ReactNode;
-    } & React.HTMLAttributes<HTMLDivElement>
+    } & React.HTMLAttributes<HTMLButtonElement>
   >
 > = ({ children, tooltip, selected, className, ...rest }) => {
   return (
     <Tooltip content={tooltip} side="right" delayDuration={200}>
-      <div
+      <button
         className={cn(
           "flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
           !selected && "hover:bg-[var(--sage-3)]",
@@ -93,7 +94,7 @@ const SidebarItem: React.FC<
         {...rest}
       >
         {children}
-      </div>
+      </button>
     </Tooltip>
   );
 };

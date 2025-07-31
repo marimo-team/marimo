@@ -1,22 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  findReplaceAtom,
-  openFindReplacePanel,
-} from "@/core/codemirror/find-replace/state";
+
+import type { EditorView } from "@codemirror/view";
 import { useAtom, useAtomValue } from "jotai";
-import type React from "react";
-import { useEffect, useState, useRef } from "react";
-import { Input } from "../ui/input";
-import { Button } from "../ui/button";
-import {
-  getMatches,
-  findNext,
-  findPrev,
-  replaceAll,
-  replaceNext,
-} from "@/core/codemirror/find-replace/navigate";
-import { Toggle } from "../ui/toggle";
-import { Tooltip } from "../ui/tooltip";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -25,17 +10,33 @@ import {
   WholeWordIcon,
   XIcon,
 } from "lucide-react";
-import { useHotkey } from "@/hooks/useHotkey";
-import type { EditorView } from "@codemirror/view";
-import { FocusScope } from "@react-aria/focus";
-import { toast } from "../ui/use-toast";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { FocusScope } from "react-aria";
+import {
+  findNext,
+  findPrev,
+  getMatches,
+  replaceAll,
+  replaceNext,
+} from "@/core/codemirror/find-replace/navigate";
 import {
   clearGlobalSearchQuery,
   setGlobalSearchQuery,
 } from "@/core/codemirror/find-replace/search-highlight";
-import { KeyboardHotkeys } from "../shortcuts/renderShortcut";
+import {
+  findReplaceAtom,
+  openFindReplacePanel,
+} from "@/core/codemirror/find-replace/state";
 import { hotkeysAtom } from "@/core/config/config";
+import { useHotkey } from "@/hooks/useHotkey";
 import { UndoButton } from "../buttons/undo-button";
+import { KeyboardHotkeys } from "../shortcuts/renderShortcut";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Toggle } from "../ui/toggle";
+import { Tooltip } from "../ui/tooltip";
+import { toast } from "../ui/use-toast";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);

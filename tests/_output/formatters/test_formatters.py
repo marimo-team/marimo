@@ -10,6 +10,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.formatters.df_formatters import polars_dot_to_mermaid
 from marimo._output.formatters.formatters import register_formatters
 from marimo._output.formatting import (
     Plain,
@@ -457,3 +458,65 @@ def test_display_protocol_takes_precedence() -> None:
     mime, content = formatter(obj)
     assert mime == "text/html"
     assert content == "<span>foo</span>"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_lazyframe_renders_mermaid_html() -> None:
+    register_formatters()
+
+    import polars as pl
+
+    ldf = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}).lazy()
+
+    formatter = get_formatter(ldf)
+    assert formatter is not None
+    mimetype, contents = formatter(ldf)
+    assert mimetype == "text/html"
+    assert "<marimo-mermaid" in contents
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_polars_dot_to_mermaid() -> None:
+    import polars as pl
+
+    ldf = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}).lazy()
+
+    result = polars_dot_to_mermaid(ldf._ldf.to_dot(optimized=True))
+    assert result == 'graph TD\n\tp1["TABLE\nπ */2"]'
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_polars_dot_to_mermaid_complex() -> None:
+    import polars as pl
+
+    ldf = (
+        pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        .lazy()
+        .filter(pl.col("A") > 1)
+        .select(pl.col("A"), pl.col("B").alias("B_renamed"))
+        .join(pl.DataFrame({"A": [1]}).lazy(), on="A")
+    )
+
+    assert (
+        polars_dot_to_mermaid(ldf._ldf.to_dot(optimized=True))
+        == """graph TD
+\tp4["TABLE\nπ 2/2"]
+\tp3["FILTER BY [(col(#quot;A#quot;)) > (1)]"]
+\tp2["π 2/2"]
+\tp5["TABLE\nπ */1"]
+\tp1["JOIN INNER\nleft: [col(#quot;A#quot;)];\nright: [col(#quot;A#quot;)]"]
+\tp1 --- p2
+\tp2 --- p3
+\tp3 --- p4
+\tp1 --- p5"""
+    )
+
+
+def test_polars_dot_to_mermaid_handles_urls() -> None:
+    assert (
+        polars_dot_to_mermaid("""graph polars_query {
+  p1[label="Check [https://example.com] for more"]
+}""")
+        == """graph TD
+\tp1[\"Check [<a href='https://example.com'>https://example.com</a>] for more\"]"""
+    )

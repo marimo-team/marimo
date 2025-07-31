@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
-import { toast } from "../ui/use-toast";
-import { Badge } from "../ui/badge";
 import { copyToClipboard } from "@/utils/copy";
+import { Badge } from "../ui/badge";
+import { toast } from "../ui/use-toast";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   name: string;

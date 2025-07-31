@@ -1,34 +1,35 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { recommend } from "compassql/build/src";
+import type {
+  SpecQueryModel,
+  SpecQueryModelGroup,
+} from "compassql/build/src/model";
 import type { Query } from "compassql/build/src/query";
+import { isFieldQuery } from "compassql/build/src/query/encoding";
 import type { SpecQuery } from "compassql/build/src/query/spec";
+import { getTopResultTreeItem, isResultTree } from "compassql/build/src/result";
+import type { Schema } from "compassql/build/src/schema";
 import { contains } from "vega-lite";
 import { NONPOSITION_SCALE_CHANNELS } from "vega-lite/build/src/channel";
+import type { NamedData } from "vega-lite/build/src/data";
+import { type EncodingChannel, fromFieldQuery } from "../encoding";
+import { toSpecQuery } from "../spec";
+import type { ChartSpec } from "../state/types";
 import {
-  addQuantitativeField,
   addCategoricalField,
+  addQuantitativeField,
   addTemporalField,
 } from "./field-suggestion";
-import { recommend } from "compassql/build/src";
-import type { Schema } from "compassql/build/src/schema";
 import type {
-  SpecQueryModelGroup,
-  SpecQueryModel,
-} from "compassql/build/src/model";
-import { isResultTree, getTopResultTreeItem } from "compassql/build/src/result";
-import type { NamedData } from "vega-lite/build/src/data";
-import { isFieldQuery } from "compassql/build/src/query/encoding";
-import { type EncodingChannel, fromFieldQuery } from "../encoding";
-import type { ChartSpec } from "../state/types";
-import { hasWildcards, isQueryEmpty } from "./utils";
-import { toSpecQuery } from "../spec";
-import type {
-  Result,
-  QueryCreator,
-  ResultPlot,
   PlotFieldInfo,
+  QueryCreator,
+  Result,
   ResultingCharts,
+  ResultPlot,
   TopLevelFacetedUnitSpec,
 } from "./types";
+import { hasWildcards, isQueryEmpty } from "./utils";
 
 // This code is adapted and simplified from https://github.com/vega/voyager
 

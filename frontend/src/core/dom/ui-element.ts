@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { isCustomMarimoElement } from "@/plugins/core/registerReactComponent";
-import { Logger } from "../../utils/Logger";
 import { Functions } from "../../utils/functions";
+import { Logger } from "../../utils/Logger";
 import { UIElementId } from "../cells/ids";
 import { defineCustomElement } from "./defineCustomElement";
 import {
@@ -100,6 +100,14 @@ export function initializeUIElement() {
         // broadcast? that would still let other elements cancel the event
         // while also reducing the number of event listeners on the document
         if (objectId !== null && e.detail.element === this.firstElementChild) {
+          // A UIElement may be missing from the registry if it was returned from a function that caches return values.
+          if (!UI_ELEMENT_REGISTRY.has(objectId)) {
+            UI_ELEMENT_REGISTRY.registerInstance(
+              objectId,
+              child as HTMLElement,
+            );
+          }
+
           UI_ELEMENT_REGISTRY.broadcastValueUpdate(
             child as HTMLElement,
             objectId,

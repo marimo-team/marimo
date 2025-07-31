@@ -1,0 +1,21 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    """A simple script."""
+
+    import math
+
+    def calculate_area(radius):
+        return math.pi * radius ** 2
+
+    print(calculate_area(5))
+    return
+
+
+if __name__ == "__main__":
+    app.run()

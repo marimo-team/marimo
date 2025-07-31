@@ -1,22 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  DialogFooter,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+
+import { CopyIcon } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
-import { Input } from "../ui/input";
-import { CopyIcon } from "lucide-react";
-import { Events } from "@/utils/events";
-import { Tooltip } from "../ui/tooltip";
 import { Constants } from "@/core/constants";
 import { exportAsHTML } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { copyToClipboard } from "@/utils/copy";
+import { Events } from "@/utils/events";
+import { Input } from "../ui/input";
+import { Tooltip } from "../ui/tooltip";
 
 const BASE_URL = "https://static.marimo.app";
 

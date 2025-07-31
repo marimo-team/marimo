@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  canLinkToCell,
   createCellLink,
   extractCellNameFromHash,
-  canLinkToCell,
 } from "../cell-urls";
 
 describe("cell-urls utilities", () => {

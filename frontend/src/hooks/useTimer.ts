@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 
 /**
@@ -9,7 +9,7 @@ import useEvent from "react-use-event-hook";
  */
 export function useTimer() {
   const [time, setTime] = useState(0);
-  const interval = useRef<number>();
+  const interval = useRef<number>(undefined);
 
   const start = useEvent(() => {
     interval.current = window.setInterval(() => {

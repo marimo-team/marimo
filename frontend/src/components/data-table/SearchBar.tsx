@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useState, useEffect } from "react";
-import { SearchIcon } from "lucide-react";
-import { Spinner } from "../icons/spinner";
-import { cn } from "@/utils/cn";
+
 import { useDebounce } from "@uidotdev/usehooks";
+import { SearchIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { cn } from "@/utils/cn";
+import { Spinner } from "../icons/spinner";
 
 interface SearchBarProps {
   hidden: boolean;

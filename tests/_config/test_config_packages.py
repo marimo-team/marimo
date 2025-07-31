@@ -78,6 +78,8 @@ TEST_CASES: list[
     ({"pixi.toml": ""}, {}, {}, "pixi"),
     # Test fallback to pip
     ({}, {}, {}, "pip"),
+    # Test fallback to uv when running inside `uv run` / `uvx`
+    ({}, {"UV": "/usr/bin/uv"}, {}, "uv"),
 ]
 
 if sys.platform != "win32":

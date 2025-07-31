@@ -1,12 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect } from "react";
+import { type JSX, useEffect } from "react";
 import { z } from "zod";
-
-import { getUIElementObjectId } from "../../core/dom/ui-element";
 import {
   MarimoValueInputEvent,
   type MarimoValueInputEventType,
 } from "../../core/dom/events";
+import { getUIElementObjectId } from "../../core/dom/ui-element";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 
 // key => value updates

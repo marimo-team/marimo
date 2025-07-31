@@ -1,12 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
   DiagnosticsConfig,
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import type { CellId } from "@/core/cells/ids";
 import { singleFacet } from "../facet";
+import type { PlaceholderType } from "./types";
 
 /**
  * State for completion config
@@ -18,7 +20,6 @@ export const completionConfigState = singleFacet<CompletionConfig>();
  */
 export const hotkeysProviderState = singleFacet<HotkeyProvider>();
 
-export type PlaceholderType = "marimo-import" | "ai" | "none";
 /**
  * State for placeholder type
  */
@@ -39,13 +40,19 @@ export const lspConfigState = singleFacet<
 /**
  * Extension for cell config
  */
-export function cellConfigExtension(
-  completionConfig: CompletionConfig,
-  hotkeys: HotkeyProvider,
-  placeholderType: PlaceholderType,
-  lspConfig: LSPConfig,
-  diagnosticsConfig: DiagnosticsConfig,
-) {
+export function cellConfigExtension({
+  completionConfig,
+  hotkeys,
+  placeholderType,
+  lspConfig,
+  diagnosticsConfig,
+}: {
+  completionConfig: CompletionConfig;
+  hotkeys: HotkeyProvider;
+  placeholderType: PlaceholderType;
+  lspConfig: LSPConfig;
+  diagnosticsConfig: DiagnosticsConfig;
+}) {
   return [
     // Store state
     completionConfigState.of(completionConfig),

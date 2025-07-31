@@ -18,7 +18,7 @@ export const button = cva(
         yellow: "mo-button yellow",
         // for actions that will change state but are not destructive
         "hint-green": "mo-button hint-green",
-        disabled: "mo-button disabled",
+        disabled: "mo-button disabled active:shadow-xsSolid",
       },
       shape: {
         rectangle: "rounded",

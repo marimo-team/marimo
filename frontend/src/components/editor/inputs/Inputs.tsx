@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { VariantProps } from "class-variance-authority";
-import * as styles from "./Inputs.styles";
-import React from "react";
 import clsx from "clsx";
+import React from "react";
+import * as styles from "./Inputs.styles";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof styles.button>;

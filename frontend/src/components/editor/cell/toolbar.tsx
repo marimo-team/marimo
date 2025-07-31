@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { cva, type VariantProps } from "class-variance-authority";
 import React from "react";
+import { Toolbar as ReactAriaToolbar } from "react-aria-components";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
-import { Toolbar as ReactAriaToolbar } from "react-aria-components";
-import { cva, type VariantProps } from "class-variance-authority";
 import { Events } from "@/utils/events";
 
 const toolbarItemVariants = cva(

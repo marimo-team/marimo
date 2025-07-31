@@ -1,23 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, {
-  type PropsWithChildren,
   memo,
+  type PropsWithChildren,
   useEffect,
   useMemo,
   useState,
 } from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
-import type { ICellRendererProps } from "../types";
-import type { GridLayout, GridLayoutCellSide } from "./types";
 import { OutputArea } from "@/components/editor/Output";
 import type { CellRuntimeState } from "@/core/cells/types";
+import type { ICellRendererProps } from "../types";
+import type { GridLayout, GridLayoutCellSide } from "./types";
 
 import "react-grid-layout/css/styles.css";
 import "./styles.css";
-import type { CellId } from "@/core/cells/ids";
-import type { AppMode } from "@/core/mode";
-import { TinyCode } from "@/components/editor/cell/TinyCode";
-import { cn } from "@/utils/cn";
+import { BorderAllIcon } from "@radix-ui/react-icons";
+import { startCase } from "lodash-es";
 import {
   AlignEndVerticalIcon,
   AlignHorizontalSpaceAroundIcon,
@@ -28,21 +26,23 @@ import {
   ScrollIcon,
   XIcon,
 } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { useIsDragging } from "@/hooks/useIsDragging";
-import { Switch } from "@/components/ui/switch";
+import { TinyCode } from "@/components/editor/cell/TinyCode";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Objects } from "@/utils/objects";
-import { Maps } from "@/utils/maps";
-import { startCase } from "lodash-es";
-import { BorderAllIcon } from "@radix-ui/react-icons";
+import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
+import { Switch } from "@/components/ui/switch";
 import { outputIsLoading } from "@/core/cells/cell";
+import type { CellId } from "@/core/cells/ids";
+import type { AppMode } from "@/core/mode";
+import { useIsDragging } from "@/hooks/useIsDragging";
+import { cn } from "@/utils/cn";
+import { Maps } from "@/utils/maps";
+import { Objects } from "@/utils/objects";
 
 type Props = ICellRendererProps<GridLayout>;
 

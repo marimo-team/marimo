@@ -1,16 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { z } from "zod";
+import type { CellId } from "@/core/cells/ids";
+import { Logger } from "@/utils/Logger";
+import { Maps } from "@/utils/maps";
 import type { ICellRendererPlugin } from "../types";
+import { GridLayoutRenderer } from "./grid-layout";
 import type {
   GridLayout,
   GridLayoutCellSide,
   SerializedGridLayout,
   SerializedGridLayoutCell,
 } from "./types";
-import { Logger } from "@/utils/Logger";
-import { z } from "zod";
-import { Maps } from "@/utils/maps";
-import { GridLayoutRenderer } from "./grid-layout";
-import type { CellId } from "@/core/cells/ids";
 
 /**
  * Plugin definition for the grid layout.

@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
 ---
@@ -34,7 +34,7 @@ Logging Format
 
   ```python
   from marimo import _loggers
-  
+
   LOGGER = _loggers.marimo_logger()
 
   LOGGER.info("Debugging applications with params %s %s", "key1", "key2")
@@ -54,12 +54,13 @@ Security
 Testing
   - Changes or new functionality in the codebase should come with unit tests using pytest.
   - Tests exist in the tests folder.
+  - We use pytest-asyncio globally, so you don't need to add `@pytest.mark.asyncio`
   - Utilize snapshot testing where appropriate:
-  
+
   ```
   from tests.mocks import snapshotter
 
-  snapshot = snapshotter(__file__)  
+  snapshot = snapshotter(__file__)
 
   snapshot(filename, output)
   ```

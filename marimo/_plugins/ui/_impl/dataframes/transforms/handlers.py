@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms.print_code import (
     python_print_ibis,
@@ -25,6 +25,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     SortColumnTransform,
     Transform,
     TransformHandler,
+    UniqueTransform,
 )
 from marimo._utils.assert_never import assert_never
 
@@ -103,9 +104,9 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             elif condition.operator == "is_false":
                 df_filter = column.eq(False)
             # Handle null checks
-            elif condition.operator == "is_nan":
+            elif condition.operator == "is_null":
                 df_filter = column.isna()
-            elif condition.operator == "is_not_nan":
+            elif condition.operator == "is_not_null":
                 df_filter = column.notna()
             # Handle equality operations
             elif condition.operator == "equals":
@@ -127,7 +128,13 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
                 df_filter = column.str.endswith(str(value), na=False)
             # Handle list operations with proper Unicode handling
             elif condition.operator == "in":
-                df_filter = df[condition.column_id].isin(value)
+                # Nested lists can be filtered directly without converting the value
+                if condition.value and isinstance(
+                    condition.value[0], (list, tuple)
+                ):
+                    df_filter = df[condition.column_id].isin(condition.value)
+                else:
+                    df_filter = df[condition.column_id].isin(value)
             else:
                 assert_never(condition.operator)
 
@@ -223,6 +230,20 @@ class PandasTransformHandler(TransformHandler["pd.DataFrame"]):
             df_name, columns, transforms, python_print_pandas
         )
 
+    @staticmethod
+    def handle_unique(
+        df: pd.DataFrame, transform: UniqueTransform
+    ) -> pd.DataFrame:
+        if transform.keep == "first":
+            return df.drop_duplicates(
+                subset=transform.column_ids, keep="first"
+            )
+        if transform.keep == "last":
+            return df.drop_duplicates(subset=transform.column_ids, keep="last")
+        if transform.keep == "none":
+            return df.drop_duplicates(subset=transform.column_ids, keep=False)
+        assert_never(cast(NoReturn, transform.keep))
+
 
 class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
     @staticmethod
@@ -268,6 +289,12 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         # Start with no filter (all rows included)
         filter_expr: Optional[pl.Expr] = None
 
+        # Convert a value whether it's a list or single value
+        def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
+            if isinstance(v, (tuple, list)):
+                return [converter(str(item)) for item in v]
+            return converter(str(v))
+
         # Iterate over all conditions and build the filter expression
         for condition in transform.where:
             column = col(str(condition.column_id))
@@ -276,12 +303,12 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             value_str = str(value)
 
             # If columns type is a Datetime, we need to convert the value to a datetime
-            if dtype == pl.Datetime and isinstance(value, str):
-                value = datetime.datetime.fromisoformat(value)
-            elif dtype == pl.Date and isinstance(value, str):
-                value = datetime.date.fromisoformat(value)
-            elif dtype == pl.Time and isinstance(value, str):
-                value = datetime.time.fromisoformat(value)
+            if dtype == pl.Datetime:
+                value = convert_value(value, datetime.datetime.fromisoformat)
+            elif dtype == pl.Date:
+                value = convert_value(value, datetime.date.fromisoformat)
+            elif dtype == pl.Time:
+                value = convert_value(value, datetime.time.fromisoformat)
 
             # If columns type is a Categorical, we need to cast the value to a string
             if dtype == pl.Categorical:
@@ -304,9 +331,9 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
                 condition_expr = column.eq(True)
             elif condition.operator == "is_false":
                 condition_expr = column.eq(False)
-            elif condition.operator == "is_nan":
+            elif condition.operator == "is_null":
                 condition_expr = column.is_null()
-            elif condition.operator == "is_not_nan":
+            elif condition.operator == "is_not_null":
                 condition_expr = column.is_not_null()
             elif condition.operator == "equals":
                 condition_expr = column == value
@@ -461,6 +488,22 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             df_name, columns, transforms, python_print_polars
         )
 
+    @staticmethod
+    def handle_unique(
+        df: pl.DataFrame, transform: UniqueTransform
+    ) -> pl.DataFrame:
+        keep = transform.keep
+        if (
+            keep == "first"
+            or keep == "last"
+            or keep == "any"
+            or keep == "none"
+        ):
+            return df.unique(
+                subset=cast(Sequence[str], transform.column_ids), keep=keep
+            )
+        assert_never(keep)
+
 
 class IbisTransformHandler(TransformHandler["ibis.Table"]):
     @staticmethod
@@ -538,9 +581,9 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
                 filter_conditions.append(column)
             elif condition.operator == "is_false":
                 filter_conditions.append(~column)
-            elif condition.operator == "is_nan":
+            elif condition.operator == "is_null":
                 filter_conditions.append(column.isnull())
-            elif condition.operator == "is_not_nan":
+            elif condition.operator == "is_not_null":
                 filter_conditions.append(column.notnull())
             elif condition.operator == "equals":
                 filter_conditions.append(column == value)
@@ -654,6 +697,18 @@ class IbisTransformHandler(TransformHandler["ibis.Table"]):
         df: ibis.Table, transform: ExpandDictTransform
     ) -> ibis.Table:
         return df.unpack(transform.column_id)
+
+    @staticmethod
+    def handle_unique(
+        df: ibis.Table, transform: UniqueTransform
+    ) -> ibis.Table:
+        if transform.keep == "first":
+            return df.distinct(on=transform.column_ids, keep="first")
+        if transform.keep == "last":
+            return df.distinct(on=transform.column_ids, keep="last")
+        if transform.keep == "none":
+            return df.distinct(on=transform.column_ids, keep=None)
+        assert_never(cast(NoReturn, transform.keep))
 
     @staticmethod
     def as_python_code(

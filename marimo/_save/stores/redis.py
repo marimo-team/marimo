@@ -1,16 +1,9 @@
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
-from marimo._save.cache import (
-    Cache,
-)
 from marimo._save.stores.store import Store
-
-if TYPE_CHECKING:
-    from marimo._save.hash import HashKey
-    from marimo._save.loaders import BasePersistenceLoader as Loader
 
 
 class RedisStore(Store):
@@ -22,13 +15,17 @@ class RedisStore(Store):
         # See list of options here:
         self.redis = redis.Redis(**kwargs)
 
-    def get(self, key: HashKey, loader: Loader) -> Optional[bytes]:
-        return self.redis.get(str(loader.build_path(key))) or None
+    def get(self, key: str) -> Optional[bytes]:
+        result = self.redis.get(key)
+        if result is None:
+            return None
+        return result  # type: ignore[no-any-return]
 
-    def put(self, cache: Cache, loader: Loader) -> None:
-        self.redis.set(
-            str(loader.build_path(cache.key)), loader.to_blob(cache) or b""
-        )
+    def put(self, key: str, value: bytes) -> bool:
+        result = self.redis.set(key, value)
+        if result is None:
+            return False
+        return True
 
-    def hit(self, key: HashKey, loader: Loader) -> bool:
-        return self.redis.exists(str(loader.build_path(key))) > 0
+    def hit(self, key: str) -> bool:
+        return self.redis.exists(key) > 0

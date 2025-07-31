@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
   Form,
@@ -10,23 +11,26 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useAppConfig } from "@/core/config/config";
+import { getAppWidths } from "@/core/config/widths";
+import { saveAppConfig } from "@/core/network/requests";
+import { arrayToggle } from "@/utils/arrays";
 import {
   type AppConfig,
   AppConfigSchema,
   AppTitleSchema,
 } from "../../core/config/config-schema";
-import { getAppWidths } from "@/core/config/widths";
-import { Input } from "../ui/input";
-import { NativeSelect } from "../ui/native-select";
-import { useAppConfig } from "@/core/config/config";
-import { saveAppConfig } from "@/core/network/requests";
-import { SettingTitle, SettingDescription } from "./common";
-import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
-import { arrayToggle } from "@/utils/arrays";
+import { Input } from "../ui/input";
 import { Kbd } from "../ui/kbd";
 import { ExternalLink } from "../ui/links";
+import { NativeSelect } from "../ui/native-select";
 import { toast } from "../ui/use-toast";
+import {
+  SettingDescription,
+  SettingTitle,
+  SQL_OUTPUT_SELECT_OPTIONS,
+} from "./common";
 
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
@@ -66,7 +70,7 @@ export const AppConfigForm: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-          <SettingSection title="Display Settings">
+          <SettingSection title="Display">
             <FormField
               control={form.control}
               name="width"
@@ -189,7 +193,7 @@ export const AppConfigForm: React.FC = () => {
             />
           </SettingSection>
 
-          <SettingSection title="Data Settings">
+          <SettingSection title="Data">
             <FormField
               control={form.control}
               name="sql_output"
@@ -214,11 +218,11 @@ export const AppConfigForm: React.FC = () => {
                         disabled={field.disabled}
                         className="inline-flex mr-2"
                       >
-                        <option value="auto">Auto (Default)</option>
-                        <option value="native">Native</option>
-                        <option value="polars">Polars</option>
-                        <option value="lazy-polars">Lazy Polars</option>
-                        <option value="pandas">Pandas</option>
+                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </NativeSelect>
                     </FormControl>
                     <FormMessage />
@@ -237,7 +241,7 @@ export const AppConfigForm: React.FC = () => {
             />
           </SettingSection>
 
-          <SettingSection title="Auto-save Settings">
+          <SettingSection title="Exporting outputs">
             <FormField
               control={form.control}
               name="auto_download"
@@ -289,7 +293,10 @@ export const AppConfigForm: React.FC = () => {
 const SettingSection = ({
   title,
   children,
-}: { title: string; children: React.ReactNode }) => {
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
   return (
     <div className="flex flex-col gap-y-2">
       <h3 className="text-base font-semibold mb-1">{title}</h3>

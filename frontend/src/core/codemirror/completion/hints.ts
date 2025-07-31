@@ -1,15 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HTMLCellId } from "@/core/cells/ids";
-import { EditorView, hoverTooltip } from "@codemirror/view";
-import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
-import { Logger } from "@/utils/Logger";
+
 import type { EditorState, Text } from "@codemirror/state";
+import { EditorView, hoverTooltip } from "@codemirror/view";
 import { debounce } from "lodash-es";
+import { chromeAtom } from "@/components/editor/chrome/state";
+import { HTMLCellId } from "@/core/cells/ids";
+import { hasCapability } from "@/core/config/capabilities";
+import type { LSPConfig } from "@/core/config/config-schema";
 import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
-import { chromeAtom } from "@/components/editor/chrome/state";
-import type { LSPConfig } from "@/core/config/config-schema";
-import { hasCapability } from "@/core/config/capabilities";
+import { Logger } from "@/utils/Logger";
+import { reactiveReferencesField } from "../reactive-references/extension";
+import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 
 export function hintTooltip(lspConfig: LSPConfig) {
   return [
@@ -18,7 +20,11 @@ export function hintTooltip(lspConfig: LSPConfig) {
       ? []
       : hoverTooltip(
           async (view, pos) => {
-            const result = await requestDocumentation(view, pos, ["tooltip"]);
+            const result = await requestDocumentation({
+              view,
+              pos,
+              excludeTypes: ["tooltip"],
+            });
             if (result === null || result === "cancelled") {
               return null;
             }
@@ -30,11 +36,15 @@ export function hintTooltip(lspConfig: LSPConfig) {
   ];
 }
 
-async function requestDocumentation(
-  view: EditorView,
-  pos: number,
-  excludeTypes?: string[],
-) {
+async function requestDocumentation({
+  view,
+  pos,
+  excludeTypes,
+}: {
+  view: EditorView;
+  pos: number;
+  excludeTypes?: string[];
+}) {
   const cellContainer = HTMLCellId.findElement(view.dom);
   if (!cellContainer) {
     Logger.error("Failed to find active cell.");
@@ -44,6 +54,12 @@ async function requestDocumentation(
   const cellId = HTMLCellId.parse(cellContainer.id);
 
   const { startToken, endToken } = getPositionAtWordBounds(view.state.doc, pos);
+
+  // Check if this position is on a reactive variable
+  const isReactiveVariable =
+    view.state
+      .field(reactiveReferencesField, false)
+      ?.ranges.some((range) => pos >= range.from && pos <= range.to) ?? false;
 
   const result = await AUTOCOMPLETER.request({
     document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
@@ -59,6 +75,7 @@ async function requestDocumentation(
     message: result,
     exactName: fullWord,
     excludeTypes: excludeTypes,
+    showGoToDefinitionHint: isReactiveVariable,
   });
   return tooltip ?? null;
 }
@@ -105,7 +122,7 @@ const debouncedAutocomplete = debounce(
       return;
     }
 
-    const tooltip = await requestDocumentation(view, position);
+    const tooltip = await requestDocumentation({ view, pos: position });
     // If cancelled, don't update the documentation
     if (tooltip === "cancelled") {
       return;

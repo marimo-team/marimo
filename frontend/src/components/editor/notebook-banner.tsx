@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import type React from "react";
+import type { AppConfig } from "@/core/config/config-schema";
 import { useBanners, useBannersActions } from "@/core/errors/state";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
-import { AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
-import type React from "react";
+import { cn } from "@/utils/cn";
 import { Button } from "../ui/button";
 import { useRestartKernel } from "./actions/useRestartKernel";
-import type { AppConfig } from "@/core/config/config-schema";
-import { cn } from "@/utils/cn";
 
 interface Props {
   width: AppConfig["width"];

@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-
-import { cn } from "@/utils/cn";
-import { useRestoreFocus } from "./use-restore-focus";
-import { withFullScreenAsRoot } from "./fullscreen";
+import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
+import { cn } from "@/utils/cn";
+import { withFullScreenAsRoot } from "./fullscreen";
+import { useRestoreFocus } from "./use-restore-focus";
 
 const Dialog = DialogPrimitive.Root;
 

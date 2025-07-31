@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, type Atom, createStore, useStore } from "jotai";
+import { type Atom, atom, createStore, useStore } from "jotai";
 import { isEqual } from "lodash-es";
 import { useEffect } from "react";
 
@@ -7,6 +7,7 @@ import { useEffect } from "react";
  * Global store allows getting and setting global state outside of React components.
  */
 export const store = createStore();
+export type JotaiStore = typeof store;
 
 /**
  * Wait for an atom to satisfy a predicate.

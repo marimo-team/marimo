@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { z } from "zod";
-import { DebouncedInput, DebouncedNumberInput } from "../ui/input";
-import { Checkbox } from "../ui/checkbox";
+
+import { PlusIcon, RefreshCcw, Trash2Icon } from "lucide-react";
+import React from "react";
 import {
   type FieldValues,
   FormProvider,
@@ -10,25 +10,12 @@ import {
   type UseFormReturn,
   useFieldArray,
 } from "react-hook-form";
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  FormDescription,
-} from "../ui/form";
-import { Objects } from "../../utils/objects";
-import { Button } from "../ui/button";
-import { getDefaults, getUnionLiteral } from "./form-utils";
-import { PlusIcon, RefreshCcw, Trash2Icon } from "lucide-react";
+import { z } from "zod";
 import { FieldOptions, randomNumber } from "@/components/forms/options";
-import { cn } from "@/utils/cn";
-import React from "react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Strings } from "@/utils/strings";
+import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -37,14 +24,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox, ComboboxItem } from "@/components/ui/combobox";
+import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
+import { Strings } from "@/utils/strings";
+import { Objects } from "../../utils/objects";
+import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 import {
-  TextAreaMultiSelect,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "../ui/form";
+import { DebouncedInput, DebouncedNumberInput } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { getDefaults, getUnionLiteral } from "./form-utils";
+import {
   ensureStringArray,
   SwitchableMultiSelect,
+  TextAreaMultiSelect,
 } from "./switchable-multi-select";
-import { Textarea } from "../ui/textarea";
 export interface FormRenderer<T extends FieldValues = any, S = any> {
   isMatch: (schema: z.ZodType) => schema is z.ZodType<S, z.ZodTypeDef, unknown>;
   Component: React.ComponentType<{
@@ -327,6 +328,64 @@ export function renderZodSchema<T extends FieldValues, S>(
       </div>
     );
   }
+
+  if (schema instanceof z.ZodDiscriminatedUnion) {
+    const options = schema._def.options as Array<z.ZodType<unknown>>;
+    const discriminator = schema._def.discriminator;
+    const optionsMap = schema._def.optionsMap;
+    return (
+      <FormField
+        control={form.control}
+        name={path}
+        render={({ field }) => {
+          const value = field.value;
+          const types = options.map((option) => {
+            return getUnionLiteral(option)._def.value;
+          });
+
+          const unionTypeValue: string =
+            value && typeof value === "object" && discriminator in value
+              ? value[discriminator]
+              : types[0];
+
+          const selectedOption = optionsMap.get(unionTypeValue) || options[0];
+
+          return (
+            <div className="flex flex-col">
+              <FormLabel>{label}</FormLabel>
+              <div className="flex border-b mb-4 -mt-2">
+                {types.map((type: string) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`px-4 py-2 ${
+                      unionTypeValue === type
+                        ? "border-b-2 border-primary font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                    onClick={() => {
+                      const nextSchema = optionsMap.get(type);
+                      if (nextSchema) {
+                        field.onChange(getDefaults(nextSchema));
+                      } else {
+                        field.onChange({ [discriminator]: type });
+                      }
+                    }}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col" key={unionTypeValue}>
+                {selectedOption &&
+                  renderZodSchema(selectedOption, form, path, renderers)}
+              </div>
+            </div>
+          );
+        }}
+      />
+    );
+  }
   if (schema instanceof z.ZodUnion) {
     return (
       <FormField
@@ -349,7 +408,7 @@ export function renderZodSchema<T extends FieldValues, S>(
           });
 
           return (
-            <div className="flex flex-col">
+            <div className="flex flex-col mb-4 gap-1">
               <FormLabel>{label}</FormLabel>
               <NativeSelect
                 data-testid="marimo-plugin-data-frames-union-select"
@@ -371,6 +430,7 @@ export function renderZodSchema<T extends FieldValues, S>(
       />
     );
   }
+
   if (schema instanceof z.ZodLiteral) {
     return (
       <FormField

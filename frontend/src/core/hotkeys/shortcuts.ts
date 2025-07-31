@@ -21,10 +21,19 @@ export function isPlatformMac() {
   return /mac/i.test(platform);
 }
 
-function areKeysPressed(keys: string[], e: KeyboardEvent): boolean {
+type IKeyboardEvent = Pick<
+  KeyboardEvent,
+  "key" | "shiftKey" | "ctrlKey" | "metaKey" | "altKey" | "code"
+>;
+
+function areKeysPressed(keys: string[], e: IKeyboardEvent): boolean {
   let satisfied = true;
   for (const key of keys) {
     switch (key) {
+      case "mod":
+        // Accept both meta and ctrl
+        satisfied &&= e.metaKey || e.ctrlKey;
+        break;
       case "ctrl":
         satisfied &&= e.ctrlKey;
         break;
@@ -41,7 +50,17 @@ function areKeysPressed(keys: string[], e: KeyboardEvent): boolean {
         satisfied &&= e.code === "Space";
         break;
       default:
-        satisfied &&= e.key.toLowerCase() === key;
+        // Handle digit keys specially when shift is pressed
+        // Shift+7 produces different characters across keyboards/platforms:
+        // - US keyboards: "&"
+        // - Some layouts: "7"
+        // Using e.code (physical key) instead of e.key (produced character)
+        // eslint-disable-next-line unicorn/prefer-ternary
+        if (/^\d$/.test(key) && e.shiftKey) {
+          satisfied &&= e.code === `Digit${key}`;
+        } else {
+          satisfied &&= e.key.toLowerCase() === key;
+        }
         break;
     }
 
@@ -50,13 +69,14 @@ function areKeysPressed(keys: string[], e: KeyboardEvent): boolean {
     }
   }
 
+  // If the shortcut does not include a modifier, ensure the modifier is not pressed
   if (!keys.includes("shift")) {
     satisfied &&= !e.shiftKey;
   }
-  if (!keys.includes("ctrl")) {
+  if (!keys.includes("ctrl") && !keys.includes("mod")) {
     satisfied &&= !e.ctrlKey;
   }
-  if (!keys.includes("meta")) {
+  if (!keys.includes("meta") && !keys.includes("mod")) {
     satisfied &&= !e.metaKey;
   }
   if (!keys.includes("alt")) {
@@ -77,9 +97,15 @@ function normalizeKey(key: string): string {
   return specialKeys[key.toLowerCase()] || key.toLowerCase();
 }
 
+/**
+ * Returns a function that checks if a shortcut is pressed.
+ *
+ * @param shortcut - The shortcut to check.
+ * @returns A function that checks if the shortcut is pressed.
+ */
 export function parseShortcut(
   shortcut: string | typeof NOT_SET,
-): (e: KeyboardEvent) => boolean {
+): (e: IKeyboardEvent) => boolean {
   // Handle empty shortcut, e.g. not set
   if (shortcut === NOT_SET || shortcut === "") {
     return () => false;
@@ -87,5 +113,5 @@ export function parseShortcut(
 
   const separator = shortcut.includes("+") ? "+" : "-";
   const keys = shortcut.split(separator).map(normalizeKey);
-  return (e: KeyboardEvent) => areKeysPressed(keys, e);
+  return (e: IKeyboardEvent) => areKeysPressed(keys, e);
 }

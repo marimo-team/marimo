@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { downloadHTMLAsImage } from "@/utils/download";
-import { CellOutputId, type CellId } from "@/core/cells/ids";
 
 export function downloadCellOutput(cellId: CellId) {
   const output = document.getElementById(CellOutputId.create(cellId));

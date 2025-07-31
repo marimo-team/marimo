@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { CheckIcon, CopyIcon, KeyIcon, PlusIcon } from "lucide-react";
-import { useAsyncData } from "@/hooks/useAsyncData";
+import React from "react";
 import { Spinner } from "@/components/icons/spinner";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { PanelEmptyState } from "./empty-state";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -14,38 +14,39 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import { copyToClipboard } from "@/utils/copy";
-import { cn } from "@/utils/cn";
 import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
-import { Badge } from "@/components/ui/badge";
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { PanelEmptyState } from "./empty-state";
 import { sortProviders, WriteSecretModal } from "./write-secret-modal";
 
 export const SecretsPanel: React.FC = () => {
   const { openModal, closeModal } = useImperativeModal();
   const {
-    data: secretKeyProviders = [],
-    loading,
+    data: secretKeyProviders,
+    isPending,
     error,
-    reload,
+    refetch,
   } = useAsyncData(async () => {
     const result = await SECRETS_REGISTRY.request({});
     return sortProviders(result.secrets);
   }, []);
 
-  // Provider names without 'env' provider
-  const providerNames = secretKeyProviders
-    .filter((provider) => provider.provider !== "env")
-    .map((provider) => provider.name);
-
   // Only show on the first load
-  if (loading && secretKeyProviders.length === 0) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 
   if (error) {
     return <ErrorBanner error={error} />;
   }
+
+  // Provider names without 'env' provider
+  const providerNames = secretKeyProviders
+    .filter((provider) => provider.provider !== "env")
+    .map((provider) => provider.name);
 
   if (secretKeyProviders.length === 0) {
     return (
@@ -68,7 +69,7 @@ export const SecretsPanel: React.FC = () => {
               <WriteSecretModal
                 providerNames={providerNames}
                 onSuccess={() => {
-                  reload();
+                  refetch();
                   closeModal();
                 }}
                 onClose={closeModal}

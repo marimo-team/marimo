@@ -1,30 +1,29 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
 
+import { isEqual } from "lodash-es";
+import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
+import { type JSX, memo, useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import type { FieldTypesWithExternalType } from "@/components/data-table/types";
+import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
+import { Spinner } from "@/components/icons/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { createPlugin } from "@/plugins/core/builder";
+import { rpc } from "@/plugins/core/rpc";
+import { Arrays } from "@/utils/arrays";
+import { Functions } from "@/utils/functions";
+import { ErrorBanner } from "../common/error-banner";
+import { LoadingDataTableComponent, TableProviders } from "../DataTablePlugin";
+import type { DataType } from "../vega/vega-loader";
+import { TransformPanel } from "./panel";
 import {
   ConditionSchema,
   type ConditionType,
+  columnToFieldTypesSchema,
   type Transformations,
 } from "./schema";
-import { TransformPanel } from "./panel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
 import type { ColumnDataTypes, ColumnId } from "./types";
-import { createPlugin } from "@/plugins/core/builder";
-import { rpc } from "@/plugins/core/rpc";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { LoadingDataTableComponent } from "../DataTablePlugin";
-import { Functions } from "@/utils/functions";
-import { Arrays } from "@/utils/arrays";
-import { memo, useEffect, useRef, useState } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ErrorBanner } from "../common/error-banner";
-import type { DataType } from "../vega/vega-loader";
-import type { FieldTypesWithExternalType } from "@/components/data-table/types";
-import { Spinner } from "@/components/icons/spinner";
-import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
-import { isEqual } from "lodash-es";
-import { DATA_TYPES } from "@/core/kernel/messages";
 
 type CsvURL = string;
 type TableData<T> = T[] | CsvURL;
@@ -46,7 +45,7 @@ type PluginFunctions = {
   get_dataframe: (req: {}) => Promise<{
     url: string;
     total_rows: number;
-    row_headers: string[];
+    row_headers: FieldTypesWithExternalType;
     field_types: FieldTypesWithExternalType | null;
     python_code?: string | null;
     sql_code?: string | null;
@@ -95,10 +94,8 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       z.object({
         url: z.string(),
         total_rows: z.number(),
-        row_headers: z.array(z.string()),
-        field_types: z.array(
-          z.tuple([z.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]),
-        ),
+        row_headers: columnToFieldTypesSchema,
+        field_types: columnToFieldTypesSchema,
         python_code: z.string().nullish(),
         sql_code: z.string().nullish(),
       }),
@@ -129,19 +126,21 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       ),
   })
   .renderer((props) => (
-    <TooltipProvider>
+    <TableProviders>
       <DataFrameComponent
         {...props.data}
         {...props.functions}
         value={props.value}
         setValue={props.setValue}
+        host={props.host}
       />
-    </TooltipProvider>
+    </TableProviders>
   ));
 
 interface DataTableProps extends Data, PluginFunctions {
   value: S;
   setValue: (value: S) => void;
+  host: HTMLElement;
 }
 
 const EMPTY: Transformations = {
@@ -157,8 +156,9 @@ export const DataFrameComponent = memo(
     get_dataframe,
     get_column_values,
     search,
+    host,
   }: DataTableProps): JSX.Element => {
-    const { data, error, loading } = useAsyncData(
+    const { data, error, isPending } = useAsyncData(
       () => get_dataframe({}),
       [value?.transforms],
     );
@@ -208,7 +208,7 @@ export const DataFrameComponent = memo(
               )}
               <div className="flex-grow" />
             </TabsList>
-            {loading && <Spinner size="small" />}
+            {isPending && <Spinner size="small" />}
           </div>
           <TabsContent
             value="transform"
@@ -265,6 +265,7 @@ export const DataFrameComponent = memo(
           hasStableRowId={false}
           totalRows={total_rows ?? 0}
           totalColumns={Object.keys(columns).length}
+          maxColumns="all"
           pageSize={pageSize}
           pagination={true}
           fieldTypes={field_types}
@@ -275,11 +276,16 @@ export const DataFrameComponent = memo(
           showFilters={false}
           search={search}
           showColumnSummaries={false}
+          showDataTypes={true}
           get_column_summaries={getColumnSummaries}
+          showPageSizeSelector={(total_rows && total_rows > 5) || false}
+          showColumnExplorer={false}
+          showChartBuilder={false}
           value={Arrays.EMPTY}
           setValue={Functions.NOOP}
           selection={null}
           lazy={false}
+          host={host}
         />
       </div>
     );
@@ -288,5 +294,10 @@ export const DataFrameComponent = memo(
 DataFrameComponent.displayName = "DataFrameComponent";
 
 function getColumnSummaries() {
-  return Promise.resolve({ summaries: [], data: null });
+  return Promise.resolve({
+    stats: {},
+    data: null,
+    bin_values: {},
+    value_counts: {},
+  });
 }

@@ -28,11 +28,99 @@ engine = clickhouse_connect.get_client(
 )"
 `;
 
+exports[`generateDatabaseCode > basic connections > datafusion 1`] = `
+"from datafusion import SessionContext
+import ibis
+
+con = ibis.datafusion.connect()"
+`;
+
+exports[`generateDatabaseCode > basic connections > datafusion with session 1`] = `
+"from datafusion import SessionContext
+import ibis
+
+ctx = SessionContext()
+# Sample table
+_ = ctx.from_pydict({"a": [1, 2, 3]}, "my_table")
+
+con = ibis.datafusion.connect(ctx)"
+`;
+
 exports[`generateDatabaseCode > basic connections > duckdb 1`] = `
 "import duckdb
 
 DATABASE_URL = "data.duckdb"
 engine = duckdb.connect(DATABASE_URL, read_only=True)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg dynamodb 1`] = `
+"from pyiceberg.catalog.dynamodb import DynamoDBCatalog
+
+catalog = DynamoDBCatalog(
+  "my_catalog",
+  **{
+    "dynamodb.profile-name": "my_profile",
+    "dynamodb.region": "us-east-1",
+    "dynamodb.access-key-id": "my_access_key_id",
+    "dynamodb.secret-access-key": "my_secret_access_key",
+    "dynamodb.session-token": "my_session_token"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg glue 1`] = `
+"from pyiceberg.catalog.glue import GlueCatalog
+
+catalog = GlueCatalog(
+  "my_catalog",
+  **{
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg hive 1`] = `
+"from pyiceberg.catalog.hive import HiveCatalog
+
+catalog = HiveCatalog(
+  "my_catalog",
+  **{
+    "uri": "thrift://localhost:9083",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg rest 1`] = `
+"from pyiceberg.catalog.rest import RestCatalog
+
+catalog = RestCatalog(
+  "my_catalog",
+  **{
+    "uri": "http://localhost:8181",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg sql 1`] = `
+"from pyiceberg.catalog.sql import SqlCatalog
+
+catalog = SqlCatalog(
+  "my_catalog",
+  **{
+    "uri": "postgresql://localhost:5432/iceberg",
+    "warehouse": "/path/to/warehouse"
+  },
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > motherduck 1`] = `
+"import duckdb
+import os
+
+_password = os.environ.get("MOTHERDUCK_TOKEN", "my_token")
+conn = duckdb.connect("md:my_db", config={"motherduck_token": _password})"
 `;
 
 exports[`generateDatabaseCode > basic connections > mysql with SQLAlchemy 1`] = `
@@ -69,6 +157,50 @@ import sqlmodel
 _password = os.environ.get("POSTGRES_PASSWORD", "pass")
 DATABASE_URL = f"postgresql://user:{_password}@localhost:5432/test"
 engine = sqlmodel.create_engine(DATABASE_URL, connect_args={'sslmode': 'require'})"
+`;
+
+exports[`generateDatabaseCode > basic connections > pyspark 1`] = `
+"from pyspark.sql import SparkSession
+import ibis
+
+con = ibis.pyspark.connect()"
+`;
+
+exports[`generateDatabaseCode > basic connections > pyspark with session 1`] = `
+"from pyspark.sql import SparkSession
+import ibis
+
+session = SparkSession.builder.remote(f"sc://localhost:15002").getOrCreate()
+con = ibis.pyspark.connect(session)"
+`;
+
+exports[`generateDatabaseCode > basic connections > redshift with DB credentials 1`] = `
+"import os
+import redshift_connector
+
+_password = os.environ.get("REDSHIFT_PASSWORD", "my_password")
+con = redshift_connector.connect(
+    host="localhost",
+    port=5439,
+    database="test",
+    user="my_user",
+    password=_password,
+)"
+`;
+
+exports[`generateDatabaseCode > basic connections > redshift with IAM credentials 1`] = `
+"import redshift_connector
+
+con = redshift_connector.connect(
+  iam=True,
+  host="localhost",
+  port=5439,
+  region="ap-southeast-1",
+  database="test",
+  access_key_id="my_access_key_id",
+  secret_access_key="my_secret_access_key",
+  session_token="my_session_token",
+)"
 `;
 
 exports[`generateDatabaseCode > basic connections > snowflake 1`] = `
@@ -140,6 +272,14 @@ engine = clickhouse_connect.get_client(
   port=8123,
   password=_password,
 )"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > motherduck with token as secret 1`] = `
+"import duckdb
+import os
+
+_password = os.environ.get("ENV_TOKEN")
+conn = duckdb.connect("md:my_db", config={"motherduck_token": _password})"
 `;
 
 exports[`generateDatabaseCode > connections with secrets > mysql with username and password as secrets 1`] = `
@@ -259,6 +399,14 @@ exports[`generateDatabaseCode > edge cases > duckdb with relative path 1`] = `
 
 DATABASE_URL = "./relative/path/db.duckdb"
 engine = sqlmodel.connect(DATABASE_URL, read_only=False)"
+`;
+
+exports[`generateDatabaseCode > edge cases > motherduck with special chars in database name 1`] = `
+"import duckdb
+import os
+
+_password = os.environ.get("MOTHERDUCK_TOKEN", "my_token")
+conn = duckdb.connect("md:test-db.special", config={"motherduck_token": _password})"
 `;
 
 exports[`generateDatabaseCode > edge cases > mysql with extremely long database name 1`] = `

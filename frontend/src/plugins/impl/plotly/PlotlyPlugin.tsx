@@ -1,22 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-
-import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 
 import type { Figure } from "react-plotly.js";
+import { z } from "zod";
+import type { IPlugin, IPluginProps, Setter } from "@/plugins/types";
 import { Logger } from "@/utils/Logger";
 
 import "./plotly.css";
 import "./mapbox.css";
-import { lazy, memo, useEffect, useMemo, useState } from "react";
-import useEvent from "react-use-event-hook";
-import { type PlotlyTemplateParser, createParser } from "./parse-from-template";
-import { Objects } from "@/utils/objects";
-import { isEqual, pick, set } from "lodash-es";
-import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { usePrevious } from "@uidotdev/usehooks";
-import { Arrays } from "@/utils/arrays";
+import { isEqual, pick, set } from "lodash-es";
+import { type JSX, lazy, memo, useEffect, useMemo, useState } from "react";
+import useEvent from "react-use-event-hook";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useScript } from "@/hooks/useScript";
+import { Arrays } from "@/utils/arrays";
+import { Objects } from "@/utils/objects";
+import { createParser, type PlotlyTemplateParser } from "./parse-from-template";
 
 interface Data {
   figure: Figure;

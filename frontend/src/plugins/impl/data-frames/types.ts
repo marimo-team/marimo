@@ -34,21 +34,21 @@ export const NUMPY_DTYPES = [
   "float16",
   "float32",
   "float64",
-  "float128",
   "complex64",
   "complex128",
-  "complex256",
   "bool",
   "object",
-  "string_",
-  "unicode_",
+  "str",
+  "unicode",
   "datetime64",
   "timedelta64",
 ] as const;
 
-export function numpyTypeToDataType(
-  nptype: (typeof NUMPY_DTYPES)[number],
-): DataType {
+type NumpyType = (typeof NUMPY_DTYPES)[number];
+
+export function numpyTypeToDataType(nptype: NumpyType): DataType {
+  nptype = nptype.toLowerCase() as NumpyType;
+
   switch (nptype) {
     case "int8":
     case "int16":
@@ -62,14 +62,12 @@ export function numpyTypeToDataType(
     case "float16":
     case "float32":
     case "float64":
-    case "float128":
       return "number";
     case "complex64":
     case "complex128":
-    case "complex256":
     case "object":
-    case "string_":
-    case "unicode_":
+    case "str":
+    case "unicode":
       return "string";
     case "bool":
       return "boolean";

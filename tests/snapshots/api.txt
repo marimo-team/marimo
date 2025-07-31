@@ -11,6 +11,7 @@ ai
   ChatModelConfig
   llm
     anthropic
+    bedrock
     google
     groq
     openai
@@ -25,6 +26,7 @@ carousel
 center
 cli_args
 create_asgi_app
+current_thread
 defs
 doc
 download
@@ -32,6 +34,7 @@ hstack
 icon
 iframe
 image
+image_compare
 islands
   MarimoIslandGenerator
   MarimoIslandStub
@@ -114,3 +117,6 @@ ui
   text_area
 video
 vstack
+watch
+  directory
+  file

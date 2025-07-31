@@ -224,7 +224,7 @@ x_plus_one = mo.ui.number(
     1,
     11,
     value=get_x() + 1,
-    on_change=lambda v: set_x_state(v - 1),
+    on_change=lambda v: set_x(v - 1),
     label="$x + 1$:",
 )
 ```

@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
+
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import { DataExplorerComponent } from "@/plugins/impl/data-explorer/ConnectedDataExplorerComponent";
 import type { ChartSpec } from "@/plugins/impl/data-explorer/state/types";
-import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
 
 const meta: Meta = {
   title: "DataExplorer",

@@ -10,14 +10,16 @@ from typing import Any, Optional, Union
 from marimo import _loggers
 from marimo._ast import codegen, load
 from marimo._ast.app import App, InternalApp
-from marimo._ast.app_config import _AppConfig
+from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
-from marimo._config.config import WidthType
+from marimo._config.config import ExportType, SqlOutputType, WidthType
+from marimo._convert.converters import MarimoConvert
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
     save_layout_config,
 )
+from marimo._schemas.serialization import Header, NotebookSerializationV1
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.models.models import (
     CopyNotebookRequest,
@@ -33,10 +35,17 @@ class AppFileManager:
     def __init__(
         self,
         filename: Optional[Union[str, Path]],
+        *,
         default_width: WidthType | None = None,
+        default_auto_download: list[ExportType] | None = None,
+        default_sql_output: SqlOutputType | None = None,
     ) -> None:
         self.filename = str(filename) if filename else None
         self._default_width: WidthType | None = default_width
+        self._default_auto_download: list[ExportType] | None = (
+            default_auto_download
+        )
+        self._default_sql_output: SqlOutputType | None = default_sql_output
         self.app = self._load_app(self.path)
 
     @staticmethod
@@ -123,33 +132,55 @@ class AppFileManager:
     def _save_file(
         self,
         filename: str,
-        codes: list[str],
-        names: list[str],
-        configs: list[CellConfig],
-        app_config: _AppConfig,
+        notebook: NotebookSerializationV1,
         # Whether or not to persist the app to the file system
         persist: bool,
+        # Whether save was triggered by a rename
+        previous_filename: Optional[str] = None,
     ) -> str:
         LOGGER.debug("Saving app to %s", filename)
-        if filename.endswith(".md"):
-            # TODO: Remember just proof of concept, potentially needs
-            # restructuring.
+
+        type_changed = (
+            previous_filename and filename[-2:] != previous_filename[-2:]
+        )
+        if filename.endswith(".md") or filename.endswith(".qmd"):
+            # TODO: Potentially restructure, such that code compilation doesn't
+            # have to occur multiple times.
             from marimo._server.export.exporter import Exporter
 
-            contents, _ = Exporter().export_as_md(self)
+            previous = None
+            if previous_filename:
+                previous = Path(previous_filename)
+            contents, _ = Exporter().export_as_md(
+                self.app.to_ir(),
+                self.filename,
+                previous,
+            )
         else:
             # Header might be better kept on the AppConfig side, opposed to
             # reparsing it. Also would allow for md equivalent in a field like
             # `description`.
-            header_comments = codegen.get_header_comments(filename)
-            # try to save the app under the name `filename`
-            contents = codegen.generate_filecontents(
-                codes,
-                names,
-                cell_configs=configs,
-                config=app_config,
-                header_comments=header_comments,
-            )
+            if type_changed:
+                from marimo._utils.inline_script_metadata import (
+                    get_headers_from_markdown,
+                )
+
+                with open(filename, encoding="utf-8") as f:
+                    markdown = f.read()
+                headers = get_headers_from_markdown(markdown)
+                header_comments = headers.get("header", None) or headers.get(
+                    "pyproject", None
+                )
+            else:
+                header_comments = codegen.get_header_comments(filename)
+
+            contents = MarimoConvert.from_ir(
+                NotebookSerializationV1(
+                    app=notebook.app,
+                    cells=notebook.cells,
+                    header=Header(value=header_comments or ""),
+                )
+            ).to_py()
 
         if persist:
             self._create_file(filename, contents)
@@ -162,13 +193,18 @@ class AppFileManager:
     def _load_app(self, path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
         app = load.load_app(path)
+        default = overloads_from_env()
+
         if app is None:
-            kwargs = (
-                {"width": self._default_width}
-                if self._default_width is not None
-                # App decides its own default width
-                else {}
-            )
+            kwargs: dict[str, Any] = default.asdict()
+            # Add defaults if it is a new file
+            if self._default_width is not None:
+                kwargs["width"] = self._default_width
+            if self._default_auto_download is not None:
+                kwargs["auto_download"] = self._default_auto_download
+            if self._default_sql_output is not None:
+                kwargs["sql_output"] = self._default_sql_output
+
             empty_app = InternalApp(App(**kwargs))
             empty_app.cell_manager.register_cell(
                 cell_id=None,
@@ -176,6 +212,9 @@ class AppFileManager:
                 config=CellConfig(),
             )
             return empty_app
+        # Manually extend config defaults
+        app._config.update(default.asdict_difference())
+
         result = InternalApp(app)
         # Ensure at least one cell
         result.cell_manager.ensure_one_cell()
@@ -190,26 +229,25 @@ class AppFileManager:
 
         self._assert_path_does_not_exist(new_filename)
 
-        need_save = False
+        needs_save = False
         # Check if filename is not None to satisfy mypy's type checking.
         # This ensures that filename is treated as a non-optional str,
         # preventing potential type errors in subsequent code.
         if self.is_notebook_named and self.filename is not None:
             # Force a save after rename in case filetype changed.
-            need_save = self.filename[-3:] != new_filename[-3:]
+            needs_save = self.filename[-3:] != new_filename[-3:]
             self._rename_file(new_filename)
         else:
             self._create_file(new_filename)
 
+        previous_filename = self.filename
         self.filename = new_filename
-        if need_save:
+        if needs_save:
             self._save_file(
                 self.filename,
-                list(self.app.cell_manager.codes()),
-                list(self.app.cell_manager.names()),
-                list(self.app.cell_manager.configs()),
-                self.app.config,
+                self.app.to_ir(),
                 persist=True,
+                previous_filename=previous_filename,
             )
 
     def read_layout_config(self) -> Optional[LayoutConfig]:
@@ -248,14 +286,11 @@ class AppFileManager:
         # Update the file with the latest app config
         # TODO(akshayka): Only change the `app = marimo.App` line (at top level
         # of file), instead of overwriting the whole file.
-        new_config = self.app.update_config(config)
+        self.app.update_config(config)
         if self.filename is not None:
             return self._save_file(
                 self.filename,
-                list(self.app.cell_manager.codes()),
-                list(self.app.cell_manager.names()),
-                list(self.app.cell_manager.configs()),
-                new_config,
+                self.app.to_ir(),
                 persist=True,
             )
         return ""
@@ -299,10 +334,7 @@ class AppFileManager:
             self.app.update_config({"layout_file": None})
         return self._save_file(
             filename,
-            codes,
-            names,
-            configs,
-            self.app.config,
+            self.app.to_ir(),
             persist=request.persist,
         )
 
@@ -313,13 +345,7 @@ class AppFileManager:
 
     def to_code(self) -> str:
         """Read the contents of the unsaved file."""
-        contents = codegen.generate_filecontents(
-            codes=list(self.app.cell_manager.codes()),
-            names=list(self.app.cell_manager.names()),
-            cell_configs=list(self.app.cell_manager.configs()),
-            config=self.app.config,
-        )
-        return contents
+        return MarimoConvert.from_ir(self.app.to_ir()).to_py()
 
     def _is_unnamed(self) -> bool:
         return self.filename is None

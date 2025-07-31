@@ -3,34 +3,39 @@ import {
   Compartment,
   type EditorState,
   type Extension,
+  Prec,
   type Text,
 } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
+import { keymap } from "@codemirror/view";
 import {
-  COPILOT_FILENAME,
-  LANGUAGE_ID,
-  copilotServer,
-  getCopilotClient,
-} from "./client";
-import { inlineCompletion } from "@marimo-team/codemirror-ai";
+  inlineCompletion,
+  rejectInlineCompletion,
+} from "@marimo-team/codemirror-ai";
 import {
   copilotPlugin as codeiumCopilotPlugin,
-  Language,
   codeiumOtherDocumentsConfig,
+  Language,
 } from "@valtown/codemirror-codeium";
-import { isCopilotEnabled } from "./state";
-import { getCodes } from "./getCodes";
+import {
+  type InlineCompletionItem,
+  type InlineCompletionList,
+  type InlineCompletionParams,
+  InlineCompletionTriggerKind,
+} from "vscode-languageserver-protocol";
 import type { CompletionConfig } from "@/core/config/config-schema";
-import type {
-  CopilotGetCompletionsParams,
-  CopilotGetCompletionsResult,
-} from "./types";
+import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
+import { API } from "@/core/network/api";
 import { Logger } from "@/utils/Logger";
 import { languageAdapterState } from "../language/extension";
-import { API } from "@/core/network/api";
-import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
-import type { EditorView } from "@codemirror/view";
+import { isInVimMode } from "../utils";
+import { COPILOT_FILENAME, copilotServer, getCopilotClient } from "./client";
+import { getCodes } from "./getCodes";
+import { isCopilotEnabled } from "./state";
 
 const copilotCompartment = new Compartment();
+
+const logger = Logger.get("@github/copilot-language-server");
 
 const commonInlineCompletionConfig = {
   delay: 500, // default is 500ms
@@ -91,14 +96,7 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
           const request = getCopilotRequest(state, allCode);
           const response = await getCopilotClient().getCompletion(request);
 
-          const suggestion = getSuggestion(
-            response,
-            request.doc.position,
-            state,
-          );
-          if (suggestion) {
-            Logger.debug("Copilot suggestion:", suggestion);
-          }
+          const suggestion = getSuggestion(response, request.position, state);
           return suggestion;
         },
       }),
@@ -148,6 +146,21 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 
   return [
     ...extensions,
+    Prec.highest(
+      keymap.of([
+        {
+          key: "Escape",
+          run: (view: EditorView) => {
+            const status = rejectInlineCompletion(view);
+            // When in vim mode, we need to propagate escape to exit insert mode.
+            if (isInVimMode(view)) {
+              return false;
+            }
+            return status;
+          },
+        },
+      ]),
+    ),
     // place in own compartment so it doesn't interfere with other LSP
     copilotCompartment.of(copilotServer()),
   ];
@@ -156,7 +169,7 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
 function getCopilotRequest(
   state: EditorState,
   allCode: string,
-): CopilotGetCompletionsParams {
+): InlineCompletionParams {
   // We need to update the position of the cursor because added newlines
   // from appending the other code
   const currentCode = state.doc.toString();
@@ -165,41 +178,52 @@ function getCopilotRequest(
 
   const position = offsetToPos(state.doc, state.selection.main.head);
   position.line += numberOfNewLines;
-
   return {
-    doc: {
-      source: allCode,
-      tabSize: state.tabSize,
-      indentSize: 1,
-      insertSpaces: true,
-      path: COPILOT_FILENAME,
-      version: "replace_me" as unknown as number,
+    textDocument: {
       uri: `file://${COPILOT_FILENAME}`,
-      relativePath: COPILOT_FILENAME,
-      languageId: LANGUAGE_ID,
-      position: position,
+      version: "replace_me" as unknown as number,
     },
-  };
+    position: position,
+    context: {
+      triggerKind: InlineCompletionTriggerKind.Automatic,
+    },
+    formattingOptions: {
+      tabSize: state.tabSize,
+      insertSpaces: true,
+    },
+  } as InlineCompletionParams;
 }
 
 function getSuggestion(
-  response: CopilotGetCompletionsResult,
-  userPosition: CopilotGetCompletionsParams["doc"]["position"],
+  response: InlineCompletionList | InlineCompletionItem[] | null,
+  userPosition: InlineCompletionParams["position"],
   state: EditorState,
 ): string {
-  // Empty (can happen if it is a stale request)
-  if (response.completions.length === 0) {
+  if (!response) {
+    logger.debug("No response from copilot");
     return "";
   }
 
-  const { displayText, position: completionPosition } = response.completions[0];
+  const first = Array.isArray(response) ? response[0] : response.items[0];
+  if (!first) {
+    logger.debug("No response from copilot");
+    return "";
+  }
+
+  const { insertText, range } = first;
+  const insertTextString = String(insertText);
+
+  if (!range) {
+    logger.error("No range from copilot");
+    return insertTextString;
+  }
 
   // Calculate the start of the suggestion relative to the current position
-  const startOffset = completionPosition.character - userPosition.character;
+  const startOffset = range.start.character - userPosition.character;
 
   // If startOffset is negative, we need to trim the beginning of displayText
   const resultText =
-    startOffset < 0 ? displayText.slice(-startOffset) : displayText;
+    startOffset < 0 ? insertTextString.slice(-startOffset) : insertTextString;
 
   // If the end of the suggestion already exists next in the document, we should trim it,
   // for example closing quotes, brackets, etc.

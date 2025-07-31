@@ -41,8 +41,9 @@ jobs:
         run: |
           pr="$(gh api /repos/${GH_REPO}/pulls/${PR_NUMBER})"
           head_sha="$(echo "$pr" | jq -r .head.sha)"
-          pushed_at="$(echo "$pr" | jq -r .pushed_at)"
+          pushed_at="$(echo "$pr" | jq -r .head.repo.pushed_at)"
 
+          # NB mitigate potential race condition.
           if [[ $(date -d "$pushed_at" +%s) -gt $(date -d "$COMMENT_AT" +%s) ]]; then
               echo "Updating is not allowed because the PR was pushed to (at $pushed_at) after the triggering comment was issued (at $COMMENT_AT)"
               exit 1
@@ -70,9 +71,7 @@ jobs:
             console.log(`Comment created with ID: ${comment.data.id}`);
             return comment.data.id;
 
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v4
 
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
@@ -89,31 +88,32 @@ jobs:
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Adapt pyproject.toml to build marimo-base
-        run: ./scripts/modify_pyproject_for_marimo_base.sh
+        run: uv run ./scripts/modify_pyproject_for_marimo_base.py
 
-      # patch __init__.py version to be of the form
+      # patch pyproject.toml version to be of the form
       # X.Y.Z-dev9{4random digits}
       # This must be a valid semver version from
       # https://packaging.python.org/en/latest/discussions/versioning/
       - name: 🔨 Patch version number
         run: |
           # Get the version number
-          # - assumes version is on a line of the form __version__ == "x.y.z"
-          current_version=`grep '__version__' marimo/__init__.py | awk '{print $3}' | tr -d '"'`
+          current_version=`uv version --short`
           # Generate a random 4-digit number
           random_digits=`shuf -i 1000-9999 -n 1`
           # Form the new version with the random digits
           MARIMO_VERSION="${current_version}-dev9${random_digits}"
           # Set the version in the environment for later steps
           echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
-          sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
+          uv version "$MARIMO_VERSION"
+        env:
+          NO_COLOR: 1
 
       - name: 📦 Build marimo
-        run: hatch build --clean
+        run: uv build
 
       - name: 📦 Validate wheel under 2mb
         run: ./scripts/validate_base_wheel_size.sh
@@ -122,7 +122,7 @@ jobs:
         env:
           HATCH_INDEX_USER: ${{ secrets.TEST_PYPI_USER }}
           HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_MARIMO_BASE_PASSWORD }}
-        run: hatch publish --repo test
+        run: uvx hatch publish --repo test
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend

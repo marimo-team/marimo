@@ -1,81 +1,75 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
+import { CommandList } from "cmdk";
+import { atom, useAtomValue, useSetAtom } from "jotai";
+import { sortBy } from "lodash-es";
 import {
   DatabaseIcon,
-  PlusIcon,
-  PaintRollerIcon,
-  PlusSquareIcon,
-  XIcon,
-  Table2Icon,
   EyeIcon,
+  PaintRollerIcon,
+  PlusIcon,
+  PlusSquareIcon,
+  RefreshCwIcon,
+  Table2Icon,
+  XIcon,
 } from "lucide-react";
+import React from "react";
+import { dbDisplayName } from "@/components/databases/display";
+import { EngineVariable } from "@/components/databases/engine-variable";
+import { DatabaseLogo } from "@/components/databases/icon";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { Button } from "@/components/ui/button";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
-import { CommandList } from "cmdk";
-
-import { cn } from "@/utils/cn";
+import { Tooltip } from "@/components/ui/tooltip";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
+import { useLastFocusedCellId } from "@/core/cells/focus";
+import { autoInstantiateAtom } from "@/core/config/config";
+import {
+  dataConnectionsMapAtom,
+  type SQLTableContext,
+  useDataSourceActions,
+} from "@/core/datasets/data-source-connections";
+import { DUCKDB_ENGINE, INTERNAL_SQL_ENGINES } from "@/core/datasets/engines";
+import {
+  PreviewSQLTable,
+  PreviewSQLTableList,
+} from "@/core/datasets/request-registry";
 import {
   closeAllColumnsAtom,
   datasetTablesAtom,
   expandedColumnsAtom,
   useDatasets,
 } from "@/core/datasets/state";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
-import { Button } from "@/components/ui/button";
-import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
-import { useLastFocusedCellId } from "@/core/cells/focus";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { Tooltip } from "@/components/ui/tooltip";
-import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { previewDatasetColumn } from "@/core/network/requests";
-import { prettyNumber } from "@/utils/numbers";
-import { Events } from "@/utils/events";
-import { CopyClipboardIcon } from "@/components/icons/copy-icon";
-import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
-import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
-import { useTheme } from "@/theme/useTheme";
-import {
-  maybeAddAltairImport,
-  maybeAddMarimoImport,
-} from "@/core/cells/add-missing-import";
-import { autoInstantiateAtom } from "@/core/config/config";
 import type {
   Database,
   DatabaseSchema,
-  DataColumnPreview,
   DataSourceConnection,
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
+import { previewDataSourceConnection } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
-import { sortBy } from "lodash-es";
-import { logNever } from "@/utils/assertNever";
-import { DatabaseLogo } from "@/components/databases/icon";
-import { EngineVariable } from "@/components/databases/engine-variable";
 import type { VariableName } from "@/core/variables/types";
-import { dbDisplayName } from "@/components/databases/display";
-import { AddDatabaseDialog } from "../editor/database/add-database-form";
-import {
-  dataConnectionsMapAtom,
-  INTERNAL_SQL_ENGINES,
-  type SQLTableContext,
-  useDataSourceActions,
-} from "@/core/datasets/data-source-connections";
-import { PythonIcon } from "../editor/cell/code/icons";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { logNever } from "@/utils/assertNever";
+import { cn } from "@/utils/cn";
+import { Events } from "@/utils/events";
+import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
+import { PythonIcon } from "../editor/cell/code/icons";
+import { useAddCodeToNewCell } from "../editor/cell/useAddCell";
+import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
+import { AddDatabaseDialog } from "../editor/database/add-database-form";
+import { DatasetColumnPreview } from "./column-preview";
 import {
+  ColumnName,
   DatasourceLabel,
   EmptyState,
   ErrorState,
   LoadingState,
   RotatingChevron,
 } from "./components";
-import { InstallPackageButton } from "./install-package-button";
 import { isSchemaless, sqlCode } from "./utils";
-import { useOnMount } from "@/hooks/useLifecycle";
-import {
-  PreviewSQLTableList,
-  PreviewSQLTable,
-} from "@/core/datasets/request-registry";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -135,7 +129,7 @@ export const DataSources: React.FC = () => {
         action={
           <AddDatabaseDialog>
             <Button variant="outline" size="sm">
-              Add database
+              Add database or catalog
               <PlusIcon className="h-4 w-4 ml-2" />
             </Button>
           </AddDatabaseDialog>
@@ -215,7 +209,7 @@ export const DataSources: React.FC = () => {
         {dataConnections.length > 0 && tables.length > 0 && (
           <DatasourceLabel>
             <PythonIcon className="h-4 w-4 text-muted-foreground" />
-            <span>Python</span>
+            <span className="text-xs">Python</span>
           </DatasourceLabel>
         )}
         {tables.length > 0 && (
@@ -231,11 +225,20 @@ const Engine: React.FC<{
   children: React.ReactNode;
   hasChildren?: boolean;
 }> = ({ connection, children, hasChildren }) => {
-  const hasEngine = connection.databases.length > 0;
-  // If the connection has no engine, it's the internal duckdb engine
-  const engineName = hasEngine
-    ? connection.databases[0]?.engine || "In-Memory"
-    : connection.name;
+  // The internal duckdb connection is updated automatically, so we do not need to refresh.
+  const internalEngine = connection.name === DUCKDB_ENGINE;
+  const engineName = internalEngine ? "In-Memory" : connection.name;
+
+  const [isSpinning, setIsSpinning] = React.useState(false);
+
+  const handleRefreshConnection = async () => {
+    setIsSpinning(true);
+    await previewDataSourceConnection({
+      engine: connection.name,
+    });
+    // Artificially spin the icon if the request is really fast
+    setTimeout(() => setIsSpinning(false), 500);
+  };
 
   return (
     <>
@@ -244,10 +247,27 @@ const Engine: React.FC<{
           className="h-4 w-4 text-muted-foreground"
           name={connection.dialect}
         />
-        <span>{dbDisplayName(connection.dialect)}</span>
+        <span className="text-xs">{dbDisplayName(connection.dialect)}</span>
         <span className="text-xs text-muted-foreground">
           (<EngineVariable variableName={engineName as VariableName} />)
         </span>
+        {!internalEngine && (
+          <Tooltip content="Refresh connection">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto hover:bg-transparent hover:shadow-none"
+              onClick={handleRefreshConnection}
+            >
+              <RefreshCwIcon
+                className={cn(
+                  "h-4 w-4 text-muted-foreground hover:text-foreground",
+                  isSpinning && "animate-[spin_0.5s]",
+                )}
+              />
+            </Button>
+          </Tooltip>
+        )}
       </DatasourceLabel>
       {hasChildren ? (
         children
@@ -411,7 +431,7 @@ const TableList: React.FC<{
   // useAsyncData's loading state may return false before data has propagated
   const [tablesLoading, setTablesLoading] = React.useState(false);
 
-  const { loading, error } = useAsyncData(async () => {
+  const { isPending, error } = useAsyncData(async () => {
     if (tables.length === 0 && sqlTableContext && !tablesRequested) {
       setTablesRequested(true);
       setTablesLoading(true);
@@ -436,12 +456,12 @@ const TableList: React.FC<{
     }
   }, [tables.length, sqlTableContext, tablesRequested]);
 
-  if (loading || tablesLoading) {
-    return <LoadingState message="Loading tables..." />;
+  if (isPending || tablesLoading) {
+    return <LoadingState message="Loading tables..." className="pl-12" />;
   }
 
   if (error) {
-    return <ErrorState error={error} />;
+    return <ErrorState error={error} className="pl-12" />;
   }
 
   if (tables.length === 0) {
@@ -481,7 +501,7 @@ const DatasetTableItem: React.FC<{
     React.useState(false);
   const tableDetailsExist = table.columns.length > 0;
 
-  const { loading, error } = useAsyncData(async () => {
+  const { isFetching, isPending, error } = useAsyncData(async () => {
     if (
       isExpanded &&
       !tableDetailsExist &&
@@ -511,32 +531,39 @@ const DatasetTableItem: React.FC<{
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
+  const addCodeToNewCell = useAddCodeToNewCell();
 
   const handleAddTable = () => {
-    maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    let code = "";
-    if (sqlTableContext) {
-      code = sqlCode(table, "*", sqlTableContext);
-    } else {
+    maybeAddMarimoImport({
+      autoInstantiate,
+      createNewCell,
+      fromCellId: lastFocusedCellId,
+    });
+    const getCode = () => {
+      if (table.source_type === "catalog") {
+        const identifier = sqlTableContext?.database
+          ? `${sqlTableContext.database}.${table.name}`
+          : table.name;
+        return `${table.engine}.load_table("${identifier}")`;
+      }
+
+      if (sqlTableContext) {
+        return sqlCode({ table, columnName: "*", sqlTableContext });
+      }
+
       switch (table.source_type) {
         case "local":
-          code = `mo.ui.table(${table.name})`;
-          break;
+          return `mo.ui.table(${table.name})`;
         case "duckdb":
         case "connection":
-          code = sqlCode(table, "*", sqlTableContext);
-          break;
+          return sqlCode({ table, columnName: "*", sqlTableContext });
         default:
           logNever(table.source_type);
-          break;
+          return "";
       }
-    }
+    };
 
-    createNewCell({
-      code,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    addCodeToNewCell(getCode());
   };
 
   const renderRowsByColumns = () => {
@@ -562,15 +589,20 @@ const DatasetTableItem: React.FC<{
   };
 
   const renderColumns = () => {
-    if (loading) {
-      return <LoadingState message="Loading columns..." />;
+    if (isPending || isFetching) {
+      return <LoadingState message="Loading columns..." className="pl-12" />;
     }
 
     if (error) {
-      return <ErrorState error={error} />;
+      return <ErrorState error={error} className="pl-12" />;
     }
 
     const columns = table.columns;
+
+    if (columns.length === 0) {
+      return <EmptyState content="No columns found" className="pl-12" />;
+    }
+
     return columns.map((column) => (
       <DatasetColumnItem
         key={column.name}
@@ -660,25 +692,14 @@ const DatasetColumnItem: React.FC<{
     });
   }
 
-  const Icon = DATA_TYPE_ICON[column.type];
-
-  const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const lastFocusedCellId = useLastFocusedCellId();
-  const { createNewCell } = useCellActions();
+  const addCodeToNewCell = useAddCodeToNewCell();
 
   const { columnsPreviews } = useDatasets();
   const isPrimaryKey = table.primary_keys?.includes(column.name) || false;
   const isIndexed = table.indexes?.includes(column.name) || false;
 
   const handleAddColumn = (chartCode: string) => {
-    if (chartCode.includes("alt")) {
-      maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
-    }
-    createNewCell({
-      code: chartCode,
-      before: false,
-      cellId: lastFocusedCellId ?? "__end__",
-    });
+    addCodeToNewCell(chartCode);
   };
 
   const renderItemSubtext = ({
@@ -697,6 +718,10 @@ const DatasetColumnItem: React.FC<{
     );
   };
 
+  const columnText = (
+    <span className={isExpanded ? "font-semibold" : ""}>{column.name}</span>
+  );
+
   return (
     <>
       <CommandItem
@@ -711,8 +736,7 @@ const DatasetColumnItem: React.FC<{
             sqlTableContext ? "pl-14" : "pl-7",
           )}
         >
-          <Icon className="flex-shrink-0 h-3 w-3" strokeWidth={1.5} />
-          <span>{column.name}</span>
+          <ColumnName columnName={columnText} dataType={column.type} />
           {isPrimaryKey &&
             renderItemSubtext({ tooltipContent: "Primary key", content: "PK" })}
           {isIndexed &&
@@ -753,159 +777,5 @@ const DatasetColumnItem: React.FC<{
         </div>
       )}
     </>
-  );
-};
-
-const LazyVegaLite = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
-);
-
-const DatasetColumnPreview: React.FC<{
-  table: DataTable;
-  column: DataTableColumn;
-  onAddColumnChart: (code: string) => void;
-  preview: DataColumnPreview | undefined;
-  sqlTableContext?: SQLTableContext;
-}> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
-  const { theme } = useTheme();
-
-  useOnMount(() => {
-    if (preview) {
-      return;
-    }
-
-    previewDatasetColumn({
-      source: table.source,
-      tableName: table.name,
-      columnName: column.name,
-      sourceType: table.source_type,
-      fullyQualifiedTableName: sqlTableContext
-        ? `${sqlTableContext.database}.${sqlTableContext.schema}.${table.name}`
-        : table.name,
-    });
-  });
-
-  // Do not fetch previews for custom SQL connections
-  if (table.source_type === "connection") {
-    return (
-      <span className="text-xs text-muted-foreground gap-2 flex items-center justify-between pl-7">
-        {column.name} ({column.external_type})
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={Events.stopPropagation(() => {
-            onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
-          })}
-        >
-          <PlusSquareIcon className="h-3 w-3 mr-1" /> Add SQL cell
-        </Button>
-      </span>
-    );
-  }
-
-  if (!preview) {
-    return <span className="text-xs text-muted-foreground">Loading...</span>;
-  }
-
-  const error = preview.error && (
-    <div className="text-xs text-muted-foreground p-2 border border-muted rounded flex items-center">
-      <span>{preview.error}</span>
-      {preview.missing_packages && (
-        <InstallPackageButton packages={preview.missing_packages} />
-      )}
-    </div>
-  );
-
-  const summary = preview.summary && (
-    <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
-      {Object.entries(preview.summary).map(([key, value]) => {
-        if (value == null) {
-          return null;
-        }
-
-        return (
-          <div key={key} className="flex items-center gap-1 group">
-            <CopyClipboardIcon
-              className="h-3 w-3 invisible group-hover:visible"
-              value={String(value)}
-            />
-            <span className="text-xs min-w-[60px] uppercase">{key}</span>
-            <span className="text-xs font-bold text-muted-foreground tracking-wide">
-              {prettyNumber(value)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
-    return {
-      ...spec,
-      config: { ...spec.config, background: "transparent" },
-    };
-  };
-  const chart = preview.chart_spec && (
-    <LazyVegaLite
-      spec={updateSpec(
-        JSON.parse(preview.chart_spec) as TopLevelFacetedUnitSpec,
-      )}
-      width={"container" as unknown as number}
-      height={100}
-      actions={false}
-      theme={theme === "dark" ? "dark" : "vox"}
-    />
-  );
-
-  const addDataframeChart = preview.chart_code &&
-    table.source_type === "local" && (
-      <Tooltip content="Add chart to notebook" delayDuration={400}>
-        <Button
-          variant="outline"
-          size="icon"
-          className="z-10 bg-background absolute right-1 -top-1"
-          onClick={Events.stopPropagation(() =>
-            onAddColumnChart(preview.chart_code || ""),
-          )}
-        >
-          <PlusSquareIcon className="h-3 w-3" />
-        </Button>
-      </Tooltip>
-    );
-
-  const addSQLChart = table.source_type === "duckdb" && (
-    <Tooltip content="Add SQL cell" delayDuration={400}>
-      <Button
-        variant="outline"
-        size="icon"
-        className="z-10 bg-background absolute right-1 -top-1"
-        onClick={Events.stopPropagation(() => {
-          onAddColumnChart(sqlCode(table, column.name, sqlTableContext));
-        })}
-      >
-        <PlusSquareIcon className="h-3 w-3" />
-      </Button>
-    </Tooltip>
-  );
-
-  const chartMaxRowsWarning = preview.chart_max_rows_errors && (
-    <span className="text-xs text-muted-foreground">
-      Too many rows to render the chart.
-    </span>
-  );
-
-  if (!error && !summary && !chart && !chartMaxRowsWarning) {
-    return <span className="text-xs text-muted-foreground">No data</span>;
-  }
-
-  return (
-    <div className="flex flex-col gap-2 relative">
-      {error}
-      {addDataframeChart}
-      {addSQLChart}
-      {chartMaxRowsWarning}
-      {chart}
-      {summary}
-    </div>
   );
 };

@@ -97,6 +97,10 @@ class AppStateBase:
     def skew_protection_token(self) -> SkewProtectionToken:
         return self.session_manager.skew_protection_token
 
+    @property
+    def remote_url(self) -> Optional[str]:
+        return getattr(self.state, "remote_url", None)
+
 
 class AppState(AppStateBase):
     """The app state with a request."""
@@ -131,8 +135,16 @@ class AppState(AppStateBase):
         session = self.session_manager.get_session(session_id)
         if session is None:
             LOGGER.warning(
-                "Valid sessions: %s",
+                "Valid sessions ids: %s",
                 list(self.session_manager.sessions.keys()),
+            )
+            LOGGER.warning(
+                "Valid consumers ids: %s",
+                [
+                    list(session.room.consumers.values())
+                    for session in self.session_manager.sessions.values()
+                    if session.room.consumers
+                ],
             )
             raise ValueError(f"Invalid session id: {session_id}")
         return session

@@ -2,30 +2,26 @@
 "use no memo";
 
 import {
-  type Table,
   type Cell,
-  type TableFeature,
-  type InitialTableState,
-  type RowData,
-  makeStateUpdater,
   type Column,
+  type InitialTableState,
+  makeStateUpdater,
   type Row,
+  type RowData,
+  type Table,
+  type TableFeature,
 } from "@tanstack/react-table";
 
 import { Functions } from "@/utils/functions";
-
+import { getStableRowId } from "../utils";
 import type {
   CellSelectionOptions,
   CellSelectionState,
   CellSelectionTableState,
 } from "./types";
-import { INDEX_COLUMN_NAME } from "../types";
 
 function getRowId<TData>(row: Row<TData>): string {
-  if (row && typeof row === "object" && INDEX_COLUMN_NAME in row) {
-    return String(row[INDEX_COLUMN_NAME]);
-  }
-  return row.id;
+  return getStableRowId(row) ?? row.id;
 }
 
 export const CellSelectionFeature: TableFeature = {

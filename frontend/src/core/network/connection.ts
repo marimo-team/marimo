@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
-import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 import { waitFor } from "../state/jotai";
+import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 
 /**
  * Atom for storing the connection status.
- * Initialized to CONNECTING.
+ * Initialized to CONNECTING for normal mode, OPEN for static mode.
  */
 export const connectionAtom = atom<ConnectionStatus>({
   state: WebSocketState.CONNECTING,
@@ -16,3 +16,18 @@ export function waitForConnectionOpen() {
     return value.state === WebSocketState.OPEN;
   });
 }
+
+export const isConnectingAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return connection.state === WebSocketState.CONNECTING;
+});
+
+export const isConnectedAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return connection.state === WebSocketState.OPEN;
+});
+
+export const isClosedAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return connection.state === WebSocketState.CLOSED;
+});

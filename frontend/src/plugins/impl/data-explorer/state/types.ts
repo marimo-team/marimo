@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import type { SpecQuery } from "compassql/build/src/query/spec";
 import type { Schema } from "compassql/build/src/schema";
 import type { SpecificEncoding } from "../encoding";
-import type { SpecQuery } from "compassql/build/src/query/spec";
 import type { SpecMark } from "../marks";
 
 export interface ChartSpec {

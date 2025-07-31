@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
-import React from "react";
-import { Button } from "../ui/button";
+
 import { CircleIcon, SquareIcon } from "lucide-react";
+import React from "react";
 import type { RecordingStatus } from "@/hooks/useAudioRecorder";
+import { cn } from "@/utils/cn";
+import { Button } from "../ui/button";
 
 interface AudioRecorderProps {
   onStart: () => void;

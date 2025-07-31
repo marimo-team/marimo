@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import type { Outline } from "@/core/cells/outline";
 import {
   canCollapseOutline,
   findCollapseRange,
   mergeOutlines,
   parseOutline,
 } from "../outline";
-import type { Outline } from "@/core/cells/outline";
 
 describe("parseOutline", () => {
   it("can parse html outline", () => {

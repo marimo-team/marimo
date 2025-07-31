@@ -14,6 +14,7 @@ from marimo._ai._types import (
 from marimo._output.md import md
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.chat.chat import (
+    DEFAULT_CONFIG,
     DeleteChatMessageRequest,
     SendMessageRequest,
 )
@@ -37,6 +38,7 @@ def test_chat_init():
     assert chat._model == mock_model
     assert chat._chat_history == []
     assert chat.value == []
+    assert chat._component_args["config"] == DEFAULT_CONFIG
 
 
 def test_chat_with_prompts():
@@ -60,7 +62,11 @@ def test_chat_with_config():
 
     config: ChatModelConfigDict = {"temperature": 0.7, "max_tokens": 100}
     chat = ui.chat(mock_model, config=config)
-    assert chat._component_args["config"] == config
+    assert chat._component_args["config"] == {
+        **DEFAULT_CONFIG,
+        "temperature": 0.7,
+        "max_tokens": 100,
+    }
 
 
 async def test_chat_send_prompt():

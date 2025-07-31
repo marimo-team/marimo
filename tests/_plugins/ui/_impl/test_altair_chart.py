@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import datetime
+import io
 import json
 import sys
+from contextlib import redirect_stderr
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
@@ -20,6 +22,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     _has_legend_param,
     _has_selection_param,
     _parse_spec,
+    _update_vconcat_width,
     altair_chart,
 )
 from marimo._runtime.runtime import Kernel
@@ -151,7 +154,7 @@ class TestAltairChart:
     ) -> None:
         assert (
             nw.Datetime
-            == nw.from_native(df, strict=True).schema["datetime_column"]
+            == nw.from_native(df, pass_through=False).schema["datetime_column"]
         )
 
         # Define an interval selection
@@ -865,6 +868,33 @@ def test_apply_selection(df: IntoDataFrame):
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_value_is_not_available() -> None:
+    import altair as alt
+
+    # inline charts
+    chart_spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+        "data": {"values": [{"x": 1, "y": 1}]},
+        "mark": "point",
+        "encoding": {
+            "x": {"field": "x", "type": "quantitative"},
+            "y": {"field": "y", "type": "quantitative"},
+        },
+    }
+
+    marimo_chart = altair_chart(alt.Chart.from_dict(chart_spec))
+
+    # check if calling marimo_chart.value writes to stderr
+    with io.StringIO() as buf, redirect_stderr(buf):
+        _ = marimo_chart.value
+        stderr_output = buf.getvalue()
+        assert (
+            "Use `.apply_selection(df)` to filter a DataFrame based on the selection."
+            in stderr_output
+        )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_chart_with_url_data():
     import altair as alt
     import polars as pl
@@ -980,3 +1010,47 @@ def test_has_legend_param() -> None:
     # Invalid chart
     chart = None
     assert _has_legend_param(chart) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_update_vconcat_width() -> None:
+    import altair as alt
+
+    # Create a simple chart
+    chart1 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_point()
+    chart2 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_line()
+
+    # Create a vconcat chart
+    vconcat_chart = alt.vconcat(chart1, chart2)
+
+    # Update the width
+    updated_chart = _update_vconcat_width(vconcat_chart)
+
+    # Check that the width is set to container for both subcharts
+    assert updated_chart.vconcat[0].width == "container"
+    assert updated_chart.vconcat[1].width == "container"
+
+    # Test with nested vconcat
+    nested_vconcat = alt.vconcat(
+        alt.vconcat(chart1, chart2), alt.vconcat(chart1, chart2)
+    )
+
+    updated_nested = _update_vconcat_width(nested_vconcat)
+
+    # Check that all nested charts have container width
+    assert updated_nested.vconcat[0].vconcat[0].width == "container"
+    assert updated_nested.vconcat[0].vconcat[1].width == "container"
+    assert updated_nested.vconcat[1].vconcat[0].width == "container"
+    assert updated_nested.vconcat[1].vconcat[1].width == "container"
+
+    # Test with layer chart
+    layer_chart = alt.layer(chart1, chart2)
+    updated_layer = _update_vconcat_width(layer_chart)
+    assert updated_layer.layer[0].width == "container"
+    assert updated_layer.layer[1].width == "container"
+
+    # Test with hconcat chart
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    updated_hconcat = _update_vconcat_width(hconcat_chart)
+    assert updated_hconcat.hconcat[0].width == "container"
+    assert updated_hconcat.hconcat[1].width == "container"

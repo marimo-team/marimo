@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
 
-import { cn } from "@/utils/cn";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
+import * as React from "react";
 import { StyleNamespace } from "@/theme/namespace";
+import { cn } from "@/utils/cn";
 import { withFullScreenAsRoot } from "./fullscreen";
 
 const Popover = PopoverPrimitive.Root;

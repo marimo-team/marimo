@@ -107,7 +107,7 @@ def audio(
             or a file-like object opened in binary mode,
             `1D numpy array` → Mono waveform,
             `2D numpy array` → Multi-channel waveform (Shape: `[NCHAN, NSAMPLES]`).
-        rate : Sampling rate (required only for NumPy arrays).
+        rate: Sampling rate (required only for NumPy arrays).
         normalize: Whether to rescale NumPy array audio to its max range (`True` by default).
             If `False`, values must be in `[-1, 1]`, or an error is raised.
             Does not apply to non-array audio sources.

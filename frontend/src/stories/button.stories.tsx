@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { Loader2, Mail, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Mail, Trash2Icon, Loader2 } from "lucide-react";
 
 export default {
   title: "Button",

@@ -41,6 +41,7 @@ current Project Maintainers are:
 
 - Akshay Agrawal ([@akshaya](https://github.com/akshayka))
 - Myles Scolnick ([@mscolnick](https://github.com/mscolnick))
+- Bennet Meyers ([@bmeyers](https://github.com/bmeyers))
 
 A new maintainer may be added by consensus of the current Project Maintainers
 and notification to the Steering Committee.
@@ -71,6 +72,7 @@ The current members of the Steering Committee are:
 
 - Akshay Agrawal ([@akshaya](https://github.com/akshayka))
 - Myles Scolnick ([@mscolnick](https://github.com/mscolnick))
+- Bennet Meyers ([@bmeyers](https://github.com/bmeyers))
 
 A member of the Steering Committee may leave the committee by notifying the
 Steering Committee and Project Maintainers. The remaining Steering Committee

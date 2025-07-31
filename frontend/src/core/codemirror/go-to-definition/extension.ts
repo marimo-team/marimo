@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView } from "@codemirror/view";
-import { underlineField, createUnderlinePlugin } from "./underline";
+import { createUnderlinePlugin, underlineField } from "./underline";
 import { goToDefinition } from "./utils";
 
 /**

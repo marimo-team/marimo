@@ -6,7 +6,7 @@
             <marimo-cell-output>
             <span class="markdown prose dark:prose-invert"><h1 id="hello-markdown">Hello, Markdown!</h1>
 <span class="paragraph">This is a paragsraph.</span>
-<div class="codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span>
+<div class="language-python3 codehilite"><pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    # Hello, Markdown!</span>
 <span class="sd">    This is a paragraph.</span>

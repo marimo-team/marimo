@@ -6,7 +6,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from marimo import __version__
+from marimo._ast.cell import CellConfig
+from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.ops import CellOp
@@ -19,9 +23,11 @@ from marimo._server.session.serialize import (
     _hash_code,
     deserialize_session,
     get_session_cache_file,
+    serialize_notebook,
     serialize_session_view,
 )
 from marimo._server.session.session_view import SessionView
+from marimo._types.ids import CellId_t
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -30,8 +36,8 @@ snapshot = snapshotter(__file__)
 def test_serialize_basic_session():
     """Test serialization of a basic session with a single cell with data output"""
     view = SessionView()
-    view.cell_operations["cell1"] = CellOp(
-        cell_id="cell1",
+    view.cell_operations[CellId_t("cell1")] = CellOp(
+        cell_id=CellId_t("cell1"),
         status="idle",
         output=CellOutput(
             channel=CellChannel.OUTPUT,
@@ -41,7 +47,7 @@ def test_serialize_basic_session():
         console=[],
         timestamp=0,
     )
-    view.last_executed_code["cell1"] = "print('Hello, world!')"
+    view.last_executed_code[CellId_t("cell1")] = "print('Hello, world!')"
 
     result = serialize_session_view(view)
     snapshot("basic_session.json", json.dumps(result, indent=2))
@@ -50,8 +56,8 @@ def test_serialize_basic_session():
 def test_serialize_session_with_error():
     """Test serialization of a session with an error output"""
     view = SessionView()
-    view.cell_operations["cell1"] = CellOp(
-        cell_id="cell1",
+    view.cell_operations[CellId_t("cell1")] = CellOp(
+        cell_id=CellId_t("cell1"),
         status="idle",
         output=CellOutput(
             channel=CellChannel.MARIMO_ERROR,
@@ -61,7 +67,7 @@ def test_serialize_session_with_error():
         console=[],
         timestamp=0,
     )
-    view.last_executed_code["cell1"] = (
+    view.last_executed_code[CellId_t("cell1")] = (
         "raise RuntimeError('Something went wrong')"
     )
 
@@ -119,10 +125,279 @@ def test_serialize_session_with_mime_bundle():
     snapshot("mime_bundle_session.json", json.dumps(result, indent=2))
 
 
+def test_serialize_notebook_basic():
+    """Test serialization of a SessionView to a Notebook with basic cell"""
+    view = SessionView()
+    cell_manager = CellManager()
+
+    # Register cell with cell manager
+    cell_id = CellId_t("cell1")
+    cell_manager.register_cell(
+        cell_id=cell_id,
+        code="print('Hello, world!')",
+        name="my_cell",
+        config=CellConfig(column=1, disabled=False, hide_code=True),
+    )
+
+    # Add to session view
+    view.cell_operations[cell_id] = CellOp(
+        cell_id=cell_id,
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="Hello, world!",
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id] = "print('Hello, world!')"
+
+    result = serialize_notebook(view, cell_manager)
+
+    assert result["version"] == "1"
+    assert result["metadata"]["marimo_version"] == __version__
+    assert len(result["cells"]) == 1
+
+    cell = result["cells"][0]
+    assert cell["id"] == "cell1"
+    assert cell["code"] == "print('Hello, world!')"
+    assert cell["name"] == "my_cell"
+    assert cell["config"]["column"] == 1
+    assert cell["config"]["disabled"] is False
+    assert cell["config"]["hide_code"] is True
+
+
+def test_serialize_notebook_multiple_cells():
+    """Test serialization of a SessionView to a Notebook with multiple cells"""
+    view = SessionView()
+    cell_manager = CellManager()
+
+    # Register first cell
+    cell_id1 = CellId_t("cell1")
+    cell_manager.register_cell(
+        cell_id=cell_id1,
+        code="x = 1",
+        name="setup",
+        config=CellConfig(column=0, disabled=False),
+    )
+
+    # Register second cell
+    cell_id2 = CellId_t("cell2")
+    cell_manager.register_cell(
+        cell_id=cell_id2,
+        code="print(x + 1)",
+        name="output",
+        config=CellConfig(column=1, hide_code=True),
+    )
+
+    # Add first cell to session view
+    view.cell_operations[cell_id1] = CellOp(
+        cell_id=cell_id1,
+        status="idle",
+        output=None,
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id1] = "x = 1"
+
+    # Add second cell to session view
+    view.cell_operations[cell_id2] = CellOp(
+        cell_id=cell_id2,
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="2",
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id2] = "print(x + 1)"
+
+    result = serialize_notebook(view, cell_manager)
+
+    assert len(result["cells"]) == 2
+
+    cell1 = result["cells"][0]
+    assert cell1["id"] == "cell1"
+    assert cell1["code"] == "x = 1"
+    assert cell1["name"] == "setup"
+    assert cell1["config"]["column"] == 0
+    assert cell1["config"]["disabled"] is False
+
+    cell2 = result["cells"][1]
+    assert cell2["id"] == "cell2"
+    assert cell2["code"] == "print(x + 1)"
+    assert cell2["name"] == "output"
+    assert cell2["config"]["column"] == 1
+    assert cell2["config"]["hide_code"] is True
+
+
+def test_serialize_notebook_multiple_cells_not_top_down():
+    """Test serializing an "out-of-order" notebook.
+
+    Serialize a notebook in which the topological sort
+    is different from the notebook order. Make sure
+    the serialized notebook is in notebook order.
+    """
+
+    view = SessionView()
+    cell_manager = CellManager()
+
+    cell_id1 = CellId_t("cell1")
+    cell_manager.register_cell(
+        cell_id=cell_id1,
+        code="print(x + 1)",
+        name="output",
+        config=CellConfig(column=1, hide_code=True),
+    )
+
+    cell_id2 = CellId_t("cell2")
+    cell_manager.register_cell(
+        cell_id=cell_id2,
+        code="x = 2",
+        name="setup",
+        config=CellConfig(column=0, disabled=False),
+    )
+
+    view.cell_operations[cell_id2] = CellOp(
+        cell_id=cell_id2,
+        status="idle",
+        output=None,
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id2] = "x = 1"
+
+    # Add second cell to session view
+    view.cell_operations[cell_id1] = CellOp(
+        cell_id=cell_id1,
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="2",
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id1] = "print(x + 1)"
+
+    result = serialize_notebook(view, cell_manager)
+
+    assert len(result["cells"]) == 2
+
+    cell1 = result["cells"][0]
+    assert cell1["id"] == "cell1"
+    assert cell1["code"] == "print(x + 1)"
+    assert cell1["name"] == "output"
+    assert cell1["config"]["column"] == 1
+    assert cell1["config"]["hide_code"] is True
+
+    cell2 = result["cells"][1]
+    assert cell2["id"] == "cell2"
+    assert cell2["code"] == "x = 1"
+    assert cell2["name"] == "setup"
+    assert cell2["config"]["column"] == 0
+    assert cell2["config"]["disabled"] is False
+
+
+def test_serialize_notebook_empty_code():
+    """Test serialization when cells have no executed code"""
+    view = SessionView()
+    cell_manager = CellManager()
+
+    # Register cell with cell manager but with different code
+    cell_id = CellId_t("cell1")
+    cell_manager.register_cell(
+        cell_id=cell_id,
+        code="# Original code",
+        name="empty_cell",
+        config=CellConfig(),
+    )
+
+    # Add to session view but without executed code
+    view.cell_operations[cell_id] = CellOp(
+        cell_id=cell_id,
+        status="idle",
+        output=None,
+        console=[],
+        timestamp=0,
+    )
+    # No entry in last_executed_code
+
+    result = serialize_notebook(view, cell_manager)
+
+    assert len(result["cells"]) == 1
+    cell = result["cells"][0]
+    assert cell["id"] == "cell1"
+    assert (
+        cell["code"] == ""
+    )  # Should default to empty string from last_executed_code
+    assert cell["name"] == "empty_cell"
+    assert cell["config"]["column"] is None
+    assert cell["config"]["disabled"] is False  # Default value
+    assert cell["config"]["hide_code"] is False  # Default value
+
+
+def test_serialize_notebook_no_cells():
+    """Test serialization of an empty SessionView"""
+    view = SessionView()
+    cell_manager = CellManager()
+
+    result = serialize_notebook(view, cell_manager)
+
+    assert result["version"] == "1"
+    assert result["metadata"]["marimo_version"] == __version__
+    assert len(result["cells"]) == 0
+
+
+# TODO(akshayka): Reconcile this test with
+# https://github.com/marimo-team/marimo/pull/5377. It appears we
+# need to serialize notebook based on the cell manager not
+# session view in order to get correct ordering of cells.
+@pytest.mark.xfail(
+    reason="Unclear how to serialize a notebook when "
+    "the cell manager's view of cells differs from the session view. "
+    "The session view doesn't know the order of cells in the notebook."
+)
+def test_serialize_notebook_missing_cell_data():
+    """Test serialization when cell exists in SessionView but not in CellManager"""
+    view = SessionView()
+    cell_manager = CellManager()
+
+    # Add cell to session view but don't register it with cell manager
+    cell_id = CellId_t("orphan_cell")
+    view.cell_operations[cell_id] = CellOp(
+        cell_id=cell_id,
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="orphan output",
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[cell_id] = "print('orphan')"
+
+    result = serialize_notebook(view, cell_manager)
+
+    assert len(result["cells"]) == 1
+    cell = result["cells"][0]
+    assert cell["id"] == "orphan_cell"
+    assert cell["code"] == "print('orphan')"
+    assert cell["name"] is None  # Should be None due to missing cell data
+    assert cell["config"]["column"] is None
+    assert cell["config"]["disabled"] is None
+    assert cell["config"]["hide_code"] is None
+
+
 def test_deserialize_basic_session():
     """Test deserialization of a basic session"""
     session = NotebookSessionV1(
-        version=1,
+        version="1",
         metadata={"marimo_version": "1.0.0"},
         cells=[
             {
@@ -140,8 +415,8 @@ def test_deserialize_basic_session():
     )
 
     view = deserialize_session(session)
-    assert "cell1" in view.cell_operations
-    cell = view.cell_operations["cell1"]
+    assert CellId_t("cell1") in view.cell_operations
+    cell = view.cell_operations[CellId_t("cell1")]
     assert cell.output is not None
     assert cell.output.channel == CellChannel.OUTPUT
     assert cell.output.mimetype == "text/plain"
@@ -378,6 +653,72 @@ def test_serialize_session_with_dict_error():
     assert result["cells"][0]["outputs"][0]["type"] == "error"
     assert result["cells"][0]["outputs"][0]["ename"] == "unknown"
     assert result["cells"][0]["outputs"][0]["evalue"] == "Something went wrong"
+
+
+def test_serialize_session_with_mixed_error_formats():
+    """Test serialization of a session with mixed error formats (dict and object)"""
+    view = SessionView()
+
+    # Test with both dictionary and object error formats
+    mixed_errors = [
+        # Dictionary format error
+        {
+            "type": "ValueError",
+            "msg": "Invalid value",
+            "traceback": ["line 1", "line 2"],
+        },
+        # Object format error
+        UnknownError(type="RuntimeError", msg="Runtime error occurred"),
+        # Dictionary without traceback
+        {"type": "TypeError", "msg": "Type mismatch"},
+    ]
+
+    view.cell_operations[CellId_t("cell1")] = CellOp(
+        cell_id=CellId_t("cell1"),
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.MARIMO_ERROR,
+            mimetype="application/vnd.marimo+error",
+            data=mixed_errors,
+        ),
+        console=[],
+        timestamp=0,
+    )
+    view.last_executed_code[CellId_t("cell1")] = (
+        "# code that causes mixed errors"
+    )
+
+    result = serialize_session_view(view)
+
+    # Verify the error normalization worked correctly
+    assert len(result["cells"]) == 1
+    cell = result["cells"][0]
+    assert len(cell["outputs"]) == 3
+
+    # Check first error (dictionary with traceback)
+    error1 = cell["outputs"][0]
+    assert error1["type"] == "error"
+    assert error1["ename"] == "ValueError"
+    assert error1["evalue"] == "Invalid value"
+    assert error1["traceback"] == ["line 1", "line 2"]
+
+    # Check second error (object format)
+    error2 = cell["outputs"][1]
+    assert error2["type"] == "error"
+    assert error2["ename"] == "RuntimeError"
+    assert error2["evalue"] == "Runtime error occurred"
+    assert (
+        error2["traceback"] == []
+    )  # UnknownError doesn't have traceback by default
+
+    # Check third error (dictionary without traceback)
+    error3 = cell["outputs"][2]
+    assert error3["type"] == "error"
+    assert error3["ename"] == "TypeError"
+    assert error3["evalue"] == "Type mismatch"
+    assert error3["traceback"] == []
+
+    snapshot("mixed_error_session.json", json.dumps(result, indent=2))
 
 
 class TestSessionCacheManager:

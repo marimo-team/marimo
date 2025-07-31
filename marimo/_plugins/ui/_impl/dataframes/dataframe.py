@@ -27,6 +27,7 @@ from marimo._plugins.ui._impl.table import (
     SearchTableArgs,
     SearchTableResponse,
     SortArgs,
+    TableSearchError,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
@@ -48,9 +49,9 @@ from marimo._utils.parse_dataclass import parse_raw
 class GetDataFrameResponse:
     url: str
     total_rows: Union[int, Literal["too_many"]]
-    # List of column names that are actually row headers
+    # Columns that are actually row headers
     # This really only applies to Pandas, that has special index columns
-    row_headers: list[str]
+    row_headers: FieldTypes
     field_types: FieldTypes
     python_code: Optional[str] = None
     sql_code: Optional[str] = None
@@ -250,13 +251,16 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         offset = args.page_number * args.page_size
 
         # Apply filters, query, and functools.sort using the cached method
-        result = self._apply_filters_query_sort(
-            args.query,
-            args.sort,
-        )
+        result = self._apply_filters_query_sort(args.query, args.sort)
 
         # Save the manager to be used for selection
-        data = result.take(args.page_size, offset).to_data()
+        try:
+            data = result.take(args.page_size, offset).to_json_str()
+        except BaseException as e:
+            # Catch and re-raise the error as a non-BaseException
+            # to avoid crashing the kernel
+            raise TableSearchError(str(e)) from e
+
         return SearchTableResponse(
             data=data,
             total_rows=result.get_num_rows(force=True) or 0,

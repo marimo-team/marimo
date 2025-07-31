@@ -23,6 +23,8 @@ FN_CACHE_TYPE = Optional[dict[Union[Callable[..., Any], type], bool]]
 UNCLONABLE_TYPES = [
     "marimo._runtime.state.State",
     "marimo._runtime.state.SetFunctor",
+    "marimo._runtime.watch._file.FileState",
+    "marimo._runtime.watch._directory.DirectoryState",
 ]
 
 UNCLONABLE_MODULES = set(
@@ -178,8 +180,12 @@ def is_pure_function(
     # (e.g. list)
     if getattr(value, "__hash__", None) is None:
         return False
-    if value in cache:
-        return cache[value]
+    try:
+        if value in cache:
+            return cache[value]
+    except TypeError:
+        # If value is not hashable, we assume it's not pure.
+        return False
     # Trivial enough not to cache.
     if inspect.isclass(value) or not callable(value):
         return False

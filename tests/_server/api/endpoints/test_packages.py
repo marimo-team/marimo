@@ -51,7 +51,7 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None
+        "test-package", version=None, upgrade=False
     )
 
 
@@ -134,3 +134,35 @@ def test_remove_package_failure(
         "success": False,
         "error": "Failed to uninstall test-package. See terminal for error logs.",  # noqa: E501
     }
+
+
+def test_add_package_with_upgrade(
+    client: TestClient, mock_package_manager: Mock
+) -> None:
+    assert isinstance(mock_package_manager, MagicMock)
+    response = client.post(
+        "/api/packages/add",
+        headers=HEADERS,
+        json={"package": "test-package", "upgrade": True},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True, "error": None}
+    mock_package_manager.install.assert_called_once_with(
+        "test-package", version=None, upgrade=True
+    )
+
+
+def test_add_package_without_upgrade(
+    client: TestClient, mock_package_manager: Mock
+) -> None:
+    assert isinstance(mock_package_manager, MagicMock)
+    response = client.post(
+        "/api/packages/add",
+        headers=HEADERS,
+        json={"package": "test-package", "upgrade": False},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True, "error": None}
+    mock_package_manager.install.assert_called_once_with(
+        "test-package", version=None, upgrade=False
+    )

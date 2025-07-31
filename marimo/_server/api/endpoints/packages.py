@@ -13,6 +13,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.packages import (
     AddPackageRequest,
+    DependencyTreeResponse,
     ListPackagesResponse,
     PackageOperationResponse,
     RemovePackageRequest,
@@ -53,7 +54,10 @@ async def add_package(request: Request) -> PackageOperationResponse:
             f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
         )
 
-    success = await package_manager.install(body.package, version=None)
+    upgrade = body.upgrade or False
+    success = await package_manager.install(
+        body.package, version=None, upgrade=upgrade
+    )
 
     # Update the script metadata
     filename = _get_filename(request)
@@ -61,6 +65,7 @@ async def add_package(request: Request) -> PackageOperationResponse:
         package_manager.update_notebook_script_metadata(
             filepath=filename,
             packages_to_add=split_packages(body.package),
+            upgrade=upgrade,
         )
 
     if success:
@@ -88,6 +93,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
                     schema:
                         $ref: "#/components/schemas/PackageOperationResponse"
     """
+    # TODO: Use `uv remove` instead of package manager uninstall for better dependency management
     body = await parse_request(request, cls=RemovePackageRequest)
 
     package_manager = _get_package_manager(request)
@@ -106,6 +112,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
         package_manager.update_notebook_script_metadata(
             filepath=filename,
             packages_to_remove=split_packages(body.package),
+            upgrade=False,
         )
 
     if success:
@@ -136,6 +143,33 @@ async def list_packages(request: Request) -> ListPackagesResponse:
     packages = package_manager.list_packages()
 
     return ListPackagesResponse(packages=packages)
+
+
+@router.get("/tree")
+@requires("edit")
+async def dependency_tree(request: Request) -> DependencyTreeResponse:
+    """
+    responses:
+        200:
+            description: List dependency tree
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/DependencyTreeResponse"
+    """
+    package_manager = _get_package_manager(request)
+
+    filename = _get_filename(request)
+    # TODO(manzt): Same as check below when installing packages. If we are
+    # managing script metadata, we are in sandbox mode.
+    is_sandbox = (
+        filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    )
+    if is_sandbox:
+        tree = package_manager.dependency_tree(filename)
+    else:
+        tree = package_manager.dependency_tree()
+    return DependencyTreeResponse(tree=tree)
 
 
 def _get_package_manager(request: Request) -> PackageManager:

@@ -296,6 +296,7 @@ def create_asgi_app(
     quiet: bool = False,
     include_code: bool = False,
     token: Optional[str] = None,
+    skew_protection: bool = False,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -305,6 +306,8 @@ def create_asgi_app(
         include_code (bool, optional): Include notebook code in the app
         token (str, optional): Auth token to use for the app.
             If not provided, an empty token is used.
+        skew_protection (bool, optional): Enable skew protection middleware to prevent version mismatch issues.
+            e.g. if the server is updated, the client will be prompted to reload.
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -386,9 +389,11 @@ def create_asgi_app(
     from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
+    from marimo._server.registry import LIFESPAN_REGISTRY
     from marimo._server.sessions import SessionManager
     from marimo._server.tokens import AuthToken
     from marimo._server.utils import initialize_asyncio
+    from marimo._utils.lifespans import Lifespans
     from marimo._utils.marimo_path import MarimoPath
 
     config_reader = get_default_config_manager(current_path=None)
@@ -465,15 +470,17 @@ def create_asgi_app(
             )
             app = create_starlette_app(
                 base_url="",
-                lifespan=lifespans.Lifespans(
+                lifespan=Lifespans(
                     [
                         # Not all lifespans are needed for run mode
                         lifespans.etc,
                         lifespans.signal_handler,
+                        *LIFESPAN_REGISTRY.get_all(),
                     ]
                 ),
                 enable_auth=not AuthToken.is_empty(auth_token),
                 allow_origins=("*",),
+                skew_protection=skew_protection,
             )
             app.state.session_manager = session_manager
             app.state.base_url = base_url

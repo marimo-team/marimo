@@ -17,7 +17,7 @@ from uuid import uuid4
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._data.models import DataTableSource
-from marimo._types.ids import CellId_t, RequestId, UIElementId
+from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 
 if TYPE_CHECKING:
     from starlette.datastructures import URL
@@ -117,6 +117,16 @@ class HTTPRequest(Mapping[str, Any]):
             # session=request.session if "session" in request else {},
             # auth=request.auth if "auth" in request else {},
         )
+
+
+@dataclass
+class PdbRequest:
+    cell_id: CellId_t
+    # incoming request, e.g. from Starlette or FastAPI
+    request: Optional[HTTPRequest] = None
+
+    def __repr__(self) -> str:
+        return f"PdbRequest(cell={self.cell_id})"
 
 
 @dataclass
@@ -332,8 +342,28 @@ class PreviewSQLTableListRequest:
 
 
 @dataclass
+class PreviewDataSourceConnectionRequest:
+    """Fetch a datasource connection"""
+
+    engine: str
+
+
+@dataclass
 class ListSecretKeysRequest:
     request_id: RequestId
+
+
+@dataclass
+class ModelMessage:
+    state: dict[str, Any]
+    buffer_paths: list[list[Union[str, int]]]
+
+
+@dataclass
+class SetModelMessageRequest:
+    model_id: WidgetModelId
+    message: ModelMessage
+    buffers: Optional[list[str]] = None
 
 
 @dataclass
@@ -342,21 +372,24 @@ class RefreshSecretsRequest:
 
 
 ControlRequest = Union[
+    CreationRequest,
+    DeleteCellRequest,
     ExecuteMultipleRequest,
     ExecuteScratchpadRequest,
     ExecuteStaleRequest,
-    CreationRequest,
-    DeleteCellRequest,
     FunctionCallRequest,
+    InstallMissingPackagesRequest,
+    ListSecretKeysRequest,
+    PdbRequest,
+    PreviewDatasetColumnRequest,
+    PreviewSQLTableListRequest,
+    PreviewDataSourceConnectionRequest,
+    PreviewSQLTableRequest,
+    RefreshSecretsRequest,
     RenameRequest,
     SetCellConfigRequest,
-    SetUserConfigRequest,
     SetUIElementValueRequest,
+    SetModelMessageRequest,
+    SetUserConfigRequest,
     StopRequest,
-    InstallMissingPackagesRequest,
-    PreviewDatasetColumnRequest,
-    PreviewSQLTableRequest,
-    PreviewSQLTableListRequest,
-    ListSecretKeysRequest,
-    RefreshSecretsRequest,
 ]

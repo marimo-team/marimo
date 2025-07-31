@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { StaticVirtualFiles } from "./types";
-import { getStaticVirtualFiles } from "./static-state";
-import { Logger } from "@/utils/Logger";
 import type { Loader } from "@/plugins/impl/vega/vega-loader";
+import { Logger } from "@/utils/Logger";
+import { getStaticVirtualFiles } from "./static-state";
+import type { StaticVirtualFiles } from "./types";
 
 /**
  * Patch fetch to resolve virtual files
@@ -79,6 +79,16 @@ export function patchVegaLoader(
 
   function maybeGetVirtualFile(url: string): string | undefined {
     const pathname = new URL(url, document.baseURI).pathname;
+
+    // If if the URL starts with file://, then using the document.baseURI
+    // will not work. In this case, should just chop off from /@file/...
+    if (url.startsWith("file://")) {
+      const indexOfFile = url.indexOf("/@file/");
+      if (indexOfFile !== -1) {
+        url = files[url.slice(indexOfFile)];
+      }
+    }
+
     // Few variations to grab the URL.
     // This can happen if a static file was open at file:// or https://
     return (

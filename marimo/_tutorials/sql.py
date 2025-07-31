@@ -205,7 +205,7 @@ def _(has_polars_installed):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Next, we create a SQL query, refercing the Python dataframe `df` directly.""")
+    mo.md(r"""Next, we create a SQL query, referencing the Python dataframe `df` directly.""")
     return
 
 

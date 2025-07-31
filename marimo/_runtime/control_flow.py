@@ -16,6 +16,9 @@ class MarimoStopError(BaseException):
 
     Inherits from `BaseException` to prevent accidental capture with
     `except Exception` (similar to `KeyboardInterrupt`)
+
+    Args:
+        output: optional output object
     """
 
     def __init__(self, output: Optional[object]) -> None:
@@ -36,6 +39,10 @@ def stop(predicate: bool, output: Optional[object] = None) -> None:
         ```python
         mo.stop(form.value is None, mo.md("**Submit the form to continue.**"))
         ```
+
+    Args:
+        predicate (bool): The predicate indicating whether to stop.
+        output (bool): The output to be assigned to the current cell.
 
     Raises:
         MarimoStopError: When `predicate` is `True`

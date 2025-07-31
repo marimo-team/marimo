@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { parser } from "@lezer/python";
 import type { SyntaxNode, Tree } from "@lezer/common";
+import { parser } from "@lezer/python";
 
 function getLastStatement(tree: Tree): SyntaxNode | null {
   let lastStmt: SyntaxNode | null = null;

@@ -2,23 +2,27 @@
 "use no memo";
 
 import {
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
-import {
-  flexRender,
-  type Table,
-  type ColumnDef,
-  type Row,
-  type Column,
-  type Table as TanStackTable,
-  type HeaderGroup,
   type Cell,
+  type Column,
+  type ColumnDef,
+  flexRender,
+  type HeaderGroup,
+  type Row,
+  type Table,
+  type Table as TanStackTable,
 } from "@tanstack/react-table";
+import { type JSX, useRef } from "react";
+import {
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/utils/cn";
+import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
+import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
+import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -39,7 +43,9 @@ export function renderTableHeader<TData>(
               className,
             )}
             style={style}
-            ref={(thead) => columnSizingHandler(thead, table, header.column)}
+            ref={(thead) => {
+              columnSizingHandler(thead, table, header.column);
+            }}
           >
             {header.isPlaceholder
               ? null
@@ -52,18 +58,42 @@ export function renderTableHeader<TData>(
 
   return (
     <TableHeader>
-      {renderHeaderGroup(table.getLeftHeaderGroups())}
-      {renderHeaderGroup(table.getCenterHeaderGroups())}
-      {renderHeaderGroup(table.getRightHeaderGroups())}
+      <TableRow>
+        {renderHeaderGroup(table.getLeftHeaderGroups())}
+        {renderHeaderGroup(table.getCenterHeaderGroups())}
+        {renderHeaderGroup(table.getRightHeaderGroups())}
+      </TableRow>
     </TableHeader>
   );
 }
 
-export function renderTableBody<TData>(
-  table: Table<TData>,
-  columns: Array<ColumnDef<TData>>,
-): JSX.Element {
-  const renderCells = (row: Row<TData>, cells: Array<Cell<TData, unknown>>) => {
+interface DataTableBodyProps<TData> {
+  table: Table<TData>;
+  columns: Array<ColumnDef<TData>>;
+  rowViewerPanelOpen: boolean;
+  getRowIndex?: (row: TData, idx: number) => number;
+  viewedRowIdx?: number;
+}
+
+export const DataTableBody = <TData,>({
+  table,
+  columns,
+  rowViewerPanelOpen,
+  getRowIndex,
+  viewedRowIdx,
+}: DataTableBodyProps<TData>) => {
+  // Automatically scroll focused cells into view
+  const tableRef = useRef<HTMLTableSectionElement>(null);
+  useScrollIntoViewOnFocus(tableRef);
+
+  const {
+    handleCellMouseDown,
+    handleCellMouseUp,
+    handleCellMouseOver,
+    handleCellsKeyDown,
+  } = useCellRangeSelection({ table });
+
+  const renderCells = (cells: Array<Cell<TData, unknown>>) => {
     return cells.map((cell) => {
       const { className, style: pinningstyle } = getPinningStyles(cell.column);
       const style = Object.assign(
@@ -73,9 +103,10 @@ export function renderTableBody<TData>(
       );
       return (
         <TableCell
+          tabIndex={0}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px]",
+            "whitespace-pre truncate max-w-[300px] outline-none",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
@@ -83,29 +114,56 @@ export function renderTableBody<TData>(
             className,
           )}
           style={style}
-          title={String(cell.getValue())}
+          onMouseDown={(e) => handleCellMouseDown(e, cell)}
+          onMouseUp={handleCellMouseUp}
+          onMouseOver={(e) => handleCellMouseOver(e, cell)}
         >
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          <CellRangeSelectionIndicator cellId={cell.id} />
+          <div className="relative">
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </div>
         </TableCell>
       );
     });
   };
 
+  const handleRowClick = (row: Row<TData>) => {
+    if (rowViewerPanelOpen) {
+      const rowIndex = getRowIndex?.(row.original, row.index) ?? row.index;
+      row.focusRow?.(rowIndex);
+    }
+  };
+
   return (
-    <TableBody>
+    <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
       {table.getRowModel().rows?.length ? (
-        table.getRowModel().rows.map((row) => (
-          <TableRow
-            key={row.id}
-            data-state={row.getIsSelected() && "selected"}
-            // These classes ensure that empty rows (nulls) still render
-            className="border-t h-6"
-          >
-            {renderCells(row, row.getLeftVisibleCells())}
-            {renderCells(row, row.getCenterVisibleCells())}
-            {renderCells(row, row.getRightVisibleCells())}
-          </TableRow>
-        ))
+        table.getRowModel().rows.map((row) => {
+          // Only find the row index if the row viewer panel is open
+          const rowIndex = rowViewerPanelOpen
+            ? (getRowIndex?.(row.original, row.index) ?? row.index)
+            : undefined;
+          const isRowViewedInPanel =
+            rowViewerPanelOpen && viewedRowIdx === rowIndex;
+
+          return (
+            <TableRow
+              key={row.id}
+              data-state={row.getIsSelected() && "selected"}
+              // These classes ensure that empty rows (nulls) still render
+              className={cn(
+                "border-t h-6",
+                rowViewerPanelOpen && "cursor-pointer",
+                isRowViewedInPanel &&
+                  "bg-[var(--blue-3)] hover:bg-[var(--blue-3)] data-[state=selected]:bg-[var(--blue-4)]",
+              )}
+              onClick={() => handleRowClick(row)}
+            >
+              {renderCells(row.getLeftVisibleCells())}
+              {renderCells(row.getCenterVisibleCells())}
+              {renderCells(row.getRightVisibleCells())}
+            </TableRow>
+          );
+        })
       ) : (
         <TableRow>
           <TableCell colSpan={columns.length} className="h-24 text-center">
@@ -115,7 +173,7 @@ export function renderTableBody<TData>(
       )}
     </TableBody>
   );
-}
+};
 
 function getPinningStyles<TData>(
   column: Column<TData>,
@@ -166,4 +224,24 @@ function columnSizingHandler<TData>(
     ...prevSizes,
     [column.id]: thead.getBoundingClientRect().width,
   }));
+}
+
+/**
+ * Render an unknown value as a string. Converts objects to JSON strings.
+ * @param opts.value - The value to render.
+ * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
+ */
+export function renderUnknownValue(opts: {
+  value: unknown;
+  nullAsEmptyString?: boolean;
+}): string {
+  const { value, nullAsEmptyString = false } = opts;
+
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  if (value === null && nullAsEmptyString) {
+    return "";
+  }
+  return String(value);
 }

@@ -1,14 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { z } from "zod";
-import type { IPlugin, IPluginProps, Setter } from "../types";
 
+import type { JSX } from "react";
+import { z } from "zod";
+import { cn } from "@/utils/cn";
 import {
   DebouncedTextarea,
   OnBlurredTextarea,
   Textarea,
 } from "../../components/ui/textarea";
+import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
-import { cn } from "@/utils/cn";
 
 type T = string;
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ast
 import base64
-import builtins
 import inspect
 import sys
 import threading
@@ -25,6 +24,13 @@ from typing import (
 from uuid import uuid4
 
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.variables import BUILTINS
+from marimo._convert.converters import MarimoConvert
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    NotebookSerializationV1,
+)
 from marimo._types.ids import CellId_t
 
 if sys.version_info < (3, 10):
@@ -111,20 +117,27 @@ class _SetupContext:
         self._previous: dict[str, Any] = {}
 
     def __enter__(self) -> None:
-        with_frame = sys._getframe(1)
-
-        if refs := self._cell.refs - set(builtins.__dict__.keys()):
+        if maybe_frame := inspect.currentframe():
+            with_frame = maybe_frame.f_back
+        else:
+            raise SetupRootError("Unable to establish current frame.")
+        if "app" in self._cell.defs:
+            # Otherwise fail in say a script context.
+            raise SetupRootError("The setup cell cannot redefine 'app'")
+        if refs := self._cell.refs - BUILTINS:
             # Otherwise fail in say a script context.
             raise SetupRootError(
                 f"The setup cell cannot reference any additional variables: {refs}"
             )
-        self._frame = with_frame
-        self._previous = {**with_frame.f_locals}
-        # A reference to the key app must be maintained in the frame.
-        # This may be a python quirk, so just remove refs to explicit defs
-        for var in self._cell.defs:
-            if var in self._previous:
-                del self._frame.f_locals[var]
+
+        if with_frame is not None:
+            self._frame = with_frame
+            previous = {**with_frame.f_locals}
+            # A reference to the key app must be maintained in the frame.
+            # This may be a python quirk, so just remove refs to explicit defs
+            for var in self._cell.defs:
+                if var in previous:
+                    del self._frame.f_locals[var]
 
     def __exit__(
         self,
@@ -132,26 +145,17 @@ class _SetupContext:
         instance: Optional[BaseException],
         _traceback: Optional[TracebackType],
     ) -> Literal[False]:
-        # Manually hold on to defs for injection into script mode.
-        if self._frame is not None:
-            for var in self._cell.defs:
-                self._glbls[var] = self._frame.f_locals.get(var, None)
-
-            self._frame.f_locals.update(self._previous)
-            # What was just run should take precident.
-            self._frame.f_locals.update(self._glbls)
-            # Previous after to ensure that app and other builtins are not
-            # changed during import or execution.
-            app = None
-            if self._cell._app is not None:
-                app = self._cell._app._app
-            self._frame.f_locals["app"] = self._previous.get("app", app)
-            self._previous = {}
-
         if exception is not None:
             # Always should fail, since static loading still allows bad apps to
             # load.
-            raise exception
+            # But don't record the variables.
+            return False
+
+        if self._frame is not None:
+            # Collect new definitions
+            for var in self._cell.defs:
+                if var in self._frame.f_locals:
+                    self._glbls[var] = self._frame.f_locals.get(var)
         return False
 
 
@@ -808,3 +812,21 @@ class InternalApp:
         self, request: FunctionCallRequest
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         return await self._app._function_call(request)
+
+    def to_ir(self) -> NotebookSerializationV1:
+        return NotebookSerializationV1(
+            cells=[
+                CellDef(
+                    code=cell_data.code,
+                    name=cell_data.name,
+                    options=cell_data.config.asdict(),
+                )
+                for cell_data in self._app._cell_manager._cell_data.values()
+            ],
+            app=AppInstantiation(
+                options=self._app._config.asdict(),
+            ),
+        )
+
+    def to_py(self) -> str:
+        return MarimoConvert.from_ir(self.to_ir()).to_py()

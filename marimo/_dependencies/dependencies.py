@@ -68,6 +68,26 @@ class Dependency:
         if not self.has():
             message = f"{self.pkg} is required {why}."
             sys.stderr.write(message + "\n\n")
+
+            # NOTE:
+            # If this package is a subpackage (e.g. google.genai),
+            # then we need to invalidate the importlib cache, otherwise Python
+            # will still not be able to import it.
+            #
+            # This only happens in the marimo editor, and not the kernel.
+            # And only happens for subpackages.
+            # .require() is usually followed by an installation, so this is a fine
+            # place to invalidate the cache.
+            if "." in self.pkg:
+                import importlib
+
+                importlib.invalidate_caches()
+                # https://docs.python.org/3/library/importlib.html#importlib.invalidate_caches
+                # > This function should be called if any modules are created/installed while your
+                # > program is running to guarantee all finders will notice the new module's existence.
+                if self.pkg in sys.modules:
+                    del sys.modules[self.pkg]
+
             # Including the `name` helps with auto-installations
             raise ModuleNotFoundError(message, name=self.pkg) from None
 
@@ -88,11 +108,14 @@ class Dependency:
             raise_error=True,
         )
 
-    def get_version(self) -> str:
+    def get_version(self) -> str | None:
         try:
             return importlib.metadata.version(self.pkg)
         except importlib.metadata.PackageNotFoundError:
-            return f"{__import__(self.pkg).__version__}"
+            try:
+                return f"{__import__(self.pkg).__version__}"
+            except AttributeError:
+                return None
 
     def warn_if_mismatch_version(
         self,
@@ -124,12 +147,15 @@ class Dependency:
 def _version_check(
     *,
     pkg: str,
-    v: str,
+    v: str | None,
     min_v: str | None = None,
     max_v: str | None = None,
     raise_error: bool = False,
     quiet: bool = False,
 ) -> bool:
+    if v is None:
+        return False
+
     if min_v is None and max_v is None:
         return True
 
@@ -176,9 +202,11 @@ class DependencyManager:
     plotly = Dependency("plotly")
     bokeh = Dependency("bokeh")
     pyarrow = Dependency("pyarrow")
+    pyiceberg = Dependency("pyiceberg")
     openai = Dependency("openai")
     matplotlib = Dependency("matplotlib")
     anywidget = Dependency("anywidget")
+    traitlets = Dependency("traitlets")
     watchdog = Dependency("watchdog")
     ipython = Dependency("IPython")
     ipywidgets = Dependency("ipywidgets")
@@ -189,18 +217,26 @@ class DependencyManager:
     geopandas = Dependency("geopandas")
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
-    google_ai = Dependency("google.generativeai")
+    google_ai = Dependency("google.genai")
     groq = Dependency("groq")
     panel = Dependency("panel")
     sqlalchemy = Dependency("sqlalchemy")
     pylsp = Dependency("pylsp")
+    basedpyright = Dependency("basedpyright")
+    ty = Dependency("ty")
     pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")
     dotenv = Dependency("dotenv")
     docstring_to_markdown = Dependency(
-        "docstring_to_markdown", min_version="0.16.0"
+        "docstring_to_markdown", min_version="0.17.0"
     )
+    tomlkit = Dependency("tomlkit")
+    loro = Dependency("loro")
+    boto3 = Dependency("boto3")
+    litellm = Dependency("litellm")
+    redshift_connector = Dependency("redshift_connector")
+    mcp = Dependency("mcp")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

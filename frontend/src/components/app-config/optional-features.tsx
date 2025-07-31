@@ -1,11 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+
 import { BoxIcon, CheckCircleIcon, XCircleIcon } from "lucide-react";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { useResolvedMarimoConfig } from "@/core/config/config";
-import { addPackage, getPackageList } from "@/core/network/requests";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import React from "react";
 import { Spinner } from "@/components/icons/spinner";
+import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Table,
   TableBody,
@@ -15,11 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
-import { Kbd } from "@/components/ui/kbd";
-import { Button } from "@/components/ui/button";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import { addPackage, getPackageList } from "@/core/network/requests";
+import { isWasm } from "@/core/wasm/utils";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { SettingSubtitle } from "./common";
-import { isWasm } from "@/core/wasm/utils";
 
 interface Package {
   name: string;
@@ -101,12 +102,12 @@ if (!isWasm()) {
 export const OptionalFeatures: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { data, loading, error, reload } = useAsyncData(
+  const { data, error, refetch, isPending } = useAsyncData(
     () => getPackageList(),
     [packageManager],
   );
 
-  if (loading && !data) {
+  if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
 
@@ -168,7 +169,7 @@ export const OptionalFeatures: React.FC = () => {
                           ...dep.additionalPackageInstalls,
                         ]}
                         packageManager={packageManager}
-                        onSuccess={reload}
+                        onSuccess={refetch}
                       />
                     </div>
                   )}

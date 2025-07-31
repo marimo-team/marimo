@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { expect, describe, it } from "vitest";
-import { createShareableLink } from "../share";
 import { compressToEncodedURIComponent } from "lz-string";
+import { describe, expect, it } from "vitest";
+import { createShareableLink } from "../share";
 
 describe("createShareableLink", () => {
   it("should return a URL with the base URL when no code is provided", () => {

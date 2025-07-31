@@ -77,6 +77,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label (str): Markdown label for the element. Defaults to an empty string.
         on_change (Optional[Callable[[Optional[Numeric]], None]]): Optional callback to run when this element's value changes. Defaults to None.
         full_width (bool): Whether the input should take up the full width of its container. Defaults to False.
+        disabled (bool, optional): Whether the input is disabled. Defaults to False.
 
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> number:
@@ -96,6 +97,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         validate_range(min_value=start, max_value=stop)
         validate_between_range(value, min_value=start, max_value=stop)
@@ -124,6 +126,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
                 "step": step if step is not None else None,
                 "debounce": debounce,
                 "full-width": full_width,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
@@ -185,10 +188,13 @@ class slider(UIElement[Numeric, Numeric]):
         value (Optional[Numeric]): Default value.
         debounce (bool): Whether to debounce the slider to only send the value
             on mouse-up or drag-end. Defaults to False.
+        disabled (bool, optional): Whether the slider is disabled. Defaults to False.
         orientation (Literal["horizontal", "vertical"]): The orientation of the
             slider, either "horizontal" or "vertical". Defaults to "horizontal".
         show_value (bool): Whether to display the current value of the slider.
             Defaults to False.
+        include_input (bool): Whether to display an editable input with the current
+            value of the slider. Defaults to False.
         steps (Optional[Sequence[Numeric]]): List of steps to customize the
             slider, mutually exclusive with `start`, `stop`, and `step`.
         label (str): Markdown label for the element. Defaults to an empty string.
@@ -220,8 +226,10 @@ class slider(UIElement[Numeric, Numeric]):
         step: Optional[Numeric] = None,
         value: Optional[Numeric] = None,
         debounce: bool = False,
+        disabled: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
+        include_input: bool = False,
         steps: Optional[Sequence[Numeric]] = None,
         *,
         label: str = "",
@@ -290,8 +298,10 @@ class slider(UIElement[Numeric, Numeric]):
                     "step": 1,
                     "steps": steps,
                     "debounce": debounce,
+                    "disabled": disabled,
                     "orientation": orientation,
                     "show-value": show_value,
+                    "include-input": include_input,
                     "full-width": full_width,
                 },
                 on_change=on_change,
@@ -331,8 +341,10 @@ class slider(UIElement[Numeric, Numeric]):
                     "step": step if step is not None else None,
                     "steps": [],
                     "debounce": debounce,
+                    "disabled": disabled,
                     "orientation": orientation,
                     "show-value": show_value,
+                    "include-input": include_input,
                     "full-width": full_width,
                 },
                 on_change=on_change,
@@ -404,6 +416,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         label (str): Markdown label for the element.
         on_change (Optional[Callable[[Sequence[Numeric]], None]]): Optional callback to run when this element's value changes.
         full_width (bool): Whether the input should take up the full width of its container.
+        disabled (bool, optional): Whether the slider is disabled. Defaults to False.
 
     Methods:
         from_series(series: DataFrameSeries, **kwargs: Any) -> range_slider:
@@ -427,6 +440,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
         label: str = "",
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
+        disabled: bool = False,
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
@@ -492,6 +506,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                     "orientation": orientation,
                     "show-value": show_value,
                     "full-width": full_width,
+                    "disabled": disabled,
                 },
                 on_change=on_change,
             )
@@ -532,6 +547,7 @@ class range_slider(UIElement[list[Numeric], Sequence[Numeric]]):
                     "orientation": orientation,
                     "show-value": show_value,
                     "full-width": full_width,
+                    "disabled": disabled,
                 },
                 on_change=on_change,
             )
@@ -584,6 +600,7 @@ class checkbox(UIElement[bool, bool]):
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[bool], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        disabled (bool, optional): Whether the checkbox is disabled. Defaults to False.
     """
 
     _name: Final[str] = "marimo-checkbox"
@@ -593,13 +610,16 @@ class checkbox(UIElement[bool, bool]):
         value: bool = False,
         *,
         label: str = "",
+        disabled: bool = False,
         on_change: Optional[Callable[[bool], None]] = None,
     ) -> None:
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
             label=label,
-            args={},
+            args={
+                "disabled": disabled,
+            },
             on_change=on_change,
         )
 
@@ -644,6 +664,7 @@ class radio(UIElement[Optional[str], Any]):
         label (str, optional): Optional markdown label for the element. Defaults to "".
         on_change (Callable[[Any], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
+        disabled (bool, optional): Whether the radio group is disabled. Defaults to False.
     """
 
     _name: Final[str] = "marimo-radio"
@@ -656,6 +677,7 @@ class radio(UIElement[Optional[str], Any]):
         *,
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
+        disabled: bool = False,
     ) -> None:
         if not isinstance(options, dict):
             if len(set(options)) != len(options):
@@ -669,6 +691,7 @@ class radio(UIElement[Optional[str], Any]):
             args={
                 "options": list(options.keys()),
                 "inline": inline,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
@@ -951,6 +974,8 @@ class dropdown(UIElement[list[str], Any]):
             Defaults to None.
         searchable (bool, optional): Whether to enable search functionality.
             Defaults to False.
+            If the number of options is greater than 1000, this will be set to True,
+            automatically.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Any], None], optional): Optional callback to run when
             this element's value changes. Defaults to None.
@@ -958,7 +983,7 @@ class dropdown(UIElement[list[str], Any]):
             of its container. Defaults to False.
     """
 
-    _MAX_OPTIONS: Final[int] = 1000
+    _FORCE_SEARCHABLE: Final[int] = 1000
     _name: Final[str] = "marimo-dropdown"
     _selected_key: Optional[str] = None
     _RESERVED_OPTION: Final[str] = "--"
@@ -974,16 +999,10 @@ class dropdown(UIElement[list[str], Any]):
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
     ) -> None:
-        if len(options) > dropdown._MAX_OPTIONS:
-            raise ValueError(
-                "The maximum number of dropdown options allowed "
-                f"is {dropdown._MAX_OPTIONS}, but your dropdown has "
-                f"{len(options)} options. "
-                "If you really want to expose that many options, consider "
-                "using `mo.ui.text()` to let the user type an option name, "
-                "and `mo.ui.table()` to present the options matching the "
-                "user's query.",
-            )
+        # Force searchable if there are too many options
+        # This makes the list 'virtualized' on the frontend
+        if len(options) > dropdown._FORCE_SEARCHABLE:
+            searchable = True
 
         if not isinstance(options, dict):
             options = {_to_option_name(option): option for option in options}
@@ -1273,8 +1292,11 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         Uploading a single file:
         ```python
         f = mo.ui.file()
+        f
+        ```
 
-        # access the uploaded file's name
+        ```python
+        # In another cell, access the uploaded file's name
         f.value[0].name
         # or
         f.name()
@@ -1288,8 +1310,11 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         Uploading multiple files, accepting only .png and .jpg extensions:
         ```python
         f = mo.ui.file(filetypes=[".png", ".jpg"], multiple=True)
+        f
+        ```
 
-        # access an uploaded file's name
+        ```python
+        # In another cell, access an uploaded file's name
         f.value[index].name
         # or
         f.name(index)
@@ -1324,6 +1349,8 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         on_change (Callable[[Sequence[FileUploadResults]], None], optional):
             Optional callback to run when this element's value changes.
             Defaults to None.
+        max_size (int, optional): The maximum size of the file to upload
+            (in bytes). Defaults to 100MB.
     """
 
     _name: Final[str] = "marimo-file"
@@ -1334,6 +1361,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         multiple: bool = False,
         kind: Literal["button", "area"] = "button",
         *,
+        max_size: int = 100_000_000,  # 100MB default
         label: str = "",
         on_change: Optional[
             Callable[[Sequence[FileUploadResults]], None]
@@ -1351,6 +1379,9 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
                     f"Invalid types: {', '.join(invalid_types)}"
                 )
 
+        if max_size <= 0:
+            raise ValueError("max_size must be greater than 0")
+
         super().__init__(
             component_name=file._name,
             initial_value=[],
@@ -1359,6 +1390,7 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "kind": kind,
+                "max_size": max_size,
             },
             on_change=on_change,
         )

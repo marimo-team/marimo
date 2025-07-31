@@ -36,13 +36,22 @@ export const Events = {
   /**
    * Returns true if the event is coming from a text input
    */
-  fromInput: (e: KeyboardEvent) => {
+  fromInput: (e: Pick<KeyboardEvent, "target">) => {
     const target = e.target as HTMLElement;
     return (
       target.tagName === "INPUT" ||
       target.tagName === "TEXTAREA" ||
-      target.tagName.startsWith("MARIMO")
+      target.tagName.startsWith("MARIMO") ||
+      Events.fromCodeMirror(e)
     );
+  },
+
+  /**
+   * Returns true if the event is coming from a code editor.
+   */
+  fromCodeMirror: (e: Pick<KeyboardEvent, "target">) => {
+    const target = e.target as HTMLElement;
+    return target.closest(".cm-editor") !== null;
   },
 
   /**
@@ -62,5 +71,15 @@ export const Events = {
           e.target.closest("[contenteditable='true']") !== null ||
           e.target.closest(".cm-editor") !== null)) // Add check for CodeMirror editor
     );
+  },
+
+  hasModifier: (
+    e: Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
+  ) => {
+    return e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
+  },
+
+  isMetaOrCtrl: (e: Pick<KeyboardEvent, "metaKey" | "ctrlKey">) => {
+    return e.metaKey || e.ctrlKey;
   },
 };

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { cn } from "@/utils/cn";
+
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   FieldError as AriaFieldError,
@@ -12,6 +12,7 @@ import {
   type TextProps as AriaTextProps,
   composeRenderProps,
 } from "react-aria-components";
+import { cn } from "@/utils/cn";
 import { selectStyles } from "./native-select";
 
 const labelVariants = cva([

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEventListener } from "./useEventListener";
 
 /**
@@ -14,7 +14,7 @@ export function useInterval(
   },
 ) {
   const { delayMs, whenVisible, disabled = false } = opts;
-  const savedCallback = useRef<() => void>();
+  const savedCallback = useRef<() => void>(undefined);
 
   // Store the callback
   useEffect(() => {

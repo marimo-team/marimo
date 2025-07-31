@@ -1,11 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { jupyterHelpExtension } from "../jupyter";
+
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { store } from "@/core/state/jotai";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@/components/ui/use-toast";
 import { saveUserConfig } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
+import { jupyterHelpExtension } from "../jupyter";
 
 // Mock dependencies
 vi.mock("@/core/state/jotai", () => ({
