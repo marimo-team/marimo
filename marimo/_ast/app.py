@@ -727,6 +727,10 @@ class InternalApp:
         return self._app._cell_manager
 
     @property
+    def filename(self) -> str | None:
+        return self._app._filename
+
+    @property
     def graph(self) -> dataflow.DirectedGraph:
         self._app._maybe_initialize()
         return self._app._graph

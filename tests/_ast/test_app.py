@@ -4,16 +4,16 @@ from __future__ import annotations
 import pathlib
 import subprocess
 import textwrap
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from marimo._ast.app_config import _AppConfig
 from marimo._ast.app import (
     App,
     AppKernelRunnerRegistry,
     InternalApp,
 )
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -21,10 +21,17 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
+from marimo._ast.load import load_app
+from marimo._convert.converters import MarimoConvert
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context.types import get_context
 from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    NotebookSerializationV1,
+)
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
@@ -1041,6 +1048,34 @@ class TestAppComposition:
         _, defs = app.run()
         assert defs["x"] == 0
         assert "app" not in defs
+
+
+    async def test_app_embed_preserves_file_path(
+        self, k: Kernel, tmp_path: pathlib.Path
+    ) -> None:
+        # k fixture provides the kernel context needed for embedding
+        # Create an app directly with a known filename
+        app = App(_filename=str(tmp_path / "test_notebook.py"))
+
+        @app.cell
+        def __():
+            import os
+            embedded_file = __file__
+            embedded_dir = os.path.dirname(__file__) if __file__ else None
+            return embedded_file, embedded_dir
+
+        # Embed the app (this uses AppKernelRunner internally)
+        result = await app.embed()
+
+        # Verify that __file__ was correctly preserved
+        assert "embedded_file" in result.defs
+        assert "embedded_dir" in result.defs
+        
+        # Without our fix, __file__ would be "<unknown>"
+        # With our fix, it should be the actual filename
+        assert result.defs["embedded_file"] != "<unknown>"
+        assert result.defs["embedded_file"] == str(tmp_path / "test_notebook.py")
+        assert result.defs["embedded_dir"] == str(tmp_path)
 
 
 class TestAppKernelRunnerRegistry:
