@@ -196,19 +196,23 @@ export const GlideDataEditor = <T,>({
         id: columnName,
         title: columnName,
         width: columnWidths[columnName], // Enables resizing
-        icon: getColumnHeaderIcon(fieldType),
-        overlayIcon: editable
-          ? undefined
-          : GridColumnIcon.ProtectedColumnOverlay, // Lock icon
+        icon: editable
+          ? getColumnHeaderIcon(fieldType)
+          : GridColumnIcon.ProtectedColumnOverlay,
         style: "normal",
         kind: getColumnKind(fieldType),
         dataType: fieldType,
         hasMenu: true,
+        themeOverride: editable
+          ? undefined
+          : {
+              bgCell: theme === "light" ? "#F9F9FA" : "#1e1e21",
+            },
       });
     }
 
     return columns;
-  }, [columnFields, columnWidths, editableColumns]);
+  }, [columnFields, columnWidths, editableColumns, theme]);
 
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
