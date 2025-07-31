@@ -495,7 +495,7 @@ export const UserConfigForm: React.FC = () => {
                           Beta
                         </Badge>
                         basedpyright (
-                        <ExternalLink href="https://docs.basedpyright.com">
+                        <ExternalLink href="https://github.com/DetachHead/basedpyright">
                           docs
                         </ExternalLink>
                         )
