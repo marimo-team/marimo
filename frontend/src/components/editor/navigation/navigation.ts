@@ -615,7 +615,7 @@ export function useCellEditorNavigationProps(
   };
 
   const handleEscape = () => {
-    // If there is a selection / autocomplete popup in the editor, we clear those and return.
+    // If there is a text selection or autocomplete popup in the editor, we clear those and return.
     // Subsequent 'Escapes' will exit to command mode.
 
     if (!editorView.current) {
@@ -627,8 +627,10 @@ export function useCellEditorNavigationProps(
     const view = editorView.current;
     const state = view.state;
 
-    const hasSelection = state.selection.main.from !== state.selection.main.to;
-    if (hasSelection) {
+    const hasTextSelection =
+      state.selection.main.from !== state.selection.main.to;
+
+    if (hasTextSelection) {
       view.dispatch({
         selection: EditorSelection.single(state.selection.main.from), // Cursor to the start of the selection
       });
@@ -646,13 +648,13 @@ export function useCellEditorNavigationProps(
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
-      if (evt.key === "Escape") {
-        // For vim mode, require Ctrl+Escape (or Cmd+Escape on Mac) to exit to command mode
-        if (keymapPreset === "vim") {
-          if (evt.ctrlKey || evt.metaKey) {
-            handleEscape();
-          }
-        } else {
+      // For vim mode, require Ctrl+Escape (or Cmd+Escape on Mac) to exit to command mode
+      if (keymapPreset === "vim") {
+        if (evt.key === "Escape" && (evt.ctrlKey || evt.metaKey)) {
+          handleEscape();
+        }
+      } else {
+        if (evt.key === "Escape") {
           // For non-vim mode, regular Escape exits to command mode
           handleEscape();
         }
