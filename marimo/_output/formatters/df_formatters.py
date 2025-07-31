@@ -14,6 +14,7 @@ from marimo._output.formatters.formatter_factory import (
 )
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.plain_text import plain_text
+from marimo._plugins.stateless.json_output import json_output
 
 from marimo._plugins.ui._impl import tabs
 from marimo._plugins.ui._impl.table import get_default_table_page_size, table
@@ -285,3 +286,45 @@ class IbisFormatter(FormatterFactory):
                     return _format_ibis_expression(column_expr.as_table())
 
         register_column_formatters()
+
+        def register_scalar_formatters():
+            """Register formatters for all Ibis scalar types.
+            
+            Simple scalars (numbers, strings, etc.) render as text.
+            Complex scalars (arrays, maps, structs) render as JSON.
+            """
+            # Simple scalars - render as text
+            simple_scalar_types = [
+                ir.Scalar, ir.UnknownScalar, ir.NullScalar, ir.NumericScalar, 
+                ir.IntegerScalar, ir.FloatingScalar, ir.DecimalScalar, 
+                ir.BooleanScalar, ir.StringScalar, ir.BinaryScalar, ir.TimeScalar, 
+                ir.DateScalar, ir.TimestampScalar, ir.IntervalScalar, ir.JSONScalar,  
+                ir.SetScalar, ir.MACADDRScalar, ir.INETScalar, ir.UUIDScalar,
+                ir.GeoSpatialScalar, ir.PointScalar, ir.LineStringScalar, ir.PolygonScalar,
+                ir.MultiLineStringScalar, ir.MultiPointScalar, ir.MultiPolygonScalar,
+            ]
+            
+            # Complex scalars - render as JSON
+            json_scalar_types = [
+                ir.ArrayScalar, ir.StructScalar, ir.MapScalar,
+            ]
+            
+            for scalar_type in simple_scalar_types:
+                @formatting.opinionated_formatter(scalar_type)
+                def _show_marimo_ibis_scalar(scalar_expr):
+                    try:
+                        val = scalar_expr.to_pyarrow().as_py()
+                        return ("text/plain", str(val))
+                    except BaseException:
+                        return ("text/plain", str(scalar_expr))
+            
+            for scalar_type in json_scalar_types:
+                @formatting.opinionated_formatter(scalar_type)
+                def _show_marimo_ibis_json_scalar(scalar_expr):
+                    try:
+                        val = scalar_expr.to_pyarrow().as_py()
+                        return json_output(json_data=val)._mime_()
+                    except BaseException:
+                        return ("text/plain", str(scalar_expr))
+
+        register_scalar_formatters()
