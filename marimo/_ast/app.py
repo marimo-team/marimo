@@ -109,12 +109,13 @@ class _SetupContext:
     See design discussion in MEP-0008 (github:marimo-team/meps/pull/8).
     """
 
-    def __init__(self, cell: Cell):
+    def __init__(self, cell: Cell, hide_code: bool = False):
         super().__init__()
         self._cell = cell
         self._glbls: dict[str, Any] = {}
         self._frame: Optional[FrameType] = None
         self._previous: dict[str, Any] = {}
+        self._hide_code = hide_code
 
     def __enter__(self) -> None:
         if maybe_frame := inspect.currentframe():
@@ -146,8 +147,7 @@ class _SetupContext:
         _traceback: Optional[TracebackType],
     ) -> Literal[False]:
         if exception is not None:
-            # Always should fail, since static loading still allows bad apps to
-            # load.
+            # Always should fail, since static loading still allows bad apps to load.
             # But don't record the variables.
             return False
 
@@ -157,6 +157,49 @@ class _SetupContext:
                 if var in self._frame.f_locals:
                     self._glbls[var] = self._frame.f_locals.get(var)
         return False
+
+
+class _SetupCallable(_SetupContext):
+    """A setup context that can also be called as a function."""
+
+    def __init__(self, app: App, frame: Any):
+        cell = app._cell_manager.cell_context(
+            app=InternalApp(app), frame=frame
+        )
+        super().__init__(cell, hide_code=False)
+        self._app = app
+        self._frame_for_call = frame
+        app._setup = self
+
+    def __call__(
+        self,
+        *,
+        hide_code: bool = False,
+        **kwargs: Any,  # noqa: ARG002
+    ) -> _SetupContext:
+        """When called with parameters, create a new context with those parameters."""
+
+        cell = self._app._cell_manager.cell_context(
+            app=InternalApp(self._app),
+            frame=self._frame_for_call,
+            config=CellConfig(hide_code=hide_code),
+        )
+        setup_ctx = _SetupContext(cell, hide_code=hide_code)
+        self._app._setup = setup_ctx
+        return setup_ctx
+
+
+class _SetupDescriptor:
+    """Descriptor that returns a _SetupCallable which acts as both property and callable."""
+
+    def __get__(
+        self, obj: Optional[App], objtype: type[App]
+    ) -> _SetupCallable:
+        if obj is None:
+            return self  # type: ignore
+        # Get frame where setup was accessed
+        frame = inspect.stack()[1].frame
+        return _SetupCallable(obj, frame)
 
 
 @dataclass
@@ -452,28 +495,30 @@ class App:
             ),
         )
 
-    @property
-    def setup(self) -> _SetupContext:
-        """Provides a context manager to initialize the setup cell.
+    setup: _SetupDescriptor = _SetupDescriptor()
+    setup.__doc__ = """Provides a context manager to initialize the setup cell.
 
-        This block should only be utilized at the start of a marimo notebook.
-        It's used as following:
+    This block should only be utilized at the start of a marimo notebook.
 
-        ```
-        with app.setup:
-            import my_libraries
-            from typing import Any
+    Usage:
+    ```
+    # As a property (default behavior)
+    with app.setup:
+        import my_libraries
+        from typing import Any
+        CONSTANT = "my constant"
 
-            CONSTANT = "my constant"
-        ```
-        """
-        # Get the calling context to extract the location of the cell
-        frame = inspect.stack()[1].frame
-        cell = self._cell_manager.cell_context(
-            app=InternalApp(self), frame=frame
-        )
-        self._setup = _SetupContext(cell)
-        return self._setup
+    # As a method with hide_code
+    with app.setup(hide_code=True):
+        import my_libraries
+        from typing import Any
+        CONSTANT = "my constant"
+    ```
+
+    Args (when called as method):
+        hide_code: Whether to hide the setup cell's code. Defaults to False.
+        **kwargs: For forward-compatibility with future arguments.
+    """
 
     def _unparsable_cell(
         self,
