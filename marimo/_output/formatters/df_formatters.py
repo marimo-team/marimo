@@ -262,3 +262,26 @@ class IbisFormatter(FormatterFactory):
             table_expr: ir.Table,
         ) -> tuple[KnownMimeType, str]:
             return _format_ibis_expression(table_expr)
+
+        def register_column_formatters():
+            """Register formatters for all Ibis column types.
+            
+            Converts columns to tables using .as_table() then formats them.
+            """
+            column_types = [
+                ir.Column, ir.UnknownColumn, ir.NullColumn,
+                ir.NumericColumn, ir.IntegerColumn, ir.FloatingColumn, 
+                ir.DecimalColumn, ir.BooleanColumn, ir.StringColumn,
+                ir.TimeColumn, ir.DateColumn, ir.TimestampColumn, ir.IntervalColumn,
+                ir.GeoSpatialColumn, ir.PointColumn, ir.LineStringColumn, ir.PolygonColumn,
+                ir.MultiLineStringColumn, ir.MultiPointColumn, ir.MultiPolygonColumn,
+                ir.ArrayColumn, ir.SetColumn, ir.MapColumn, ir.StructColumn, ir.JSONColumn,
+                ir.BinaryColumn, ir.MACADDRColumn, ir.INETColumn, ir.UUIDColumn,
+            ]
+
+            for column_type in column_types:
+                @formatting.opinionated_formatter(column_type)
+                def _show_marimo_ibis_column(column_expr):
+                    return _format_ibis_expression(column_expr.as_table())
+
+        register_column_formatters()
