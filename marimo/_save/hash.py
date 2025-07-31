@@ -17,7 +17,7 @@ from marimo._ast.variables import (
     if_local_then_mangle,
     unmangle_local,
 )
-from marimo._ast.visitor import Name, ScopedVisitor
+from marimo._ast.visitor import Name, ScopedVisitor, ImportData
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
@@ -739,7 +739,7 @@ class BlockHasher:
         refs = set(refs)
         # Content addressed hash is valid if every reference is accounted for
         # and can be shown to be a primitive value.
-        imports = self.graph.get_imports()
+        imports = self.get_imports(scope)
         for local_ref in sorted(refs):
             ref = if_local_then_mangle(local_ref, self.cell_id)
             if ref in imports:
@@ -1017,6 +1017,30 @@ class BlockHasher:
             | cell_basis
         )
 
+    def get_imports(
+        self, scope: dict[str, Any]
+    ) -> dict[Name, ImportData]:
+        """Get the imports from the scope.
+
+        Args:
+            scope: The scope to get the imports from.
+
+        Returns:
+            A dictionary of imports.
+        """
+        imports = self.graph.get_imports()
+        if imports:
+            return imports
+
+        imports = {
+            name: ImportData(
+                module=obj.__name__,
+                definition=name,
+            )
+            for name, obj in scope.items()
+            if inspect.ismodule(obj)
+        }
+        return imports
 
 def cache_attempt_from_hash(
     module: ast.Module,
