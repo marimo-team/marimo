@@ -53,6 +53,8 @@ df
 
 ///
 
+/// tab | live example
+
 /// marimo-embed
     size: large
 
@@ -66,6 +68,8 @@ def __():
     )
     return
 ```
+
+///
 
 ///
 
@@ -100,6 +104,8 @@ mo.plain(df)
 
 ///
 
+/// tab | live example
+
 /// marimo-embed
     size: large
 
@@ -114,6 +120,8 @@ def __():
     mo.plain(df)
     return
 ```
+
+///
 
 ///
 
@@ -152,28 +160,6 @@ transformed_df
 transformed_df.value
 ```
 
-/// marimo-embed
-    size: large
-
-```python
-@app.cell
-def __():
-    import pandas as pd
-
-    df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
-    transformed_df = mo.ui.dataframe(df)
-    transformed_df
-    return
-
-@app.cell
-def __():
-    transformed_df.value
-
-    return
-```
-
-///
-
 ///
 
 
@@ -195,15 +181,20 @@ transformed_df
 transformed_df.value
 ```
 
+///
+
+
+/// tab | live example 
+
 /// marimo-embed
     size: large
 
 ```python
 @app.cell
 def __():
-    import polars as pl
+    import pandas as pd
 
-    df = pl.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+    df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
     transformed_df = mo.ui.dataframe(df)
     transformed_df
     return
@@ -248,6 +239,7 @@ mo.ui.table(filtered_df)
 /// tab | polars
 
 ```python
+# Cell 1
 import marimo as mo
 import polars as pl
 
@@ -268,6 +260,37 @@ mo.hstack([age_filter, city_filter])
 filtered_df = df.filter((pl.col("age") <= age_filter.value) & (pl.col("city") == city_filter.value))
 mo.ui.table(filtered_df)
 ```
+
+///
+
+/// tab | live example
+
+
+/// marimo-embed
+    size: large
+
+```python
+@app.cell
+def __():
+    import pandas as pd
+
+    df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+    return
+
+@app.cell
+def __():
+    age_filter = mo.ui.slider(start=0, stop=100, value=50, label="Max age")
+    age_filter
+    return
+
+@app.cell
+def __():
+    filtered_df = df[df["age"] < age_filter.value]
+    mo.ui.table(filtered_df)
+    return
+```
+
+///
 
 ///
 
@@ -327,6 +350,8 @@ table.value
 ///
 
 
+/// tab | live example
+
 /// marimo-embed
     size: large
 
@@ -345,6 +370,8 @@ def __():
     table.value
     return
 ```
+
+///
 
 ///
 
