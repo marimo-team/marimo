@@ -142,6 +142,15 @@ notebook.
 </figure>
 </div>
 
+The transformations you apply will turn into code which is accessible via the "code" tab. 
+
+<div align="center">
+<figure>
+<img src="/_static/docs-dataframe-transform-code.png"/>
+<figcaption>Copy the code of the transformation</figcaption>
+</figure>
+</div>
+
 /// tab | pandas
 
 ```python
