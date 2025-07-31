@@ -654,8 +654,8 @@ export function useCellEditorNavigationProps(
           handleEscape();
         }
       } else {
+        // For non-vim mode, regular Escape exits to command mode
         if (evt.key === "Escape") {
-          // For non-vim mode, regular Escape exits to command mode
           handleEscape();
         }
       }
