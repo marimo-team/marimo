@@ -726,16 +726,16 @@ const EditableCellComponent = ({
             </div>
             {cellOutput === "below" && outputArea}
             {serialization && (
-              <a
-                href="https://links.marimo.app/reusable-definitions"
-                target="_blank"
-                className="hover:underline py-1 px-2 flex items-center justify-end gap-2 last:rounded-b"
-                rel="noopener"
-              >
+              <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">
                 {isToplevel && (
-                  <span className="text-muted-foreground text-xs font-bold">
+                  <a
+                    href="https://links.marimo.app/reusable-definitions"
+                    target="_blank"
+                    className="hover:underline text-muted-foreground text-xs font-bold"
+                    rel="noopener"
+                  >
                     reusable
-                  </span>
+                  </a>
                 )}
                 <Tooltip
                   content={
@@ -755,21 +755,33 @@ const EditableCellComponent = ({
                     </span>
                   }
                 >
-                  {(isToplevel && (
-                    <SquareFunctionIcon
-                      size={16}
-                      strokeWidth={1.5}
-                      className="rounded-lg text-muted-foreground"
-                    />
-                  )) || (
-                    <HelpCircleIcon
-                      size={16}
-                      strokeWidth={1.5}
-                      className="rounded-lg text-muted-foreground"
-                    />
+                  {isToplevel ? (
+                    <a
+                      href="https://links.marimo.app/reusable-definitions"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      <SquareFunctionIcon
+                        size={16}
+                        strokeWidth={1.5}
+                        className="rounded-lg text-muted-foreground"
+                      />
+                    </a>
+                  ) : (
+                    <a
+                      href="https://links.marimo.app/reusable-definitions"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      <HelpCircleIcon
+                        size={16}
+                        strokeWidth={1.5}
+                        className="rounded-lg text-muted-foreground"
+                      />
+                    </a>
                   )}
                 </Tooltip>
-              </a>
+              </div>
             )}
             <ConsoleOutput
               consoleOutputs={consoleOutputs}
