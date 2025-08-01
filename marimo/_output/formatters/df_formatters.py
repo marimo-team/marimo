@@ -272,15 +272,15 @@ class IbisFormatter(FormatterFactory):
             except Exception:
                 return ("text/plain", f"<{type(obj).__name__} object - could not display>")
 
-        def _get_sql_repr(expr: ir.Expr) -> str:
+        def _get_sql_repr(expr: ir.Expr, mode: IbisDisplayMode) -> str:
             """Get SQL representation or message if backend doesn't support SQL."""
             try:
-                backend = expr.get_backend()
-                if isinstance(backend, SQLBackend):
+                if mode == IbisDisplayMode.UNBOUND or isinstance(expr.get_backend(), SQLBackend):
                     return f"```sql\n{ibis.to_sql(expr)}\n```"
                 else:
                     return "Backend doesn't support SQL"
             except Exception as e:
+                LOGGER.warning("Could not generate SQL for expression: %s", e)
                 return f"Could not generate SQL: {e}"
 
         def _format_lazy_expression(expr: ir.Expr, mode: IbisDisplayMode) -> tuple[KnownMimeType, str]:
@@ -291,10 +291,10 @@ class IbisFormatter(FormatterFactory):
             else:
                 expr_content = expr_repr
 
-            sql_content = _get_sql_repr(expr)
+            sql_content = _get_sql_repr(expr, mode)
 
             return tabs.tabs({
-                "Expression": _render_plain_text_fallback(expr_content),
+                "Expression": plain_text(expr_content),
                 "SQL": sql_content
             })._mime_()
 
