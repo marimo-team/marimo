@@ -739,7 +739,7 @@ class BlockHasher:
         refs = set(refs)
         # Content addressed hash is valid if every reference is accounted for
         # and can be shown to be a primitive value.
-        imports = self.get_imports(scope)
+        imports = get_imports(scope)
         for local_ref in sorted(refs):
             ref = if_local_then_mangle(local_ref, self.cell_id)
             if ref in imports:
@@ -1021,30 +1021,27 @@ class BlockHasher:
             | cell_basis
         )
 
-    def get_imports(self, scope: dict[str, Any]) -> dict[Name, ImportData]:
-        """Get the imports from the scope.
 
-        Args:
-            scope: The scope to get the imports from.
+def get_imports(scope: dict[str, Any]) -> dict[Name, ImportData]:
+    """Get the imports from the scope.
 
-        Returns:
-            A dictionary of imports.
-        """
-        imports = self.graph.get_imports()
-        if imports:
-            return imports
+    Args:
+        scope: The scope to get the imports from.
 
-        # In cases without context, we must build the imports
-        # implicitly from scope.
-        imports = {
-            name: ImportData(
-                module=obj.__name__,
-                definition=name,
-            )
-            for name, obj in scope.items()
-            if inspect.ismodule(obj)
-        }
-        return imports
+    Returns:
+        A dictionary of imports.
+    """
+    # In cases without context, we must build the imports
+    # implicitly from scope.
+    imports = {
+        name: ImportData(
+            module=obj.__name__,
+            definition=name,
+        )
+        for name, obj in scope.items()
+        if inspect.ismodule(obj)
+    }
+    return imports
 
 
 def cache_attempt_from_hash(
