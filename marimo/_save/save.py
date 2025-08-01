@@ -22,6 +22,7 @@ from typing import (
     overload,
 )
 
+from marimo._ast.names import SELF_CELL_NAME
 from marimo._ast.transformers import (
     ARG_PREFIX,
     CacheExtractWithBlock,
@@ -30,7 +31,6 @@ from marimo._ast.transformers import (
 from marimo._ast.variables import is_mangled_local, unmangle_local
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime.context import get_context, safe_get_context
-from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._save.cache import Cache, CacheException
@@ -150,7 +150,7 @@ class _cache_call:
             glbls = ctx.globals
             self._external = False
         else:
-            cell_id = CellId_t("self")
+            cell_id = CellId_t(SELF_CELL_NAME)
             graph = None
             glbls = {}
             self._external = True

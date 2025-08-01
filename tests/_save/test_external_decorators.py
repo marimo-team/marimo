@@ -152,15 +152,19 @@ class TestDecoratorTransitiveFns:
             result1 = pure_wrapped_impure()
             hash1 = pure_wrapped_impure._last_hash
             cache_type1 = pure_wrapped_impure.base_block.cache_type
+            return result1, hash1, cache_type1
 
         @app.cell
         def _():
             result2 = pure_wrapped_impure_2()
             hash2 = pure_wrapped_impure_2._last_hash
             cache_type2 = pure_wrapped_impure_2.base_block.cache_type
+            return result2, hash2, cache_type2
 
         @app.cell
-        def check_results() -> None:
+        def check_results(
+            result1, result2, hash1, hash2, cache_type1, cache_type2
+        ):
             assert result1 == 1
             assert result2 == 2
 
@@ -203,7 +207,9 @@ class TestDecoratorTransitiveFns:
             cache_type2 = impure_wrapped_pure_2.base_block.cache_type
 
         @app.cell
-        def check_results() -> None:
+        def check_results(
+            result1, result2, hash1, hash2, cache_type1, cache_type2
+        ) -> None:
             assert result1 == 42
             assert result2 == 42
 

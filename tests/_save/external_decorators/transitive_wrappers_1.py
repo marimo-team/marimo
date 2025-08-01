@@ -5,6 +5,7 @@ app = marimo.App()
 
 with app.setup:
     import functools
+    from typing import Any
 
     import marimo as mo
 
@@ -17,7 +18,7 @@ def my_impure_decorator(func):
     """An impure decorator that depends on impure_state"""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         # Decorator depends on impure_state
         wrapper._call_count = len(impure_state)
         return func(*args, **kwargs)
@@ -30,7 +31,7 @@ def my_pure_decorator(func):
     """Same pure decorator"""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         return func(*args, **kwargs)
 
     return wrapper
