@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+from enum import Enum
 
 import narwhals.stable.v1 as nw
 
@@ -237,12 +238,19 @@ class IbisFormatter(FormatterFactory):
         if not include_opinionated():
             return
 
-        def _is_lazy_display(expr) -> tuple[bool, bool]:
-            """Check if expression should be displayed lazily (without execution).
+        class IbisDisplayMode(Enum):
+            """Display mode for Ibis expressions."""
+            INTERACTIVE = "interactive"  # Execute and show as table
+            UNBOUND = "unbound"          # Show Expression+SQL tabs (contains unbound tables)
+            LAZY = "lazy"                # Show Expression+SQL tabs (non-interactive mode)
 
-            Returns (is_lazy, has_unbound):
-            - is_lazy: True if we should show Expression+SQL tabs
-            - has_unbound: True if expression contains unbound tables
+        def _get_display_mode(expr: ir.Expr) -> IbisDisplayMode:
+            """Get display mode for expression.
+
+            Returns:
+            - INTERACTIVE: Execute and show as interactive table
+            - UNBOUND: Show Expression+SQL tabs (contains unbound tables)
+            - LAZY: Show Expression+SQL tabs (non-interactive mode)
             """
 
             # Use _find_backends() to detect unbound expressions instead of get_backend(),
@@ -250,78 +258,73 @@ class IbisFormatter(FormatterFactory):
             # https://github.com/ibis-project/ibis/blob/main/ibis/expr/types/core.py#L330
             _, has_unbound = expr._find_backends()
 
-            # Show lazy format if non-interactive OR unbound
-            is_lazy = not ibis.options.interactive or has_unbound
-
-            return is_lazy, has_unbound
+            if has_unbound:
+                return IbisDisplayMode.UNBOUND
+            elif not ibis.options.interactive:
+                return IbisDisplayMode.LAZY
+            else:
+                return IbisDisplayMode.INTERACTIVE
 
         def _render_plain_text_fallback(obj) -> tuple[KnownMimeType, str]:
             """Helper to render object as plain text with fallback."""
             try:
-                return ("text/plain", repr(obj))
+                return plain_text(repr(obj))._mime_()
             except Exception:
                 return ("text/plain", f"<{type(obj).__name__} object - could not display>")
 
-        def _format_expr_and_sql(expr, has_unbound: bool, expr_type: str = "Expression") -> tuple[KnownMimeType, str]:
-            """Format expression as tabs with Expression and SQL (if backend supports SQL)."""
-            if has_unbound:
-                expr_content = f"Contains unbound tables - cannot execute\n\n{expr._noninteractive_repr()}"
-                # For unbound expressions, always try SQL generation
-                sql = ibis.to_sql(expr)
-                return tabs.tabs(
-                    {
-                        expr_type: plain_text(expr_content),
-                        "SQL": f"```sql\n{sql!s}\n```"
-                    }
-                )._mime_()
-            else:
-                # For bound expressions, check if backend supports SQL.
-                # Note: We are forced to use this private method instead of __repr__.
-                # Because ibis.options.interactive is set AND the it's unbound the __repr__ will call `to_pyarrow` and crash.
-                # https://github.com/ibis-project/ibis/blob/6b9f80c78e70c9013633ef89e5073a2081c49990/ibis/expr/types/core.py#L53
-                expr_content = expr._noninteractive_repr()
+        def _get_sql_repr(expr: ir.Expr) -> str:
+            """Get SQL representation or message if backend doesn't support SQL."""
+            try:
                 backend = expr.get_backend()
-                supports_sql = isinstance(backend, SQLBackend)
-
-                if supports_sql:
-                    sql = ibis.to_sql(expr)
-                    return tabs.tabs(
-                        {
-                            expr_type: plain_text(expr_content),
-                            "SQL": f"```sql\n{sql!s}\n```"
-                        }
-                    )._mime_()
+                if isinstance(backend, SQLBackend):
+                    return f"```sql\n{ibis.to_sql(expr)}\n```"
                 else:
-                    # Non-SQL backend, just show expression
-                    return ("text/plain", expr_content)
+                    return "Backend doesn't support SQL"
+            except Exception as e:
+                return f"Could not generate SQL: {e}"
 
-        def _format_ibis_expression(expr) -> tuple[KnownMimeType, str]:
+        def _format_lazy_expression(expr: ir.Expr, mode: IbisDisplayMode) -> tuple[KnownMimeType, str]:
+            """Display the expression as a lazy representation with Expression and SQL."""
+            expr_repr = expr._noninteractive_repr()
+            if mode == IbisDisplayMode.UNBOUND:
+                expr_content = f"Contains unbound tables - cannot execute\n\n{expr_repr}"
+            else:
+                expr_content = expr_repr
+
+            sql_content = _get_sql_repr(expr)
+
+            return tabs.tabs({
+                "Expression": _render_plain_text_fallback(expr_content),
+                "SQL": sql_content
+            })._mime_()
+
+        def _format_ibis_expression(expr: ir.Expr) -> tuple[KnownMimeType, str]:
             """Format Ibis expressions.
 
-            Interactive mode: Shows data as interactive table
-            Non-interactive or unbound: Shows expression + SQL if it's a SQLBackend
+            Interactive mode: Shows data as marimo table
+            Non-interactive or unbound: Shows the expression representation
             """
             try:
-                is_lazy, has_unbound = _is_lazy_display(expr)
+                mode = _get_display_mode(expr)
 
-                if is_lazy:
-                    return _format_expr_and_sql(expr, has_unbound)
-                else:
+                if mode == IbisDisplayMode.INTERACTIVE:
                     return table(expr, selection=None, pagination=True)._mime_()
+                else:
+                    return _format_lazy_expression(expr, mode)
 
             except BaseException as e:
-                LOGGER.error("Failed to format Ibis expression: %s", e)
+                LOGGER.warning("Failed to format Ibis expression: %s", e)
                 # Simple fallback - just show the expression as text
                 return _render_plain_text_fallback(expr)
 
-        @formatting.opinionated_formatter(ir.Table)
+        @formatting.formatter(ir.Table)
         def _show_marimo_ibis_table(
             table_expr: ir.Table,
         ) -> tuple[KnownMimeType, str]:
             """Format Table expressions.
 
             Interactive, bound expressions show as table widgets.
-            All other cases show Expression+SQL tabs.
+            All other cases show lazy expression representation.
 
             Examples:
             --------
@@ -331,65 +334,8 @@ class IbisFormatter(FormatterFactory):
             """
             return _format_ibis_expression(table_expr)
 
-        try:
-            from ibis.expr.types.groupby import GroupedTable
-
-            @formatting.opinionated_formatter(GroupedTable)
-            def _show_marimo_ibis_grouped_table(
-                grouped_expr: GroupedTable,
-            ) -> tuple[KnownMimeType, str]:
-                """Format GroupedTable expressions as plain text.
-
-                GroupedTable can be safely converted to a string.
-
-                Examples:
-                --------
-                >>> t.group_by("species")
-                """
-                return ("text/plain", repr(grouped_expr))
-        except ImportError:
-            pass
-
-        @formatting.opinionated_formatter(ir.Join)
-        def _show_marimo_ibis_join(
-            join_expr: ir.Join,
-        ) -> tuple[KnownMimeType, str]:
-            """Format Join expressions.
-
-            Uses same logic as tables: Interactive+bound expressions show
-            as table widgets, all other cases show Expression+SQL tabs.
-
-            Examples:
-            --------
-            >>> t1.left_join(t2, t1.key == t2.key)
-            >>> ratings.inner_join(movies, "movieId")
-            >>> customers.outer_join(orders, "customer_id")
-            """
-            return _format_ibis_expression(join_expr)
-
-        try:
-            from ibis.expr.types.relations import CachedTable
-
-            @formatting.opinionated_formatter(CachedTable)
-            def _show_marimo_ibis_cached_table(
-                cached_expr: CachedTable,
-            ) -> tuple[KnownMimeType, str]:
-                """Format CachedTable expressions.
-
-                Uses same logic as regular tables: Interactive+bound expressions
-                show as table widgets, all other cases show Expression+SQL tabs.
-
-                Examples:
-                --------
-                >>> t.cache()
-                >>> cached_table = backend.cache(t)
-                """
-                return _format_ibis_expression(cached_expr)
-        except ImportError:
-            pass
-
         @formatting.formatter(ir.Column)
-        def _show_marimo_ibis_column(column_expr) -> tuple[KnownMimeType, str]:  # noqa: F841
+        def _show_marimo_ibis_column(column_expr: ir.Column) -> tuple[KnownMimeType, str]:
             """Format Column expressions.
 
             Columns are converted to single-column tables via .as_table()
@@ -405,15 +351,14 @@ class IbisFormatter(FormatterFactory):
             return _format_ibis_expression(column_expr.as_table())
 
         @formatting.formatter(ir.Scalar)
-        def _show_scalar(scalar: ir.Scalar) -> tuple[KnownMimeType, str]:  # noqa: F841
+        def _show_scalar(scalar: ir.Scalar) -> tuple[KnownMimeType, str]:
             """Format Scalar expressions.
 
             Simple scalars render as text.
-            Complex scalars (arrays, maps, structs) render using marimo json_output.
+            Complex scalars (arrays, maps, structs) render using marimo's json_output.
 
-            Interactive+bound expressions execute to single values.
-            All other cases show Expression+SQL tabs (even scalars become
-            "column-like" when unbound since they can't execute).
+            Bound, interactive expressions execute to single values.
+            All other cases are displayed using the lazy expression representation.
 
             Examples:
             --------
@@ -422,31 +367,19 @@ class IbisFormatter(FormatterFactory):
             >>> ibis.literal(42)
             >>> t.species.nunique()
             """
-            def should_show_as_json(scalar_expr) -> bool:
-                """Check if scalar should be displayed as JSON."""
-                return isinstance(scalar_expr, (ir.ArrayScalar, ir.StructScalar, ir.MapScalar))
+            mode = _get_display_mode(scalar)
 
-            if should_show_as_json(scalar):
-                is_lazy, has_unbound = _is_lazy_display(scalar)
-                
-                if is_lazy:
-                    return _format_expr_and_sql(scalar, has_unbound, "JSON Scalar")
-                else:
-                    try:
-                        val = scalar.to_pyarrow().as_py()
-                        return json_output(json_data=val)._mime_()
-                    except BaseException as e:
-                        LOGGER.error("Failed to format Ibis scalar: %s", e)
-                        return _render_plain_text_fallback(scalar)
-            else:
-                is_lazy, has_unbound = _is_lazy_display(scalar)
+            if mode != IbisDisplayMode.INTERACTIVE:
+                return _format_lazy_expression(scalar, mode)
 
-                if is_lazy:
-                    return _format_expr_and_sql(scalar, has_unbound, "Scalar")
+            # Interactive mode - try to execute
+            try:
+                val = scalar.to_pyarrow().as_py()
+                # Complex scalars as JSON, simple ones as text
+                if isinstance(scalar, (ir.ArrayScalar, ir.StructScalar, ir.MapScalar)):
+                    return json_output(json_data=val)._mime_()
                 else:
-                    try:
-                        val = scalar.to_pyarrow().as_py()
-                        return ("text/plain", repr(val))
-                    except BaseException as e:
-                        LOGGER.error("Failed to format Ibis scalar: %s", e)
-                        return _render_plain_text_fallback(scalar)
+                    return _render_plain_text_fallback(val)
+            except BaseException as e:
+                LOGGER.warning("Failed to format Ibis scalar: %s", e)
+                return _render_plain_text_fallback(scalar)
