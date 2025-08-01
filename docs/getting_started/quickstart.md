@@ -155,7 +155,7 @@ service similar to Google Colab, to create and share notebook links
 ## Coming from VS Code?
 
 The best way to use marimo is through the CLI. While we do have a VS Code extension,
-we are actively writing it to provide a more native and robust experience, similar
+we are actively rewriting it to provide a more native and robust experience, similar
 to what you may be used to for Jupyter notebooks. In the meantime, we recommend using
 the CLI. You can try our [existing extension](
 https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), but please
