@@ -22,7 +22,6 @@ from typing import (
     overload,
 )
 
-from marimo._ast.names import SELF_CELL_NAME
 from marimo._ast.transformers import (
     ARG_PREFIX,
     CacheExtractWithBlock,
@@ -49,7 +48,7 @@ from marimo._save.loaders import (
     MemoryLoader,
 )
 from marimo._save.stores.file import FileStore
-from marimo._save.toplevel import graph_from_scope
+from marimo._save.toplevel import get_cell_id_from_scope, graph_from_scope
 from marimo._types.ids import CellId_t
 from marimo._utils.with_skip import SkipContext
 
@@ -65,6 +64,7 @@ UNEXPECTED_FAILURE_BOILERPLATE = (
 if TYPE_CHECKING:
     from types import FrameType, TracebackType
 
+    from marimo._runtime.dataflow import DirectedGraph
     from marimo._save.stores import Store
 
 
@@ -89,7 +89,7 @@ class _cache_call:
         "__wrapped__",
     )
 
-    base_block: BlockHasher
+    base_block: Optional[BlockHasher]
     scope: dict[str, Any]
     scoped_refs: set[str]
     pin_modules: bool
@@ -117,6 +117,7 @@ class _cache_call:
         # with respect to definition of _fn
         frame_offset: int = 0,
     ) -> None:
+        self.base_block = None
         self.pin_modules = pin_modules
         self.hash_type = hash_type
         self._frame_offset = frame_offset
@@ -139,7 +140,6 @@ class _cache_call:
         return self.loader.hits
 
     def _set_context(self, fn: Callable[..., Any]) -> None:
-        assert callable(fn), "the provided function must be callable"
         ctx = safe_get_context()
         # If we are loaded from a module, then we have no context.
         if ctx and ctx.execution_context is not None:
@@ -150,7 +150,8 @@ class _cache_call:
             glbls = ctx.globals
             self._external = False
         else:
-            cell_id = CellId_t(SELF_CELL_NAME)
+            # We are in a loaded context.
+            cell_id = CellId_t("")
             graph = None
             glbls = {}
             self._external = True
@@ -193,7 +194,12 @@ class _cache_call:
         # Note, that deeply nested frames may cause issues, however
         # checking a single frame- should be good enough.
         f_locals = inspect.stack()[2 + self._frame_offset][0].f_locals
-        self.scope = {**glbls, **f_locals}
+        if glbls:
+            self.scope = {**glbls, **f_locals}
+        else:
+            # Direct assignment, because we need the reference for later
+            # lookups.
+            self.scope = f_locals
 
         # Scoped refs are references particular to this block, that may not be
         # defined out of the context of the block, or the cell.
@@ -205,28 +211,12 @@ class _cache_call:
         # Defined in the cell, and currently available in scope
         if graph is not None:
             self.scoped_refs |= graph.cells[cell_id].defs & set(glbls.keys())
-        # The defined private variables of this cell, normalized
-        self.scoped_refs |= set(
-            unmangle_local(x).name
-            for x in glbls.keys()
-            if is_mangled_local(x, cell_id)
-        )
-
-        module = strip_function(self.__wrapped__)
-
-        if graph is None:
-            graph = graph_from_scope(self.__wrapped__, self.scope)
-
-        self.base_block = BlockHasher(
-            module=module,
-            graph=graph,
-            cell_id=cell_id,
-            scope=self.scope,
-            pin_modules=self.pin_modules,
-            hash_type=self.hash_type,
-            scoped_refs=self.scoped_refs,
-            apply_content_hash=False,
-        )
+            # The defined private variables of this cell, normalized
+            self.scoped_refs |= set(
+                unmangle_local(x).name
+                for x in glbls.keys()
+                if is_mangled_local(x, cell_id)
+            )
 
         # Load global cache from state
         name = self.__name__
@@ -237,6 +227,28 @@ class _cache_call:
             name = f"{name}*"
 
         self._loader = self._loader_partial.create_or_reconfigure(name)
+
+        if graph is not None:
+            self.base_block = self._build_base_block(
+                self.__wrapped__, graph, cell_id
+            )
+
+    def _build_base_block(
+        self, fn: Callable[..., Any], graph: DirectedGraph, cell_id: CellId_t
+    ) -> BlockHasher:
+        module = strip_function(fn)
+
+        return BlockHasher(
+            module=module,
+            graph=graph,
+            cell_id=cell_id,
+            scope=self.scope,
+            pin_modules=self.pin_modules,
+            hash_type=self.hash_type,
+            scoped_refs=self.scoped_refs,
+            apply_content_hash=False,
+            external=self._external,
+        )
 
     @property
     def loader(self) -> Loader:
@@ -307,6 +319,16 @@ class _cache_call:
             self._frame_offset -= 4
             self._set_context(args[0])
             return self
+
+        if self.base_block is None:
+            assert self._external, UNEXPECTED_FAILURE_BOILERPLATE
+            # We only build the graph on invocation because toplevel functions
+            # can be defined out of order.
+            graph = graph_from_scope(self.scope)
+            cell_id = get_cell_id_from_scope(self.__wrapped__, self.scope)
+            self.base_block = self._build_base_block(
+                self.__wrapped__, graph, cell_id
+            )
 
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}

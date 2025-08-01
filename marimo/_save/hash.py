@@ -333,6 +333,7 @@ class BlockHasher:
         hash_type: str = DEFAULT_HASH,
         apply_content_hash: bool = True,
         scoped_refs: Optional[set[Name]] = None,
+        external: bool = False,
     ) -> None:
         """Hash the context of the module, and return a cache object.
 
@@ -378,6 +379,8 @@ class BlockHasher:
                 execution path hash.
             scoped_refs: A set of references that cannot be traced via execution path, and must be
                 accounted for via content hashing.
+            external: If True, then the object was imported as a module. As such, the context should
+                not be respected, and ignored.
         """
 
         # Hash should not be pinned to cell id
@@ -411,7 +414,9 @@ class BlockHasher:
         if not apply_content_hash:
             refs, self.missing = self.extract_missing_ref(refs, scope)
 
-        ctx = get_and_update_context_from_scope(scope)
+        ctx = None
+        if not external:
+            ctx = get_and_update_context_from_scope(scope)
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
             refs, scope, ctx
         )
