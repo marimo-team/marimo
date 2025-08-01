@@ -1015,6 +1015,24 @@ def test_show_column_summaries_modes():
     assert table_default._component_args["show-column-summaries"] is True
 
 
+class TestTableBinValues:
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_bin_values_all_nulls(self) -> None:
+        import pandas as pd
+
+        data = {"a": [None] * 20}
+        df = pd.DataFrame(data)
+        table = ui.table(df)
+        summaries = table._get_column_summaries(
+            ColumnSummariesArgs(precompute=True)
+        )
+
+        # Returns empty list
+        assert summaries.bin_values == {"a": []}
+
+
 class TestTableGetValueCounts:
     @pytest.fixture
     def table(self) -> ui.table:
