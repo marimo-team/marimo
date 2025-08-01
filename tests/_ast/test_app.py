@@ -1051,31 +1051,21 @@ class TestAppComposition:
 
 
     async def test_app_embed_preserves_file_path(
-        self, k: Kernel, tmp_path: pathlib.Path
+        self, app: App
     ) -> None:
-        # k fixture provides the kernel context needed for embedding
-        # Create an app directly with a known filename
-        app = App(_filename=str(tmp_path / "test_notebook.py"))
+        with app.setup:
+            from tests._ast.app_data import notebook_filename
 
         @app.cell
-        def __():
-            import os
-            embedded_file = __file__
-            embedded_dir = os.path.dirname(__file__) if __file__ else None
-            return embedded_file, embedded_dir
+        async def _():
+            app = await notebook_filename.app.clone().embed()
+            return app
 
-        # Embed the app (this uses AppKernelRunner internally)
-        result = await app.embed()
-
-        # Verify that __file__ was correctly preserved
-        assert "embedded_file" in result.defs
-        assert "embedded_dir" in result.defs
-        
-        # Without our fix, __file__ would be "<unknown>"
-        # With our fix, it should be the actual filename
-        assert result.defs["embedded_file"] != "<unknown>"
-        assert result.defs["embedded_file"] == str(tmp_path / "test_notebook.py")
-        assert result.defs["embedded_dir"] == str(tmp_path)
+        @app.cell
+        def _(app: App):
+            filename = "test_notebook.py"
+            assert app.defs.get("this_is_foo_file") == filename
+            assert app.defs.get("this_is_foo_path") == filename
 
 
 class TestAppKernelRunnerRegistry:
