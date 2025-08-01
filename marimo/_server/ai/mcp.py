@@ -902,7 +902,7 @@ class MCPClient:
             return True
 
         try:
-            # Signal the connection task to shutdown (instead of cross-task aclose)
+            # Signal the connection task to shutdown
             if connection.disconnect_event:
                 connection.disconnect_event.set()
 
