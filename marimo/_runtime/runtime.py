@@ -378,7 +378,8 @@ def notebook_dir() -> pathlib.Path | None:
         # return the current working directory
         return pathlib.Path().absolute()
 
-    filename = ctx.filename
+    # NB: __file__ is patched by runner, so always bound to be correct.
+    filename = ctx.globals.get("__file__", None) or ctx.filename
     if filename is not None:
         return pathlib.Path(filename).parent.absolute()
 

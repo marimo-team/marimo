@@ -1049,33 +1049,57 @@ class TestAppComposition:
         assert defs["x"] == 0
         assert "app" not in defs
 
-
+    @staticmethod
     async def test_app_embed_preserves_file_path(
-        self, k: Kernel, tmp_path: pathlib.Path
+        app: App
     ) -> None:
-        # k fixture provides the kernel context needed for embedding
-        # Create an app directly with a known filename
-        app = App(_filename=str(tmp_path / "test_notebook.py"))
+        with app.setup:
+            from tests._ast.app_data import notebook_filename
 
         @app.cell
-        def __():
-            import os
-            embedded_file = __file__
-            embedded_dir = os.path.dirname(__file__) if __file__ else None
-            return embedded_file, embedded_dir
+        async def _():
+            app = await notebook_filename.app.embed()
+            cloned = await notebook_filename.app.clone().embed()
+            filename = "notebook_filename.py"
+            directory = "app_data"
+            return (app, cloned, filename, directory)
 
-        # Embed the app (this uses AppKernelRunner internally)
-        result = await app.embed()
+        @app.cell
+        def _(app: App, filename: str, directory: str) -> None:
+            assert app.defs.get("this_is_foo_file").endswith(filename)
+            assert app.defs.get("this_is_foo_path").stem == directory
 
-        # Verify that __file__ was correctly preserved
-        assert "embedded_file" in result.defs
-        assert "embedded_dir" in result.defs
-        
-        # Without our fix, __file__ would be "<unknown>"
-        # With our fix, it should be the actual filename
-        assert result.defs["embedded_file"] != "<unknown>"
-        assert result.defs["embedded_file"] == str(tmp_path / "test_notebook.py")
-        assert result.defs["embedded_dir"] == str(tmp_path)
+        @app.cell
+        def _(cloned: App, filename: str, directory: str) -> None:
+            assert cloned.defs.get("this_is_foo_file").endswith(filename)
+            assert cloned.defs.get("this_is_foo_path").stem == directory
+
+
+    @staticmethod
+    async def test_app_embed_in_kernel(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from tests._ast.app_data import notebook_filename
+                    """
+                ),
+                exec_req.get(
+                    """
+                    app = await notebook_filename.app.embed()
+                    cloned = await notebook_filename.app.clone().embed()
+                    """
+                ),
+            ]
+        )
+        filename = "notebook_filename.py"
+        directory = "app_data"
+        assert k.globals["app"].defs.get("this_is_foo_file").endswith(filename)
+        assert k.globals["cloned"].defs.get("this_is_foo_file").endswith(filename)
+        assert k.globals["app"].defs.get("this_is_foo_path").stem == directory
+        assert k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
 
 
 class TestAppKernelRunnerRegistry:
