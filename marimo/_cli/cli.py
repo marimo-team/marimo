@@ -56,7 +56,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         click.echo(self.ctx.get_help(), file=file, color=color)
 
 
-def check_app_correctness(filename: str) -> None:
+def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
     try:
         status = get_notebook_status(filename)
     except SyntaxError:
@@ -85,7 +85,8 @@ def check_app_correctness(filename: str) -> None:
         ) from None
 
     # Only show the tip if we're in an interactive terminal
-    if status == "invalid" and sys.stdin.isatty():
+    interactive = sys.stdin.isatty() and not noninteractive
+    if status == "invalid" and interactive:
         click.echo(
             green("tip")
             + ": Use `"
@@ -107,6 +108,29 @@ def check_app_correctness(filename: str) -> None:
         _loggers.marimo_logger().warning(
             "This notebook has errors, saving may lose data. Continuing anyway."
         )
+
+
+def check_app_correctness_or_convert(filename: str) -> None:
+    from marimo._convert.converters import MarimoConvert
+
+    code = ""
+    try:
+        return check_app_correctness(filename, noninteractive=True)
+    except SyntaxError:
+        # Create a single cell with the broken code
+        with open(filename, encoding="utf-8") as f:
+            code = MarimoConvert.from_text(source=f.read()).to_py()
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(code)
+    except click.ClickException:
+        # A click exception is raised if a python script could not be converted
+        with open(filename, encoding="utf-8") as f:
+            code = MarimoConvert.from_non_marimo_python_script(
+                source=f.read(), aggressive=True
+            ).to_py()
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(code)
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
@@ -398,6 +422,14 @@ edit_help_msg = "\n".join(
     hidden=True,
     help="Remote URL for runtime configuration.",
 )
+@click.option(
+    "--auto-convert",
+    is_flag=True,
+    default=False,
+    type=bool,
+    hidden=True,
+    help="Automatically convert the file to a marimo notebook.",
+)
 @click.argument(
     "name",
     required=False,
@@ -419,6 +451,7 @@ def edit(
     watch: bool,
     skew_protection: bool,
     remote_url: Optional[str],
+    auto_convert: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -474,7 +507,10 @@ def edit(
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
-            check_app_correctness(name)
+            if auto_convert:
+                check_app_correctness_or_convert(name)
+            else:
+                check_app_correctness(name)
         elif not is_dir:
             # write empty file
             try:
