@@ -15,10 +15,7 @@ from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 
-from marimo._ast.app import App, InternalApp
 from marimo._ast.compiler import toplevel_cell_factory
-from marimo._ast.toplevel import TopLevelExtraction
-from marimo._runtime.dataflow import DirectedGraph
 
 
 def get_app_from_scope(scope: dict[str, Any]) -> App | None:
