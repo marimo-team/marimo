@@ -216,9 +216,10 @@ class IbisFormatter(FormatterFactory):
 
     Provides custom formatters for tables, columns, and scalar values.
 
-    When eager execution is enabled, tables and values are executed/generated.
-    For unbound expressions, shows textual representation and generated SQL if backend supports SQL.
-    For lazy expressions, shows expression representation and SQL instead of executing.
+    When eager execution is enabled, tables, columns and values are executed
+    and displayed using an appropriate marimo formatter.
+    For lazy expressions, show the query representation and the SQL (if available).
+    For unbound expressions, show the query representation and the SQL.
     """
 
     @staticmethod
