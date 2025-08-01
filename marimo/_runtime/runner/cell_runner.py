@@ -18,6 +18,7 @@ from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
+from marimo._dependencies.utils import get_module_name
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
     Error,
@@ -442,9 +443,7 @@ class Runner:
                 # we should inform that this is a conflict.
                 if isinstance(unwrapped_exception, ModuleNotFoundError):
                     try:
-                        module_name = getattr(unwrapped_exception, "name", "")
-                        # Grab the base module name if it's a submodule
-                        module_name = module_name.split(".")[0]
+                        module_name = get_module_name(unwrapped_exception)
 
                         if Path(
                             f"{module_name}.py"
@@ -457,8 +456,17 @@ class Runner:
                             )
                             LOGGER.error(error_message)
                             exception = output
-                    except Exception as e:
-                        pass
+                        elif DependencyManager.has(module_name):
+                            output = MarimoExceptionRaisedError(
+                                f"The package '{module_name}' is installed but not available. Try restarting the kernel (⌘/Ctrl+K → Restart kernel) to load it.",
+                                unwrapped_exception.__class__.__name__,
+                                None,
+                            )
+                            exception = output
+                    except Exception:
+                        LOGGER.debug(
+                            "Error getting module name", exc_info=True
+                        )
 
             elif isinstance(unwrapped_exception, MarimoStopError):
                 output = unwrapped_exception.output
