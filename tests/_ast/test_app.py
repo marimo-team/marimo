@@ -1049,23 +1049,57 @@ class TestAppComposition:
         assert defs["x"] == 0
         assert "app" not in defs
 
-
+    @staticmethod
     async def test_app_embed_preserves_file_path(
-        self, app: App
+        app: App
     ) -> None:
         with app.setup:
             from tests._ast.app_data import notebook_filename
 
         @app.cell
         async def _():
-            app = await notebook_filename.app.clone().embed()
-            return app
+            app = await notebook_filename.app.embed()
+            cloned = await notebook_filename.app.clone().embed()
+            filename = "notebook_filename.py"
+            directory = "app_data"
+            return (app, cloned, filename, directory)
 
         @app.cell
-        def _(app: App):
-            filename = "test_notebook.py"
-            assert app.defs.get("this_is_foo_file") == filename
-            assert app.defs.get("this_is_foo_path") == filename
+        def _(app: App, filename: str, directory: str) -> None:
+            assert app.defs.get("this_is_foo_file").endswith(filename)
+            assert app.defs.get("this_is_foo_path").stem == directory
+
+        @app.cell
+        def _(cloned: App, filename: str, directory: str) -> None:
+            assert cloned.defs.get("this_is_foo_file").endswith(filename)
+            assert cloned.defs.get("this_is_foo_path").stem == directory
+
+
+    @staticmethod
+    async def test_app_embed_in_kernel(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from tests._ast.app_data import notebook_filename
+                    """
+                ),
+                exec_req.get(
+                    """
+                    app = await notebook_filename.app.embed()
+                    cloned = await notebook_filename.app.clone().embed()
+                    """
+                ),
+            ]
+        )
+        filename = "notebook_filename.py"
+        directory = "app_data"
+        assert k.globals["app"].defs.get("this_is_foo_file").endswith(filename)
+        assert k.globals["cloned"].defs.get("this_is_foo_file").endswith(filename)
+        assert k.globals["app"].defs.get("this_is_foo_path").stem == directory
+        assert k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
 
 
 class TestAppKernelRunnerRegistry:
