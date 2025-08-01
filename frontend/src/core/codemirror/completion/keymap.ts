@@ -29,7 +29,7 @@ export function completionKeymap(): Extension {
     (binding) => !KEYS_TO_REMOVE.has(binding.key),
   );
 
-  const closeCompletionAndPropagate = (view: EditorView) => {
+  const closeCompletionAndPropagate = (view: EditorView): boolean => {
     const status = closeCompletion(view);
     // When in vim mode, we need to propagate Escape to exit insert mode.
     if (isInVimMode(view)) {
