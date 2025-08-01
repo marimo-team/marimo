@@ -1953,19 +1953,19 @@ class TestCacheDecorator:
         app._anonymous_file = True
 
         @app.cell
-        def __():
+        def _():
             import marimo as mo
 
             return (mo,)
 
         @app.cell
-        def __():
+        def _():
             import weakref
 
             return (weakref,)
 
         @app.cell
-        def __(mo, weakref):
+        def _(mo, weakref):
             class Namespace: ...
 
             ns = Namespace()
@@ -1982,7 +1982,7 @@ class TestCacheDecorator:
             )
 
         @app.cell
-        def __(f):
+        def _(f):
             f()
             return
 
@@ -2228,6 +2228,29 @@ class TestCacheDecorator:
         def __(v):
             assert v == 3
             return
+
+    @staticmethod
+    def test_cache_with_mutation_after_def(app) -> None:
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def _(mo):
+            arr = [1, 2, 3]
+
+            @mo.cache
+            def g():
+                return len(arr)
+
+            assert g() == 3
+            arr.append(4)  # Mutation after definition
+            assert g() == 4
+            arr = [1, 2]  # Mutation after definition
+            assert g() == 2
+            return (g, arr)
 
 
 class TestPersistentCache:

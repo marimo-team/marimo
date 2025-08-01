@@ -1053,6 +1053,14 @@ const SetupCellComponent = ({
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
+  const { isCellCodeShown, showHiddenCode } = useCellHiddenLogic({
+    cellId,
+    cellConfig,
+    languageAdapter: "python",
+    editorView,
+    editorViewParentRef,
+  });
+
   // Use the extracted hooks
   const { closeCompletionHandler, resumeCompletionHandler } = useCellCompletion(
     cellRef,
@@ -1120,7 +1128,7 @@ const SetupCellComponent = ({
           title={renderCellTitle()}
           data-setup-cell={true}
         >
-          <div className={cn("tray")} data-hidden={false}>
+          <div className={cn("tray")} data-hidden={!isCellCodeShown}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
                 edited={edited}
@@ -1135,7 +1143,7 @@ const SetupCellComponent = ({
                 name={name}
                 getEditorView={getEditorView}
                 onRun={runCell}
-                includeCellActions={false}
+                includeCellActions={true}
               />
             </div>
             <CellEditor
@@ -1151,9 +1159,9 @@ const SetupCellComponent = ({
               userConfig={userConfig}
               editorViewRef={editorView}
               editorViewParentRef={editorViewParentRef}
-              hidden={false}
+              hidden={!isCellCodeShown}
               hasOutput={hasOutput}
-              showHiddenCode={Functions.NOOP}
+              showHiddenCode={showHiddenCode}
               languageAdapter={"python"}
               setLanguageAdapter={Functions.NOOP}
               showLanguageToggles={false}

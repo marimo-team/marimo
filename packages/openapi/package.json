@@ -16,7 +16,7 @@
     "codegen:notebook": "openapi-typescript ../../marimo/_schemas/generated/notebook.yaml -o ./src/notebook.ts"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.3.0"
+    "openapi-typescript": "^7.8.0"
   },
   "dependencies": {
     "openapi-fetch": "0.9.7"

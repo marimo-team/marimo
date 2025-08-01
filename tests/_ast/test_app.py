@@ -1102,6 +1102,45 @@ class TestAppComposition:
         assert k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
 
 
+    @staticmethod
+    def test_setup_hide_code() -> None:
+        # Test property access (default behavior, hide_code=False)
+        app1 = App()
+        with app1.setup:
+            x = 1
+
+        setup_cell = app1._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is False
+
+        # Test method call with default (hide_code=False)
+        app2 = App()
+        with app2.setup():
+            x2 = 1
+
+        setup_cell = app2._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is False
+
+        # Test hide_code=True
+        app3 = App()
+        with app3.setup(hide_code=True):
+            y = 2
+
+        setup_cell = app3._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is True
+
+        # Test explicit hide_code=False
+        app4 = App()
+        with app4.setup(hide_code=False):
+            z = 3
+
+        setup_cell = app4._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is False
+
+
 class TestAppKernelRunnerRegistry:
     def test_get_runner(self, k: Kernel) -> None:
         # `k` fixture installs a context, needed for AppKernelRunner

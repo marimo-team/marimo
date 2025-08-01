@@ -101,6 +101,7 @@ nav:
           - Importing packages: guides/package_management/importing_packages.md
           - Installing packages: guides/package_management/installing_packages.md
           - Inlining dependencies: guides/package_management/inlining_dependencies.md
+          - Notebooks in existing projects: guides/package_management/notebooks_in_projects.md
           - Using uv: guides/package_management/using_uv.md
       - Generate with AI:
           - Generate with AI: guides/generate_with_ai/index.md

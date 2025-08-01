@@ -158,9 +158,14 @@ def build_setup_section(setup_cell: Optional[CellImpl]) -> str:
     if has_only_comments:
         block += "\npass"
 
+    if setup_cell.config.hide_code:
+        setup_line = f"{prefix}with app.setup(hide_code=True):"
+    else:
+        setup_line = f"{prefix}with app.setup:"
+
     return "\n".join(
         [
-            f"{prefix}with app.setup:",
+            setup_line,
             indent_text(block),
             "\n",
         ]

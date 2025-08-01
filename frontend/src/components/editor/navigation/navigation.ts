@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
+import { EditorSelection } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
@@ -600,23 +602,61 @@ export function useCellNavigationProps(
  *
  * Handles both keyboard and mouse navigation.
  */
-export function useCellEditorNavigationProps(cellId: CellId) {
+export function useCellEditorNavigationProps(
+  cellId: CellId,
+  editorView: React.RefObject<EditorView | null>,
+) {
   const setTemporarilyShownCode = useSetAtom(temporarilyShownCodeAtom);
   const keymapPreset = useAtomValue(keymapPresetAtom);
+
+  const exitToCommandMode = () => {
+    setTemporarilyShownCode(false);
+    focusCell(cellId);
+  };
+
+  const handleEscape = () => {
+    // If there is a text selection or autocomplete popup in the editor, we clear those and return.
+    // Subsequent 'Escapes' will exit to command mode.
+
+    if (!editorView.current) {
+      // If no editor, we can exit to command mode immediately
+      exitToCommandMode();
+      return;
+    }
+
+    const view = editorView.current;
+    const state = view.state;
+
+    const hasTextSelection =
+      state.selection.main.from !== state.selection.main.to;
+
+    if (hasTextSelection) {
+      view.dispatch({
+        selection: EditorSelection.single(state.selection.main.from), // Cursor to the start of the selection
+      });
+      return;
+    }
+
+    const hasAutocompletePopup = completionStatus(state) !== null;
+    if (hasAutocompletePopup) {
+      closeCompletion(view);
+      return;
+    }
+
+    exitToCommandMode();
+  };
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
       // For vim mode, require Ctrl+Escape (or Cmd+Escape on Mac) to exit to command mode
       if (keymapPreset === "vim") {
         if (evt.key === "Escape" && (evt.ctrlKey || evt.metaKey)) {
-          setTemporarilyShownCode(false);
-          focusCell(cellId);
+          handleEscape();
         }
       } else {
         // For non-vim mode, regular Escape exits to command mode
         if (evt.key === "Escape") {
-          setTemporarilyShownCode(false);
-          focusCell(cellId);
+          handleEscape();
         }
       }
 
