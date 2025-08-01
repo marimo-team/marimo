@@ -102,6 +102,8 @@ class ColumnSummaries:
     is_disabled: Optional[bool] = None
 
 
+ShowColumnSummaries = Union[bool, Literal["stats", "chart"]]
+
 DEFAULT_MAX_COLUMNS = 50
 
 MaxColumnsNotProvided = Literal["inherit"]
@@ -408,9 +410,7 @@ class table(
             Union[list[int], list[tuple[str, str]]]
         ] = None,
         page_size: Optional[int] = None,
-        show_column_summaries: Optional[
-            Union[bool, Literal["stats", "chart"]]
-        ] = None,
+        show_column_summaries: Optional[ShowColumnSummaries] = None,
         show_data_types: bool = True,
         format_mapping: Optional[
             dict[str, Union[str, Callable[..., Any]]]
@@ -499,7 +499,9 @@ class table(
                     >= TableManager.DEFAULT_SUMMARY_CHARTS_MINIMUM_ROWS
                 )
             )
-        self._show_column_summaries = show_column_summaries
+        self._show_column_summaries: ShowColumnSummaries = (
+            show_column_summaries
+        )
 
         if _internal_column_charts_row_limit is not None:
             self._column_charts_row_limit = _internal_column_charts_row_limit
@@ -824,7 +826,9 @@ class table(
                 If summaries are disabled or row limit is exceeded, returns empty
                 summaries with is_disabled flag set appropriately.
         """
-        if not self._show_column_summaries:
+        show_column_summaries = self._show_column_summaries
+
+        if not show_column_summaries:
             return ColumnSummaries(
                 data=None,
                 stats={},
@@ -857,7 +861,7 @@ class table(
         )
 
         # Get column stats if not chart-only mode
-        should_get_stats = self._show_column_summaries != "chart"
+        should_get_stats = show_column_summaries != "chart"
         stats: dict[ColumnName, ColumnStats] = {}
 
         chart_data = None
@@ -869,6 +873,7 @@ class table(
         DEFAULT_VALUE_COUNTS_SIZE = 15
 
         for column in self._manager.get_column_names():
+            statistic = None
             if should_get_stats:
                 try:
                     statistic = self._searched_manager.get_stats(column)
@@ -880,7 +885,9 @@ class table(
 
             if should_get_chart_data and args.precompute:
                 if not should_get_stats:
-                    LOGGER.warning("Please enable stats to precompute charts")
+                    LOGGER.warning(
+                        "Unable to compute stats for column, may not be computed correctly"
+                    )
 
                 # For boolean columns, we can drop the column since we use stats
                 column_type = self._manager.get_field_type(column)
@@ -919,11 +926,13 @@ class table(
                         )
 
                 try:
-                    bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
-                    if len(bins) > 0:
-                        bin_values[column] = bins
-                        data = data.drop_columns([column])
-                        continue
+                    if statistic and statistic.nulls == total_rows:
+                        bins = []
+                    else:
+                        bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
+                    bin_values[column] = bins
+                    data = data.drop_columns([column])
+                    continue
                 except BaseException as e:
                     LOGGER.warning(
                         "Failed to get bin values for column %s: %s", column, e

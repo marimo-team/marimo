@@ -142,7 +142,6 @@ export class ColumnChartSpecModel<T> {
 
     const usePreComputedValues = this.opts.usePreComputedValues;
     const binValues = this.columnBinValues.get(column);
-    const hasBinValues = binValues && binValues.length > 0;
     const valueCounts = this.columnValueCounts.get(column);
     const hasValueCounts = valueCounts && valueCounts.length > 0;
 
@@ -150,18 +149,18 @@ export class ColumnChartSpecModel<T> {
     const stats = this.columnStats.get(column);
 
     if (usePreComputedValues) {
-      if (hasBinValues) {
-        const values = binValues;
+      if (hasValueCounts) {
+        data = { values: valueCounts, name: "value_counts" };
+      } else {
+        // Bin values can be empty if all values are nulls
         if (stats?.nulls) {
-          values.push({
+          binValues?.push({
             bin_start: null,
             bin_end: null,
             count: stats.nulls as number,
           });
         }
-        data = { values, name: "bin_values" };
-      } else if (hasValueCounts) {
-        data = { values: valueCounts, name: "value_counts" };
+        data = { values: binValues, name: "bin_values" };
       }
     }
 
@@ -195,12 +194,12 @@ export class ColumnChartSpecModel<T> {
       case "date":
       case "datetime":
       case "time": {
-        if (!usePreComputedValues || !hasBinValues) {
+        if (!usePreComputedValues) {
           return getLegacyTemporalSpec(column, type, base, scale);
         }
 
-        const tooltip = getPartialTimeTooltip(binValues);
-        const singleValue = binValues.length === 1;
+        const tooltip = getPartialTimeTooltip(binValues || []);
+        const singleValue = binValues?.length === 1;
 
         // Single value charts can be displayed as a full bar
         if (singleValue) {
@@ -430,7 +429,7 @@ export class ColumnChartSpecModel<T> {
         // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
 
-        if (!usePreComputedValues || !hasBinValues) {
+        if (!usePreComputedValues) {
           return getLegacyNumericSpec(column, format, base);
         }
 
