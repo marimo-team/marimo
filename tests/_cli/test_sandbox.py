@@ -8,6 +8,7 @@ from marimo._cli.sandbox import (
     construct_uv_command,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
+from marimo._utils.uv import find_uv_bin
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -121,7 +122,7 @@ def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0] == find_uv_bin()
     assert uv_cmd[1] == "run"
 
 
@@ -136,7 +137,7 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0] == find_uv_bin()
     assert uv_cmd[1] == "run"
 
 
@@ -152,7 +153,7 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         additional_deps=[],
     )
     assert "--refresh" not in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0] == find_uv_bin()
     assert uv_cmd[1] == "run"
 
 
@@ -185,7 +186,7 @@ import marimo
 def test_construct_uv_cmd_with_index_urls() -> None:
     pyproject = {
         "tool": {
-            "uv": {
+            find_uv_bin(): {
                 "index-url": "https://custom.pypi.org/simple",
                 "extra-index-url": [
                     "https://extra1.pypi.org/simple",
@@ -212,7 +213,7 @@ def test_construct_uv_cmd_with_index_urls() -> None:
 def test_construct_uv_cmd_with_index_configs() -> None:
     pyproject = {
         "tool": {
-            "uv": {
+            find_uv_bin(): {
                 "index": [
                     {
                         "name": "torch-gpu",
