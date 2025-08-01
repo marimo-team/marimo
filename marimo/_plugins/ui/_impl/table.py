@@ -1001,16 +1001,35 @@ class table(
         We return a URL instead of the data directly
         so the browser can cache requests
         """
-        try:
-            data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
-            return data_url, "arrow"
-        except NotImplementedError:
+        if DependencyManager.pyarrow.has():
             try:
-                data_url = mo_data.csv(table_manager.to_csv({})).url
-                return data_url, "csv"
-            except ValueError:
-                data_url = mo_data.json(table_manager.to_json({})).url
-                return data_url, "json"
+                data_url = mo_data.arrow(table_manager.to_arrow_ipc()).url
+                return data_url, "arrow"
+            except NotImplementedError:
+                LOGGER.debug(
+                    "Arrow export not implemented, falling back to CSV."
+                )
+            except Exception as e:
+                LOGGER.error("Unexpected error exporting Arrow: %s", e)
+
+        # Try CSV
+        try:
+            data_url = mo_data.csv(table_manager.to_csv({})).url
+            return data_url, "csv"
+        except (ValueError, NotImplementedError):
+            LOGGER.debug("CSV export failed, falling back to JSON.")
+        except Exception as e:
+            LOGGER.error("Unexpected error exporting CSV: %s", e)
+
+        # Fallback to JSON
+        try:
+            data_url = mo_data.json(table_manager.to_json({})).url
+            return data_url, "json"
+        except Exception as e:
+            LOGGER.error(
+                "Failed to export table data as Arrow, CSV, or JSON: %s", e
+            )
+            raise
 
     def _get_data_url(self, args: EmptyArgs) -> GetDataUrlResponse:
         """Get the data URL for the entire table. Used for charting."""

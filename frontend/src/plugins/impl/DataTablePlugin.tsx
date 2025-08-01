@@ -730,6 +730,8 @@ const DataTableComponent = ({
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
+    const performantCharts = getFeatureFlag("performant_table_charts");
+
     return new ColumnChartSpecModel(
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
@@ -737,8 +739,9 @@ const DataTableComponent = ({
       columnSummaries.bin_values,
       columnSummaries.value_counts,
       {
-        includeCharts: Boolean(columnSummaries.data),
-        usePreComputedValues: getFeatureFlag("performant_table_charts"),
+        // If performant charts are enabled, it does not use columnSummaries.data
+        includeCharts: performantCharts || Boolean(columnSummaries.data),
+        usePreComputedValues: performantCharts,
       },
     );
   }, [fieldTypes, columnSummaries]);
