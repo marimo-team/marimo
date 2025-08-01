@@ -84,6 +84,7 @@ class _cache_call:
         "_bound",
         "_last_hash",
         "_frame_offset",
+        "_external",
         "__wrapped__",
     )
 
@@ -100,6 +101,7 @@ class _cache_call:
     _bound: Optional[dict[str, Any]]
     _last_hash: Optional[str]
     _frame_offset: int
+    _external: bool
     # Consistent with functools.cache
     __wrapped__: Optional[Callable[..., Any]]
 
@@ -123,6 +125,7 @@ class _cache_call:
         self._var_kwarg = None
         self._loader = None
         self._bound = {}
+        self._external = False
         if _fn is None:
             self.__wrapped__ = None
         else:
@@ -137,16 +140,19 @@ class _cache_call:
     def _set_context(self, fn: Callable[..., Any]) -> None:
         assert callable(fn), "the provided function must be callable"
         ctx = safe_get_context()
+        # If we are loaded from a module, then we have no context.
         if ctx and ctx.execution_context is not None:
             cell_id = (
                 ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
             )
             graph = ctx.graph
             glbls = ctx.globals
+            self._external = False
         else:
             cell_id = CellId_t("")
             graph = None
             glbls = {}
+            self._external = True
 
         self.__wrapped__ = fn
         sig = inspect.signature(fn)
@@ -244,7 +250,9 @@ class _cache_call:
     def __get__(
         self, instance: Any, _owner: Optional[type] = None
     ) -> _cache_call:
-        """__get__ is invoked on instance access;
+        """Enable @cache as a method decorator.
+
+        __get__ is invoked on instance access;
             e.g. `obj.fn` (__get__ called on `fn`)
         `instance` is the specific object, while owner is `type(instance)`.
 
@@ -311,9 +319,20 @@ class _cache_call:
         glbls: dict[str, Any] = {}
         if ctx is not None:
             glbls = ctx.globals
+        # Typically, scope is overridden by globals (scope is just a snapshot of
+        # the current frame, which may have changed)- however in an external
+        # context, scope is the only source of glbls (the definition should be
+        # unaware of working memory).
         scope = {
             **self.scope,
-            **glbls,
+        }
+        if not self._external:
+            scope = {
+                **scope,
+                **glbls,
+            }
+        scope = {
+            **scope,
             **arg_dict,
             **kwargs_copy,
             **(self._bound or {}),
