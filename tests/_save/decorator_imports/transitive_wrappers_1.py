@@ -5,6 +5,7 @@ app = marimo.App()
 
 with app.setup:
     import functools
+
     import marimo as mo
 
     # This will be an impure decorator (contains non-primitive objects)

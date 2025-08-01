@@ -34,7 +34,6 @@ from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._save.cache import Cache, CacheException
-from marimo._save.toplevel import graph_from_scope
 from marimo._save.hash import (
     DEFAULT_HASH,
     BlockHasher,
@@ -50,6 +49,7 @@ from marimo._save.loaders import (
     MemoryLoader,
 )
 from marimo._save.stores.file import FileStore
+from marimo._save.toplevel import graph_from_scope
 from marimo._types.ids import CellId_t
 from marimo._utils.with_skip import SkipContext
 
