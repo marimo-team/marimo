@@ -55,13 +55,17 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
         "mcp_docs", False
     )
 
+    mcp_client = None  # Track MCP client for cleanup
+
     # Only start MCP servers in Edit mode
     if session_mgr.mode == SessionMode.EDIT and mcp_docs_enabled:
-        # add MCP server here after it is implemented
         try:
             from marimo._server.ai.mcp import get_mcp_client
 
             mcp_client = get_mcp_client()
+            LOGGER.warning(
+                "MCP servers are experimental and may not work as expected"
+            )
             if mcp_client and mcp_client.servers:
                 LOGGER.debug(
                     f"Starting MCP servers: {list(mcp_client.servers.keys())}"
@@ -76,6 +80,17 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
             LOGGER.warning(f"Failed to connect MCP servers: {e}")
 
     yield
+
+    # Clean up MCP connections on shutdown
+    if mcp_client:
+        try:
+            LOGGER.info(
+                f"About to disconnect from all MCP servers in task: {id(asyncio.current_task())}"
+            )
+            await mcp_client.disconnect_from_all_servers()
+            LOGGER.info("Successfully disconnected from all MCP servers")
+        except Exception as e:
+            LOGGER.error(f"Error during MCP cleanup: {e}")
 
 
 @contextlib.asynccontextmanager

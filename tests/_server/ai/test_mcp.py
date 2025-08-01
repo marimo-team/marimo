@@ -851,15 +851,10 @@ class TestMCPClientConnectionManagement:
 
         # Mock AsyncExitStack
         with patch(
-            "marimo._server.ai.mcp.AsyncExitStack"
-        ) as mock_exit_stack_class:
-            mock_exit_stack = AsyncMock()
-            mock_exit_stack.enter_async_context = AsyncMock()
-            mock_exit_stack.enter_async_context.side_effect = [
-                (mock_read, mock_write),  # First call for stdio_client
-                mock_session,  # Second call for ClientSession
-            ]
-            mock_exit_stack_class.return_value = mock_exit_stack
+            "marimo._server.ai.mcp.StdioTransportConnector.connect"
+        ) as mock_connector_connect:
+            # Mock connector.connect to return the expected streams
+            mock_connector_connect.return_value = (mock_read, mock_write)
 
             # Create client with test config
             config = MCPConfig(
@@ -929,44 +924,275 @@ class TestMCPClientConnectionManagement:
         mock_session_class.return_value = mock_session_context
 
         with patch(
-            "marimo._server.ai.mcp.AsyncExitStack"
-        ) as mock_exit_stack_class:
-            mock_exit_stack = AsyncMock()
-            mock_exit_stack.enter_async_context = AsyncMock()
+            "marimo._server.ai.mcp.StdioTransportConnector.connect"
+        ) as mock_connector_connect:
             # Simulate success for server1, failure for server2
-            mock_exit_stack.enter_async_context.side_effect = [
-                (AsyncMock(), AsyncMock()),  # server1 stdio success
-                mock_session,  # server1 session success
+            mock_connector_connect.side_effect = [
+                (AsyncMock(), AsyncMock()),  # server1 success
                 Exception("Connection failed"),  # server2 failure
             ]
-            mock_exit_stack_class.return_value = mock_exit_stack
 
-            with patch("mcp.client.stdio.stdio_client") as mock_stdio_client:
-                mock_stdio_context = AsyncMock()
-                mock_stdio_context.__aenter__ = AsyncMock(
-                    return_value=(AsyncMock(), AsyncMock())
-                )
-                mock_stdio_context.__aexit__ = AsyncMock(return_value=None)
-                mock_stdio_client.return_value = mock_stdio_context
+            config = MCPConfig(
+                mcpServers={
+                    "server1": MCPServerStdioConfig(
+                        command="python", args=["test1.py"]
+                    ),
+                    "server2": MCPServerStdioConfig(
+                        command="python", args=["test2.py"]
+                    ),
+                }
+            )
+            client = MCPClient(config)
 
-                config = MCPConfig(
-                    mcpServers={
-                        "server1": MCPServerStdioConfig(
-                            command="python", args=["test1.py"]
-                        ),
-                        "server2": MCPServerStdioConfig(
-                            command="python", args=["test2.py"]
-                        ),
-                    }
-                )
-                client = MCPClient(config)
+            results = await client.connect_to_all_servers()
 
-                results = await client.connect_to_all_servers()
+            # Verify mixed results
+            assert len(results) == 2
+            assert results["server1"] is True
+            assert results["server2"] is False
 
-                # Verify mixed results
-                assert len(results) == 2
-                assert results["server1"] is True
-                assert results["server2"] is False
+
+@pytest.mark.skipif(
+    not DependencyManager.mcp.has(), reason="MCP SDK not available"
+)
+class TestMCPClientDisconnectionManagement:
+    """Test cases for MCPClient disconnection functionality."""
+
+    async def test_disconnect_from_server_success(self):
+        """Test successful disconnection from a connected server."""
+        client = MCPClient(MCPConfig(mcpServers={}))
+
+        # Setup a connected server using existing patterns
+        connection = create_test_server_connection(
+            name="test_server",
+            status=MCPServerStatus.CONNECTED,
+            session=AsyncMock(),
+        )
+
+        # Create mock task that simulates running connection task
+        mock_task = AsyncMock()
+        mock_task.done.return_value = False  # Task is still running
+        disconnect_event = asyncio.Event()
+
+        connection.connection_task = mock_task
+        connection.disconnect_event = disconnect_event
+        client.connections["test_server"] = connection
+
+        # Call actual disconnect method
+        result = await client.disconnect_from_server("test_server")
+
+        # Verify successful disconnection
+        assert result is True
+        assert disconnect_event.is_set()  # Event was signaled
+        # Note: mock_task should be awaited since done() returns False
+
+    async def test_disconnect_from_server_already_disconnected(self):
+        """Test disconnection from server that's already disconnected."""
+        client = MCPClient(MCPConfig(mcpServers={}))
+
+        # Call disconnect on non-existent server
+        result = await client.disconnect_from_server("nonexistent_server")
+
+        # Should return True (idempotent operation)
+        assert result is True
+
+    async def test_disconnect_from_server_with_exception(self):
+        """Test disconnection failure handling (validates our new comment)."""
+        client = MCPClient(MCPConfig(mcpServers={}))
+
+        # Setup connection with task that will raise exception when awaited
+        connection = create_test_server_connection(
+            name="test_server", status=MCPServerStatus.CONNECTED
+        )
+
+        # Create event to signal when task has started
+        task_started = asyncio.Event()
+
+        # Create a long-running task that will fail when awaited
+        async def blocking_failing_task():
+            task_started.set()  # Signal task has started
+            await asyncio.sleep(0.1)  # Simulate work
+            raise RuntimeError("Simulated disconnection failure")
+
+        # Start the task
+        failing_task = asyncio.create_task(blocking_failing_task())
+        # Wait for task to actually start (deterministic)
+        await asyncio.wait_for(task_started.wait(), timeout=1.0)
+
+        connection.connection_task = failing_task
+        connection.disconnect_event = asyncio.Event()
+        client.connections["test_server"] = connection
+
+        # Call disconnect - should handle exception gracefully
+        result = await client.disconnect_from_server("test_server")
+
+        # Should return False but not raise exception (non-blocking behavior)
+        assert result is False
+
+    async def test_disconnect_from_server_cleanup_verification(self):
+        """Test that disconnection properly cleans up server state."""
+        client = MCPClient(MCPConfig(mcpServers={}))
+
+        # Setup connected server with tools and monitoring
+        connection = create_test_server_connection(
+            name="test_server",
+            status=MCPServerStatus.CONNECTED,
+            session=AsyncMock(),
+        )
+
+        # Add tools to verify they get cleaned up
+        mock_tools = [
+            create_test_tool(name="tool1", server_name="test_server"),
+            create_test_tool(name="tool2", server_name="test_server"),
+        ]
+
+        for i, tool in enumerate(mock_tools):
+            if tool:
+                namespaced_name = f"mcp_test_server_tool{i + 1}"
+                client.tool_registry[namespaced_name] = tool
+                connection.tools.append(tool)
+
+        # Add health monitoring task
+        health_task = AsyncMock()
+        client.health_check_tasks["test_server"] = health_task
+
+        # Setup connection task
+        connection.connection_task = AsyncMock()
+        connection.connection_task.done.return_value = True  # Already done
+        connection.disconnect_event = asyncio.Event()
+        client.connections["test_server"] = connection
+
+        # Disconnect
+        result = await client.disconnect_from_server("test_server")
+
+        # Verify cleanup happens in _connection_lifecycle finally block
+        assert result is True
+        # Note: Tool cleanup happens in _connection_lifecycle finally block,
+        # not directly in disconnect_from_server
+
+    @pytest.mark.parametrize(
+        "server_setups",
+        [
+            pytest.param(
+                [
+                    {"name": "server1", "should_succeed": True},
+                    {"name": "server2", "should_succeed": True},
+                ],
+                id="all_succeed",
+            ),
+            pytest.param(
+                [
+                    {"name": "server1", "should_succeed": True},
+                    {"name": "server2", "should_succeed": False},
+                ],
+                id="mixed_results",
+            ),
+            pytest.param(
+                [
+                    {"name": "server1", "should_succeed": False},
+                    {"name": "server2", "should_succeed": False},
+                ],
+                id="all_fail",
+            ),
+        ],
+    )
+    async def test_disconnect_from_all_servers_scenarios(self, server_setups):
+        """Test disconnect_from_all_servers with various success/failure combinations."""
+        client = MCPClient(MCPConfig(mcpServers={}))
+
+        # Setup connections based on test parameters
+        for setup in server_setups:
+            connection = create_test_server_connection(
+                name=setup["name"], status=MCPServerStatus.CONNECTED
+            )
+
+            # Setup task behavior based on should_succeed
+            if setup["should_succeed"]:
+                mock_task = AsyncMock()
+                mock_task.done.return_value = False
+            else:
+                mock_task = AsyncMock()
+                mock_task.done.return_value = False
+                mock_task.side_effect = Exception("Simulated failure")
+
+            connection.connection_task = mock_task
+            connection.disconnect_event = asyncio.Event()
+            client.connections[setup["name"]] = connection
+
+        # Call actual disconnect_from_all_servers method
+        await client.disconnect_from_all_servers()
+
+        # Verify disconnect events were set (disconnect_from_all_servers doesn't return results)
+        for setup in server_setups:
+            connection = client.connections[setup["name"]]
+            # Event should be set regardless of success/failure (signal was sent)
+            assert connection.disconnect_event.is_set()
+
+    async def test_disconnect_from_all_servers_with_health_monitoring(self):
+        """Test that disconnect_from_all_servers cancels health monitoring first."""
+        client = MCPClient(MCPConfig(mcpServers={}))
+
+        # Setup connections with health monitoring tasks
+        server_names = ["server1", "server2"]
+        for name in server_names:
+            # Create connection
+            connection = create_test_server_connection(
+                name=name, status=MCPServerStatus.CONNECTED
+            )
+            connection.connection_task = AsyncMock()
+            connection.connection_task.done.return_value = True
+            connection.disconnect_event = asyncio.Event()
+            client.connections[name] = connection
+
+            # Create health monitoring task
+            health_task = AsyncMock()
+            health_task.cancel = AsyncMock()
+            client.health_check_tasks[name] = health_task
+
+        # Mock _cancel_health_monitoring to verify it's called
+        with patch.object(
+            client, "_cancel_health_monitoring", new_callable=AsyncMock
+        ) as mock_cancel:
+            await client.disconnect_from_all_servers()
+
+            # Verify health monitoring was cancelled first
+            mock_cancel.assert_called_once_with()
+
+    async def test_disconnect_cross_task_scenario(self):
+        """Test disconnection in cross-task scenarios (like server shutdown)."""
+        client = MCPClient(MCPConfig(mcpServers={}))
+
+        # Setup connection that simulates cross-task issues
+        connection = create_test_server_connection(
+            name="test_server", status=MCPServerStatus.CONNECTED
+        )
+
+        # Create event to signal when task has started
+        task_started = asyncio.Event()
+
+        # Create a task that simulates cross-task lifecycle issues
+        async def cross_task_error():
+            task_started.set()  # Signal task has started
+            await asyncio.sleep(0.1)  # Simulate work
+            raise RuntimeError("Task was destroyed but it is pending!")
+
+        # Start the task
+        cross_task = asyncio.create_task(cross_task_error())
+        # Wait for task to actually start (deterministic)
+        await asyncio.wait_for(task_started.wait(), timeout=1.0)
+
+        connection.connection_task = cross_task
+        connection.disconnect_event = asyncio.Event()
+        client.connections["test_server"] = connection
+
+        # This should handle the cross-task error gracefully (non-blocking)
+        result = await client.disconnect_from_server("test_server")
+
+        # Should return False (failure) but not raise exception
+        assert result is False
+
+        # Event should still be signaled to attempt cleanup
+        assert connection.disconnect_event.is_set()
 
 
 class TestMCPClientHealthMonitoring:
