@@ -14,7 +14,7 @@ class TestDecoratorImports:
     def test_has_shared_import(app) -> None:
         with app.setup:
             import marimo as mo
-            from tests._save.decorator_imports.transitive_imports import (
+            from tests._save.external_decorators.transitive_imports import (
                 has_import,
             )
 
@@ -26,7 +26,7 @@ class TestDecoratorImports:
     @staticmethod
     def test_doesnt_have_shared_import(app) -> None:
         with app.setup:
-            from tests._save.decorator_imports.transitive_imports import (
+            from tests._save.external_decorators.transitive_imports import (
                 doesnt_have_import,
             )
 
@@ -38,13 +38,13 @@ class TestDecoratorImports:
     @staticmethod
     def test_has_dep_with_differing_name_works(app) -> None:
         for module in list(sys.modules.keys()):
-            if module.startswith("tests._save.decorator_imports"):
+            if module.startswith("tests._save.external_decorators"):
                 del sys.modules[module]
 
         with app.setup:
             import marimo as mo
-            import tests._save.decorator_imports.module_0 as my_module
-            from tests._save.decorator_imports.transitive_imports import (
+            import tests._save.external_decorators.module_0 as my_module
+            from tests._save.external_decorators.transitive_imports import (
                 doesnt_have_namespace as other,
                 doesnt_have_namespace_pinned as other_pinned,
             )
@@ -87,15 +87,15 @@ class TestDecoratorImports:
                     code=textwrap.dedent(
                         """
                 import marimo as mo
-                import tests._save.decorator_imports.module_0 as my_module
-                from tests._save.decorator_imports.transitive_imports import (
+                import tests._save.external_decorators.module_0 as my_module
+                from tests._save.external_decorators.transitive_imports import (
                     doesnt_have_namespace as other,
                     doesnt_have_namespace_pinned as other_pinned,
                 )
-                from tests._save.decorator_imports.transitive_imports import (
+                from tests._save.external_decorators.transitive_imports import (
                     doesnt_have_import,
                 )
-                from tests._save.decorator_imports.transitive_imports import has_import
+                from tests._save.external_decorators.transitive_imports import has_import
                 """
                     ),
                 ),
@@ -140,10 +140,10 @@ class TestDecoratorTransitiveFns:
     @staticmethod
     async def test_impure_decorator_with_pure_dependencies(app) -> None:
         with app.setup:
-            from tests._save.decorator_imports.transitive_wrappers_1 import (
+            from tests._save.external_decorators.transitive_wrappers_1 import (
                 pure_wrapped_impure,
             )
-            from tests._save.decorator_imports.transitive_wrappers_2 import (
+            from tests._save.external_decorators.transitive_wrappers_2 import (
                 pure_wrapped_impure as pure_wrapped_impure_2,
             )
 
@@ -183,10 +183,10 @@ class TestDecoratorTransitiveFns:
     @staticmethod
     async def test_pure_decorator_with_impure_dependencies(app) -> None:
         with app.setup:
-            from tests._save.decorator_imports.transitive_wrappers_1 import (
+            from tests._save.external_decorators.transitive_wrappers_1 import (
                 impure_wrapped_pure,
             )
-            from tests._save.decorator_imports.transitive_wrappers_2 import (
+            from tests._save.external_decorators.transitive_wrappers_2 import (
                 impure_wrapped_pure as impure_wrapped_pure_2,
             )
 
