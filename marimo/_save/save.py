@@ -34,6 +34,7 @@ from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._save.cache import Cache, CacheException
+from marimo._save.toplevel import graph_from_scope
 from marimo._save.hash import (
     DEFAULT_HASH,
     BlockHasher,
@@ -149,7 +150,7 @@ class _cache_call:
             glbls = ctx.globals
             self._external = False
         else:
-            cell_id = CellId_t("")
+            cell_id = CellId_t("self")
             graph = None
             glbls = {}
             self._external = True
@@ -213,9 +214,12 @@ class _cache_call:
 
         module = strip_function(self.__wrapped__)
 
+        if graph is None:
+            graph = graph_from_scope(self.__wrapped__, self.scope)
+
         self.base_block = BlockHasher(
             module=module,
-            graph=graph or DirectedGraph(),
+            graph=graph,
             cell_id=cell_id,
             scope=self.scope,
             pin_modules=self.pin_modules,

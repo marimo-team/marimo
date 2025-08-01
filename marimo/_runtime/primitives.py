@@ -208,8 +208,9 @@ def is_pure_function(
     # We assume all external module function references to be pure. Cache can
     # still be be invalidated by pin_modules attribute. Note this also captures
     # cases like functors from an external module.
-    # TODO: Investigate embedded notebook values.
-    if getattr(value, "__module__", None) != "__main__":
+    is_lib = getattr(value, "__module__", None) != "__main__"
+    is_marimo_lib = graph is not None and "self" in graph.cells
+    if is_lib and not is_marimo_lib:
         return True
 
     cache[value] = True  # Prevent recursion

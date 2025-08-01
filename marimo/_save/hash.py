@@ -587,8 +587,6 @@ class BlockHasher:
             #
             # Get a transitive closure over the object, and attempt to pickle
             # each dependent object.
-            #
-            # TODO: Maybe just try dill?
             closure = self.graph.get_transitive_references(
                 unhashable,
                 predicate=build_ref_predicate_for_primitives(

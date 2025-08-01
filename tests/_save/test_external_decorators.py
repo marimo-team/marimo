@@ -14,13 +14,14 @@ class TestDecoratorImports:
     def test_has_shared_import(app) -> None:
         with app.setup:
             import marimo as mo
-            from tests._save.decorator_imports.transitive_imports import has_import
+            from tests._save.decorator_imports.transitive_imports import (
+                has_import,
+            )
 
         @app.cell
         def has_dep_works() -> tuple[int]:
             # matches test + use mo for lint
             assert has_import() == len([mo])
-
 
     @staticmethod
     def test_doesnt_have_shared_import(app) -> None:
@@ -33,7 +34,6 @@ class TestDecoratorImports:
         def doesnt_have_dep_works() -> tuple[int]:
             # Counts modules on call.
             assert doesnt_have_import() == 2
-
 
     @staticmethod
     def test_has_dep_with_differing_name_works(app) -> None:
@@ -74,7 +74,6 @@ class TestDecoratorImports:
             other_hash_pinned = other_pinned._last_hash
             assert doesnt_have_namespace_pinned() == my_module.__version__
             assert other_hash_pinned != doesnt_have_namespace_pinned._last_hash
-
 
     @staticmethod
     async def test_decorator_in_kernel(
@@ -141,8 +140,12 @@ class TestDecoratorTransitiveFns:
     @staticmethod
     async def test_impure_decorator_with_pure_dependencies(app) -> None:
         with app.setup:
-            from tests._save.decorator_imports.transitive_wrappers_1 import pure_wrapped_impure
-            from tests._save.decorator_imports.transitive_wrappers_2 import pure_wrapped_impure as pure_wrapped_impure_2
+            from tests._save.decorator_imports.transitive_wrappers_1 import (
+                pure_wrapped_impure,
+            )
+            from tests._save.decorator_imports.transitive_wrappers_2 import (
+                pure_wrapped_impure as pure_wrapped_impure_2,
+            )
 
         @app.cell
         def _():
@@ -180,8 +183,12 @@ class TestDecoratorTransitiveFns:
     @staticmethod
     async def test_pure_decorator_with_impure_dependencies(app) -> None:
         with app.setup:
-            from tests._save.decorator_imports.transitive_wrappers_1 import impure_wrapped_pure
-            from tests._save.decorator_imports.transitive_wrappers_2 import impure_wrapped_pure as impure_wrapped_pure_2
+            from tests._save.decorator_imports.transitive_wrappers_1 import (
+                impure_wrapped_pure,
+            )
+            from tests._save.decorator_imports.transitive_wrappers_2 import (
+                impure_wrapped_pure as impure_wrapped_pure_2,
+            )
 
         @app.cell
         def _():
@@ -194,7 +201,6 @@ class TestDecoratorTransitiveFns:
             result2 = impure_wrapped_pure_2()
             hash2 = impure_wrapped_pure_2._last_hash
             cache_type2 = impure_wrapped_pure_2.base_block.cache_type
-
 
         @app.cell
         def check_results() -> None:
