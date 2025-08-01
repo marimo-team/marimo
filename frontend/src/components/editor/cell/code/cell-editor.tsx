@@ -386,7 +386,7 @@ const CellEditorInternal = ({
     };
   }, [editorViewRef]);
 
-  const navigationProps = useCellEditorNavigationProps(cellId);
+  const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
   // Completely hide the editor & icons if it's markdown and hidden. If there is output, we show.
   const showHideButton =
