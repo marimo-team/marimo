@@ -31,6 +31,7 @@ class PlotlyFormatter(FormatterFactory):
             @formatting.formatter(plotly.graph_objects.FigureWidget)
             def _show_plotly_figure(
                 fig: plotly.graph_objects.Figure,
+                config: dict[str, Any] | None = None,
             ) -> tuple[KnownMimeType, str]:
                 dragmode = getattr(fig.layout, "dragmode", None)
                 if dragmode is None:
@@ -38,7 +39,7 @@ class PlotlyFormatter(FormatterFactory):
                     fig.update_layout(dragmode="zoom")
                 json_str: str = pio.to_json(fig)
                 plugin = PlotlyFormatter.render_plotly_dict(
-                    json.loads(json_str)
+                    json.loads(json_str), config=config
                 )
                 return ("text/html", plugin.text)
 
@@ -47,8 +48,10 @@ class PlotlyFormatter(FormatterFactory):
             def patched_show(
                 self: plotly.graph_objects.Figure, *args: Any, **kwargs: Any
             ) -> None:
-                del args, kwargs
-                mimetype, data = _show_plotly_figure(self)
+                del args  # show() doesn't use positional args
+                # Extract config if provided
+                config = kwargs.get("config")
+                mimetype, data = _show_plotly_figure(self, config=config)
                 CellOp.broadcast_console_output(
                     channel=CellChannel.MEDIA,
                     mimetype=mimetype,
@@ -60,7 +63,9 @@ class PlotlyFormatter(FormatterFactory):
             plotly.graph_objects.Figure.show = patched_show
 
     @staticmethod
-    def render_plotly_dict(json: dict[Any, Any]) -> Html:
+    def render_plotly_dict(
+        json: dict[Any, Any], config: dict[str, Any] | None = None
+    ) -> Html:
         import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         resolved_config: dict[str, Any] = {}
@@ -77,6 +82,10 @@ class PlotlyFormatter(FormatterFactory):
             resolved_config = default_renderer.config or {}
         except (AttributeError, KeyError):
             pass
+
+        # Merge with any config passed via show()
+        if config is not None:
+            resolved_config = {**resolved_config, **config}
 
         return Html(
             build_stateless_plugin(
