@@ -250,6 +250,11 @@ class MCPServerConnection:
     write_stream: Optional[MemoryObjectSendStream[SessionMessage]] = None
     exit_stack: Optional[AsyncExitStack] = None
 
+    # Minimal additions for task-per-connection fix
+    connection_task: Optional[asyncio.Task[None]] = None
+    disconnect_event: Optional[asyncio.Event] = None
+    connection_event: Optional[asyncio.Event] = None
+
 
 class MCPClient:
     """Client for managing connections to multiple MCP servers."""
@@ -300,11 +305,95 @@ class MCPClient:
                 )
                 # Note: Server with invalid configuration is not added to self.servers
 
-    async def connect_to_server(self, server_name: str) -> bool:
-        """Connect to an MCP server using the appropriate transport."""
-        # Import common MCP SDK components
+    async def _connection_lifecycle(self, server_name: str) -> None:
+        """Minimal wrapper to run existing connection and disconnection logic in task-owned AsyncExitStack."""
         from mcp import ClientSession
 
+        connection = self.connections.get(server_name)
+        if not connection:
+            return
+
+        server_def = connection.definition
+
+        try:
+            # Task-owned AsyncExitStack - same task creates and closes it
+            # If a different task tries to close it, it will raise an exception
+            async with AsyncExitStack() as exit_stack:
+                connection.exit_stack = exit_stack
+
+                # All existing connection logic unchanged
+                LOGGER.info(
+                    f"Connecting to MCP server: {server_name} (transport: {server_def.transport})"
+                )
+
+                transport_connector = self.transport_registry.get_connector(
+                    server_def.transport
+                )
+                read, write, *_ = await transport_connector.connect(
+                    server_def, exit_stack
+                )
+
+                connection.read_stream = read
+                connection.write_stream = write
+
+                connection.session = await exit_stack.enter_async_context(
+                    ClientSession(read, write)
+                )
+
+                if connection.session is None:
+                    raise RuntimeError("Session was not properly created")
+                await connection.session.initialize()
+
+                self._update_server_status(
+                    server_name, MCPServerStatus.CONNECTED
+                )
+                await self._discover_tools(connection)
+
+                if server_name not in self.health_check_tasks:
+                    self.health_check_tasks[server_name] = asyncio.create_task(
+                        self._monitor_server_health(server_name)
+                    )
+
+                # Signal that connection is established
+                if connection.connection_event:
+                    connection.connection_event.set()
+
+                LOGGER.info(
+                    f"Successfully connected to MCP server: {server_name} (transport: {server_def.transport})"
+                )
+
+                # Wait for disconnect signal
+                if connection.disconnect_event:
+                    await connection.disconnect_event.wait()
+
+                # Cancel health monitoring
+                await self._cancel_health_monitoring(server_name)
+
+                # AsyncExitStack cleans up automatically here in same task
+
+        except Exception as e:
+            error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {str(e)}"
+            LOGGER.error(error_msg)
+            self._update_server_status(
+                server_name, MCPServerStatus.ERROR, error_msg
+            )
+
+            # Signal connection event so connect_to_server doesn't wait unnecessarily
+            if connection and connection.connection_event:
+                connection.connection_event.set()
+        finally:
+            # Clean up connection state
+            self._remove_server_tools(server_name)
+            self._update_server_status(
+                server_name, MCPServerStatus.DISCONNECTED
+            )
+            connection.session = None
+            connection.read_stream = None
+            connection.write_stream = None
+            connection.exit_stack = None
+
+    async def connect_to_server(self, server_name: str) -> bool:
+        """Connect to an MCP server using the appropriate transport."""
         if server_name not in self.servers:
             LOGGER.error(f"Server {server_name} not found in configuration")
             return False
@@ -313,81 +402,50 @@ class MCPClient:
 
         # Check if already connected
         if server_name in self.connections:
-            # Use public API to check status
             current_status = self.get_server_status(server_name)
             if current_status == MCPServerStatus.CONNECTED:
                 return True
 
         try:
-            # Create connection
-            connection = MCPServerConnection(definition=server_def)
+            # Create connection with minimal task-per-connection additions
+            disconnect_event = asyncio.Event()
+            connection_event = asyncio.Event()
+            connection = MCPServerConnection(
+                definition=server_def,
+                disconnect_event=disconnect_event,
+                connection_event=connection_event,
+            )
             self.connections[server_name] = connection
             self._update_server_status(server_name, MCPServerStatus.CONNECTING)
-
-            # Clean up old tools before discovering new ones (handles server updates/restarts)
             self._remove_server_tools(server_name)
 
-            # Create exit stack for proper resource management
-            connection.exit_stack = AsyncExitStack()
-
-            LOGGER.info(
-                f"Connecting to MCP server: {server_name} (transport: {server_def.transport})"
+            # Create task to run existing connection logic
+            connection_task = asyncio.create_task(
+                self._connection_lifecycle(server_name)
             )
+            connection.connection_task = connection_task
 
-            # Get the appropriate transport connector and establish connection
-            transport_connector = self.transport_registry.get_connector(
-                server_def.transport
-            )
-            read, write, *_ = await transport_connector.connect(
-                server_def, connection.exit_stack
-            )
-
-            connection.read_stream = read
-            connection.write_stream = write
-
-            # Create and initialize session
-            connection.session = (
-                await connection.exit_stack.enter_async_context(
-                    ClientSession(read, write)
+            # Wait for connection to establish with proper timeout
+            try:
+                await asyncio.wait_for(
+                    connection_event.wait(), timeout=server_def.timeout
                 )
-            )
-
-            # Initialize the session
-            if connection.session is None:
-                raise RuntimeError("Session was not properly created")
-            await connection.session.initialize()
-
-            self._update_server_status(server_name, MCPServerStatus.CONNECTED)
-
-            await self._discover_tools(connection)
-
-            # Start health monitoring for this server
-            if server_name not in self.health_check_tasks:
-                self.health_check_tasks[server_name] = asyncio.create_task(
-                    self._monitor_server_health(server_name)
+                # Event was set, but check if it was success or error
+                current_status = self.get_server_status(server_name)
+                return current_status == MCPServerStatus.CONNECTED
+            except asyncio.TimeoutError:
+                # Connection timed out, but keep task running in background
+                LOGGER.warning(
+                    f"Connection to {server_name} is taking longer than {server_def.timeout}s, continuing in background"
                 )
-
-            LOGGER.info(
-                f"Successfully connected to MCP server: {server_name} (transport: {server_def.transport})"
-            )
-            return True
+                # Return True if still connecting, False if error occurred
+                current_status = self.get_server_status(server_name)
+                return current_status == MCPServerStatus.CONNECTING
 
         except Exception as e:
             error_msg = f"Failed to connect to MCP server {server_name} (transport: {server_def.transport}): {str(e)}"
             LOGGER.error(error_msg)
-
-            # Clean up exit_stack if connection was created but failed
             if server_name in self.connections:
-                connection = self.connections[server_name]
-                if connection.exit_stack:
-                    try:
-                        await connection.exit_stack.aclose()
-                    except Exception as cleanup_error:
-                        LOGGER.warning(
-                            f"Error during cleanup for {server_name}: {cleanup_error}"
-                        )
-                    connection.exit_stack = None
-
                 self._update_server_status(
                     server_name, MCPServerStatus.ERROR, error_msg
                 )
@@ -844,28 +902,23 @@ class MCPClient:
             return True
 
         try:
-            # Cancel health monitoring task
-            await self._cancel_health_monitoring(server_name)
+            # Signal the connection task to shutdown (instead of cross-task aclose)
+            if connection.disconnect_event:
+                connection.disconnect_event.set()
 
-            # Close exit stack which will properly close the session and streams
-            if connection.exit_stack:
-                await connection.exit_stack.aclose()
-
-            # Remove tools from registry
-            self._remove_server_tools(server_name)
-
-            self._update_server_status(
-                server_name, MCPServerStatus.DISCONNECTED
-            )
-            connection.session = None
-            connection.read_stream = None
-            connection.write_stream = None
-            connection.exit_stack = None
+            # Wait for the connection task to complete its cleanup
+            if (
+                connection.connection_task
+                and not connection.connection_task.done()
+            ):
+                await connection.connection_task
 
             LOGGER.info(f"Disconnected from MCP server: {server_name}")
             return True
 
         except Exception as e:
+            # No retry or forced cleanup - disconnection failures are logged but not blocking.
+            # Local state cleanup happens in _connection_lifecycle finally block regardless.
             LOGGER.error(
                 f"Error disconnecting from server {server_name}: {str(e)}"
             )
