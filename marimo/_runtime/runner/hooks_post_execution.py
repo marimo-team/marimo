@@ -367,7 +367,7 @@ def render_toplevel_defs(
     del run_result
     variable = cell.toplevel_variable
     if variable is not None:
-        extractor = TopLevelExtraction.from_graph(cell, runner.graph)
+        extractor = TopLevelExtraction.from_graph(runner.graph, cell=cell)
         serialization = list(iter(extractor))[-1]
         CellOp.broadcast_serialization(
             serialization=serialization,
