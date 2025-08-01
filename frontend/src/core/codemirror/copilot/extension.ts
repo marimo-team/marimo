@@ -10,6 +10,8 @@ import type { EditorView } from "@codemirror/view";
 import { keymap } from "@codemirror/view";
 import {
   inlineCompletion,
+  nextEditPrediction,
+  PredictionBackend,
   rejectInlineCompletion,
 } from "@marimo-team/codemirror-ai";
 import {
@@ -24,8 +26,10 @@ import {
   InlineCompletionTriggerKind,
 } from "vscode-languageserver-protocol";
 import type { CompletionConfig } from "@/core/config/config-schema";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import type { AiInlineCompletionRequest } from "@/core/kernel/messages";
 import { API } from "@/core/network/api";
+import { asRemoteURL } from "@/core/runtime/config";
 import { Logger } from "@/utils/Logger";
 import { languageAdapterState } from "../language/extension";
 import { isInVimMode } from "../utils";
@@ -104,44 +108,59 @@ export const copilotBundle = (config: CompletionConfig): Extension => {
   }
 
   if (config.copilot === "custom") {
-    extensions.push(
-      inlineCompletion({
-        ...commonInlineCompletionConfig,
-        fetchFn: async (state) => {
-          if (state.doc.length === 0) {
-            return "";
-          }
+    if (getFeatureFlag("next_edit_prediction")) {
+      extensions.push(
+        nextEditPrediction({
+          fetchFn: PredictionBackend.oxen({
+            model: "openai/oxen:ox-cold-olive-fox",
+            baseUrl: asRemoteURL("/api/ai/compat/chat").toString(),
+            headers: {
+              ...API.headers(),
+              "x-marimo-ai-scope": "next-edit-prediction",
+            },
+          }),
+        }),
+      );
+    } else {
+      extensions.push(
+        inlineCompletion({
+          ...commonInlineCompletionConfig,
+          fetchFn: async (state) => {
+            if (state.doc.length === 0) {
+              return "";
+            }
 
-          // If not focused, don't fetch
-          const prefix = state.doc.sliceString(0, state.selection.main.head);
-          const suffix = state.doc.sliceString(
-            state.selection.main.head,
-            state.doc.length,
-          );
+            // If not focused, don't fetch
+            const prefix = state.doc.sliceString(0, state.selection.main.head);
+            const suffix = state.doc.sliceString(
+              state.selection.main.head,
+              state.doc.length,
+            );
 
-          // If no prefix, don't fetch
-          if (prefix.length === 0) {
-            return "";
-          }
+            // If no prefix, don't fetch
+            if (prefix.length === 0) {
+              return "";
+            }
 
-          const language = state.field(languageAdapterState).type;
-          let res = await API.post<AiInlineCompletionRequest, string>(
-            "/ai/inline_completion",
-            { prefix, suffix, language },
-          );
+            const language = state.field(languageAdapterState).type;
+            let res = await API.post<AiInlineCompletionRequest, string>(
+              "/ai/inline_completion",
+              { prefix, suffix, language },
+            );
 
-          // Sometimes the prefix might get included in the response, so we need to trim it
-          if (prefix && res.startsWith(prefix)) {
-            res = res.slice(prefix.length);
-          }
-          if (suffix && res.endsWith(suffix)) {
-            res = res.slice(0, -suffix.length);
-          }
+            // Sometimes the prefix might get included in the response, so we need to trim it
+            if (prefix && res.startsWith(prefix)) {
+              res = res.slice(prefix.length);
+            }
+            if (suffix && res.endsWith(suffix)) {
+              res = res.slice(0, -suffix.length);
+            }
 
-          return res;
-        },
-      }),
-    );
+            return res;
+          },
+        }),
+      );
+    }
   }
 
   return [
