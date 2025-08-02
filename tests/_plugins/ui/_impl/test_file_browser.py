@@ -45,6 +45,11 @@ def test_list_directory() -> None:
     )
     response = fb._list_directory(ListDirectoryArgs(path=str(Path.cwd())))
     assert isinstance(response, ListDirectoryResponse)
+    assert isinstance(response.total_count, int)
+    assert isinstance(response.is_truncated, bool)
+    assert hasattr(response, "total_count")
+    assert hasattr(response, "is_truncated")
+
     for file_info in response.files:
         assert file_info["is_directory"] or file_info["path"].endswith(
             tuple(fb._filetypes)
@@ -239,3 +244,93 @@ def test_validation() -> None:
     with pytest.raises(ValueError) as e:
         file_browser(initial_path="invalid", selection_mode="invalid")
     assert "Value must be one of" in str(e.value)
+
+
+def test_limit_arg(tmp_path: Path) -> None:
+    """Test limit argument behavior: defaults and explicit overrides."""
+    fb_default = file_browser(initial_path=tmp_path)
+    assert fb_default._limit == 10000  # High limit for local filesystem
+
+    fb_custom = file_browser(initial_path=tmp_path, limit=25)
+    assert fb_custom._limit == 25
+
+    fb_zero = file_browser(initial_path=tmp_path, limit=0)
+    assert fb_zero._limit == 0
+
+
+def test_is_truncated_true_when_limit_exceeded(tmp_path: Path) -> None:
+    """Test is_truncated=True when directory has more files than limit."""
+    # Create more files than the limit
+    for i in range(10):
+        (tmp_path / f"file{i}.txt").touch()
+
+    fb = file_browser(initial_path=tmp_path, limit=5)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    assert response.is_truncated is True
+    assert response.total_count == 10
+    assert len(response.files) == 5
+
+
+def test_is_truncated_false_when_under_limit(tmp_path: Path) -> None:
+    """Test is_truncated=False when directory has fewer files than limit."""
+    # Create fewer files than the limit
+    for i in range(3):
+        (tmp_path / f"file{i}.txt").touch()
+
+    fb = file_browser(initial_path=tmp_path, limit=5)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    assert response.is_truncated is False
+    assert response.total_count == 3
+    assert len(response.files) == 3
+
+
+def test_is_truncated_false_when_exactly_at_limit(tmp_path: Path) -> None:
+    """Test is_truncated=False when directory has exactly limit number of files."""
+    # Create exactly the limit number of files
+    for i in range(5):
+        (tmp_path / f"file{i}.txt").touch()
+
+    fb = file_browser(initial_path=tmp_path, limit=5)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    assert response.is_truncated is False
+    assert response.total_count == 5
+    assert len(response.files) == 5
+
+
+def test_total_count_includes_all_items(tmp_path: Path) -> None:
+    """Test that total_count reflects all files in directory, not just displayed ones."""
+    # Create mix of files and directories
+    for i in range(8):
+        (tmp_path / f"file{i}.txt").touch()
+    for i in range(3):
+        (tmp_path / f"dir{i}").mkdir()
+
+    fb = file_browser(initial_path=tmp_path, limit=5)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    assert response.total_count == 11  # All files and directories
+    assert len(response.files) == 5  # Only displayed items
+    assert response.is_truncated is True
+
+
+def test_is_truncated_with_filetype_filtering_edge_case(
+    tmp_path: Path,
+) -> None:
+    """Test is_truncated when filtering creates ambiguity about remaining files."""
+    # Create files where filtering matters for truncation detection
+    (tmp_path / "file1.txt").touch()
+    (tmp_path / "file2.txt").touch()
+    (tmp_path / "file3.txt").touch()
+    (tmp_path / "file4.py").touch()
+    (tmp_path / "file5.py").touch()
+
+    fb = file_browser(initial_path=tmp_path, filetypes=[".txt"], limit=2)
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+
+    # We should show two .txt files, but there's a third .txt file we didn't process
+    assert response.total_count == 5
+    assert len(response.files) == 2
+    assert response.is_truncated is True
