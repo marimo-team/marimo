@@ -53,6 +53,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           ]),
         )
         .nullish(),
+      editableColumns: z.union([z.array(z.string()), z.literal("all")]),
       columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
   )
@@ -65,8 +66,8 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
           fieldTypes={props.data.fieldTypes}
           edits={props.value}
           onEdits={props.setValue}
-          columnSizingMode={props.data.columnSizingMode}
           host={props.host}
+          editableColumns={props.data.editableColumns}
         />
       </TooltipProvider>
     );
@@ -78,6 +79,7 @@ interface Props
   edits: Edits;
   onEdits: Setter<Edits>;
   host: HTMLElement;
+  editableColumns: string[] | "all";
 }
 
 const LoadingDataEditor = (props: Props) => {
@@ -129,6 +131,7 @@ const LoadingDataEditor = (props: Props) => {
       setData={setData}
       columnFields={columnFields}
       setColumnFields={setColumnFields}
+      editableColumns={props.editableColumns}
       edits={props.edits.edits} // TODO: This is returning old edits upon refresh
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));

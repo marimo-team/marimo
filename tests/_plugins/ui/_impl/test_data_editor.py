@@ -52,7 +52,22 @@ def test_data_editor_initialization():
     editor = data_editor(data=data, label="Test Editor")
     assert editor._data == data
     assert editor._edits == {"edits": []}
+    assert editor._component_args["editable-columns"] == "all"
     assert editor._component_args["column-sizing-mode"] == "auto"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_data_editor_editable_columns():
+    data = [{"A": 1, "B": "a"}, {"A": 2, "B": "b"}, {"A": 3, "B": "c"}]
+    editor = data_editor(data=data, editable_columns=["A"])
+    assert editor._component_args["editable-columns"] == ["A"]
+    assert editor._data == data
+    assert editor._edits == {"edits": []}
+
+    with pytest.raises(ValueError, match="Column C is not in the data"):
+        data_editor(data=data, editable_columns=["C"])
 
 
 @pytest.mark.skipif(
