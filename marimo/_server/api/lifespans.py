@@ -47,6 +47,38 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def mcp(app: Starlette) -> AsyncIterator[None]:
+    state = AppState.from_app(app)
+    session_mgr = state.session_manager
+    user_config = state.config_manager.get_config()
+    mcp_docs_enabled = user_config.get("experimental", {}).get(
+        "mcp_docs", False
+    )
+
+    # Only start MCP servers in Edit mode
+    if session_mgr.mode == SessionMode.EDIT and mcp_docs_enabled:
+        # add MCP server here after it is implemented
+        try:
+            from marimo._server.ai.mcp import get_mcp_client
+
+            mcp_client = get_mcp_client()
+            if mcp_client and mcp_client.servers:
+                LOGGER.debug(
+                    f"Starting MCP servers: {list(mcp_client.servers.keys())}"
+                )
+                await mcp_client.connect_to_all_servers()
+                LOGGER.info(
+                    f"MCP servers connected: {len(mcp_client.servers)}"
+                )
+            else:
+                LOGGER.debug("No MCP servers configured")
+        except Exception as e:
+            LOGGER.warning(f"Failed to connect MCP servers: {e}")
+
+    yield
+
+
+@contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     if not state.headless:

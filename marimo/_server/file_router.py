@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
-from marimo._config.config import SqlOutputType, WidthType
+from marimo._config.config import ExportType, SqlOutputType, WidthType
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import natural_sort_file
@@ -77,16 +77,20 @@ class AppFileRouter(abc.ABC):
     def get_single_app_file_manager(
         self,
         default_width: WidthType | None = None,
+        default_auto_download: list[ExportType] | None = None,
         default_sql_output: SqlOutputType | None = None,
     ) -> AppFileManager:
         key = self.get_unique_file_key()
         assert key is not None, "Expected a single file"
-        return self.get_file_manager(key, default_width, default_sql_output)
+        return self.get_file_manager(
+            key, default_width, default_auto_download, default_sql_output
+        )
 
     def get_file_manager(
         self,
         key: MarimoFileKey,
         default_width: WidthType | None = None,
+        default_auto_download: list[ExportType] | None = None,
         default_sql_output: SqlOutputType | None = None,
     ) -> AppFileManager:
         """
@@ -96,6 +100,7 @@ class AppFileRouter(abc.ABC):
             return AppFileManager(
                 None,
                 default_width=default_width,
+                default_auto_download=default_auto_download,
                 default_sql_output=default_sql_output,
             )
 
@@ -103,6 +108,7 @@ class AppFileRouter(abc.ABC):
             return AppFileManager(
                 key,
                 default_width=default_width,
+                default_auto_download=default_auto_download,
                 default_sql_output=default_sql_output,
             )
 

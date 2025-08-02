@@ -323,6 +323,12 @@ class SessionView:
                 all_ops.extend(messages)
         return all_ops
 
+    def is_empty(self) -> bool:
+        return all(
+            op.output is None and op.console is None
+            for op in self.cell_operations.values()
+        )
+
     def mark_auto_export_html(self) -> None:
         self.auto_export_state.mark_exported("html")
 

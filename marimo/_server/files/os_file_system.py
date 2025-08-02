@@ -181,7 +181,7 @@ class OSFileSystem(FileSystem):
 
     def update_file(self, path: str, contents: str) -> FileInfo:
         file_path = Path(path)
-        file_path.write_text(contents)
+        file_path.write_text(contents, encoding="utf-8")
         return self.get_details(path, contents=contents).file
 
     def open_in_editor(self, path: str) -> bool:

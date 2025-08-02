@@ -157,7 +157,7 @@ else:
     df = pd.DataFrame(_data)
 ```
 
-Next, we create a SQL query, refercing the Python dataframe `df` directly.
+Next, we create a SQL query, referencing the Python dataframe `df` directly.
 
 ```sql {.marimo}
 -- This SQL cell is special since we can reference existing dataframes in the global scope as a table in the SQL query. For example, we can reference the `df` dataframe in the global scope, which was defined in another cell using Python.

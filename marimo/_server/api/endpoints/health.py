@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from starlette.authentication import requires
 from starlette.responses import JSONResponse, PlainTextResponse
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
@@ -17,6 +17,7 @@ from marimo._utils.health import (
     get_python_version,
     get_required_modules_list,
 )
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from starlette.requests import Request

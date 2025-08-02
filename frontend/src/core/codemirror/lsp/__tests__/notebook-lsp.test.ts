@@ -9,6 +9,8 @@ import {
 import { beforeEach, describe, expect, it, type Mocked, vi } from "vitest";
 import * as LSP from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
+import { store } from "@/core/state/jotai";
+import { topologicalCodesAtom } from "../../copilot/getCodes";
 import { createNotebookLens } from "../lens";
 import { NotebookLanguageServerClient } from "../notebook-lsp";
 import { CellDocumentUri, type ILanguageServerClient } from "../types";
@@ -33,6 +35,24 @@ describe("createNotebookLens", () => {
     const transformed = lens.transformPosition(pos, Cells.cell2);
     expect(transformed.line).toBe(2); // After fileA\nfileB
     expect(transformed.character).toBe(0);
+  });
+
+  it("order of code should not matter", () => {
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    let codes: Record<CellId, string> = {
+      [Cells.cell1]: "before\ntext",
+      [Cells.cell2]: "cell1\ncell2",
+    };
+    let lens = createNotebookLens(cellIds, codes);
+    expect(lens.mergedText).toBe("before\ntext\ncell1\ncell2");
+
+    // Swap them around
+    codes = {
+      [Cells.cell2]: "cell1\ncell2",
+      [Cells.cell1]: "before\ntext",
+    };
+    lens = createNotebookLens(cellIds, codes);
+    expect(lens.mergedText).toBe("before\ntext\ncell1\ncell2");
   });
 
   it("should transform ranges to merged doc", () => {
@@ -204,14 +224,22 @@ describe("NotebookLanguageServerClient", () => {
       request: vi.fn(),
     } as unknown as Mocked<ILanguageServerClient>;
     notebookClient = new NotebookLanguageServerClient(mockClient, {});
-    (notebookClient as any).getNotebookCode = vi.fn().mockReturnValue({
-      cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
-      codes: {
-        [Cells.cell1]: "# this is a comment",
-        [Cells.cell2]: "import math\nimport numpy",
-        [Cells.cell3]: "print(math.sqrt(4))",
-      },
+
+    // Mock the atom instead of the instance method
+    vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === topologicalCodesAtom) {
+        return {
+          cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
+          codes: {
+            [Cells.cell1]: "# this is a comment",
+            [Cells.cell2]: "import math\nimport numpy",
+            [Cells.cell3]: "print(math.sqrt(4))",
+          },
+        };
+      }
+      return undefined;
     });
+
     (NotebookLanguageServerClient as any).SEEN_CELL_DOCUMENT_URIS.clear();
   });
 
@@ -250,8 +278,7 @@ describe("NotebookLanguageServerClient", () => {
       expect(result).toBeDefined();
       expect(result?.contents).toEqual({
         kind: "markdown",
-        value:
-          '<div class="docs-documentation mo-cm-tooltip">\ntest hover\n</div>',
+        value: "test hover",
       });
     });
 
@@ -406,7 +433,7 @@ describe("NotebookLanguageServerClient", () => {
               {
                 range: {
                   start: { line: 0, character: 0 },
-                  end: { line: 5, character: 0 },
+                  end: { line: 3, character: 17 },
                 },
                 newText:
                   "# this is a comment\nimport renamed_math\nimport numpy\nprint(renamed_math.sqrt(4))",
@@ -586,10 +613,19 @@ describe("NotebookLanguageServerClient", () => {
       // Start the document version at 1
       (notebookClient as any).documentVersion = 1;
 
-      // Open a document
+      // Open documents for multiple cells so they get tracked
       await notebookClient.textDocumentDidOpen({
         textDocument: {
           uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "import math\nimport numpy",
+        },
+      });
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell2),
           languageId: "python",
           version: 1,
           text: "import math\nimport numpy",
@@ -605,8 +641,8 @@ describe("NotebookLanguageServerClient", () => {
           diagnostics: [
             {
               range: {
-                start: { line: 1, character: 0 },
-                end: { line: 1, character: 4 },
+                start: { line: 2, character: 0 },
+                end: { line: 2, character: 4 },
               },
               message: "Test diagnostic",
               severity: LSP.DiagnosticSeverity.Error,
@@ -630,8 +666,8 @@ describe("NotebookLanguageServerClient", () => {
       expect(capturedDiagnostics).toHaveLength(2);
       expect(capturedDiagnostics[0].diagnostics).toHaveLength(1);
       expect(capturedDiagnostics[0].diagnostics[0].range).toEqual({
-        start: { line: 0, character: 0 },
-        end: { line: 0, character: 4 },
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 4 },
       });
 
       // Rest are cleared
@@ -639,6 +675,8 @@ describe("NotebookLanguageServerClient", () => {
     });
 
     it("should clear diagnostics for all cells when receiving empty diagnostics", async () => {
+      await notebookClient.sync();
+
       const seenNotifications: LSP.PublishDiagnosticsParams[] = [];
       (mockClient as any).processNotification = vi
         .fn()
@@ -651,6 +689,25 @@ describe("NotebookLanguageServerClient", () => {
       notebookClient.patchProcessNotification();
       // Start the document version at 1
       (notebookClient as any).documentVersion = 1;
+
+      // Open documents so they get tracked
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "import math\nimport numpy",
+        },
+      });
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell2),
+          languageId: "python",
+          version: 1,
+          text: "import math\nimport numpy",
+        },
+      });
 
       // Simulate receiving empty diagnostics
       const emptyDiagnosticsNotification = {
@@ -685,10 +742,19 @@ describe("NotebookLanguageServerClient", () => {
       // Start the document version at 1
       (notebookClient as any).documentVersion = 1;
 
-      // Open a document
+      // Open documents for multiple cells so they get tracked
       await notebookClient.textDocumentDidOpen({
         textDocument: {
           uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "import math\nimport numpy",
+        },
+      });
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell2),
           languageId: "python",
           version: 1,
           text: "import math\nimport numpy",
@@ -742,14 +808,13 @@ describe("NotebookLanguageServerClient", () => {
     });
 
     it("should handle version updates in textDocumentDidChange", async () => {
-      let capturedChange: LSP.DidChangeTextDocumentParams | undefined;
       mockClient.textDocumentDidChange = vi
         .fn()
         .mockImplementation((params) => {
-          capturedChange = params;
+          return params;
         });
 
-      await notebookClient.textDocumentDidChange({
+      const result = await notebookClient.textDocumentDidChange({
         textDocument: {
           uri: CellDocumentUri.of(Cells.cell1),
           version: 5,
@@ -757,10 +822,10 @@ describe("NotebookLanguageServerClient", () => {
         contentChanges: [{ text: "new code" }],
       });
 
-      expect(capturedChange).toBeDefined();
-      expect(capturedChange?.textDocument.version).toBeGreaterThan(0);
-      expect(capturedChange?.contentChanges).toHaveLength(1);
-      expect(capturedChange?.contentChanges[0].text).toMatchInlineSnapshot(`
+      expect(result).toBeDefined();
+      expect(result.textDocument.version).toBeGreaterThan(0);
+      expect(result.contentChanges).toHaveLength(1);
+      expect(result.contentChanges[0].text).toMatchInlineSnapshot(`
         "# this is a comment
         import math
         import numpy

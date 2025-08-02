@@ -1,0 +1,20 @@
+import marimo
+
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    """Simple calculation script."""
+
+    x = 5
+    y = 10
+    result = x + y
+    print(f"Result: {result}")
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+

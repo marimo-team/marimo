@@ -29,11 +29,8 @@ import { inferFieldTypes } from "../columns";
 import type { FieldTypesWithExternalType } from "../types";
 import { generateAltairChartSnippet } from "./chart-spec/altair-generator";
 import { createSpecWithoutData } from "./chart-spec/spec";
-import {
-  ChartErrorState,
-  ChartLoadingState,
-  ChartTypeSelect,
-} from "./components/chart-items";
+import { ChartTypeSelect } from "./components/chart-items";
+import { ChartErrorState, ChartLoadingState } from "./components/chart-states";
 import type { Field } from "./components/form-fields";
 import { CodeSnippet, TabContainer } from "./components/layouts";
 import { ChartFormContext } from "./context";

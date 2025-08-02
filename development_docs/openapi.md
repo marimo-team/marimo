@@ -1,6 +1,6 @@
 # marimo + openapi
 
-The frontend of marimo communicates with the backend through an OpenAPI specification, which can be found in [`openapi/api.yaml`](/openapi/api.yaml).
+The frontend of marimo communicates with the backend through an OpenAPI specification, which can be found in [`packages/openapi/api.yaml`](/packages/openapi/api.yaml).
 
 ## Printing the OpenAPI schema
 
@@ -13,7 +13,7 @@ marimo development openapi
 To modify the schema, add the type under `_generate_server_api_schema` in [`commands.py`](/marimo/_cli/development/commands.py) and run
 
 ```bash
-marimo development openapi > openapi/api.yaml
+marimo development openapi > packages/openapi/api.yaml
 ```
 
 ## Validating an OpenAPI schema

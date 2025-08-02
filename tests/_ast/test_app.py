@@ -742,6 +742,32 @@ class TestApp:
             InternalApp(app).cell_manager.cell_ids()
         )
 
+    def test_to_py(self) -> None:
+        """Test that InternalApp.to_py() returns the Python code representation."""
+        app = App()
+
+        @app.cell
+        def cell_one():
+            x = 1
+            return (x,)
+
+        @app.cell
+        def cell_two(x):
+            y = x + 1
+            return (y,)
+
+        internal_app = InternalApp(app)
+        python_code = internal_app.to_py()
+
+        # Verify it returns a string containing Python code
+        assert isinstance(python_code, str)
+        assert "import marimo" in python_code
+        assert "app = marimo.App(" in python_code
+        assert "x = 1" in python_code
+        assert "y = x + 1" in python_code
+        assert "cell_one" in python_code
+        assert "cell_two" in python_code
+
 
 class TestInvalidSetup:
     @staticmethod
@@ -1015,6 +1041,44 @@ class TestAppComposition:
         _, defs = app.run()
         assert defs["x"] == 0
         assert "app" not in defs
+
+    @staticmethod
+    def test_setup_hide_code() -> None:
+        # Test property access (default behavior, hide_code=False)
+        app1 = App()
+        with app1.setup:
+            x = 1
+
+        setup_cell = app1._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is False
+
+        # Test method call with default (hide_code=False)
+        app2 = App()
+        with app2.setup():
+            x2 = 1
+
+        setup_cell = app2._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is False
+
+        # Test hide_code=True
+        app3 = App()
+        with app3.setup(hide_code=True):
+            y = 2
+
+        setup_cell = app3._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is True
+
+        # Test explicit hide_code=False
+        app4 = App()
+        with app4.setup(hide_code=False):
+            z = 3
+        
+        setup_cell = app4._cell_manager._cell_data.get("setup")
+        assert setup_cell is not None
+        assert setup_cell.config.hide_code is False
 
 
 class TestAppKernelRunnerRegistry:

@@ -9,6 +9,7 @@ import pytest
 
 from marimo import _loggers
 from marimo._ast import load
+from marimo._ast.parse import MarimoFileError
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -217,6 +218,13 @@ class TestGetCodes:
         assert app is None
 
     @staticmethod
+    def test_get_codes_non_marimo_python_script(static_load) -> None:
+        with pytest.raises(MarimoFileError, match="is not a marimo notebook."):
+            static_load(
+                get_filepath("test_get_codes_non_marimo_python_script")
+            )
+
+    @staticmethod
     def test_get_codes_app_with_no_cells(load_app) -> None:
         app = load_app(get_filepath("test_app_with_no_cells"))
         assert app is not None
@@ -285,3 +293,28 @@ class TestGetCodes:
         from codegen_data.test_with_bad_decorator import hundred
 
         assert hundred == 100
+
+
+class TestGetStatus:
+    @staticmethod
+    def test_get_status_valid() -> None:
+        assert load.get_notebook_status(get_filepath("test_main")) == "valid"
+
+    @staticmethod
+    def test_get_status_empty() -> None:
+        assert load.get_notebook_status(get_filepath("test_empty")) == "empty"
+
+    @staticmethod
+    def test_get_status_invalid() -> None:
+        assert (
+            load.get_notebook_status(get_filepath("test_invalid")) == "invalid"
+        )
+
+    @staticmethod
+    def test_get_status_warn() -> None:
+        assert (
+            load.get_notebook_status(
+                get_filepath("test_get_codes_messy_toplevel")
+            )
+            == "has_errors"
+        )

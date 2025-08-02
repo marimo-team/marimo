@@ -1,5 +1,5 @@
 _chart = (
-    alt.Chart(table)
+    alt.Chart([]) # <-- replace with data
     .mark_bar()
     .encode(
         x=alt.X("float_col", type="quantitative", bin=True, title="float_col"),

@@ -15,7 +15,7 @@ interface Props {
   placeholder?: string;
   comboBoxClassName?: string;
   textAreaClassName?: string;
-  onChange: (value: string[]) => void;
+  onChange: (value: string[] | null) => void;
 }
 
 // new-line separated

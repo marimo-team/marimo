@@ -151,6 +151,13 @@ def _(mo):
 
 
 @app.cell
+def _(df, mo):
+    subset = df.drop(["nested_lists", "list_with_structs", "nested_arrays"])
+    mo.ui.data_editor(subset)
+    return
+
+
+@app.cell
 def _(mo):
     mo.md(
         r"""

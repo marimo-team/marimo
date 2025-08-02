@@ -86,6 +86,11 @@ class TestPandasTableManager(unittest.TestCase):
                     [3.0, False],
                     [None, datetime.datetime(2021, 1, 1)],
                 ],
+                "bytes": [
+                    b"\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83",
+                    b"world",
+                    b"bytes",
+                ],
             },
         )
 
@@ -375,7 +380,9 @@ class TestPandasTableManager(unittest.TestCase):
             index=pd.to_datetime(["2021-01-01", "2021-06-01", "2021-09-01"]),
         )
         manager = self.factory.create()(data)
-        assert manager.get_row_headers() == [""]
+        assert manager.get_row_headers() == [
+            ("", ("datetime", "datetime64[ns]"))
+        ]
 
     def test_get_row_headers_timedelta_index(self) -> None:
         data = pd.DataFrame(
@@ -387,7 +394,9 @@ class TestPandasTableManager(unittest.TestCase):
             index=pd.to_timedelta(["1 days", "2 days", "3 days"]),
         )
         manager = self.factory.create()(data)
-        assert manager.get_row_headers() == [""]
+        assert manager.get_row_headers() == [
+            ("", ("string", "timedelta64[ns]"))
+        ]
 
     def test_get_row_headers_multi_index(self) -> None:
         data = pd.DataFrame(
@@ -401,7 +410,10 @@ class TestPandasTableManager(unittest.TestCase):
             ),
         )
         manager = self.factory.create()(data)
-        assert manager.get_row_headers() == ["X", "Y"]
+        assert manager.get_row_headers() == [
+            ("X", ("string", "object")),
+            ("Y", ("integer", "int64")),
+        ]
 
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
@@ -460,6 +472,25 @@ class TestPandasTableManager(unittest.TestCase):
             self.factory.create()(complex_data).get_field_types()
             == expected_field_types
         )
+
+    def test_get_field_types_nullables(self) -> None:
+        data = pd.DataFrame(
+            {
+                "A": [1.0, 2.0, 3.0],
+                "B": ["a", "b", "c"],
+            }
+        )
+        float64_cols = data.select_dtypes(include="float64").columns
+        data[float64_cols] = data[float64_cols].astype("Float64")
+        object_cols = data.select_dtypes(include=["object"]).columns
+        data[object_cols] = data[object_cols].astype("string")
+
+        manager = self.factory.create()(data)
+        field_types = manager.get_field_types()
+        assert field_types == [
+            ("A", ("number", "Float64")),
+            ("B", ("string", "string")),
+        ]
 
     @pytest.mark.xfail(
         reason="Narwhals (wrapped pandas) doesn't support duplicate columns",
@@ -1041,7 +1072,10 @@ class TestPandasTableManager(unittest.TestCase):
             index=[["a", "a", "b", "b"], [1, 2, 1, 2]],
         )
         manager = self.factory.create()(df)
-        assert manager.get_row_headers() == ["", ""]
+        assert manager.get_row_headers() == [
+            ("", ("string", "object")),
+            ("", ("integer", "int64")),
+        ]
         assert manager.get_num_rows() == 4
 
     def test_get_field_types_with_datetime(self):

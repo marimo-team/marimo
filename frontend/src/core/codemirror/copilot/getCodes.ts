@@ -1,8 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { atom } from "jotai";
 import { getAllEditorViews, notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
+import type { Variables } from "@/core/variables/types";
 import { Objects } from "@/utils/objects";
 import { getEditorCodeAsPython } from "../language/utils";
 
@@ -38,28 +40,56 @@ export function getOtherCellsCode(otherCode: string) {
   return codes;
 }
 
-export function getTopologicalCellIds() {
-  const notebook = store.get(notebookAtom);
-  const variables = store.get(variablesAtom);
-  const cellIds = notebook.cellIds.inOrderIds;
+const notebookCellCodes = atom((get) => {
+  const notebook = get(notebookAtom);
+  const codes = Objects.fromEntries(
+    notebook.cellIds.inOrderIds.map((id) => {
+      const handle = notebook.cellHandles[id];
+      return [
+        id,
+        handle?.current ? getEditorCodeAsPython(handle.current.editorView) : "",
+      ];
+    }),
+  );
+  return codes;
+});
+const inOrderCellIdsAtom = atom((get) => {
+  const notebook = get(notebookAtom);
+  return notebook.cellIds.inOrderIds;
+});
+const topologicalCellIdsAtom = atom((get) => {
+  const cellIds = get(inOrderCellIdsAtom);
+  const variables = get(variablesAtom);
+  return getTopologicalCellIds(cellIds, variables);
+});
 
+export const topologicalCodesAtom = atom((get) => {
+  const sortedCellIds = get(topologicalCellIdsAtom);
+  const codes = get(notebookCellCodes);
+  return { cellIds: sortedCellIds, codes };
+});
+
+export function getTopologicalCellIds(cellIds: CellId[], variables: Variables) {
   // Build adjacency list
   const adjacency = new Map<CellId, CellId[]>();
   cellIds.forEach((id) => adjacency.set(id, []));
 
+  // Start with all cells with no declaredBy or usedBy
+  const noDepCells = new Set<CellId>(cellIds); // Cells with no declaredBy
+  const noUsedByCells = new Set<CellId>(cellIds); // Cells with no usedBy
+
   // Link "declaredBy -> usedBy"
   for (const { declaredBy, usedBy } of Object.values(variables)) {
-    if (!declaredBy || !usedBy) {
-      continue;
-    }
-    const declArr = Array.isArray(declaredBy) ? declaredBy : [declaredBy];
-    declArr.forEach((declCell) => {
-      usedBy.forEach((useCell) => {
+    for (const declCell of declaredBy) {
+      noDepCells.delete(declCell);
+      for (const useCell of usedBy) {
+        noUsedByCells.delete(useCell);
+
         if (useCell !== declCell) {
           adjacency.get(declCell)?.push(useCell);
         }
-      });
-    });
+      }
+    }
   }
 
   // Kahn's algorithm for topological sort
@@ -94,24 +124,7 @@ export function getTopologicalCellIds() {
     });
   }
 
-  return sorted;
-}
-
-export function getTopologicalCodes(): {
-  cellIds: CellId[];
-  codes: Record<CellId, string>;
-} {
-  const cellIds = getTopologicalCellIds();
-  const notebook = store.get(notebookAtom);
-  const codes = Objects.fromEntries(
-    cellIds.map((id) => {
-      const handle = notebook.cellHandles[id];
-      return [
-        id,
-        handle?.current ? getEditorCodeAsPython(handle.current.editorView) : "",
-      ];
-    }),
-  );
-
-  return { cellIds, codes };
+  // Put noDepCells at the end
+  const filteredSorted = sorted.filter((id) => !noDepCells.has(id));
+  return [...filteredSorted, ...noDepCells];
 }

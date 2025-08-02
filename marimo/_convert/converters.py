@@ -50,6 +50,26 @@ class MarimoConvert:
         return MarimoConverterIntermediate(ir)
 
     @staticmethod
+    def from_non_marimo_python_script(
+        source: str,
+    ) -> MarimoConverterIntermediate:
+        """Convert from a non-marimo Python script to marimo notebook.
+
+        This should only be used when the .py file is not already a valid
+        marimo notebook.
+
+        Args:
+            source: Unknown Python script source code string
+        """
+        from marimo._convert.non_marimo_python_script import (
+            convert_non_marimo_python_script_to_notebook_ir,
+        )
+
+        return MarimoConvert.from_ir(
+            convert_non_marimo_python_script_to_notebook_ir(source)
+        )
+
+    @staticmethod
     def from_md(source: str) -> MarimoConverterIntermediate:
         """Convert from markdown source code.
 

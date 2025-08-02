@@ -192,6 +192,7 @@ class CellManager:
         self,
         frame: FrameType,
         app: InternalApp | None = None,
+        config: Optional[CellConfig] = None,
     ) -> Cell:
         """Registers cells when called through a context block."""
         cell = context_cell_factory(
@@ -199,7 +200,7 @@ class CellManager:
             # NB. carry along the frame from the initial call.
             frame=frame,
         )
-        cell._cell.configure(CellConfig())
+        cell._cell.configure(config or CellConfig())
         self._register_cell(cell, app=app)
         return cell
 

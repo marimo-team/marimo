@@ -19,6 +19,7 @@ To access these settings, click the gear icon in the top-right of the editor:
 
 A non-exhaustive list of settings:
 
+- [Command mode](#command-mode)
 - Outputs above or below code cells
 - [Disable/enable autorun](../reactivity.md#configuring-how-marimo-runs-cells)
 - Package installation
@@ -31,16 +32,45 @@ A non-exhaustive list of settings:
 - [GitHub Copilot](ai_completion.md)
 - [LLM coding assistant](ai_completion.md)
 - [Module autoreloading](../configuration/runtime_configuration.md#on-module-change)
+- [Reactive reference highlighting](dataflow.md#reactive-reference-highlighting)
+
+## Command mode
+
+marimo distinguishes between editing cell content and working with cells at the
+notebook level.
+
+**Command mode** lets you navigate, select, and manipulate _cells_ rather than
+editing their contents.
+
+**Enter/Exit:**
+
+- Enter command mode: `Esc` (from cell editor) or `Ctrl+Esc`/`Cmd+Esc` (when vim keybindings are enabled)
+- Exit command mode: `Enter` or click on a cell
+
+**Shortcuts:**
+
+- `↓`/`↑` - navigate cells
+- `Shift+↓`/`Shift+↑` - multi-select cells
+- `Enter` - edit selected cell
+- `a`/`b` - new cell above/below
+- `c`/`v` - copy/paste cells
+- `s` - save notebook
+- `Shift+Enter` - run cell and move to next
+- `Ctrl/Cmd+↑` / `Ctrl/Cmd+↓` - jump to top/bottom of notebook
+
+When [vim keybindings](#vim-keybindings) are enabled, additional shortcuts are available.
 
 ### Vim keybindings
 
-marimo supports vim keybindings.
+marimo supports vim keybindings that extend to notebook editing. Within cells,
+use standard vim modes. Press `Ctrl+Esc` (or `Cmd+Esc` on macOS) from normal mode to enter [command
+mode](#command-mode) for notebook navigation.
 
-**Additional bindings/features:**
+**Cell editing additions:**
 
 - `gd` - go to definition
-- `dd` - when a cell is empty, delete it
-- `:w` - to save the notebook
+- `dd` - delete empty cell
+- `:w` - save notebook
 
 **Custom vimrc:**
 
@@ -64,6 +94,23 @@ vimrc = relative/path/.vimrc
 
 ///
 
+**Command mode additions:**
+
+When vim keybindings are enabled, press `Ctrl+Esc` (or `Cmd+Esc` on macOS) from normal mode to enter
+[command mode](#command-mode) with additional vim-specific keybindings:
+
+- `j`/`k` - navigate cells
+- `gg`/`G` - first/last cell
+- `Shift+j`/`k` - extend selection
+- `dd` - delete cell
+- `yy` - copy cell
+- `p`/`P` - paste below/above
+- `o`/`O` - new cell below/above
+- `u` - undo deletion
+- `i` - edit cell (i.e., return to normal mode)
+
+Press `i` or `Enter` to return to cell editing.
+
 ## Overview panels
 
 marimo ships with the IDE panels that provide an overview of your notebook
@@ -71,7 +118,7 @@ marimo ships with the IDE panels that provide an overview of your notebook
 - **file explorer**: view the file tree, open other notebooks
 - **variables**: explore variable values, see where they are defined and used, with go-to-definition
 - **data explorer**: see dataframe and table schemas at a glance
-- **dependency graph**: view dependencies between cells, drill-down on nodes and edges
+- **dataflow tools**: visualize and navigate notebook structure and cell dependencies (see [Understanding dataflow](dataflow.md))
 - **package manager**: add and remove packages, and view your current environment
 - **table of contents**: corresponding to your markdown
 - **documentation** - move your text cursor over a symbol to see its documentation
@@ -113,6 +160,7 @@ configuration.
 
 _Missing a shortcut? File a
 [GitHub issue](https://github.com/marimo-team/marimo/issues)._
+
 
 ## Command palette
 

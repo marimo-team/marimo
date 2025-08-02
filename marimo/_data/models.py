@@ -135,6 +135,37 @@ class ColumnStats:
 
 
 @dataclass
+class BinValue:
+    """
+    Represents bin values for a column in a data table. This is used for plotting.
+
+    Attributes:
+        bin_start (NonNestedLiteral): The start of the bin.
+        bin_end (NonNestedLiteral): The end of the bin.
+        count (int): The count of values in the bin.
+    """
+
+    bin_start: NonNestedLiteral
+    bin_end: NonNestedLiteral
+    count: int
+
+
+@dataclass
+class ValueCount:
+    """
+    Represents a value and its count in a column in a data table.
+    Currently used for string columns.
+
+    Attributes:
+        value (str): The value.
+        count (int): The count of the value.
+    """
+
+    value: str
+    count: int
+
+
+@dataclass
 class DataSourceConnection:
     """
     Represents a data source connection.

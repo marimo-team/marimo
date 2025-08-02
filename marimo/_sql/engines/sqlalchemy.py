@@ -444,25 +444,27 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     @staticmethod
     def get_cursor_metadata(
         result: CursorResult[Any],
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any]:
         try:
-            description = result.cursor.description
-            column_info = {
-                "column_names": [col[0] for col in description],
-                "type_code": [col[1] for col in description],
-                "display_size": [col[2] for col in description],
-                "internal_size": [col[3] for col in description],
-                "precision": [col[4] for col in description],
-                "scale": [col[5] for col in description],
-                "null_ok": [col[6] for col in description],
-            }
+            column_info = None
+            if result.cursor is not None:
+                description = result.cursor.description
+                column_info = {
+                    "column_names": [col[0] for col in description],
+                    "type_code": [col[1] for col in description],
+                    "display_size": [col[2] for col in description],
+                    "internal_size": [col[3] for col in description],
+                    "precision": [col[4] for col in description],
+                    "scale": [col[5] for col in description],
+                    "null_ok": [col[6] for col in description],
+                }
 
             if result.context.isddl:
                 sql_statement_type = "DDL"
             elif result.context.is_crud:
                 sql_statement_type = "DML"
             else:
-                sql_statement_type = "Query"
+                sql_statement_type = "Query / Unknown"
 
             data = {
                 "result_type": str(type(result)),
@@ -477,4 +479,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             LOGGER.warning(
                 "Failed to convert cursor result to df", exc_info=True
             )
-            return None
+            return {
+                "result_type": str(type(result)),
+                "error": "Failed to convert cursor result to df",
+            }

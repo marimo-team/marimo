@@ -1,5 +1,5 @@
 _chart = (
-    alt.Chart(table)
+    alt.Chart([]) # <-- replace with data
     .mark_bar()
     .transform_aggregate(count="count()", groupby=["category_col"])
     .transform_window(

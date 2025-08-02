@@ -237,6 +237,11 @@ def python_print_polars(
             transform.column_id,
             transform.new_column_id,
         )
+        # Update column names in place
+        all_columns[:] = [
+            str(new_column_id) if col == column_id else col
+            for col in all_columns
+        ]
         return f"{df_name}.rename({{{_as_literal(column_id)}: {_as_literal(new_column_id)}}})"  # noqa: E501
 
     elif transform.type == TransformType.SORT_COLUMN:
@@ -270,10 +275,10 @@ def python_print_polars(
         for agg_func in aggregations:
             agg_df = f"{selected_df}.{agg_func}()"
             rename_dict = {
-                f"{column}: f'{column}_{agg_func}'" for column in all_columns
+                column: f"{column}_{agg_func}" for column in column_ids
             }
             agg_df = f"{agg_df}.rename({rename_dict})"
-            result_df = f"{result_df}.join({agg_df})"
+            result_df = f"{result_df}.hstack({agg_df})"
         return result_df
 
     elif transform.type == TransformType.GROUP_BY:
@@ -313,6 +318,8 @@ def python_print_polars(
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
+        # Update columns in place for subsequent transforms
+        all_columns[:] = [str(col) for col in column_ids]
         return f"{df_name}.select({_list_of_strings(column_ids)})"
 
     elif transform.type == TransformType.SAMPLE_ROWS:

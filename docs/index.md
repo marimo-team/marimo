@@ -110,7 +110,7 @@ use them are automatically re-run with their latest values.
 sort](./guides/working_with_data/dataframes.md)
 millions of rows blazingly fast, no code required.
 
-<video autoplay muted loop playsinline width="100%" height="100%" align="center">
+<video autoplay muted loop playsinline width="700px" align="center">
   <source src="/_static/docs-df.mp4" type="video/mp4">
   <source src="/_static/docs-df.webm" type="video/webm">
 </video>
@@ -220,6 +220,11 @@ List all tutorials:
 ```bash
 marimo tutorial --help
 ```
+
+**Share cloud-based notebooks.** Use
+[molab](https://molab.marimo.io/notebooks), a cloud-based marimo notebook
+service similar to Google Colab, to create and share notebook links.
+
 
 ## Questions?
 

@@ -37,6 +37,15 @@ export function createCell({
   };
 }
 
+export function createCellConfig(config?: Partial<CellConfig>): CellConfig {
+  return {
+    hide_code: false,
+    disabled: false,
+    column: null,
+    ...config,
+  };
+}
+
 export function createCellRuntimeState(
   state?: Partial<CellRuntimeState>,
 ): CellRuntimeState {

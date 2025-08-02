@@ -5,11 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { normalizeName } from "@/core/cells/names";
+import type { ConnectionName } from "@/core/datasets/engines";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
 import { formatSQL } from "../../format";
 import { languageAdapterState } from "../extension";
 import { MarkdownLanguageAdapter } from "../languages/markdown";
-import { SQLLanguageAdapter } from "../languages/sql";
+import {
+  SQLLanguageAdapter,
+  updateSQLDialectFromConnection,
+} from "../languages/sql";
 import {
   type LanguageMetadata,
   languageMetadataField,
@@ -61,8 +65,13 @@ export const LanguagePanelComponent: React.FC<{
       });
     };
 
+    const switchEngine = (engine: ConnectionName) => {
+      triggerUpdate<Metadata1>({ engine });
+      updateSQLDialectFromConnection(view, engine);
+    };
+
     actions = (
-      <div className="flex flex-1 gap-2 relative items-center">
+      <div className="flex flex-1 gap-2 items-center">
         <label className="flex gap-2 items-center">
           <span className="select-none">Output variable: </span>
           <input
@@ -83,9 +92,7 @@ export const LanguagePanelComponent: React.FC<{
         </label>
         <SQLEngineSelect
           selectedEngine={metadata.engine}
-          onChange={(engine) => {
-            triggerUpdate<Metadata1>({ engine });
-          }}
+          onChange={switchEngine}
         />
         <div className="flex items-center gap-2 ml-auto">
           <Tooltip content="Format SQL">

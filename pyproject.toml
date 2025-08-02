@@ -1,11 +1,11 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"
 
 [project]
 name = "marimo"
+version = "0.14.16"
 description = "A library for making reactive notebooks and apps"
-dynamic = ["version"]
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments;we need a very compelling reason for each dependency added.
 # Dependencies should have lower bounds, which should be as loose as possible.
@@ -140,24 +140,6 @@ docs = [
 [tool.hatch]
 installer = "uv"
 
-[tool.hatch.build.hooks.custom]
-path = "build_hook.py"
-
-[tool.hatch.version]
-path = "marimo/__init__.py"
-
-[tool.hatch.build.targets.sdist]
-include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
-exclude = ["marimo/_smoke_tests"]
-force-include = { "build_hook.py" = "build_hook.py" }
-
-[tool.hatch.build.targets.wheel]
-include = ["/marimo"]
-artifacts = ["marimo/_static/", "marimo/_lsp/", "third_party.txt", "third_party_licenses.txt"]
-exclude = ["marimo/_smoke_tests"]
-force-include = { "build_hook.py" = "build_hook.py" }
-
 # Override the default uv version to use the latest version
 [tool.hatch.envs.hatch-uv]
 dependencies = ["uv>=0.4.17"]
@@ -196,12 +178,14 @@ dependencies = [
     "pyiceberg>=0.9.0",
     "litellm>=1.70.0",
     "python-dotenv>=1.0.1",
+    "jupytext>=1.17.2",
     "types-Pillow~=10.2.0.20240520",
     "types-Pygments~=2.18.0.20240506",
     "types-psutil~=5.9.5.20240516",
     "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
+    "mcp>=1.0.0; python_version >= '3.10'",
 ]
 
 [tool.hatch.envs.typecheck.scripts]
@@ -220,6 +204,7 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
+    "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
 ]
 
@@ -248,6 +233,7 @@ extra-dependencies = [
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
+    "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
     "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
@@ -256,7 +242,7 @@ extra-dependencies = [
     "pyarrow>=19.0.1",
     "pyarrow_hotfix",
     "altair>=5.4.0",
-    "polars>=1.30.0",
+    "polars>=1.32.0",
     "sqlglot>=23.4",
     "sqlalchemy>=2.0.40",
     "pyiceberg>=0.9.0",
@@ -281,12 +267,14 @@ extra-dependencies = [
     "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb
-    "nbformat >=5.10.4",
+    "nbformat>=5.10.4",
     "sympy>=1.13.3",
+    "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
+    "mcp>=1.0.0; python_version >= '3.10'",
 ]
 
 [[tool.hatch.envs.test-optional.matrix]]
@@ -300,6 +288,12 @@ dependencies = [
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
+
+[tool.uv.build-backend]
+module-name = "marimo"
+module-root = ""
+source-include = ["third_party.txt", "third_party_licenses.txt"]
+wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.hatch.envs.docs.scripts]
 build = "mkdocs build {args}"
@@ -526,6 +520,8 @@ format_on_save = true
 
 [tool.marimo.experimental]
 multi_column = true
+performant_table_charts = true
+mcp_docs = true
 
 [tool.marimo.display]
 dataframes = "rich"
@@ -550,7 +546,7 @@ platforms = ["osx-arm64", "linux-64"]
 [tool.pixi.dependencies]
 nodejs = "22.*"
 pnpm = "10.*"
-hatch = ">=1.14.0,<2"
+hatch = ">=1.14.1,<2"
 make = ">=4.4.1,<5"
 pre_commit = ">=4.2.0,<5"
 uv = ">=0.6.12,<0.7"

@@ -55,7 +55,7 @@ export function createNotebookLens(
     return cellLineOffsets.get(cellId) ?? 0;
   }
 
-  const mergedText = Object.values(codes).join("\n");
+  const mergedText = sortedCellIds.map((cellId) => codes[cellId]).join("\n");
 
   return {
     cellIds: sortedCellIds,

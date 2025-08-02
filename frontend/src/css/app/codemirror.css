@@ -78,6 +78,8 @@
 /* -- Linting -- */
 
 .cm-tooltip-lint {
+  @apply text-sm;
+
   code {
     @apply bg-muted border border-border rounded-md px-1;
   }

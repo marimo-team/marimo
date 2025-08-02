@@ -29,6 +29,7 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
+from marimo._runtime.runtime import app_meta
 from marimo._server.utils import find_free_port
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import get_signals
@@ -101,11 +102,34 @@ def _get_secure() -> bool:
     )
 
 
+def _get_remote_url() -> str:
+    request = app_meta().request
+    if not request:
+        return ""
+
+    base_url = request.headers.get("x-runtime-url")
+    if not base_url:
+        return ""
+    return base_url.rstrip("/")
+
+
+def _convert_scheme_to_ws(url: str) -> str:
+    if url.startswith("http://"):
+        return url.replace("http://", "ws://")
+    if url.startswith("https://"):
+        return url.replace("https://", "wss://")
+    return url
+
+
 def _template(fig_id: str, port: int) -> str:
+    base_url = _get_remote_url()
+    base_url_and_path = f"{base_url}/mpl/{port}"
+    ws_base_url = _convert_scheme_to_ws(base_url_and_path)
+
     return html_content % {
-        "ws_uri": f"/mpl/{port}/ws?figure={fig_id}",
+        "ws_uri": f"{ws_base_url}/ws?figure={fig_id}",
         "fig_id": fig_id,
-        "port": port,
+        "base_url": base_url_and_path,
     }
 
 
@@ -405,13 +429,13 @@ html_content = """
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <base href='/mpl/%(port)s/    ' />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/page.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/boilerplate.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/fbm.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/_static/css/mpl.css" type="text/css" />
-    <link rel="stylesheet" href="/mpl/%(port)s/custom.css" type="text/css" />
-    <script src="/mpl/%(port)s/mpl.js"></script>
+    <base href='%(base_url)s/' />
+    <link rel="stylesheet" href="%(base_url)s/_static/css/page.css" type="text/css" />
+    <link rel="stylesheet" href="%(base_url)s/_static/css/boilerplate.css" type="text/css" />
+    <link rel="stylesheet" href="%(base_url)s/_static/css/fbm.css" type="text/css" />
+    <link rel="stylesheet" href="%(base_url)s/_static/css/mpl.css" type="text/css" />
+    <link rel="stylesheet" href="%(base_url)s/custom.css" type="text/css" />
+    <script src="%(base_url)s/mpl.js"></script>
 
     <script>
       function ondownload(figure, format) {

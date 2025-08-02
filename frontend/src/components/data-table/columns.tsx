@@ -15,9 +15,9 @@ import { JsonOutput } from "../editor/output/JsonOutput";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import type { ColumnChartSpecModel } from "./chart-spec-model";
 import { DataTableColumnHeader } from "./column-header";
-import { TableColumnSummary } from "./column-summary";
+import type { ColumnChartSpecModel } from "./column-summary/chart-spec-model";
+import { TableColumnSummary } from "./column-summary/column-summary";
 import { DatePopover } from "./date-popover";
 import type { FilterType } from "./filters";
 import { getMimeValues, MimeCell } from "./mime-cell";
@@ -104,7 +104,7 @@ export function generateColumns<T>({
   showDataTypes,
   calculateTopKRows,
 }: {
-  rowHeaders: string[];
+  rowHeaders: FieldTypesWithExternalType;
   selection: DataTableSelection;
   fieldTypes: FieldTypesWithExternalType;
   chartSpecModel?: ColumnChartSpecModel<unknown>;
@@ -113,7 +113,8 @@ export function generateColumns<T>({
   showDataTypes?: boolean;
   calculateTopKRows?: CalculateTopKRows;
 }): Array<ColumnDef<T>> {
-  const rowHeadersSet = new Set(rowHeaders);
+  // Row-headers are typically index columns
+  const rowHeadersSet = new Set(rowHeaders.map(([columnName]) => columnName));
 
   const typesByColumn = Maps.keyBy(fieldTypes, (entry) => entry[0]);
 
@@ -122,8 +123,11 @@ export function generateColumns<T>({
     const isRowHeader = rowHeadersSet.has(key);
 
     if (isRowHeader || !types) {
+      const types = rowHeaders.find(([columnName]) => columnName === key)?.[1];
       return {
         rowHeader: isRowHeader,
+        dtype: types?.[1],
+        dataType: types?.[0],
       };
     }
 
@@ -135,8 +139,8 @@ export function generateColumns<T>({
     };
   };
 
-  const columnKeys = [
-    ...rowHeaders,
+  const columnKeys: string[] = [
+    ...rowHeadersSet,
     ...fieldTypes.map(([columnName]) => columnName),
   ];
 
@@ -173,7 +177,7 @@ export function generateColumns<T>({
 
         const headerWithType = (
           <div className="flex flex-col">
-            <span className="font-bold">{key}</span>
+            <span className="font-bold">{key === "" ? " " : key}</span>
             {dtypeHeader}
           </div>
         );
@@ -200,11 +204,6 @@ export function generateColumns<T>({
       },
 
       cell: ({ column, renderValue, getValue, cell }) => {
-        // Row headers are bold
-        if (rowHeadersSet.has(key)) {
-          return <b>{String(renderValue())}</b>;
-        }
-
         function selectCell() {
           if (selection !== "single-cell" && selection !== "multi-cell") {
             return;
@@ -227,13 +226,20 @@ export function generateColumns<T>({
           isCellSelected,
         );
 
-        return renderCellValue(
+        const renderedCell = renderCellValue(
           column,
           renderValue,
           getValue,
           selectCell,
           cellStyles,
         );
+
+        // Row headers are bold
+        if (rowHeadersSet.has(key)) {
+          return <b>{renderedCell}</b>;
+        }
+
+        return renderedCell;
       },
       // Remove any default filtering
       filterFn: undefined,

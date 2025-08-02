@@ -40,6 +40,7 @@ import {
   type CellData,
   type CellRuntimeState,
   createCell,
+  createCellConfig,
   createCellRuntimeState,
 } from "./types";
 import {
@@ -101,6 +102,12 @@ export interface NotebookState {
    * Logs of all cell messages
    */
   cellLogs: CellLog[];
+  /**
+   * Set of cells that have been created that are initialized with `hide_code`.
+   *
+   * These start temporarily open until their first blur event.
+   */
+  untouchedNewCells: Set<CellId>;
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
@@ -125,7 +132,7 @@ function withScratchCell(notebookState: NotebookState): NotebookState {
 /**
  * Initial state of the notebook.
  */
-function initialNotebookState(): NotebookState {
+export function initialNotebookState(): NotebookState {
   return withScratchCell({
     cellIds: MultiColumn.from([]),
     cellData: {},
@@ -134,6 +141,7 @@ function initialNotebookState(): NotebookState {
     history: [],
     scrollKey: null,
     cellLogs: [],
+    untouchedNewCells: new Set<CellId>(),
   });
 }
 
@@ -169,6 +177,8 @@ const {
       autoFocus?: boolean;
       /** If true, skip creation if code already exists */
       skipIfCodeExists?: boolean;
+      /** Hide the code in the new cell. This will be initially shown until the cell is blurred for the first time. */
+      hideCode?: boolean;
     },
   ) => {
     const {
@@ -179,6 +189,7 @@ const {
       lastExecutionTime = null,
       autoFocus = true,
       skipIfCodeExists = false,
+      hideCode = false,
     } = action;
 
     let columnId: CellColumnId;
@@ -222,6 +233,7 @@ const {
           id: newCellId,
           code,
           lastCodeRun,
+          config: createCellConfig({ hide_code: hideCode }),
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),
@@ -235,6 +247,9 @@ const {
         [newCellId]: createRef(),
       },
       scrollKey: autoFocus ? newCellId : null,
+      untouchedNewCells: hideCode
+        ? new Set([...state.untouchedNewCells, newCellId])
+        : state.untouchedNewCells,
     };
   },
   moveCell: (
@@ -395,25 +410,34 @@ const {
       cellIds: state.cellIds.moveColumn(action.column, action.overColumn),
     };
   },
-  focusCell: (state, action: { cellId: CellId; before: boolean }) => {
+  focusCell: (
+    state,
+    action: { cellId: CellId; where: "before" | "after" | "exact" },
+  ) => {
     const column = state.cellIds.findWithId(action.cellId);
     if (column.length === 0) {
       return state;
     }
 
-    const { cellId, before } = action;
+    const { cellId, where } = action;
     const index = column.indexOfOrThrow(cellId);
-    let focusIndex = before ? index - 1 : index + 1;
-    // clamp
-    focusIndex = clamp(focusIndex, 0, column.length - 1);
+
+    let focusIndex: number;
+    if (where === "before") {
+      focusIndex = clamp(index - 1, 0, column.length - 1);
+    } else if (where === "after") {
+      focusIndex = clamp(index + 1, 0, column.length - 1);
+    } else {
+      focusIndex = index;
+    }
     const focusCellId = column.atOrThrow(focusIndex);
     // can scroll immediately, without setting scrollKey in state, because
     // CellArray won't need to re-render
     focusAndScrollCellIntoView({
       cellId: focusCellId,
       cell: state.cellHandles[focusCellId],
-      config: state.cellData[focusCellId].config,
-      codeFocus: before ? "bottom" : "top",
+      isCodeHidden: isCellCodeHidden(state, focusCellId),
+      codeFocus: where === "after" ? "top" : "bottom",
       variableName: undefined,
     });
     return state;
@@ -429,7 +453,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -447,7 +471,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -986,10 +1010,24 @@ const {
       focusAndScrollCellIntoView({
         cellId: nextCellId,
         cell: state.cellHandles[nextCellId],
-        config: state.cellData[nextCellId].config,
+        isCodeHidden: isCellCodeHidden(state, nextCellId),
         codeFocus: before ? "bottom" : "top",
         variableName: undefined,
       });
+    }
+
+    return state;
+  },
+  markTouched: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+
+    if (state.untouchedNewCells.has(cellId)) {
+      const nextUntouchedNewCells = new Set(state.untouchedNewCells);
+      nextUntouchedNewCells.delete(cellId);
+      return {
+        ...state,
+        untouchedNewCells: nextUntouchedNewCells,
+      };
     }
 
     return state;
@@ -1010,7 +1048,7 @@ const {
     focusAndScrollCellIntoView({
       cellId: cellId,
       cell: state.cellHandles[cellId],
-      config: state.cellData[cellId].config,
+      isCodeHidden: isCellCodeHidden(state, cellId),
       codeFocus: undefined,
       variableName: undefined,
     });
@@ -1330,6 +1368,13 @@ const {
   },
 });
 
+function isCellCodeHidden(state: NotebookState, cellId: CellId): boolean {
+  return (
+    state.cellData[cellId].config.hide_code &&
+    !state.untouchedNewCells.has(cellId)
+  );
+}
+
 // Helper function to update a cell in the array
 function updateCellRuntimeState({
   state,
@@ -1380,6 +1425,9 @@ function updateCellData({
 export function getCellConfigs(state: NotebookState): CellConfig[] {
   const cells = state.cellData;
 
+  // We set to null by default to prevent inconsistencies between undefined & null
+  const defaultCellConfig: Partial<CellConfig> = { column: null };
+
   // Handle the case where there's only one column
   // We don't want to set the column config
   const hasMultipleColumns = state.cellIds.getColumns().length > 1;
@@ -1388,7 +1436,7 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
       return column.inOrderIds.map((cellId) => {
         return {
           ...cells[cellId].config,
-          column: null,
+          ...defaultCellConfig,
         };
       });
     });
@@ -1396,7 +1444,7 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
 
   return state.cellIds.getColumns().flatMap((column, columnIndex) => {
     return column.inOrderIds.map((cellId, cellIndex) => {
-      const config: Partial<CellConfig> = { column: undefined };
+      const config: Partial<CellConfig> = { ...defaultCellConfig };
 
       // Only set the column index for the first cell in the column
       if (cellIndex === 0) {
@@ -1587,6 +1635,10 @@ export function flattenTopLevelNotebookCells(
   );
 }
 
+export function createUntouchedCellAtom(cellId: CellId): Atom<boolean> {
+  return atom((get) => get(notebookAtom).untouchedNewCells.has(cellId));
+}
+
 export function createTracebackInfoAtom(
   cellId: CellId,
 ): Atom<TracebackInfo[] | undefined> {
@@ -1647,4 +1699,5 @@ export const exportedForTesting = {
   reducer,
   createActions,
   initialNotebookState,
+  isCellCodeHidden,
 };

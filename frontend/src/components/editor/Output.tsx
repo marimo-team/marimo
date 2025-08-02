@@ -1,5 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -21,11 +28,13 @@ import {
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { Objects } from "@/utils/objects";
+import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
@@ -47,8 +56,9 @@ export const OutputRenderer: React.FC<{
   message: Pick<OutputMessage, "channel" | "data" | "mimetype">;
   cellId?: CellId;
   onRefactorWithAI?: (opts: { prompt: string }) => void;
+  wrapText?: boolean;
 }> = memo((props) => {
-  const { message, onRefactorWithAI, cellId } = props;
+  const { message, onRefactorWithAI, cellId, wrapText } = props;
   const { theme } = useTheme();
 
   // Memoize parsing the json data
@@ -85,7 +95,7 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <TextOutput channel={channel} text={data} />;
+      return <TextOutput channel={channel} text={data} wrapText={wrapText} />;
 
     case "application/json":
       // TODO: format is 'auto', but should make configurable once cells can
@@ -160,10 +170,12 @@ export const OutputRenderer: React.FC<{
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":
       return (
-        <LazyVegaLite
-          spec={parsedJsonData as TopLevelFacetedUnitSpec}
-          theme={theme === "dark" ? "dark" : undefined}
-        />
+        <Suspense fallback={<ChartLoadingState />}>
+          <LazyVegaLite
+            spec={parsedJsonData as TopLevelFacetedUnitSpec}
+            theme={theme === "dark" ? "dark" : undefined}
+          />
+        </Suspense>
       );
     case "application/vnd.marimo+mimebundle":
       return (
@@ -173,6 +185,22 @@ export const OutputRenderer: React.FC<{
             parsedJsonData as Record<OutputMessage["mimetype"], OutputMessage>
           }
         />
+      );
+    case "application/vnd.jupyter.widget-view+json":
+      return (
+        <Banner kind="warn">
+          <b>Jupyter widgets are not supported in marimo.</b> <br />
+          Please migrate this widget to{" "}
+          <a
+            href="https://github.com/manzt/anywidget"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-[var(--amber-12)]"
+          >
+            anywidget
+          </a>
+          .
+        </Banner>
       );
     default:
       logNever(mimetype);
@@ -215,7 +243,7 @@ const MimeBundleOutputRenderer: React.FC<{
 
   const mimeEntries = Objects.entries(mimebundle);
   // Sort HTML first
-  mimeEntries.sort(([mimeA], [mimeB]) => {
+  mimeEntries.sort(([mimeA], [_mimeB]) => {
     if (mimeA === "text/html") {
       return -1;
     }

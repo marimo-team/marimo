@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.ui._impl.tables.table_manager import FieldTypes
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
 HAS_PANDAS = DependencyManager.pandas.has()
@@ -16,7 +17,7 @@ HAS_PYARROW = DependencyManager.pyarrow.has()
 
 def _get_row_headers(
     data: Any,
-) -> list[str]:
+) -> FieldTypes:
     manager = get_table_manager(data)
     return manager.get_row_headers()
 
@@ -30,7 +31,7 @@ def test_get_row_headers_pandas() -> None:
     # Test with pandas DataFrame
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
     df.index.name = "Index"
-    assert _get_row_headers(df) == ["Index"]
+    assert _get_row_headers(df) == [("Index", ("integer", "int64"))]
 
     # Test with MultiIndex
     arrays = [
@@ -38,7 +39,10 @@ def test_get_row_headers_pandas() -> None:
         ["one", "two", "three"],
     ]
     df_multi = pd.DataFrame({"A": range(3)}, index=arrays)
-    assert _get_row_headers(df_multi) == ["", ""]
+    assert _get_row_headers(df_multi) == [
+        ("", ("string", "object")),
+        ("", ("string", "object")),
+    ]
 
     # Test with RangeIndex
     df_range = pd.DataFrame({"A": range(3)})
@@ -47,12 +51,12 @@ def test_get_row_headers_pandas() -> None:
     # Test with categorical Index
     df_cat = pd.DataFrame({"A": range(3)})
     df_cat.index = pd.CategoricalIndex(["a", "b", "c"])
-    assert _get_row_headers(df_cat) == [""]
+    assert _get_row_headers(df_cat) == [("", ("string", "category"))]
 
     # Test with named categorical Index
     df_cat = pd.DataFrame({"A": range(3)})
     df_cat.index = pd.CategoricalIndex(["a", "b", "c"], name="Colors")
-    assert _get_row_headers(df_cat) == ["Colors"]
+    assert _get_row_headers(df_cat) == [("Colors", ("string", "category"))]
 
 
 def test_get_row_headers_list() -> None:

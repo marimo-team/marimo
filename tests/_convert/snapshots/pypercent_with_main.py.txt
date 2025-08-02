@@ -1,0 +1,30 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.cell
+def _():
+    """Script with main block in pypercent."""
+    return
+
+
+@app.cell
+def _():
+    import sys
+    return (sys,)
+
+
+@app.cell
+def _(sys):
+    def _main_():
+        print("Running as script")
+        sys.exit(0)
+
+    _main_()
+    return
+
+
+if __name__ == "__main__":
+    app.run()

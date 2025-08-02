@@ -5,8 +5,9 @@ import urllib.error
 import urllib.request
 from typing import Optional
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._save.stores.store import Store
+from marimo._version import __version__
 
 LOGGER = _loggers.marimo_logger()
 

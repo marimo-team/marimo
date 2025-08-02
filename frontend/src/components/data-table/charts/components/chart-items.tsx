@@ -2,7 +2,7 @@
 
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { capitalize } from "lodash-es";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import type { z } from "zod";
@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DataType } from "@/core/kernel/messages";
-import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { isFieldSet } from "../chart-spec/spec";
 import { convertDataTypeToSelectable } from "../chart-spec/types";
 import {
@@ -131,19 +130,6 @@ const ColumnSelectorWithAggregation: React.FC<{
     </div>
   );
 };
-
-export const ChartLoadingState: React.FC = () => (
-  <div className="flex items-center gap-2 justify-center">
-    <Loader2 className="w-10 h-10 animate-spin" strokeWidth={1} />
-    <span>Loading chart...</span>
-  </div>
-);
-
-export const ChartErrorState: React.FC<{ error: Error }> = ({ error }) => (
-  <div className="flex items-center justify-center">
-    <ErrorBanner error={error} />
-  </div>
-);
 
 export const ChartTypeSelect: React.FC<{
   value: ChartType;

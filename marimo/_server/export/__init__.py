@@ -5,7 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._cli.print import echo
@@ -51,7 +51,10 @@ def export_as_script(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    result = Exporter().export_as_script(file_manager)
+    result = Exporter().export_as_script(
+        filename=file_manager.filename,
+        app=file_manager.app,
+    )
     return ExportResult(
         contents=result[0],
         download_filename=result[1],
@@ -92,7 +95,11 @@ def export_as_ipynb(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
-    result = Exporter().export_as_ipynb(file_manager, sort_mode=sort_mode)
+    result = Exporter().export_as_ipynb(
+        filename=file_manager.filename,
+        app=file_manager.app,
+        sort_mode=sort_mode,
+    )
     return ExportResult(
         contents=result[0],
         download_filename=result[1],
@@ -115,7 +122,8 @@ def export_as_wasm(
     config = get_default_config_manager(current_path=file_manager.path)
 
     result = Exporter().export_as_wasm(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         display_config=config.get_config()["display"],
         mode=mode,
         code=file_manager.to_code(),
@@ -130,18 +138,15 @@ def export_as_wasm(
 
 
 async def run_app_then_export_as_ipynb(
-    path_or_file_manager: Union[MarimoPath, AppFileManager],
+    filepath: MarimoPath,
     sort_mode: Literal["top-down", "topological"],
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
 ) -> ExportResult:
-    if isinstance(path_or_file_manager, AppFileManager):
-        file_manager = path_or_file_manager
-    else:
-        file_router = AppFileRouter.from_filename(path_or_file_manager)
-        file_key = file_router.get_unique_file_key()
-        assert file_key is not None
-        file_manager = file_router.get_file_manager(file_key)
+    file_router = AppFileRouter.from_filename(filepath)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
 
     with patch_html_for_non_interactive_output():
         (session_view, did_error) = await run_app_until_completion(
@@ -151,7 +156,10 @@ async def run_app_then_export_as_ipynb(
         )
 
     result = Exporter().export_as_ipynb(
-        file_manager, sort_mode=sort_mode, session_view=session_view
+        filename=file_manager.filename,
+        app=file_manager.app,
+        sort_mode=sort_mode,
+        session_view=session_view,
     )
     return ExportResult(
         contents=result[0],
@@ -183,7 +191,8 @@ async def run_app_then_export_as_html(
     )
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
-        file_manager=file_manager,
+        filename=file_manager.filename,
+        app=file_manager.app,
         session_view=session_view,
         display_config=config.get_config()["display"],
         request=ExportAsHTMLRequest(

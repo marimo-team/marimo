@@ -84,15 +84,25 @@ class KeymapConfig(TypedDict):
     - `preset`: one of `"default"` or `"vim"`
     - `overrides`: a dict of keymap actions to their keymap override
     - `vimrc`: path to a vimrc file to load keymaps from
+    - `destructive_delete`: if `True`, allows deleting cells with content.
     """
 
     preset: Literal["default", "vim"]
     overrides: NotRequired[dict[str, str]]
     vimrc: NotRequired[Optional[str]]
+    destructive_delete: NotRequired[bool]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
 ExecutionType = Literal["relaxed", "strict"]
+
+
+# TODO(akshayka): remove normal, migrate to compact
+# normal == compact
+WidthType = Literal["normal", "compact", "medium", "full", "columns"]
+Theme = Literal["light", "dark", "system"]
+ExportType = Literal["html", "markdown", "ipynb"]
+SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
 
 
 @mddoc
@@ -133,6 +143,9 @@ class RuntimeConfig(TypedDict):
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
+    - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
+       `html`, `markdown`, `ipynb`.
+       The default is None.
     """
 
     auto_instantiate: bool
@@ -145,13 +158,7 @@ class RuntimeConfig(TypedDict):
     pythonpath: NotRequired[list[str]]
     dotenv: NotRequired[list[str]]
     default_sql_output: SqlOutputType
-
-
-# TODO(akshayka): remove normal, migrate to compact
-# normal == compact
-WidthType = Literal["normal", "compact", "medium", "full", "columns"]
-Theme = Literal["light", "dark", "system"]
-SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
+    default_auto_download: NotRequired[list[ExportType]]
 
 
 @mddoc
@@ -333,6 +340,30 @@ class PythonLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class BasedpyrightServerConfig(TypedDict, total=False):
+    """
+    Configuration options for basedpyright Language Server.
+
+    basedpyright handles completion, hover, go-to-definition, and diagnostics,
+    but we only use it for diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
+class TyLanguageServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Ty Language Server.
+
+    ty handles completion, hover, go-to-definition, and diagnostics,
+    but we only use it for diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class LanguageServersConfig(TypedDict, total=False):
     """Configuration options for language servers.
 
@@ -342,6 +373,8 @@ class LanguageServersConfig(TypedDict, total=False):
     """
 
     pylsp: PythonLanguageServerConfig
+    basedpyright: BasedpyrightServerConfig
+    ty: TyLanguageServerConfig
 
 
 @dataclass
@@ -420,6 +453,57 @@ class MarimoConfig(TypedDict):
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
+    # We don't support configuring MCP servers yet
+    # mcp: NotRequired[MCPConfig]
+
+
+@mddoc
+@dataclass
+class MCPServerStdioConfig(TypedDict):
+    """Configuration for STDIO transport MCP servers"""
+
+    command: str
+    args: NotRequired[Optional[list[str]]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
+
+
+@mddoc
+@dataclass
+class MCPServerStreamableHttpConfig(TypedDict):
+    """Configuration for Streamable HTTP transport MCP servers"""
+
+    url: str
+    headers: NotRequired[Optional[dict[str, str]]]
+    timeout: NotRequired[Optional[float]]
+    env: NotRequired[Optional[dict[str, str]]]
+    disabled: NotRequired[Optional[bool]]
+
+
+MCPServerConfig = Union[MCPServerStdioConfig, MCPServerStreamableHttpConfig]
+
+
+@mddoc
+@dataclass
+class MCPConfig(TypedDict):
+    """
+    Configuration for MCP servers
+
+    Note: the field name `mcpServers` is camelCased to match MCP server
+    config conventions used by popular AI applications (e.g. Cursor, Claude Desktop, etc.)
+    """
+
+    mcpServers: dict[str, MCPServerConfig]
+
+
+DEFAULT_MCP_CONFIG: MCPConfig = MCPConfig(
+    mcpServers={
+        "marimo": MCPServerStreamableHttpConfig(
+            url="https://mcp.marimo.app/mcp"
+        ),
+        # TODO(bjoaquinc): add more Marimo MCP servers here after they are implemented
+    }
+)
 
 
 @mddoc

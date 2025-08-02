@@ -298,13 +298,13 @@ def get_source_position(
     # Fallback won't capture embedded scripts
     if inspect.isclass(f):
         is_script = f.__module__ == "__main__"
-    # Larger catch all than if inspect.isfunction(f):
-    elif hasattr(f, "__globals__"):
-        is_script = f.__globals__["__name__"] == "__main__"  # type: ignore
     # Could be something wrapped in a decorator, like
     # functools._lru_cache_wrapper.
     elif hasattr(f, "__wrapped__"):
         return get_source_position(f.__wrapped__, lineno, col_offset)
+    # Larger catch all than if inspect.isfunction(f):
+    elif hasattr(f, "__globals__") and hasattr(f, "__name__"):
+        is_script = f.__globals__["__name__"] == "__main__"  # type: ignore
     else:
         return None
     # TODO: spec is None for markdown notebooks, which is fine for now

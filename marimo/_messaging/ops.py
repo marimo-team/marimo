@@ -418,11 +418,15 @@ class CompletedRun(Op):
 class KernelCapabilities:
     terminal: bool = False
     pylsp: bool = False
+    ty: bool = False
+    basedpyright: bool = False
 
     def __post_init__(self) -> None:
         # Only available in mac/linux
         self.terminal = not is_windows() and not is_pyodide()
         self.pylsp = DependencyManager.pylsp.has()
+        self.basedpyright = DependencyManager.basedpyright.has()
+        self.ty = DependencyManager.ty.has()
 
 
 @dataclass

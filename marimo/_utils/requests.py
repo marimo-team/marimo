@@ -5,7 +5,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Optional, Union
 
-from marimo import __version__
+from marimo._version import __version__
 
 # Utility functions for making HTTP requests,
 # without using the requests library or any other external dependencies.

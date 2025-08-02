@@ -5,6 +5,7 @@ import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
 import { createTracebackInfoAtom, SCRATCH_CELL_ID } from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
@@ -23,7 +24,13 @@ import { errorLineHighlighter } from "./traceback-decorations";
 /**
  * Extensions for cell actions
  */
-function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
+function cellKeymaps({
+  cellId,
+  hotkeys,
+}: {
+  cellId: CellId;
+  hotkeys: HotkeyProvider;
+}): Extension[] {
   const keybindings: KeyBinding[] = [];
 
   keybindings.push(
@@ -98,7 +105,7 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         preventDefault: true,
         stopPropagation: true,
         run: (cm) => {
-          // Cannot delete non-empty cells for safety
+          // When editing (not command mode), only allow deletion of empty cells
           if (cm.state.doc.length === 0) {
             const actions = cm.state.facet(cellActionsState);
             actions.deleteCell();
@@ -128,6 +135,26 @@ function cellKeymaps(cellId: CellId, hotkeys: HotkeyProvider): Extension[] {
         run: (ev) => {
           const actions = ev.state.facet(cellActionsState);
           actions.moveCell({ cellId, before: false });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.moveLeft").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: true, direction: "left" });
+          return true;
+        },
+      },
+      {
+        key: hotkeys.getHotkey("cell.moveRight").key,
+        preventDefault: true,
+        stopPropagation: true,
+        run: (ev) => {
+          const actions = ev.state.facet(cellActionsState);
+          actions.moveCell({ cellId, before: false, direction: "right" });
           return true;
         },
       },
@@ -338,15 +365,20 @@ export function markdownAutoRunExtension({
   });
 }
 
-export function cellBundle(
-  cellId: CellId,
-  hotkeys: HotkeyProvider,
-  cellActions: CodemirrorCellActions,
-): Extension[] {
+export function cellBundle({
+  cellId,
+  hotkeys,
+  cellActions,
+}: {
+  cellId: CellId;
+  hotkeys: HotkeyProvider;
+  cellActions: CodemirrorCellActions;
+  keymapConfig: KeymapConfig;
+}): Extension[] {
   return [
     cellActionsState.of(cellActions),
     cellIdState.of(cellId),
-    cellKeymaps(cellId, hotkeys),
+    cellKeymaps({ cellId, hotkeys }),
     cellCodeEditing(hotkeys),
     errorLineHighlighter(
       createObservable(createTracebackInfoAtom(cellId), store),

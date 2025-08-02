@@ -12,7 +12,6 @@ import type {
 import { Provider } from "jotai";
 import { Table2Icon } from "lucide-react";
 import type { JSX } from "react";
-/* Copyright 2024 Marimo. All rights reserved. */
 import React, {
   memo,
   useCallback,
@@ -25,11 +24,11 @@ import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
-import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { TablePanel } from "@/components/data-table/charts/charts";
 import { hasChart } from "@/components/data-table/charts/storage";
 import { ColumnExplorerPanel } from "@/components/data-table/column-explorer-panel/column-explorer";
-import { ColumnChartContext } from "@/components/data-table/column-summary";
+import { ColumnChartSpecModel } from "@/components/data-table/column-summary/chart-spec-model";
+import { ColumnChartContext } from "@/components/data-table/column-summary/column-summary";
 import {
   type ColumnFilterValue,
   filterToFilterCondition,
@@ -38,6 +37,7 @@ import { usePanelOwnership } from "@/components/data-table/hooks/use-panel-owner
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { RowViewerPanel } from "@/components/data-table/row-viewer-panel/row-viewer";
 import {
+  type BinValues,
   type ColumnHeaderStats,
   type ColumnName,
   type DataTableSelection,
@@ -45,6 +45,7 @@ import {
   TOO_MANY_ROWS,
   type TooManyRows,
   toFieldTypes,
+  type ValueCounts,
 } from "@/components/data-table/types";
 import { loadTableData } from "@/components/data-table/utils";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
@@ -52,7 +53,7 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId } from "@/core/cells/ids";
-import { DATA_TYPES } from "@/core/kernel/messages";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
@@ -71,13 +72,24 @@ import { createPlugin } from "../core/builder";
 import { rpc } from "../core/rpc";
 import { Banner } from "./common/error-banner";
 import { Labeled } from "./common/labeled";
-import { ConditionSchema, type ConditionType } from "./data-frames/schema";
+import {
+  ConditionSchema,
+  type ConditionType,
+  columnToFieldTypesSchema,
+} from "./data-frames/schema";
 
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
+
+interface ColumnSummariesArgs {
+  precompute: boolean;
+}
+
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
+  bin_values: Record<ColumnName, BinValues>;
+  value_counts: Record<ColumnName, ValueCounts>;
   is_disabled?: boolean;
 }
 
@@ -92,7 +104,7 @@ export type GetDataUrl = (opts: {}) => Promise<{
   format: "csv" | "json" | "arrow";
 }>;
 
-export type CalculateTopKRows = <T>(req: {
+export type CalculateTopKRows = (req: {
   column: string;
   k: number;
 }) => Promise<{
@@ -129,6 +141,21 @@ const columnStats = z.object({
   p95: maybeNumber,
 });
 
+const binValues: z.ZodType<BinValues> = z.array(
+  z.object({
+    bin_start: z.union([z.number(), z.string(), z.instanceof(Date)]),
+    bin_end: z.union([z.number(), z.string(), z.instanceof(Date)]),
+    count: z.number(),
+  }),
+);
+
+const valueCounts: z.ZodType<ValueCounts> = z.array(
+  z.object({
+    value: z.string(),
+    count: z.number(),
+  }),
+);
+
 /**
  * Arguments for a data table
  *
@@ -145,10 +172,11 @@ interface Data<T> {
   showDownload: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
+  showDataTypes: boolean;
   showPageSizeSelector: boolean;
   showColumnExplorer: boolean;
   showChartBuilder: boolean;
-  rowHeaders: string[];
+  rowHeaders: FieldTypesWithExternalType;
   fieldTypes?: FieldTypesWithExternalType | null;
   freezeColumnsLeft?: string[];
   freezeColumnsRight?: string[];
@@ -163,7 +191,9 @@ interface Data<T> {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
   download_as: (req: { format: "csv" | "json" | "parquet" }) => Promise<string>;
-  get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
+  get_column_summaries: <T>(
+    opts: ColumnSummariesArgs,
+  ) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
       by: string;
@@ -208,24 +238,18 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnSummaries: z
         .union([z.boolean(), z.enum(["stats", "chart"])])
         .default(true),
+      showDataTypes: z.boolean().default(true),
       showPageSizeSelector: z.boolean().default(true),
       showColumnExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
-      rowHeaders: z.array(z.string()),
+      rowHeaders: columnToFieldTypesSchema,
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
       textJustifyColumns: z
         .record(z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
-      fieldTypes: z
-        .array(
-          z.tuple([
-            z.coerce.string(),
-            z.tuple([z.enum(DATA_TYPES), z.string()]),
-          ]),
-        )
-        .nullish(),
+      fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
       maxColumns: z.union([z.number(), z.literal("all")]).default("all"),
       hasStableRowId: z.boolean().default(false),
@@ -241,15 +265,19 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     download_as: rpc
       .input(z.object({ format: z.enum(["csv", "json", "parquet"]) }))
       .output(z.string()),
-    get_column_summaries: rpc.input(z.object({}).passthrough()).output(
-      z.object({
-        data: z
-          .union([z.string(), z.array(z.object({}).passthrough())])
-          .nullable(),
-        stats: z.record(z.string(), columnStats),
-        is_disabled: z.boolean().optional(),
-      }),
-    ),
+    get_column_summaries: rpc
+      .input(z.object({ precompute: z.boolean() }))
+      .output(
+        z.object({
+          data: z
+            .union([z.string(), z.array(z.object({}).passthrough())])
+            .nullable(),
+          stats: z.record(z.string(), columnStats),
+          bin_values: z.record(z.string(), binValues),
+          value_counts: z.record(z.string(), valueCounts),
+          is_disabled: z.boolean().optional(),
+        }),
+      ),
     search: rpc
       .input(
         z.object({
@@ -542,14 +570,18 @@ export const LoadingDataTableComponent = memo(
       );
     }, [data?.totalRows]);
 
+    const precompute = getFeatureFlag("performant_table_charts");
+
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
     >(async () => {
+      // TODO: props.get_column_summaries is always true,
+      // so we are unable to detect if the function is registered
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {} };
+        return { data: null, stats: {}, bin_values: {}, value_counts: {} };
       }
-      return props.get_column_summaries({});
+      return props.get_column_summaries({ precompute });
     }, [
       props.get_column_summaries,
       props.showColumnSummaries,
@@ -651,6 +683,7 @@ const DataTableComponent = ({
   showPageSizeSelector,
   showColumnExplorer,
   showChartBuilder,
+  showDataTypes,
   rowHeaders,
   fieldTypes,
   paginationState,
@@ -697,12 +730,16 @@ const DataTableComponent = ({
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
+
     return new ColumnChartSpecModel(
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
       columnSummaries.stats,
+      columnSummaries.bin_values,
+      columnSummaries.value_counts,
       {
         includeCharts: Boolean(columnSummaries.data),
+        usePreComputedValues: getFeatureFlag("performant_table_charts"),
       },
     );
   }, [fieldTypes, columnSummaries]);
@@ -723,8 +760,12 @@ const DataTableComponent = ({
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
-  const showDataTypes = Boolean(fieldTypes);
   const shownColumns = memoizedClampedFieldTypes.length;
+
+  // If the field types are not set, we don't show them
+  if (!fieldTypes) {
+    showDataTypes = false;
+  }
 
   const columns = useMemo(
     () =>

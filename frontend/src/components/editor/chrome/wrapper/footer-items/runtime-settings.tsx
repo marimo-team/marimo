@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { DisableIfOverridden } from "@/components/app-config/is-overridden";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,109 +102,121 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
     <div className={cn("flex items-center", className)}>
       {/* Shown on larger screens */}
       <div className="hidden md:flex md:items-center">
-        <FooterItem
-          tooltip={
-            config.runtime.auto_instantiate
-              ? "Disable autorun on startup"
-              : "Enable autorun on startup"
-          }
-          selected={false}
-          onClick={() => handleStartupToggle(!config.runtime.auto_instantiate)}
-          data-testid="footer-autorun-startup"
-        >
-          <div className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
-            <span>on startup: </span>
-            {config.runtime.auto_instantiate ? (
-              <ZapIcon size={14} />
-            ) : (
-              <ZapOffIcon size={14} />
-            )}
-            <span>{config.runtime.auto_instantiate ? "autorun" : "lazy"}</span>
-          </div>
-        </FooterItem>
+        <DisableIfOverridden name="runtime.auto_instantiate">
+          <FooterItem
+            tooltip={
+              config.runtime.auto_instantiate
+                ? "Disable autorun on startup"
+                : "Enable autorun on startup"
+            }
+            selected={false}
+            onClick={() =>
+              handleStartupToggle(!config.runtime.auto_instantiate)
+            }
+            data-testid="footer-autorun-startup"
+          >
+            <div className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
+              <span>on startup: </span>
+              {config.runtime.auto_instantiate ? (
+                <ZapIcon size={14} />
+              ) : (
+                <ZapOffIcon size={14} />
+              )}
+              <span>
+                {config.runtime.auto_instantiate ? "autorun" : "lazy"}
+              </span>
+            </div>
+          </FooterItem>
+        </DisableIfOverridden>
 
         <div className="border-r border-border h-6 mx-1" />
 
-        <FooterItem
-          tooltip={
-            config.runtime.on_cell_change === "autorun"
-              ? "Disable autorun"
-              : "Enable autorun"
-          }
-          selected={false}
-          onClick={() =>
-            handleCellChangeToggle(config.runtime.on_cell_change !== "autorun")
-          }
-          data-testid="footer-autorun-cell-change"
-        >
-          <div className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
-            <span>on cell change: </span>
-            {config.runtime.on_cell_change === "autorun" ? (
-              <ZapIcon size={14} />
-            ) : (
-              <ZapOffIcon size={14} />
-            )}
-            <span>{config.runtime.on_cell_change}</span>
-          </div>
-        </FooterItem>
+        <DisableIfOverridden name="runtime.on_cell_change">
+          <FooterItem
+            tooltip={
+              config.runtime.on_cell_change === "autorun"
+                ? "Disable autorun"
+                : "Enable autorun"
+            }
+            selected={false}
+            onClick={() =>
+              handleCellChangeToggle(
+                config.runtime.on_cell_change !== "autorun",
+              )
+            }
+            data-testid="footer-autorun-cell-change"
+          >
+            <div className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
+              <span>on cell change: </span>
+              {config.runtime.on_cell_change === "autorun" ? (
+                <ZapIcon size={14} />
+              ) : (
+                <ZapOffIcon size={14} />
+              )}
+              <span>{config.runtime.on_cell_change}</span>
+            </div>
+          </FooterItem>
+        </DisableIfOverridden>
 
         {!isWasm() && (
           <>
             <div className="border-r border-border h-6 mx-1" />
-            <FooterItem
-              tooltip={null}
-              selected={false}
-              data-testid="footer-module-reload"
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
-                  <span>on module change: </span>
-                  {config.runtime.auto_reload === "off" && (
-                    <PowerOffIcon size={14} />
-                  )}
-                  {config.runtime.auto_reload === "lazy" && (
-                    <ZapOffIcon size={14} />
-                  )}
-                  {config.runtime.auto_reload === "autorun" && (
-                    <ZapIcon size={14} />
-                  )}
-                  <span>{config.runtime.auto_reload}</span>
-                  <ChevronDownIcon size={14} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {["off", "lazy", "autorun"].map((option) => (
-                    <DropdownMenuItem
-                      key={option}
-                      onClick={() =>
-                        handleModuleReloadChange(
-                          option as "off" | "lazy" | "autorun",
-                        )
-                      }
-                    >
-                      {option === "off" && (
-                        <PowerOffIcon
-                          size={14}
-                          className="mr-2 text-muted-foreground"
-                        />
-                      )}
-                      {option === "lazy" && (
-                        <ZapOffIcon
-                          size={14}
-                          className="mr-2 text-muted-foreground"
-                        />
-                      )}
-                      {option === "autorun" && (
-                        <ZapIcon
-                          size={14}
-                          className="mr-2 text-muted-foreground"
-                        />
-                      )}
-                      {option}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </FooterItem>
+            <DisableIfOverridden name="runtime.auto_reload">
+              <FooterItem
+                tooltip={null}
+                selected={false}
+                data-testid="footer-module-reload"
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
+                    <span>on module change: </span>
+                    {config.runtime.auto_reload === "off" && (
+                      <PowerOffIcon size={14} />
+                    )}
+                    {config.runtime.auto_reload === "lazy" && (
+                      <ZapOffIcon size={14} />
+                    )}
+                    {config.runtime.auto_reload === "autorun" && (
+                      <ZapIcon size={14} />
+                    )}
+                    <span>{config.runtime.auto_reload}</span>
+                    <ChevronDownIcon size={14} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {["off", "lazy", "autorun"].map((option) => (
+                      <DropdownMenuItem
+                        key={option}
+                        onClick={() =>
+                          handleModuleReloadChange(
+                            option as "off" | "lazy" | "autorun",
+                          )
+                        }
+                      >
+                        {option === "off" && (
+                          <PowerOffIcon
+                            size={14}
+                            className="mr-2 text-muted-foreground"
+                          />
+                        )}
+                        {option === "lazy" && (
+                          <ZapOffIcon
+                            size={14}
+                            className="mr-2 text-muted-foreground"
+                          />
+                        )}
+                        {option === "autorun" && (
+                          <ZapIcon
+                            size={14}
+                            className="mr-2 text-muted-foreground"
+                          />
+                        )}
+                        {option}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </FooterItem>
+            </DisableIfOverridden>
           </>
         )}
       </div>
@@ -232,110 +245,120 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
             <DropdownMenuSeparator />
 
             {/* On startup toggle */}
-            <div className="flex items-center justify-between px-2 py-2">
-              <div className="flex items-center space-x-2">
-                {config.runtime.auto_instantiate ? (
-                  <ZapIcon size={14} className="text-amber-500" />
-                ) : (
-                  <ZapOffIcon size={14} className="text-muted-foreground" />
-                )}
-                <div>
-                  <div className="text-sm font-medium">On startup</div>
-                  <div className="text-xs text-muted-foreground">
-                    {config.runtime.auto_instantiate ? "autorun" : "lazy"}
+            <DisableIfOverridden name="runtime.auto_instantiate">
+              <div className="flex items-center justify-between px-2 py-2">
+                <div className="flex items-center space-x-2">
+                  {config.runtime.auto_instantiate ? (
+                    <ZapIcon size={14} className="text-amber-500" />
+                  ) : (
+                    <ZapOffIcon size={14} className="text-muted-foreground" />
+                  )}
+                  <div>
+                    <div className="text-sm font-medium">On startup</div>
+                    <div className="text-xs text-muted-foreground">
+                      {config.runtime.auto_instantiate ? "autorun" : "lazy"}
+                    </div>
                   </div>
                 </div>
+                <Switch
+                  checked={config.runtime.auto_instantiate}
+                  onCheckedChange={handleStartupToggle}
+                  size="sm"
+                />
               </div>
-              <Switch
-                checked={config.runtime.auto_instantiate}
-                onCheckedChange={handleStartupToggle}
-                size="sm"
-              />
-            </div>
+            </DisableIfOverridden>
 
             <DropdownMenuSeparator />
 
             {/* On cell change toggle */}
-            <div className="flex items-center justify-between px-2 py-2">
-              <div className="flex items-center space-x-2">
-                {config.runtime.on_cell_change === "autorun" ? (
-                  <ZapIcon size={14} className="text-amber-500" />
-                ) : (
-                  <ZapOffIcon size={14} className="text-muted-foreground" />
-                )}
-                <div>
-                  <div className="text-sm font-medium">On cell change</div>
-                  <div className="text-xs text-muted-foreground">
-                    {config.runtime.on_cell_change}
+            <DisableIfOverridden name="runtime.on_cell_change">
+              <div className="flex items-center justify-between px-2 py-2">
+                <div className="flex items-center space-x-2">
+                  {config.runtime.on_cell_change === "autorun" ? (
+                    <ZapIcon size={14} className="text-amber-500" />
+                  ) : (
+                    <ZapOffIcon size={14} className="text-muted-foreground" />
+                  )}
+                  <div>
+                    <div className="text-sm font-medium">On cell change</div>
+                    <div className="text-xs text-muted-foreground">
+                      {config.runtime.on_cell_change}
+                    </div>
                   </div>
                 </div>
+                <Switch
+                  checked={config.runtime.on_cell_change === "autorun"}
+                  onCheckedChange={handleCellChangeToggle}
+                  size="sm"
+                />
               </div>
-              <Switch
-                checked={config.runtime.on_cell_change === "autorun"}
-                onCheckedChange={handleCellChangeToggle}
-                size="sm"
-              />
-            </div>
+            </DisableIfOverridden>
 
             {!isWasm() && (
               <>
                 <DropdownMenuSeparator />
 
                 {/* On module change dropdown */}
-                <div className="px-2 py-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    {config.runtime.auto_reload === "off" && (
-                      <PowerOffIcon
-                        size={14}
-                        className="text-muted-foreground"
-                      />
-                    )}
-                    {config.runtime.auto_reload === "lazy" && (
-                      <ZapOffIcon size={14} className="text-muted-foreground" />
-                    )}
-                    {config.runtime.auto_reload === "autorun" && (
-                      <ZapIcon size={14} className="text-amber-500" />
-                    )}
-                    <div>
-                      <div className="text-sm font-medium">
-                        On module change
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {config.runtime.auto_reload}
+                <DisableIfOverridden name="runtime.auto_reload">
+                  <div className="px-2 py-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      {config.runtime.auto_reload === "off" && (
+                        <PowerOffIcon
+                          size={14}
+                          className="text-muted-foreground"
+                        />
+                      )}
+                      {config.runtime.auto_reload === "lazy" && (
+                        <ZapOffIcon
+                          size={14}
+                          className="text-muted-foreground"
+                        />
+                      )}
+                      {config.runtime.auto_reload === "autorun" && (
+                        <ZapIcon size={14} className="text-amber-500" />
+                      )}
+                      <div>
+                        <div className="text-sm font-medium">
+                          On module change
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {config.runtime.auto_reload}
+                        </div>
                       </div>
                     </div>
+                    <div className="space-y-1">
+                      {["off", "lazy", "autorun"].map((option) => (
+                        <button
+                          key={option}
+                          onClick={() =>
+                            handleModuleReloadChange(
+                              option as "off" | "lazy" | "autorun",
+                            )
+                          }
+                          className={cn(
+                            "w-full flex items-center px-2 py-1 text-sm rounded hover:bg-accent",
+                            option === config.runtime.auto_reload &&
+                              "bg-accent",
+                          )}
+                        >
+                          {option === "off" && (
+                            <PowerOffIcon size={12} className="mr-2" />
+                          )}
+                          {option === "lazy" && (
+                            <ZapOffIcon size={12} className="mr-2" />
+                          )}
+                          {option === "autorun" && (
+                            <ZapIcon size={12} className="mr-2" />
+                          )}
+                          <span className="capitalize">{option}</span>
+                          {option === config.runtime.auto_reload && (
+                            <span className="ml-auto">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {["off", "lazy", "autorun"].map((option) => (
-                      <button
-                        key={option}
-                        onClick={() =>
-                          handleModuleReloadChange(
-                            option as "off" | "lazy" | "autorun",
-                          )
-                        }
-                        className={cn(
-                          "w-full flex items-center px-2 py-1 text-sm rounded hover:bg-accent",
-                          option === config.runtime.auto_reload && "bg-accent",
-                        )}
-                      >
-                        {option === "off" && (
-                          <PowerOffIcon size={12} className="mr-2" />
-                        )}
-                        {option === "lazy" && (
-                          <ZapOffIcon size={12} className="mr-2" />
-                        )}
-                        {option === "autorun" && (
-                          <ZapIcon size={12} className="mr-2" />
-                        )}
-                        <span className="capitalize">{option}</span>
-                        {option === config.runtime.auto_reload && (
-                          <span className="ml-auto">✓</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                </DisableIfOverridden>
               </>
             )}
           </DropdownMenuContent>

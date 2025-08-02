@@ -57,7 +57,7 @@ type ComboboxValueProps<TValue> =
       chipsClassName?: never;
       value?: TValue | null;
       defaultValue?: TValue | null;
-      onValueChange?(value: TValue | null): void;
+      onValueChange?: (value: TValue | null) => void;
     }
   | {
       multiple: true;
@@ -65,7 +65,7 @@ type ComboboxValueProps<TValue> =
       chipsClassName?: string;
       value?: TValue[] | null;
       defaultValue?: TValue[] | null;
-      onValueChange?(value: TValue[] | null): void;
+      onValueChange?: (value: TValue[] | null) => void;
     };
 
 export type ComboboxProps<TValue> = ComboboxCommonProps<TValue> &
@@ -175,8 +175,8 @@ export const Combobox = <TValue,>({
             )}
             aria-expanded={open}
           >
-            {renderValue()}{" "}
-            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50" />
+            <span className="truncate flex-1 min-w-0">{renderValue()}</span>
+            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50 flex-shrink-0" />
           </div>
         </PopoverTrigger>
         <PopoverContent
@@ -235,7 +235,7 @@ export interface ComboboxItemProps<TValue>
       React.ComponentProps<typeof CommandItem>,
       keyof ComboboxItemOptions<TValue> | "onSelect" | "role"
     > {
-  onSelect?(value: TValue): void;
+  onSelect?: (value: TValue) => void;
 }
 
 export const ComboboxItem = React.forwardRef(

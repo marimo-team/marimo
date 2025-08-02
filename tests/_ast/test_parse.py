@@ -16,6 +16,12 @@ def get_filepath(name: str) -> Path:
 # Note that loader should cover these cases and more by proxy.
 class TestParser:
     @staticmethod
+    def test_main() -> None:
+        notebook = parse_notebook(get_filepath("test_main").read_text())
+        # Should just work without any violations.
+        assert len(notebook.violations) == 0
+
+    @staticmethod
     def test_parse_codes() -> None:
         parser = Parser.from_file(get_filepath("test_generate_filecontents"))
         body = parser.node_stack()
@@ -99,6 +105,6 @@ class TestParser:
         assert notebook
         # unexpected statements and a missing run guard
         assert len(notebook.violations) == 3
-        assert "statement" in notebook.violations[0].description
+        assert "generated" in notebook.violations[0].description
         assert "statement" in notebook.violations[1].description
         assert "run guard" in notebook.violations[2].description

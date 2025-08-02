@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import time
 import unittest
 from math import isnan
 from typing import Any
@@ -9,7 +10,7 @@ from typing import Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import ColumnStats
+from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -924,6 +925,226 @@ def test_get_summary_all_types() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "int": [1, 2, 2, 3, 4, 4, 5],
+            "float": [0.8, 1.2, 1.2, 1.6, 2.0, None, 2.4],
+            "string": ["a", "b", "b", "c", "d", "d", "e"],
+            "boolean": [True, False, False, True, False, False, True],
+        },
+        exclude=["ibis", "duckdb"],
+        strict=False,
+    ),
+)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_bin_values(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    bin_values = manager.get_bin_values("int", 3)
+    assert _round_bin_values(bin_values) == [
+        BinValue(bin_start=1, bin_end=2.33, count=3),
+        BinValue(bin_start=2.33, bin_end=3.67, count=1),
+        BinValue(bin_start=3.67, bin_end=5.0, count=3),
+    ]
+
+    bin_values = manager.get_bin_values("float", 5)
+    assert _round_bin_values(bin_values) == [
+        BinValue(bin_start=0.8, bin_end=1.12, count=1),
+        BinValue(bin_start=1.12, bin_end=1.44, count=2),
+        BinValue(bin_start=1.44, bin_end=1.76, count=1),
+        BinValue(bin_start=1.76, bin_end=2.08, count=1),
+        BinValue(bin_start=2.08, bin_end=2.4, count=1),
+    ]
+
+    # Not supported for other column types
+    bin_values = manager.get_bin_values("string", 10)
+    assert bin_values == []
+
+    bin_values = manager.get_bin_values("boolean", 10)
+    assert bin_values == []
+
+
+def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
+    return [
+        BinValue(
+            bin_start=round(bin_value.bin_start, 2),
+            bin_end=round(bin_value.bin_end, 2),
+            count=bin_value.count,
+        )
+        for bin_value in bin_values
+    ]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "int": [1, 2, 3, 4, 5],
+            "time": [
+                datetime.time(12, 0, 0),
+                datetime.time(13, 0, 0),
+                datetime.time(14, 0, 0),
+                datetime.time(15, 0, 0),
+                datetime.time(16, 0, 0),
+            ],
+            "dates_with_nulls": [
+                datetime.datetime(2021, 1, 1),
+                datetime.datetime(2021, 1, 2),
+                datetime.datetime(2021, 1, 3),
+                None,
+                None,
+            ],
+            "datetime_1_day": [
+                datetime.datetime(2021, 1, 1, 1, 1, 1),
+                datetime.datetime(2021, 1, 1, 2, 2, 2),
+                datetime.datetime(2021, 1, 1, 3, 3, 3),
+                datetime.datetime(2021, 1, 1, 4, 4, 4),
+                datetime.datetime(2021, 1, 1, 5, 5, 5),
+            ],
+            "timedelta": [
+                datetime.timedelta(days=1, hours=1, minutes=1, seconds=1),
+                datetime.timedelta(days=2, hours=2, minutes=2, seconds=2),
+                datetime.timedelta(days=3, hours=3, minutes=3, seconds=3),
+                datetime.timedelta(days=4, hours=4, minutes=4, seconds=4),
+                datetime.timedelta(days=5, hours=5, minutes=5, seconds=5),
+            ],
+            "datetime_with_tz": [
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 2, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 3, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 4, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 5, 1, tzinfo=datetime.timezone.utc),
+            ],
+            "dates_multiple": [
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+                datetime.date(2021, 1, 1),
+            ],
+        },
+        exclude=["ibis", "duckdb"],
+    ),
+)
+class TestGetBinValuesTemporal:
+    # Testing the exact values are quite flaky,
+    # so instead we just test the count and length of the bin values
+
+    def _normalize_bin_values(
+        self, bin_values: list[BinValue]
+    ) -> list[BinValue]:
+        import pandas as pd
+
+        return [
+            BinValue(
+                bin_start=pd.Timestamp(bin_value.bin_start),
+                bin_end=pd.Timestamp(bin_value.bin_end),
+                count=bin_value.count,
+            )
+            for bin_value in bin_values
+        ]
+
+    def test_datetime(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("datetime_1_day", 3)
+        assert len(bin_values) == 3
+        assert sum(bin_value.count for bin_value in bin_values) == 5
+
+        assert bin_values[0].count == 2
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 2
+
+    def test_dates_with_nulls(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("dates_with_nulls", 3)
+        assert len(bin_values) == 3
+        assert sum(bin_value.count for bin_value in bin_values) == 3
+
+        assert bin_values[0].count == 1
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 1
+
+    def test_get_bin_values_time(self, df: Any) -> None:
+        import pandas as pd
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("time", 3)
+
+        # Pandas doesn't support time types
+        if isinstance(df, pd.DataFrame):
+            assert bin_values == []
+            return
+
+        assert len(bin_values) == 3
+        assert sum(bin_value.count for bin_value in bin_values) == 5
+
+        assert bin_values[0].count == 2
+        assert bin_values[1].count == 1
+        assert bin_values[2].count == 2
+
+    @pytest.mark.xfail(reason="Timedelta is not supported yet", strict=False)
+    def test_timedelta(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("timedelta", 3)
+
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.timedelta(
+                    days=1, hours=1, minutes=1, seconds=1
+                ),
+                bin_end=datetime.timedelta(
+                    days=2, hours=2, minutes=2, seconds=2
+                ),
+                count=1,
+            )
+        ]
+
+    @pytest.mark.xfail(
+        reason="Datetime with timezone not fully supported, loses timezone info"
+    )
+    def test_datetime_with_tz(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("datetime_with_tz", 3)
+        assert bin_values == [
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 1, 1, 0, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 2, 10, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=1,
+            ),
+            BinValue(
+                bin_start=datetime.datetime(
+                    2021, 3, 22, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                bin_end=datetime.datetime(
+                    2021, 5, 1, 8, 0, tzinfo=datetime.timezone.utc
+                ),
+                count=2,
+            ),
+        ]
+
+    def test_dates_multiple(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        bin_values = manager.get_bin_values("dates_multiple", 3)
+
+        assert len(bin_values) == 1
+        assert bin_values[0].count == 5
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
@@ -1230,8 +1451,6 @@ def test_get_sample_values_returns_primitives() -> None:
     create_dataframes({f"col_{i}": [1, 2, 3] for i in range(2000)}),
 )
 def test_get_field_types_with_many_columns_is_performant(df: Any) -> None:
-    import time
-
     manager = get_table_manager(df)
 
     start_time = time.time()

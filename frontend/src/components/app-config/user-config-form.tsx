@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { get } from "lodash-es";
 import {
+  AlertTriangleIcon,
   BrainIcon,
   CpuIcon,
   EditIcon,
@@ -33,7 +33,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
-import { configOverridesAtom, useUserConfig } from "@/core/config/config";
+import { useUserConfig } from "@/core/config/config";
 import {
   PackageManagerNames,
   type UserConfig,
@@ -45,6 +45,7 @@ import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
+import { arrayToggle } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
@@ -53,6 +54,7 @@ import { Textarea } from "../ui/textarea";
 import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
+import { useIsConfigOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
@@ -427,6 +429,18 @@ export const UserConfigForm: React.FC = () => {
               />
             </SettingGroup>
             <SettingGroup title="Language Servers">
+              <FormDescription>
+                See the{" "}
+                <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
+                  docs
+                </ExternalLink>{" "}
+                for more information about language server support.
+              </FormDescription>
+              <FormDescription>
+                <strong>Note:</strong> When using multiple language servers,
+                different features may conflict.
+              </FormDescription>
+
               <FormField
                 control={form.control}
                 name="language_servers.pylsp.enabled"
@@ -439,7 +453,7 @@ export const UserConfigForm: React.FC = () => {
                         </Badge>
                         Python Language Server (
                         <ExternalLink href="https://github.com/python-lsp/python-lsp-server">
-                          pylsp
+                          docs
                         </ExternalLink>
                         )
                       </FormLabel>
@@ -470,14 +484,91 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
-              <FormDescription>
-                See the{" "}
-                <ExternalLink href="https://docs.marimo.io/guides/editor_features/language_server/">
-                  docs
-                </ExternalLink>{" "}
-                for more information about language server support.
-              </FormDescription>
-
+              <FormField
+                control={form.control}
+                name="language_servers.basedpyright.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        basedpyright (
+                        <ExternalLink href="https://github.com/DetachHead/basedpyright">
+                          docs
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="basedpyright-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.basedpyright.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.basedpyright && (
+                      <Banner kind="danger">
+                        basedpyright is not available in your current
+                        environment. Please install{" "}
+                        <Kbd className="inline">basedpyright</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="language_servers.ty.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        ty (
+                        <ExternalLink href="https://github.com/astral-sh/ty">
+                          docs
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="ty-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.ty.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.ty && (
+                      <Banner kind="danger">
+                        ty is not available in your current environment. Please
+                        install <Kbd className="inline">ty</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="diagnostics.enabled"
@@ -535,6 +626,48 @@ export const UserConfigForm: React.FC = () => {
                       <FormMessage />
                       <IsOverridden userConfig={config} name="keymap.preset" />
                     </FormItem>
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="keymap.destructive_delete"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Destructive delete
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="destructive-delete-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="keymap.destructive_delete"
+                      />
+                    </FormItem>
+                    <FormDescription className="flex items-center gap-1">
+                      Allow deleting non-empty cells
+                      <Tooltip
+                        content={
+                          <div className="max-w-xs">
+                            <strong>Use with caution:</strong> Deleting cells
+                            with code can lose work and computed results since
+                            variables are removed from memory.
+                          </div>
+                        }
+                      >
+                        <AlertTriangleIcon className="w-3 h-3 text-[var(--amber-11)]" />
+                      </Tooltip>
+                    </FormDescription>
 
                     <div>
                       <Button
@@ -925,6 +1058,66 @@ export const UserConfigForm: React.FC = () => {
                   <FormDescription>
                     The default SQL output format for new notebooks; overridden
                     by "sql_output" in the application config.
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="runtime.default_auto_download"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>Auto output formats</FormLabel>
+                    <FormControl>
+                      <div className="flex gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="html-checkbox"
+                            checked={
+                              Array.isArray(field.value) &&
+                              field.value.includes("html")
+                            }
+                            onCheckedChange={() => {
+                              const currentValue = Array.isArray(field.value)
+                                ? field.value
+                                : [];
+                              field.onChange(arrayToggle(currentValue, "html"));
+                            }}
+                          />
+                          <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="ipynb-checkbox"
+                            checked={
+                              Array.isArray(field.value) &&
+                              field.value.includes("ipynb")
+                            }
+                            onCheckedChange={() => {
+                              const currentValue = Array.isArray(field.value)
+                                ? field.value
+                                : [];
+                              field.onChange(
+                                arrayToggle(currentValue, "ipynb"),
+                              );
+                            }}
+                          />
+                          <FormLabel htmlFor="ipynb-checkbox">IPYNB</FormLabel>
+                        </div>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.default_auto_download"
+                    />
+                  </FormItem>
+                  <FormDescription>
+                    When enabled, marimo will periodically save notebooks in
+                    your selected formats (HTML, IPYNB) to a folder named{" "}
+                    <Kbd className="inline">__marimo__</Kbd> next to your
+                    notebook file.
                   </FormDescription>
                 </div>
               )}
@@ -1495,9 +1688,38 @@ export const UserConfigForm: React.FC = () => {
                       />
                     </FormControl>
                   </FormItem>
+
                   <FormDescription>
                     Enable experimental real-time collaboration. This change
                     requires a page refresh to take effect.
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="experimental.performant_table_charts"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Performant Table Charts
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="performant-table-charts-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.performant_table_charts"
+                  />
+                  <FormDescription>
+                    Enable experimental table charts which are computed on the
+                    backend.
                   </FormDescription>
                 </div>
               )}
@@ -1590,14 +1812,12 @@ const IsOverridden = ({
   userConfig: UserConfig;
   name: FieldPath<UserConfig>;
 }) => {
-  const currentValue = get(userConfig, name);
-  const overrides = useAtomValue(configOverridesAtom);
-  const overriddenValue = get(overrides as UserConfig, name);
-  if (overriddenValue == null) {
-    return null;
-  }
+  const { isOverridden, currentValue, overriddenValue } = useIsConfigOverridden(
+    userConfig,
+    name,
+  );
 
-  if (currentValue === overriddenValue) {
+  if (!isOverridden) {
     return null;
   }
 

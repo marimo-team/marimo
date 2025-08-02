@@ -54,12 +54,16 @@ python your_notebook.py
 
 You can also [pass CLI args](../guides/scripts.md) to your notebook.
 
-## Convert from Jupyter to marimo
+## Convert Jupyter notebooks and Python scripts to marimo
 
-Automatically convert Jupyter notebooks to marimo notebooks with `marimo convert`:
+Automatically convert Jupyter notebooks and Python scripts to marimo notebooks with `marimo convert`:
 
 ```bash
+# From Jupyter notebook
 marimo convert your_notebook.ipynb -o your_notebook.py
+
+# From Python script or jupytext py:percent format
+marimo convert your_script.py -o your_notebook.py
 ```
 
 Then open the notebook with `marimo edit your_notebook.py`
@@ -142,15 +146,17 @@ marimo from `PyPI` if you need Copilot.
 marimo also comes with support for [other copilots](../guides/editor_features/ai_completion.md#custom-copilots),
 and a built-in [AI assistant](../guides/editor_features/ai_completion.md) that helps you write code.
 
+## Share links to cloud notebooks
+
+Use [molab](https://molab.marimo.io/notebooks), a cloud-based marimo notebook
+service similar to Google Colab, to create and share notebook links
+([docs](../guides/molab.md)).
+
 ## Coming from VS Code?
 
-The best way to use marimo is through the CLI. However, if you prefer VS Code
-over terminal, try our [VS Code
-extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
-Use this extension to edit and run notebooks directly from VS Code, and to list
-all marimo notebooks in your current directory.
-
-<div align="center">
-<figure>
-<img src="/_static/vscode-marimo.png" alt="VS Code extension for marimo"/>
-</figure> </div>
+The best way to use marimo is through the CLI. While we do have a VS Code extension,
+we are actively rewriting it to provide a more native and robust experience, similar
+to what you may be used to for Jupyter notebooks. In the meantime, we recommend using
+the CLI. You can try our [existing extension](
+https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), but please
+be aware that you may run into issues, and that a revamped extension is coming soon.

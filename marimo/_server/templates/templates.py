@@ -8,7 +8,6 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal, Optional, Union, cast
 
-from marimo import __version__
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.converters import MarimoConvert
@@ -20,6 +19,7 @@ from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
 from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.versions import is_editable
+from marimo._version import __version__
 
 MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
 

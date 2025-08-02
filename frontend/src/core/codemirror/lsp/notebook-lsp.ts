@@ -2,11 +2,12 @@
 
 import type * as LSP from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
+import { store } from "@/core/state/jotai";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
-import { getTopologicalCodes } from "../copilot/getCodes";
-import { createNotebookLens } from "./lens";
+import { topologicalCodesAtom } from "../copilot/getCodes";
+import { createNotebookLens, type NotebookLens } from "./lens";
 import {
   CellDocumentUri,
   type ILanguageServerClient,
@@ -15,22 +16,72 @@ import {
 } from "./types";
 import { getLSPDocument } from "./utils";
 
-export class NotebookLanguageServerClient implements ILanguageServerClient {
-  public readonly documentUri: LSP.DocumentUri;
+class Snapshotter {
   private documentVersion = 0;
-  private readonly client: ILanguageServerClient;
+
+  constructor(
+    private readonly getNotebookCode: () => {
+      cellIds: CellId[];
+      codes: Record<CellId, string>;
+    },
+  ) {}
 
   /**
    * Map from the global document version to the cell id and version.
    */
-  private versionToCellNumberAndVersion = new LRUCache<
-    number,
-    {
-      cellDocumentUri: LSP.DocumentUri;
-      version: number;
-      lens: ReturnType<typeof createNotebookLens>;
+  private versionToCellNumberAndVersion = new LRUCache<number, NotebookLens>(
+    20,
+  );
+
+  private lastSnapshot: NotebookLens | null = null;
+
+  public snapshot() {
+    const lens = this.getLens();
+    const didChange = this.lastSnapshot?.mergedText !== lens.mergedText;
+    if (!didChange) {
+      return {
+        lens,
+        didChange,
+        version: this.documentVersion,
+      };
     }
-  >(20);
+
+    // Increment the version and update the snapshot
+    this.documentVersion++;
+    this.lastSnapshot = lens;
+
+    return {
+      lens,
+      didChange,
+      version: this.documentVersion,
+    };
+  }
+
+  public getSnapshot(version: number) {
+    const snapshot = this.versionToCellNumberAndVersion.get(version);
+    if (!snapshot) {
+      throw new Error(`No snapshot for version ${version}`);
+    }
+    return snapshot;
+  }
+
+  public getLatestSnapshot() {
+    if (!this.lastSnapshot) {
+      throw new Error("No snapshots");
+    }
+    return { lens: this.lastSnapshot, version: this.documentVersion };
+  }
+
+  private getLens() {
+    const { cellIds, codes } = this.getNotebookCode();
+    return createNotebookLens(cellIds, codes);
+  }
+}
+
+export class NotebookLanguageServerClient implements ILanguageServerClient {
+  public readonly documentUri: LSP.DocumentUri;
+  private readonly client: ILanguageServerClient;
+  private readonly snapshotter: Snapshotter;
 
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
 
@@ -53,39 +104,160 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         settings: initialSettings,
       });
     });
+
+    this.snapshotter = new Snapshotter(this.getNotebookCode.bind(this));
   }
 
-  textDocumentDefinition(
+  get ready(): boolean {
+    return this.client.ready;
+  }
+
+  set ready(value: boolean) {
+    this.client.ready = value;
+  }
+
+  get capabilities(): LSP.ServerCapabilities | null {
+    return this.client.capabilities;
+  }
+
+  set capabilities(value: LSP.ServerCapabilities) {
+    this.client.capabilities = value;
+  }
+
+  get initializePromise(): Promise<void> {
+    return this.client.initializePromise;
+  }
+
+  set initializePromise(value: Promise<void>) {
+    this.client.initializePromise = value;
+  }
+
+  get clientCapabilities() {
+    return this.client.clientCapabilities;
+  }
+
+  async initialize(): Promise<void> {
+    await this.client.initialize();
+  }
+
+  close(): void {
+    this.client.close();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  detachPlugin(plugin: any): void {
+    this.client.detachPlugin(plugin);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  attachPlugin(plugin: any): void {
+    this.client.attachPlugin(plugin);
+  }
+
+  private getNotebookCode() {
+    return store.get(topologicalCodesAtom);
+  }
+
+  private assertCellDocumentUri(
+    uri: LSP.DocumentUri,
+  ): asserts uri is CellDocumentUri {
+    invariant(CellDocumentUri.is(uri), "Execpted URI to be CellDocumentUri");
+  }
+
+  /**
+   * Example of "zoom in" for textDocumentDidOpen, so server sees a merged doc.
+   */
+  public async textDocumentDidOpen(params: LSP.DidOpenTextDocumentParams) {
+    Logger.debug("[lsp] textDocumentDidOpen", params);
+    const cellDocumentUri = params.textDocument.uri;
+    this.assertCellDocumentUri(cellDocumentUri);
+
+    const { lens, version } = this.snapshotter.snapshot();
+
+    NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.add(cellDocumentUri);
+
+    // Pass merged doc to LSP
+    const result = await this.client.textDocumentDidOpen({
+      textDocument: {
+        languageId: params.textDocument.languageId,
+        text: lens.mergedText,
+        uri: this.documentUri,
+        version: version,
+      },
+    });
+
+    if (!result) {
+      return params;
+    }
+
+    return {
+      ...result,
+      textDocument: {
+        ...result.textDocument,
+        text: lens.mergedText,
+      },
+    };
+  }
+
+  async sync(): Promise<LSP.DidChangeTextDocumentParams> {
+    const { lens, version, didChange } = this.snapshotter.snapshot();
+    if (!didChange) {
+      return {
+        textDocument: {
+          uri: this.documentUri,
+          version: version,
+        },
+        contentChanges: [{ text: lens.mergedText }],
+      };
+    }
+
+    // Update changes for merged doc, etc.
+    return this.client.textDocumentDidChange({
+      textDocument: {
+        uri: this.documentUri,
+        version: version,
+      },
+      contentChanges: [{ text: lens.mergedText }],
+    });
+  }
+
+  public async textDocumentDidChange(params: LSP.DidChangeTextDocumentParams) {
+    Logger.debug("[lsp] textDocumentDidChange", params);
+    // We know how to only handle single content changes
+    // But that is all we expect to receive
+    if (params.contentChanges.length === 1) {
+      return this.sync();
+    }
+
+    Logger.warn("[lsp] Unhandled textDocumentDidChange", params);
+
+    return this.client.textDocumentDidChange(params);
+  }
+
+  async textDocumentDefinition(
     params: LSP.DefinitionParams,
   ): Promise<LSP.Definition | LSP.LocationLink[] | null> {
     // Get the cell document URI from the params
     const cellDocumentUri = params.textDocument.uri;
     if (!CellDocumentUri.is(cellDocumentUri)) {
       Logger.warn("Invalid cell document URI", cellDocumentUri);
-      return Promise.resolve(null);
+      return null;
     }
+
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
 
     // Find the lens for this cell
     const cellId = CellDocumentUri.parse(cellDocumentUri);
-    const versionInfo = [...this.versionToCellNumberAndVersion.values()].find(
-      (info) => info.cellDocumentUri === cellDocumentUri,
-    );
-
-    if (!versionInfo) {
-      Logger.warn("No lens found for cell", cellId);
-      return Promise.resolve(null);
-    }
-
-    // Use the lens to transform the position
-    const { lens } = versionInfo;
-    const transformedPosition = lens.transformPosition(params.position, cellId);
 
     return this.client.textDocumentDefinition({
       ...params,
       textDocument: {
         uri: this.documentUri,
       },
-      position: transformedPosition,
+      // Transform the position to the cell coordinates
+      position: lens.transformPosition(params.position, cellId),
     });
   }
 
@@ -98,25 +270,19 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return null;
     }
 
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
+
     const cellId = CellDocumentUri.parse(cellDocumentUri);
-    const versionInfo = [...this.versionToCellNumberAndVersion.values()].find(
-      (info) => info.cellDocumentUri === cellDocumentUri,
-    );
-
-    if (!versionInfo) {
-      Logger.warn("No lens found for cell", cellId);
-      return null;
-    }
-
-    const { lens } = versionInfo;
-    const transformedPosition = lens.transformPosition(params.position, cellId);
 
     const response = await this.client.textDocumentSignatureHelp({
       ...params,
       textDocument: {
         uri: this.documentUri,
       },
-      position: transformedPosition,
+      // Transform the position to the cell coordinates
+      position: lens.transformPosition(params.position, cellId),
     });
 
     if (!response) {
@@ -156,16 +322,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     const cellId = CellDocumentUri.parse(cellDocumentUri);
 
-    // Find the latest lens
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-    if (latestVersion === undefined) {
-      Logger.warn("No lens found for cell", cellDocumentUri);
-      return null;
-    }
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
 
-    // Use the lens to transform the position
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
     const transformedPosition = lens.transformPosition(params.position, cellId);
 
     // Request
@@ -272,15 +432,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return null;
     }
 
-    // Get the latest updated lens
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-    if (!latestVersion) {
-      Logger.warn("No lens found for cell", cellDocumentUri);
-      return null;
-    }
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { lens } = this.versionToCellNumberAndVersion.get(latestVersion)!;
     const cellId = CellDocumentUri.parse(cellDocumentUri);
 
     return this.client.textDocumentPrepareRename({
@@ -292,150 +447,14 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     });
   }
 
-  get ready(): boolean {
-    return this.client.ready;
-  }
-
-  set ready(value: boolean) {
-    this.client.ready = value;
-  }
-
-  get capabilities(): LSP.ServerCapabilities | null {
-    return this.client.capabilities;
-  }
-
-  set capabilities(value: LSP.ServerCapabilities) {
-    this.client.capabilities = value;
-  }
-
-  get initializePromise(): Promise<void> {
-    return this.client.initializePromise;
-  }
-
-  set initializePromise(value: Promise<void>) {
-    this.client.initializePromise = value;
-  }
-
-  get clientCapabilities() {
-    return this.client.clientCapabilities;
-  }
-
-  async initialize(): Promise<void> {
-    await this.client.initialize();
-  }
-
-  close(): void {
-    this.client.close();
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  detachPlugin(plugin: any): void {
-    this.client.detachPlugin(plugin);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  attachPlugin(plugin: any): void {
-    this.client.attachPlugin(plugin);
-  }
-
-  private getNotebookCode() {
-    return getTopologicalCodes();
-  }
-
-  /**
-   * Example of "zoom in" for textDocumentDidOpen, so server sees a merged doc.
-   */
-  public async textDocumentDidOpen(params: LSP.DidOpenTextDocumentParams) {
-    Logger.debug("[lsp] textDocumentDidOpen", params);
-    const cellDocumentUri = params.textDocument.uri;
-    const { cellIds, codes } = this.getNotebookCode();
-    const lens = createNotebookLens(cellIds, codes);
-
-    // Store lens keyed by document version
-    const version = params.textDocument.version;
-    this.versionToCellNumberAndVersion.set(this.documentVersion, {
-      cellDocumentUri,
-      version,
-      lens,
-    });
-    invariant(
-      CellDocumentUri.is(cellDocumentUri),
-      "Execpted URI to be CellDocumentUri",
-    );
-    NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.add(cellDocumentUri);
-
-    // Pass merged doc to super
-    const result = await this.client.textDocumentDidOpen({
-      textDocument: {
-        languageId: params.textDocument.languageId,
-        text: lens.mergedText,
-        uri: this.documentUri,
-        version: this.documentVersion,
-      },
-    });
-
-    if (!result) {
-      return params;
-    }
-
-    return {
-      ...result,
-      textDocument: {
-        ...result.textDocument,
-        text: lens.mergedText,
-      },
-    };
-  }
-
-  public async textDocumentDidChange(params: LSP.DidChangeTextDocumentParams) {
-    Logger.debug("[lsp] textDocumentDidChange", params);
-    // We know how to only handle single content changes
-    // But that is all we expect to receive
-    if (params.contentChanges.length === 1) {
-      const cellDocumentUri = params.textDocument.uri;
-      const { cellIds, codes } = this.getNotebookCode();
-      const lens = createNotebookLens(cellIds, codes);
-
-      const version = params.textDocument.version;
-      this.documentVersion++;
-      const globalDocumentVersion = this.documentVersion;
-
-      this.versionToCellNumberAndVersion.set(globalDocumentVersion, {
-        cellDocumentUri,
-        version,
-        lens,
-      });
-
-      // Update changes for merged doc, etc.
-      return this.client.textDocumentDidChange({
-        textDocument: {
-          uri: this.documentUri,
-          version: globalDocumentVersion,
-        },
-        contentChanges: [{ text: lens.mergedText }],
-      });
-    }
-
-    Logger.warn("[lsp] Unhandled textDocumentDidChange", params);
-
-    return this.client.textDocumentDidChange(params);
-  }
-
   public async textDocumentHover(params: LSP.HoverParams) {
     Logger.debug("[lsp] textDocumentHover", params);
 
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-    if (latestVersion === undefined) {
-      Logger.debug("[lsp] no latest version");
-      return this.client.textDocumentHover(params);
-    }
-    const payload = this.versionToCellNumberAndVersion.get(latestVersion);
-    if (!payload) {
-      Logger.debug("[lsp] no payload for latest version");
-      return this.client.textDocumentHover(params);
-    }
-    const { lens, cellDocumentUri } = payload;
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
+    // This LSP method has no version, so lets sync and then get the latest snapshot
+    await this.sync();
+    const { lens } = this.snapshotter.getLatestSnapshot();
+
+    const cellId = CellDocumentUri.parse(params.textDocument.uri);
 
     const hover = await this.client.textDocumentHover({
       ...params,
@@ -454,7 +473,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     if (typeof hover.contents === "object" && "kind" in hover.contents) {
       hover.contents = {
         kind: "markdown",
-        value: `<div class="docs-documentation mo-cm-tooltip">\n${hover.contents.value}\n</div>`,
+        value: hover.contents.value,
       };
     }
 
@@ -472,19 +491,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   public async textDocumentCompletion(params: LSP.CompletionParams) {
-    const latestVersion = [...this.versionToCellNumberAndVersion.keys()].at(-1);
-
-    if (latestVersion === undefined) {
-      return this.client.textDocumentCompletion(params);
-    }
-
-    const payload = this.versionToCellNumberAndVersion.get(latestVersion);
-    if (!payload) {
-      return this.client.textDocumentCompletion(params);
-    }
-
-    const { lens, cellDocumentUri } = payload;
-    const cellId = CellDocumentUri.parse(cellDocumentUri);
+    const { lens } = this.snapshotter.getLatestSnapshot();
+    const cellId = CellDocumentUri.parse(params.textDocument.uri);
 
     return this.client.textDocumentCompletion({
       ...params,
@@ -521,13 +529,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       if (notification.method === "textDocument/publishDiagnostics") {
         Logger.debug("[lsp] handling diagnostics", notification);
         // Use the correct lens by version
-        const globalVersion = notification.params.version || 0;
-        const payload = this.versionToCellNumberAndVersion.get(globalVersion);
-
-        if (!payload) {
-          Logger.warn("[lsp] missing payload for version", globalVersion);
-          return previousProcessNotification(notification);
-        }
+        const payload = this.snapshotter.getLatestSnapshot();
 
         const diagnostics = notification.params.diagnostics;
 

@@ -15,6 +15,8 @@
 
 <p align="center">
   <b>English | </b>
+  <a href="https://github.com/marimo-team/marimo/blob/main/README_Traditional_Chinese.md" target="_blank"><b>繁體中文</b></a>
+  <b> | </b>
   <a href="https://github.com/marimo-team/marimo/blob/main/README_Chinese.md" target="_blank"><b>简体中文</b></a>
   <b> | </b>
   <a href="https://github.com/marimo-team/marimo/blob/main/README_Japanese.md" target="_blank"><b>日本語</b></a>
@@ -195,6 +197,10 @@ List all tutorials:
 ```bash
 marimo tutorial --help
 ```
+
+**Share cloud-based notebooks.** Use
+[molab](https://molab.marimo.io/notebooks), a cloud-based marimo notebook
+service similar to Google Colab, to create and share notebook links.
 
 ## Questions?
 

@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 import functools
 import io
 from functools import cached_property
@@ -10,7 +11,7 @@ import narwhals.stable.v1 as nw
 from narwhals.stable.v1.typing import IntoFrameT
 
 from marimo import _loggers
-from marimo._data.models import ColumnStats, ExternalDataType
+from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.core.media import io_to_data_url
@@ -22,6 +23,7 @@ from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
     FieldType,
+    FieldTypes,
     TableCell,
     TableCoordinate,
     TableManager,
@@ -39,6 +41,7 @@ from marimo._utils.narwhals_utils import (
 )
 
 LOGGER = _loggers.marimo_logger()
+UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
 
 
 class NarwhalsTableManager(
@@ -155,9 +158,7 @@ class NarwhalsTableManager(
     def drop_columns(self, columns: list[str]) -> TableManager[Any]:
         return self.with_new_data(self.data.drop(columns, strict=False))
 
-    def get_row_headers(
-        self,
-    ) -> list[str]:
+    def get_row_headers(self) -> FieldTypes:
         return []
 
     @functools.lru_cache(maxsize=5)  # noqa: B019
@@ -438,6 +439,101 @@ class NarwhalsTableManager(
 
         return ColumnStats(**stats_dict)
 
+    def get_bin_values(self, column: str, num_bins: int) -> list[BinValue]:
+        if column not in self.nw_schema:
+            LOGGER.error(f"Column {column} not found in schema")
+            return []
+
+        dtype = self.nw_schema[column]
+
+        if dtype.is_temporal():
+            return self._get_bin_values_temporal(column, dtype, num_bins)
+
+        if not dtype.is_numeric():
+            return []
+
+        col = self.as_frame().get_column(column)
+        bin_start = col.min()
+        bin_values = []
+
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message=UNSTABLE_API_WARNING, category=UserWarning
+            )
+            hist = col.hist(bin_count=num_bins)
+
+        for bin_end, count in hist.iter_rows(named=False):
+            bin_values.append(
+                BinValue(bin_start=bin_start, bin_end=bin_end, count=count)
+            )
+            bin_start = bin_end
+        return bin_values
+
+    def _get_bin_values_temporal(
+        self, column: str, dtype: Any, num_bins: int
+    ) -> list[BinValue]:
+        """
+        Get bin values for a temporal column.
+
+        nw.hist does not support temporal columns, so we convert to numeric
+        and then convert back to temporal values.
+        """
+        # Convert to timestamp in ms
+        col = self.as_frame().get_column(column)
+
+        if dtype == nw.Time:
+            col_in_ms = (
+                col.dt.hour().cast(nw.Int64) * 3600000
+                + col.dt.minute().cast(nw.Int64) * 60000
+                + col.dt.second().cast(nw.Int64) * 1000
+                + col.dt.microsecond().cast(nw.Int64) // 1000
+            )
+        else:
+            col_in_ms = col.dt.timestamp(time_unit="ms")
+
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message=UNSTABLE_API_WARNING, category=UserWarning
+            )
+            hist = col_in_ms.hist(bin_count=num_bins)
+
+        bin_values = []
+        ms_time = 1000
+
+        bin_start = col.min()
+
+        for bin_end, count in hist.iter_rows(named=False):
+            if dtype == nw.Time:
+                hours = bin_end // 3600000
+                minutes = (bin_end % 3600000) // 60000
+                seconds = (bin_end % 60000) // 1000
+                microseconds = (bin_end % 1000) * 1000
+                bin_end = datetime.time(
+                    int(hours), int(minutes), int(seconds), int(microseconds)
+                )
+            elif dtype == nw.Date:
+                bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+            else:
+                bin_end = datetime.datetime.fromtimestamp(bin_end / ms_time)
+
+            # Only append if the count is greater than 0
+            if count > 0:
+                bin_values.append(
+                    BinValue(bin_start=bin_start, bin_end=bin_end, count=count)
+                )
+            bin_start = bin_end
+        return bin_values
+
+    def _sample_indexes(self, size: int, total: int) -> list[int]:
+        """Sample evenly from a list of length `total`"""
+        if total <= size:
+            return list(range(total))
+        return [round(i * (total - 1) / (size - 1)) for i in range(size)]
+
     def get_num_rows(self, force: bool = True) -> Optional[int]:
         # If force is true, collect the data and get the number of rows
         if force:
@@ -552,4 +648,5 @@ class NarwhalsTableManager(
 
             if isinstance(value, Image.Image):
                 return io_to_data_url(value, "image/png")
+
         return value

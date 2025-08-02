@@ -49,9 +49,9 @@ from marimo._utils.parse_dataclass import parse_raw
 class GetDataFrameResponse:
     url: str
     total_rows: Union[int, Literal["too_many"]]
-    # List of column names that are actually row headers
+    # Columns that are actually row headers
     # This really only applies to Pandas, that has special index columns
-    row_headers: list[str]
+    row_headers: FieldTypes
     field_types: FieldTypes
     python_code: Optional[str] = None
     sql_code: Optional[str] = None
@@ -251,10 +251,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         offset = args.page_number * args.page_size
 
         # Apply filters, query, and functools.sort using the cached method
-        result = self._apply_filters_query_sort(
-            args.query,
-            args.sort,
-        )
+        result = self._apply_filters_query_sort(args.query, args.sort)
 
         # Save the manager to be used for selection
         try:

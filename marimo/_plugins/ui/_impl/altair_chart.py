@@ -569,13 +569,19 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     @property
     def value(self) -> ChartDataType:
-        from altair import Undefined
+        from altair import InlineData, InlineDataset, Undefined
 
         value = super().value
         if value is Undefined:  # type: ignore
             sys.stderr.write(
                 "The underlying chart data is not available in layered"
                 " or stacked charts. "
+                "Use `.apply_selection(df)` to filter a DataFrame"
+                " based on the selection.",
+            )
+        elif isinstance(value, (InlineData, InlineDataset)):
+            sys.stderr.write(
+                "The underlying chart data is not available with inline specification. "
                 "Use `.apply_selection(df)` to filter a DataFrame"
                 " based on the selection.",
             )

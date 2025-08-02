@@ -1292,8 +1292,11 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         Uploading a single file:
         ```python
         f = mo.ui.file()
+        f
+        ```
 
-        # access the uploaded file's name
+        ```python
+        # In another cell, access the uploaded file's name
         f.value[0].name
         # or
         f.name()
@@ -1307,8 +1310,11 @@ class file(UIElement[list[tuple[str, str]], Sequence[FileUploadResults]]):
         Uploading multiple files, accepting only .png and .jpg extensions:
         ```python
         f = mo.ui.file(filetypes=[".png", ".jpg"], multiple=True)
+        f
+        ```
 
-        # access an uploaded file's name
+        ```python
+        # In another cell, access an uploaded file's name
         f.value[index].name
         # or
         f.name(index)

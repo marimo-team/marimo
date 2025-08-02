@@ -3,7 +3,7 @@ documentation:
       - any-glob-to-any-file: ['docs/**']
 bash-focus:
   - changed-files:
-      - any-glob-to-any-file: ['openapi/api.yaml', 'frontend/index.html']
+      - any-glob-to-any-file: ['packages/openapi/api.yaml', 'frontend/index.html']
 # Only valid once this is merged: https://github.com/actions/labeler/pull/866
 # enhancement:
 #   - title: ['^feat:', '^enhancement:']

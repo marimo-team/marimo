@@ -12,9 +12,9 @@ from typing import Any, Optional
 import click
 
 import marimo._cli.cli_validators as validators
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.load import notebook_is_openable
+from marimo._ast.load import get_notebook_status
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -22,7 +22,7 @@ from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import red
+from marimo._cli.print import bold, green, red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
@@ -39,6 +39,7 @@ from marimo._tutorials import (
 )  # type: ignore
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 from marimo._utils.platform import is_windows
+from marimo._version import __version__
 
 
 def helpful_usage_error(self: Any, file: Any = None) -> None:
@@ -57,7 +58,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
 
 def check_app_correctness(filename: str) -> None:
     try:
-        notebook_is_openable(filename)
+        status = get_notebook_status(filename)
     except SyntaxError:
         import traceback
 
@@ -69,6 +70,43 @@ def check_app_correctness(filename: str) -> None:
         # SyntaxError: invalid syntax
         click.echo(f"Failed to parse notebook: {filename}\n", err=True)
         raise click.ClickException(traceback.format_exc(limit=0)) from None
+
+    if status == "invalid" and filename.endswith(".py"):
+        # fail for python scripts, almost certainly do not want to override contents
+        import os
+
+        stem = os.path.splitext(os.path.basename(filename))[0]
+        raise click.ClickException(
+            f"Python script not recognized as a marimo notebook.\n\n"
+            f"  {green('Tip:')} Try converting with"
+            "\n\n"
+            f"    marimo convert {filename} -o {stem}_nb.py\n\n"
+            f"  then open with marimo edit {stem}_nb.py"
+        ) from None
+
+    # Only show the tip if we're in an interactive terminal
+    if status == "invalid" and sys.stdin.isatty():
+        click.echo(
+            green("tip")
+            + ": Use `"
+            + bold("marimo convert")
+            + "` to convert existing scripts.",
+            err=True,
+        )
+        click.confirm(
+            (
+                "The file is not detected as a marimo notebook, opening it may "
+                "overwrite its contents.\nDo you want to open it anyway?"
+            ),
+            default=False,
+            abort=True,
+        )
+
+    if status == "has_errors":
+        # Provide a warning, but allow the user to open the notebook
+        _loggers.marimo_logger().warning(
+            "This notebook has errors, saving may lose data. Continuing anyway."
+        )
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
@@ -605,7 +643,7 @@ def new(
         try:
             _maybe_path = Path(prompt)
             if _maybe_path.is_file():
-                prompt = _maybe_path.read_text()
+                prompt = _maybe_path.read_text(encoding="utf-8")
         except OSError:
             # is_file() fails when, for example, the "filename" (prompt) is too long
             pass

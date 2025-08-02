@@ -11,6 +11,7 @@ from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
     CompletionConfig,
+    ExportType,
     LanguageServersConfig,
     MarimoConfig,
     PartialMarimoConfig,
@@ -78,6 +79,10 @@ class MarimoConfigReader:
     @property
     def default_width(self) -> WidthType:
         return self._config["display"]["default_width"]
+
+    @property
+    def default_auto_download(self) -> list[ExportType]:
+        return self._config["runtime"].get("default_auto_download", [])
 
     @property
     def default_sql_output(self) -> SqlOutputType:

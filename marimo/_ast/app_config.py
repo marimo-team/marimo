@@ -2,10 +2,10 @@
 
 import os
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 from marimo import _loggers
-from marimo._config.config import SqlOutputType, WidthType
+from marimo._config.config import ExportType, SqlOutputType, WidthType
 
 LOGGER = _loggers.marimo_logger()
 
@@ -32,9 +32,7 @@ class _AppConfig:
     html_head_file: Optional[str] = None
 
     # Whether to automatically download the app as HTML and Markdown
-    auto_download: list[Literal["html", "markdown", "ipynb"]] = field(
-        default_factory=list
-    )
+    auto_download: list[ExportType] = field(default_factory=list)
 
     # The type of SQL output to display
     sql_output: SqlOutputType = "auto"

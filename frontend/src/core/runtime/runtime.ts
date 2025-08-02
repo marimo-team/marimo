@@ -135,7 +135,7 @@ export class RuntimeManager {
   /**
    * The URL of the copilot server.
    */
-  getLSPURL(lsp: "pylsp" | "copilot"): URL {
+  getLSPURL(lsp: "pylsp" | "basedpyright" | "copilot" | "ty"): URL {
     if (lsp === "copilot") {
       // For copilot, don't include any query parameters
       const url = this.formatWsURL(`/lsp/${lsp}`);
@@ -167,11 +167,50 @@ export class RuntimeManager {
       // If there is a redirect, update the URL in the config
       if (response.redirected) {
         // strip /health from the URL
-        this.config.url = response.url.replace(/\/health$/, "");
+        const baseUrl = response.url.replace(/\/health$/, "");
+        this.config.url = baseUrl;
       }
-      return response.ok;
+
+      const success = response.ok;
+      if (success) {
+        this.setDOMBaseUri(this.config.url);
+      }
+      return success;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Sets the base URI for resolving relative URLs in the document.
+   *
+   * @param uri - The base URI to set. This should be a valid URL string.
+   *
+   * @remarks
+   * This method modifies the `<base>` element in the document's `<head>`.
+   * If a `<base>` element already exists, its `href` attribute is updated.
+   * Otherwise, a new `<base>` element is created and appended to the `<head>`.
+   *
+   * Side effects:
+   * - Changes how relative URLs are resolved in the document.
+   * - May affect the behavior of scripts, styles, and other resources that use relative URLs.
+   */
+  private setDOMBaseUri(uri: string) {
+    // Remove query params from the URI
+    uri = uri.split("?", 1)[0];
+
+    // Make sure there is a trailing slash
+    if (!uri.endsWith("/")) {
+      uri += "/";
+    }
+
+    let base = document.querySelector("base");
+    if (base) {
+      base.setAttribute("href", uri);
+    } else {
+      base = document.createElement("base");
+      base.setAttribute("href", uri);
+      document.head.append(base);
     }
   }
 
@@ -212,6 +251,10 @@ export class RuntimeManager {
     const headers: Record<string, string> = {
       "Marimo-Session-Id": getSessionId(),
       "Marimo-Server-Token": this.config.serverToken ?? "",
+      // Needed for widgets that need absolute URLs when embedding in an iframe
+      // e.g. mpl.interactive()
+      // We don't prefix with `marimo` since those get stripped internally
+      "x-runtime-url": this.httpURL.toString(),
     };
 
     if (this.config.authToken) {

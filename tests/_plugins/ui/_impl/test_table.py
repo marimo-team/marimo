@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from marimo._data.models import ValueCount
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
@@ -16,6 +17,7 @@ from marimo._plugins.ui._impl.table import (
     MAX_COLUMNS_NOT_PROVIDED,
     CalculateTopKRowsArgs,
     CalculateTopKRowsResponse,
+    ColumnSummariesArgs,
     DownloadAsArgs,
     SearchTableArgs,
     SortArgs,
@@ -846,7 +848,9 @@ def test_table_with_too_many_rows_column_summaries_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_summary_row_limit=10)
 
-    summaries_disabled = table._get_column_summaries(EmptyArgs())
+    summaries_disabled = table._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries_disabled.is_disabled is True
 
     # search results are 2 and 12
@@ -857,7 +861,9 @@ def test_table_with_too_many_rows_column_summaries_disabled() -> None:
             page_number=0,
         )
     )
-    summaries_enabled = table._get_column_summaries(EmptyArgs())
+    summaries_enabled = table._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries_enabled.is_disabled is False
 
 
@@ -865,7 +871,9 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_column_charts_row_limit=10)
 
-    charts_disabled = table._get_column_summaries(EmptyArgs())
+    charts_disabled = table._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert charts_disabled.is_disabled is False
     assert charts_disabled.data is None
 
@@ -877,7 +885,9 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
             page_number=0,
         )
     )
-    charts_enabled = table._get_column_summaries(EmptyArgs())
+    charts_enabled = table._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert charts_enabled.is_disabled is False
 
 
@@ -894,7 +904,9 @@ def test__get_column_summaries_after_search() -> None:
             page_number=0,
         )
     )
-    summaries = table._get_column_summaries(EmptyArgs())
+    summaries = table._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries.is_disabled is False
     summaries_data = from_data_uri(summaries.data)[1].decode("utf-8")
     # Result is csv or json
@@ -911,7 +923,9 @@ def test__get_column_summaries_after_search_df() -> None:
     import pandas as pd
 
     table = ui.table(pd.DataFrame({"a": list(range(20))}))
-    summaries = table._get_column_summaries(EmptyArgs())
+    summaries = table._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
     assert summaries.data.startswith(
@@ -930,7 +944,9 @@ def test__get_column_summaries_after_search_df() -> None:
             page_number=0,
         )
     )
-    summaries = table._get_column_summaries(EmptyArgs())
+    summaries = table._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries.is_disabled is False
     assert isinstance(summaries.data, str)
     # Result is csv
@@ -950,39 +966,120 @@ def test_show_column_summaries_modes():
 
     # Test stats-only mode
     table_stats = ui.table(data, show_column_summaries="stats")
-    summaries_stats = table_stats._get_column_summaries(EmptyArgs())
+    summaries_stats = table_stats._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries_stats.is_disabled is False
     assert summaries_stats.data is None
+    assert summaries_stats.bin_values == {}
+    assert summaries_stats.value_counts == {}
     assert len(summaries_stats.stats) > 0
 
     # Test chart-only mode
     table_chart = ui.table(data, show_column_summaries="chart")
-    summaries_chart = table_chart._get_column_summaries(EmptyArgs())
+    summaries_chart = table_chart._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries_chart.is_disabled is False
     assert summaries_chart.data is not None
     assert len(summaries_chart.stats) == 0
 
     # Test default mode (both stats and chart)
     table_both = ui.table(data, show_column_summaries=True)
-    summaries_both = table_both._get_column_summaries(EmptyArgs())
+    summaries_both = table_both._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries_both.is_disabled is False
     assert summaries_both.data is not None
     assert len(summaries_both.stats) > 0
 
     # Test disabled mode
     table_disabled = ui.table(data, show_column_summaries=False)
-    summaries_disabled = table_disabled._get_column_summaries(EmptyArgs())
+    summaries_disabled = table_disabled._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries_disabled.is_disabled is False
     assert summaries_disabled.data is None
+    assert summaries_disabled.bin_values == {}
+    assert summaries_disabled.value_counts == {}
     assert len(summaries_disabled.stats) == 0
 
     # Test Default behavior
     table_default = ui.table(data)
-    summaries_default = table_default._get_column_summaries(EmptyArgs())
+    summaries_default = table_default._get_column_summaries(
+        ColumnSummariesArgs(precompute=False)
+    )
     assert summaries_default.is_disabled is False
     assert summaries_default.data is not None
     assert len(summaries_default.stats) > 0
     assert table_default._component_args["show-column-summaries"] is True
+
+
+class TestTableBinValues:
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_bin_values_all_nulls(self) -> None:
+        import pandas as pd
+
+        data = {"a": [None] * 20}
+        df = pd.DataFrame(data)
+        table = ui.table(df)
+        summaries = table._get_column_summaries(
+            ColumnSummariesArgs(precompute=True)
+        )
+
+        # Returns empty list
+        assert summaries.bin_values == {"a": []}
+
+
+class TestTableGetValueCounts:
+    @pytest.fixture
+    def table(self) -> ui.table:
+        data = {
+            "unique": [1, 2, 3, 4, 5],
+            "repeat": [1, 1, 2, 3, 4],
+            "with_nulls": [None, None, 2, 3, 4],
+        }
+        self.total_rows = len(data["unique"])
+        return ui.table(data)
+
+    def test_all_unique_values(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="unique", size=10, total_rows=self.total_rows
+        )
+        assert value_counts == [ValueCount(value="unique values", count=5)]
+
+    def test_repeated_values(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="repeat", size=10, total_rows=self.total_rows
+        )
+        assert value_counts == [
+            ValueCount(value="1", count=2),
+            ValueCount(value="2", count=1),
+            ValueCount(value="3", count=1),
+            ValueCount(value="4", count=1),
+        ]
+
+    def test_with_nulls(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="with_nulls", size=10, total_rows=self.total_rows
+        )
+        assert value_counts == [
+            ValueCount(value="null", count=2),
+            ValueCount(value="2", count=1),
+            ValueCount(value="3", count=1),
+            ValueCount(value="4", count=1),
+        ]
+
+    def test_with_smaller_limit(self, table: ui.table) -> None:
+        value_counts = table._get_value_counts(
+            column="repeat", size=2, total_rows=self.total_rows
+        )
+        assert value_counts == [
+            ValueCount(value="1", count=2),
+            ValueCount(value="others", count=3),
+        ]
 
 
 def test_table_with_frozen_columns() -> None:

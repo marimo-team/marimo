@@ -198,7 +198,7 @@ const DEFAULT_HOT_KEY = {
     key: "Ctrl-Alt-]",
   },
   "cell.delete": {
-    name: "Delete empty cell",
+    name: "Delete cell",
     group: "Editing",
     key: "Shift-Backspace",
   },
@@ -348,6 +348,11 @@ const DEFAULT_HOT_KEY = {
     name: "Expand all sections",
     group: "Editing",
     key: "Mod-Shift-/",
+  },
+  "global.toggleMinimap": {
+    name: "Toggle Minimap",
+    group: "Other",
+    key: "Mod-Shift-i",
   },
 
   // Global Navigation

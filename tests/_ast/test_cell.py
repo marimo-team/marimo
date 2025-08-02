@@ -397,6 +397,66 @@ class TestDecoratedCells:
             "add"
         }
 
+    @staticmethod
+    def test_cache_wrapped(app) -> None:
+        with app.setup:
+            from marimo import cache
+
+        @app.function
+        @cache
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        @app.cell
+        def _() -> None:
+            # Calling with the same app yields the same runner
+            assert add(1, 2) == 3
+            assert add.hits == 0
+
+        # Calling with the same app yields the same runner
+        assert add(1, 2) == 3
+        assert add.hits == 0
+        assert add(1, 2) == 3
+        assert add.hits == 1
+        assert app._cell_manager.get_cell_data_by_name("add").cell.defs == {
+            "add"
+        }
+
+    @staticmethod
+    def test_persistent_cache_wrapped(app) -> None:
+        with app.setup:
+            import shutil
+
+            # Create a temporary cache directory
+            import tempfile
+
+            from marimo import persistent_cache as cache
+
+            cache_dir = tempfile.mkdtemp()
+
+        @app.function
+        @cache(save_path=cache_dir)
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        @app.cell
+        def _() -> None:
+            # Calling with the same app yields the same runner
+            assert add(1, 2) == 3
+            # Because the cache is persistent
+            assert add.hits == 1
+            # Clean up the cache directory after the test
+            shutil.rmtree(cache_dir)
+
+        # Calling with the same app yields the same runner
+        assert add(1, 2) == 3
+        assert add.hits == 0
+        assert add(1, 2) == 3
+        assert add.hits == 1
+        assert app._cell_manager.get_cell_data_by_name("add").cell.defs == {
+            "add"
+        }
+
 
 def help_smoke() -> None:
     app = App()

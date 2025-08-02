@@ -333,6 +333,7 @@ const AddCellButtons: React.FC<{
               cellId: { type: "__end__", columnId },
               before: false,
               code: new MarkdownLanguageAdapter().defaultCode,
+              hideCode: true,
             });
           }}
         >

@@ -17,7 +17,7 @@ def test_cli_development_openapi() -> None:
 
 
 def test_openapi_up_to_date() -> None:
-    with open("openapi/api.yaml") as f:
+    with open("packages/openapi/api.yaml") as f:
         current_content = yaml.safe_load(f)
 
     result = subprocess.run(
@@ -32,7 +32,7 @@ def test_openapi_up_to_date() -> None:
     if "info" in generated_content:
         del generated_content["info"]["version"]
 
-    cmd = "marimo development openapi > openapi/api.yaml && make fe-codegen"
+    cmd = "marimo development openapi > packages/openapi/api.yaml && make fe-codegen"
     assert current_content == generated_content, (
-        f"openapi/api.yaml is not up to date. Run '{cmd}' to update it."
+        f"packages/openapi/api.yaml is not up to date. Run '{cmd}' to update it."
     )

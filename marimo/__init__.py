@@ -84,9 +84,8 @@ __all__ = [
     "video",
     "vstack",
     "watch",
+    "__version__",
 ]
-__version__ = "0.14.10"
-
 import marimo._ai as ai
 import marimo._islands as islands
 import marimo._runtime.watch as watch
@@ -146,3 +145,4 @@ from marimo._runtime.threads import Thread, current_thread
 from marimo._save.save import cache, lru_cache, persistent_cache
 from marimo._server.asgi import create_asgi_app
 from marimo._sql.sql import sql
+from marimo._version import __version__

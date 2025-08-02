@@ -72,7 +72,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const runtimeManager = useRuntimeManager();
 
   const {
-    completion,
+    completion: untrimmedCompletion,
     input,
     stop,
     isLoading,
@@ -105,6 +105,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   });
 
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
+  const completion = untrimmedCompletion.trimEnd();
 
   // Focus the input
   useEffect(() => {

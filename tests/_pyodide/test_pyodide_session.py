@@ -52,7 +52,7 @@ def mock_pyodide_http() -> Generator[MagicMock, None, None]:
 
     mock = MagicMock()
     sys.modules["pyodide_http"] = mock
-    mock.patch_urllib.return_value = None
+    mock.patch_all.return_value = None
     yield mock
     del sys.modules["pyodide_http"]
 
@@ -134,7 +134,7 @@ async def test_pyodide_session_start(
     start_task = asyncio.create_task(pyodide_session.start())
     await asyncio.sleep(0)  # Let the task start
     assert pyodide_session.kernel_task is not None
-    mock_pyodide_http.patch_urllib.assert_called_once()
+    mock_pyodide_http.patch_all.assert_called_once()
     pyodide_session.kernel_task.stop()
     start_task.cancel()
     try:

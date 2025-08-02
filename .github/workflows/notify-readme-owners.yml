@@ -22,6 +22,7 @@ jobs:
           script: |
             // Define translation maintainers
             const translations = [
+              { file: 'README_Traditional_Chinese.md', language: 'Traditional_Chinese', maintainers: ['@thliang01'] },
               { file: 'README_Chinese.md', language: 'Chinese', maintainers: ['@metaboulie'] },
               { file: 'README_Japanese.md', language: 'Japanese', maintainers: ['@kiwamizamurai'] },
               { file: 'README_Spanish.md', language: 'Spanish', maintainers: ['@Francisco-G-P'] }

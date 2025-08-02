@@ -859,6 +859,586 @@ class TestCacheDecorator:
         assert k.globals["a"] == 5
         assert k.globals["b"] == 55
 
+    async def test_cache_decorator_with_kwargs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def my_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    # First call with specific kwargs
+                    result1 = my_cached_func(1, 2, some_kw_arg=3)
+                    hash1 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Second call with different kwargs - should be cache miss
+                    result2 = my_cached_func(1, 2, some_kw_arg=4)
+                    hash2 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Third call with same kwargs as first - should be cache hit
+                    result3 = my_cached_func(1, 2, some_kw_arg=3)
+                    hash3 = my_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 6  # 1 + 2 + 3
+        assert k.globals["result2"] == 7  # 1 + 2 + 4
+        assert k.globals["result3"] == 6  # 1 + 2 + 3
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, "Cache key should change when kwargs change"
+        assert hash1 == hash3, (
+            "Cache key should be same for identical args/kwargs"
+        )
+
+        # Verify cache hits
+        assert k.globals["my_cached_func"].hits == 1
+
+    async def test_cache_decorator_kwargs_expansion(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def my_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    # Test with kwargs expansion
+                    _kw = {"some_kw_arg": 1}
+                    result1 = my_cached_func(1, 2, **_kw)
+                    hash1 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different kwargs expansion
+                    _kw = {"some_kw_arg": 2}
+                    result2 = my_cached_func(1, 2, **_kw)
+                    hash2 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same kwargs expansion - should hit cache
+                    _kw = {"some_kw_arg": 1}
+                    result3 = my_cached_func(1, 2, **_kw)
+                    hash3 = my_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 4  # 1 + 2 + 1
+        assert k.globals["result2"] == 5  # 1 + 2 + 2
+        assert k.globals["result3"] == 4  # 1 + 2 + 1
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, (
+            "Cache key should change when kwargs expansion changes"
+        )
+        assert hash1 == hash3, (
+            "Cache key should be same for identical kwargs expansion"
+        )
+
+        # Verify cache hits
+        assert k.globals["my_cached_func"].hits == 1
+
+    async def test_cache_decorator_varargs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def my_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    # Test with different varargs
+                    result1 = my_cached_func(1, 2, 3)
+                    hash1 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different varargs - should be cache miss
+                    result2 = my_cached_func(1, 2, 4)
+                    hash2 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same varargs - should hit cache
+                    result3 = my_cached_func(1, 2, 3)
+                    hash3 = my_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 6  # 1 + 2 + 3
+        assert k.globals["result2"] == 7  # 1 + 2 + 4
+        assert k.globals["result3"] == 6  # 1 + 2 + 3
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, "Cache key should change when varargs change"
+        assert hash1 == hash3, "Cache key should be same for identical varargs"
+
+        # Verify cache hits
+        assert k.globals["my_cached_func"].hits == 1
+
+    async def test_cache_decorator_varargs_expansion(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def my_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    # Test with varargs expansion
+                    _args = [1, 2, 3]
+                    result1 = my_cached_func(*_args)
+                    hash1 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different varargs expansion
+                    _args = [1, 2, 4]
+                    result2 = my_cached_func(*_args)
+                    hash2 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same varargs expansion - should hit cache
+                    _args = [1, 2, 3]
+                    result3 = my_cached_func(*_args)
+                    hash3 = my_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 6  # 1 + 2 + 3
+        assert k.globals["result2"] == 7  # 1 + 2 + 4
+        assert k.globals["result3"] == 6  # 1 + 2 + 3
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, (
+            "Cache key should change when varargs expansion changes"
+        )
+        assert hash1 == hash3, (
+            "Cache key should be same for identical varargs expansion"
+        )
+
+        # Verify cache hits
+        assert k.globals["my_cached_func"].hits == 1
+
+    async def test_cache_decorator_varargs_count(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def my_cached_func(*args, **kwargs):
+                        return sum(args) + sum(kwargs.values())
+
+                    _args1 = [1, 2, 3]
+                    result1 = my_cached_func(*_args1)
+                    hash1 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    _args2 = [1, 2]
+                    result2 = my_cached_func(*_args2)
+                    hash2 = my_cached_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    _args1 = [1, 2, 3, 4]
+                    result3 = my_cached_func(*_args1)
+                    hash3 = my_cached_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 6  # 1 + 2 + 3
+        assert k.globals["result2"] == 3  # 1 + 2
+        assert k.globals["result3"] == 10  # 1 + 2 + 3 + 4
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        # The cache key should be the same for identical values regardless of variable name
+        assert len({hash1, hash2, hash3}) == 3, (
+            "Cache key should be same for identical values with different variable names"
+        )
+
+        # Verify cache hits
+        assert k.globals["my_cached_func"].hits == 0
+
+    async def test_persistent_cache_decorator_mixed_signature(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Sanity check that the same code path is captured.
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import persistent_cache
+                    from marimo._save.loaders import MemoryLoader
+
+                    @persistent_cache(_loader=MemoryLoader)
+                    def mixed_func(arg, *vargs, kw=None, **kwargs):
+                        return arg + sum(vargs) + (kw or 0) + sum(kwargs.values())
+
+                    # Test with mixed arguments
+                    result1 = mixed_func(1, 2, 3, kw=4, extra=5)
+                    hash1 = mixed_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different mixed arguments - should be cache miss
+                    result2 = mixed_func(1, 2, 3, kw=4, extra=7)
+                    hash2 = mixed_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same mixed arguments - should hit cache
+                    result3 = mixed_func(1, 2, 3, kw=4, extra=5)
+                    hash3 = mixed_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 15  # 1 + 2 + 3 + 4 + 5
+        assert k.globals["result2"] == 17  # 1 + 2 + 3 + 4 + 7
+        assert k.globals["result3"] == 15  # 1 + 2 + 3 + 4 + 5
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, "Cache key should change when kwargs change"
+        assert hash1 == hash3, (
+            "Cache key should be same for identical mixed arguments"
+        )
+
+        # Verify cache hits
+        assert k.globals["mixed_func"].hits == 1
+
+    async def test_cache_decorator_mixed_signature(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def mixed_func(arg, *vargs, kw=None, **kwargs):
+                        return arg + sum(vargs) + (kw or 0) + sum(kwargs.values())
+
+                    # Test with mixed arguments
+                    result1 = mixed_func(1, 2, 3, kw=4, extra=5)
+                    hash1 = mixed_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different mixed arguments - should be cache miss
+                    result2 = mixed_func(1, 2, 3, kw=4, extra=7)
+                    hash2 = mixed_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same mixed arguments - should hit cache
+                    result3 = mixed_func(1, 2, 3, kw=4, extra=5)
+                    hash3 = mixed_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 15  # 1 + 2 + 3 + 4 + 5
+        assert k.globals["result2"] == 17  # 1 + 2 + 3 + 4 + 7
+        assert k.globals["result3"] == 15  # 1 + 2 + 3 + 4 + 5
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, "Cache key should change when kwargs change"
+        assert hash1 == hash3, (
+            "Cache key should be same for identical mixed arguments"
+        )
+
+        # Verify cache hits
+        assert k.globals["mixed_func"].hits == 1
+
+    async def test_cache_decorator_positional_only(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    @cache
+                    def pos_only_func(pos1, pos2, /, kw1=None, *, kwonly):
+                        return pos1 + pos2 + (kw1 or 0) + kwonly
+
+                    # Test with positional-only arguments
+                    result1 = pos_only_func(1, 2, kw1=3, kwonly=4)
+                    hash1 = pos_only_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with different positional arguments - should be cache miss
+                    result2 = pos_only_func(1, 3, kw1=3, kwonly=4)
+                    hash2 = pos_only_func._last_hash
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Test with same arguments - should hit cache
+                    result3 = pos_only_func(1, 2, kw1=3, kwonly=4)
+                    hash3 = pos_only_func._last_hash
+                    """
+                ),
+            ]
+        )
+
+        # Verify results
+        assert k.globals["result1"] == 10  # 1 + 2 + 3 + 4
+        assert k.globals["result2"] == 11  # 1 + 3 + 3 + 4
+        assert k.globals["result3"] == 10  # 1 + 2 + 3 + 4
+
+        # Verify cache keys
+        hash1 = k.globals["hash1"]
+        hash2 = k.globals["hash2"]
+        hash3 = k.globals["hash3"]
+
+        assert hash1 != hash2, (
+            "Cache key should change when positional arguments change"
+        )
+        assert hash1 == hash3, (
+            "Cache key should be same for identical arguments"
+        )
+
+        # Verify cache hits
+        assert k.globals["pos_only_func"].hits == 1
+
+    async def test_cache_decorator_method_wrap(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    class MyClass:
+                        def __init__(self, x):
+                            self.x = x
+                        @cache
+                        def method(self, y):
+                            return self.x + y
+
+                    case_a = MyClass(0).method
+                    case_b = MyClass(1).method
+                    case_c = MyClass(1).method
+                    result1 = case_a(2)
+                    hash1 = case_a._last_hash
+                    result2 = case_b(2)
+                    hash2 = case_b._last_hash
+                    result3 = case_c(2)
+                    hash3 = case_c._last_hash
+
+                    base_hash = MyClass.method._last_hash
+
+                    obj = MyClass(0)
+                    # __get__ is called in both places.
+                    # Sanity check the functor returned.
+                    get_method_0 = obj.method
+                    get_method_1 = obj.method
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stdout.messages, k.stdout.messages
+        assert not k.stderr.messages, k.stderr.messages
+
+        # Verify results
+        assert k.globals["result1"] == 2  # 0 + 2
+        assert k.globals["result2"] == 3  # 1 + 2
+        assert k.globals["result3"] == 3  # 1 + 2
+        assert k.globals["hash1"] != k.globals["hash2"]
+        assert k.globals["hash2"] == k.globals["hash3"]
+        # Since self.loader is shared, the lookup dict is shared.
+        assert k.globals["case_a"].hits == 1
+        assert k.globals["case_b"].hits == 1
+        assert k.globals["case_c"].hits == 1
+        assert k.globals["base_hash"] is None
+
+        # Not per say correct or incorrect; but known, documented behavior.
+        assert k.globals["get_method_0"] != k.globals["get_method_1"]
+
+    async def test_cache_static_decorator_method_wrap(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    class MyClass:
+
+                        @staticmethod
+                        @cache
+                        def static_method(x, y):
+                            return x + y
+
+
+                    case_a = MyClass().static_method
+                    case_b = MyClass().static_method
+                    case_c = MyClass.static_method
+                    result1 = case_a(1, 2)
+                    hash1 = case_a._last_hash
+                    result2 = case_b(2, 1)
+                    hash2 = case_b._last_hash
+                    result3 = case_c(1, 2)
+                    hash3 = case_c._last_hash
+                    base_hash = MyClass.static_method._last_hash
+                    """
+                ),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout.messages
+        assert not k.stderr.messages, k.stderr.messages
+
+        # Verify results
+        assert k.globals["result1"] == 3
+        assert k.globals["result2"] == 3
+        assert k.globals["result3"] == 3
+        assert k.globals["hash1"] != k.globals["hash2"]
+        assert k.globals["hash1"] == k.globals["hash3"]
+        assert k.globals["base_hash"] is not None
+
+    async def test_cache_class_decorator_method_wrap(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo._save.save import cache
+
+                    class MyClass:
+                        @classmethod
+                        @cache
+                        def class_method(cls, x, y):
+                            return x + y
+                    case_a = MyClass().class_method
+                    case_b = MyClass().class_method
+                    case_c = MyClass.class_method
+                    result1 = case_a(1, 2)
+                    hash1 = case_a._last_hash
+                    result2 = case_b(2, 1)
+                    hash2 = case_b._last_hash
+                    result3 = case_c(1, 2)
+                    hash3 = case_c._last_hash
+                    base_hash = MyClass.class_method._last_hash
+                    """
+                ),
+            ]
+        )
+        assert not k.stdout.messages, k.stdout.messages
+        assert not k.stderr.messages, k.stderr.messages
+
+        # Verify results
+        assert k.globals["result1"] == 3
+        assert k.globals["result2"] == 3
+        assert k.globals["result3"] == 3
+        assert k.globals["hash1"] != k.globals["hash2"]
+        assert k.globals["hash1"] == k.globals["hash3"]
+        assert k.globals["case_c"]._last_hash is not None
+
+        # NB. base_hash has different behavior than the others on python 3.13+
+        # 3.13 has base_hash == hash1, while <3.13 has base_hash != None
+        if sys.version_info >= (3, 13):
+            assert k.globals["base_hash"] == k.globals["hash1"]
+        else:
+            assert k.globals["base_hash"] is None
+
     async def test_cross_cell_cache(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -1373,19 +1953,19 @@ class TestCacheDecorator:
         app._anonymous_file = True
 
         @app.cell
-        def __():
+        def _():
             import marimo as mo
 
             return (mo,)
 
         @app.cell
-        def __():
+        def _():
             import weakref
 
             return (weakref,)
 
         @app.cell
-        def __(mo, weakref):
+        def _(mo, weakref):
             class Namespace: ...
 
             ns = Namespace()
@@ -1402,7 +1982,7 @@ class TestCacheDecorator:
             )
 
         @app.cell
-        def __(f):
+        def _(f):
             f()
             return
 
@@ -1648,6 +2228,29 @@ class TestCacheDecorator:
         def __(v):
             assert v == 3
             return
+
+    @staticmethod
+    def test_cache_with_mutation_after_def(app) -> None:
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def _(mo):
+            arr = [1, 2, 3]
+
+            @mo.cache
+            def g():
+                return len(arr)
+
+            assert g() == 3
+            arr.append(4)  # Mutation after definition
+            assert g() == 4
+            arr = [1, 2]  # Mutation after definition
+            assert g() == 2
+            return (g, arr)
 
 
 class TestPersistentCache:
