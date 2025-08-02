@@ -254,9 +254,12 @@ class IbisFormatter(FormatterFactory):
             - LAZY: Show Expression+SQL tabs (non-interactive mode)
             """
 
-            # Use _find_backends() to detect unbound expressions instead of get_backend(),
-            # which throws IbisError rather than UnboundExpressionError
-            # https://github.com/ibis-project/ibis/blob/main/ibis/expr/types/core.py#L330
+            # We are using _find_backends() to detect unbound expressions instead of get_backend(),
+            # because the latter throws a general IbisError rather than UnboundExpressionError
+            # https://github.com/ibis-project/ibis/blob/main/ibis/expr/types/core.py#L330.
+            #
+            # If this private method is removed in future versions, fallback to:
+            # try: expr.get_backend() except IbisError: has_unbound = True
             _, has_unbound = expr._find_backends()
 
             if has_unbound:
@@ -286,6 +289,14 @@ class IbisFormatter(FormatterFactory):
 
         def _format_lazy_expression(expr: ir.Expr, mode: IbisDisplayMode) -> tuple[KnownMimeType, str]:
             """Display the expression as a lazy representation with Expression and SQL."""
+
+            # We need to call _noninteractive_repr() directly instead of just relying on ir.Expr.__repr__() because 
+            # otherwise when the expression is unbound and interactive mode is enabled it will try to execute it.
+            # https://github.com/ibis-project/ibis/blob/8a7534c8ef3c675229edd17f2f4467f314d0c143/ibis/expr/types/core.py#L53C3-L58C1
+            #
+            # If this private method is removed in future versions, fallback to repr(expr) is acceptable -
+            # unbound expressions in interactive mode will crash, but that's a reasonable failure mode
+            # since users shouldn't typically have unbound expressions in interactive contexts.
             expr_repr = expr._noninteractive_repr()
             if mode == IbisDisplayMode.UNBOUND:
                 expr_content = f"Contains unbound tables - cannot execute\n\n{expr_repr}"
