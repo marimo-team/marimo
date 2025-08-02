@@ -42,7 +42,6 @@ def test_ibis_formatters_interactive_mode(test_table) -> None:
     ibis.options.interactive = True
 
     try:
-
         # Test table - should return table widget
         formatter = get_formatter(test_table, include_opinionated=False)
         assert formatter is not None
@@ -82,7 +81,6 @@ def test_ibis_formatters_lazy_mode(test_table) -> None:
     ibis.options.interactive = False
 
     try:
-
         # Test table - should return Expression+SQL tabs
         formatter = get_formatter(test_table, include_opinionated=False)
         assert formatter is not None
@@ -118,8 +116,12 @@ def test_ibis_unbound_expressions() -> None:
     import ibis
 
     # Create unbound tables like in smoke tests
-    t1 = ibis.table(dict(value1="float", key1="string", key2="string"), name="table1")
-    t2 = ibis.table(dict(value2="float", key3="string", key4="string"), name="table2")
+    t1 = ibis.table(
+        dict(value1="float", key1="string", key2="string"), name="table1"
+    )
+    t2 = ibis.table(
+        dict(value2="float", key3="string", key4="string"), name="table2"
+    )
     joined = t1.left_join(t2, t1.key1 == t2.key3)
 
     # Test in both interactive modes - should always return tabs
@@ -166,8 +168,7 @@ def test_ibis_complex_scalar_interactive(test_table) -> None:
 
 
 @pytest.mark.skipif(
-    not HAS_IBIS or not HAS_POLARS,
-    reason="ibis and polars not installed"
+    not HAS_IBIS or not HAS_POLARS, reason="ibis and polars not installed"
 )
 def test_ibis_polars_backend() -> None:
     """Test ibis with polars backend - SQL tab should show 'Backend doesn't support SQL'."""
@@ -176,7 +177,9 @@ def test_ibis_polars_backend() -> None:
     import ibis
     import polars as pl
 
-    lazy_frame = pl.LazyFrame({"name": ["Jimmy", "Keith"], "band": ["Led Zeppelin", "Stones"]})
+    lazy_frame = pl.LazyFrame(
+        {"name": ["Jimmy", "Keith"], "band": ["Led Zeppelin", "Stones"]}
+    )
     pl_connection = ibis.polars.connect(tables={"band_members": lazy_frame})
 
     original_interactive = ibis.options.interactive
