@@ -306,22 +306,42 @@ function cellKeymaps({
  * Extensions for cell code editing
  */
 function cellCodeEditing(hotkeys: HotkeyProvider): Extension[] {
+  let updateTimeout: NodeJS.Timeout | null = null;
+
   const onChangePlugin = EditorView.updateListener.of((update) => {
-    if (update.docChanged) {
-      // Check if the doc update was a formatting change
-      // e.g. changing from python to markdown
-      const isFormattingChange = update.transactions.some((tr) =>
-        tr.effects.some((effect) => effect.is(formattingChangeEffect)),
-      );
+    if (!update.docChanged) {
+      return;
+    }
+
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+    }
+
+    // Check if the doc update was a formatting change
+    // e.g. changing from python to markdown
+    const isFormattingChange = update.transactions.some((tr) =>
+      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
+    );
+    const cellActions = update.view.state.facet(cellActionsState);
+    const cellId = update.view.state.facet(cellIdState);
+
+    const updateCellCode = () => {
       const nextCode = getEditorCodeAsPython(update.view);
-      const cellActions = update.view.state.facet(cellActionsState);
-      const cellId = update.view.state.facet(cellIdState);
       cellActions.updateCellCode({
         cellId,
         code: nextCode,
         formattingChange: isFormattingChange,
       });
+    };
+
+    // Update immediately for formatting changes
+    if (isFormattingChange) {
+      updateCellCode();
+      return;
     }
+
+    // Debounce the update
+    updateTimeout = setTimeout(updateCellCode, 100);
   });
 
   return [onChangePlugin, formatKeymapExtension(hotkeys)];
