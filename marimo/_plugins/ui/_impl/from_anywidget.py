@@ -26,21 +26,35 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+class WeakCache:
+    def __init__(self) -> None:
+        self._data: dict[int, AnyWidget] = {}
+        self._finalizers: dict[int, weakref.finalize] = {}
+
+    def add(self, k: AnyWidget, v: UIElement[Any, Any]) -> None:
+        oid: int = id(k)  # finalize will be called before id is reused
+        self._data[oid] = v
+        self._finalizers[oid] = weakref.finalize(k, self._cleanup, oid)
+
+    def get(self, k: AnyWidget) -> UIElement[Any, Any] | None:
+        return self._data.get(id(k))
+
+    def _cleanup(self, oid: int) -> None:
+        self._data.pop(oid, None)
+        self._finalizers.pop(oid, None)
+
+
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache: dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+cache: WeakCache = WeakCache()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
 def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    try:
-        if widget not in cache:
-            cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
-        return cache[widget]
-    except TypeError as e:
-        # Unhashable widgets can't be used as keys in a WeakKeyDictionary
-        LOGGER.warning(e)
-        return anywidget(widget)
+    if not (el := cache.get(widget)):
+        el = anywidget(widget)
+        cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+    return el
 
 
 T = dict[str, Any]
