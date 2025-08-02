@@ -47,6 +47,8 @@ class TypedFileBrowserFileInfo(TypedDict):
 @dataclass
 class ListDirectoryResponse:
     files: list[TypedFileBrowserFileInfo]
+    total_count: int
+    is_truncated: bool = False  # Whether results were truncated due to limit
 
 
 @mddoc
@@ -232,9 +234,12 @@ class file_browser(
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
 
-        for file in path.iterdir():
+        all_file_paths = list(path.iterdir())
+        is_truncated = False
+
+        for files_examined, file in enumerate(all_file_paths, 1):
             extension = file.suffix
-            is_directory = file.is_dir()
+            is_directory = file.is_dir()  # Expensive call for cloud paths
 
             # Skip non-directories if selection mode is directory
             if self._selection_mode == "directory" and not is_directory:
@@ -258,6 +263,8 @@ class file_browser(
                 files.append(file_info)
 
             if len(folders) + len(files) >= self._limit:
+                # handles the case where limit equals exactly the number of items
+                is_truncated = files_examined < len(all_file_paths)
                 break
 
         def natural_sort_info(
@@ -269,7 +276,12 @@ class file_browser(
         all_files = sorted(folders, key=natural_sort_info) + sorted(
             files, key=natural_sort_info
         )
-        return ListDirectoryResponse(all_files)
+
+        return ListDirectoryResponse(
+            files=all_files,
+            total_count=len(all_file_paths),
+            is_truncated=is_truncated,
+        )
 
     def _convert_value(
         self, value: list[TypedFileBrowserFileInfo]
