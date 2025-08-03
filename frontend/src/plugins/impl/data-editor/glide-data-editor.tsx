@@ -620,7 +620,6 @@ export const GlideDataEditor = <T,>({
           rowMarkers={{
             kind: "both",
           }}
-          // highlightRegions={highlightedRegions}
           rowSelectionMode={"multi"}
           onCellEdited={onCellEdited}
           onColumnResize={onColumnResize}
