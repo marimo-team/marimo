@@ -8,6 +8,7 @@ from marimo._messaging.ops import Interrupted
 from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.control_flow import MarimoInterrupt
+from marimo._runtime.runner.cell_runner import RunResult
 
 LOGGER = _loggers.marimo_logger()
 
@@ -29,6 +30,11 @@ def construct_interrupt_handler(
         # probability of that happening is low.
         if context.execution_context is not None:
             Interrupted().broadcast()
+            # Prepopulate the context's run_result to avoid race conditions
+            # with subsequent invocations of this handler
+            context.execution_context.run_result = RunResult(
+                output=None, exception=MarimoInterrupt()
+            )
             raise MarimoInterrupt
 
     return interrupt_handler
