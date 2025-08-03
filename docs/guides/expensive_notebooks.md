@@ -45,7 +45,7 @@ def __():
 
 If you habitually work with very expensive notebooks, you can
 [disable automatic
-execution](../guides/configuration/runtime_configuration.md#on-cell-change). When
+execution](../guides/configuration/runtime_configuration.md#disable-autorun-on-cell-change-lazy-execution). When
 automatic execution is disabled, when you run a cell, marimo
 marks dependent cells as stale instead of running them automatically.
 
