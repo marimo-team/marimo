@@ -331,6 +331,8 @@ class Runner:
                 self.debugger._last_traceback = None
 
         cell = self.graph.cells[cell_id]
+        run_result = RunResult(output=None, exception=None)
+
         try:
             if cell.is_coroutine():
                 return_value_future = asyncio.ensure_future(
