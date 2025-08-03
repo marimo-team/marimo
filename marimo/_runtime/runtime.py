@@ -758,6 +758,15 @@ class Kernel:
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[ExecutionContext]:
+        """NB: When installed, KeyboardInterrupts may be raised, which MUST be caught.
+
+        try:
+            with self._install_execution_context():
+                # Keyboard interrupts may be raised!
+                ...
+        except KeyboardInterrupt:
+            ...
+        """
         ctx = get_context()
         assert isinstance(ctx, KernelRuntimeContext)
         ctx.execution_context = (
