@@ -400,11 +400,7 @@ class Runner:
             output=output, exception=exception
         ), unwrapped_exception
 
-    async def run(
-        self,
-        cell_id: CellId_t,
-        execution_context: ExecutionContext | None = None,
-    ) -> RunResult:
+    async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         if self.debugger is not None:
             last_tb = self.debugger._last_tracebacks.pop(cell_id, None)
@@ -480,18 +476,11 @@ class Runner:
             #
             # TODO(akshayka): Find a less brittle way of handling interrupts.
             try:
-                if (
-                    execution_context is not None
-                    and execution_context.run_result is not None
-                ):
-                    # An interruption (for example) pre-populates the run_result
-                    run_result = execution_context.run_result
-                else:
-                    run_result, unwrapped_exception = (
-                        self._run_result_from_exception(
-                            output, unwrapped_exception, cell_id
-                        )
+                run_result, unwrapped_exception = (
+                    self._run_result_from_exception(
+                        output, unwrapped_exception, cell_id
                     )
+                )
             except KeyboardInterrupt:
                 run_result = RunResult(
                     output=None, exception=MarimoInterrupt()
@@ -545,11 +534,6 @@ class Runner:
             # TODO(akshayka): some of this logic should be lifted out
             # of `run`, (in particular to where execution context is not set)
             # so that it is not interruptible
-            #
-            # Attempt to handle multiple interrupts.
-            if run_result is None and execution_context is not None:
-                run_result = execution_context.run_result
-
             if run_result is None:
                 LOGGER.error(
                     """marimo encountered an internal error.
@@ -660,7 +644,7 @@ class Runner:
             LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
                 with self.execution_context(cell_id) as exc_ctx:
-                    run_result = await self.run(cell_id, exc_ctx)
+                    run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
                     LOGGER.debug("Running post_execution hooks in context")
                     for post_hook in self.post_execution_hooks:

@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from marimo._runtime.functions import FunctionRegistry
     from marimo._runtime.params import CLIArgs, QueryParams
     from marimo._runtime.requests import HTTPRequest
-    from marimo._runtime.runner.cell_runner import RunResult
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
     from marimo._save.stores import Store
@@ -68,11 +67,6 @@ class ExecutionContext:
     local_cell_id: Optional[CellId_t] = None
     # output object set imperatively
     output: Optional[list[Html]] = None
-    # This field allows the interrupt handler to
-    # install a run result before raising a
-    # KeyboardInterrupt, to guard against double
-    # interruptions
-    run_result: Optional[RunResult] = None
 
 
 @dataclass
