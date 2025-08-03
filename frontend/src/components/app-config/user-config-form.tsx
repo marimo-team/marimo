@@ -314,7 +314,7 @@ export const UserConfigForm: React.FC = () => {
                 )}
               />
               {/* auto_download is a runtime setting in the backend, but it makes
-                * more sense as an autosave setting. */ }
+               * more sense as an autosave setting. */}
               <FormField
                 control={form.control}
                 name="runtime.default_auto_download"
@@ -335,7 +335,9 @@ export const UserConfigForm: React.FC = () => {
                                 const currentValue = Array.isArray(field.value)
                                   ? field.value
                                   : [];
-                                field.onChange(arrayToggle(currentValue, "html"));
+                                field.onChange(
+                                  arrayToggle(currentValue, "html"),
+                                );
                               }}
                             />
                             <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
@@ -356,7 +358,9 @@ export const UserConfigForm: React.FC = () => {
                                 );
                               }}
                             />
-                            <FormLabel htmlFor="ipynb-checkbox">IPYNB</FormLabel>
+                            <FormLabel htmlFor="ipynb-checkbox">
+                              IPYNB
+                            </FormLabel>
                           </div>
                         </div>
                       </FormControl>
@@ -1227,8 +1231,8 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
 
                   <FormDescription>
-                    The default SQL output type for new notebooks; overridden
-                    by "sql_output" in the application config.
+                    The default SQL output type for new notebooks; overridden by
+                    "sql_output" in the application config.
                   </FormDescription>
                 </div>
               )}
