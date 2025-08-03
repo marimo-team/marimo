@@ -96,7 +96,6 @@ uv.lock
 
 # WIP files
 .wip/
-wip/
 
 # editors
 *.swp
