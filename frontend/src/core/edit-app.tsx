@@ -134,7 +134,6 @@ export const EditApp: React.FC<AppProps> = ({
 
   const editableCellsArray = (
     <CellArray
-      connStatus={connection}
       mode={viewState.mode}
       userConfig={userConfig}
       appConfig={appConfig}

@@ -2,7 +2,7 @@
 
 import { historyField } from "@codemirror/commands";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
-import { selectAtom, splitAtom } from "jotai/utils";
+import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { isEqual, zip } from "lodash-es";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/Cell";
@@ -1537,6 +1537,8 @@ export const cellIdToNamesMap = createDeepEqualAtom(
   }),
 );
 
+const scrollKeyAtom = atom((get) => get(notebookAtom).scrollKey);
+
 /// HOOKS
 
 /**
@@ -1563,6 +1565,11 @@ export const useCellErrors = () => useAtomValue(cellErrorsAtom);
  * React-hook for the cell logs.
  */
 export const useCellLogs = () => useAtomValue(notebookAtom).cellLogs;
+
+/**
+ * React-hook for the notebook scrollKey
+ */
+export const useScrollKey = () => useAtomValue(scrollKeyAtom);
 
 /// IMPERATIVE GETTERS
 
@@ -1606,6 +1613,16 @@ export const hasCellsAtom = atom(
 );
 export const columnIdsAtom = atom((get) =>
   get(notebookAtom).cellIds.getColumnIds(),
+);
+
+export const cellDataAtom = atomFamily((cellId: CellId) =>
+  atom((get) => get(notebookAtom).cellData[cellId]),
+);
+export const cellRuntimeAtom = atomFamily((cellId: CellId) =>
+  atom((get) => get(notebookAtom).cellRuntime[cellId]),
+);
+export const cellHandleAtom = atomFamily((cellId: CellId) =>
+  atom((get) => get(notebookAtom).cellHandles[cellId]),
 );
 
 /**
