@@ -68,7 +68,10 @@ class ExecutionContext:
     local_cell_id: Optional[CellId_t] = None
     # output object set imperatively
     output: Optional[list[Html]] = None
-    # whether an interrupt is being processed
+    # This field allows the interrupt handler to
+    # install a run result before raising a
+    # KeyboardInterrupt, to guard against double
+    # interruptsion
     run_result: Optional[RunResult] = None
 
 
