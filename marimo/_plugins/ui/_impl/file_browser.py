@@ -234,7 +234,10 @@ class file_browser(
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
 
-        all_file_paths = list(path.iterdir())
+        # Sort based on natural sort (alpha, then num)
+        all_file_paths = sorted(
+            list(path.iterdir()), key=lambda f: natural_sort(f.name)
+        )
         is_truncated = False
 
         for files_examined, file in enumerate(all_file_paths, 1):
@@ -267,15 +270,8 @@ class file_browser(
                 is_truncated = files_examined < len(all_file_paths)
                 break
 
-        def natural_sort_info(
-            info: TypedFileBrowserFileInfo,
-        ) -> list[Union[int, str]]:
-            return natural_sort(info["name"])
-
-        # Sort folders then files, based on natural sort (alpha, then num)
-        all_files = sorted(folders, key=natural_sort_info) + sorted(
-            files, key=natural_sort_info
-        )
+        # Display folders first, then files
+        all_files = folders + files
 
         return ListDirectoryResponse(
             files=all_files,
