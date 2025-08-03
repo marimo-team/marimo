@@ -328,7 +328,7 @@ class Runner:
         output: Any,
         unwrapped_exception: Optional[BaseException],
         cell_id: CellId_t,
-    ) -> RunResult:
+    ) -> tuple[RunResult, Optional[BaseException]]:
         exception: Optional[ErrorObjects] = unwrapped_exception
         if isinstance(exception, MarimoMissingRefError):
             ref, blamed_cell = self._get_blamed_cell(exception)
@@ -396,7 +396,9 @@ class Runner:
         elif isinstance(unwrapped_exception, MarimoStopError):
             output = unwrapped_exception.output
             exception = unwrapped_exception
-        return RunResult(output=output, exception=exception)
+        return RunResult(
+            output=output, exception=exception
+        ), unwrapped_exception
 
     async def run(
         self,
@@ -485,8 +487,10 @@ class Runner:
                     # An interruption (for example) pre-populates the run_result
                     run_result = execution_context.run_result
                 else:
-                    run_result = self._run_result_from_exception(
-                        output, unwrapped_exception, cell_id
+                    run_result, unwrapped_exception = (
+                        self._run_result_from_exception(
+                            output, unwrapped_exception, cell_id
+                        )
                     )
             except KeyboardInterrupt:
                 run_result = RunResult(
