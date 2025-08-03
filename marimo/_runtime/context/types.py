@@ -71,7 +71,7 @@ class ExecutionContext:
     # This field allows the interrupt handler to
     # install a run result before raising a
     # KeyboardInterrupt, to guard against double
-    # interruptsion
+    # interruptions
     run_result: Optional[RunResult] = None
 
 
