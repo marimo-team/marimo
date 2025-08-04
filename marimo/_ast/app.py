@@ -282,6 +282,7 @@ class App:
             A new `app` object with the same code.
         """
         app = App()
+        app._filename = self._filename
         app._cell_manager = CellManager(prefix=str(uuid4()))
         for cell_id, code, name, config in zip(
             self._cell_manager.cell_ids(),
@@ -761,6 +762,10 @@ class InternalApp:
     @property
     def cell_manager(self) -> CellManager:
         return self._app._cell_manager
+
+    @property
+    def filename(self) -> str | None:
+        return self._app._filename
 
     @property
     def graph(self) -> dataflow.DirectedGraph:

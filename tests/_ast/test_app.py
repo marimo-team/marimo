@@ -3,17 +3,19 @@
 from __future__ import annotations
 import pathlib
 import subprocess
+import sys
 import textwrap
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from marimo._ast.app_config import _AppConfig
 from marimo._ast.app import (
     App,
+    AppEmbedResult,
     AppKernelRunnerRegistry,
     InternalApp,
 )
+from marimo._ast.app_config import _AppConfig
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -21,10 +23,18 @@ from marimo._ast.errors import (
     SetupRootError,
     UnparsableError,
 )
+from marimo._ast.load import load_app
+from marimo._convert.converters import MarimoConvert
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context.types import get_context
 from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    CellDef,
+    NotebookSerializationV1,
+)
+from marimo._types.ids import CellId_t
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
@@ -850,7 +860,7 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     """
     py_file.write_text(textwrap.dedent(content))
     p = subprocess.run(
-        ["python", str(py_file), "--foo", "value1", "--bar", "value2"],
+        [sys.executable, str(py_file), "--foo", "value1", "--bar", "value2"],
         stdout=subprocess.PIPE,
     )
     assert p.returncode == 0
@@ -1044,12 +1054,14 @@ class TestAppComposition:
 
     @staticmethod
     def test_setup_hide_code() -> None:
+        setup_cell_id = CellId_t("setup")
+
         # Test property access (default behavior, hide_code=False)
         app1 = App()
         with app1.setup:
             x = 1
 
-        setup_cell = app1._cell_manager._cell_data.get("setup")
+        setup_cell = app1._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
@@ -1058,7 +1070,7 @@ class TestAppComposition:
         with app2.setup():
             x2 = 1
 
-        setup_cell = app2._cell_manager._cell_data.get("setup")
+        setup_cell = app2._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
 
@@ -1067,7 +1079,7 @@ class TestAppComposition:
         with app3.setup(hide_code=True):
             y = 2
 
-        setup_cell = app3._cell_manager._cell_data.get("setup")
+        setup_cell = app3._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is True
 
@@ -1075,10 +1087,64 @@ class TestAppComposition:
         app4 = App()
         with app4.setup(hide_code=False):
             z = 3
-        
-        setup_cell = app4._cell_manager._cell_data.get("setup")
+
+        setup_cell = app4._cell_manager._cell_data.get(setup_cell_id)
         assert setup_cell is not None
         assert setup_cell.config.hide_code is False
+
+
+    @staticmethod
+    async def test_app_embed_preserves_file_path(
+        app: App
+    ) -> None:
+        with app.setup:
+            from tests._ast.app_data import notebook_filename
+
+        @app.cell
+        async def _():
+            app = await notebook_filename.app.embed()
+            cloned = await notebook_filename.app.clone().embed()
+            filename = "notebook_filename.py"
+            directory = "app_data"
+            return (app, cloned, filename, directory)
+
+        @app.cell
+        def _(app: AppEmbedResult, filename: str, directory: str) -> None:
+            assert app.defs.get("this_is_foo_file").endswith(filename)
+            assert app.defs.get("this_is_foo_path").stem == directory
+
+        @app.cell
+        def _(cloned: AppEmbedResult, filename: str, directory: str) -> None:
+            assert cloned.defs.get("this_is_foo_file").endswith(filename)
+            assert cloned.defs.get("this_is_foo_path").stem == directory
+
+
+    @staticmethod
+    async def test_app_embed_in_kernel(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from tests._ast.app_data import notebook_filename
+                    """
+                ),
+                exec_req.get(
+                    """
+                    app = await notebook_filename.app.embed()
+                    cloned = await notebook_filename.app.clone().embed()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        filename = "notebook_filename.py"
+        directory = "app_data"
+        assert k.globals["app"].defs.get("this_is_foo_file").endswith(filename)
+        assert k.globals["cloned"].defs.get("this_is_foo_file").endswith(filename)
+        assert k.globals["app"].defs.get("this_is_foo_path").stem == directory
+        assert k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
 
 
 class TestAppKernelRunnerRegistry:

@@ -1137,7 +1137,7 @@ class TestExecution:
             ]
         )
         assert "x" in k.globals
-        assert k.globals["x"] is None
+        assert k.globals["x"] is not None
 
     async def test_notebook_location(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -1151,9 +1151,9 @@ class TestExecution:
             ]
         )
         assert "loc" in k.globals
-        assert k.globals["loc"] is None
+        assert k.globals["loc"] is not None
         assert "dir" in k.globals
-        assert k.globals["dir"] is k.globals["loc"]
+        assert k.globals["dir"] is not None
 
     @pytest.mark.skipif(
         sys.platform == "win32", reason="Windows paths behave differently"
