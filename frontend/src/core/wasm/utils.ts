@@ -5,5 +5,8 @@
  */
 export function isWasm(): boolean {
   // Document is sometimes undefined in CI so we check to reduce flakiness
-  return document && document.querySelector("marimo-wasm") !== null;
+  return (
+    typeof document !== "undefined" &&
+    document.querySelector("marimo-wasm") !== null
+  );
 }
