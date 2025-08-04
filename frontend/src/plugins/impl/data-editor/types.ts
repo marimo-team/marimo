@@ -41,5 +41,4 @@ export interface DataEditorProps<T> {
   fieldTypes: FieldTypesWithExternalType | null | undefined;
   onAddEdits: (edits: Edits["edits"]) => void;
   onAddRows: (newRows: object[]) => void;
-  columnSizingMode: "fit" | "auto";
 }
