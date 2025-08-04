@@ -152,14 +152,30 @@ class MockedKernel:
         self.stdin = MockStdin(self.stream)
         self._main = sys.modules["__main__"]
         # On Windows, sys.modules["__main__"].__file__ might be something like
-        # "pytest.exe\__main__.py" which causes issues. Use a dummy file instead.
+        # "pytest.exe\__main__.py" which causes issues. Use the current test file instead.
         test_file = None
         if (
             sys.platform == "win32"
             and hasattr(sys.modules["__main__"], "__file__")
             and "pytest.exe" in str(sys.modules["__main__"].__file__)
         ):
-            test_file = str(pathlib.Path.cwd() / "__test__.py")
+            # Create an actual dummy Python file for multiprocessing to import
+            # Use a unique name to avoid conflicts
+            dummy_path = (
+                pathlib.Path(__file__).parent
+                / f"__test_dummy_{os.getpid()}.py"
+            )
+            if not dummy_path.exists():
+                dummy_path.write_text(
+                    "# Dummy file for Windows pytest compatibility\n"
+                )
+            test_file = str(dummy_path)
+            # Store the path so we can clean it up in teardown
+            self._dummy_file = dummy_path
+        else:
+            # Use the normal file path
+            test_file = getattr(sys.modules["__main__"], "__file__", None)
+            self._dummy_file = None
 
         module = patches.patch_main_module(
             file=test_file,
@@ -203,6 +219,9 @@ class MockedKernel:
         if self.k.module_watcher is not None:
             self.k.module_watcher.stop()
         sys.modules["__main__"] = self._main
+        # Clean up dummy file if created
+        if self._dummy_file and self._dummy_file.exists():
+            self._dummy_file.unlink(missing_ok=True)
 
 
 # fixture that provides a kernel (and tears it down)
