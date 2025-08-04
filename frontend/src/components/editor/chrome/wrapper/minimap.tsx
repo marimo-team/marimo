@@ -1,10 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { atom, useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { cellDataAtom, cellRuntimeAtom, useCellActions, useCellIds } from "@/core/cells/cells";
+import {
+  cellDataAtom,
+  cellRuntimeAtom,
+  useCellActions,
+  useCellIds,
+} from "@/core/cells/cells";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
@@ -21,7 +26,6 @@ interface MinimapCellProps {
   cellId: CellId;
   cellPositions: Readonly<Record<CellId, number>>;
 }
-
 
 const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const focusState = useAtomValue(cellFocusAtom);
