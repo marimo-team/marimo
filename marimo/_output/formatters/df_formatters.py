@@ -227,7 +227,6 @@ class IbisFormatter(FormatterFactory):
         return "ibis"
 
     def register(self) -> None:
-
         import ibis  # type: ignore[import-not-found]
         import ibis.expr.types as ir  # type: ignore[import-not-found]
         from ibis.backends.sql import (
@@ -241,9 +240,12 @@ class IbisFormatter(FormatterFactory):
 
         class IbisDisplayMode(Enum):
             """Display mode for Ibis expressions."""
+
             INTERACTIVE = "interactive"  # Execute and show as table
-            UNBOUND = "unbound"          # Show Expression+SQL tabs (contains unbound tables)
-            LAZY = "lazy"                # Show Expression+SQL tabs (non-interactive mode)
+            UNBOUND = (
+                "unbound"  # Show Expression+SQL tabs (contains unbound tables)
+            )
+            LAZY = "lazy"  # Show Expression+SQL tabs (non-interactive mode)
 
         def _get_display_mode(expr: ir.Expr) -> IbisDisplayMode:
             """Get display mode for expression.
@@ -274,12 +276,17 @@ class IbisFormatter(FormatterFactory):
             try:
                 return plain_text(repr(obj))._mime_()
             except Exception:
-                return ("text/plain", f"<{type(obj).__name__} object - could not display>")
+                return (
+                    "text/plain",
+                    f"<{type(obj).__name__} object - could not display>",
+                )
 
         def _get_sql_repr(expr: ir.Expr, mode: IbisDisplayMode) -> str:
             """Get SQL representation or message if backend doesn't support SQL."""
             try:
-                if mode == IbisDisplayMode.UNBOUND or isinstance(expr.get_backend(), SQLBackend):
+                if mode == IbisDisplayMode.UNBOUND or isinstance(
+                    expr.get_backend(), SQLBackend
+                ):
                     return f"```sql\n{ibis.to_sql(expr)}\n```"
                 else:
                     return "Backend doesn't support SQL"
@@ -287,10 +294,12 @@ class IbisFormatter(FormatterFactory):
                 LOGGER.warning("Could not generate SQL for expression: %s", e)
                 return f"Could not generate SQL: {e}"
 
-        def _format_lazy_expression(expr: ir.Expr, mode: IbisDisplayMode) -> tuple[KnownMimeType, str]:
+        def _format_lazy_expression(
+            expr: ir.Expr, mode: IbisDisplayMode
+        ) -> tuple[KnownMimeType, str]:
             """Display the expression as a lazy representation with Expression and SQL."""
 
-            # We need to call _noninteractive_repr() directly instead of just relying on ir.Expr.__repr__() because 
+            # We need to call _noninteractive_repr() directly instead of just relying on ir.Expr.__repr__() because
             # otherwise when the expression is unbound and interactive mode is enabled it will try to execute it.
             # https://github.com/ibis-project/ibis/blob/8a7534c8ef3c675229edd17f2f4467f314d0c143/ibis/expr/types/core.py#L53C3-L58C1
             #
@@ -299,18 +308,21 @@ class IbisFormatter(FormatterFactory):
             # since users shouldn't typically have unbound expressions in interactive contexts.
             expr_repr = expr._noninteractive_repr()
             if mode == IbisDisplayMode.UNBOUND:
-                expr_content = f"Contains unbound tables - cannot execute\n\n{expr_repr}"
+                expr_content = (
+                    f"Contains unbound tables - cannot execute\n\n{expr_repr}"
+                )
             else:
                 expr_content = expr_repr
 
             sql_content = _get_sql_repr(expr, mode)
 
-            return tabs.tabs({
-                "Expression": plain_text(expr_content),
-                "SQL": sql_content
-            })._mime_()
+            return tabs.tabs(
+                {"Expression": plain_text(expr_content), "SQL": sql_content}
+            )._mime_()
 
-        def _format_ibis_expression(expr: ir.Expr) -> tuple[KnownMimeType, str]:
+        def _format_ibis_expression(
+            expr: ir.Expr,
+        ) -> tuple[KnownMimeType, str]:
             """Format Ibis expressions.
 
             Interactive mode: Shows data as marimo table
@@ -320,7 +332,9 @@ class IbisFormatter(FormatterFactory):
                 mode = _get_display_mode(expr)
 
                 if mode == IbisDisplayMode.INTERACTIVE:
-                    return table(expr, selection=None, pagination=True)._mime_()
+                    return table(
+                        expr, selection=None, pagination=True
+                    )._mime_()
                 else:
                     return _format_lazy_expression(expr, mode)
 
@@ -347,7 +361,9 @@ class IbisFormatter(FormatterFactory):
             return _format_ibis_expression(table_expr)
 
         @formatting.formatter(ir.Column)
-        def _show_marimo_ibis_column(column_expr: ir.Column) -> tuple[KnownMimeType, str]:
+        def _show_marimo_ibis_column(
+            column_expr: ir.Column,
+        ) -> tuple[KnownMimeType, str]:
             """Format Column expressions.
 
             Columns are converted to single-column tables via .as_table()
@@ -388,7 +404,9 @@ class IbisFormatter(FormatterFactory):
             try:
                 val = scalar.to_pyarrow().as_py()
                 # Complex scalars as JSON, simple ones as text
-                if isinstance(scalar, (ir.ArrayScalar, ir.StructScalar, ir.MapScalar)):
+                if isinstance(
+                    scalar, (ir.ArrayScalar, ir.StructScalar, ir.MapScalar)
+                ):
                     return json_output(json_data=val)._mime_()
                 else:
                     return _render_plain_text_fallback(val)
