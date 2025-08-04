@@ -50,14 +50,14 @@ class WeakCache:
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache: WeakCache = WeakCache()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+_cache: WeakCache[AnyWidget, UIElement[Any, Any]] = WeakCache()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
 def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    if not (el := cache.get(widget)):
+    if not (el := _cache.get(widget)):
         el = anywidget(widget)
-        cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+        _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return el
 
 
