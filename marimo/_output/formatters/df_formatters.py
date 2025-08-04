@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import re
 from enum import Enum
+from typing import Any
 
 import narwhals.stable.v1 as nw
 
@@ -229,8 +230,8 @@ class IbisFormatter(FormatterFactory):
     def register(self) -> None:
         import ibis  # type: ignore[import-not-found]
         import ibis.expr.types as ir  # type: ignore[import-not-found]
-        from ibis.backends.sql import (
-            SQLBackend,  # type: ignore[import-not-found]
+        from ibis.backends.sql import (  # type: ignore[import-not-found]
+            SQLBackend,
         )
 
         from marimo._output import formatting
@@ -271,7 +272,9 @@ class IbisFormatter(FormatterFactory):
             else:
                 return IbisDisplayMode.INTERACTIVE
 
-        def _render_plain_text_fallback(obj) -> tuple[KnownMimeType, str]:
+        def _render_plain_text_fallback(
+            obj: Any,
+        ) -> tuple[KnownMimeType, str]:
             """Helper to render object as plain text with fallback."""
             try:
                 return plain_text(repr(obj))._mime_()
