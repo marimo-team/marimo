@@ -27,8 +27,6 @@ class PlotlyFormatter(FormatterFactory):
 
         if running_in_notebook():
 
-            @formatting.formatter(plotly.graph_objects.Figure)
-            @formatting.formatter(plotly.graph_objects.FigureWidget)
             def _show_plotly_figure(
                 fig: plotly.graph_objects.Figure,
                 config: dict[str, Any] | None = None,
@@ -43,12 +41,20 @@ class PlotlyFormatter(FormatterFactory):
                 )
                 return ("text/html", plugin.text)
 
+            @formatting.formatter(plotly.graph_objects.Figure)
+            @formatting.formatter(plotly.graph_objects.FigureWidget)
+            def _plotly_formatter(
+                fig: plotly.graph_objects.Figure,
+            ) -> tuple[KnownMimeType, str]:
+                return _show_plotly_figure(fig)
+
             # Patch Figure.show to add to console output instead of opening a
             # browser.
             def patched_show(
-                self: plotly.graph_objects.Figure, *args: Any, **kwargs: Any
+                self: plotly.graph_objects.Figure,
+                *args: Any,  # noqa: ARG001
+                **kwargs: Any,
             ) -> None:
-                del args  # show() doesn't use positional args
                 # Extract config if provided
                 config = kwargs.get("config")
                 mimetype, data = _show_plotly_figure(self, config=config)
