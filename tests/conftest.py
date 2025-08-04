@@ -4,7 +4,6 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import os
-import pathlib
 import re
 import sys
 import textwrap
@@ -151,18 +150,8 @@ class MockedKernel:
         self.stderr = MockStderr(self.stream)
         self.stdin = MockStdin(self.stream)
         self._main = sys.modules["__main__"]
-        # On Windows, sys.modules["__main__"].__file__ might be something like
-        # "pytest.exe\__main__.py" which causes issues. Use a dummy file instead.
-        test_file = None
-        if (
-            sys.platform == "win32"
-            and hasattr(sys.modules["__main__"], "__file__")
-            and "pytest.exe" in str(sys.modules["__main__"].__file__)
-        ):
-            test_file = str(pathlib.Path.cwd() / "__test__.py")
-
         module = patches.patch_main_module(
-            file=test_file,
+            file=None,
             input_override=input_override,
             print_override=print_override,
         )
