@@ -47,6 +47,8 @@ class TypedFileBrowserFileInfo(TypedDict):
 @dataclass
 class ListDirectoryResponse:
     files: list[TypedFileBrowserFileInfo]
+    total_count: int
+    is_truncated: bool = False  # Whether results were truncated due to limit
 
 
 @mddoc
@@ -120,7 +122,9 @@ class file_browser(
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
             navigating any level above the given path. Defaults to False.
-        limit (int, optional): Maximum number of files to display. Defaults to 50.
+        limit (int, optional): Maximum number of files to display.
+            If None (default), automatically chooses 50 for cloud storage (S3, GCS, Azure)
+            or 10000 for local filesystems. Set explicitly to override defaults.
         label (str, optional): Markdown label for the element. Defaults to "".
         on_change (Callable[[Sequence[FileInfo]], None], optional): Optional
             callback to run when this element's value changes. Defaults to None.
@@ -136,7 +140,7 @@ class file_browser(
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
-        limit: int = 50,
+        limit: Optional[int] = None,
         label: str = "",
         on_change: Optional[
             Callable[[Sequence[FileBrowserFileInfo]], None]
@@ -161,13 +165,22 @@ class file_browser(
         self._filetypes: set[str] = set(filetypes) if filetypes else set()
         self._restrict_navigation = restrict_navigation
         self._initial_path: Path = initial_path
-        self._limit = limit
 
         self._path_cls: type[Path]
         if isinstance(initial_path, str):
             self._path_cls = Path
         else:
             self._path_cls = initial_path.__class__
+
+        # Smart default limit based on path type
+        if limit is None:
+            # Check if it's a cloud path
+            if self._path_cls.__module__.startswith("cloudpathlib"):
+                limit = 50  # Conservative for cloud storage
+            else:
+                limit = 10000  # High limit for local filesystems
+
+        self._limit = limit
 
         super().__init__(
             component_name=file_browser._name,
@@ -221,9 +234,15 @@ class file_browser(
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
 
-        for file in path.iterdir():
+        # Sort based on natural sort (alpha, then num)
+        all_file_paths = sorted(
+            list(path.iterdir()), key=lambda f: natural_sort(f.name)
+        )
+        is_truncated = False
+
+        for files_examined, file in enumerate(all_file_paths, 1):
             extension = file.suffix
-            is_directory = file.is_dir()
+            is_directory = file.is_dir()  # Expensive call for cloud paths
 
             # Skip non-directories if selection mode is directory
             if self._selection_mode == "directory" and not is_directory:
@@ -247,18 +266,18 @@ class file_browser(
                 files.append(file_info)
 
             if len(folders) + len(files) >= self._limit:
+                # handles the case where limit equals exactly the number of items
+                is_truncated = files_examined < len(all_file_paths)
                 break
 
-        def natural_sort_info(
-            info: TypedFileBrowserFileInfo,
-        ) -> list[Union[int, str]]:
-            return natural_sort(info["name"])
+        # Display folders first, then files
+        all_files = folders + files
 
-        # Sort folders then files, based on natural sort (alpha, then num)
-        all_files = sorted(folders, key=natural_sort_info) + sorted(
-            files, key=natural_sort_info
+        return ListDirectoryResponse(
+            files=all_files,
+            total_count=len(all_file_paths),
+            is_truncated=is_truncated,
         )
-        return ListDirectoryResponse(all_files)
 
     def _convert_value(
         self, value: list[TypedFileBrowserFileInfo]
