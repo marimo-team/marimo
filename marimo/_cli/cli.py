@@ -428,7 +428,7 @@ edit_help_msg = "\n".join(
     default=False,
     type=bool,
     hidden=True,
-    help="Converts a python file into a format marimo can open.",
+    help="When opening a .py file, enable fallback conversion from pypercent, script, or text.",
 )
 @click.argument(
     "name",
