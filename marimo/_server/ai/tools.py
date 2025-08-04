@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
 from marimo import _loggers
 from marimo._config.config import CopilotMode
+from marimo._config.manager import get_default_config_manager
 
 if TYPE_CHECKING:
     from mcp.types import (  # type: ignore[import-not-found]
@@ -50,6 +51,14 @@ class ToolManager:
         self._tools: dict[str, Tool] = {}
         self._backend_handlers: dict[str, Callable[[FunctionArgs], Any]] = {}
         self._validation_functions: dict[str, ValidationFunction] = {}
+
+        # TODO: this may be stale if the config is updated after the tool manager is created
+        self._config = get_default_config_manager(
+            current_path=None
+        ).get_config()
+        self._enable_mcp_tools = self._config.get("experimental", {}).get(
+            "mcp_tools", False
+        )
 
         # Don't register tools in __init__ to avoid circular imports
         # Tools will be registered when get_tool_manager() is first called
@@ -162,6 +171,9 @@ class ToolManager:
 
     def list_mcp_tools(self) -> list[Tool]:
         """Get all MCP tools from the MCP client."""
+        if not self._enable_mcp_tools:
+            return []
+
         try:
             from marimo._server.ai.mcp import get_mcp_client
 
