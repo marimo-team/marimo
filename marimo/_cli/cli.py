@@ -423,12 +423,12 @@ edit_help_msg = "\n".join(
     help="Remote URL for runtime configuration.",
 )
 @click.option(
-    "--auto-convert",
+    "--convert",
     is_flag=True,
     default=False,
     type=bool,
     hidden=True,
-    help="Automatically convert the file to a marimo notebook.",
+    help="Converts a python file into a format marimo can open.",
 )
 @click.argument(
     "name",
@@ -451,7 +451,7 @@ def edit(
     watch: bool,
     skew_protection: bool,
     remote_url: Optional[str],
-    auto_convert: bool,
+    convert: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -507,7 +507,7 @@ def edit(
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
-            if auto_convert:
+            if convert:
                 check_app_correctness_or_convert(name)
             else:
                 check_app_correctness(name)
