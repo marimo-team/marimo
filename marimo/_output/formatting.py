@@ -47,7 +47,7 @@ LOGGER = loggers.marimo_logger()
 
 
 class FormatterRegistry:
-    def __init__(self):
+    def __init__(self) -> None:
         self.formatters: dict[type[Any], Formatter[Any]] = {}
 
     def is_empty(self) -> bool:
