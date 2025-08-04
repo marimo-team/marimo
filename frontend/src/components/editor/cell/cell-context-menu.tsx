@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
 import {
   ClipboardCopyIcon,
   ClipboardPasteIcon,
@@ -20,7 +19,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { cellDataAtom, cellRuntimeAtom } from "@/core/cells/cells";
+import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
@@ -43,8 +42,8 @@ export const CellActionsContextMenu = ({
   cellId,
   getEditorView,
 }: Props) => {
-  const cellData = useAtomValue(cellDataAtom(cellId));
-  const cellRuntime = useAtomValue(cellRuntimeAtom(cellId));
+  const cellData = useCellData(cellId);
+  const cellRuntime = useCellRuntime(cellId);
   const actions = useCellActionButtons({
     cell: {
       cellId: cellId,

@@ -591,6 +591,8 @@ const {
     });
     serializedEditorState.doc = state.cellData[cellId].code;
 
+    // release the granular atom(s) created for this cell
+    releaseCellAtoms(cellId);
     return {
       ...state,
       cellIds: state.cellIds.deleteById(cellId),
@@ -1615,15 +1617,40 @@ export const columnIdsAtom = atom((get) =>
   get(notebookAtom).cellIds.getColumnIds(),
 );
 
-export const cellDataAtom = atomFamily((cellId: CellId) =>
+const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),
 );
-export const cellRuntimeAtom = atomFamily((cellId: CellId) =>
+const cellRuntimeAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellRuntime[cellId]),
 );
-export const cellHandleAtom = atomFamily((cellId: CellId) =>
+const cellHandleAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellHandles[cellId]),
 );
+/**
+ * Cleans up atomFamily cache entries for the given cell.
+ *
+ * Jotai's atomFamily retains a cache of created atoms, which can cause memory leaks
+ * if not explicitly removed. This function removes the atoms associated with a specific
+ * cellId to free up memory.
+ *
+ * @param cellId - The cell ID whose atoms should be removed.
+ * @see https://jotai.org/docs/utilities/family#caveat-memory-leaks
+ */
+export function releaseCellAtoms(cellId: CellId) {
+  cellDataAtom.remove(cellId);
+  cellRuntimeAtom.remove(cellId);
+  cellHandleAtom.remove(cellId);
+}
+
+/** Subscribes to reactive updates of the cell's data. */
+export const useCellData = (cellId: CellId) =>
+  useAtomValue(cellDataAtom(cellId));
+/** Subscribes to reactive updates of the cell's runtime info. */
+export const useCellRuntime = (cellId: CellId) =>
+  useAtomValue(cellRuntimeAtom(cellId));
+/** Subscribes to reactive updates of the cell's handle (e.g. refs or UI bindings). */
+export const useCellHandle = (cellId: CellId) =>
+  useAtomValue(cellHandleAtom(cellId));
 
 /**
  * Get the editor views for all cells.
@@ -1717,4 +1744,8 @@ export const exportedForTesting = {
   createActions,
   initialNotebookState,
   isCellCodeHidden,
+  // Export atom families for testing cleanup
+  cellDataAtom,
+  cellRuntimeAtom,
+  cellHandleAtom,
 };

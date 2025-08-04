@@ -5,10 +5,10 @@ import { XIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
-  cellDataAtom,
-  cellRuntimeAtom,
   useCellActions,
+  useCellData,
   useCellIds,
+  useCellRuntime,
 } from "@/core/cells/cells";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
@@ -36,8 +36,8 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const cell = {
     id: props.cellId,
     graph: graphs[props.cellId],
-    code: useAtomValue(cellDataAtom(props.cellId)).code,
-    hasError: useAtomValue(cellRuntimeAtom(props.cellId)).errored,
+    code: useCellData(props.cellId).code,
+    hasError: useCellRuntime(props.cellId).errored,
   };
 
   let selectedCell: undefined | { id: CellId; graph: CellGraph };

@@ -41,12 +41,12 @@ import { cn } from "@/utils/cn";
 import type { Milliseconds, Seconds } from "@/utils/time";
 import {
   type CellActions,
-  cellDataAtom,
-  cellHandleAtom,
-  cellRuntimeAtom,
   createUntouchedCellAtom,
   SETUP_CELL_ID,
   useCellActions,
+  useCellData,
+  useCellHandle,
+  useCellRuntime,
 } from "../../core/cells/cells";
 import type { CellId } from "../../core/cells/ids";
 import { isUninstantiated } from "../../core/cells/utils";
@@ -260,7 +260,7 @@ export interface CellProps {
 
 const CellComponent = (props: CellProps) => {
   const { cellId, mode } = props;
-  const ref = useAtomValue(cellHandleAtom(cellId));
+  const ref = useCellHandle(cellId);
 
   useCellRenderCount().countRender();
 
@@ -316,8 +316,8 @@ const CellComponent = (props: CellProps) => {
 const ReadonlyCellComponent = forwardRef(
   (props: { cellId: CellId }, ref: React.ForwardedRef<HTMLDivElement>) => {
     const { cellId } = props;
-    const cellData = useAtomValue(cellDataAtom(cellId));
-    const cellRuntime = useAtomValue(cellRuntimeAtom(cellId));
+    const cellData = useCellData(cellId);
+    const cellRuntime = useCellRuntime(cellId);
 
     const className = clsx("marimo-cell", "hover-actions-parent z-10", {
       published: true,
@@ -374,8 +374,8 @@ const EditableCellComponent = ({
   setEditorView: (view: EditorView) => void;
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
-  const cellData = useAtomValue(cellDataAtom(cellId));
-  const cellRuntime = useAtomValue(cellRuntimeAtom(cellId));
+  const cellData = useCellData(cellId);
+  const cellRuntime = useCellRuntime(cellId);
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
@@ -938,8 +938,8 @@ const SetupCellComponent = ({
   setEditorView: (view: EditorView) => void;
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
-  const cellData = useAtomValue(cellDataAtom(cellId));
-  const cellRuntime = useAtomValue(cellRuntimeAtom(cellId));
+  const cellData = useCellData(cellId);
+  const cellRuntime = useCellRuntime(cellId);
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
