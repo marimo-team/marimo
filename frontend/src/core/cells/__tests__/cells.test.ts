@@ -2528,6 +2528,54 @@ describe("cell reducer", () => {
       expect(exportedForTesting.isCellCodeHidden(state, newCellId)).toBe(true);
     });
   });
+
+  describe("releaseCellAtoms", () => {
+    it("atom families cache atoms until explicitly removed", () => {
+      const { cellDataAtom, cellRuntimeAtom, cellHandleAtom } =
+        exportedForTesting;
+
+      actions.createNewCell({ cellId: firstCellId, before: false });
+      const newCellId = state.cellIds.inOrderIds[1];
+
+      const dataAtom1 = cellDataAtom(newCellId);
+      const runtimeAtom1 = cellRuntimeAtom(newCellId);
+      const handleAtom1 = cellHandleAtom(newCellId);
+
+      // accesses return cached atoms (same reference)
+      const dataAtom2 = cellDataAtom(newCellId);
+      const runtimeAtom2 = cellRuntimeAtom(newCellId);
+      const handleAtom2 = cellHandleAtom(newCellId);
+
+      expect(dataAtom2).toBe(dataAtom1);
+      expect(runtimeAtom2).toBe(runtimeAtom1);
+      expect(handleAtom2).toBe(handleAtom1);
+    });
+
+    it("cleans up atom family cache when cells are deleted", () => {
+      const { cellDataAtom, cellRuntimeAtom, cellHandleAtom } =
+        exportedForTesting;
+
+      actions.createNewCell({ cellId: firstCellId, before: false });
+      const newCellId = state.cellIds.inOrderIds[1];
+
+      // Access to create cache entries
+      const dataAtom1 = cellDataAtom(newCellId);
+      const runtimeAtom1 = cellRuntimeAtom(newCellId);
+      const handleAtom1 = cellHandleAtom(newCellId);
+
+      // Triggers purge
+      actions.deleteCell({ cellId: newCellId });
+
+      // Access again (should be new instances after cleanup)
+      const dataAtom2 = cellDataAtom(newCellId);
+      const runtimeAtom2 = cellRuntimeAtom(newCellId);
+      const handleAtom2 = cellHandleAtom(newCellId);
+
+      expect(dataAtom2).not.toBe(dataAtom1);
+      expect(runtimeAtom2).not.toBe(runtimeAtom1);
+      expect(handleAtom2).not.toBe(handleAtom1);
+    });
+  });
 });
 
 describe("isCellCodeHidden", () => {

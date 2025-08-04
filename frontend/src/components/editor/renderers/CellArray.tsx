@@ -19,7 +19,6 @@ import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import type { CellId } from "@/core/cells/ids";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { aiEnabledAtom } from "@/core/config/config";
@@ -27,25 +26,22 @@ import { isConnectedAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
-import type { CellColumnId, CollapsibleTree } from "@/utils/id-tree";
-import type { Milliseconds } from "@/utils/time";
+import type { CellColumnId } from "@/utils/id-tree";
+import { invariant } from "@/utils/invariant";
 import {
-  type CellActions,
   columnIdsAtom,
-  type NotebookState,
   SETUP_CELL_ID,
   useCellActions,
-  useNotebook,
+  useCellIds,
+  useScrollKey,
 } from "../../../core/cells/cells";
 import { formatAll } from "../../../core/codemirror/format";
 import type { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import type { AppMode } from "../../../core/mode";
-import type { ConnectionStatus } from "../../../core/websocket/types";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { type Theme, useTheme } from "../../../theme/useTheme";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
 import { ConnectingAlert } from "../alerts/connecting-alert";
-import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import { useChromeActions } from "../chrome/state";
 import { Column } from "../columns/cell-column";
@@ -58,7 +54,6 @@ interface CellArrayProps {
   mode: AppMode;
   userConfig: UserConfig;
   appConfig: AppConfig;
-  connStatus: ConnectionStatus;
 }
 
 export const CellArray: React.FC<CellArrayProps> = (props) => {
@@ -82,9 +77,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   mode,
   userConfig,
   appConfig,
-  connStatus,
 }) => {
-  const notebook = useNotebook();
   const actions = useCellActions();
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
@@ -106,19 +99,17 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   useHotkey("cell.hideCode", Functions.NOOP);
   useHotkey("cell.format", Functions.NOOP);
 
-  const onDeleteCell = useDeleteCellCallback();
+  const cellIds = useCellIds();
+  const scrollKey = useScrollKey();
+  const columnIds = cellIds.getColumnIds();
 
   // Scroll to a cell targeted by a previous action
   const scrollToTarget = actions.scrollToTarget;
   useEffect(() => {
-    if (notebook.scrollKey !== null) {
+    if (scrollKey !== null) {
       scrollToTarget();
     }
-  }, [notebook.cellIds, notebook.scrollKey, scrollToTarget]);
-
-  const columns = notebook.cellIds.getColumns();
-  const hasOnlyOneCell = notebook.cellIds.hasOnlyOneId();
-  const hasSetupCell = notebook.cellIds.inOrderIds.includes(SETUP_CELL_ID);
+  }, [cellIds, scrollKey, scrollToTarget]);
 
   return (
     <VerticalLayoutWrapper
@@ -138,22 +129,16 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
             "grid grid-flow-col auto-cols-min gap-6",
         )}
       >
-        {columns.map((column, index) => (
+        {columnIds.map((columnId, index) => (
           <CellColumn
-            key={column.id}
-            column={column}
+            key={columnId}
+            columnId={columnId}
             index={index}
-            columnsLength={columns.length}
+            columnsLength={columnIds.length}
             appConfig={appConfig}
-            notebook={notebook}
             mode={mode}
             userConfig={userConfig}
-            connStatus={connStatus}
-            actions={actions}
             theme={theme}
-            hasOnlyOneCell={hasOnlyOneCell}
-            hasSetupCell={hasSetupCell}
-            onDeleteCell={onDeleteCell}
           />
         ))}
       </div>
@@ -166,39 +151,32 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
  * A single column of cells.
  */
 const CellColumn: React.FC<{
-  column: CollapsibleTree<CellId>;
+  columnId: CellColumnId;
   index: number;
   columnsLength: number;
   appConfig: AppConfig;
-  notebook: NotebookState;
   mode: AppMode;
   userConfig: UserConfig;
-  connStatus: ConnectionStatus;
-  actions: CellActions;
   theme: Theme;
-  hasOnlyOneCell: boolean;
-  hasSetupCell: boolean;
-  onDeleteCell: (payload: { cellId: CellId }) => void;
 }> = ({
-  column,
+  columnId,
   index,
   columnsLength,
   appConfig,
-  notebook,
   mode,
   userConfig,
-  connStatus,
-  actions,
   theme,
-  hasOnlyOneCell,
-  hasSetupCell,
-  onDeleteCell,
 }) => {
-  const connectionState = connStatus.state;
+  const cellIds = useCellIds();
+  const column = cellIds.get(columnId);
+  invariant(column, `Expected column for: ${columnId}`);
+
+  const hasOnlyOneCell = cellIds.hasOnlyOneId();
+  const hasSetupCell = cellIds.inOrderIds.includes(SETUP_CELL_ID);
 
   return (
     <Column
-      columnId={column.id}
+      columnId={columnId}
       index={index}
       canMoveLeft={index > 0}
       canMoveRight={index < columnsLength - 1}
@@ -206,7 +184,7 @@ const CellColumn: React.FC<{
       canDelete={columnsLength > 1}
       footer={
         <AddCellButtons
-          columnId={column.id}
+          columnId={columnId}
           className={cn(
             appConfig.width === "columns" &&
               "opacity-0 group-hover/column:opacity-100",
@@ -223,26 +201,15 @@ const CellColumn: React.FC<{
         {index === 0 && hasSetupCell && (
           <Cell
             key={SETUP_CELL_ID}
+            cellId={SETUP_CELL_ID}
             theme={theme}
             showPlaceholder={false}
-            {...notebook.cellData[SETUP_CELL_ID]}
-            {...notebook.cellRuntime[SETUP_CELL_ID]}
-            {...actions}
-            runElapsedTimeMs={
-              notebook.cellRuntime[SETUP_CELL_ID].runElapsedTimeMs ??
-              (notebook.cellData[SETUP_CELL_ID]
-                .lastExecutionTime as Milliseconds)
-            }
             canDelete={true}
             mode={mode}
-            connectionState={connectionState}
-            ref={notebook.cellHandles[SETUP_CELL_ID]}
             userConfig={userConfig}
             isCollapsed={false}
             collapseCount={0}
             canMoveX={false}
-            actions={actions}
-            deleteCell={onDeleteCell}
           />
         )}
 
@@ -252,31 +219,18 @@ const CellColumn: React.FC<{
             return null;
           }
 
-          const cellData = notebook.cellData[cellId];
-          const cellRuntime = notebook.cellRuntime[cellId];
           return (
             <Cell
-              key={cellData.id.toString()}
+              key={cellId}
+              cellId={cellId}
               theme={theme}
               showPlaceholder={hasOnlyOneCell}
-              {...cellData}
-              {...cellRuntime}
-              runElapsedTimeMs={
-                cellRuntime.runElapsedTimeMs ??
-                (cellData.lastExecutionTime as Milliseconds)
-              }
               canDelete={!hasOnlyOneCell}
               mode={mode}
-              connectionState={connectionState}
-              ref={notebook.cellHandles[cellId]}
               userConfig={userConfig}
-              config={cellData.config}
-              name={cellData.name}
               isCollapsed={column.isCollapsed(cellId)}
               collapseCount={column.getCount(cellId)}
               canMoveX={appConfig.width === "columns"}
-              actions={actions}
-              deleteCell={onDeleteCell}
             />
           );
         })}

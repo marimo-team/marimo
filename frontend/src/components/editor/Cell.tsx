@@ -33,6 +33,7 @@ import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
+import { connectionAtom } from "@/core/network/connection";
 import { sendStdin } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
@@ -42,16 +43,18 @@ import {
   type CellActions,
   createUntouchedCellAtom,
   SETUP_CELL_ID,
+  useCellActions,
+  useCellData,
+  useCellHandle,
+  useCellRuntime,
 } from "../../core/cells/cells";
 import type { CellId } from "../../core/cells/ids";
-import type { CellData, CellRuntimeState } from "../../core/cells/types";
 import { isUninstantiated } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
 import {
   isAppConnected,
   isAppInteractionDisabled,
 } from "../../core/websocket/connection-utils";
-import type { WebSocketState } from "../../core/websocket/types";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
 import { derefNotNull } from "../../utils/dereference";
@@ -70,6 +73,7 @@ import { CollapsedCellBanner, CollapseToggle } from "./cell/collapse";
 import { DeleteButton } from "./cell/DeleteButton";
 import { PendingDeleteConfirmation } from "./cell/PendingDeleteConfirmation";
 import { RunButton } from "./cell/RunButton";
+import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
 import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
@@ -230,33 +234,11 @@ export interface CellHandle {
   editorViewOrNull: EditorView | null;
 }
 
-export interface CellProps
-  extends Pick<
-      CellRuntimeState,
-      | "consoleOutputs"
-      | "status"
-      | "outline"
-      | "output"
-      | "errored"
-      | "interrupted"
-      | "stopped"
-      | "staleInputs"
-      | "runStartTimestamp"
-      | "lastRunStartTimestamp"
-      | "serialization"
-      | "runElapsedTimeMs"
-      | "debuggerActive"
-    >,
-    Pick<
-      CellData,
-      "id" | "code" | "edited" | "config" | "name" | "serializedEditorState"
-    > {
-  actions: CellComponentActions;
-  deleteCell: CellActions["deleteCell"];
+export interface CellProps {
+  cellId: CellId;
   theme: Theme;
   showPlaceholder: boolean;
   mode: AppMode;
-  connectionState: WebSocketState;
   /**
    * False only when there is only one cell in the notebook.
    */
@@ -276,24 +258,14 @@ export interface CellProps
   collapseCount: number;
 }
 
-const CellComponent = (
-  props: CellProps,
-  ref: React.ForwardedRef<CellHandle>,
-) => {
-  const {
-    status,
-    output,
-    runStartTimestamp,
-    interrupted,
-    staleInputs,
-    edited,
-    id,
-    mode,
-  } = props;
+const CellComponent = (props: CellProps) => {
+  const { cellId, mode } = props;
+  const ref = useCellHandle(cellId);
 
   useCellRenderCount().countRender();
 
-  Logger.debug("Rendering Cell", id);
+  Logger.debug("Rendering Cell", cellId);
+
   const editorView = useRef<EditorView | null>(null);
 
   // An imperative interface to the code editor
@@ -310,22 +282,15 @@ const CellComponent = (
     [editorView],
   );
 
-  const outputStale = outputIsStale(
-    { status, output, runStartTimestamp, interrupted, staleInputs },
-    edited,
-  );
-
-  const loading = outputIsLoading(status);
-
-  if (id === SETUP_CELL_ID) {
+  if (cellId === SETUP_CELL_ID) {
     return (
       <SetupCellComponent
         {...props}
+        cellId={cellId}
         editorView={editorView}
         setEditorView={(ev) => {
           editorView.current = ev;
         }}
-        outputStale={outputStale}
       />
     );
   }
@@ -335,55 +300,38 @@ const CellComponent = (
       <ScopeProvider atoms={[temporarilyShownCodeAtom]}>
         <EditableCellComponent
           {...props}
+          cellId={cellId}
           editorView={editorView}
           setEditorView={(ev) => {
             editorView.current = ev;
           }}
-          outputStale={outputStale}
         />
       </ScopeProvider>
     );
   }
 
-  return (
-    <ReadonlyCellComponent
-      {...props}
-      outputStale={outputStale}
-      outputLoading={loading}
-    />
-  );
+  return <ReadonlyCellComponent cellId={cellId} />;
 };
 
 const ReadonlyCellComponent = forwardRef(
-  (
-    props: Pick<
-      CellProps,
-      "id" | "output" | "interrupted" | "errored" | "stopped" | "name"
-    > & {
-      outputStale: boolean;
-      outputLoading: boolean;
-    },
-    ref: React.ForwardedRef<HTMLDivElement>,
-  ) => {
-    const {
-      id: cellId,
-      output,
-      interrupted,
-      errored,
-      stopped,
-      name,
-      outputStale,
-      outputLoading,
-    } = props;
+  (props: { cellId: CellId }, ref: React.ForwardedRef<HTMLDivElement>) => {
+    const { cellId } = props;
+    const cellData = useCellData(cellId);
+    const cellRuntime = useCellRuntime(cellId);
 
     const className = clsx("marimo-cell", "hover-actions-parent z-10", {
       published: true,
     });
 
-    const outputIsError = isErrorMime(output?.mimetype);
+    const outputIsError = isErrorMime(cellRuntime.output?.mimetype);
 
     // Hide the output if it's an error or stopped.
-    const hidden = errored || interrupted || stopped || outputIsError;
+    const hidden =
+      cellRuntime.errored ||
+      cellRuntime.interrupted ||
+      cellRuntime.stopped ||
+      outputIsError;
+
     if (hidden) {
       return null;
     }
@@ -393,16 +341,16 @@ const ReadonlyCellComponent = forwardRef(
         tabIndex={-1}
         ref={ref}
         className={className}
-        {...cellDomProps(cellId, name)}
+        {...cellDomProps(cellId, cellData.name)}
       >
         <OutputArea
           allowExpand={false}
           forceExpand={true}
-          output={output}
           className="output-area"
           cellId={cellId}
-          stale={outputStale}
-          loading={outputLoading}
+          output={cellRuntime.output}
+          stale={outputIsStale(cellRuntime, cellData.edited)}
+          loading={outputIsLoading(cellRuntime.status)}
         />
       </div>
     );
@@ -413,71 +361,59 @@ ReadonlyCellComponent.displayName = "ReadonlyCellComponent";
 const EditableCellComponent = ({
   theme,
   showPlaceholder,
-  id: cellId,
-  code,
-  output,
-  consoleOutputs,
-  status,
-  runStartTimestamp,
-  lastRunStartTimestamp,
-  runElapsedTimeMs,
-  edited,
-  interrupted,
-  errored,
-  stopped,
-  staleInputs,
-  serializedEditorState,
-  serialization,
-  debuggerActive,
-  connectionState,
+  cellId,
   canDelete,
-  actions,
-  deleteCell,
   userConfig,
-  outline,
   isCollapsed,
   collapseCount,
-  config: cellConfig,
   canMoveX,
-  name,
   editorView,
   setEditorView,
-  outputStale,
 }: CellProps & {
   editorView: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
-  outputStale: boolean;
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
+  const cellData = useCellData(cellId);
+  const cellRuntime = useCellRuntime(cellId);
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
   const cellContainerRef = useRef<HTMLDivElement>(null);
 
+  const actions = useCellActions();
+  const connection = useAtomValue(connectionAtom);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
+  const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
   const disabledOrAncestorDisabled =
-    cellConfig.disabled || status === "disabled-transitively";
+    cellData.config.disabled || cellRuntime.status === "disabled-transitively";
 
   const uninstantiated = isUninstantiated({
-    executionTime: runElapsedTimeMs,
-    status,
-    errored,
-    interrupted,
-    stopped,
+    executionTime: cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
+    status: cellRuntime.status,
+    errored: cellRuntime.errored,
+    interrupted: cellRuntime.interrupted,
+    stopped: cellRuntime.stopped,
   });
 
   const needsRun =
-    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
-  const loading = outputIsLoading(status);
+    cellData.edited ||
+    cellRuntime.interrupted ||
+    (cellRuntime.staleInputs && !disabledOrAncestorDisabled);
+
+  const loading = outputIsLoading(cellRuntime.status);
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =
-    (status === "queued" || edited || staleInputs) && !interrupted;
+    (cellRuntime.status === "queued" ||
+      cellData.edited ||
+      cellRuntime.staleInputs) &&
+    !cellRuntime.interrupted;
 
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
@@ -496,7 +432,7 @@ const EditableCellComponent = ({
     showHiddenCodeIfMarkdown,
   } = useCellHiddenLogic({
     cellId,
-    cellConfig,
+    cellConfig: cellData.config,
     languageAdapter,
     editorView,
     editorViewParentRef,
@@ -508,9 +444,9 @@ const EditableCellComponent = ({
     editorView,
     cellActionDropdownRef,
   });
-  const canCollapse = canCollapseOutline(outline);
-  const hasOutput = !isOutputEmpty(output);
-  const hasConsoleOutput = consoleOutputs.length > 0;
+  const canCollapse = canCollapseOutline(cellRuntime.outline);
+  const hasOutput = !isOutputEmpty(cellRuntime.output);
+  const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
@@ -567,11 +503,11 @@ const EditableCellComponent = ({
         allowExpand={true}
         // Force expand when markdown is hidden
         forceExpand={isMarkdownCodeHidden}
-        output={output}
         className="output-area"
         cellId={cellId}
-        stale={outputStale}
-        loading={loading}
+        output={cellRuntime.output}
+        stale={outputIsStale(cellRuntime, cellData.edited)}
+        loading={outputIsLoading(cellRuntime.status)}
       />
       {isMarkdownCodeHidden &&
         hasOutputAbove &&
@@ -582,10 +518,10 @@ const EditableCellComponent = ({
   const className = clsx("marimo-cell", "hover-actions-parent z-10", {
     interactive: true,
     "needs-run": needsRun,
-    "has-error": errored,
-    stopped: stopped,
-    disabled: cellConfig.disabled,
-    stale: status === "disabled-transitively",
+    "has-error": cellRuntime.errored,
+    stopped: cellRuntime.stopped,
+    disabled: cellData.config.disabled,
+    stale: cellRuntime.status === "disabled-transitively",
     borderless:
       isMarkdownCodeHidden && hasOutput && !navigationProps["data-selected"],
   });
@@ -598,34 +534,24 @@ const EditableCellComponent = ({
   // to get the tooltip to show next to the cursor ...
   // https://github.com/radix-ui/primitives/discussions/1090
   const renderCellTitle = () => {
-    if (cellConfig.disabled) {
+    if (cellData.config.disabled) {
       return "This cell is disabled";
     }
-    if (status === "disabled-transitively") {
+    if (cellRuntime.status === "disabled-transitively") {
       return "This cell has a disabled ancestor";
     }
     return undefined;
   };
 
-  const isToplevel = !!(
-    serialization && serialization.toLowerCase() === "valid"
-  );
+  const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
 
   return (
     <TooltipProvider>
-      <CellActionsContextMenu
-        cellId={cellId}
-        config={cellConfig}
-        status={status}
-        getEditorView={getEditorView}
-        hasOutput={hasOutput}
-        hasConsoleOutput={hasConsoleOutput}
-        name={name}
-      >
+      <CellActionsContextMenu cellId={cellId} getEditorView={getEditorView}>
         <SortableCell
           tabIndex={-1}
           ref={cellRef}
-          data-status={status}
+          data-status={cellRuntime.status}
           onBlur={closeCompletionHandler}
           onKeyDown={resumeCompletionHandler}
           cellId={cellId}
@@ -641,22 +567,21 @@ const EditableCellComponent = ({
               "focus:ring-1 focus:ring-[var(--blue-7)] focus:ring-offset-0",
             )}
             ref={cellContainerRef}
-            {...cellDomProps(cellId, name)}
+            {...cellDomProps(cellId, cellData.name)}
           >
             {cellOutput === "above" && outputArea}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
-                  edited={edited}
-                  connectionState={connectionState}
-                  status={status}
-                  cellConfig={cellConfig}
+                  edited={cellData.edited}
+                  status={cellRuntime.status}
+                  cellConfig={cellData.config}
                   needsRun={needsRun}
                   hasOutput={hasOutput}
                   hasConsoleOutput={hasConsoleOutput}
                   cellActionDropdownRef={cellActionDropdownRef}
                   cellId={cellId}
-                  name={name}
+                  name={cellData.name}
                   getEditorView={getEditorView}
                   onRun={runCell}
                 />
@@ -670,17 +595,16 @@ const EditableCellComponent = ({
                     isCellButtonsInline &&
                     "-left-[3.8rem]",
                 )}
-                connectionState={connectionState}
                 actions={actions}
               />
               <CellEditor
                 theme={theme}
                 showPlaceholder={showPlaceholder}
                 id={cellId}
-                code={code}
-                config={cellConfig}
-                status={status}
-                serializedEditorState={serializedEditorState}
+                code={cellData.code}
+                config={cellData.config}
+                status={cellRuntime.status}
+                serializedEditorState={cellData.serializedEditorState}
                 runCell={runCell}
                 setEditorView={setEditorView}
                 userConfig={userConfig}
@@ -696,26 +620,26 @@ const EditableCellComponent = ({
                 className={cn(
                   isMarkdownCodeHidden && cellOutput === "below" && "top-14",
                 )}
-                edited={edited}
-                status={status}
+                edited={cellData.edited}
+                status={cellRuntime.status}
                 isCellStatusInline={isCellStatusInline}
                 uninstantiated={uninstantiated}
-                disabled={cellConfig.disabled}
-                runElapsedTimeMs={runElapsedTimeMs}
-                runStartTimestamp={runStartTimestamp}
-                lastRunStartTimestamp={lastRunStartTimestamp}
-                staleInputs={staleInputs}
-                interrupted={interrupted}
+                disabled={cellData.config.disabled}
+                runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
+                runStartTimestamp={cellRuntime.runStartTimestamp}
+                lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+                staleInputs={cellRuntime.staleInputs}
+                interrupted={cellRuntime.interrupted}
               />
               <div className="shoulder-bottom hover-action">
                 {canDelete && isCellCodeShown && (
                   <DeleteButton
-                    connectionState={connectionState}
-                    status={status}
+                    status={cellRuntime.status}
+                    connectionState={connection.state}
                     onClick={() => {
                       if (
                         !loading &&
-                        !isAppInteractionDisabled(connectionState)
+                        !isAppInteractionDisabled(connection.state)
                       ) {
                         deleteCell({ cellId });
                       }
@@ -725,7 +649,7 @@ const EditableCellComponent = ({
               </div>
             </div>
             {cellOutput === "below" && outputArea}
-            {serialization && (
+            {cellRuntime.serialization && (
               <div className="py-1 px-2 flex items-center justify-end gap-2 last:rounded-b">
                 {isToplevel && (
                   <a
@@ -747,7 +671,7 @@ const EditableCellComponent = ({
                           modules:
                           <br />
                           <br />
-                          <pre>{serialization}</pre>
+                          <pre>{cellRuntime.serialization}</pre>
                           <br />
                           Click this icon to learn more.
                         </>
@@ -784,10 +708,10 @@ const EditableCellComponent = ({
               </div>
             )}
             <ConsoleOutput
-              consoleOutputs={consoleOutputs}
+              consoleOutputs={cellRuntime.consoleOutputs}
               stale={consoleOutputStale}
               // Empty name if serialization triggered
-              cellName={serialization ? "_" : name}
+              cellName={cellRuntime.serialization ? "_" : cellData.name}
               onRefactorWithAI={handleRefactorWithAI}
               onClear={() => {
                 actions.clearCellConsoleOutput({ cellId });
@@ -801,7 +725,7 @@ const EditableCellComponent = ({
                 sendStdin({ text });
               }}
               cellId={cellId}
-              debuggerActive={debuggerActive}
+              debuggerActive={cellRuntime.debuggerActive}
             />
             <PendingDeleteConfirmation cellId={cellId} />
           </div>
@@ -818,103 +742,110 @@ const EditableCellComponent = ({
   );
 };
 
-const CellRightSideActions = (props: {
-  className?: string;
-  disabled: boolean | undefined;
-  edited: boolean;
-  interrupted: boolean;
-  isCellStatusInline: boolean;
-  lastRunStartTimestamp: Seconds | null;
-  runElapsedTimeMs: Milliseconds | null;
-  runStartTimestamp: Seconds | null;
-  staleInputs: boolean;
-  status: RuntimeState;
-  uninstantiated: boolean;
-}) => {
-  const {
-    className,
-    disabled = false,
-    edited,
-    interrupted,
-    isCellStatusInline,
-    lastRunStartTimestamp,
-    runElapsedTimeMs,
-    runStartTimestamp,
-    staleInputs,
-    status,
-    uninstantiated,
-  } = props;
+const CellRightSideActions = memo(
+  (props: {
+    className?: string;
+    disabled: boolean | undefined;
+    edited: boolean;
+    interrupted: boolean;
+    isCellStatusInline: boolean;
+    lastRunStartTimestamp: Seconds | null;
+    runElapsedTimeMs: Milliseconds | null;
+    runStartTimestamp: Seconds | null;
+    staleInputs: boolean;
+    status: RuntimeState;
+    uninstantiated: boolean;
+  }) => {
+    const {
+      className,
+      disabled = false,
+      edited,
+      interrupted,
+      isCellStatusInline,
+      lastRunStartTimestamp,
+      runElapsedTimeMs,
+      runStartTimestamp,
+      staleInputs,
+      status,
+      uninstantiated,
+    } = props;
 
-  const cellStatusComponent = (
-    <CellStatusComponent
-      status={status}
-      staleInputs={staleInputs}
-      interrupted={interrupted}
-      editing={true}
-      edited={edited}
-      disabled={disabled}
-      elapsedTime={runElapsedTimeMs}
-      runStartTimestamp={runStartTimestamp}
-      uninstantiated={uninstantiated}
-      lastRunStartTimestamp={lastRunStartTimestamp}
-    />
-  );
+    const cellStatusComponent = (
+      <CellStatusComponent
+        status={status}
+        staleInputs={staleInputs}
+        interrupted={interrupted}
+        editing={true}
+        edited={edited}
+        disabled={disabled}
+        elapsedTime={runElapsedTimeMs}
+        runStartTimestamp={runStartTimestamp}
+        uninstantiated={uninstantiated}
+        lastRunStartTimestamp={lastRunStartTimestamp}
+      />
+    );
 
-  return (
-    <div className={cn("shoulder-right z-20", className)}>
-      {!isCellStatusInline && cellStatusComponent}
-      <div className="flex gap-2 items-end">
-        <CellDragHandle />
-        {isCellStatusInline && cellStatusComponent}
+    return (
+      <div className={cn("shoulder-right z-20", className)}>
+        {!isCellStatusInline && cellStatusComponent}
+        <div className="flex gap-2 items-end">
+          <CellDragHandle />
+          {isCellStatusInline && cellStatusComponent}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  },
+);
 
-const CellLeftSideActions = (props: {
-  className?: string;
-  cellId: CellId;
-  connectionState: WebSocketState;
-  actions: CellComponentActions;
-}) => {
-  const { className, connectionState, actions, cellId } = props;
+CellRightSideActions.displayName = "CellRightSideActions";
 
-  const createBelow = useEvent(
-    (opts: { code?: string; hideCode?: boolean } = {}) =>
-      actions.createNewCell({ cellId, before: false, ...opts }),
-  );
-  const createAbove = useEvent(
-    (opts: { code?: string; hideCode?: boolean } = {}) =>
-      actions.createNewCell({ cellId, before: true, ...opts }),
-  );
+const CellLeftSideActions = memo(
+  (props: {
+    className?: string;
+    cellId: CellId;
+    actions: CellComponentActions;
+  }) => {
+    const connection = useAtomValue(connectionAtom);
+    const { className, actions, cellId } = props;
 
-  const isConnected = isAppConnected(connectionState);
+    const createBelow = useEvent(
+      (opts: { code?: string; hideCode?: boolean } = {}) =>
+        actions.createNewCell({ cellId, before: false, ...opts }),
+    );
+    const createAbove = useEvent(
+      (opts: { code?: string; hideCode?: boolean } = {}) =>
+        actions.createNewCell({ cellId, before: true, ...opts }),
+    );
 
-  return (
-    <div
-      className={cn(
-        "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
-        className,
-      )}
-    >
-      <CreateCellButton
-        tooltipContent={renderShortcut("cell.createAbove")}
-        connectionState={connectionState}
-        onClick={isConnected ? createAbove : undefined}
-      />
-      <div className="flex-1" />
-      <CreateCellButton
-        tooltipContent={renderShortcut("cell.createBelow")}
-        connectionState={connectionState}
-        onClick={isConnected ? createBelow : undefined}
-      />
-    </div>
-  );
-};
+    const isConnected = isAppConnected(connection.state);
+
+    return (
+      <div
+        className={cn(
+          "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
+          className,
+        )}
+      >
+        <CreateCellButton
+          tooltipContent={renderShortcut("cell.createAbove")}
+          connectionState={connection.state}
+          onClick={isConnected ? createAbove : undefined}
+        />
+        <div className="flex-1" />
+        <CreateCellButton
+          tooltipContent={renderShortcut("cell.createBelow")}
+          connectionState={connection.state}
+          onClick={isConnected ? createBelow : undefined}
+        />
+      </div>
+    );
+  },
+);
+
+CellLeftSideActions.displayName = "CellLeftSideActions";
 
 interface CellToolbarProps {
   edited: boolean;
-  connectionState: WebSocketState;
   status: RuntimeState;
   cellConfig: CellConfig;
   needsRun: boolean;
@@ -928,62 +859,66 @@ interface CellToolbarProps {
   onRun: () => void;
 }
 
-const CellToolbar = ({
-  edited,
-  connectionState,
-  status,
-  cellConfig,
-  needsRun,
-  hasOutput,
-  hasConsoleOutput,
-  onRun,
-  cellActionDropdownRef,
-  cellId,
-  getEditorView,
-  name,
-  includeCellActions = true,
-}: CellToolbarProps) => {
-  const isConnected = isAppConnected(connectionState);
+const CellToolbar = memo(
+  ({
+    edited,
+    status,
+    cellConfig,
+    needsRun,
+    hasOutput,
+    hasConsoleOutput,
+    onRun,
+    cellActionDropdownRef,
+    cellId,
+    getEditorView,
+    name,
+    includeCellActions = true,
+  }: CellToolbarProps) => {
+    const connection = useAtomValue(connectionAtom);
+    const isConnected = isAppConnected(connection.state);
 
-  return (
-    <Toolbar
-      className={cn(
-        // Show the toolbar on hover, or when the cell needs to be run
-        !needsRun && "hover-action",
-      )}
-    >
-      <RunButton
-        edited={edited}
-        onClick={isConnected ? onRun : Functions.NOOP}
-        connectionState={connectionState}
-        status={status}
-        config={cellConfig}
-        needsRun={needsRun}
-      />
-      <StopButton status={status} connectionState={connectionState} />
-      {includeCellActions && (
-        <CellActionsDropdown
-          ref={cellActionDropdownRef}
-          cellId={cellId}
+    return (
+      <Toolbar
+        className={cn(
+          // Show the toolbar on hover, or when the cell needs to be run
+          !needsRun && "hover-action",
+        )}
+      >
+        <RunButton
+          edited={edited}
+          onClick={isConnected ? onRun : Functions.NOOP}
+          connectionState={connection.state}
           status={status}
-          getEditorView={getEditorView}
-          name={name}
           config={cellConfig}
-          hasOutput={hasOutput}
-          hasConsoleOutput={hasConsoleOutput}
-        >
-          <ToolbarItem
-            variant={"green"}
-            tooltip={null}
-            data-testid="cell-actions-button"
+          needsRun={needsRun}
+        />
+        <StopButton status={status} connectionState={connection.state} />
+        {includeCellActions && (
+          <CellActionsDropdown
+            ref={cellActionDropdownRef}
+            cellId={cellId}
+            status={status}
+            getEditorView={getEditorView}
+            name={name}
+            config={cellConfig}
+            hasOutput={hasOutput}
+            hasConsoleOutput={hasConsoleOutput}
           >
-            <MoreHorizontalIcon strokeWidth={1.5} />
-          </ToolbarItem>
-        </CellActionsDropdown>
-      )}
-    </Toolbar>
-  );
-};
+            <ToolbarItem
+              variant={"green"}
+              tooltip={null}
+              data-testid="cell-actions-button"
+            >
+              <MoreHorizontalIcon strokeWidth={1.5} />
+            </ToolbarItem>
+          </CellActionsDropdown>
+        )}
+      </Toolbar>
+    );
+  },
+);
+
+CellToolbar.displayName = "CellToolbar";
 
 /**
  * A cell that is not allowed to be deleted or moved.
@@ -992,70 +927,61 @@ const CellToolbar = ({
 const SetupCellComponent = ({
   theme,
   showPlaceholder,
-  id: cellId,
-  code,
-  output,
-  consoleOutputs,
-  status,
-  runStartTimestamp,
-  lastRunStartTimestamp,
-  runElapsedTimeMs,
-  edited,
-  interrupted,
-  errored,
-  stopped,
-  staleInputs,
-  serializedEditorState,
-  debuggerActive,
-  connectionState,
+  cellId,
   canDelete,
-  actions,
-  deleteCell,
   userConfig,
-  config: cellConfig,
   canMoveX,
-  name,
   editorView,
   setEditorView,
 }: CellProps & {
   editorView: React.RefObject<EditorView | null>;
   setEditorView: (view: EditorView) => void;
-  outputStale: boolean;
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
+  const cellData = useCellData(cellId);
+  const cellRuntime = useCellRuntime(cellId);
   const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
+  const connection = useAtomValue(connectionAtom);
 
+  const actions = useCellActions();
+  const deleteCell = useDeleteCellCallback();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
 
   const disabledOrAncestorDisabled =
-    cellConfig.disabled || status === "disabled-transitively";
+    cellData.config.disabled || cellRuntime.status === "disabled-transitively";
 
   const uninstantiated = isUninstantiated({
-    executionTime: runElapsedTimeMs,
-    status,
-    errored,
-    interrupted,
-    stopped,
+    executionTime: cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
+    status: cellRuntime.status,
+    errored: cellRuntime.errored,
+    interrupted: cellRuntime.interrupted,
+    stopped: cellRuntime.stopped,
   });
 
   const needsRun =
-    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
-  const loading = status === "running" || status === "queued";
+    cellData.edited ||
+    cellRuntime.interrupted ||
+    (cellRuntime.staleInputs && !disabledOrAncestorDisabled);
+  const loading =
+    cellRuntime.status === "running" || cellRuntime.status === "queued";
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =
-    (status === "queued" || edited || staleInputs) && !interrupted;
+    (cellRuntime.status === "queued" ||
+      cellData.edited ||
+      cellRuntime.staleInputs) &&
+    !cellRuntime.interrupted;
 
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
 
   const { isCellCodeShown, showHiddenCode } = useCellHiddenLogic({
     cellId,
-    cellConfig,
+    cellConfig: cellData.config,
     languageAdapter: "python",
     editorView,
     editorViewParentRef,
@@ -1073,9 +999,9 @@ const SetupCellComponent = ({
     editorView,
     cellActionDropdownRef,
   });
-  const hasOutput = !isOutputEmpty(output);
-  const hasConsoleOutput = consoleOutputs.length > 0;
-  const isErrorOutput = isErrorMime(output?.mimetype);
+  const hasOutput = !isOutputEmpty(cellRuntime.output);
+  const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
+  const isErrorOutput = isErrorMime(cellRuntime.output?.mimetype);
 
   const className = clsx(
     "marimo-cell",
@@ -1083,8 +1009,8 @@ const SetupCellComponent = ({
     "!border-[var(--blue-5)] !rounded-sm",
     {
       "needs-run": needsRun,
-      "has-error": errored,
-      stopped: stopped,
+      "has-error": cellRuntime.errored,
+      stopped: cellRuntime.stopped,
     },
   );
 
@@ -1096,10 +1022,10 @@ const SetupCellComponent = ({
   // to get the tooltip to show next to the cursor ...
   // https://github.com/radix-ui/primitives/discussions/1090
   const renderCellTitle = () => {
-    if (cellConfig.disabled) {
+    if (cellData.config.disabled) {
       return "This cell is disabled";
     }
-    if (status === "disabled-transitively") {
+    if (cellRuntime.status === "disabled-transitively") {
       return "This cell has a disabled ancestor";
     }
     return undefined;
@@ -1107,40 +1033,31 @@ const SetupCellComponent = ({
 
   return (
     <TooltipProvider>
-      <CellActionsContextMenu
-        cellId={cellId}
-        config={cellConfig}
-        status={status}
-        getEditorView={getEditorView}
-        hasOutput={hasOutput}
-        hasConsoleOutput={hasConsoleOutput}
-        name={name}
-      >
+      <CellActionsContextMenu cellId={cellId} getEditorView={getEditorView}>
         <div
-          data-status={status}
+          data-status={cellRuntime.status}
           ref={cellRef}
           {...mergeProps(navigationProps, {
             className,
             onBlur: closeCompletionHandler,
             onKeyDown: resumeCompletionHandler,
           })}
-          {...cellDomProps(cellId, name)}
+          {...cellDomProps(cellId, cellData.name)}
           title={renderCellTitle()}
           data-setup-cell={true}
         >
           <div className={cn("tray")} data-hidden={!isCellCodeShown}>
             <div className="absolute right-2 -top-4 z-10">
               <CellToolbar
-                edited={edited}
-                connectionState={connectionState}
-                status={status}
-                cellConfig={cellConfig}
+                edited={cellData.edited}
+                status={cellRuntime.status}
+                cellConfig={cellData.config}
                 needsRun={needsRun}
                 hasOutput={hasOutput}
                 hasConsoleOutput={hasConsoleOutput}
                 cellActionDropdownRef={cellActionDropdownRef}
                 cellId={cellId}
-                name={name}
+                name={cellData.name}
                 getEditorView={getEditorView}
                 onRun={runCell}
                 includeCellActions={true}
@@ -1150,10 +1067,10 @@ const SetupCellComponent = ({
               theme={theme}
               showPlaceholder={showPlaceholder}
               id={cellId}
-              code={code}
-              config={cellConfig}
-              status={status}
-              serializedEditorState={serializedEditorState}
+              code={cellData.code}
+              config={cellData.config}
+              status={cellRuntime.status}
+              serializedEditorState={cellData.serializedEditorState}
               runCell={runCell}
               setEditorView={setEditorView}
               userConfig={userConfig}
@@ -1167,26 +1084,26 @@ const SetupCellComponent = ({
               showLanguageToggles={false}
             />
             <CellRightSideActions
-              edited={edited}
-              status={status}
+              edited={cellData.edited}
+              status={cellRuntime.status}
               isCellStatusInline={false}
               uninstantiated={uninstantiated}
-              disabled={cellConfig.disabled}
-              runElapsedTimeMs={runElapsedTimeMs}
-              runStartTimestamp={runStartTimestamp}
-              lastRunStartTimestamp={lastRunStartTimestamp}
-              staleInputs={staleInputs}
-              interrupted={interrupted}
+              disabled={cellData.config.disabled}
+              runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
+              runStartTimestamp={cellRuntime.runStartTimestamp}
+              lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+              staleInputs={cellRuntime.staleInputs}
+              interrupted={cellRuntime.interrupted}
             />
             <div className="shoulder-bottom hover-action">
               {canDelete && (
                 <DeleteButton
-                  connectionState={connectionState}
-                  status={status}
+                  connectionState={connection.state}
+                  status={cellRuntime.status}
                   onClick={() => {
                     if (
                       !loading &&
-                      !isAppInteractionDisabled(connectionState)
+                      !isAppInteractionDisabled(connection.state)
                     ) {
                       deleteCell({ cellId });
                     }
@@ -1220,15 +1137,15 @@ const SetupCellComponent = ({
             <OutputArea
               allowExpand={true}
               forceExpand={true}
-              output={output}
               className="output-area"
               cellId={cellId}
+              output={cellRuntime.output}
               stale={false}
               loading={loading}
             />
           )}
           <ConsoleOutput
-            consoleOutputs={consoleOutputs}
+            consoleOutputs={cellRuntime.consoleOutputs}
             stale={consoleOutputStale}
             // Don't show name
             cellName={"_"}
@@ -1245,7 +1162,7 @@ const SetupCellComponent = ({
               sendStdin({ text });
             }}
             cellId={cellId}
-            debuggerActive={debuggerActive}
+            debuggerActive={cellRuntime.debuggerActive}
           />
         </div>
       </CellActionsContextMenu>
@@ -1253,4 +1170,4 @@ const SetupCellComponent = ({
   );
 };
 
-export const Cell = memo(forwardRef<CellHandle, CellProps>(CellComponent));
+export const Cell = memo(CellComponent);

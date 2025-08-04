@@ -2,7 +2,7 @@
 
 import { historyField } from "@codemirror/commands";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
-import { selectAtom, splitAtom } from "jotai/utils";
+import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { isEqual, zip } from "lodash-es";
 import { createRef, type ReducerWithoutAction } from "react";
 import type { CellHandle } from "@/components/editor/Cell";
@@ -591,6 +591,8 @@ const {
     });
     serializedEditorState.doc = state.cellData[cellId].code;
 
+    // release the granular atom(s) created for this cell
+    releaseCellAtoms(cellId);
     return {
       ...state,
       cellIds: state.cellIds.deleteById(cellId),
@@ -1537,6 +1539,8 @@ export const cellIdToNamesMap = createDeepEqualAtom(
   }),
 );
 
+const scrollKeyAtom = atom((get) => get(notebookAtom).scrollKey);
+
 /// HOOKS
 
 /**
@@ -1563,6 +1567,11 @@ export const useCellErrors = () => useAtomValue(cellErrorsAtom);
  * React-hook for the cell logs.
  */
 export const useCellLogs = () => useAtomValue(notebookAtom).cellLogs;
+
+/**
+ * React-hook for the notebook scrollKey
+ */
+export const useScrollKey = () => useAtomValue(scrollKeyAtom);
 
 /// IMPERATIVE GETTERS
 
@@ -1607,6 +1616,41 @@ export const hasCellsAtom = atom(
 export const columnIdsAtom = atom((get) =>
   get(notebookAtom).cellIds.getColumnIds(),
 );
+
+const cellDataAtom = atomFamily((cellId: CellId) =>
+  atom((get) => get(notebookAtom).cellData[cellId]),
+);
+const cellRuntimeAtom = atomFamily((cellId: CellId) =>
+  atom((get) => get(notebookAtom).cellRuntime[cellId]),
+);
+const cellHandleAtom = atomFamily((cellId: CellId) =>
+  atom((get) => get(notebookAtom).cellHandles[cellId]),
+);
+/**
+ * Cleans up atomFamily cache entries for the given cell.
+ *
+ * Jotai's atomFamily retains a cache of created atoms, which can cause memory leaks
+ * if not explicitly removed. This function removes the atoms associated with a specific
+ * cellId to free up memory.
+ *
+ * @param cellId - The cell ID whose atoms should be removed.
+ * @see https://jotai.org/docs/utilities/family#caveat-memory-leaks
+ */
+export function releaseCellAtoms(cellId: CellId) {
+  cellDataAtom.remove(cellId);
+  cellRuntimeAtom.remove(cellId);
+  cellHandleAtom.remove(cellId);
+}
+
+/** Subscribes to reactive updates of the cell's data. */
+export const useCellData = (cellId: CellId) =>
+  useAtomValue(cellDataAtom(cellId));
+/** Subscribes to reactive updates of the cell's runtime info. */
+export const useCellRuntime = (cellId: CellId) =>
+  useAtomValue(cellRuntimeAtom(cellId));
+/** Subscribes to reactive updates of the cell's handle (e.g. refs or UI bindings). */
+export const useCellHandle = (cellId: CellId) =>
+  useAtomValue(cellHandleAtom(cellId));
 
 /**
  * Get the editor views for all cells.
@@ -1700,4 +1744,8 @@ export const exportedForTesting = {
   createActions,
   initialNotebookState,
   isCellCodeHidden,
+  // Export atom families for testing cleanup
+  cellDataAtom,
+  cellRuntimeAtom,
+  cellHandleAtom,
 };
