@@ -5,7 +5,7 @@ import hashlib
 import weakref
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -26,18 +26,23 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+K = TypeVar("K")
+V = TypeVar("V")
 
-class WeakCache:
+
+class WeakCache(Generic[K, V]):
+    """A WeakCache "watches" the key and removes its entry if the key is destroyed."""
+
     def __init__(self) -> None:
-        self._data: dict[int, UIElement[Any, Any]] = {}
-        self._finalizers: dict[int, weakref.finalize[[int], AnyWidget]] = {}
+        self._data: dict[int, V] = {}
+        self._finalizers: dict[int, weakref.finalize[[int], K]] = {}
 
-    def add(self, k: AnyWidget, v: UIElement[Any, Any]) -> None:
+    def add(self, k: K, v: V) -> None:
         oid: int = id(k)  # finalize will be called before id is reused
         self._data[oid] = v
         self._finalizers[oid] = weakref.finalize(k, self._cleanup, oid)
 
-    def get(self, k: AnyWidget) -> UIElement[Any, Any] | None:
+    def get(self, k: K) -> V | None:
         return self._data.get(id(k))
 
     def __len__(self) -> int:
