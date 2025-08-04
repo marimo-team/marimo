@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
-import { notebookAtom } from "@/core/cells/cells";
+import { cellIdsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variable, VariableName, Variables } from "@/core/variables/types";
@@ -104,9 +104,9 @@ export function buildCellGraph(
 }
 
 export const cellGraphsAtom = atom((get) => {
-  const notebook = get(notebookAtom);
+  const cellIds = get(cellIdsAtom);
   const variables = get(variablesAtom);
-  return buildCellGraph(notebook.cellIds.inOrderIds, variables);
+  return buildCellGraph(cellIds.inOrderIds, variables);
 });
 
 /**

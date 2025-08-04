@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { useCellActions, useNotebook } from "@/core/cells/cells";
+import { cellDataAtom, cellRuntimeAtom, useCellActions, useCellIds } from "@/core/cells/cells";
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
@@ -22,8 +22,8 @@ interface MinimapCellProps {
   cellPositions: Readonly<Record<CellId, number>>;
 }
 
+
 const MinimapCell: React.FC<MinimapCellProps> = (props) => {
-  const notebook = useNotebook();
   const focusState = useAtomValue(cellFocusAtom);
   const graphs = useAtomValue(cellGraphsAtom);
   const actions = useCellActions();
@@ -32,8 +32,8 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
   const cell = {
     id: props.cellId,
     graph: graphs[props.cellId],
-    code: notebook.cellData[props.cellId].code,
-    hasError: notebook.cellRuntime[props.cellId].errored,
+    code: useAtomValue(cellDataAtom(props.cellId)).code,
+    hasError: useAtomValue(cellRuntimeAtom(props.cellId)).errored,
   };
 
   let selectedCell: undefined | { id: CellId; graph: CellGraph };
@@ -125,13 +125,13 @@ const MinimapInternal: React.FC<{
   open: boolean;
   setOpen: (update: boolean) => void;
 }> = ({ open, setOpen }) => {
-  const notebook = useNotebook();
+  const cellIds = useCellIds();
   const cellPositions: Record<CellId, number> = Object.fromEntries(
-    notebook.cellIds.inOrderIds.map((id, idx) => [id, idx]),
+    cellIds.inOrderIds.map((id, idx) => [id, idx]),
   );
   const columnBoundaries: number[] = [];
   let cellCount = 0;
-  for (const [idx, column] of notebook.cellIds.getColumns().entries()) {
+  for (const [idx, column] of cellIds.getColumns().entries()) {
     if (idx > 0) {
       columnBoundaries.push(cellCount);
     }
@@ -158,7 +158,7 @@ const MinimapInternal: React.FC<{
       </div>
       <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none">
         <div className="py-3 pl-3 pr-4 relative min-h-full">
-          {notebook.cellIds.inOrderIds.map((cellId, idx) => {
+          {cellIds.inOrderIds.map((cellId, idx) => {
             const isColumnBoundary = columnBoundaries.includes(idx);
             return (
               <React.Fragment key={cellId}>
