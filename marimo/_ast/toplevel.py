@@ -361,7 +361,11 @@ class TopLevelExtraction:
 
         for status in self.collection:
             if status._cell:
+                # init_variable_data is a collected on the visitor level
+                # if a var is first defined with a type like:
+                #   x: int = 1
                 variables.update(status._cell.init_variable_data)
+        # Top level defs can also be "variables" since exposed.
         for var, status in self.toplevel.items():
             if status._cell:
                 toplevel_variable = status._cell.toplevel_variable
@@ -379,7 +383,6 @@ class TopLevelExtraction:
         ancestors = graph.ancestors(cell.cell_id)
         deps = {cid: graph.cells[cid] for cid in ancestors}
         setup_id = CellId_t(SETUP_CELL_NAME)
-        setup = graph.cells.get(setup_id)
         setup = graph.cells.get(setup_id)
         deps.pop(setup_id, None)
 

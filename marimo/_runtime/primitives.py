@@ -197,11 +197,20 @@ def is_pure_function(
     if not inspect.isfunction(value):
         return False
 
+    # If this object wraps another, call the check on the wrapped object.
+    if hasattr(value, "__wrapped__"):
+        wrapped = getattr(value, "__wrapped__", None)
+        if wrapped is not None:
+            # This still catches impure decorated functions since the impure
+            # reference will be captured by required refs.
+            return is_pure_function(ref, wrapped, defs, cache, graph)
+
     # We assume all external module function references to be pure. Cache can
     # still be be invalidated by pin_modules attribute. Note this also captures
     # cases like functors from an external module.
-    # TODO: Investigate embedded notebook values.
-    if getattr(value, "__module__", None) != "__main__":
+    is_lib = getattr(value, "__module__", None) != "__main__"
+    is_marimo_lib = graph is not None and "self" in graph.cells
+    if is_lib and not is_marimo_lib:
         return True
 
     cache[value] = True  # Prevent recursion
