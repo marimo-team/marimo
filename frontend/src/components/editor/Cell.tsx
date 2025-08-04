@@ -543,7 +543,7 @@ const EditableCellComponent = ({
     return undefined;
   };
 
-  const isToplevel = !!(cellRuntime.serialization?.toLowerCase() === "valid");
+  const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
 
   return (
     <TooltipProvider>
