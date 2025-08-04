@@ -3,6 +3,7 @@
 from __future__ import annotations
 import pathlib
 import subprocess
+import sys
 import textwrap
 from typing import TYPE_CHECKING, Any
 
@@ -859,7 +860,7 @@ def test_cli_args(tmp_path: pathlib.Path) -> None:
     """
     py_file.write_text(textwrap.dedent(content))
     p = subprocess.run(
-        ["python", str(py_file), "--foo", "value1", "--bar", "value2"],
+        [sys.executable, str(py_file), "--foo", "value1", "--bar", "value2"],
         stdout=subprocess.PIPE,
     )
     assert p.returncode == 0
@@ -1137,6 +1138,7 @@ class TestAppComposition:
                 ),
             ]
         )
+        assert not k.errors
         filename = "notebook_filename.py"
         directory = "app_data"
         assert k.globals["app"].defs.get("this_is_foo_file").endswith(filename)
