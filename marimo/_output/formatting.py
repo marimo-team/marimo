@@ -65,9 +65,10 @@ class FormatterRegistry:
         # Search for formatters in the object's type hierarchy
         for t in top_level_type.mro():
             if t in self.formatters:
+                formatter = self.formatters[t]
                 # Add to formatters dict to avoid re-searching
-                self.formatters[top_level_type] = self.formatters[t]
-                return self.formatters[t]
+                self.formatters[top_level_type] = formatter
+                return formatter
 
         return None
 

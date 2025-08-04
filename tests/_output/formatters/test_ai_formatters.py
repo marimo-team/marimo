@@ -3,8 +3,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from openai.types.chat import ChatCompletion
-from openai.types.completion import Completion
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.ai_formatters import (
@@ -23,13 +21,22 @@ from marimo._output.hypertext import Html
 )
 def test_register_with_dummy_google(mock_md: MagicMock):
     GoogleAiFormatter().register()
-    from google.genai.types import GenerateContentResponse
+    from google.genai.types import (
+        Candidate,
+        Content,
+        GenerateContentResponse,
+        Part,
+    )
 
     mock_md.side_effect = lambda x: Html(f"<md>{x}</md>")
 
+    def create_response(text: str) -> GenerateContentResponse:
+        return GenerateContentResponse(
+            candidates=[Candidate(content=Content(parts=[Part(text=text)]))]
+        )
+
     # Test direct GenerateContentResponse
-    mock_response = MagicMock(spec=GenerateContentResponse)
-    mock_response.text = "# Hello"
+    mock_response = create_response("# Hello")
     formatter = get_formatter(mock_response)
     assert formatter is not None
     result = formatter(mock_response)
@@ -66,12 +73,29 @@ def test_register_with_dummy_google(mock_md: MagicMock):
 )
 @patch("marimo._output.formatters.ai_formatters.md.md")
 def test_register_with_openai(mock_md: MagicMock):
+    from openai.types.chat.chat_completion import ChatCompletion, Choice
+    from openai.types.chat.chat_completion_message import ChatCompletionMessage
+    from openai.types.completion import Completion
+    from openai.types.completion_choice import CompletionChoice
+
     OpenAIFormatter().register()
     mock_md.side_effect = lambda x: Html(f"<md>{x}</md>")
 
     # Test completion
-    mock_completion = MagicMock(Completion)
-    mock_completion.choices = [MagicMock(text="Hello world")]
+    mock_completion = Completion(
+        id="1",
+        created=123,
+        model="test",
+        object="text_completion",
+        choices=[
+            CompletionChoice(
+                text="Hello world",
+                index=0,
+                logprobs=None,
+                finish_reason="stop",
+            )
+        ],
+    )
     formatter = get_formatter(mock_completion)
     assert formatter is not None
     result = formatter(mock_completion)
@@ -79,8 +103,22 @@ def test_register_with_openai(mock_md: MagicMock):
     mock_md.assert_called_with("Hello world")
 
     # Test chat completion
-    mock_chat = MagicMock(ChatCompletion)
-    mock_chat.choices = [MagicMock(message=MagicMock(content="Chat response"))]
+    mock_chat = ChatCompletion(
+        id="1",
+        created=123,
+        model="test",
+        object="chat.completion",
+        choices=[
+            Choice(
+                index=0,
+                logprobs=None,
+                finish_reason="stop",
+                message=ChatCompletionMessage(
+                    role="assistant", content="Chat response"
+                ),
+            )
+        ],
+    )
     formatter = get_formatter(mock_chat)
     assert formatter is not None
     result = formatter(mock_chat)
