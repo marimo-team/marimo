@@ -28,8 +28,8 @@ LOGGER = _loggers.marimo_logger()
 
 class WeakCache:
     def __init__(self) -> None:
-        self._data: dict[int, AnyWidget] = {}
-        self._finalizers: dict[int, weakref.finalize] = {}
+        self._data: dict[int, UIElement[Any, Any]] = {}
+        self._finalizers: dict[int, weakref.finalize[[int], AnyWidget]] = {}
 
     def add(self, k: AnyWidget, v: UIElement[Any, Any]) -> None:
         oid: int = id(k)  # finalize will be called before id is reused
