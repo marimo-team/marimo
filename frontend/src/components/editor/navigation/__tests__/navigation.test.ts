@@ -1305,11 +1305,21 @@ describe("useCellNavigationProps", () => {
       // Column 1: cellId2 (0-80), cellId4 (80-160), cellId5 (160-240)
       mockGetElementById.mockImplementation((id) => {
         const idToCellId = id.replace("cell-", "");
-        if (idToCellId === cellId1) return createMockElement(0, 100);
-        if (idToCellId === cellId2) return createMockElement(0, 80);
-        if (idToCellId === cellId3) return createMockElement(100, 100);
-        if (idToCellId === cellId4) return createMockElement(80, 80);
-        if (idToCellId === cellId5) return createMockElement(160, 80);
+        if (idToCellId === cellId1) {
+          return createMockElement(0, 100);
+        }
+        if (idToCellId === cellId2) {
+          return createMockElement(0, 80);
+        }
+        if (idToCellId === cellId3) {
+          return createMockElement(100, 100);
+        }
+        if (idToCellId === cellId4) {
+          return createMockElement(80, 80);
+        }
+        if (idToCellId === cellId5) {
+          return createMockElement(160, 80);
+        }
         return null;
       });
 
@@ -1580,8 +1590,9 @@ describe("useCellEditorNavigationProps", () => {
 
   describe("keyboard shortcuts", () => {
     it("should focus cell when Escape is pressed", () => {
+      const mockEditorView = { current: null };
       const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId),
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
       );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
@@ -1594,9 +1605,70 @@ describe("useCellEditorNavigationProps", () => {
       expect(mockEvent.continuePropagation).not.toHaveBeenCalled();
     });
 
-    it("should continue propagation for other keys", () => {
+    it("should clear text selection when Escape is pressed with selection", () => {
+      const mockDispatch = vi.fn();
+      const mockEditorView = {
+        current: {
+          state: {
+            selection: { main: { from: 5, to: 10 } },
+          },
+          dispatch: mockDispatch,
+        } as unknown as EditorView,
+      };
       const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId),
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      const mockCall = mockDispatch.mock.calls[0][0];
+      expect(mockCall.selection.ranges[0].anchor).toBe(5);
+      expect(mockCall.selection.ranges[0].head).toBe(5);
+      expect(focusCell).not.toHaveBeenCalled();
+    });
+
+    it("should close autocomplete popup when Escape is pressed with popup active", () => {
+      const mockEditorView = {
+        current: {
+          state: {
+            selection: { main: { from: 5, to: 5 } },
+            field: vi.fn().mockReturnValue({ active: [{ state: 1 }] }), // Mock active completion
+          },
+          dispatch: vi.fn(),
+        } as unknown as EditorView,
+      };
+
+      // Mock the closeCompletion function
+      const originalCloseCompletion = vi.hoisted(() => vi.fn());
+      vi.mock("@codemirror/autocomplete", () => ({
+        completionStatus: vi.fn().mockReturnValue("active"),
+        closeCompletion: originalCloseCompletion,
+      }));
+
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(originalCloseCompletion).toHaveBeenCalledWith(
+        mockEditorView.current,
+      );
+      expect(focusCell).not.toHaveBeenCalled();
+    });
+
+    it("should continue propagation for other keys", () => {
+      const mockEditorView = { current: null };
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
       );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Enter" });
@@ -1621,8 +1693,9 @@ describe("useCellEditorNavigationProps", () => {
     });
 
     it("should focus cell when Ctrl+Escape is pressed in vim mode", () => {
+      const mockEditorView = { current: null };
       const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId),
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
       );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Escape", ctrlKey: true });
@@ -1636,8 +1709,9 @@ describe("useCellEditorNavigationProps", () => {
     });
 
     it("should focus cell when Cmd+Escape (metaKey) is pressed in vim mode", () => {
+      const mockEditorView = { current: null };
       const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId),
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
       );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Escape", metaKey: true });
@@ -1651,8 +1725,9 @@ describe("useCellEditorNavigationProps", () => {
     });
 
     it("should not focus cell when Escape (without Ctrl) is pressed in vim mode", () => {
+      const mockEditorView = { current: null };
       const { result } = renderWithProvider(() =>
-        useCellEditorNavigationProps(mockCellId),
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
       );
 
       const mockEvent = Mocks.keyboardEvent({ key: "Escape" });

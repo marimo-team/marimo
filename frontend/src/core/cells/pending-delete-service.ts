@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { atom, useAtom, useAtomValue } from "jotai";
+import { atom, useAtom, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import {
   useDeleteCellCallback,
@@ -27,11 +27,12 @@ const pendingDeleteStateAtom = atom<Map<CellId, PendingDeleteEntry>>(new Map());
 
 export function usePendingDeleteService() {
   const [state, setState] = useAtom(pendingDeleteStateAtom);
-  const notebook = useAtomValue(notebookAtom);
-  const variables = useAtomValue(variablesAtom);
+  const store = useStore();
 
   const submit = useCallback(
     (cellIds: CellId[]) => {
+      const notebook = store.get(notebookAtom);
+      const variables = store.get(variablesAtom);
       const emptyCells = new Set(
         notebook.cellIds.inOrderIds.filter(
           (id) => notebook.cellData[id].code.trim() === "",
@@ -82,7 +83,7 @@ export function usePendingDeleteService() {
 
       setState(entries);
     },
-    [notebook, variables, setState],
+    [setState, store],
   );
 
   const clear = useCallback(() => {

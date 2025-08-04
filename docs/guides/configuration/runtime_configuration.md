@@ -1,11 +1,11 @@
 # Runtime configuration
 
-Through the notebook settings menu, you can configure how and when marimo
-runs cells.
+Through the notebook settings menu, you can configure how and when marimo runs
+cells.
 
 <video controls width="100%" height="100%" align="center" src="/_static/docs-runtime-config.mp4"> </video>
 
-## On startup
+## Disable autorun on startup
 
 By default, marimo notebooks run automatically on startup; just how the command
 
@@ -26,7 +26,9 @@ Disable this behavior by unchecking "Autorun on startup".
 _When sharing a notebook as an app with `marimo run`, this setting has
 no effect._
 
-## On cell change
+## Disable autorun on cell change (lazy execution)
+
+<video controls width="100%" height="100%" align="center" src="/_static/docs-lazy-execution.mp4"> </video>
 
 By default, when a cell is run or a UI element is interacted with, marimo
 automatically runs cells that reference any of its variables. **You can disable
@@ -86,17 +88,37 @@ Autoreloading comes in two types:
 
 ## Python path
 
-By default, marimo will not add any additional directories to the Python path. This keeps the behavior of `marimo edit nb.py` and `python nb.py` consistent.
+By default, marimo will not add any additional directories to the Python path.
+This keeps the behavior of `marimo edit nb.py` and `python nb.py` consistent.
 
-You can add directories to the Python path by setting the `pythonpath` key in the
-runtime configuration. These directories will be added to the head of `sys.path`,
-similar to how the `PYTHONPATH` environment variable works. This allows Python to
-find and import modules from these directories.
+You can add directories to the Python path by setting the `pythonpath` key in
+the runtime configuration. These directories will be added to the head of
+`sys.path`, similar to how the `PYTHONPATH` environment variable works. This
+allows Python to find and import modules from these directories.
 
 ```toml title="pyproject.toml"
 [tool.marimo.runtime]
 pythonpath = ["project/src"]
 ```
+
+!!! tip "Consider alternatives to path manipulation"
+
+    When possible, it's preferred to avoid path manipulation. If you want to
+    work on a module in a separate directory alongside your notebooks, we
+    recommend creating a _package_ and including marimo as a project dependency.
+
+    ```sh
+    uv init --lib my_package
+    cd my_package
+    uv add --dev marimo
+    uv run marimo edit notebook.py  # my_package is available in notebook environment
+    ```
+
+    This will make it easier to share your library code. For multiple packages,
+    consider confguring [uv workspaces](https://docs.astral.sh/uv/concepts/projects/workspaces/).
+
+    See our guide on [notebooks in existing
+    projects](../package_management/notebooks_in_projects.md) for more details.
 
 ## Environment variables
 

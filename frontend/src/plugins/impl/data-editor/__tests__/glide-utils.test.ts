@@ -84,6 +84,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -105,6 +106,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -125,6 +127,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -148,6 +151,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -171,6 +175,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -194,6 +199,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -216,6 +222,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -244,6 +251,7 @@ describe("pasteCells", () => {
       data: createMockData(), // Only 3 rows
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -273,6 +281,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(), // Only 3 columns
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -296,6 +305,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -319,6 +329,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -344,6 +355,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -366,6 +378,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -396,6 +409,7 @@ describe("pasteCells", () => {
       data: createMockData(),
       setData: mockSetLocalData,
       columns: createMockColumns(),
+      editableColumns: "all",
       onAddEdits: mockOnAddEdits,
     });
 
@@ -407,6 +421,31 @@ describe("pasteCells", () => {
         { rowIdx: 1, columnId: "name", value: "Rachel" },
         { rowIdx: 1, columnId: "age", value: 25 },
         { rowIdx: 1, columnId: "active", value: false },
+      ]);
+    });
+  });
+
+  it("should handle editable columns", async () => {
+    mockClipboard.readText.mockResolvedValue(
+      "Olivia\t28\ttrue\nWilliams\t35\tfalse",
+    );
+
+    const mockSetLocalData = vi.fn();
+    const mockOnAddEdits = vi.fn();
+
+    pasteCells({
+      selection: createMockSelection(0, 0),
+      data: createMockData(),
+      setData: mockSetLocalData,
+      columns: createMockColumns(),
+      editableColumns: ["age"],
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "age", value: 28 },
+        { rowIdx: 1, columnId: "age", value: 35 },
       ]);
     });
   });

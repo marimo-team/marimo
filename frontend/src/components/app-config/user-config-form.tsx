@@ -313,6 +313,72 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
                 )}
               />
+              {/* auto_download is a runtime setting in the backend, but it makes
+               * more sense as an autosave setting. */}
+              <FormField
+                control={form.control}
+                name="runtime.default_auto_download"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Save cell outputs as</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-4">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="html-checkbox"
+                              checked={
+                                Array.isArray(field.value) &&
+                                field.value.includes("html")
+                              }
+                              onCheckedChange={() => {
+                                const currentValue = Array.isArray(field.value)
+                                  ? field.value
+                                  : [];
+                                field.onChange(
+                                  arrayToggle(currentValue, "html"),
+                                );
+                              }}
+                            />
+                            <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="ipynb-checkbox"
+                              checked={
+                                Array.isArray(field.value) &&
+                                field.value.includes("ipynb")
+                              }
+                              onCheckedChange={() => {
+                                const currentValue = Array.isArray(field.value)
+                                  ? field.value
+                                  : [];
+                                field.onChange(
+                                  arrayToggle(currentValue, "ipynb"),
+                                );
+                              }}
+                            />
+                            <FormLabel htmlFor="ipynb-checkbox">
+                              IPYNB
+                            </FormLabel>
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="runtime.default_auto_download"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      When enabled, marimo will periodically save notebooks in
+                      your selected formats (HTML, IPYNB) to a folder named{" "}
+                      <Kbd className="inline">__marimo__</Kbd> next to your
+                      notebook file.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Formatting">
               <FormField
@@ -1028,102 +1094,6 @@ export const UserConfigForm: React.FC = () => {
           <SettingGroup title="Runtime configuration">
             <FormField
               control={form.control}
-              name="runtime.default_sql_output"
-              render={({ field }) => (
-                <div className="flex flex-col space-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel>Default SQL output</FormLabel>
-                    <FormControl>
-                      <NativeSelect
-                        data-testid="user-config-sql-output-select"
-                        onChange={(e) => field.onChange(e.target.value)}
-                        value={field.value}
-                        disabled={field.disabled}
-                        className="inline-flex mr-2"
-                      >
-                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
-                          <option value={option.value} key={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </FormControl>
-                    <FormMessage />
-                    <IsOverridden
-                      userConfig={config}
-                      name="runtime.default_sql_output"
-                    />
-                  </FormItem>
-
-                  <FormDescription>
-                    The default SQL output format for new notebooks; overridden
-                    by "sql_output" in the application config.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="runtime.default_auto_download"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel>Auto output formats</FormLabel>
-                    <FormControl>
-                      <div className="flex gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="html-checkbox"
-                            checked={
-                              Array.isArray(field.value) &&
-                              field.value.includes("html")
-                            }
-                            onCheckedChange={() => {
-                              const currentValue = Array.isArray(field.value)
-                                ? field.value
-                                : [];
-                              field.onChange(arrayToggle(currentValue, "html"));
-                            }}
-                          />
-                          <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="ipynb-checkbox"
-                            checked={
-                              Array.isArray(field.value) &&
-                              field.value.includes("ipynb")
-                            }
-                            onCheckedChange={() => {
-                              const currentValue = Array.isArray(field.value)
-                                ? field.value
-                                : [];
-                              field.onChange(
-                                arrayToggle(currentValue, "ipynb"),
-                              );
-                            }}
-                          />
-                          <FormLabel htmlFor="ipynb-checkbox">IPYNB</FormLabel>
-                        </div>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                    <IsOverridden
-                      userConfig={config}
-                      name="runtime.default_auto_download"
-                    />
-                  </FormItem>
-                  <FormDescription>
-                    When enabled, marimo will periodically save notebooks in
-                    your selected formats (HTML, IPYNB) to a folder named{" "}
-                    <Kbd className="inline">__marimo__</Kbd> next to your
-                    notebook file.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="runtime.auto_instantiate"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
@@ -1230,6 +1200,44 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="runtime.default_sql_output"
+              render={({ field }) => (
+                <div className="flex flex-col space-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel>Default SQL output</FormLabel>
+                    <FormControl>
+                      <NativeSelect
+                        data-testid="user-config-sql-output-select"
+                        onChange={(e) => field.onChange(e.target.value)}
+                        value={field.value}
+                        disabled={field.disabled}
+                        className="inline-flex mr-2"
+                      >
+                        {SQL_OUTPUT_SELECT_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.default_sql_output"
+                    />
+                  </FormItem>
+
+                  <FormDescription>
+                    The default SQL output type for new notebooks; overridden by
+                    "sql_output" in the application config.
+                  </FormDescription>
+                </div>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="runtime.reactive_tests"

@@ -730,6 +730,7 @@ const DataTableComponent = ({
       return ColumnChartSpecModel.EMPTY;
     }
     const fieldTypesWithoutExternalTypes = toFieldTypes(fieldTypes);
+
     return new ColumnChartSpecModel(
       columnSummaries.data || [],
       fieldTypesWithoutExternalTypes,
