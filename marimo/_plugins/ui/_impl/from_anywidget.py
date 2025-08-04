@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         AnyWidget,
     )
 
+
 LOGGER = _loggers.marimo_logger()
 
 
@@ -38,6 +39,9 @@ class WeakCache:
 
     def get(self, k: AnyWidget) -> UIElement[Any, Any] | None:
         return self._data.get(id(k))
+
+    def __len__(self) -> int:
+        return len(self._data)
 
     def _cleanup(self, oid: int) -> None:
         self._data.pop(oid, None)
