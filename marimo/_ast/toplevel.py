@@ -17,7 +17,7 @@ from marimo._ast.names import (
 )
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
-from marimo._runtime.dataflow import DirectedGraph
+from marimo._runtime.dataflow import DirectedGraph, topological_sort
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -377,18 +377,22 @@ class TopLevelExtraction:
     @classmethod
     def from_graph(
         cls,
-        cell: CellImpl,
         graph: DirectedGraph,
+        cell: CellImpl | None = None,
     ) -> TopLevelExtraction:
-        ancestors = graph.ancestors(cell.cell_id)
-        deps = {cid: graph.cells[cid] for cid in ancestors}
+        if cell:
+            ancestors = graph.ancestors(cell.cell_id)
+            deps = {cid: graph.cells[cid] for cid in ancestors}
+        else:
+            deps = {**graph.cells}
         setup_id = CellId_t(SETUP_CELL_NAME)
         setup = graph.cells.get(setup_id)
         deps.pop(setup_id, None)
 
-        # TODO: Technically, order does matter incase there is a type definition
-        # or decorator.
-        path = list(deps.values()) + [cell]
+        cell_order = topological_sort(graph, deps.keys())
+        path = [deps[cid] for cid in cell_order if deps[cid]]
+        if cell:
+            path += [cell]
         return cls.from_cells(path, setup=setup)
 
     @classmethod

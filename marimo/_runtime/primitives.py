@@ -208,8 +208,18 @@ def is_pure_function(
     # We assume all external module function references to be pure. Cache can
     # still be be invalidated by pin_modules attribute. Note this also captures
     # cases like functors from an external module.
-    is_lib = getattr(value, "__module__", None) != "__main__"
-    is_marimo_lib = graph is not None and "self" in graph.cells
+    module = getattr(value, "__module__", None)
+    is_lib = module != "__main__"
+    # If the function exists on the graph as a top level function, it was
+    # defined in the current notebook context. If is_lib is false, then it's a
+    # marimo notebook as an external module, and we should still check for
+    # 'purity'.
+    is_marimo_lib = False
+    if graph is not None:
+        from marimo._ast.toplevel import TopLevelExtraction
+
+        extraction = TopLevelExtraction.from_graph(graph)
+        is_marimo_lib = ref in extraction.variables
     if is_lib and not is_marimo_lib:
         return True
 
