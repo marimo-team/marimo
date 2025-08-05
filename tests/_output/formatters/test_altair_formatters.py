@@ -107,21 +107,24 @@ def test_altair_formatter_mimebundle():
     import altair as alt
 
     # Create a mock chart with a _repr_mimebundle_ method that returns multiple mime types
-    mock_chart = MagicMock(spec=alt.Chart)
-    mock_chart._repr_mimebundle_.return_value = {
-        "image/svg+xml": "<svg></svg>",
-        "application/vnd.vegalite.v5+json": json.dumps({"test": "data"}),
-    }
+    mock_chart = alt.Chart(get_data()).mark_point()
+    with patch.object(
+        alt.Chart,
+        "_repr_mimebundle_",
+        return_value={
+            "image/svg+xml": "<svg></svg>",
+            "application/vnd.vegalite.v5+json": json.dumps({"test": "data"}),
+        },
+    ):
+        formatter = get_formatter(mock_chart)
+        assert formatter is not None
+        mime, content = formatter(mock_chart)
 
-    formatter = get_formatter(mock_chart)
-    assert formatter is not None
-    mime, content = formatter(mock_chart)
-
-    # Should return a mimebundle with both types
-    assert mime == "application/vnd.marimo+mimebundle"
-    mimebundle = json.loads(content)
-    assert "image/svg+xml" in mimebundle
-    assert "application/vnd.vegalite.v5+json" in mimebundle
+        # Should return a mimebundle with both types
+        assert mime == "application/vnd.marimo+mimebundle"
+        mimebundle = json.loads(content)
+        assert "image/svg+xml" in mimebundle
+        assert "application/vnd.vegalite.v5+json" in mimebundle
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
@@ -131,17 +134,18 @@ def test_altair_formatter_svg():
     import altair as alt
 
     # Create a mock chart with a _repr_mimebundle_ method that returns SVG
-    mock_chart = MagicMock(spec=alt.Chart)
-    mock_chart._repr_mimebundle_.return_value = {
-        "image/svg+xml": "<svg></svg>"
-    }
+    mock_chart = alt.Chart(get_data()).mark_point()
+    with patch.object(
+        alt.Chart,
+        "_repr_mimebundle_",
+        return_value={"image/svg+xml": "<svg></svg>"},
+    ):
+        formatter = get_formatter(mock_chart)
+        assert formatter is not None
+        mime, content = formatter(mock_chart)
 
-    formatter = get_formatter(mock_chart)
-    assert formatter is not None
-    mime, content = formatter(mock_chart)
-
-    assert mime == "image/svg+xml"
-    assert content == "<svg></svg>"
+        assert mime == "image/svg+xml"
+        assert content == "<svg></svg>"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
