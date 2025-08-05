@@ -225,12 +225,16 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                     )
                 )
             else:
+                is_stderr = console["name"] == "stderr"
                 console_outputs.append(
                     CellOutput(
                         channel=CellChannel.STDERR
-                        if console["name"] == "stderr"
+                        if is_stderr
                         else CellChannel.STDOUT,
-                        data=console["text"],
+                        # TODO: include stderr data as well (if visually desired)
+                        # Either by stripping the HTML or updating the mime type.
+                        # Currently it has a traceback of HTML which is not readable downstream.
+                        data=console["text"] if not is_stderr else "",
                         mimetype="text/plain",
                     )
                 )
