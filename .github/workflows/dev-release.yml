@@ -74,11 +74,14 @@ jobs:
           HATCH_INDEX_AUTH: ${{ secrets.TEST_PYPI_PASSWORD }}
         run: uvx hatch publish --repo test
 
+      - name: Clean output dir
+        run: rm -rf dist
+
       - name: Adapt pyproject.toml to build marimo-base
         run: uv run ./scripts/modify_pyproject_for_marimo_base.py
 
-      - name: 📦 Build marimo
-        run: uvx hatch build --clean
+      - name: 📦 Build marimo-base
+        run: uv build
 
       - name: 📦 Validate wheel under 2mb
         run: ./scripts/validate_base_wheel_size.sh
