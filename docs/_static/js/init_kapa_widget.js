@@ -16,6 +16,10 @@ document.addEventListener("DOMContentLoaded", () => {
     "data-modal-disclaimer",
     "This is a custom LLM for marimo with access to all [documentation](https://docs.marimo.io) and the [API reference](https://docs.marimo.io/api/).",
   );
+  script.setAttribute(
+    "data-uncertain-answer-callout",
+    "I could not find an answer in my knowledge base. But a human team member can give you more detailed answers directly in our [Discord](https://marimo.io/discord?ref=kapa-widget).",
+  );
 
   // TODO: Add example questions
   // Currently this makes the styling weird
