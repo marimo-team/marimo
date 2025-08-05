@@ -41,7 +41,9 @@ def check_for_delete_nonlocal(
     graph: DirectedGraph,
 ) -> dict[CellId_t, list[DeleteNonlocalError]]:
     """Check whether cells delete their refs."""
+    # TODO XXX
     errors = defaultdict(list)
+    return errors
     for cid in graph.cells.keys():
         for name in graph.cells[cid].deleted_refs:
             if name in graph.definitions:

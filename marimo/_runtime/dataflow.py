@@ -202,6 +202,18 @@ class DirectedGraph:
                     if path:
                         self.cycles.add(tuple([(other_id, cell_id)] + path))
                     self.children[other_id].add(cell_id)
+
+            for name in cell.deleted_refs:
+                referring_cells = self.get_referring_cells(
+                    name, language="python"
+                ) - set((cell_id,))
+                for other_id in referring_cells:
+                    parents.add(other_id)
+                    path = self.get_path(cell_id, other_id)
+                    if path:
+                        self.cycles.add(tuple([(other_id, cell_id)] + path))
+                    self.children[other_id].add(cell_id)
+
         LOGGER.debug("Registered cell %s and released graph lock", cell_id)
         if self.is_any_ancestor_stale(cell_id):
             self.set_stale(set([cell_id]))
