@@ -49,8 +49,14 @@ class Response:
 
         This assumes the response is UTF-8 encoded.
         In future, we can infer the encoding from the headers.
+        
+        Line endings are normalized to Unix style (\n) to match Python's
+        text mode behavior when reading files.
         """
-        return self.content.decode("utf-8")
+        decoded = self.content.decode("utf-8")
+        # Normalize line endings: \r\n -> \n, \r -> \n
+        # This matches Python's universal newline mode used by Path.read_text()
+        return decoded.replace('\r\n', '\n').replace('\r', '\n')
 
     def raise_for_status(self) -> "Response":
         """Raise an exception for non-2xx status codes.
