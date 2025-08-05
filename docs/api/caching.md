@@ -201,7 +201,8 @@ Here is a table comparing marimo's cache with `functools.cache`:
 | Cache return values to disk?| ✅ | ❌  |
 | Preserved on cell re-runs? | ✅ | ❌ |
 | Tracks closed-over variables | ✅ | ❌ |
-| Allows unhashable objects? | ✅ | ❌ |
+| Allows unhashable arguments? | ✅ | ❌ |
+| Allows Array-like arguments? | ✅ | ❌ |
 | Suitable for lightweight functions (microseconds)? | ❌  | ✅ |
 
 
