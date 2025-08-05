@@ -500,17 +500,16 @@ obj = {object_name}\
 
 @pytest.mark.parametrize(
     "trigger_code, expected_key_path",
-    # NOTE trigger code produce by marimo must end with `['` or `["` 
+    # NOTE trigger code produce by marimo must end with `['` or `["`
     [
         ("obj['", []),
         ("obj['foo']['", [["foo"]]),
         ("obj['foo', 'bar']['", [["foo", "bar"]]),
         ("obj['foo']['bar']['", [["foo"], ["bar"]]),
-    ]
+    ],
 )
 def test_resolve_chained_key_path(
-    trigger_code: str,
-    expected_key_path: list[str]
+    trigger_code: str, expected_key_path: list[str]
 ) -> None:
     key_path = _resolve_chained_key_path("obj", trigger_code)
     assert key_path == expected_key_path
@@ -522,11 +521,11 @@ def test_resolve_chained_key_path(
     "code_and_expects_completions", cases_key_completions_code()
 )
 @pytest.mark.parametrize(
-    "object_name", ["static_key", "dynamic_key", "mixed_keys", "iprefixpython_data"]
+    "object_name",
+    ["static_key", "dynamic_key", "mixed_keys", "iprefixpython_data"],
 )
 def test_chained_autocompletion(
-    code_and_expects_completions: tuple,
-    object_name: str
+    code_and_expects_completions: tuple, object_name: str
 ) -> None:
     top_level_key = "depth0"
     trigger_code, expects_completions = code_and_expects_completions

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import jedi  # type: ignore # noqa: F401
 import jedi.api  # type: ignore # noqa: F401
+
 # jedi dependency
 import parso
 from parso.python.tree import PythonErrorNode, PythonNode
@@ -423,7 +424,7 @@ def _key_options_dispatcher(obj: Any) -> list[str]:
 # NOTE need to be careful because `__getitem__` can trigger arbitrary code
 def _resolve_chained_key_path(obj_name: str, trigger_code: str) -> list[str]:
     """Determine the chain of keys access based on source code
-    
+
     This assumes marimo passes a single line of code as `trigger_code`
     """
     ast_ = parso.parse(trigger_code)
@@ -439,7 +440,7 @@ def _resolve_chained_key_path(obj_name: str, trigger_code: str) -> list[str]:
         if obj_name in node.get_code():
             seen_object_node = True
             continue
-        
+
         # iterate until we find the node associated with `obj_name`
         if seen_object_node is False:
             continue
@@ -456,7 +457,9 @@ def _resolve_chained_key_path(obj_name: str, trigger_code: str) -> list[str]:
 
 
 def _get_key_options(
-    script: jedi.Script, glbls: dict[str, Any], request=None,
+    script: jedi.Script,
+    glbls: dict[str, Any],
+    request=None,
 ) -> list[CompletionOption]:
     """Get completion values for trigger `["` or `['`. Values are meant to be
     passed to `.__getitem__()`
@@ -480,9 +483,11 @@ def _get_key_options(
     if root_obj is None:
         LOGGER.debug(f"Failed to find `{obj_name=:}` in `glbls`")
         return []
-    
+
     obj = root_obj
-    key_paths = _resolve_chained_key_path(obj_name, trigger_code=request.document)
+    key_paths = _resolve_chained_key_path(
+        obj_name, trigger_code=request.document
+    )
     # to not support completion of `dictionary["a"]["` use this
     # if key_paths:
     #   return []
@@ -490,7 +495,7 @@ def _get_key_options(
     for key in key_paths:
         # NOTE __getitem__ can execute arbitrary code and become expensive
         obj = obj.__getitem__(*key)
-    
+
     keys = _key_options_dispatcher(obj)
     # TODO currently unreliable for non-string keys, even if stringified
     # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
