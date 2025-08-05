@@ -58,8 +58,9 @@ app = marimo.App(width="medium")
 def test_windows_line_endings_from_url():
     """Test that script metadata from URL with Windows line endings is parsed correctly."""
     from unittest.mock import patch
+
     from marimo._utils.requests import Response
-    
+
     # Script content as it would come from a Windows server with CRLF line endings
     SCRIPT_WITH_CRLF = b"""# /// script\r
 # requires-python = ">=3.11"\r
@@ -74,9 +75,9 @@ import marimo\r
 __generated_with = "0.8.2"\r
 app = marimo.App(width="medium")\r
 """
-    
+
     url = "https://example.com/notebook.py"
-    
+
     with patch("marimo._utils.requests.get") as mock_get:
         # Mock the response to return content with Windows line endings
         mock_get.return_value = Response(
@@ -84,7 +85,7 @@ app = marimo.App(width="medium")\r
             SCRIPT_WITH_CRLF,
             {},
         )
-        
+
         # This should now work correctly with the line ending normalization in response.text()
         reader = PyProjectReader.from_filename(url)
         assert reader.dependencies == ["polars", "marimo>=0.8.0"]
