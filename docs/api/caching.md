@@ -16,7 +16,7 @@ closed-over values) and isn't invalidated when the cell defining the decorated
 function is simply re-run (because it keys on notebook code). This means that
 like marimo notebooks, [`mo.cache`][marimo.cache] has no hidden state
 associated with the cached function, which makes you more productive while
-developing iteratively. See [caching expectations](#expectations) for more details.
+developing iteratively. See [caching expectations](#caching-expectations) for more details.
 
 For a cache with bounded size, use [`mo.lru_cache`][marimo.lru_cache].
 
@@ -37,7 +37,7 @@ memory, letting you pick up where you left off.
 
 ::: marimo.persistent_cache
 
-### Caching expectations
+## Caching expectations
 
 The performance and reliability of your notebook may depend on the caching functionality—as such, it is important to understand the expectations of marimo's caching utilities.
 
@@ -59,11 +59,12 @@ The performance and reliability of your notebook may depend on the caching funct
 - The wrapped function should be valid in all cases where `functools.cache` applies.
 - Some contexts will require dependent variables (`args`, referenced variables) to be pickleable (just like `functools.cache`).
 
-!!! note "Persistent cache invalidation across marimo library versions"
-    marimo promises not to break cache invalidation across patch versions of the
-    library. Between minor and major versions of marimo, persistent cache
-    invalidation may occur. A notice will be provided in the release notes when
-    this occurs. The caching mechanism is expected to be relatively stable.
+!!! note "Persistent cache invalidation across marimo library versions" marimo
+    promises not to invalidate cache hits across patch (e.g. `0.x.y` -> `0.x.z`)
+    versions of the library. Between minor (`0.a.b` -> `0.c.0`) and major (`0.a.b`
+    -> `1.0.0`) versions of marimo, old persistent cache hits may become invalid. A
+    notice will be provided in the release notes when this occurs. Overall, the caching
+    mechanism is expected to be stable.
 
 !!! warning "Variable mutation outside marimo APIs"
     Note that directly mutating variable state outside of defining
@@ -72,7 +73,7 @@ The performance and reliability of your notebook may depend on the caching funct
     and changes. If you mutate variables outside of marimo's APIs, the cache may
     not be invalidated correctly, leading to stale data.
 
-### Comparison with functools.cache
+## Comparison with functools.cache
 
 | Feature | marimo context | marimo decorator | functools.cache |
 |---------|----------------|------------------|-----------------|
@@ -95,9 +96,14 @@ The performance and reliability of your notebook may depend on the caching funct
     negligible.
 
 
-### Tips for reliable caching
+## Tips for reliable caching
 
 !!! tip "Isolate cached code blocks to their own cells"
+
+    Isolating cached functions in separate cells improves cache reliability.
+    When dependencies and cached functions are in the same cell, any change to the cell
+    invalidates the cache, even if the cached function itself hasn't changed.
+    Separating them ensures the cache is only invalidated when the function actually changes.
 
 **Don't do this:**
 ```python
@@ -123,6 +129,11 @@ def query_database(query):
 
 !!! tip "For best performance, only introduce low memory footprint variables"
 
+    Variables inside cache blocks are serialized for cache key generation.
+    Large datasets increase serialization time and memory usage without providing
+    cache benefits. Compute derived values (like length) outside the cache block
+    and only use the small values inside.
+
 **Don't do this:**
 ```python
 with mo.persistent_cache("bad example"):
@@ -140,9 +151,12 @@ with mo.persistent_cache("good example"):
 
 !!! tip "Use marimo APIs where they exist"
 
-When using marimo's APIs, such as `mo.watch.file`, you can ensure that side effects are handled correctly and that the cache is invalidated when necessary.
+    marimo's APIs are designed to work seamlessly with the caching system.
+    They automatically handle cache invalidation when external resources change,
+    ensuring your cached results stay fresh. Using standard Python APIs may
+    miss changes that should invalidate the cache.
 
-**Don't do this:**
+**Avoid this:**
 ```python
 my_file = open("my_file.txt")
 with mo.persistent_cache("my_file"):
@@ -165,9 +179,18 @@ with mo.persistent_cache("my_file"):
 This has the same issue as `functools.cache`. If you have the option to use a marimo API, do so, as some APIs provide cache-busting side-effect results like `mo.watch.file`.
 
 
-### Pitfalls
+## Pitfalls
 
 !!! warning "External modules"
+
+External modules are assumed to not mutate variables in a way that would affect
+the cache. If you use an external module that changes the state of a variable,
+the cache may not be invalidated correctly. Note that this does not apply to
+imported marimo notebooks, which will still utilize intelligent cache
+invalidation.
+
+For example, consider the following code:
+
 ```python
 # my_lib.py
 
@@ -184,6 +207,7 @@ from my_lib import expensive_function
 
 # Note: updating my_lib.py will not invalidate the cache
 cached_function = mo.cache(expensive_function)
+original_cached_result == cached_function()
 ```
 
 Then consider we update `my_lib.py` to change the return value of `function_that_may_change`:
@@ -198,7 +222,22 @@ def expensive_function():
     return function_that_may_change()
 ```
 
-`cache` only considers the provided function for external modules. You can set the `__version__` of the module to more aggressively invalidate the cache.
+```python
+# Cell 2
+new_cached_result = cached_function()
+# Note: the cache will may return the original result
+# since expensive_function was not changed!
+# original_cached_result == new_cached_result
+```
+
+`cache` only considers the provided function for external modules.
+By setting `pin_modules=True`, you can modify the `__version__` of the module
+to more aggressively invalidate the cache. Alternatively, consider making the
+external module a marimo notebook, which will ensure that the cache is
+invalidated when the module changes.
+
+Your final option is just to clear the cache manually by clearing `__marimo__/cache/`.
+
 
 !!! warning "Non-wrapping external decorators"
 
