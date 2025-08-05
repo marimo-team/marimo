@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import html
 import sys
 import threading
@@ -11,6 +12,9 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import jedi  # type: ignore # noqa: F401
 import jedi.api  # type: ignore # noqa: F401
+# jedi dependency
+import parso
+from parso.python.tree import PythonErrorNode, PythonNode
 
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -416,8 +420,43 @@ def _key_options_dispatcher(obj: Any) -> list[str]:
     return []
 
 
+# NOTE need to be careful because `__getitem__` can trigger arbitrary code
+def _resolve_chained_key_path(obj_name: str, trigger_code: str) -> list[str]:
+    """Determine the chain of keys access based on source code
+    
+    This assumes marimo passes a single line of code as `trigger_code`
+    """
+    ast_ = parso.parse(trigger_code)
+    # TODO robust handling of top-level node type
+    root_node: PythonErrorNode = ast_.children[0]
+
+    # we expect to retrieve an `object_node_idx` because `object_name`
+    # is derived from the same source code
+    key_access_nodes = []
+    seen_object_node = False
+    # TODO robust handling of different node types
+    for node in root_node.children:
+        if obj_name in node.get_code():
+            seen_object_node = True
+            continue
+        
+        # iterate until we find the node associated with `obj_name`
+        if seen_object_node is False:
+            continue
+
+        # if consecutive nodes after `obj_name` node are not
+        # key accessor nodes `[""]`, exit
+        if not (isinstance(node, PythonNode) and node.type == "trailer"):
+            break
+
+        key = ast.literal_eval(node.get_code())
+        key_access_nodes.append(key)
+
+    return key_access_nodes
+
+
 def _get_key_options(
-    script: jedi.Script, glbls: dict[str, Any]
+    script: jedi.Script, glbls: dict[str, Any], request=None,
 ) -> list[CompletionOption]:
     """Get completion values for trigger `["` or `['`. Values are meant to be
     passed to `.__getitem__()`
@@ -425,6 +464,8 @@ def _get_key_options(
     This implementation assumes that marimo's `CompletionRequest.document`
     only includes current line, up to the completion trigger.
     """
+    # NOTE we use the `Script` for convenience because it's already computed
+    # we could use low-level `parso` AST directly
     names = script.get_names(
         references=True, definitions=False, all_scopes=False
     )
@@ -435,11 +476,21 @@ def _get_key_options(
         return []
 
     obj_name = names[-1].name
-    obj = glbls.get(obj_name)
-    if obj is None:
+    root_obj = glbls.get(obj_name)
+    if root_obj is None:
         LOGGER.debug(f"Failed to find `{obj_name=:}` in `glbls`")
         return []
+    
+    obj = root_obj
+    key_paths = _resolve_chained_key_path(obj_name, trigger_code=request.document)
+    # to not support completion of `dictionary["a"]["` use this
+    # if key_paths:
+    #   return []
 
+    for key in key_paths:
+        # NOTE __getitem__ can execute arbitrary code and become expensive
+        obj = obj.__getitem__(*key)
+    
     keys = _key_options_dispatcher(obj)
     # TODO currently unreliable for non-string keys, even if stringified
     # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
@@ -467,7 +518,7 @@ def _maybe_get_key_options(
     locked = glbls_lock.acquire(blocking=False)
     if locked:
         try:
-            return _get_key_options(script, glbls)
+            return _get_key_options(script, glbls, request=request)
         finally:
             glbls_lock.release()
     else:

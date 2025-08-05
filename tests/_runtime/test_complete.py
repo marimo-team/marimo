@@ -18,6 +18,7 @@ from marimo._messaging.types import Stream
 from marimo._runtime.complete import (
     _build_docstring_cached,
     _maybe_get_key_options,
+    _resolve_chained_key_path,
     complete,
 )
 from marimo._runtime.patches import patch_jedi_parameter_completion
@@ -468,6 +469,150 @@ obj = {object_name}\
     assert message_name == CompletionResult.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
+    if expects_completions is False:
+        return
+
+    assert prefix_length == 0
+    assert all(option["type"] == "property" for option in options)
+    assert all(option["completion_info"] == "key" for option in options)
+
+    expected_keys: list[str]
+    if object_name == "static_key":
+        # from source code in variable `other_cells_code`
+        expected_keys = ["static_key"]
+    elif object_name == "dynamic_key":
+        expected_keys = list(glbls["dynamic_key"].keys())
+    elif object_name == "mixed_keys":
+        expected_keys = list(glbls["mixed_keys"].keys())
+    elif object_name == "ipython_data":
+        # from source code in variable `other_cells_code`
+        expected_keys = ["foo", "bar", "baz"]
+    else:
+        RuntimeError(
+            f"Make sure you defined `expected_keys` for `{object_name}`"
+            " Currently, the test is improperly defined."
+        )
+
+    # check `len()` to ensure `set()` operation doesn't deduplicate keys
+    assert len(options_values) == len(expected_keys)
+    assert set(options_values) == set(expected_keys)
+
+
+@pytest.mark.parametrize(
+    "trigger_code, expected_key_path",
+    # NOTE trigger code produce by marimo must end with `['` or `["` 
+    [
+        ("obj['", []),
+        ("obj['foo']['", [["foo"]]),
+        ("obj['foo', 'bar']['", [["foo", "bar"]]),
+        ("obj['foo']['bar']['", [["foo"], ["bar"]]),
+    ]
+)
+def test_resolve_chained_key_path(
+    trigger_code: str,
+    expected_key_path: list[str]
+) -> None:
+    key_path = _resolve_chained_key_path("obj", trigger_code)
+    assert key_path == expected_key_path
+
+
+# NOTE logic is copied from `test_complete_main_entrypoint`
+# but the `trigger` code is one level deeper
+@pytest.mark.parametrize(
+    "code_and_expects_completions", cases_key_completions_code()
+)
+@pytest.mark.parametrize(
+    "object_name", ["static_key", "dynamic_key", "mixed_keys", "iprefixpython_data"]
+)
+def test_chained_autocompletion(
+    code_and_expects_completions: tuple,
+    object_name: str
+) -> None:
+    top_level_key = "depth0"
+    trigger_code, expects_completions = code_and_expects_completions
+    trigger_code = trigger_code.replace("obj[", f"obj['{top_level_key}'][")
+
+    # parameterize the test (object type, trigger code)
+    # `trigger_code` includes different ways to trigger autocompletion (or not)
+    # All `trigger_code` cases trigger completion on variable `obj`
+    # To test different object types, we assign different values to `obj`
+    other_cells_code = f'''\
+import random
+
+class CustomData:
+    def __init__(self):
+        self._table = {{
+            "foo": [0, 1],
+            "bar": [1., 3.],
+            "baz": [True, True],
+        }}
+
+    @property
+    def a_property(self) -> str:
+        """This is a property"""
+        return "prop value"
+
+    def __getitem__(self, key: str) -> list:
+        """Returns a mock column"""
+        return self._table[key]
+
+    def _ipython_key_completions_(self) -> list[str]:
+        return list(self._table.keys())
+
+ipython_data = CustomData()
+static_key = {{"static_key": "foo"}}
+dynamic_key = {{str(random.randint(0, 10)): "foo"}}
+mixed_keys = {{"static_key": "foo", str(random.randint(0, 10)): "bar"}}
+obj = dict({top_level_key}={object_name})\
+'''
+    mock_other_cell = mock.MagicMock()
+    mock_other_cell.code = other_cells_code
+
+    mock_current_cell = mock.MagicMock()
+    mock_current_cell.code = trigger_code
+    current_cell_id = CellId_t("my-request-id")
+
+    mock_graph = mock.MagicMock()
+    mock_graph.cells = {
+        "other-cell-id": mock_other_cell,
+        current_cell_id: mock_current_cell,
+    }
+
+    glbls = {}
+    exec(other_cells_code, {}, glbls)
+    # check existence of variables in globals and their type
+    assert isinstance(
+        glbls.get("ipython_data"), glbls.get("CustomData", Exception)
+    )
+    assert isinstance(glbls.get("static_key"), dict)
+    assert isinstance(glbls.get("dynamic_key"), dict)
+    assert isinstance(glbls.get("mixed_keys"), dict)
+
+    lock = threading.RLock()
+    local_stream = CaptureStream()
+
+    completion_request = CodeCompletionRequest(
+        id="request_id",
+        document=trigger_code,
+        cell_id=current_cell_id,
+    )
+
+    complete(
+        request=completion_request,
+        graph=mock_graph,
+        glbls=glbls,
+        glbls_lock=lock,
+        stream=local_stream,
+    )
+
+    messages = local_stream.messages
+    message_name, content = messages[0]
+    prefix_length = content["prefix_length"]
+    options = content["options"]
+    options_values = [option["name"] for option in options]
+
+    assert len(messages) == 1
+    assert message_name == CompletionResult.name
     if expects_completions is False:
         return
 
