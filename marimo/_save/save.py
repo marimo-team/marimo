@@ -921,18 +921,12 @@ def persistent_cache(  # type: ignore[misc]
             `__marimo__/cache` in the directory of the notebook file
         method: the serialization method to use, current options are "json",
             and "pickle" (default).
-        pin_modules: if True, the cache will be invalidated if module versions
-            differ between runs, defaults to False.
         store: optional store.
-        **kwargs: keyword arguments passed to `cache()`
-        *args: positional arguments passed to `cache()`
         fn: the wrapped function if no settings are passed.
-        save_path: the folder in which to save the cache, defaults to
-            `__marimo__/cache` in the directory of the notebook file
-        method: the serialization method to use, current options are "json",
-            and "pickle" (default).
+        *args: positional arguments passed to `cache()`
         pin_modules: if True, the cache will be invalidated if module versions
             differ between runs, defaults to False.
+        **kwargs: keyword arguments passed to `cache()`
     """
 
     arg = name
