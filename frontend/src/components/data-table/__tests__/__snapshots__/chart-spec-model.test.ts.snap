@@ -164,7 +164,7 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
         "x": {
           "bin": {
             "binned": true,
-            "step": 2,
+            "step": 10,
           },
           "field": "bin_start",
           "type": "quantitative",
@@ -224,7 +224,7 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
           },
           "bin": {
             "binned": true,
-            "step": 2,
+            "step": 10,
           },
           "field": "bin_start",
           "type": "quantitative",
@@ -485,7 +485,7 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
               "axis": null,
               "bin": {
                 "binned": true,
-                "step": 2,
+                "step": 86400000,
               },
               "field": "bin_start",
               "type": "temporal",
@@ -544,7 +544,7 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
               "axis": null,
               "bin": {
                 "binned": true,
-                "step": 2,
+                "step": 86400000,
               },
               "field": "bin_start",
               "type": "temporal",
@@ -553,7 +553,7 @@ exports[`ColumnChartSpecModel > should handle datetime bin values when feat flag
               "axis": null,
               "bin": {
                 "binned": true,
-                "step": 2,
+                "step": 86400000,
               },
               "field": "bin_end",
               "type": "temporal",
