@@ -458,6 +458,19 @@ export function renderCellValue<TData, TValue>(
 
     const parts = parseContent(stringValue);
     const hasMarkup = parts.some((part) => part.type !== "text");
+
+    // Check if the string contains box drawing characters
+    const hasBoxDrawing = /[─│┌┐└┘├┤┬┴]/.test(stringValue);
+
+    // For box drawing characters, always show inline with proper formatting
+    if (hasBoxDrawing) {
+      return (
+        <div onClick={selectCell} className={cellStyles}>
+          <pre className="text-xs max-h-96 overflow-y-auto">{stringValue}</pre>
+        </div>
+      );
+    }
+
     if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
       return (
         <div onClick={selectCell} className={cellStyles}>
