@@ -113,24 +113,20 @@ def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
 def check_app_correctness_or_convert(filename: str) -> None:
     from marimo._convert.converters import MarimoConvert
 
-    code = ""
+    file = Path(filename)
+    code = file.read_text(encoding="utf-8")
     try:
         return check_app_correctness(filename, noninteractive=True)
     except SyntaxError:
-        # Create a single cell with the broken code
-        with open(filename, encoding="utf-8") as f:
-            code = MarimoConvert.from_text(source=f.read()).to_py()
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(code)
+        code = MarimoConvert.from_text(source=code).to_py()
+        file.write_text(code, encoding="utf-8")
     except click.ClickException:
         # A click exception is raised if a python script could not be converted
-        with open(filename, encoding="utf-8") as f:
-            code = MarimoConvert.from_non_marimo_python_script(
-                source=f.read(), aggressive=True
-            ).to_py()
+        code = MarimoConvert.from_non_marimo_python_script(
+            source=code, aggressive=True
+        ).to_py()
 
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(code)
+    file.write_text(code, encoding="utf-8")
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
