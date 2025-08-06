@@ -216,6 +216,15 @@ def format_entry(entry: CategorizedEntry) -> str:
     return f"* {title} ({entry.commit.sha[:7]})"
 
 
+def get_contributors(entries: list[CategorizedEntry]) -> list[str]:
+    """Extract unique contributors from all entries."""
+    contributors = set()
+    for entry in entries:
+        if entry.pr and entry.pr.author:
+            contributors.add(entry.pr.author.login)
+    return sorted(contributors, key=str.lower)
+
+
 def generate_release_notes(since_tag: str) -> str:
     """Generate release notes since a specific tag."""
     commits = get_commits_since_tag(since_tag)
@@ -286,8 +295,15 @@ def generate_release_notes(since_tag: str) -> str:
             notes.append(format_entry(entry))
         notes.append("")
 
-    notes.append("## New Contributors")
+    contributors = get_contributors(entries)
+    notes.append("## Contributors")
+    notes.append(
+        f"Thanks to all our community and contributors who made this release possible: @{', @'.join(contributors)}"
+    )
+    notes.append("")
+    notes.append("And especially to our new contributors:")
     notes.append("* TODO: Check for new contributors")
+    notes.append("")
 
     current_tag = "TODO_CURRENT_VERSION"
     notes.append(
