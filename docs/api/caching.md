@@ -252,7 +252,7 @@ def prompt_llm(query, **kwargs):
     return llm_client.chat.completions.create(messages=[message], **kwargs)
 ```
 
-### Leverage marimo's closure mechanism for unhashable arguments
+### Close over unhashable or un-pickleable arguments
 
 `marimo`'s caching mechanism is accounts for every named variable in your notebook.
 However, function arguments, are not notebook variables- and as such, they must be pickleable for caching to work.
