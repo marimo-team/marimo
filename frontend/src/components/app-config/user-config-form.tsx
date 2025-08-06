@@ -1247,6 +1247,32 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <FormField
+              control={form.control}
+              name="experimental.sql_linter"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">SQL Linter</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="sql-linter-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.sql_linter"
+                  />
+                  <FormDescription>
+                    Enable experimental SQL linting and autocompletion using
+                    CodeMirror.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }
