@@ -22,6 +22,10 @@ DataType = Literal[
 # e.g. polars, pandas, numpy, etc.
 ExternalDataType = str
 
+# This is a special external type for box drawing characters
+# Frontend should use the same value to check if the column is a box drawing column
+BOX_DRAWING_EXTERNAL_TYPE = "box_drawing"
+
 
 @dataclass
 class DataTableColumn:

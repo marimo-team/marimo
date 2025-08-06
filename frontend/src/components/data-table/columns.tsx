@@ -23,6 +23,7 @@ import { DatePopover } from "./date-popover";
 import type { FilterType } from "./filters";
 import { getMimeValues, MimeCell } from "./mime-cell";
 import {
+  BOX_DRAWING_EXTERNAL_TYPE,
   type DataTableSelection,
   extractTimezone,
   type FieldTypesWithExternalType,
@@ -459,11 +460,8 @@ export function renderCellValue<TData, TValue>(
     const parts = parseContent(stringValue);
     const hasMarkup = parts.some((part) => part.type !== "text");
 
-    // Check if the string contains box drawing characters
-    const hasBoxDrawing = /[─│┌┐└┘├┤┬┴]/.test(stringValue);
-
-    // For box drawing characters, always show inline with proper formatting
-    if (hasBoxDrawing) {
+    // For box drawing characters, show it inline
+    if (dtype === BOX_DRAWING_EXTERNAL_TYPE) {
       return (
         <div onClick={selectCell} className={cellStyles}>
           <pre className="max-h-[450px] text-xs overflow-y-auto">

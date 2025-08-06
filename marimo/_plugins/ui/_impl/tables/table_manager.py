@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import abc
+import re
 from dataclasses import dataclass
 from typing import Any, Generic, NamedTuple, Optional, TypeVar, Union
 
 from marimo._data.models import (
+    BOX_DRAWING_EXTERNAL_TYPE,
     BinValue,
     ColumnStats,
     DataType,
@@ -37,6 +39,19 @@ class TableCell:
         if key not in ["row", "column", "value"]:
             raise KeyError(f"Invalid key: {key}")
         return getattr(self, key)
+
+
+def has_box_drawing_characters(values: list[Any]) -> bool:
+    """
+    Check if any of the values contain box drawing characters.
+    Common in EXPLAIN QUERY PLAN output.
+    """
+    box_drawing_pattern = re.compile(r"[─│┌┐└┘├┤┬┴]")
+
+    for value in values:
+        if isinstance(value, str) and box_drawing_pattern.search(value):
+            return True
+    return False
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -140,10 +155,18 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     def get_field_types(self) -> FieldTypes:
-        return [
-            (column_name, self.get_field_type(column_name))
-            for column_name in self.get_column_names()
-        ]
+        # Box drawings are only supported for small tables
+        check_box_drawing = self.get_num_columns() <= 3
+
+        field_types = []
+        for column_name in self.get_column_names():
+            field_type, external_type = self.get_field_type(column_name)
+            if check_box_drawing and has_box_drawing_characters(
+                self.get_sample_values(column_name)
+            ):
+                external_type = BOX_DRAWING_EXTERNAL_TYPE
+            field_types.append((column_name, (field_type, external_type)))
+        return field_types
 
     @abc.abstractmethod
     def take(self, count: int, offset: int) -> TableManager[Any]:

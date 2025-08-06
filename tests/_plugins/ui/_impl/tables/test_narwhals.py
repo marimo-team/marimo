@@ -10,7 +10,11 @@ from typing import TYPE_CHECKING, Any
 import narwhals.stable.v1 as nw
 import pytest
 
-from marimo._data.models import BinValue, ColumnStats
+from marimo._data.models import (
+    BOX_DRAWING_EXTERNAL_TYPE,
+    BinValue,
+    ColumnStats,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -281,6 +285,14 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             NarwhalsTableManager.from_dataframe(complex_data).get_field_types()
             == expected_field_types
         )
+
+    def test_box_drawing(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame({"A": ["┌─┐", "│ │", "└─┘"]})
+        assert NarwhalsTableManager.from_dataframe(df).get_field_types() == [
+            ("A", ("string", BOX_DRAWING_EXTERNAL_TYPE))
+        ]
 
     def test_limit(self) -> None:
         limited_manager = self.manager.take(1, 0)
