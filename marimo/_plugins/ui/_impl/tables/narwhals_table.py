@@ -454,7 +454,7 @@ class NarwhalsTableManager(
 
         col = self.as_frame().get_column(column)
         bin_start = col.min()
-        bin_values = []
+        bin_values: list[BinValue] = []
 
         import warnings
 

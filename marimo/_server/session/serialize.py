@@ -225,13 +225,24 @@ def deserialize_session(session: NotebookSessionV1) -> SessionView:
                     )
                 )
             else:
+                is_stderr = console["name"] == "stderr"
+                data = console["text"]
+                # HACK: We need to detect tracebacks in stderr by checking for HTML
+                # formatting.
+                is_traceback = (
+                    is_stderr
+                    and isinstance(data, str)
+                    and data.startswith('<span class="codehilite">')
+                )
                 console_outputs.append(
                     CellOutput(
                         channel=CellChannel.STDERR
-                        if console["name"] == "stderr"
+                        if is_stderr
                         else CellChannel.STDOUT,
-                        data=console["text"],
-                        mimetype="text/plain",
+                        data=data,
+                        mimetype="application/vnd.marimo+traceback"
+                        if is_traceback
+                        else "text/plain",
                     )
                 )
 
