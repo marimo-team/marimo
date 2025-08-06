@@ -13,6 +13,7 @@ export interface ExperimentalFeatures {
   rtc_v2: boolean;
   performant_table_charts: boolean;
   mcp_docs: boolean;
+  sql_linter: boolean;
   // Add new feature flags here
 }
 
@@ -23,6 +24,7 @@ const defaultValues: ExperimentalFeatures = {
   rtc_v2: false,
   performant_table_charts: false,
   mcp_docs: false,
+  sql_linter: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

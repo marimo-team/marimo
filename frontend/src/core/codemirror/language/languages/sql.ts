@@ -1,9 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
+  acceptCompletion,
   autocompletion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
+import { insertTab } from "@codemirror/commands";
 import {
   Cassandra,
   keywordCompletionSource,
@@ -15,17 +17,20 @@ import {
   type SQLConfig,
   type SQLDialect,
   SQLite,
+  type SQLNamespace,
   StandardSQL,
   schemaCompletionSource,
   sql,
 } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
+import { type EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parser } from "@lezer/python";
+import { sqlExtension } from "@marimo-team/codemirror-sql";
 import dedent from "string-dedent";
 import { isSchemaless } from "@/components/datasources/utils";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
   dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
@@ -196,9 +201,19 @@ export class SQLLanguageAdapter
   }
 
   getExtension(): Extension[] {
-    return [
+    const extensions = [
       // This can be updated with a dispatch effect
       sqlConfigCompartment.of(sql({ dialect: DEFAULT_DIALECT })),
+      keymap.of([
+        {
+          key: "Tab",
+          // When tab is pressed, we want to accept the completion or insert a tab
+          run: (cm) => {
+            return acceptCompletion(cm) || insertTab(cm);
+          },
+          preventDefault: true,
+        },
+      ]),
       autocompletion({
         // We remove the default keymap because we use our own which
         // handles the Escape key correctly in Vim
@@ -214,6 +229,32 @@ export class SQLLanguageAdapter
         ],
       }),
     ];
+
+    const experimentalLinter = getFeatureFlag("sql_linter");
+    if (experimentalLinter) {
+      extensions.push(
+        sqlExtension({
+          linterConfig: {
+            delay: 250, // Delay before running validation
+          },
+          gutterConfig: {
+            backgroundColor: "#3b82f6", // Blue for current statement
+            errorBackgroundColor: "#ef4444", // Red for invalid statements
+            hideWhenNotFocused: true, // Hide gutter when editor loses focus
+          },
+          enableHover: true, // Enable hover tooltips
+          hoverConfig: {
+            schema: getSchema, // Use the same schema as autocomplete
+            hoverTime: 300, // 300ms hover delay
+            enableKeywords: true, // Show keyword information
+            enableTables: true, // Show table information
+            enableColumns: true, // Show column information
+          },
+        }),
+      );
+    }
+
+    return extensions;
   }
 }
 
@@ -415,9 +456,21 @@ function customKeywordCompletionSource(): CompletionSource {
       return null;
     }
 
-    const result = keywordCompletionSource(dialect)(ctx);
+    const uppercaseKeywords = true;
+    const result = keywordCompletionSource(dialect, uppercaseKeywords)(ctx);
     return result;
   };
+}
+
+function getSchema(view: EditorView): SQLNamespace {
+  const metadata = getSQLMetadata(view.state);
+  const connectionName = metadata.engine;
+  const config = SCHEMA_CACHE.getCompletionSource(connectionName);
+  if (!config?.schema) {
+    return {};
+  }
+
+  return config.schema;
 }
 
 /**
