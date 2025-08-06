@@ -466,7 +466,9 @@ export function renderCellValue<TData, TValue>(
     if (hasBoxDrawing) {
       return (
         <div onClick={selectCell} className={cellStyles}>
-          <pre className="text-xs max-h-96 overflow-y-auto">{stringValue}</pre>
+          <pre className="max-h-[450px] text-xs overflow-y-auto">
+            {stringValue}
+          </pre>
         </div>
       );
     }
