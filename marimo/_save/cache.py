@@ -42,6 +42,7 @@ CACHE_PREFIX: dict[CacheType, str] = {
 ValidCacheSha = namedtuple("ValidCacheSha", ("sha", "cache_type"))
 MetaKey = Literal["return", "version"]
 
+
 class CustomStub(abc.ABC):
     """Base class for custom stubs that can be registered in the cache."""
 
@@ -58,7 +59,9 @@ class ModuleStub:
     def load(self) -> Any:
         return importlib.import_module(self.name)
 
+
 CUSTOM_STUBS: dict[type, type[CustomStub]] = {}
+
 
 def register_stub(cls: None | type, stub: type[CustomStub]) -> None:
     CUSTOM_STUBS[cls] = stub
@@ -116,6 +119,7 @@ class Cache:
 
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
+
         def hydrate(value: Any) -> Any:
             # If it's a module we must replace with a stub.
             if isinstance(value, ModuleStub):
