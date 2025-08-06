@@ -107,10 +107,8 @@ class Cache:
             value = self.defs.get(var, None)
             scope[lookup] = self._restore_from_stub_if_needed(value, scope, memo)
 
-        if "return" in self.meta:
-            self.meta["return"] = self._restore_from_stub_if_needed(
-                self.meta["return"], scope
-            )
+        for key, value in self.meta.items():
+            self.meta[key] = self._restore_from_stub_if_needed(value, scope, memo)
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -221,10 +219,8 @@ class Cache:
         for key, value in self.defs.items():
             self.defs[key] = self._convert_to_stub_if_needed(value, memo)
 
-        if "return" in self.meta:
-            self.meta["return"] = self._convert_to_stub_if_needed(
-                self.meta["return"]
-            )
+        for key, value in self.meta.items():
+            self.meta[key] = self._convert_to_stub_if_needed(value, memo)
 
     def _convert_to_stub_if_needed(self, value: Any, memo: dict[int, Any] | None = None) -> Any:
         """Convert objects to stubs if needed, recursively handling collections."""
