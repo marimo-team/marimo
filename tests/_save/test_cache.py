@@ -9,18 +9,25 @@ import warnings
 import pytest
 
 import marimo
-from marimo._save.cache import Cache, UIElementStub
 from marimo._ast.app import App
 from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
+from marimo._save.cache import Cache, UIElementStub
 from tests.conftest import ExecReqProvider
 
 
 class TestCache:
     @staticmethod
     def test_cache_basic_update() -> None:
-        cache = Cache(defs={}, hash="123", cache_type="Pure", stateful_refs=set(), hit=True, meta={})
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
         scope = {}
         ret = 1
         cache.update(scope, {"return": ret})
@@ -28,7 +35,14 @@ class TestCache:
 
     @staticmethod
     def test_cache_recursive_update() -> None:
-        cache = Cache(defs={}, hash="123", cache_type="Pure", stateful_refs=set(), hit=True, meta={})
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
         scope = {}
         ret = []
         ret.append(ret)
@@ -41,7 +55,14 @@ class TestCache:
 
     @staticmethod
     def test_cache_ui_element_update() -> None:
-        cache = Cache(defs={}, hash="123", cache_type="Pure", stateful_refs=set(), hit=True, meta={})
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
         scope = {}
         ret = dropdown(options=[1, 2, 3])
         cache.update(scope, {"return": ret})
@@ -55,7 +76,14 @@ class TestCache:
 
     @staticmethod
     def test_cache_basic_restore() -> None:
-        cache = Cache(defs={}, hash="123", cache_type="Pure", stateful_refs=set(), hit=True, meta={"return": 42})
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": 42},
+        )
         scope = {}
         cache.restore(scope)
         assert cache.meta["return"] == 42
@@ -65,11 +93,18 @@ class TestCache:
         # Create a self-referential list
         ret = []
         ret.append(ret)
-        
-        cache = Cache(defs={}, hash="123", cache_type="Pure", stateful_refs=set(), hit=True, meta={"return": ret})
+
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": ret},
+        )
         scope = {}
         cache.restore(scope)
-        
+
         # After restoration, should maintain the self-reference
         restored = cache.meta["return"]
         assert isinstance(restored, list)
@@ -81,11 +116,18 @@ class TestCache:
         # Create a UIElement and convert it to a stub
         original_dropdown = dropdown(options=[1, 2, 3])
         stub = UIElementStub(original_dropdown)
-        
-        cache = Cache(defs={}, hash="123", cache_type="Pure", stateful_refs=set(), hit=True, meta={"return": stub})
+
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": stub},
+        )
         scope = {}
         cache.restore(scope)
-        
+
         # After restoration, should have a new UIElement instance with same properties
         restored = cache.meta["return"]
         assert isinstance(restored, type(original_dropdown))
@@ -93,46 +135,54 @@ class TestCache:
         assert restored.options == original_dropdown.options
         assert restored.value == original_dropdown.value
 
-    @staticmethod  
+    @staticmethod
     def test_cache_nested_ui_element_restore() -> None:
         # Create nested structure with UIElements
-        slider = dropdown(options=['a', 'b', 'c'])
+        slider = dropdown(options=["a", "b", "c"])
         button = dropdown(options=[1, 2, 3])
         nested = {
-            'controls': [slider, button],
-            'primary': slider,
-            'secondary': button
+            "controls": [slider, button],
+            "primary": slider,
+            "secondary": button,
         }
-        
+
         # Convert to stubs
         slider_stub = UIElementStub(slider)
         button_stub = UIElementStub(button)
         nested_with_stubs = {
-            'controls': [slider_stub, button_stub],
-            'primary': slider_stub,
-            'secondary': button_stub
+            "controls": [slider_stub, button_stub],
+            "primary": slider_stub,
+            "secondary": button_stub,
         }
-        
-        cache = Cache(defs={}, hash="123", cache_type="Pure", stateful_refs=set(), hit=True, meta={"return": nested_with_stubs})
+
+        cache = Cache(
+            defs={},
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={"return": nested_with_stubs},
+        )
         scope = {}
         cache.restore(scope)
-        
+
         # After restoration, should have new UIElement instances but preserve structure
         restored = cache.meta["return"]
         assert isinstance(restored, dict)
-        assert len(restored['controls']) == 2
-        
+        assert len(restored["controls"]) == 2
+
         # Should be same instances within the structure (shared references preserved)
-        assert restored['primary'] is restored['controls'][0]
-        assert restored['secondary'] is restored['controls'][1]
-        
+        assert restored["primary"] is restored["controls"][0]
+        assert restored["secondary"] is restored["controls"][1]
+
         # But different from originals
-        assert restored['primary'] is not slider
-        assert restored['secondary'] is not button
-        
+        assert restored["primary"] is not slider
+        assert restored["secondary"] is not button
+
         # Properties should match
-        assert restored['primary'].options == slider.options
-        assert restored['secondary'].options == button.options
+        assert restored["primary"].options == slider.options
+        assert restored["secondary"].options == button.options
+
 
 class TestScriptCache:
     @staticmethod

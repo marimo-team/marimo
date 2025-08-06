@@ -105,10 +105,14 @@ class Cache:
         memo = {}  # Track processed objects to handle cycles
         for var, lookup in self.contextual_defs():
             value = self.defs.get(var, None)
-            scope[lookup] = self._restore_from_stub_if_needed(value, scope, memo)
+            scope[lookup] = self._restore_from_stub_if_needed(
+                value, scope, memo
+            )
 
         for key, value in self.meta.items():
-            self.meta[key] = self._restore_from_stub_if_needed(value, scope, memo)
+            self.meta[key] = self._restore_from_stub_if_needed(
+                value, scope, memo
+            )
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -131,17 +135,20 @@ class Cache:
                 )
 
     def _restore_from_stub_if_needed(
-        self, value: Any, scope: dict[str, Any], memo: dict[int, Any] | None = None
+        self,
+        value: Any,
+        scope: dict[str, Any],
+        memo: dict[int, Any] | None = None,
     ) -> Any:
         """Restore objects from stubs if needed, recursively handling collections."""
         if memo is None:
             memo = {}
-        
+
         # Check for cycles
         obj_id = id(value)
         if obj_id in memo:
             return memo[obj_id]
-        
+
         if isinstance(value, ModuleStub):
             result = value.load()
         elif isinstance(value, FunctionStub):
@@ -151,10 +158,12 @@ class Cache:
         elif isinstance(value, list):
             result = []
             memo[obj_id] = result
-            result.extend([
-                self._restore_from_stub_if_needed(item, scope, memo)
-                for item in value
-            ])
+            result.extend(
+                [
+                    self._restore_from_stub_if_needed(item, scope, memo)
+                    for item in value
+                ]
+            )
         elif isinstance(value, tuple):
             result = tuple(
                 self._restore_from_stub_if_needed(item, scope, memo)
@@ -168,7 +177,7 @@ class Cache:
         else:
             result = value
         memo[obj_id] = result
-        
+
         return result
 
     def update(
@@ -222,16 +231,18 @@ class Cache:
         for key, value in self.meta.items():
             self.meta[key] = self._convert_to_stub_if_needed(value, memo)
 
-    def _convert_to_stub_if_needed(self, value: Any, memo: dict[int, Any] | None = None) -> Any:
+    def _convert_to_stub_if_needed(
+        self, value: Any, memo: dict[int, Any] | None = None
+    ) -> Any:
         """Convert objects to stubs if needed, recursively handling collections."""
         if memo is None:
             memo = {}
-        
+
         # Check for cycles
         obj_id = id(value)
         if obj_id in memo:
             return memo[obj_id]
-        
+
         if inspect.ismodule(value):
             result = ModuleStub(value)
         elif inspect.isfunction(value):
@@ -255,12 +266,13 @@ class Cache:
             memo[obj_id] = value  # Temporary, will be replaced
             # Recursively convert dictionary values
             result = {
-                k: self._convert_to_stub_if_needed(v, memo) for k, v in value.items()
+                k: self._convert_to_stub_if_needed(v, memo)
+                for k, v in value.items()
             }
         else:
             result = value
         memo[obj_id] = result
-        
+
         return result
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
