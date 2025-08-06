@@ -55,6 +55,5 @@ functions for capturing console outputs and redirecting them to cell outputs.
 
 ## Object inspection
 
-Use `mo.inspect()` to create a rich display of Python objects for exploring their attributes, methods, and documentation.
-
-::: marimo.inspect
+Use [`mo.inspect`](marimo.inspect) to create a rich display of Python objects
+for exploring their attributes, methods, and documentation.
