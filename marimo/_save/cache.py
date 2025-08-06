@@ -104,17 +104,10 @@ class Cache:
         """Restores values from cache, into scope."""
         for var, lookup in self.contextual_defs():
             value = self.defs.get(var, None)
-            # If it's a module we must replace with a stub.
-            if isinstance(value, ModuleStub):
-                scope[lookup] = value.load()
-            elif isinstance(value, FunctionStub):
-                scope[lookup] = value.load(scope)
-            elif isinstance(value, UIElementStub):
-                # UIElementStub is a placeholder for UIElement, which cannot be
-                # restored directly.
-                scope[lookup] = value.load()
-            else:
-                scope[lookup] = self.defs[var]
+            scope[lookup] = self._restore_from_stub_if_needed(value, scope)
+
+        if "return" in self.meta:
+            self.meta["return"] = self._restore_from_stub_if_needed(self.meta["return"], scope)
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -135,6 +128,24 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
+    
+    def _restore_from_stub_if_needed(self, value: Any, scope: dict[str, Any]) -> Any:
+        """Restore objects from stubs if needed, recursively handling collections."""
+        if isinstance(value, ModuleStub):
+            return value.load()
+        elif isinstance(value, FunctionStub):
+            return value.load(scope)
+        elif isinstance(value, UIElementStub):
+            return value.load()
+        elif isinstance(value, (list, tuple)):
+            # Recursively restore collections
+            restored = [self._restore_from_stub_if_needed(item, scope) for item in value]
+            return type(value)(restored)  # Preserve original type (list/tuple)
+        elif isinstance(value, dict):
+            # Recursively restore dictionary values
+            return {k: self._restore_from_stub_if_needed(v, scope) for k, v in value.items()}
+        else:
+            return value
 
     def update(
         self,
@@ -179,15 +190,30 @@ class Cache:
                     f"({type(value)}:{ref})."
                 )
 
+        # Convert objects to stubs in both defs and meta
         for key, value in self.defs.items():
-            # If it's a module we must replace with a stub.
-            if inspect.ismodule(value):
-                self.defs[key] = ModuleStub(value)
-            elif inspect.isfunction(value):
-                self.defs[key] = FunctionStub(value)
-            elif isinstance(value, UIElement):
-                # UIElement cannot be restored directly, so we store a stub.
-                self.defs[key] = UIElementStub(value)
+            self.defs[key] = self._convert_to_stub_if_needed(value)
+            
+        if "return" in self.meta:
+            self.meta["return"] = self._convert_to_stub_if_needed(self.meta["return"])
+    
+    def _convert_to_stub_if_needed(self, value: Any) -> Any:
+        """Convert objects to stubs if needed, recursively handling collections."""
+        if inspect.ismodule(value):
+            return ModuleStub(value)
+        elif inspect.isfunction(value):
+            return FunctionStub(value)
+        elif isinstance(value, UIElement):
+            return UIElementStub(value)
+        elif isinstance(value, (list, tuple)):
+            # Recursively convert collections
+            converted = [self._convert_to_stub_if_needed(item) for item in value]
+            return type(value)(converted)  # Preserve original type (list/tuple)
+        elif isinstance(value, dict):
+            # Recursively convert dictionary values
+            return {k: self._convert_to_stub_if_needed(v) for k, v in value.items()}
+        else:
+            return value
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
