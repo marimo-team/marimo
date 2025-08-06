@@ -74,114 +74,40 @@ Learn more about exporting notebooks in our [exporting guide](../guides/exportin
 
 ## Caching
 
-marimo provides two caching utilities to help you manage expensive computations:
+marimo provides two decorators to cache the return values of expensive functions:
 
 1. In-memory caching with [`mo.cache`][marimo.cache]
 2. Disk caching with [`mo.persistent_cache`][marimo.persistent_cache]
 
 Both utilities can be used as decorators or context managers.
 
-### In-memory caching
-
-Use [`mo.cache`][marimo.cache] to cache the return values of
-expensive functions, based on their arguments:
-
-/// tab | decorator
+/// tab | `mo.cache`
 
 ```python
 import marimo as mo
 
 @mo.cache
-def compute_predictions(problem_parameters):
-  # do some expensive computations and return a value
-  ...
-```
-
-///
-
-/// tab | context manager
-
-```python
-import marimo as mo
-
-with mo.cache("my_cache") as c:
-    predictions = compute_predictions(problem_parameters):
-```
-
-///
-
-
-When `compute_predictions` is called with a value of
-`problem_parameters` it hasn't seen, it will compute the predictions and store
-them in an in-memory cache. The next time it is called with the same
-parameters, instead of recomputing the predictions, it will return the
-previously computed value from the cache.
-
-??? note "Comparison to `functools.cache`"
-
-    [`mo.cache`][marimo.cache] is like `functools.cache` but smarter.
-    `functools` will sometimes evict values from the cache when it doesn't need to.
-
-    In particular, consider the case when a cell defining a `@mo.cache`-d function
-    re-runs due to an ancestor of it running, or a UI element value changing.
-    `mo.cache` will analyze the dataflow graph to determine whether or not the
-    decorated function has changed, and if it hasn't, it's cache won't be
-    invalidated. In contrast, on re-run a `functools` cache is always invalidated,
-    because `functools` has no knowledge about the structure of marimo's dataflow
-    graph.
-
-    Conversely, [`mo.cache`][marimo.cache] knows to invalidate the cache if
-    closed over variables change, whereas `functools.cache` doesn't, yielding
-    incorrect cache hits.
-
-    [`mo.cache`][marimo.cache] is slightly slower than `functools.cache`, but
-    in most applications the overhead is negligible. For performance critical code,
-    where the decorated function will be called in a tight loop, prefer
-    `functools.cache`.
-
-### Disk caching
-
-Use [`mo.persistent_cache`][marimo.persistent_cache] to cache variables to
-disk. The next time your run your notebook, the cached variables will be loaded
-from disk instead of being recomputed, letting you pick up where you left off.
-
-Reserve this for expensive computations that you would like to persist across
-notebook restarts. Cached outputs are automatically saved to `__marimo__/cache`.
-
-**Example.**
-
-/// tab | decorator
-
-```python
-import marimo as mo
-
-@mo.persistent_cache(name="my_cache")
-def compute_predictions(problem_parameters):
-    # do some expensive computations and return a value
-    ...
-```
-///
-
-
-/// tab | context manager
-
-```python
-import marimo as mo
-
-with mo.persistent_cache(name="my_cache"):
-    # This block of code and its computed variables will be cached to disk
-    # the first time it's run. The next time it's run, `predictions``
-    # will be loaded from disk.
-    predictions = compute_predictions(problem_parameters)
+def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray:
     ...
 ```
 
 ///
 
-Roughly speaking, [`mo.persistent_cache`][marimo.persistent_cache] registers a
-cache hit when the cell is not stale, meaning its code hasn't changed and
-neither have its ancestors. On cache hit the code block won't execute and
-instead variables will be loaded into memory.
+/// tab | `mo.persistent_cache`
+
+```python
+import marimo as mo
+
+@mo.persistent_cache
+def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray
+    ...
+```
+
+///
+
+
+See our [guide on caching](../api/caching.md) for details, including how the cache
+key is constructed, and limitations.
 
 ## Lazy-load expensive UIs
 
