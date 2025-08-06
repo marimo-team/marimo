@@ -428,11 +428,12 @@ def _resolve_chained_key_path(obj_name: str, document: str) -> list[list[str]]:
         ```
     """
     import parso  # jedi dependency
+    from parso.utils import split_lines
 
     # because marimo `CompletionRequest` sends source code up to the cursor position
     # we know only the last line matters for autcompletion.
-    line_containing_trigger = parso.split_lines(document)[-1]
-    ast_ = parso.parse(line_containing_trigger)
+    line_containing_trigger = split_lines(document)[-1]
+    ast_ = parso.parse(line_containing_trigger)  # type: ignore[no-untyped-call]
     # we expect to always hit an error node because `dictionary["` is invalid Python syntax
     root_node = next(
         node for node in ast_.children if node.type == "error_node"
