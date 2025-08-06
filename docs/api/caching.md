@@ -217,7 +217,7 @@ Here is a table comparing marimo's cache with `functools.cache`:
     compute, the difference is negligible.
 
 
-## Tips for reliable caching
+## Tips
 
 ### Isolate cached code blocks to their own cells
 
