@@ -272,8 +272,7 @@ def query_database(query, engine):
 query_database("SELECT * FROM my_table", my_database_engine)
 ```
 
-Instead, by referencing the notebook variable directly, you can leverage
-marimo's closure mechanism to cache the function.
+Instead, you can close over `my_database_engine`:
 
 **Do this:**
 
