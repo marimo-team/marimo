@@ -491,8 +491,10 @@ def test_deserialize_session_with_console():
     console_outputs = cell.console
     assert console_outputs[0].channel == CellChannel.STDOUT
     assert console_outputs[0].data == "stdout message"
+    assert console_outputs[0].mimetype == "text/plain"
     assert console_outputs[1].channel == CellChannel.STDERR
-    assert console_outputs[1].data == ""
+    assert console_outputs[1].data == "stderr message"
+    assert console_outputs[1].mimetype == "text/plain"
 
 
 async def test_session_cache_writer():
@@ -629,6 +631,19 @@ def test_deserialize_empty_data():
 
 def test_deserialize_error_with_traceback():
     """Test deserialization of a session with an error with a traceback"""
+    tb = (
+        '<span class="codehilite"><div class="highlight"><pre><span></span>'
+        '<span class="gt">Traceback (most recent call last):</span>\n'
+        '  File <span class="nb">&quot;/usr/local/lib/python3.12/site-packages/marimo/_runtime/executor.py&quot;</span>, line <span class="m">139</span>, in <span class="n">execute_cell</span>\n'
+        '<span class="w">    </span><span class="k">return</span> <span class="nb">eval</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">last_expr</span><span class="p">,</span> <span class="n">glbls</span><span class="p">)</span>\n'
+        '<span class="w">           </span><span class="pm">^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n'
+        '  File <span class="nb">&quot;/tmp/marimo_46/__marimo__cell_eAXK_.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>\n'
+        '<span class="w">    </span><span class="mi">1</span> <span class="o">/</span> <span class="mi">0</span>\n'
+        '<span class="w">    </span><span class="pm">~~^~~</span>\n'
+        '<span class="gr">ZeroDivisionError</span>: <span class="n">division by zero</span>\n'
+        "</pre></div>\n</span>"
+    )
+
     session = NotebookSessionV1(
         version="1",
         metadata={"marimo_version": "0.14.16"},
@@ -648,18 +663,7 @@ def test_deserialize_error_with_traceback():
                     {
                         "type": "stream",
                         "name": "stderr",
-                        "text": (
-                            '<span class="codehilite"><div class="highlight"><pre><span></span>'
-                            '<span class="gt">Traceback (most recent call last):</span>\n'
-                            '  File <span class="nb">&quot;/usr/local/lib/python3.12/site-packages/marimo/_runtime/executor.py&quot;</span>, line <span class="m">139</span>, in <span class="n">execute_cell</span>\n'
-                            '<span class="w">    </span><span class="k">return</span> <span class="nb">eval</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">last_expr</span><span class="p">,</span> <span class="n">glbls</span><span class="p">)</span>\n'
-                            '<span class="w">           </span><span class="pm">^^^^^^^^^^^^^^^^^^^^^^^^^^^</span>\n'
-                            '  File <span class="nb">&quot;/tmp/marimo_46/__marimo__cell_eAXK_.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>\n'
-                            '<span class="w">    </span><span class="mi">1</span> <span class="o">/</span> <span class="mi">0</span>\n'
-                            '<span class="w">    </span><span class="pm">~~^~~</span>\n'
-                            '<span class="gr">ZeroDivisionError</span>: <span class="n">division by zero</span>\n'
-                            "</pre></div>\n</span>"
-                        ),
+                        "text": tb,
                     }
                 ],
             }
@@ -683,8 +687,8 @@ def test_deserialize_error_with_traceback():
     assert len(cell.console) == 1
     console_output = cell.console[0]
     assert console_output.channel == CellChannel.STDERR
-    assert console_output.mimetype == "text/plain"
-    assert console_output.data == ""
+    assert console_output.mimetype == "application/vnd.marimo+traceback"
+    assert console_output.data == tb
 
 
 def test_serialize_session_with_dict_error():
