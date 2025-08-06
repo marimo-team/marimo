@@ -255,7 +255,7 @@ def prompt_llm(query, **kwargs):
 ### Leverage marimo's closure mechanism for unhashable arguments
 
 `marimo`'s caching mechanism is accounts for every named variable in your notebook.
-However, function arguments, are not notebook varaibles- and as such, they must be pickleable for caching to work.
+However, function arguments, are not notebook variables- and as such, they must be pickleable for caching to work.
 As a result, there may be some code patterns that will not worth with marimo's caching mechanism.
 For example:
 
