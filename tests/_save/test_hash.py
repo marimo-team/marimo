@@ -1693,7 +1693,7 @@ class TestWrappedFunctionCache:
         second_cache_type = k.globals["cache_type2"]
 
         # The decorated function should be treated as impure due to impure decorator
-        # This should use ContentAddressed hashing but with different hashes due to closure analysis
+        # ContextExecutionPath, but since decorated ExecutionPath
         assert first_cache_type == "ExecutionPath", (
             f"Expected ExecutionPath, got {first_cache_type}"
         )
@@ -1709,7 +1709,7 @@ class TestWrappedFunctionCache:
         )
 
     @staticmethod
-    async def test_decorator_pure_with_impure_dependencies_different_cells(
+    async def test_pure_decorator_with_impure_dependencies_different_cells(
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         """Test impure dependencies in different cells (should be execution refs)."""
@@ -1832,7 +1832,7 @@ class TestWrappedFunctionCache:
         )
 
     @staticmethod
-    async def test_decorator_pure_with_impure_dependencies(
+    async def test_pure_decorator_with_impure_dependencies(
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         """Test the impure edge case: decorator is pure but dependent functions are not."""

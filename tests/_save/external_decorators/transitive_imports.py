@@ -7,7 +7,7 @@ with app.setup:
     import math
 
     import marimo as mo
-    import tests._save.decorator_imports.module_1 as my_module
+    import tests._save.external_decorators.module_1 as my_module
 
 
 @app.function
