@@ -3,10 +3,10 @@ import pytest
 from marimo._convert.converters import MarimoConvert
 from marimo._convert.non_marimo_python_script import (
     convert_non_marimo_python_script_to_notebook_ir,
+    convert_non_marimo_script_to_notebook_ir,
     convert_pypercent_script_to_notebook_ir,
     convert_python_block_to_notebook_ir,
     convert_script_block_to_notebook_ir,
-    convert_non_marimo_script_to_notebook_ir,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from tests.mocks import snapshotter
