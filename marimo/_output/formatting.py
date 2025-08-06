@@ -62,6 +62,10 @@ class FormatterRegistry:
         if top_level_type in self.formatters:
             return self.formatters[top_level_type]
 
+        # If it's a type, we don't want to format it
+        if isinstance(obj, type):
+            return None
+
         # Search for formatters in the object's type hierarchy
         for t in top_level_type.mro():
             if t in self.formatters:

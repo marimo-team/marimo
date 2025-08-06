@@ -270,3 +270,14 @@ class TestFormatterRegistry:
         obj = BaseClass()
         result_formatter = registry.get_formatter(obj)
         assert result_formatter == formatter_func
+
+    def test_formatter_for_type(self):
+        """Test that formatter for type works correctly."""
+        registry = FormatterRegistry()
+        registry.add_formatter(int, int_formatter)
+        value = 1
+
+        assert registry.get_formatter(value) == int_formatter
+        assert registry.get_formatter(type(value)) is None
+        assert registry.get_formatter(int) is None
+        assert registry.get_formatter(type(int)) is None
