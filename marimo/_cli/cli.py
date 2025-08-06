@@ -124,7 +124,7 @@ def check_app_correctness_or_convert(filename: str) -> None:
         ).to_py()
     except SyntaxError:
         # The file could not even be read as python
-        code = MarimoConvert.from_text(source=code).to_py()
+        code = MarimoConvert.from_plain_text(source=code).to_py()
         file.write_text(code, encoding="utf-8")
 
     file.write_text(code, encoding="utf-8")

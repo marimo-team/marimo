@@ -78,10 +78,10 @@ class MarimoConvert:
         return MarimoConvert.from_ir(notebook_ir)
 
     @staticmethod
-    def from_text(
+    def from_plain_text(
         source: str,
     ) -> MarimoConverterIntermediate:
-        """Convert string into marimo notebook with the given source code.
+        """Converts plain text into a single celled marimo notebook.
 
         Used for cases with syntax errors or unparsable code.
 
