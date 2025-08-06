@@ -15,6 +15,8 @@ def _valid_path(path: Path) -> bool:
 class FileStore(Store):
     def __init__(self, save_path: Optional[str] = None) -> None:
         self.save_path = Path(save_path or self._default_save_path())
+        # NB. construction may be called on store import, so do not create
+        # directories until needed.
         self._initialized = False
 
     def _default_save_path(self) -> Path:
