@@ -102,7 +102,7 @@ class Cache:
 
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
-        memo = {}  # Track processed objects to handle cycles
+        memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for var, lookup in self.contextual_defs():
             value = self.defs.get(var, None)
             scope[lookup] = self._restore_from_stub_if_needed(
@@ -224,7 +224,7 @@ class Cache:
                 )
 
         # Convert objects to stubs in both defs and meta
-        memo = {}  # Track processed objects to handle cycles
+        memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for key, value in self.defs.items():
             self.defs[key] = self._convert_to_stub_if_needed(value, memo)
 
@@ -242,6 +242,8 @@ class Cache:
         obj_id = id(value)
         if obj_id in memo:
             return memo[obj_id]
+
+        result: Any = None
 
         if inspect.ismodule(value):
             result = ModuleStub(value)
