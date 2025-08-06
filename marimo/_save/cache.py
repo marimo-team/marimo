@@ -107,7 +107,9 @@ class Cache:
             scope[lookup] = self._restore_from_stub_if_needed(value, scope)
 
         if "return" in self.meta:
-            self.meta["return"] = self._restore_from_stub_if_needed(self.meta["return"], scope)
+            self.meta["return"] = self._restore_from_stub_if_needed(
+                self.meta["return"], scope
+            )
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -128,8 +130,10 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
-    
-    def _restore_from_stub_if_needed(self, value: Any, scope: dict[str, Any]) -> Any:
+
+    def _restore_from_stub_if_needed(
+        self, value: Any, scope: dict[str, Any]
+    ) -> Any:
         """Restore objects from stubs if needed, recursively handling collections."""
         if isinstance(value, ModuleStub):
             return value.load()
@@ -139,11 +143,17 @@ class Cache:
             return value.load()
         elif isinstance(value, (list, tuple)):
             # Recursively restore collections
-            restored = [self._restore_from_stub_if_needed(item, scope) for item in value]
+            restored = [
+                self._restore_from_stub_if_needed(item, scope)
+                for item in value
+            ]
             return type(value)(restored)  # Preserve original type (list/tuple)
         elif isinstance(value, dict):
             # Recursively restore dictionary values
-            return {k: self._restore_from_stub_if_needed(v, scope) for k, v in value.items()}
+            return {
+                k: self._restore_from_stub_if_needed(v, scope)
+                for k, v in value.items()
+            }
         else:
             return value
 
@@ -193,10 +203,12 @@ class Cache:
         # Convert objects to stubs in both defs and meta
         for key, value in self.defs.items():
             self.defs[key] = self._convert_to_stub_if_needed(value)
-            
+
         if "return" in self.meta:
-            self.meta["return"] = self._convert_to_stub_if_needed(self.meta["return"])
-    
+            self.meta["return"] = self._convert_to_stub_if_needed(
+                self.meta["return"]
+            )
+
     def _convert_to_stub_if_needed(self, value: Any) -> Any:
         """Convert objects to stubs if needed, recursively handling collections."""
         if inspect.ismodule(value):
@@ -207,11 +219,17 @@ class Cache:
             return UIElementStub(value)
         elif isinstance(value, (list, tuple)):
             # Recursively convert collections
-            converted = [self._convert_to_stub_if_needed(item) for item in value]
-            return type(value)(converted)  # Preserve original type (list/tuple)
+            converted = [
+                self._convert_to_stub_if_needed(item) for item in value
+            ]
+            return type(value)(
+                converted
+            )  # Preserve original type (list/tuple)
         elif isinstance(value, dict):
             # Recursively convert dictionary values
-            return {k: self._convert_to_stub_if_needed(v) for k, v in value.items()}
+            return {
+                k: self._convert_to_stub_if_needed(v) for k, v in value.items()
+            }
         else:
             return value
 
