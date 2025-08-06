@@ -82,16 +82,15 @@ on function arguments and closed-over variables.
 ### Function arguments
 **Arguments must either be primitive, marimo UI elements, array-like, or pickleable:**
 
-1. Primitive objects (TODO: which types) are hashed.
+1. Primitive types (strings, bytes, numbers, None) are hashed.
 2. marimo UI elements are hashed based on their value.
-3. Array-like objects are introspected, with their values being hashed (TODO: fix if not correct).
+3. [Array-like objects](https://numpy.org/doc/stable/reference/arrays.interface.html#object.__array_interface__) are introspected, with their values being hashed.
 4. All other objects are pickled.
 
 
 ### Closed-over variables
-Synactically closing over variables provides another
-way to parametrize functions. In this example, the variable `x` is
-"closed over":
+Syntactically closing over variables provides another way to parametrize
+functions. In this example, the variable `x` is "closed over":
 
 ```python
 x = 0
@@ -210,11 +209,11 @@ Here is a table comparing marimo's cache with `functools.cache`:
     Prefer `functools.cache` for extremely lightweight functions
     (that execute in less than a millisecond). Using memoization to calculate
     the Fibonacci sequence is a classic example of using `functools.cache`
-    effectively. On a basic macbook in pure python, fib(35) takes 1 second to
+    effectively. On a basic macbook in pure python, `fib(35)` takes 1 second to
     compute; with `mo.cache` it takes 0.000229 seconds; with `functools.cache`, it
-    takes 0.000025 seconds. Although relatively small, the additional overhead of
+    takes 0.000025 seconds (x9 faster!!). Although relatively small, the additional overhead of
     `mo.cache` (and more so `mo.persistent_cache`) is larger than
-    `functools.cache`. But if your function takes more than a few milliseconds to
+    `functools.cache`. If your function takes more than a few milliseconds to
     compute, the difference is negligible.
 
 
@@ -231,13 +230,52 @@ actually changes.
 **Don't do this:**
 ```python
 # Cell 1
-my_database_engine = ...
+llm_client = ...
 @mo.cache
-def query_database(query):
-    return my_database_engine.execute(query)
+def prompt_llm(query, **kwargs):
+    message = {"role": "user", "content": query}
+    return llm_client.chat.completions.create(messages=[message], **kwargs)
 ```
 
 **Do this instead:**
+
+```python
+# Cell 1
+llm_client = ...
+```
+
+```python
+# Cell 2
+@mo.cache
+def prompt_llm(query, **kwargs):
+    message = {"role": "user", "content": query}
+    return llm_client.chat.completions.create(messages=[message], **kwargs)
+```
+
+### Leverage marimo's closure mechanism for unhashable arguments
+
+`marimo`'s caching mechanism is accounts for every named variable in your notebook.
+However, function arguments, are not notebook varaibles- and as such, they must be pickleable for caching to work.
+As a result, there may be some code patterns that will not worth with marimo's caching mechanism.
+For example:
+
+**You can't do this:**
+```python
+# Cell 1
+@mo.cache
+def query_database(query, engine):
+    return engine.execute(query)
+```
+
+```python
+# This won't work because my_database_engine is not hashable
+query_database("SELECT * FROM my_table", my_database_engine)
+```
+
+Instead, by referencing the notebook variable directly, you can leverage
+marimo's closure mechanism to cache the function.
+
+**Do this:**
 
 ```python
 # Cell 1
@@ -250,8 +288,6 @@ my_database_engine = ...
 def query_database(query):
     return my_database_engine.execute(query)
 ```
-
-
 
 ### Close-over low-memory-footprint variables
 
@@ -294,7 +330,7 @@ my_file.close()
 my_file = mo.watch.file("my_file.txt")
 ```
 
-```
+```python
 # Cell 2
 with mo.persistent_cache("my_file"):
     data = my_file.read()

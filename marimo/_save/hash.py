@@ -726,6 +726,12 @@ class BlockHasher:
         NB. "Hashable" types are primitives, data primitives, and pure
         functions. With modules being "hashed" by version number, or ignored.
 
+        The current "hashables" are:
+         - module (with pin by version)
+         - primitive (bytes, str, numbers.Number, type(None))
+         - data primitive (e.g. numpy array, torch tensor)
+         - external module definitions (imported anything)
+
         Args:
             refs: A set of reference names unaccounted for.
             scope: A dictionary representing the current scope.
