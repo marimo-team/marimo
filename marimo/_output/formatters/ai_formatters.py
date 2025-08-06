@@ -39,12 +39,12 @@ class GoogleAiFormatter(FormatterFactory):
             | Iterator[GenerateContentResponse],
         ) -> tuple[KnownMimeType, str]:
             if isinstance(response, GenerateContentResponse):
-                return md.md(response.text)._mime_()
+                return md.md(response.text or "")._mime_()
 
             # Streaming response
             total_text = ""
             for chunk in response:
-                total_text += chunk.text
+                total_text += chunk.text or ""
                 output.replace(md.md(_ensure_closing_code_fence(total_text)))
             return md.md(total_text)._mime_()
 

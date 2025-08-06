@@ -185,7 +185,7 @@ class AppScriptRunner:
             )
             from marimo._output.formatting import FORMATTERS
 
-            if not FORMATTERS:
+            if not FORMATTERS.is_empty():
                 register_formatters()
 
             post_execute_hooks = []

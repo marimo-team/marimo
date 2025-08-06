@@ -5,7 +5,7 @@ import hashlib
 import weakref
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -23,24 +23,47 @@ if TYPE_CHECKING:
         AnyWidget,
     )
 
+
 LOGGER = _loggers.marimo_logger()
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+class WeakCache(Generic[K, V]):
+    """A WeakCache "watches" the key and removes its entry if the key is destroyed."""
+
+    def __init__(self) -> None:
+        self._data: dict[int, V] = {}
+        self._finalizers: dict[int, weakref.finalize[[int], K]] = {}
+
+    def add(self, k: K, v: V) -> None:
+        oid: int = id(k)  # finalize will be called before id is reused
+        self._data[oid] = v
+        self._finalizers[oid] = weakref.finalize(k, self._cleanup, oid)
+
+    def get(self, k: K) -> V | None:
+        return self._data.get(id(k))
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def _cleanup(self, oid: int) -> None:
+        self._data.pop(oid, None)
+        self._finalizers.pop(oid, None)
 
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache: dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+_cache: WeakCache[AnyWidget, UIElement[Any, Any]] = WeakCache()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
 def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    try:
-        if widget not in cache:
-            cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
-        return cache[widget]
-    except TypeError as e:
-        # Unhashable widgets can't be used as keys in a WeakKeyDictionary
-        LOGGER.warning(e)
-        return anywidget(widget)
+    if not (el := _cache.get(widget)):
+        el = anywidget(widget)
+        _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
+    return el
 
 
 T = dict[str, Any]

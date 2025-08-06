@@ -61,8 +61,9 @@ export function vimKeymapExtension(): Extension[] {
     keymap.of([
       {
         // Ctrl-[ by default is to dedent
-        // But for Vim (on Linux), it should exit insert mode when in Insert mode
+        // But for Vim (on Linux and Windows), it should exit insert mode when in Insert mode
         linux: "Ctrl-[",
+        win: "Ctrl-[",
         run: (ev) => {
           const cm = getCM(ev);
           if (!cm) {

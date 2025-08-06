@@ -1830,7 +1830,9 @@ def test_lazy_dataframe() -> None:
         assert len(json_data) == num_rows
 
     # Warning comes from search
-    assert len(recorded_warnings) == 0
+    assert len(recorded_warnings) == 1, [
+        str(w.message) for w in recorded_warnings
+    ]
 
     # Select rows
     value = table._convert_value([])

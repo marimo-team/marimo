@@ -23,7 +23,9 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.dataflow import induced_subgraph
 from marimo._runtime.primitives import (
+    CLONE_PRIMITIVES,
     FN_CACHE_TYPE,
+    build_ref_predicate_for_primitives,
     is_data_primitive,
     is_data_primitive_container,
     is_primitive,
@@ -88,6 +90,24 @@ def hash_module(
 
     process(code)
     return hash_alg.digest()
+
+
+def hash_wrapped_functions(
+    wrapped: Callable[..., Any], hash_type: str = DEFAULT_HASH
+) -> bytes:
+    seen = set()
+
+    # there is a chance for a circular reference
+    # likely manually created, but easy to guard against.
+    def process_function(fn: Callable[..., Any]) -> bytes:
+        fn_hash = hash_module(fn.__code__, hash_type)
+        if fn_hash not in seen and hasattr(fn, "__wrapped__"):
+            child_hash = hash_wrapped_functions(fn.__wrapped__, hash_type)
+            return child_hash + fn_hash
+        seen.add(fn_hash)
+        return fn_hash
+
+    return process_function(wrapped)
 
 
 def hash_raw_module(
@@ -313,6 +333,7 @@ class BlockHasher:
         hash_type: str = DEFAULT_HASH,
         apply_content_hash: bool = True,
         scoped_refs: Optional[set[Name]] = None,
+        external: bool = False,
     ) -> None:
         """Hash the context of the module, and return a cache object.
 
@@ -358,6 +379,8 @@ class BlockHasher:
                 execution path hash.
             scoped_refs: A set of references that cannot be traced via execution path, and must be
                 accounted for via content hashing.
+            external: If True, then the object was imported as a module. As such, the context should
+                not be respected, and ignored.
         """
 
         # Hash should not be pinned to cell id
@@ -391,7 +414,9 @@ class BlockHasher:
         if not apply_content_hash:
             refs, self.missing = self.extract_missing_ref(refs, scope)
 
-        ctx = get_and_update_context_from_scope(scope)
+        ctx = None
+        if not external:
+            ctx = get_and_update_context_from_scope(scope)
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
             refs, scope, ctx
         )
@@ -564,6 +589,25 @@ class BlockHasher:
             exceptions = []
             # By rights, could just fail here - but this final attempt should
             # provide better user experience.
+            #
+            # Get a transitive closure over the object, and attempt to pickle
+            # each dependent object.
+            closure = self.graph.get_transitive_references(
+                unhashable,
+                predicate=build_ref_predicate_for_primitives(
+                    scope, CLONE_PRIMITIVES
+                ),
+            )
+            closure -= set(content_serialization.keys()) | self.execution_refs
+            unhashable_closure, relevant_serialization, _ = (
+                self.serialize_and_dequeue_content_refs(
+                    closure - unhashable, scope
+                )
+            )
+            unhashable |= unhashable_closure
+            content_serialization.update(relevant_serialization)
+            refs |= unhashable_closure
+
             for ref in unhashable:
                 try:
                     _hashed = pickle.dumps(scope[ref])
@@ -778,7 +822,9 @@ class BlockHasher:
             elif is_pure_function(
                 local_ref, value, scope, self.fn_cache, self.graph
             ):
-                serial_value = hash_module(value.__code__, self.hash_alg.name)
+                serial_value = hash_wrapped_functions(
+                    value, self.hash_alg.name
+                )
             # An external module variable is assumed to be pure, with module
             # pinning being the mechanism for invalidation.
             elif getattr(value, "__module__", "__main__") == "__main__":
