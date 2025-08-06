@@ -1,12 +1,19 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import gc
+import weakref
 from hashlib import md5
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.from_anywidget import anywidget, from_anywidget
+from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.from_anywidget import (
+    WeakCache,
+    anywidget,
+    from_anywidget,
+)
 from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
@@ -405,8 +412,57 @@ x = as_marimo_element.count
 
         # This should work without errors despite the widget being unhashable
         widget = UnhashableWidget()
+        assert not isinstance(widget, UIElement)
+
         wrapped = from_anywidget(widget)
-        assert wrapped is not None
+
+        assert isinstance(wrapped, UIElement)
+        assert wrapped is from_anywidget(widget)
+
+    @staticmethod
+    def test_hashable_widget() -> None:
+        class HashableWidget(_anywidget.AnyWidget):
+            _esm = ""
+
+        widget = HashableWidget()
+        assert not isinstance(widget, UIElement)
+
+        wrapped = from_anywidget(widget)
+
+        assert isinstance(wrapped, UIElement)
+        assert wrapped is from_anywidget(widget)
+
+    @staticmethod
+    def test_WeakCache() -> None:
+        class TestWidget:
+            pass
+
+        class TestWrapper:
+            def __init__(self, obj):
+                self.obj = weakref.ref(obj)
+
+        widget1 = TestWidget()
+        widget2 = TestWidget()
+        wrapped1 = TestWrapper(widget1)
+        wrapped2 = TestWrapper(widget2)
+
+        _cache: WeakCache[TestWidget, TestWrapper] = WeakCache()
+
+        assert _cache.get(widget1) is None
+        assert _cache.get(widget2) is None
+        assert _cache.get(TestWidget()) is None
+
+        _cache.add(widget1, wrapped1)
+        _cache.add(widget2, wrapped2)
+
+        assert _cache.get(widget1) is wrapped1
+        assert _cache.get(widget2) is wrapped2
+
+        old_len = len(_cache)
+        del widget1
+        gc.collect()
+
+        assert len(_cache) == old_len - 1
 
     @staticmethod
     async def test_partial_state_updates() -> None:
