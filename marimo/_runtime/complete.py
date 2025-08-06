@@ -13,10 +13,6 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 import jedi  # type: ignore # noqa: F401
 import jedi.api  # type: ignore # noqa: F401
 
-# jedi dependency
-import parso
-from parso.python.tree import PythonErrorNode, PythonNode
-
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.completion_option import CompletionOption
@@ -422,18 +418,27 @@ def _key_options_dispatcher(obj: Any) -> list[str]:
 
 
 # NOTE need to be careful because `__getitem__` can trigger arbitrary code
-def _resolve_chained_key_path(obj_name: str, trigger_code: str) -> list[str]:
-    """Determine the chain of keys access based on source code
+def _resolve_chained_key_path(obj_name: str, document: str) -> list[list[str]]:
+    """Resolve the object chained key access from source code
 
-    This assumes marimo passes a single line of code as `trigger_code`
+    Example:
+        ```python
+        key_path = _resolve_chained_key_path("obj", 'obj["foo"]["bar"]["')
+        key_path == [["foo"], ["bar"]]
+        ```
     """
-    ast_ = parso.parse(trigger_code)
-    # TODO robust handling of top-level node type
-    root_node: PythonErrorNode = ast_.children[0]
+    import parso  # jedi dependency
 
-    # we expect to retrieve an `object_node_idx` because `object_name`
-    # is derived from the same source code
-    key_access_nodes = []
+    # because marimo `CompletionRequest` sends source code up to the cursor position
+    # we know only the last line matters for autcompletion.
+    line_containing_trigger = parso.split_lines(document)[-1]
+    ast_ = parso.parse(line_containing_trigger)
+    # we expect to always hit an error node because `dictionary["` is invalid Python syntax
+    root_node = next(
+        node for node in ast_.children if node.type == "error_node"
+    )
+
+    key_path = []
     seen_object_node = False
     # TODO robust handling of different node types
     for node in root_node.children:
@@ -445,30 +450,24 @@ def _resolve_chained_key_path(obj_name: str, trigger_code: str) -> list[str]:
         if seen_object_node is False:
             continue
 
-        # if consecutive nodes after `obj_name` node are not
-        # key accessor nodes `[""]`, exit
-        if not (isinstance(node, PythonNode) and node.type == "trailer"):
+        # if nodes directly after `obj_name` node are not key accessor `[""]`, exit
+        # we expect to never hit this condition
+        if not node.type == "trailer":
             break
 
-        key = ast.literal_eval(node.get_code())
-        key_access_nodes.append(key)
+        key_path.append(ast.literal_eval(node.get_code()))
 
-    return key_access_nodes
+    return key_path
 
 
 def _get_key_options(
     script: jedi.Script,
     glbls: dict[str, Any],
-    request=None,
+    document: str,
 ) -> list[CompletionOption]:
     """Get completion values for trigger `["` or `['`. Values are meant to be
     passed to `.__getitem__()`
-
-    This implementation assumes that marimo's `CompletionRequest.document`
-    only includes current line, up to the completion trigger.
     """
-    # NOTE we use the `Script` for convenience because it's already computed
-    # we could use low-level `parso` AST directly
     names = script.get_names(
         references=True, definitions=False, all_scopes=False
     )
@@ -481,39 +480,41 @@ def _get_key_options(
     obj_name = names[-1].name
     root_obj = glbls.get(obj_name)
     if root_obj is None:
-        LOGGER.debug(f"Failed to find `{obj_name=:}` in `glbls`")
+        LOGGER.debug(f"Failed to find `{obj_name=}` in `glbls`")
         return []
 
     obj = root_obj
-    key_paths = _resolve_chained_key_path(
-        obj_name, trigger_code=request.document
-    )
-    # to not support completion of `dictionary["a"]["` use this
-    # if key_paths:
-    #   return []
+    for key in _resolve_chained_key_path(obj_name, document):
+        try:
+            obj = obj.__getitem__(*key)
+        except Exception:
+            LOGGER.debug(
+                f"Failed to retrieve keys `{key}` based on `{document=}`"
+            )
+            # exit early if `__getitem__` fails and return no completion
+            # e.g., no completion is possible if key `"foo"` is invalid in `dictionary["foo"]["`
+            return []
 
-    for key in key_paths:
-        # NOTE __getitem__ can execute arbitrary code and become expensive
-        obj = obj.__getitem__(*key)
-
-    keys = _key_options_dispatcher(obj)
+    key_options = _key_options_dispatcher(obj)
     # TODO currently unreliable for non-string keys, even if stringified
     # seems to be related to serialization issue if include `"(True, False)` (no closing quote)
     return [
-        CompletionOption(name=key, type="property", completion_info="key")
-        for key in keys
+        CompletionOption(
+            name=key_option, type="property", completion_info="key"
+        )
+        for key_option in key_options
     ]
 
 
 def _maybe_get_key_options(
-    request: CodeCompletionRequest,
+    document: str,
     script: jedi.Script,
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
 ) -> list[CompletionOption]:
     """Call key completions methods if the request contains the trigger"""
     triggers = ('["', "['")  # explicitly handle both quotation characters
-    if request.document[-2:] not in triggers:
+    if document[-2:] not in triggers:
         return []
 
     # TODO ideally, we don't acquire the lock twice with `_get_completions_with_interpreter()` and `_maybe_get_key_options`
@@ -523,7 +524,7 @@ def _maybe_get_key_options(
     locked = glbls_lock.acquire(blocking=False)
     if locked:
         try:
-            return _get_key_options(script, glbls, request=request)
+            return _get_key_options(script, glbls, document)
         finally:
             glbls_lock.release()
     else:
@@ -603,7 +604,7 @@ def complete(
         prefix = request.document[-prefix_length:]
 
         key_options = _maybe_get_key_options(
-            request,
+            request.document,
             script,
             glbls=glbls,
             glbls_lock=glbls_lock,
