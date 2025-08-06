@@ -299,7 +299,7 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
 
     def collect_stream(self, response: StreamT) -> str:
         """Collect a stream into a single string."""
-        return "".join(self.as_stream_response(response))
+        return "".join(self.as_stream_response(response, StreamOptions(text_only=True)))
 
     def _content_to_string(
         self, content_data: Union[str, dict[str, Any]]
