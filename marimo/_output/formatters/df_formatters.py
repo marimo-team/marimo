@@ -346,7 +346,7 @@ class IbisFormatter(FormatterFactory):
                 # Simple fallback - just show the expression as text
                 return _render_plain_text_fallback(expr)
 
-        @formatting.formatter(ir.Table)
+        @formatting.opinionated_formatter(ir.Table)
         def _show_marimo_ibis_table(
             table_expr: ir.Table,
         ) -> tuple[KnownMimeType, str]:
@@ -363,7 +363,7 @@ class IbisFormatter(FormatterFactory):
             """
             return _format_ibis_expression(table_expr)
 
-        @formatting.formatter(ir.Column)
+        @formatting.opinionated_formatter(ir.Column)
         def _show_marimo_ibis_column(
             column_expr: ir.Column,
         ) -> tuple[KnownMimeType, str]:

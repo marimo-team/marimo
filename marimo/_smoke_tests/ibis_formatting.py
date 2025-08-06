@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.14.15"
+__generated_with = "0.14.16"
 app = marimo.App(width="medium")
 
 
@@ -113,8 +113,12 @@ def _(ibis, t):
 def _(ibis):
     # Unbound tables
 
-    t1 = ibis.table(dict(value1="float", key1="string", key2="string"), name="table1")
-    t2 = ibis.table(dict(value2="float", key3="string", key4="string"), name="table2")
+    t1 = ibis.table(
+        dict(value1="float", key1="string", key2="string"), name="table1"
+    )
+    t2 = ibis.table(
+        dict(value2="float", key3="string", key4="string"), name="table2"
+    )
 
     joined = t1.left_join(t2, t1.key1 == t2.key3)
     return (joined,)
@@ -140,7 +144,9 @@ def _(ibis, joined):
 
 @app.cell
 def _(pl):
-    lazy_frame = pl.LazyFrame({"name": ["Jimmy", "Keith"], "band": ["Led Zeppelin", "Stones"]})
+    lazy_frame = pl.LazyFrame(
+        {"name": ["Jimmy", "Keith"], "band": ["Led Zeppelin", "Stones"]}
+    )
     return (lazy_frame,)
 
 

@@ -43,7 +43,7 @@ def test_ibis_formatters_interactive_mode(test_table) -> None:
 
     try:
         # Test table - should return table widget
-        formatter = get_formatter(test_table, include_opinionated=False)
+        formatter = get_formatter(test_table, include_opinionated=True)
         assert formatter is not None
         mime, content = formatter(test_table)
         assert mime == "text/html"
@@ -51,7 +51,7 @@ def test_ibis_formatters_interactive_mode(test_table) -> None:
 
         # Test column - should return table widget via as_table()
         column = test_table.struct
-        formatter = get_formatter(column, include_opinionated=False)
+        formatter = get_formatter(column, include_opinionated=True)
         assert formatter is not None
         mime, content = formatter(column)
         assert mime == "text/html"
@@ -59,7 +59,7 @@ def test_ibis_formatters_interactive_mode(test_table) -> None:
 
         # Test scalar - should return formatted text
         scalar = test_table.floats.min()
-        formatter = get_formatter(scalar, include_opinionated=False)
+        formatter = get_formatter(scalar, include_opinionated=True)
         assert formatter is not None
         mime, content = formatter(scalar)
         assert mime == "text/html"
@@ -82,7 +82,7 @@ def test_ibis_formatters_lazy_mode(test_table) -> None:
 
     try:
         # Test table - should return Expression+SQL tabs
-        formatter = get_formatter(test_table, include_opinionated=False)
+        formatter = get_formatter(test_table, include_opinionated=True)
         assert formatter is not None
         mime, content = formatter(test_table)
         assert mime == "text/html"
@@ -90,7 +90,7 @@ def test_ibis_formatters_lazy_mode(test_table) -> None:
 
         # Test column - should return Expression+SQL tabs
         column = test_table.struct
-        formatter = get_formatter(column, include_opinionated=False)
+        formatter = get_formatter(column, include_opinionated=True)
         assert formatter is not None
         mime, content = formatter(column)
         assert mime == "text/html"
@@ -98,7 +98,7 @@ def test_ibis_formatters_lazy_mode(test_table) -> None:
 
         # Test scalar - should return Expression+SQL tabs
         scalar = test_table.floats.min()
-        formatter = get_formatter(scalar, include_opinionated=False)
+        formatter = get_formatter(scalar, include_opinionated=True)
         assert formatter is not None
         mime, content = formatter(scalar)
         assert mime == "text/html"
@@ -130,7 +130,7 @@ def test_ibis_unbound_expressions() -> None:
         ibis.options.interactive = interactive_mode
 
         try:
-            formatter = get_formatter(joined, include_opinionated=False)
+            formatter = get_formatter(joined, include_opinionated=True)
             assert formatter is not None
 
             mime, content = formatter(joined)
@@ -155,7 +155,7 @@ def test_ibis_complex_scalar_interactive(test_table) -> None:
         # Array scalar like in smoke tests
         array_scalar = test_table.list.first()
 
-        formatter = get_formatter(array_scalar, include_opinionated=False)
+        formatter = get_formatter(array_scalar, include_opinionated=True)
         assert formatter is not None
 
         mime, content = formatter(array_scalar)
@@ -188,7 +188,7 @@ def test_ibis_polars_backend() -> None:
     try:
         polars_table = pl_connection.table("band_members")
 
-        formatter = get_formatter(polars_table, include_opinionated=False)
+        formatter = get_formatter(polars_table, include_opinionated=True)
         assert formatter is not None
 
         mime, content = formatter(polars_table)
