@@ -117,14 +117,15 @@ def check_app_correctness_or_convert(filename: str) -> None:
     code = file.read_text(encoding="utf-8")
     try:
         return check_app_correctness(filename, noninteractive=True)
-    except SyntaxError:
-        code = MarimoConvert.from_text(source=code).to_py()
-        file.write_text(code, encoding="utf-8")
     except click.ClickException:
         # A click exception is raised if a python script could not be converted
         code = MarimoConvert.from_non_marimo_python_script(
             source=code, aggressive=True
         ).to_py()
+    except SyntaxError:
+        # The file could not even be read as python
+        code = MarimoConvert.from_text(source=code).to_py()
+        file.write_text(code, encoding="utf-8")
 
     file.write_text(code, encoding="utf-8")
 

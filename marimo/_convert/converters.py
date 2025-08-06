@@ -81,7 +81,7 @@ class MarimoConvert:
     def from_text(
         source: str,
     ) -> MarimoConverterIntermediate:
-        """Convert text from a script into something that will open.
+        """Convert string into marimo notebook with the given source code.
 
         Used for cases with syntax errors or unparsable code.
 
