@@ -187,6 +187,120 @@ class _HTMLBuilder:
         else:
             return f"<figcaption {_join_params(params)}>{children_html}</figcaption>"
 
+    @staticmethod
+    def h3(
+        children: Union[str, list[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: list[tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<h3>{children_html}</h3>"
+        else:
+            return f"<h3 {_join_params(params)}>{children_html}</h3>"
+
+    @staticmethod
+    def span(
+        children: Union[str, list[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: list[tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<span>{children_html}</span>"
+        else:
+            return f"<span {_join_params(params)}>{children_html}</span>"
+
+    @staticmethod
+    def table(
+        children: Union[str, list[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: list[tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<table>{children_html}</table>"
+        else:
+            return f"<table {_join_params(params)}>{children_html}</table>"
+
+    @staticmethod
+    def tbody(
+        children: Union[str, list[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: list[tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<tbody>{children_html}</tbody>"
+        else:
+            return f"<tbody {_join_params(params)}>{children_html}</tbody>"
+
+    @staticmethod
+    def tr(
+        children: Union[str, list[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: list[tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<tr>{children_html}</tr>"
+        else:
+            return f"<tr {_join_params(params)}>{children_html}</tr>"
+
+    @staticmethod
+    def td(
+        children: Union[str, list[str]], *, style: Optional[str] = None
+    ) -> str:
+        resolved_children = (
+            [children] if isinstance(children, str) else children
+        )
+
+        params: list[tuple[str, Union[str, None]]] = []
+        if style:
+            params.append(("style", style))
+
+        children_html = "".join(resolved_children)
+
+        if len(params) == 0:
+            return f"<td>{children_html}</td>"
+        else:
+            return f"<td {_join_params(params)}>{children_html}</td>"
+
 
 def _join_params(params: list[tuple[str, Union[str, None]]]) -> str:
     # Filter None
