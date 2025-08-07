@@ -151,12 +151,12 @@ class TCPDAPTransport(DAPTransport):
                     header = f"Content-Length: {len(message_bytes)}\r\n\r\n"
                     header_bytes = header.encode("utf-8")
                     writer.write(header_bytes + message_bytes)
-                    LOGGER.debug(f"HTTP-style response sent to client")
+                    LOGGER.debug("HTTP-style response sent to client")
                 else:
                     # Send in length-prefixed format
                     length_bytes = len(message_bytes).to_bytes(4, "big")
                     writer.write(length_bytes + message_bytes)
-                    LOGGER.debug(f"Length-prefixed response sent to client")
+                    LOGGER.debug("Length-prefixed response sent to client")
 
                 await writer.drain()
             except Exception as e:

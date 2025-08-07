@@ -22,14 +22,18 @@ def _():
     import os
 
     import duckdb
+
     import marimo as mo
+
     return duckdb, mo, os
 
 
 @app.cell
 def _():
     print(1)
-    from marimo._server.debug.dap_server import get_dap_server; print('DAP server module imports successfully')
+    from marimo._server.debug.dap_server import get_dap_server
+
+    print("DAP server module imports successfully")
     print()
     return
 
@@ -87,7 +91,7 @@ def _(mo):
 @app.cell
 def _(mo):
     _df = mo.sql(
-        f"""
+        """
         SHOW ALL TABLES;
         """
     )
@@ -206,4 +210,5 @@ def _(mo, selected_table):
 
 if __name__ == "__main__":
     from marimo._cli.cli import edit
+
     edit(args=(__file__,))
