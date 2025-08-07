@@ -1,0 +1,449 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`VariableContextProvider > formatContext > should format context for basic variable > basic-variable-context 1`] = `
+"Variable: username
+Type: str
+Preview: "\\"alice\\"""
+`;
+
+exports[`VariableContextProvider > formatContext > should format context for dataframe variable > dataframe-variable-context 1`] = `
+"Variable: sales_df
+Type: pandas.DataFrame
+Preview: "<DataFrame shape: (1000, 8)>\\n   date    product  quantity  price\\n0  2023-01-01  Widget A    10    29.99\\n1  2023-01-02  Widget B     5    49.99\\n...""
+`;
+
+exports[`VariableContextProvider > formatContext > should format context for variable with complex value > complex-value-variable-context 1`] = `
+"Variable: complex_data
+Type: dict
+Preview: "{\\"users\\": [{\\"id\\": 1, \\"name\\": \\"Alice\\"}, {\\"id\\": 2, \\"name\\": \\"Bob\\"}], \\"total\\": 2}""
+`;
+
+exports[`VariableContextProvider > formatContext > should format context for variable without dataType > no-datatype-variable-context 1`] = `
+"Variable: mystery_var
+Type: unknown
+Preview: "some_value""
+`;
+
+exports[`VariableContextProvider > getCompletions > should pass table names to completion function > variable-completions-with-tables 1`] = `
+[
+  {
+    "apply": "@var1",
+    "boost": 3,
+    "detail": "str",
+    "displayLabel": "var1",
+    "label": "@var1",
+    "section": "Variables",
+    "type": "str",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getCompletions > should return completions for variables > variable-completions 1`] = `
+[
+  {
+    "apply": "@data",
+    "boost": 3,
+    "detail": "pandas.DataFrame",
+    "displayLabel": "data",
+    "label": "@data",
+    "section": "Variables",
+    "type": "pandas.DataFrame",
+  },
+  {
+    "apply": "@config",
+    "boost": 3,
+    "detail": "dict",
+    "displayLabel": "config",
+    "label": "@config",
+    "section": "Variables",
+    "type": "dict",
+  },
+  {
+    "apply": "@results",
+    "boost": 3,
+    "detail": "list",
+    "displayLabel": "results",
+    "label": "@results",
+    "section": "Variables",
+    "type": "list",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getCompletions > should return empty completions when no variables > empty-variable-completions 1`] = `[]`;
+
+exports[`VariableContextProvider > getItems > should handle complex data types > complex-data-types 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "pandas.DataFrame",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "df",
+        "usedBy": [
+          "cell2",
+          "cell3",
+        ],
+        "value": "<DataFrame shape: (100, 5)>",
+      },
+    },
+    "dataType": "pandas.DataFrame",
+    "description": "pandas.DataFrame",
+    "id": "df",
+    "label": "df",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "sklearn.linear_model._base.LinearRegression",
+        "declaredBy": [
+          "cell4",
+        ],
+        "name": "model",
+        "usedBy": [
+          "cell5",
+        ],
+        "value": "<sklearn.linear_model.LinearRegression>",
+      },
+    },
+    "dataType": "sklearn.linear_model._base.LinearRegression",
+    "description": "sklearn.linear_model._base.LinearRegression",
+    "id": "model",
+    "label": "model",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "numpy.ndarray",
+        "declaredBy": [
+          "cell2",
+        ],
+        "name": "array",
+        "usedBy": [
+          "cell3",
+        ],
+        "value": "array([1, 2, 3, 4, 5])",
+      },
+    },
+    "dataType": "numpy.ndarray",
+    "description": "numpy.ndarray",
+    "id": "array",
+    "label": "array",
+    "type": "variable",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should handle variables with null/undefined values > null-undefined-variables 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "NoneType",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "null_var",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": null,
+      },
+    },
+    "dataType": "NoneType",
+    "description": "NoneType",
+    "id": "null_var",
+    "label": "null_var",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": null,
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "undefined_var",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": undefined,
+      },
+    },
+    "dataType": null,
+    "description": "",
+    "id": "undefined_var",
+    "label": "undefined_var",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "empty_string",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": """",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "id": "empty_string",
+    "label": "empty_string",
+    "type": "variable",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should handle variables with special characters in names > special-chars-variables 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "int",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "_private_var",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": "42",
+      },
+    },
+    "dataType": "int",
+    "description": "int",
+    "id": "_private_var",
+    "label": "_private_var",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "var_with_numbers123",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": ""test"",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "id": "var_with_numbers123",
+    "label": "var_with_numbers123",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "float",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "CONSTANT_VAR",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": "3.14159",
+      },
+    },
+    "dataType": "float",
+    "description": "float",
+    "id": "CONSTANT_VAR",
+    "label": "CONSTANT_VAR",
+    "type": "variable",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should return empty array when no variables > empty-variables 1`] = `[]`;
+
+exports[`VariableContextProvider > getItems > should return variable items for multiple variables with different types > multiple-variables 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "int",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "user_id",
+        "usedBy": [
+          "cell2",
+          "cell3",
+        ],
+        "value": "123",
+      },
+    },
+    "dataType": "int",
+    "description": "int",
+    "id": "user_id",
+    "label": "user_id",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "bool",
+        "declaredBy": [
+          "cell2",
+        ],
+        "name": "is_active",
+        "usedBy": [],
+        "value": "True",
+      },
+    },
+    "dataType": "bool",
+    "description": "bool",
+    "id": "is_active",
+    "label": "is_active",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "list",
+        "declaredBy": [
+          "cell3",
+        ],
+        "name": "scores",
+        "usedBy": [
+          "cell4",
+        ],
+        "value": "[1, 2, 3, 4, 5]",
+      },
+    },
+    "dataType": "list",
+    "description": "list",
+    "id": "scores",
+    "label": "scores",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "dict",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "config",
+        "usedBy": [
+          "cell2",
+          "cell4",
+        ],
+        "value": "{"debug": true, "timeout": 30}",
+      },
+    },
+    "dataType": "dict",
+    "description": "dict",
+    "id": "config",
+    "label": "config",
+    "type": "variable",
+  },
+]
+`;
+
+exports[`VariableContextProvider > getItems > should return variable items for single variable > single-variable 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "user_name",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": ""John Doe"",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "id": "user_name",
+    "label": "user_name",
+    "type": "variable",
+  },
+]
+`;
+
+exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-completions 1`] = `
+[
+  {
+    "apply": "@df",
+    "boost": 3,
+    "detail": "pandas.DataFrame",
+    "displayLabel": "df",
+    "label": "@df",
+    "section": "Variables",
+    "type": "pandas.DataFrame",
+  },
+  {
+    "apply": "@connection_string",
+    "boost": 3,
+    "detail": "str",
+    "displayLabel": "connection_string",
+    "label": "@connection_string",
+    "section": "Variables",
+    "type": "str",
+  },
+]
+`;
+
+exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-items 1`] = `
+[
+  {
+    "data": {
+      "variable": {
+        "dataType": "pandas.DataFrame",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "df",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": "<DataFrame shape: (50, 3)>",
+      },
+    },
+    "dataType": "pandas.DataFrame",
+    "description": "pandas.DataFrame",
+    "id": "df",
+    "label": "df",
+    "type": "variable",
+  },
+  {
+    "data": {
+      "variable": {
+        "dataType": "str",
+        "declaredBy": [
+          "cell1",
+        ],
+        "name": "connection_string",
+        "usedBy": [
+          "cell2",
+        ],
+        "value": ""postgresql://localhost:5432/mydb"",
+      },
+    },
+    "dataType": "str",
+    "description": "str",
+    "id": "connection_string",
+    "label": "connection_string",
+    "type": "variable",
+  },
+]
+`;
