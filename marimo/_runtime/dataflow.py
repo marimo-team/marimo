@@ -179,6 +179,8 @@ class DirectedGraph:
                     self.parents[child].add(cell_id)
 
             for name in cell.refs:
+                # First, for each referenced variable, we add cells that define
+                # that variable as parents
                 other_ids_defining_name: set[CellId_t] = (
                     self.definitions[name]
                     if name in self.definitions
@@ -202,6 +204,23 @@ class DirectedGraph:
                     if path:
                         self.cycles.add(tuple([(other_id, cell_id)] + path))
                     self.children[other_id].add(cell_id)
+
+                # Next, any cell that deletes this referenced variable is made
+                # a child of this cell. If two cells delete the same variable,
+                # they form a cycle.
+                other_ids_deleting_name: set[CellId_t] = set(
+                    cid
+                    for cid in self.get_referring_cells(
+                        name, language="python"
+                    )
+                    if name in self.cells[cid].deleted_refs
+                ) - set((cell_id,))
+                for v in other_ids_deleting_name:
+                    path = self.get_path(v, cell_id)
+                    if path:
+                        self.cycles.add(tuple([(cell_id, v)] + path))
+                    self.parents[v].add(cell_id)
+                children.update(other_ids_deleting_name)
 
             for name in cell.deleted_refs:
                 referring_cells = self.get_referring_cells(

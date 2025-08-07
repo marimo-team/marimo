@@ -18,7 +18,6 @@ from marimo._ast.app import (
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.errors import (
     CycleError,
-    DeleteNonlocalError,
     MultipleDefinitionError,
     SetupRootError,
     UnparsableError,
@@ -195,7 +194,7 @@ class TestApp:
             app.run()
 
     @staticmethod
-    def test_delete_nonlocal_missing_args_rets() -> None:
+    def test_delete_nonlocal_ok() -> None:
         app = App()
 
         @app.cell
@@ -206,8 +205,8 @@ class TestApp:
         def two() -> None:
             del x  # noqa: F841, F821
 
-        with pytest.raises(DeleteNonlocalError):
-            app.run()
+        # smoke test, no error raised
+        app.run()
 
     @staticmethod
     def test_unparsable_cell() -> None:

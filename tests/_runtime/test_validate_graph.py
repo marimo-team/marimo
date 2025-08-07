@@ -8,7 +8,6 @@ from marimo._ast import compiler
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._messaging.errors import (
     CycleError,
-    DeleteNonlocalError,
     MultipleDefinitionError,
     SetupRootError,
 )
@@ -68,15 +67,6 @@ def test_underscore_variables_are_private() -> None:
     graph.register_cell("1", parse_cell("del _x"))
     errors = check_for_errors(graph)
     assert not errors
-
-
-def test_delete_nonlocal_error() -> None:
-    graph = dataflow.DirectedGraph()
-    graph.register_cell("0", parse_cell("x = 0"))
-    graph.register_cell("1", parse_cell("del x"))
-    errors = check_for_errors(graph)
-    assert set(errors.keys()) == set(["1"])
-    assert errors["1"] == (DeleteNonlocalError(name="x", cells=("0",)),)
 
 
 def test_two_node_cycle() -> None:

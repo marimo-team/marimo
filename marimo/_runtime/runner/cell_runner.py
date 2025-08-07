@@ -330,6 +330,7 @@ class Runner:
         cell_id: CellId_t,
     ) -> tuple[RunResult, Optional[BaseException]]:
         exception: Optional[ErrorObjects] = unwrapped_exception
+        repr(exception)
         if isinstance(exception, MarimoMissingRefError):
             ref, blamed_cell = self._get_blamed_cell(exception)
             # All MarimoMissingRefErrors should be caused caused by
@@ -354,9 +355,19 @@ class Runner:
                 )
                 exception = output
             elif blamed_cell != cell_id:
+                possibly_deleted = any(
+                    ref in cell.deleted_refs
+                    for cell in self.graph.cells.values()
+                )
+
+                deleted_message = (
+                    " Another cell may have deleted it with the del operator."
+                    if possibly_deleted
+                    else ""
+                )
                 output = MarimoExceptionRaisedError(
-                    f"marimo came across the undefined variable `{ref}` "
-                    "during runtime. Definition expected in cell : ",
+                    f"Name `{ref}` is not defined.{deleted_message} "
+                    "It was expected to be defined in ",
                     "NameError",
                     blamed_cell,
                 )

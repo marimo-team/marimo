@@ -16,7 +16,6 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     CycleError,
-    DeleteNonlocalError,
     Error,
     MarimoStrictExecutionError,
     MarimoSyntaxError,
@@ -712,8 +711,10 @@ class TestExecution:
         else:
             assert not k.errors
 
-    async def test_delete_nonlocal_error(self, any_kernel: Kernel) -> None:
+    async def test_delete_nonlocal_ok(self, any_kernel: Kernel) -> None:
         k = any_kernel
+        if k.execution_type == "strict":
+            return
         await k.run(
             [
                 ExecutionRequest(cell_id="0", code="x=0"),
@@ -721,24 +722,21 @@ class TestExecution:
                 er := ExecutionRequest(cell_id="2", code="z = y + 1"),
             ]
         )
-        assert "y" not in k.globals
-        assert "z" not in k.globals
-        if k.execution_type == "strict":
-            assert set(k.errors.keys()) == {"1", "2"}
-        else:
-            assert set(k.errors.keys()) == {"1"}
-        assert k.errors["1"] == (DeleteNonlocalError("x", ("0",)),)
-
-        # fix cell 1, should run cell 1 and 2
-        await k.run([ExecutionRequest(cell_id="1", code="y=1")])
-        if k.lazy():
-            assert k.graph.cells[er.cell_id].stale
-            await k.run([er])
-
-        assert not k.graph.cells[er.cell_id].stale
-        assert k.globals["y"] == 1
-        assert k.globals["z"] == 2
+        assert "x" not in k.globals
+        assert "y" in k.globals
+        assert "z" in k.globals
         assert not k.errors
+
+    async def test_delete_nonlocal_multiple_not_ok(self, k: Kernel) -> None:
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="del x"),
+                ExecutionRequest(cell_id="1", code="del x"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0", "1"}
+        _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
+        _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
 
     async def test_import_module_as_local_var(
         self, any_kernel: Kernel
@@ -756,44 +754,6 @@ class TestExecution:
         # _sys mangled, should not be in globals
         assert "_sys" not in k.globals
         assert k.globals["msize"] == sys.maxsize
-
-    async def test_defs_with_no_definers_are_removed_from_cell(
-        self, any_kernel: Kernel
-    ) -> None:
-        k = any_kernel
-        await k.run(
-            [
-                ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="del x"),
-            ]
-        )
-        assert set(k.errors.keys()) == {"1"}
-        assert k.errors["1"] == (DeleteNonlocalError("x", ("0",)),)
-
-        # Delete the cell that defines x. There shouldn't be any more errors
-        # because x no longer exists.
-        await k.delete_cell(DeleteCellRequest(cell_id="0"))
-        if k.execution_type != "strict":
-            assert not k.errors
-
-        # Add x back in.
-        await k.run([ExecutionRequest(cell_id="2", code="x=0")])
-        assert set(k.errors.keys()) == {"1"}
-        assert k.errors["1"] == (DeleteNonlocalError("x", ("2",)),)
-
-        # Repair graph
-        await k.run([er := ExecutionRequest(cell_id="1", code="y = x + 1")])
-        assert not k.errors
-        assert k.globals["y"] == 1
-
-        # Make sure graph is tracking x again and update propagates
-        await k.run([ExecutionRequest(cell_id="2", code="x = 1")])
-        assert not k.errors
-        if k.lazy():
-            assert k.graph.cells[er.cell_id].stale
-            await k.run([er])
-        assert not k.graph.cells[er.cell_id].stale
-        assert k.globals["y"] == 2
 
     async def test_cell_transitioned_to_error_is_not_stale(
         self, lazy_kernel: Kernel
@@ -1510,7 +1470,7 @@ class TestExecution:
             )
         else:
             assert (
-                "marimo came across the undefined variable `C` during runtime."
+                "Name `C` is not defined. It was expected to be defined in"
                 in k.stream.messages[-2][1]["output"]["data"][0]["msg"]
             )
             assert "NameError" in k.stderr.messages[0]
