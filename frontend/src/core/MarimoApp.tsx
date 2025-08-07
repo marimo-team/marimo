@@ -16,6 +16,9 @@ import { ModalProvider } from "../components/modal/ImperativeModal";
 import { Toaster } from "../components/ui/toaster";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { slotsController } from "./slots/slots";
+import { RequestClientContext, resolveRequestClient } from "./network/requests";
+
+const REQUEST_CLIENT = resolveRequestClient();
 
 // Force tailwind classnames
 // tailwind only creates css for classnames that exist the FE files
@@ -76,6 +79,7 @@ export const MarimoApp: React.FC = memo(() => {
 });
 MarimoApp.displayName = "MarimoApp";
 
+
 /**
  * The root with all the providers.
  */
@@ -83,15 +87,17 @@ const Providers = memo(({ children }: PropsWithChildren) => {
   return (
     <ErrorBoundary>
       <Suspense>
-        <TooltipProvider>
-          <SlotzProvider controller={slotsController}>
-            <ModalProvider>
-              {children}
-              <Toaster />
-              <TailwindIndicator />
-            </ModalProvider>
-          </SlotzProvider>
-        </TooltipProvider>
+        <RequestClientContext.Provider value={REQUEST_CLIENT}>
+          <TooltipProvider>
+            <SlotzProvider controller={slotsController}>
+              <ModalProvider>
+                {children}
+                <Toaster />
+                <TailwindIndicator />
+              </ModalProvider>
+            </SlotzProvider>
+          </TooltipProvider>
+        </RequestClientContext.Provider>
       </Suspense>
     </ErrorBoundary>
   );
