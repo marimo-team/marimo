@@ -142,10 +142,17 @@ class _cache_call:
     def _set_context(self, fn: Callable[..., Any]) -> None:
         ctx = safe_get_context()
         # If we are loaded from a module, then we have no context.
+        self._external = True
         if ctx and ctx.execution_context is not None:
             cell_id = (
                 ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
             )
+            # If it's a UUID, then are in a cloned embed context.
+            self._external = len(cell_id) > 5
+
+        if not self._external:
+            # mypy unable to resolve this.
+            assert ctx is not None, UNEXPECTED_FAILURE_BOILERPLATE
             graph = ctx.graph
             glbls = ctx.globals
             self._external = False
