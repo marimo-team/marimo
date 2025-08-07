@@ -707,23 +707,6 @@ components:
       required:
       - cellId
       type: object
-    DeleteNonlocalError:
-      properties:
-        cells:
-          items:
-            type: string
-          type: array
-        name:
-          type: string
-        type:
-          enum:
-          - delete-nonlocal
-          type: string
-      required:
-      - name
-      - cells
-      - type
-      type: object
     DeleteSecretRequest:
       properties:
         key:
@@ -765,7 +748,6 @@ components:
       - $ref: '#/components/schemas/CycleError'
       - $ref: '#/components/schemas/MultipleDefinitionError'
       - $ref: '#/components/schemas/ImportStarError'
-      - $ref: '#/components/schemas/DeleteNonlocalError'
       - $ref: '#/components/schemas/MarimoAncestorStoppedError'
       - $ref: '#/components/schemas/MarimoAncestorPreventedError'
       - $ref: '#/components/schemas/MarimoExceptionRaisedError'
@@ -2749,7 +2731,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.14.15
+  version: 0.14.16
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
