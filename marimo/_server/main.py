@@ -55,6 +55,7 @@ def create_starlette_app(
     allow_origins: Optional[tuple[str, ...]] = None,
     lsp_servers: Optional[list[LspServer]] = None,
     skew_protection: bool = True,
+    debug_port: Optional[int] = None,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
 
@@ -100,12 +101,18 @@ def create_starlette_app(
             _create_lsps_proxy_middleware(servers=lsp_servers)
         )
 
+    # Add debug server proxy middleware if debug port is available
+    if debug_port is not None:
+        final_middlewares.append(
+            _create_debug_proxy_middleware(debug_port=debug_port)
+        )
+
     if middleware:
         final_middlewares.extend(middleware)
 
     final_middlewares.extend(MIDDLEWARE_REGISTRY.get_all())
 
-    return Starlette(
+    app = Starlette(
         routes=build_routes(base_url=base_url),
         middleware=final_middlewares,
         lifespan=lifespan,
@@ -116,6 +123,15 @@ def create_starlette_app(
             ModuleNotFoundError: handle_error,
         },
     )
+
+    # Add debug server proxy middleware after app creation if debug_port is set in app state
+    if hasattr(app.state, "debug_port") and app.state.debug_port is not None:
+        debug_middleware = _create_debug_proxy_middleware(
+            debug_port=app.state.debug_port
+        )
+        app.add_middleware(debug_middleware.cls, **debug_middleware.options)
+
+    return app
 
 
 def _create_mpl_proxy_middleware(base_url: str) -> Middleware:

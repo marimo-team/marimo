@@ -162,11 +162,13 @@ def start(
     log_level = "info" if development_mode else "error"
 
     (external_port, external_host) = _resolve_proxy(port, host, proxy)
+
     app = create_starlette_app(
         base_url=base_url,
         host=external_host,
         lifespan=Lifespans(
             [
+                lifespans.debug_server,  # Add debug server lifespan
                 lifespans.lsp,
                 lifespans.mcp,
                 lifespans.etc,
@@ -182,6 +184,7 @@ def start(
         if lsp_composite_server is not None
         else None,
         skew_protection=skew_protection,
+        debug_port=None,  # Debug port will be set by lifespan
     )
 
     app.state.port = external_port

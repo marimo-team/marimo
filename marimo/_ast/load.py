@@ -165,16 +165,16 @@ def load_app(filename: Optional[str]) -> Optional[App]:
     elif not path.suffix == ".py":
         raise MarimoFileError("File must end with .py or .md")
 
-    try:
-        return _static_load(path)
-    except MarimoFileError:
-        # Security advantages of static load are lost here, but reasonable
-        # fallback for now.
-        _app = _dynamic_load(filename)
-        LOGGER.warning(
-            "Static loading of notebook failed; "
-            "falling back to dynamic loading. "
-            "If you can, please report this issue to the marimo team — "
-            "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
-        )
-        return _app
+    # try:
+    # return _static_load(path)
+    # except MarimoFileError:
+    # Security advantages of static load are lost here, but reasonable
+    # fallback for now.
+    _app = _dynamic_load(filename)
+    LOGGER.warning(
+        "Static loading of notebook failed; "
+        "falling back to dynamic loading. "
+        "If you can, please report this issue to the marimo team — "
+        "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
+    )
+    return _app
