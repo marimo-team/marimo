@@ -212,7 +212,14 @@
 
   /* Borderless styles for Cell */
   &.borderless {
-    @apply borderless-common;
+    border-color: transparent;
+    box-shadow: none;
+
+    /* Apply the original styles */
+    &:hover {
+      border: 1px solid var(--gray-4);
+      @apply shadow-smSolid shadow-shade;
+    }
   }
 
   /* -------------------------- Shoulders/Buttons ---------------------------- */
@@ -236,22 +243,18 @@
   @apply bg-background;
 }
 
-.borderless-common {
-  border-color: transparent;
-  box-shadow: none;
-
-  /* Apply the original styles */
-  &:hover {
-    border: 1px solid var(--gray-4);
-    @apply shadow-smSolid shadow-shade;
-  }
-}
-
 .dark .marimo-cell {
   @apply border-border;
 
   &.borderless {
-    @apply borderless-common;
+    border-color: transparent;
+    box-shadow: none;
+
+    /* Apply the original styles */
+    &:hover {
+      border: 1px solid var(--gray-4);
+      @apply shadow-smSolid shadow-shade;
+    }
   }
 }
 

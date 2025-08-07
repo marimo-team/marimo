@@ -16,31 +16,6 @@ module.exports = {
       },
     },
     extend: {
-      boxShadow: {
-        none: "none",
-        // fuzzy shadows
-        xxs: "0px 0px 2px 0px var(--base-shadow-darker)",
-        xs: "1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity))",
-        sm: "2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 25% / var(--base-shadow-opacity))",
-        md: "4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 60% / var(--base-shadow-opacity))",
-        lg: "5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px hsl(0deg 0% 75% / var(--base-shadow-opacity))",
-        xl: "8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px hsl(0deg 0% 85% / var(--base-shadow-opacity))",
-        "2xl":
-          "10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px hsl(0deg 0% 90% / var(--base-shadow-opacity))",
-
-        xsSolid:
-          "1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%)",
-        smSolid:
-          "2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%)",
-        mdSolid:
-          "4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px hsl(0deg 0% 60% / 50%)",
-        lgSolid:
-          "5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 75% / 50%)",
-        xlSolid:
-          "7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px hsl(0deg 0% 85% / 50%)",
-        "2xlSolid":
-          "10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px hsl(0deg 0% 90% / 50%)",
-      },
       width: {
         contentWidth: "var(--content-width)",
         contentWidthMedium: "var(--content-width-medium)",
