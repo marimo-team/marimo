@@ -488,6 +488,12 @@ def edit(
         )
         return
 
+    # Dangerous sandbox can be forced on by setting an environment variable;
+    # this allows our VS Code extension to force sandbox regardless of the
+    # marimo version.
+    if sandbox and os.getenv("MARIMO_DANGEROUS_SANDBOX"):
+        dangerous_sandbox = True
+
     if dangerous_sandbox and (name is None or os.path.isdir(name)):
         sandbox = True
         click.echo(
