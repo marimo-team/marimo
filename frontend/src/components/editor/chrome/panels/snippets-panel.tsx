@@ -97,7 +97,10 @@ export const SnippetsPanel: React.FC = () => {
   );
 };
 
-const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({ snippet, onClose }) => {
+const SnippetViewer: React.FC<{ snippet: Snippet; onClose: () => void }> = ({
+  snippet,
+  onClose,
+}) => {
   const { theme } = useTheme();
   const { createNewCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
