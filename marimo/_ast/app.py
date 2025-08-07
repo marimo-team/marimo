@@ -21,9 +21,9 @@ from typing import (
     cast,
     overload,
 )
-from uuid import uuid4
 
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell_id import external_prefix
 from marimo._ast.variables import BUILTINS
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.serialization import (
@@ -236,7 +236,7 @@ class App:
             # nested applications get a unique cell prefix to disambiguate
             # their graph from other graphs
             get_context()
-            cell_prefix = str(uuid4())
+            cell_prefix = external_prefix()
         else:
             cell_prefix = ""
 
@@ -283,7 +283,7 @@ class App:
         """
         app = App()
         app._filename = self._filename
-        app._cell_manager = CellManager(prefix=str(uuid4()))
+        app._cell_manager = CellManager(prefix=external_prefix())
         for cell_id, code, name, config in zip(
             self._cell_manager.cell_ids(),
             self._cell_manager.codes(),

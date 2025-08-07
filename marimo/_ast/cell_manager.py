@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import os
-import random
-import string
 import sys
 from typing import (
     TYPE_CHECKING,
@@ -19,6 +17,7 @@ else:
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig
+from marimo._ast.cell_id import CellIdGenerator
 from marimo._ast.compiler import (
     cell_factory,
     context_cell_factory,
@@ -47,34 +46,6 @@ Cls: TypeAlias = type
 Obj: TypeAlias = "Cls | Fn[P, R]"
 
 LOGGER = _loggers.marimo_logger()
-
-
-class CellIdGenerator:
-    def __init__(self, prefix: str = "") -> None:
-        self.prefix = prefix
-        self.random_seed = random.Random(42)
-        self.seen_ids: set[CellId_t] = set()
-
-    def create_cell_id(self) -> CellId_t:
-        """Create a new unique cell ID.
-
-        Returns:
-            CellId_t: A new cell ID consisting of the manager's prefix followed by 4 random letters.
-        """
-        attempts = 0
-        while attempts < 100:
-            # 4 random letters
-            _id = self.prefix + "".join(
-                self.random_seed.choices(string.ascii_letters, k=4)
-            )
-            if _id not in self.seen_ids:
-                self.seen_ids.add(CellId_t(_id))
-                return CellId_t(_id)
-            attempts += 1
-
-        raise ValueError(
-            f"Failed to create a unique cell ID after {attempts} attempts"
-        )
 
 
 class CellManager:
