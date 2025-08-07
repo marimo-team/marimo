@@ -37,25 +37,6 @@ def check_for_multiple_definitions(
     return errors
 
 
-def check_for_delete_nonlocal(
-    graph: DirectedGraph,
-) -> dict[CellId_t, list[DeleteNonlocalError]]:
-    """Check whether cells delete their refs."""
-    # TODO XXX
-    errors = defaultdict(list)
-    return errors
-    for cid in graph.cells.keys():
-        for name in graph.cells[cid].deleted_refs:
-            if name in graph.definitions:
-                errors[cid].append(
-                    DeleteNonlocalError(
-                        name=str(name),
-                        cells=tuple(graph.definitions[name]),
-                    )
-                )
-    return errors
-
-
 def check_for_invalid_root(
     graph: DirectedGraph,
 ) -> dict[CellId_t, list[SetupRootError]]:
@@ -117,7 +98,6 @@ def check_for_errors(
     that is involved in an error.
     """
     multiple_definition_errors = check_for_multiple_definitions(graph)
-    delete_nonlocal_errors = check_for_delete_nonlocal(graph)
     cycle_errors = check_for_cycles(graph)
     invalid_root_errors = check_for_invalid_root(graph)
 
@@ -125,7 +105,6 @@ def check_for_errors(
     for cid in set(
         itertools.chain(
             multiple_definition_errors.keys(),
-            delete_nonlocal_errors.keys(),
             cycle_errors.keys(),
             invalid_root_errors.keys(),
         )
@@ -134,7 +113,6 @@ def check_for_errors(
             itertools.chain(
                 multiple_definition_errors[cid],
                 cycle_errors[cid],
-                delete_nonlocal_errors[cid],
                 invalid_root_errors[cid],
             )
         )
