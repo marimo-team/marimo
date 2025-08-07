@@ -52,3 +52,8 @@ functions for capturing console outputs and redirecting them to cell outputs.
 ::: marimo.capture_stdout
 
 ::: marimo.capture_stderr
+
+## Object inspection
+
+Use [`mo.inspect`][marimo.inspect] to create a rich display of Python objects
+for exploring their attributes, methods, and documentation.
