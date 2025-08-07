@@ -242,6 +242,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             client: client as unknown as LanguageServerClient,
             languageId: "python",
             allowHTMLContent: true,
+            useSnippetOnCompletion: false,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
             // Default to false

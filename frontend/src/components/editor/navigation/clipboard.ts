@@ -5,6 +5,7 @@ import { z } from "zod";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 
 // According to MDN, custom mimetypes should start with "web "
@@ -70,7 +71,7 @@ export function useCellClipboard() {
       // Fallback to simple text copy
       try {
         const plainText = cells.map((cell) => cell.code).join("\n\n");
-        await navigator.clipboard.writeText(plainText);
+        await copyToClipboard(plainText);
         toastSuccess(cells.length);
       } catch {
         toastError();
