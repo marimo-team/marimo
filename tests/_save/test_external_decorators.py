@@ -228,3 +228,121 @@ class TestDecoratorTransitiveFns:
                 f"Expected different hashes for different impure dependencies, "
                 f"got {hash1} == {hash2}"
             )
+
+
+class TestAsExternalApp:
+    @staticmethod
+    async def test_as_external_app(app) -> None:
+        with app.setup:
+            from tests._save.external_decorators.app import (
+                app as ex_app,
+            )
+
+        @app.cell
+        def _():
+            _, defs = ex_app.run()
+            assert defs["bar"] == 2
+            assert defs["cache"](1) == 2
+            return
+
+    @staticmethod
+    async def test_as_external_app_in_kernel(
+        lazy_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = lazy_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="setup",
+                    code=textwrap.dedent(
+                        """
+                from tests._save.external_decorators.app import (
+                    app as ex_app,
+                )
+                """
+                    ),
+                ),
+                exec_req.get(
+                    """
+                    _, defs = ex_app.run()
+                    assert defs["bar"] == 2
+                    assert defs["cache"](1) == 2
+                    resolved = True
+                """
+                ),
+            ]
+        )
+        assert k.globals.get("resolved", False), k.stderr
+
+    @staticmethod
+    async def test_as_external_app_embedded(app) -> None:
+        with app.setup:
+            from tests._save.external_decorators.app import (
+                app as ex_app,
+            )
+
+        @app.cell
+        async def _():
+            r1 = await ex_app.embed()
+            assert r1.defs["bar"] == 2
+            assert r1.defs["cache"](1) == 2
+            return
+
+    @staticmethod
+    async def test_as_external_app_embedded_cloned(app) -> None:
+        with app.setup:
+            from tests._save.external_decorators.app import (
+                app as ex_app,
+            )
+
+        @app.cell
+        async def _():
+            r2 = await ex_app.clone().embed()
+            assert r2.defs["bar"] == 2
+            assert r2.defs["cache"](1) == 2
+            return
+
+    @staticmethod
+    async def test_as_external_app_embedded_in_kernel(
+        lazy_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = lazy_kernel
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="setup",
+                    code=textwrap.dedent(
+                        """
+                from tests._save.external_decorators.app import (
+                    app as ex_app,
+                )
+                """
+                    ),
+                ),
+                exec_req.get(
+                    """
+                    r1 = await ex_app.embed()
+                    assert r1.defs["bar"] == 2
+                    assert r1.defs["cache"](1) == 2
+                """
+                ),
+                exec_req.get(
+                    """
+                    r2 = await ex_app.clone().embed()
+                    assert r2.defs["bar"] == 2
+                    assert r2.defs["cache"](1) == 2
+                """
+                ),
+                exec_req.get(
+                    """
+                    r1, r2
+                    resolved = True
+                """
+                ),
+            ]
+        )
+        assert k.globals.get("resolved", False), k.stderr
+        assert k.globals["r1"].defs["bar"] == 2
+        assert k.globals["r1"].defs["cache"](1) == 2
+        assert k.globals["r2"].defs["bar"] == 2
+        assert k.globals["r2"].defs["cache"](1) == 2

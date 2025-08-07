@@ -22,6 +22,7 @@ from typing import (
     overload,
 )
 
+from marimo._ast.cell_id import is_external_cell_id
 from marimo._ast.transformers import (
     ARG_PREFIX,
     CacheExtractWithBlock,
@@ -141,20 +142,24 @@ class _cache_call:
 
     def _set_context(self, fn: Callable[..., Any]) -> None:
         ctx = safe_get_context()
+
         # If we are loaded from a module, then we have no context.
+        # Default to this case for typing.
+        self._external = True
+        cell_id = CellId_t("")
+        graph: Optional[DirectedGraph] = None
+        glbls = {}
         if ctx and ctx.execution_context is not None:
-            cell_id = (
+            maybe_cell_id = (
                 ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
             )
-            graph = ctx.graph
-            glbls = ctx.globals
-            self._external = False
-        else:
-            # We are in a loaded context.
-            cell_id = CellId_t("")
-            graph = None
-            glbls = {}
-            self._external = True
+            # If the cell ID is "external", that means it's not from the main
+            # graph but rather from an embedded graph.
+            self._external = is_external_cell_id(maybe_cell_id)
+            if not self._external:
+                graph = ctx.graph
+                glbls = ctx.globals
+                cell_id = maybe_cell_id
 
         self.__wrapped__ = fn
         sig = inspect.signature(fn)
