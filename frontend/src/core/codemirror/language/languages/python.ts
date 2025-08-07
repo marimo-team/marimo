@@ -128,7 +128,6 @@ const pylspClient = once((lspConfig: LSPConfig) => {
   return new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      autoClose: false,
     }),
     settings,
   );
@@ -146,7 +145,6 @@ const tyLspClient = once((_: LSPConfig) => {
   return new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      autoClose: false,
       getWorkspaceConfiguration: (_) => [{ disableLanguageServices: true }],
     }),
     {},
@@ -165,7 +163,6 @@ const pyrightClient = once((_: LSPConfig) => {
   return new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      autoClose: false,
     }),
     {},
   );

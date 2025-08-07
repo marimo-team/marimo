@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { EditorView } from "@codemirror/view";
 import type { LanguageServerClient } from "@marimo-team/codemirror-languageserver";
 import type { DocumentUri } from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
@@ -40,16 +39,4 @@ export function isClientWithNotify(
   ) => void;
 } {
   return "notify" in client;
-}
-
-/**
- * Plugins are a @private on `LanguageServerClient`,
- * hiding public use with TypeScript.
- */
-export function isClientWithPlugins(
-  client: ILanguageServerClient,
-): client is ILanguageServerClient & {
-  plugins: { documentUri: string; view?: EditorView }[];
-} {
-  return "plugins" in client;
 }
