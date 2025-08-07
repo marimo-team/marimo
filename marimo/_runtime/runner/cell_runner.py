@@ -330,7 +330,6 @@ class Runner:
         cell_id: CellId_t,
     ) -> tuple[RunResult, Optional[BaseException]]:
         exception: Optional[ErrorObjects] = unwrapped_exception
-        repr(exception)
         if isinstance(exception, MarimoMissingRefError):
             ref, blamed_cell = self._get_blamed_cell(exception)
             # All MarimoMissingRefErrors should be caused caused by
