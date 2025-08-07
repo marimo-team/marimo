@@ -5,13 +5,16 @@ import type {
   CompletionContext,
   CompletionSource,
 } from "@codemirror/autocomplete";
+import { getAIContextRegistry } from "@/core/ai/context/context";
+import type {
+  TableContextItem,
+  VariableContextItem,
+} from "@/core/ai/context/providers/context-providers";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
-import { allTablesAtom } from "@/core/datasets/data-source-connections";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
-import { variablesAtom } from "@/core/variables/state";
-import type { Variable, VariableName } from "@/core/variables/types";
+import type { Variable } from "@/core/variables/types";
 import { Logger } from "@/utils/Logger";
 
 /**
@@ -55,30 +58,15 @@ function extractDatasetsAndVariables(input: string): {
   datasets: DataTable[];
   variables: Variable[];
 } {
-  const allTables = store.get(allTablesAtom);
-  const allVariables = store.get(variablesAtom);
-
-  // Extract mentions from the input
-  const mentions = input.match(/@([\w.]+)/g) || [];
-  const mentionedNames = mentions.map((mention) => mention.slice(1));
-
-  const datasets: DataTable[] = [];
-  const variables: Variable[] = [];
-
-  for (const name of mentionedNames) {
-    // First process datasets (higher priority)
-    const dataset = allTables.get(name);
-    if (dataset) {
-      datasets.push(dataset);
-      continue;
-    }
-
-    // Then process variables if not already processed as datasets
-    const variable = allVariables[name as VariableName];
-    if (variable) {
-      variables.push(variable);
-    }
-  }
+  const registry = getAIContextRegistry(store);
+  const contextIds = registry.parseAllContextIds(input);
+  const contextInfo = registry.getContextInfo(contextIds);
+  const datasets: DataTable[] = contextInfo
+    .filter((info): info is TableContextItem => info.type === "table")
+    .map((info) => info.data);
+  const variables: Variable[] = contextInfo
+    .filter((info): info is VariableContextItem => info.type === "variable")
+    .map((info) => info.data.variable);
 
   return { datasets, variables };
 }

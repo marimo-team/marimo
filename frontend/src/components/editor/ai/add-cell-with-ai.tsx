@@ -6,6 +6,7 @@ import {
   type CompletionContext,
   type CompletionSource,
 } from "@codemirror/autocomplete";
+import { markdown } from "@codemirror/lang-markdown";
 import { sql } from "@codemirror/lang-sql";
 import { Prec } from "@codemirror/state";
 import ReactCodeMirror, {
@@ -15,7 +16,7 @@ import ReactCodeMirror, {
   type ReactCodeMirrorRef,
 } from "@uiw/react-codemirror";
 import { useCompletion } from "ai/react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { ChevronsUpDown, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -28,11 +29,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
+import { getAIContextRegistry } from "@/core/ai/context/context";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
-import { allTablesAtom } from "@/core/datasets/data-source-connections";
 import { useRuntimeManager } from "@/core/runtime/config";
-import { variablesAtom } from "@/core/variables/state";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
@@ -41,10 +41,6 @@ import {
   getAICompletionBody,
   mentionsCompletionSource,
 } from "./completion-utils";
-import {
-  getTableMentionCompletions,
-  getVariableMentionCompletions,
-} from "./completions";
 
 const pythonExtensions = [
   customPythonLanguageSupport(),
@@ -248,35 +244,43 @@ export const PromptInput = ({
 }: PromptInputProps) => {
   const handleSubmit = onSubmit;
   const handleEscape = onClose;
-  const tablesMap = useAtomValue(allTablesAtom);
-  const variables = useAtomValue(variablesAtom);
+  const store = useStore();
 
-  // TablesMap and variable change a lot,
-  // so we use useEvent to memoize the completion source
-  const completionSource: CompletionSource = useEvent(
+  const contextCompletionSource: CompletionSource = useEvent(
     (context: CompletionContext) => {
-      const completions = [
-        ...getTableMentionCompletions(tablesMap),
-        ...getVariableMentionCompletions(variables, tablesMap),
-      ];
+      const contextRegistry = getAIContextRegistry(store);
 
-      // Trigger autocompletion for text that begins with @, can contain dots
-      const matchBeforeRegexes = [/@([\w.]+)?/];
-      if (additionalCompletions) {
-        matchBeforeRegexes.push(additionalCompletions.triggerCompletionRegex);
-        completions.push(...additionalCompletions.completions);
+      const completions = contextRegistry.getAllCompletions();
+
+      return mentionsCompletionSource([/@([\w.]+)?/], completions)(context);
+    },
+  );
+
+  const additionalCompletionsSource: CompletionSource = useEvent(
+    (context: CompletionContext) => {
+      if (!additionalCompletions) {
+        return null;
       }
 
-      return mentionsCompletionSource(matchBeforeRegexes, completions)(context);
+      return mentionsCompletionSource(
+        [additionalCompletions.triggerCompletionRegex],
+        additionalCompletions.completions,
+      )(context);
     },
   );
 
   // Changing extensions can be expensive, so
   // it is worth making sure this is memoized well.
   const extensions = useMemo(() => {
+    const markdownLanguage = markdown();
     return [
-      autocompletion({
-        override: [completionSource],
+      autocompletion({}),
+      markdownLanguage,
+      markdownLanguage.language.data.of({
+        autocomplete: contextCompletionSource,
+      }),
+      markdownLanguage.language.data.of({
+        autocomplete: additionalCompletionsSource,
       }),
       EditorView.lineWrapping,
       minimalSetup(),
@@ -348,7 +352,12 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [completionSource, handleSubmit, handleEscape]);
+  }, [
+    contextCompletionSource,
+    additionalCompletionsSource,
+    handleSubmit,
+    handleEscape,
+  ]);
 
   return (
     <ReactCodeMirror
