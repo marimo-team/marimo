@@ -36,6 +36,7 @@ class NoopStream(Stream):
         pass
 
 
+# These streams are not stoppable by users (we don't implement stop).
 class Stdout(io.TextIOBase):
     name = "stdout"
 
@@ -48,7 +49,7 @@ class Stdout(io.TextIOBase):
     def write(self, __s: str) -> int:
         return self._write_with_mimetype(__s, mimetype="text/plain")
 
-    def stop(self) -> None:
+    def _stop(self) -> None:
         """Tear down resources, if any."""
         pass
 
@@ -65,7 +66,7 @@ class Stderr(io.TextIOBase):
     def write(self, __s: str) -> int:
         return self._write_with_mimetype(__s, mimetype="text/plain")
 
-    def stop(self) -> None:
+    def _stop(self) -> None:
         """Tear down resources, if any."""
         pass
 
@@ -73,6 +74,6 @@ class Stderr(io.TextIOBase):
 class Stdin(io.TextIOBase):
     name = "stdin"
 
-    def stop(self) -> None:
+    def _stop(self) -> None:
         """Tear down resources, if any."""
         pass

@@ -212,7 +212,7 @@ class ThreadSafeStdout(Stdout):
         self._original_fd = sys.stdout.fileno()
         self._watcher = Watcher(self)
 
-    def stop(self) -> None:
+    def _stop(self) -> None:
         self._watcher.stop()
 
     def fileno(self) -> int:
@@ -278,7 +278,7 @@ class ThreadSafeStderr(Stderr):
         self._original_fd = sys.stderr.fileno()
         self._watcher = Watcher(self)
 
-    def stop(self) -> None:
+    def _stop(self) -> None:
         self._watcher.stop()
 
     def fileno(self) -> int:

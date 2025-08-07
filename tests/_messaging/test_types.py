@@ -83,6 +83,12 @@ class TestStdoutStderr:
         stderr = self.MockStderr()
         assert stderr.name == "stderr"
 
+    def test_not_stoppable(self) -> None:
+        stdout = self.MockStdout()
+        assert not hasattr(stdout, "stop")
+        stderr = self.MockStderr()
+        assert not hasattr(stderr, "stop")
+
 
 class TestStdin:
     def test_stdin_name(self) -> None:
