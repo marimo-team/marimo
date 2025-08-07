@@ -6,10 +6,8 @@ import type {
   CompletionSource,
 } from "@codemirror/autocomplete";
 import { getAIContextRegistry } from "@/core/ai/context/context";
-import type {
-  TableContextItem,
-  VariableContextItem,
-} from "@/core/ai/context/providers/context-providers";
+import type { TableContextItem } from "@/core/ai/context/providers/tables";
+import type { VariableContextItem } from "@/core/ai/context/providers/variable";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { DataTable } from "@/core/kernel/messages";
 import type { AiCompletionRequest } from "@/core/network/types";
