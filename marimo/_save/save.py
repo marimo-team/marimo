@@ -147,7 +147,7 @@ class _cache_call:
             cell_id = (
                 ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
             )
-            # If it's a UUID, then are in a cloned embed context.
+            # If it's a UUID, then we are in a cloned embed context.
             self._external = len(cell_id) > 5
 
         if not self._external:
