@@ -56,7 +56,7 @@ def helpful_usage_error(self: Any, file: Any = None) -> None:
         click.echo(self.ctx.get_help(), file=file, color=color)
 
 
-def check_app_correctness(filename: str) -> None:
+def check_app_correctness(filename: str, noninteractive: bool = True) -> None:
     try:
         status = get_notebook_status(filename)
     except SyntaxError:
@@ -85,7 +85,8 @@ def check_app_correctness(filename: str) -> None:
         ) from None
 
     # Only show the tip if we're in an interactive terminal
-    if status == "invalid" and sys.stdin.isatty():
+    interactive = sys.stdin.isatty() and not noninteractive
+    if status == "invalid" and interactive:
         click.echo(
             green("tip")
             + ": Use `"
@@ -107,6 +108,26 @@ def check_app_correctness(filename: str) -> None:
         _loggers.marimo_logger().warning(
             "This notebook has errors, saving may lose data. Continuing anyway."
         )
+
+
+def check_app_correctness_or_convert(filename: str) -> None:
+    from marimo._convert.converters import MarimoConvert
+
+    file = Path(filename)
+    code = file.read_text(encoding="utf-8")
+    try:
+        return check_app_correctness(filename, noninteractive=True)
+    except click.ClickException:
+        # A click exception is raised if a python script could not be converted
+        code = MarimoConvert.from_non_marimo_python_script(
+            source=code, aggressive=True
+        ).to_py()
+    except SyntaxError:
+        # The file could not even be read as python
+        code = MarimoConvert.from_plain_text(source=code).to_py()
+        file.write_text(code, encoding="utf-8")
+
+    file.write_text(code, encoding="utf-8")
 
 
 click.exceptions.UsageError.show = helpful_usage_error  # type: ignore
@@ -398,6 +419,14 @@ edit_help_msg = "\n".join(
     hidden=True,
     help="Remote URL for runtime configuration.",
 )
+@click.option(
+    "--convert",
+    is_flag=True,
+    default=False,
+    type=bool,
+    hidden=True,
+    help="When opening a .py file, enable fallback conversion from pypercent, script, or text.",
+)
 @click.argument(
     "name",
     required=False,
@@ -419,6 +448,7 @@ def edit(
     watch: bool,
     skew_protection: bool,
     remote_url: Optional[str],
+    convert: bool,
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -474,7 +504,10 @@ def edit(
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
-            check_app_correctness(name)
+            if convert:
+                check_app_correctness_or_convert(name)
+            else:
+                check_app_correctness(name)
         elif not is_dir:
             # write empty file
             try:
