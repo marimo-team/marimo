@@ -153,6 +153,8 @@ class _cache_call:
             maybe_cell_id = (
                 ctx.cell_id or ctx.execution_context.cell_id or CellId_t("")
             )
+            # If the cell ID is "external", that means it's not from the main
+            # graph but rather from an embedded graph.
             self._external = is_external_cell_id(maybe_cell_id)
             if not self._external:
                 graph = ctx.graph
