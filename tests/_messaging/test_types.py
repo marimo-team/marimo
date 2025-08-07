@@ -95,10 +95,9 @@ class TestStdin:
         stdin = Stdin()
         assert stdin.name == "stdin"
 
-    def test_stdin_stop(self) -> None:
+    def test_not_stoppable(self) -> None:
         stdin = Stdin()
-        # Should not raise any exceptions
-        stdin.stop()
+        assert not hasattr(stdin, "stop")
 
 
 class TestKernelMessage:
