@@ -244,6 +244,8 @@ def construct_uv_command(
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
+    if "--dangerous-sandbox" in cmd:
+        cmd.remove("--dangerous-sandbox")
 
     pyproject = (
         PyProjectReader.from_filename(name)

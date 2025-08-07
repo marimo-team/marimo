@@ -30,6 +30,7 @@ from marimo._server.templates.templates import get_version
 from marimo._utils.config.config import ROOT_DIR as CONFIG_ROOT_DIR
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
+from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -579,6 +580,110 @@ def test_cli_sandbox_edit_new_file() -> None:
     _check_contents(p, b"edit", contents)
 
 
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_edit_none_not_supported() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--sandbox",
+        ],
+        stderr=subprocess.PIPE,
+    )
+
+    def _assert():
+        assert p.returncode != 0
+
+    try_assert_n_times(5, _assert)
+    assert p.stderr is not None
+    assert "not supported" in p.stderr.read().decode()
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_sandbox_edit_directory_not_supported() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "../",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--sandbox",
+        ],
+        stderr=subprocess.PIPE,
+    )
+
+    def _assert():
+        assert p.returncode != 0
+
+    try_assert_n_times(5, _assert)
+    assert p.stderr is not None
+    assert "not supported" in p.stderr.read().decode()
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_edit_none_dangerous_sandbox_allowed() -> None:
+    # sandbox is disallowed in a multi-notebook edit server,
+    # but can be overridden with --dangerous-sandbox.
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "--dangerous-sandbox",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "home"', contents)
+    _check_contents(
+        p,
+        f'"version": "{get_version()}"'.encode(),
+        contents,
+    )
+    _check_contents(p, b'"serverToken": ', contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_edit_directory_dangerous_sandbox_allowed() -> None:
+    # sandbox is disallowed in a multi-notebook edit server,
+    # but can be overridden with --dangerous-sandbox.
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "../",
+            "--dangerous-sandbox",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--skip-update-check",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "home"', contents)
+    _check_contents(
+        p,
+        f'"version": "{get_version()}"'.encode(),
+        contents,
+    )
+    _check_contents(p, b'"serverToken": ', contents)
+
+
 @pytest.mark.skipif(is_windows(), reason="Windows will prompt for Docker")
 def test_cli_edit_by_url() -> None:
     port = _get_port()
@@ -891,13 +996,41 @@ def test_cli_with_custom_pyproject_config(tmp_path: Path) -> None:
     finally:
         p.kill()
 
-    # marimo edit --sandbox, in the directory with pyproject.toml
+
+# Test sandbox with config for vscode compatibility
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
+    # Create a custom pyproject.toml with special marimo config
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo]
+    formatting = {line_length = 111}
+
+    [tool.marimo.runtime]
+    auto_instantiate = false
+
+    [tool.marimo.package_management]
+    manager = "pip"
+    """
+    pyproject_path.write_text(pyproject_content)
+
+    def assert_custom_config(contents: bytes | None) -> None:
+        assert contents is not None
+        # Verify that the custom config is applied
+        assert b'"line_length": 111' in contents
+        assert b'"auto_instantiate": false' in contents
+        # Verify that the package manager is switch to uv because we are running in a sandbox
+        # TODO: fix this, it does not get overridden in tests (maybe it is using a different marimo version that the one in CI)
+        # assert b'"manager": "uv"' in contents
+
+    # marimo edit --dangerous-sandbox, in the directory with pyproject.toml,
+    # for vscode extension compatibility
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
-            "--sandbox",
+            "--dangerous-sandbox",
             "-p",
             str(port),
             "--headless",

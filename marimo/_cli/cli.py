@@ -218,8 +218,9 @@ token_password_message = (
 )
 
 sandbox_message = (
-    "Run the command in an isolated virtual environment using "
-    "`uv run --isolated`. Requires `uv`."
+    "Run the notebook in an isolated environment, with dependencies tracked "
+    "via PEP 723 inline metadata. If already declared, dependencies will "
+    "install automatically. Requires uv."
 )
 
 
@@ -395,6 +396,19 @@ edit_help_msg = "\n".join(
     type=bool,
     help=sandbox_message,
 )
+@click.option(
+    "--dangerous-sandbox/--no-dangerous-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    hidden=True,
+    help="""Enables the usage of package sandboxing when running a multi-edit
+notebook server. This behavior can lead to surprising and unintended consequences,
+such as incorrectly overwriting package requirements or failing to write out
+requirements. These and other issues are described in
+https://github.com/marimo-team/marimo/issues/5219.""",
+)
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
     "--watch",
@@ -444,6 +458,7 @@ def edit(
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
     sandbox: Optional[bool],
+    dangerous_sandbox: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
     skew_protection: bool,
@@ -473,13 +488,39 @@ def edit(
         )
         return
 
-    # Set default, if not provided
+    if dangerous_sandbox and (name is None or os.path.isdir(name)):
+        sandbox = True
+        click.echo(
+            click.style(
+                "Warning: Using sandbox with multi-notebook edit servers is dangerous.\n",
+                fg="yellow",
+            )
+            + "Notebook dependencies may not be respected, may not be written, and may be overwritten.\n"
+            + "Learn more: https://github.com/marimo-team/marimo/issues/5219l.\n",
+            err=True,
+        )
+
     if sandbox is None:
+        # When the sandbox flag is omitted we infer whether to
+        # to start in sandbox mode by examining the notebook file and
+        # prompting the user.
         from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
 
         sandbox = maybe_prompt_run_in_sandbox(name)
+    elif (
+        sandbox
+        and not dangerous_sandbox
+        and (name is None or os.path.isdir(name))
+    ):
+        raise click.UsageError(
+            """marimo's package sandbox requires a notebook name:
 
-    if sandbox:
+    * marimo edit --sandbox my_notebook.py
+
+  Multi-notebook sandboxed servers (marimo edit --sandbox) are not supported.
+  Follow this issue at: https://github.com/marimo-team/marimo/issues/2598."""
+        )
+    elif sandbox:
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well
