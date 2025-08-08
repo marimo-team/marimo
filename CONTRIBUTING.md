@@ -21,7 +21,7 @@ or [on Discord](https://marimo.io/discord?ref=contributing).
 
 ## Setup
 
-Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed, using `hatch` as the environment manager.
+Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all the necessary tooling installed.
 
 > [!NOTE]
 >
@@ -30,7 +30,13 @@ Install [pixi](https://github.com/prefix-dev/pixi) to manage your development en
 > Note that developing in Gitpod is not officially supported by the marimo team.
 
 ```bash
-pixi run hatch shell
+pixi shell
+```
+
+You may also activate the `hatch` environment for certain `hatch`-specific commands.
+
+```bash
+hatch shell
 ```
 
 Now you can install the environment frontend and Python dependencies.
