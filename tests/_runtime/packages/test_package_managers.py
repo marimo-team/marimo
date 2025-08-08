@@ -10,6 +10,7 @@ from marimo._runtime.packages.pypi_package_manager import (
     RyePackageManager,
     UvPackageManager,
 )
+from marimo._utils.uv import find_uv_bin
 
 
 def test_create_package_managers() -> None:
@@ -44,8 +45,8 @@ def test_update_script_metadata() -> None:
         upgrade=False,
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "foo==1.0"],
-        ["uv", "--quiet", "remove", "--script", "nb.py", "bar"],
+        [find_uv_bin(), "--quiet", "add", "--script", "nb.py", "foo==1.0"],
+        [find_uv_bin(), "--quiet", "remove", "--script", "nb.py", "bar"],
     ]
 
     runs_calls.clear()
@@ -75,7 +76,7 @@ def test_update_script_metadata_with_version_map() -> None:
         "nb.py", packages_to_remove=["baz"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "remove", "--script", "nb.py", "baz"],
+        [find_uv_bin(), "--quiet", "remove", "--script", "nb.py", "baz"],
     ]
 
 
@@ -96,7 +97,7 @@ def test_update_script_metadata_with_mapping() -> None:
         "nb.py", packages_to_add=["ibis"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "ibis==2.0"],
+        [find_uv_bin(), "--quiet", "add", "--script", "nb.py", "ibis==2.0"],
     ]
     runs_calls.clear()
 
@@ -106,7 +107,7 @@ def test_update_script_metadata_with_mapping() -> None:
         "nb.py", import_namespaces_to_add=["yaml"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "PyYAML==1.0"],
+        [find_uv_bin(), "--quiet", "add", "--script", "nb.py", "PyYAML==1.0"],
     ]
     runs_calls.clear()
 
@@ -117,7 +118,7 @@ def test_update_script_metadata_with_mapping() -> None:
     )
     assert runs_calls == [
         [
-            "uv",
+            find_uv_bin(),
             "--quiet",
             "add",
             "--script",
@@ -155,7 +156,7 @@ def test_update_script_metadata_marimo_packages() -> None:
     )
     assert runs_calls == [
         [
-            "uv",
+            find_uv_bin(),
             "--quiet",
             "add",
             "--script",
@@ -178,7 +179,7 @@ def test_update_script_metadata_marimo_packages() -> None:
     )
     assert runs_calls == [
         [
-            "uv",
+            find_uv_bin(),
             "--quiet",
             "add",
             "--script",
@@ -203,7 +204,7 @@ def test_update_script_metadata_marimo_packages() -> None:
     )
     assert runs_calls == [
         [
-            "uv",
+            find_uv_bin(),
             "--quiet",
             "add",
             "--script",
@@ -227,7 +228,7 @@ def test_update_script_metadata_marimo_packages() -> None:
     )
     assert runs_calls == [
         [
-            "uv",
+            find_uv_bin(),
             "--quiet",
             "add",
             "--script",
@@ -246,7 +247,7 @@ def test_update_script_metadata_marimo_packages() -> None:
     )
     assert runs_calls == [
         [
-            "uv",
+            find_uv_bin(),
             "--quiet",
             "add",
             "--script",
@@ -269,5 +270,5 @@ async def test_uv_pip_install() -> None:
     pm = MockUvPackageManager()
     await pm._install("foo", upgrade=False)
     assert runs_calls == [
-        ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
+        [find_uv_bin(), "pip", "install", "--compile", "foo", "-p", PY_EXE],
     ]
