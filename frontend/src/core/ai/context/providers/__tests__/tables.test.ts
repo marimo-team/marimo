@@ -123,7 +123,7 @@ describe("TableContextProvider", () => {
     it("should format context for basic table", () => {
       const table = createMockTable("products");
       const item: TableContextItem = {
-        type: "table",
+        type: "data",
         uri: "products",
         name: "products",
         description: "memory",
@@ -143,7 +143,7 @@ describe("TableContextProvider", () => {
         num_columns: null,
       });
       const item: TableContextItem = {
-        type: "table",
+        type: "data",
         uri: "no_shape",
         name: "no_shape",
         description: "memory",
@@ -162,7 +162,7 @@ describe("TableContextProvider", () => {
         columns: [],
       });
       const item: TableContextItem = {
-        type: "table",
+        type: "data",
         uri: "no_columns",
         name: "no_columns",
         description: "memory",
@@ -188,7 +188,7 @@ describe("TableContextProvider", () => {
         ],
       });
       const item: TableContextItem = {
-        type: "table",
+        type: "data",
         uri: "remote_table",
         name: "remote_table",
         description: "postgresql://localhost:5432/mydb",
@@ -269,7 +269,7 @@ describe("TableContextProvider", () => {
 
       expect(provider.title).toBe("Tables");
       expect(provider.mentionPrefix).toBe("@");
-      expect(provider.contextType).toBe("table");
+      expect(provider.contextType).toBe("data");
     });
   });
 

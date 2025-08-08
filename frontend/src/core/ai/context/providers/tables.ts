@@ -8,7 +8,7 @@ import { AIContextProvider } from "../registry";
 import { Boosts } from "./common";
 
 export interface TableContextItem extends AIContextItem {
-  type: "table";
+  type: "data";
   data: DataTable;
 }
 
@@ -25,7 +25,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
     return [...this.tablesMap.entries()].map(([tableName, table]) => ({
       uri: this.asURI(tableName),
       name: tableName,
-      type: "table",
+      type: this.contextType,
       description: table.source === "memory" ? "in-memory" : table.source,
       data: table,
     }));

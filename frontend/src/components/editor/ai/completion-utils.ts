@@ -60,7 +60,7 @@ function extractDatasetsAndVariables(input: string): {
   const contextIds = registry.parseAllContextIds(input);
   const contextInfo = registry.getContextInfo(contextIds);
   const datasets: DataTable[] = contextInfo
-    .filter((info): info is TableContextItem => info.type === "table")
+    .filter((info): info is TableContextItem => info.type === "data")
     .map((info) => info.data);
   const variables: Variable[] = contextInfo
     .filter((info): info is VariableContextItem => info.type === "variable")

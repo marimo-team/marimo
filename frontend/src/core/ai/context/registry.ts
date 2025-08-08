@@ -6,7 +6,7 @@ import type { TypedString } from "@/utils/typed";
 
 /**
  * Unique identifier for a context item in the format "type:id"
- * e.g., "variable://my_var", "table://users", "file://config.py"
+ * e.g., "variable://my_var", "data://users", "file://config.py"
  */
 export type ContextLocatorId = TypedString<"ContextLocatorId">;
 
@@ -50,7 +50,7 @@ export abstract class AIContextProvider<
 
   /** Parse context IDs from input text using the provider's mention prefix */
   parseContextIds(input: string): ContextLocatorId[] {
-    // Match @type://id, e.g., @table://users
+    // Match @type://id, e.g., @data://users
     const regex = new RegExp(
       `${this.mentionPrefix}([\\w-]+):\\/\\/([\\w./-]+)`,
       "g",

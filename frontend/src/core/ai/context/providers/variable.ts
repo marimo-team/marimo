@@ -17,7 +17,7 @@ export interface VariableContextItem extends AIContextItem {
 export class VariableContextProvider extends AIContextProvider<VariableContextItem> {
   readonly title = "Variables";
   readonly mentionPrefix = "@";
-  readonly contextType = "var";
+  readonly contextType = "variable";
 
   constructor(
     private variables: Variables,
@@ -37,7 +37,7 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
         {
           uri: this.asURI(name),
           name: name,
-          type: "variable",
+          type: this.contextType,
           description: variable.dataType ?? "",
           dataType: variable.dataType,
           data: {
@@ -56,7 +56,7 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
       displayLabel: variable.name,
       detail: variable.dataType ?? "",
       boost: Boosts.VARIABLE,
-      type: "variable",
+      type: this.contextType,
       section: "Variable",
       info: () => {
         return createVariableInfoElement(variable);

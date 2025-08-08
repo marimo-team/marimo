@@ -234,7 +234,7 @@ describe("getAICompletionBody", () => {
     };
     store.set(variablesAtom, testVariables);
 
-    const input = "Use @var://var1 and @var://var2 for analysis";
+    const input = "Use @variable://var1 and @variable://var2 for analysis";
     const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
@@ -281,7 +281,7 @@ describe("getAICompletionBody", () => {
     };
     store.set(variablesAtom, testVariables);
 
-    const input = "Use @data://dataset1 and @var://var1 for analysis";
+    const input = "Use @data://dataset1 and @variable://var1 for analysis";
     const result = getAICompletionBody({ input });
 
     expect(result).toEqual({
@@ -321,7 +321,7 @@ describe("getAICompletionBody", () => {
     store.set(variablesAtom, testVariables);
 
     const input =
-      "Use @var://existingVar and @var://nonExistentVar for analysis";
+      "Use @variable://existingVar and @variable://nonExistentVar for analysis";
     const result = getAICompletionBody({ input });
 
     expect(result).toEqual({

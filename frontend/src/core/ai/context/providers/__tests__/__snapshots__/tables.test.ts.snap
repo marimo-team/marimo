@@ -93,8 +93,8 @@ exports[`TableContextProvider > getItems > should handle dataframe tables with v
     },
     "description": "pandas",
     "name": "df_analysis",
-    "type": "table",
-    "uri": "table://df_analysis",
+    "type": "data",
+    "uri": "data://df_analysis",
   },
 ]
 `;
@@ -117,8 +117,8 @@ exports[`TableContextProvider > getItems > should handle tables with minimal inf
     },
     "description": "",
     "name": "minimal",
-    "type": "table",
-    "uri": "table://minimal",
+    "type": "data",
+    "uri": "data://minimal",
   },
 ]
 `;
@@ -173,8 +173,8 @@ exports[`TableContextProvider > getItems > should return table items for multipl
     },
     "description": "in-memory",
     "name": "users",
-    "type": "table",
-    "uri": "table://users",
+    "type": "data",
+    "uri": "data://users",
   },
   {
     "data": {
@@ -240,8 +240,8 @@ exports[`TableContextProvider > getItems > should return table items for multipl
     },
     "description": "database.db",
     "name": "orders",
-    "type": "table",
-    "uri": "table://orders",
+    "type": "data",
+    "uri": "data://orders",
   },
 ]
 `;
@@ -294,8 +294,8 @@ exports[`TableContextProvider > getItems > should return table items for single 
     },
     "description": "in-memory",
     "name": "users",
-    "type": "table",
-    "uri": "table://users",
+    "type": "data",
+    "uri": "data://users",
   },
 ]
 `;

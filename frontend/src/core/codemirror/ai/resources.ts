@@ -15,6 +15,7 @@ import {
 import { getAIContextRegistry } from "@/core/ai/context/context";
 import type { AIContextItem } from "@/core/ai/context/registry";
 import type { JotaiStore } from "@/core/state/jotai";
+import { Logger } from "@/utils/Logger";
 
 export function resourceExtension(
   language: Language,
@@ -26,7 +27,6 @@ export function resourceExtension(
         async (): Promise<Resource[]> => {
           const registry = getAIContextRegistry(store);
           const resources = registry.getAllItems();
-          console.warn("resourceCompletion", resources);
           return resources;
         },
         (resource) => {
@@ -38,14 +38,21 @@ export function resourceExtension(
     }),
     resourceDecorations,
     resourceInputFilter,
-    resourcesField,
+    resourcesField.init(() => {
+      const registry = getAIContextRegistry(store);
+      const resources = registry.getAllItems();
+      return new Map(resources.map((resource) => [resource.uri, resource]));
+    }),
     resourceTheme,
     hoverResource({
       createTooltip: (resource): TooltipView => {
+        const registry = getAIContextRegistry(store);
         const provider = registry.getProvider(resource.type);
-        const completion = provider?.formatCompletion(
-          resource as AIContextItem,
-        );
+        if (!provider) {
+          Logger.warn("No provider found for resource", resource);
+          return asDom(resource.description || resource.name);
+        }
+        const completion = provider.formatCompletion(resource as AIContextItem);
         const fallback = resource.description || resource.name;
         if (!completion?.info) {
           return asDom(fallback);
@@ -62,7 +69,13 @@ export function resourceExtension(
             dom: info.dom as HTMLElement,
           };
         }
-        return asDom(fallback);
+        if ("then" in info) {
+          Logger.warn("info is a promise. This is not supported", info);
+          return asDom(fallback);
+        }
+        return {
+          dom: info as HTMLElement,
+        };
       },
     }),
   ];
