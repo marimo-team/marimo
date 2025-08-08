@@ -153,6 +153,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <PromptInput
               inputRef={inputRef}
               theme={theme}
+              minHeight="2.5rem"
               onClose={() => {
                 declineChange();
                 setCompletion("");
