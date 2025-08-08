@@ -125,7 +125,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
   const runCells = useRunCells();
   const pendingDeleteService = usePendingDeleteService();
   const userConfig = useAtomValue(userConfigAtom);
-  const { saveCellConfig, sendFormat } = useRequestClient();
+  const { saveCellConfig } = useRequestClient();
 
   const selectedCount = cellIds.length;
 
@@ -195,7 +195,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
         editorViews[cellId] = editorView;
       }
     });
-    formatEditorViews(editorViews, sendFormat);
+    formatEditorViews(editorViews);
   });
 
   const clearSelectedCellsOutput = useEvent((cellIds: CellId[]) => {

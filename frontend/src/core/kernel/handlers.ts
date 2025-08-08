@@ -11,13 +11,13 @@ import {
   type LayoutData,
   type LayoutState,
 } from "../layout/layout";
-import { sendInstantiate } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type {
   Capabilities,
   CellMessage,
   OperationMessageData,
 } from "./messages";
+import { getRequestClient } from "../network/requests";
 
 export function handleKernelReady(
   data: OperationMessageData<"kernel-ready">,
@@ -120,14 +120,16 @@ export function handleKernelReady(
     objectIds.push(objectId);
     values.push(entry.value);
   });
-  // Start the run
-  sendInstantiate({
-    objectIds: objectIds,
-    values,
-    autoRun: autoInstantiate,
-  }).catch((error) => {
-    onError(new Error("Failed to instantiate", { cause: error }));
-  });
+
+  getRequestClient()
+    .sendInstantiate({
+      objectIds: objectIds,
+      values,
+      autoRun: autoInstantiate,
+    })
+    .catch((error) => {
+      onError(new Error("Failed to instantiate", { cause: error }));
+    });
 }
 
 export function handleRemoveUIElements(

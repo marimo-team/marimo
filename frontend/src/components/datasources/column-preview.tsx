@@ -14,6 +14,7 @@ import type {
   DataTableColumn,
   DataType,
 } from "@/core/kernel/messages";
+import { useRequestClient } from "@/core/network/requests";
 import { useOnMount } from "@/hooks/useLifecycle";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { type Theme, useTheme } from "@/theme/useTheme";
@@ -27,7 +28,6 @@ import { Tooltip } from "../ui/tooltip";
 import { ColumnPreviewContainer } from "./components";
 import { InstallPackageButton } from "./install-package-button";
 import { convertStatsName, sqlCode } from "./utils";
-import { useRequestClient } from "@/core/network/requests";
 
 const LazyVegaLite = React.lazy(() =>
   import("react-vega").then((m) => ({ default: m.VegaLite })),
@@ -238,7 +238,6 @@ export const AddDataframeChart: React.FC<{
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
-  const { sendRun } = useRequestClient();
 
   const handleAddColumn = (chartCode: string) => {
     if (chartCode.includes("alt")) {
@@ -246,7 +245,6 @@ export const AddDataframeChart: React.FC<{
         autoInstantiate,
         createNewCell,
         fromCellId: lastFocusedCellId,
-        sendRun,
       });
     }
     createNewCell({

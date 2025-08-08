@@ -93,7 +93,7 @@ const CellEditorInternal = ({
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
-  const { saveCellConfig, sendRun } = useRequestClient();
+  const { saveCellConfig } = useRequestClient();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();
@@ -138,7 +138,6 @@ const CellEditorInternal = ({
     maybeAddMarimoImport({
       autoInstantiate,
       createNewCell: cellActions.createNewCell,
-      sendRun,
     });
   });
 

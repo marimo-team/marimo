@@ -9,7 +9,7 @@ import { getNotebook } from "../cells/cells";
 import type { CellId } from "../cells/ids";
 import { notebookCellEditorViews } from "../cells/utils";
 import { getResolvedMarimoConfig } from "../config/config";
-import type { EditRequests } from "../network/types";
+import { getRequestClient } from "../network/requests";
 import { cellActionsState } from "./cells/state";
 import { cellIdState } from "./config/extension";
 import { languageAdapterState } from "./language/extension";
@@ -24,10 +24,8 @@ export const formattingChangeEffect = StateEffect.define<boolean>();
  * Format the code in the editor views via the marimo server,
  * and update the editor views with the formatted code.
  */
-export async function formatEditorViews(
-  views: Record<CellId, EditorView>,
-  sendFormat: EditRequests["sendFormat"],
-) {
+export async function formatEditorViews(views: Record<CellId, EditorView>) {
+  const { sendFormat } = getRequestClient();
   const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
 
   const formatResponse = await sendFormat({
@@ -65,9 +63,9 @@ export async function formatEditorViews(
 /**
  * Format all cells in the notebook.
  */
-export function formatAll(sendFormat: EditRequests["sendFormat"]) {
+export function formatAll() {
   const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views, sendFormat);
+  return formatEditorViews(views);
 }
 
 /**

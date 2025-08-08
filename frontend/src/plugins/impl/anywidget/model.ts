@@ -5,7 +5,7 @@ import type { AnyModel } from "@anywidget/types";
 import { dequal } from "dequal";
 import { debounce } from "lodash-es";
 import { z } from "zod";
-import type { RunRequests } from "@/core/network/types";
+import { getRequestClient } from "@/core/network/requests";
 import { assertNever } from "@/utils/assertNever";
 import { Deferred } from "@/utils/Deferred";
 import { updateBufferPaths } from "@/utils/data-views";
@@ -246,13 +246,11 @@ export async function handleWidgetMessage({
   msg,
   buffers,
   modelManager,
-  sendModelValue,
 }: {
   modelId: string;
   msg: AnyWidgetMessage;
   buffers: Base64String[];
   modelManager: ModelManager;
-  sendModelValue: RunRequests["sendModelValue"];
 }): Promise<void> {
   if (msg.method === "echo_update") {
     // We don't need to do anything with this message
@@ -282,7 +280,7 @@ export async function handleWidgetMessage({
         );
         // TODO: we may want to extract/undo DataView, to get back buffers and buffer_paths
       }
-      sendModelValue({
+      getRequestClient().sendModelValue({
         modelId: modelId,
         message: {
           state: changeData,

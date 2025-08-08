@@ -3,9 +3,9 @@
 import { SimpleTree } from "react-arborist";
 import { toast } from "@/components/ui/use-toast";
 import type {
+  EditRequests,
   FileInfo,
   FileUpdateResponse,
-  EditRequests,
 } from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";

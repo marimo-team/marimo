@@ -16,7 +16,6 @@ import { autoInstantiateAtom } from "@/core/config/config";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
 import { copyToClipboard } from "@/utils/copy";
-import { useRequestClient } from "@/core/network/requests";
 
 const extensions = [EditorView.lineWrapping];
 
@@ -86,7 +85,6 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
   const { createNewCell } = useCellActions();
   const lastFocusedCellId = useLastFocusedCellId();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
-  const { sendRun } = useRequestClient();
   const [value, setValue] = useState(code);
 
   useEffect(() => {
@@ -101,7 +99,6 @@ const CodeBlock = ({ code, language }: CodeBlockProps) => {
         autoInstantiate,
         createNewCell,
         fromCellId: lastFocusedCellId,
-        sendRun,
       });
     }
     createNewCell({

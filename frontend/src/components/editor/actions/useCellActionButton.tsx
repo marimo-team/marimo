@@ -97,7 +97,7 @@ export function useCellActionButtons({ cell }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const appWidth = useAtomValue(appWidthAtom);
-  const { saveCellConfig, sendRun, sendFormat } = useRequestClient();
+  const { saveCellConfig } = useRequestClient();
 
   if (!cell || kioskMode) {
     return [];
@@ -223,7 +223,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          formatEditorViews({ [cellId]: editorView }, sendFormat);
+          formatEditorViews({ [cellId]: editorView });
         },
       },
       {
@@ -274,11 +274,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({
-            autoInstantiate,
-            createNewCell: createCell,
-            sendRun,
-          });
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           switchLanguage(editorView, {
             language: "markdown",
             keepCodeAsIs: false,
@@ -293,11 +289,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({
-            autoInstantiate,
-            createNewCell: createCell,
-            sendRun,
-          });
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           switchLanguage(editorView, {
             language: "sql",
             keepCodeAsIs: false,
@@ -312,11 +304,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({
-            autoInstantiate,
-            createNewCell: createCell,
-            sendRun,
-          });
+          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
           toggleToLanguage(editorView, "python", { force: true });
         },
       },

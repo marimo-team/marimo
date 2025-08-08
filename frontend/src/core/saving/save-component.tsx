@@ -89,7 +89,7 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
 };
 
 export function useSaveNotebook() {
-  const { sendSave, sendFormat } = useRequestClient();
+  const { sendSave } = useRequestClient();
   const { openModal, closeModal, openAlert } = useImperativeModal();
   const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
   const updateFilename = useUpdateFilename();
@@ -134,7 +134,7 @@ export function useSaveNotebook() {
       persist: true,
     }).then(() => {
       if (userInitiated && autoSaveConfig.format_on_save) {
-        formatAll(sendFormat);
+        formatAll();
       }
       setLastSavedNotebook({
         names: cellNames,

@@ -16,9 +16,6 @@ import { ModalProvider } from "../components/modal/ImperativeModal";
 import { Toaster } from "../components/ui/toaster";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { slotsController } from "./slots/slots";
-import { RequestClientContext, resolveRequestClient } from "./network/requests";
-
-const REQUEST_CLIENT = resolveRequestClient();
 
 // Force tailwind classnames
 // tailwind only creates css for classnames that exist the FE files
@@ -86,17 +83,15 @@ const Providers = memo(({ children }: PropsWithChildren) => {
   return (
     <ErrorBoundary>
       <Suspense>
-        <RequestClientContext.Provider value={REQUEST_CLIENT}>
-          <TooltipProvider>
-            <SlotzProvider controller={slotsController}>
-              <ModalProvider>
-                {children}
-                <Toaster />
-                <TailwindIndicator />
-              </ModalProvider>
-            </SlotzProvider>
-          </TooltipProvider>
-        </RequestClientContext.Provider>
+        <TooltipProvider>
+          <SlotzProvider controller={slotsController}>
+            <ModalProvider>
+              {children}
+              <Toaster />
+              <TailwindIndicator />
+            </ModalProvider>
+          </SlotzProvider>
+        </TooltipProvider>
       </Suspense>
     </ErrorBoundary>
   );

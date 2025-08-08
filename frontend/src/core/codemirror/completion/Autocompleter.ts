@@ -9,6 +9,7 @@ import type {
   CompletionResultMessage,
 } from "../../kernel/messages";
 import "../../../components/editor/documentation.css";
+import { getRequestClient } from "@/core/network/requests";
 
 function constructCompletionInfoNode(
   innerHtml?: string | null,
@@ -63,6 +64,7 @@ export const AUTOCOMPLETER = new DeferredRequestRegistry<
 >(
   "autocomplete-result",
   async (requestId, req) => {
+    const { sendCodeCompletionRequest } = getRequestClient();
     await sendCodeCompletionRequest({
       id: requestId,
       ...req,

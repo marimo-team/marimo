@@ -2,7 +2,7 @@
 
 import type { UserConfig } from "vite";
 import { repl } from "@/utils/repl";
-import { saveUserConfig } from "../network/requests";
+import { getRequestClient } from "../network/requests";
 import { getResolvedMarimoConfig } from "./config";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -42,7 +42,7 @@ function setFeatureFlag(
   const userConfig = getResolvedMarimoConfig();
   userConfig.experimental = userConfig.experimental ?? {};
   userConfig.experimental[feature] = value;
-  saveUserConfig({ config: userConfig });
+  getRequestClient().saveUserConfig({ config: userConfig });
 }
 
 export const FeatureFlagged: React.FC<{

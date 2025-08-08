@@ -3,18 +3,21 @@ import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { beforeAll, describe, expect, it } from "vitest";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { createCellRuntimeState } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OutputMessage } from "@/core/kernel/messages";
+import { requestClientAtom } from "@/core/network/requests";
 import type { AppMode } from "@/core/mode";
 import { Cell } from "../Cell";
 import { OutputArea } from "../Output";
 
 function createTestWrapper() {
   const store = createStore();
+  store.set(requestClientAtom, MockRequestClient.create());
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <Provider store={store}>{children}</Provider>
   );

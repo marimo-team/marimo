@@ -533,14 +533,12 @@ const DatasetTableItem: React.FC<{
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
   const addCodeToNewCell = useAddCodeToNewCell();
-  const { sendRun } = useRequestClient();
 
   const handleAddTable = () => {
     maybeAddMarimoImport({
       autoInstantiate,
       createNewCell,
       fromCellId: lastFocusedCellId,
-      sendRun,
     });
     const getCode = () => {
       if (table.source_type === "catalog") {

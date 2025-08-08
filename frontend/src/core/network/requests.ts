@@ -1,39 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import * as React from "react";
+
+import { atom, useAtomValue } from "jotai";
 import { invariant } from "@/utils/invariant";
-import { IslandsPyodideBridge } from "../islands/bridge";
-import { isIslands } from "../islands/utils";
-import { isStaticNotebook } from "../static/static-state";
-import { PyodideBridge } from "../wasm/bridge";
-import { isWasm } from "../wasm/utils";
-import { createNetworkRequests } from "./requests-network";
-import { createStaticRequests } from "./requests-static";
-import { createErrorToastingRequests } from "./requests-toasting";
+import { store } from "../state/jotai";
 import type { EditRequests, RunRequests } from "./types";
 
-export const RequestClientContext = React.createContext<
-  null | (EditRequests & RunRequests)
->(null);
+export const requestClientAtom = atom<null | (EditRequests & RunRequests)>(
+  null,
+);
 
+/** React hook for the request client interface */
 export function useRequestClient() {
-  const context = React.useContext(RequestClientContext);
-  invariant(
-    context,
-    "useRequestClient() must be used within <RequestClientContext.Provider>.",
-  );
-  return context;
+  const client = useAtomValue(requestClientAtom);
+  invariant(client, "useRequestClient() requires setting requestClientAtom.");
+  return client;
 }
 
-export function resolveRequestClient(): EditRequests & RunRequests {
-  if (isIslands()) {
-    // We don't wrap in error toasting, since we don't currently mount
-    // the ToastProvider in islands
-    return IslandsPyodideBridge.INSTANCE;
-  }
-  const base = isWasm()
-    ? PyodideBridge.INSTANCE
-    : isStaticNotebook()
-      ? createStaticRequests()
-      : createNetworkRequests();
-  return createErrorToastingRequests(base);
+/** Imperative getter for the request client interface */
+export function getRequestClient() {
+  const client = store.get(requestClientAtom);
+  invariant(client, "getRequestClient() requires requestClientAtom to be set.");
+  return client;
 }

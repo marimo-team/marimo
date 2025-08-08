@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { store } from "@/core/state/jotai";
 import { jupyterHelpExtension } from "../jupyter";
 
-// Mock dependencies
+// Mock store
 vi.mock("@/core/state/jotai", () => ({
   store: {
     get: vi.fn(),
@@ -20,7 +20,11 @@ vi.mock("@/components/ui/use-toast", () => ({
   toast: vi.fn(),
 }));
 
+// Mock the helper to get request client
 const mockRequestClient = MockRequestClient.create();
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => mockRequestClient,
+}));
 
 describe("jupyterHelpExtension", () => {
   let view: EditorView;

@@ -13,6 +13,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
 import { configOverridesAtom, userConfigAtom } from "@/core/config/config";
+import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import type { CellActionsDropdownHandle } from "../../cell/cell-actions";
 import {
@@ -46,10 +47,6 @@ vi.mock("../clipboard", () => ({
 vi.mock("../focus-utils", () => ({
   focusCellEditor: vi.fn(),
   focusCell: vi.fn(),
-}));
-
-vi.mock("@/core/network/requests", () => ({
-  saveCellConfig: vi.fn().mockResolvedValue({}),
 }));
 
 // Get mocked functions
@@ -107,7 +104,7 @@ const mockCellActions = MockNotebook.cellActions({
   undoDeleteCell: vi.fn(),
 });
 
-const mockSaveCellConfig = MockRequestClient.create().saveCellConfig;
+const mockRequestClient = MockRequestClient.create();
 
 // Helper to setup selection
 const setupSelection = () => {
@@ -127,6 +124,9 @@ const mockCellId = cellId1;
 describe("useCellNavigationProps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Set the request client in the store
+    store.set(requestClientAtom, mockRequestClient);
 
     // Setup mocks
     mockUseSaveNotebook.mockReturnValue({
@@ -1040,7 +1040,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId1]: { hide_code: true },
         },
@@ -1063,7 +1063,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId3]: { hide_code: false },
         },
@@ -1093,7 +1093,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId1]: { hide_code: true },
           [cellId2]: { hide_code: true },

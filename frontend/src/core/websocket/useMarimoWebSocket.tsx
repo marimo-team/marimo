@@ -121,7 +121,6 @@ export function useMarimoWebSocket(opts: {
             msg: message,
             buffers,
             modelManager: MODEL_MANAGER,
-            sendModelValue,
           });
         }
 

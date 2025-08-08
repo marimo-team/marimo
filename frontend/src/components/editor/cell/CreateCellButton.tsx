@@ -20,7 +20,6 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
-import { useRequestClient } from "@/core/network/requests";
 
 export const CreateCellButton = ({
   connectionState,
@@ -72,7 +71,6 @@ const CreateCellButtonContextMenu = (props: {
 }) => {
   const { children, onClick } = props;
   const { createNewCell } = useCellActions();
-  const { sendRun } = useRequestClient();
 
   if (!onClick) {
     return children;
@@ -103,11 +101,7 @@ const CreateCellButtonContextMenu = (props: {
           key="markdown"
           onSelect={(evt) => {
             evt.stopPropagation();
-            maybeAddMarimoImport({
-              autoInstantiate: true,
-              createNewCell,
-              sendRun,
-            });
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
             onClick({
               code: new MarkdownLanguageAdapter().defaultCode,
               hideCode: true,
@@ -123,11 +117,7 @@ const CreateCellButtonContextMenu = (props: {
           key="sql"
           onSelect={(evt) => {
             evt.stopPropagation();
-            maybeAddMarimoImport({
-              autoInstantiate: true,
-              createNewCell,
-              sendRun,
-            });
+            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
             onClick({ code: new SQLLanguageAdapter().defaultCode });
           }}
         >

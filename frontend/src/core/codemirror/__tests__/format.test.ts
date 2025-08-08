@@ -12,6 +12,8 @@ import { notebookCellEditorViews } from "@/core/cells/utils";
 import { getResolvedMarimoConfig } from "@/core/config/config";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { MarimoConfig } from "@/core/network/types";
+import { requestClientAtom } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
 import { type CodemirrorCellActions, cellActionsState } from "../cells/state";
 import { cellIdState } from "../config/extension";
 import { formatAll, formatEditorViews, formatSQL } from "../format";
@@ -74,6 +76,8 @@ const mockConfig = {
 beforeEach(() => {
   updateCellCode.mockClear();
   vi.clearAllMocks();
+  // Set the mock request client in the atom
+  store.set(requestClientAtom, mockRequestClient);
 });
 
 describe("format", () => {
@@ -98,7 +102,7 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views, mockRequestClient.sendFormat);
+      await formatEditorViews(views);
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
@@ -137,7 +141,7 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views, mockRequestClient.sendFormat);
+      await formatEditorViews(views);
 
       expect(views[cellId].state.doc.toString()).toBe(originalCode);
       expect(updateCellCode).not.toHaveBeenCalled();
@@ -164,7 +168,7 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatAll(mockRequestClient.sendFormat);
+      await formatAll();
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {

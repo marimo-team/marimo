@@ -28,7 +28,7 @@ import {
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import { RuntimeState } from "../kernel/RuntimeState";
 import type { RequestId } from "../network/DeferredRequestRegistry";
-import { sendComponentValues } from "../network/requests";
+import { requestClientAtom } from "../network/requests";
 import { store } from "../state/jotai";
 import { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
@@ -46,6 +46,9 @@ import { dismissIslandsLoadingToast, toastIslandsLoading } from "./toast";
  * Initialize the Marimo app.
  */
 export async function initialize() {
+  // Setup networking
+  store.set(requestClientAtom, IslandsPyodideBridge.INSTANCE);
+
   // This will display all the static HTML content.
   initializePlugins();
 
@@ -189,7 +192,9 @@ export async function initialize() {
   );
 
   // Start the runtime
-  RuntimeState.INSTANCE.start(sendComponentValues);
+  RuntimeState.INSTANCE.start(
+    IslandsPyodideBridge.INSTANCE.sendComponentValues,
+  );
 }
 
 initialize();

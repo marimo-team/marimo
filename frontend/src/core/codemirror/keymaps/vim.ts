@@ -9,7 +9,6 @@ import {
   Vim,
 } from "@replit/codemirror-vim";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
-import { sendFileDetails } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { onIdle } from "@/utils/idle";
 import { invariant } from "@/utils/invariant";
@@ -24,6 +23,7 @@ import {
 } from "../utils";
 import { VimCursorVisibilityPlugin } from "../vim/cursor-visibility";
 import { parseVimrc, type VimCommand } from "./vimrc";
+import { getRequestClient } from "@/core/network/requests";
 
 export function vimKeymapExtension(): Extension[] {
   addCustomVimCommandsOnce();
@@ -124,10 +124,9 @@ const loadVimrcOnce = once(async () => {
   if (!vimrc) {
     return;
   }
-
   try {
     Logger.log(`Loading vimrc from ${vimrc}`);
-    const response = await sendFileDetails({ path: vimrc });
+    const response = await getRequestClient().sendFileDetails({ path: vimrc });
     const content = response.contents;
     if (!content) {
       Logger.error(`Failed to load vimrc from ${vimrc}`);
