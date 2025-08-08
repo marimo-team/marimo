@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
-import { getVariableCompletions } from "@/core/codemirror/completion/variable-completions";
+import { createVariableInfoElement } from "@/core/codemirror/completion/variable-completions";
 import type { DatasetTablesMap } from "@/core/datasets/data-source-connections";
 import type { Variable, Variables } from "@/core/variables/types";
 import { type AIContextItem, AIContextProvider } from "../registry";
@@ -27,30 +27,50 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
   }
 
   getItems(): VariableContextItem[] {
-    return Object.entries(this.variables).map(([name, variable]) => ({
-      id: name,
-      label: name,
+    const ignore = new Set(this.tablesMap.keys());
+
+    return Object.entries(this.variables).flatMap(([name, variable]) => {
+      if (ignore.has(name)) {
+        return [];
+      }
+      return [
+        {
+          uri: this.asURI(name),
+          name: name,
+          type: "variable",
+          description: variable.dataType ?? "",
+          dataType: variable.dataType,
+          data: {
+            variable,
+          },
+        },
+      ];
+    });
+  }
+
+  formatCompletion(item: VariableContextItem): Completion {
+    const { data } = item;
+    const { variable } = data;
+    return {
+      label: `@${variable.name}`,
+      displayLabel: variable.name,
+      detail: variable.dataType ?? "",
+      boost: Boosts.VARIABLE,
       type: "variable",
-      description: variable.dataType ?? "",
-      dataType: variable.dataType,
-      data: {
-        variable,
+      section: "Variable",
+      info: () => {
+        return createVariableInfoElement(variable);
       },
-    }));
+    };
   }
 
   formatContext(item: VariableContextItem): string {
-    const { id, data } = item;
+    const { uri: id, data } = item;
     const { variable } = data;
     return `Variable: ${id}\nType: ${variable.dataType || "unknown"}\nPreview: ${JSON.stringify(variable.value)}`;
   }
 
   getCompletions(): Completion[] {
-    return getVariableCompletions(
-      this.variables,
-      new Set(this.tablesMap.keys()),
-      Boosts.VARIABLE,
-      "@",
-    );
+    return [];
   }
 }

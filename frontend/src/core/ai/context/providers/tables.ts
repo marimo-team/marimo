@@ -23,16 +23,16 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
 
   getItems(): TableContextItem[] {
     return [...this.tablesMap.entries()].map(([tableName, table]) => ({
+      uri: this.asURI(tableName),
+      name: tableName,
       type: "table",
-      id: tableName,
-      label: tableName,
       description: table.source === "memory" ? "in-memory" : table.source,
       data: table,
     }));
   }
 
   formatContext(item: TableContextItem): string {
-    const { data, id } = item;
+    const { data, uri: id } = item;
     const { columns, source, num_rows, num_columns } = data;
     const shape = [
       num_rows == null ? undefined : `${num_rows} rows`,
@@ -54,21 +54,25 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
   }
 
   getCompletions(): Completion[] {
-    return [...this.tablesMap.entries()].map(
-      ([tableName, table]): Completion => ({
-        label: `@${tableName}`,
-        displayLabel: tableName,
-        detail: table.source === "memory" ? "in-memory" : table.source,
-        boost:
-          table.source_type === "local"
-            ? Boosts.LOCAL_TABLE
-            : Boosts.REMOTE_TABLE,
-        type: table.variable_name ? "dataframe" : "table",
-        apply: `@${tableName}`,
-        section: table.variable_name ? "Dataframe" : "Table",
-        info: () => this.createTableInfoElement(tableName, table),
-      }),
-    );
+    return [];
+  }
+
+  formatCompletion(item: TableContextItem): Completion {
+    const tableName = item.data.name;
+    const table = item.data;
+    return {
+      label: `@${tableName}`,
+      displayLabel: tableName,
+      detail: table.source === "memory" ? "in-memory" : table.source,
+      boost:
+        table.source_type === "local"
+          ? Boosts.LOCAL_TABLE
+          : Boosts.REMOTE_TABLE,
+      type: table.variable_name ? "dataframe" : "table",
+      apply: `@${tableName}`,
+      section: table.variable_name ? "Dataframe" : "Table",
+      info: () => this.createTableInfoElement(tableName, table),
+    };
   }
 
   private createTableInfoElement(
@@ -119,7 +123,7 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
       infoContainer.append(shapeDiv);
     }
 
-    // Columns table (simplified version for brevity)
+    // Columns table
     if (table.columns && table.columns.length > 0) {
       const columnsDiv = document.createElement("div");
       columnsDiv.classList.add("overflow-auto", "max-h-60");
@@ -139,6 +143,18 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
       typeHeader.classList.add("p-2", "font-medium", "text-left");
       typeHeader.textContent = "Type";
 
+      // Check if any column has metadata before adding the header
+      const hasAnyMetadata = table.columns.some(
+        (column) => this.getItemMetadata(table, column) !== undefined,
+      );
+
+      let metadataHeader: HTMLTableCellElement | undefined;
+      if (hasAnyMetadata) {
+        metadataHeader = headerRow.insertCell();
+        metadataHeader.classList.add("p-2", "font-medium", "text-left");
+        metadataHeader.textContent = "Metadata";
+      }
+
       // Table rows
       table.columns.forEach((column, index) => {
         const row = columnsTable.insertRow();
@@ -151,6 +167,16 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
         const typeCell = row.insertCell();
         typeCell.classList.add("p-2", "text-muted-foreground");
         typeCell.textContent = column.type;
+
+        if (hasAnyMetadata) {
+          const metadataCell = row.insertCell();
+          metadataCell.classList.add("p-2");
+
+          const itemMetadata = this.getItemMetadata(table, column);
+          if (itemMetadata) {
+            metadataCell.append(itemMetadata);
+          }
+        }
       });
 
       columnsDiv.append(columnsTable);
@@ -158,5 +184,28 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
     }
 
     return infoContainer;
+  }
+
+  private getItemMetadata(
+    table: DataTable,
+    column: DataTable["columns"][0],
+  ): HTMLSpanElement | undefined {
+    const isPrimaryKey = table.primary_keys?.includes(column.name);
+    const isIndexed = table.indexes?.includes(column.name);
+    if (isPrimaryKey || isIndexed) {
+      const badge = document.createElement("span");
+      badge.textContent = isPrimaryKey ? "PK" : "IDX";
+      badge.classList.add(
+        "text-xs",
+        "px-1.5",
+        "py-0.5",
+        "rounded-full",
+        "font-medium",
+        isPrimaryKey
+          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+          : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+      );
+      return badge;
+    }
   }
 }

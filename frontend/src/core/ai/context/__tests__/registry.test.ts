@@ -12,9 +12,6 @@ import {
 // Mock context item for testing
 interface MockContextItem extends AIContextItem {
   type: "mock";
-  id: string;
-  label: string;
-  description?: string;
   data: { value: string };
 }
 
@@ -27,22 +24,22 @@ class MockContextProvider extends AIContextProvider<MockContextItem> {
   private items: MockContextItem[] = [
     {
       type: "mock",
-      id: "item1",
-      label: "Item 1",
+      uri: "item1",
+      name: "Item 1",
       description: "First mock item",
       data: { value: "value1" },
     },
     {
       type: "mock",
-      id: "item2",
-      label: "Item 2",
+      uri: "item2",
+      name: "Item 2",
       description: "Second mock item",
       data: { value: "value2" },
     },
     {
       type: "mock",
-      id: "item_with_special-chars",
-      label: "Special Item",
+      uri: "item_with_special-chars",
+      name: "Special Item",
       description: "Item with special characters",
       data: { value: "special" },
     },
@@ -53,11 +50,15 @@ class MockContextProvider extends AIContextProvider<MockContextItem> {
   }
 
   formatContext(item: MockContextItem): string {
-    return `Mock: ${item.label} (${item.data.value})`;
+    return `Mock: ${item.name} (${item.data.value})`;
+  }
+
+  formatCompletion(item: MockContextItem): Completion {
+    return this.createBasicCompletion(item);
   }
 
   getCompletions(): Completion[] {
-    return this.items.map((item) => this.createBasicCompletion(item));
+    return [];
   }
 
   // Method to add items for testing
@@ -73,9 +74,6 @@ class MockContextProvider extends AIContextProvider<MockContextItem> {
 
 interface FileContextItem extends AIContextItem {
   type: "file";
-  id: string;
-  label: string;
-  description?: string;
   data: { value: string };
 }
 
@@ -88,15 +86,15 @@ class FileContextProvider extends AIContextProvider<FileContextItem> {
   private items: FileContextItem[] = [
     {
       type: "file",
-      id: "config.py",
-      label: "config.py",
+      uri: "config.py",
+      name: "config.py",
       description: "Configuration file",
       data: { value: "config" },
     },
     {
       type: "file",
-      id: "utils/helpers.py",
-      label: "utils/helpers.py",
+      uri: "utils/helpers.py",
+      name: "utils/helpers.py",
       description: "Helper functions",
       data: { value: "helpers" },
     },
@@ -106,14 +104,16 @@ class FileContextProvider extends AIContextProvider<FileContextItem> {
     return this.items;
   }
 
+  formatCompletion(item: FileContextItem): Completion {
+    return this.createBasicCompletion(item);
+  }
+
   formatContext(item: FileContextItem): string {
-    return `File: ${item.id}\nDescription: ${item.description}`;
+    return `File: ${item.uri}\nDescription: ${item.description}`;
   }
 
   getCompletions(): Completion[] {
-    return this.items.map((item) =>
-      this.createBasicCompletion(item, { boost: 2, section: "Files" }),
-    );
+    return [];
   }
 }
 
@@ -217,8 +217,8 @@ describe("AIContextProvider", () => {
     it("should handle item without description", () => {
       const itemWithoutDesc: MockContextItem = {
         type: "mock",
-        id: "no-desc",
-        label: "No Description",
+        uri: "no-desc",
+        name: "No Description",
         data: { value: "test" },
       };
 
@@ -229,18 +229,25 @@ describe("AIContextProvider", () => {
   });
 
   describe("getCompletions", () => {
-    it("should return completions for all items", () => {
+    it("should return empty array (refactored to use formatCompletion)", () => {
       const completions = provider.getCompletions();
-      expect(completions).toHaveLength(3);
-      expect(completions[0].label).toBe("@item1");
-      expect(completions[1].label).toBe("@item2");
-      expect(completions[2].label).toBe("@item_with_special-chars");
+      expect(completions).toEqual([]);
     });
 
     it("should return empty array when no items", () => {
       provider.clearItems();
       const completions = provider.getCompletions();
       expect(completions).toEqual([]);
+    });
+  });
+
+  describe("formatCompletion", () => {
+    it("should format completions correctly", () => {
+      const items = provider.getItems();
+      const completion = provider.formatCompletion(items[0]);
+      expect(completion.label).toBe("@item1");
+      expect(completion.displayLabel).toBe("Item 1");
+      expect(completion.detail).toBe("First mock item");
     });
   });
 });
@@ -330,29 +337,18 @@ describe("AIContextRegistry", () => {
       expect(completions).toEqual([]);
     });
 
-    it("should return completions from single provider", () => {
+    it("should return empty array from providers (refactored to use formatCompletion)", () => {
       registry.register(mockProvider);
       const completions = registry.getAllCompletions();
-      expect(completions).toHaveLength(3);
-      expect(completions.every((c) => c.label.startsWith("@"))).toBe(true);
+      expect(completions).toEqual([]);
     });
 
-    it("should return completions from multiple providers", () => {
+    it("should return empty arrays from multiple providers", () => {
       registry.register(mockProvider);
       registry.register(fileProvider);
 
       const completions = registry.getAllCompletions();
-      expect(completions).toHaveLength(5); // 3 from mock + 2 from file
-
-      const mockCompletions = completions.filter((c) =>
-        c.label.startsWith("@"),
-      );
-      const fileCompletions = completions.filter((c) =>
-        c.label.startsWith("#"),
-      );
-
-      expect(mockCompletions).toHaveLength(3);
-      expect(fileCompletions).toHaveLength(2);
+      expect(completions).toEqual([]);
     });
   });
 
@@ -404,8 +400,8 @@ describe("AIContextRegistry", () => {
       const contextInfo = registry.getContextInfo(contextIds);
 
       expect(contextInfo).toHaveLength(2);
-      expect(contextInfo[0].id).toBe("item1");
-      expect(contextInfo[1].id).toBe("config.py");
+      expect(contextInfo[0].uri).toBe("item1");
+      expect(contextInfo[1].uri).toBe("config.py");
     });
 
     it("should ignore invalid context IDs", () => {
@@ -413,11 +409,11 @@ describe("AIContextRegistry", () => {
         "mock:item1",
         "mock:nonexistent",
         "unknown:item",
-      ];
+      ] as ContextLocatorId[];
       const contextInfo = registry.getContextInfo(contextIds);
 
       expect(contextInfo).toHaveLength(1);
-      expect(contextInfo[0].id).toBe("item1");
+      expect(contextInfo[0].uri).toBe("item1");
     });
 
     it("should return empty array for empty input", () => {
@@ -429,11 +425,11 @@ describe("AIContextRegistry", () => {
       const contextIds: ContextLocatorId[] = [
         "malformed" as ContextLocatorId,
         "mock:item1",
-      ];
+      ] as ContextLocatorId[];
       const contextInfo = registry.getContextInfo(contextIds);
 
       expect(contextInfo).toHaveLength(1);
-      expect(contextInfo[0].id).toBe("item1");
+      expect(contextInfo[0].uri).toBe("item1");
     });
   });
 
@@ -478,7 +474,7 @@ describe("AIContextRegistry", () => {
         "mock:item1",
         "unknown:item",
         "mock:nonexistent",
-      ];
+      ] as ContextLocatorId[];
       const formatted = registry.formatContextForAI(contextIds);
 
       expect(formatted).toContain("Mock: Item 1 (value1)");
@@ -514,16 +510,20 @@ describe("AIContextRegistry", () => {
 
       expect(registry.getAllCompletions()).toEqual([]);
       expect(registry.parseAllContextIds("@anything")).toEqual([]);
-      expect(registry.getContextInfo(["mock:anything"])).toEqual([]);
-      expect(registry.formatContextForAI(["mock:anything"])).toBe("");
+      expect(
+        registry.getContextInfo(["mock:anything"] as ContextLocatorId[]),
+      ).toEqual([]);
+      expect(
+        registry.formatContextForAI(["mock:anything"] as ContextLocatorId[]),
+      ).toBe("");
     });
 
     it("should handle context ID with multiple colons", () => {
       // Add an item with colon in the ID
       const specialItem: MockContextItem = {
         type: "mock",
-        id: "namespace", // Note: current implementation has a bug with split(":", 2)
-        label: "Special Item",
+        uri: "namespace", // Note: current implementation has a bug with split(":", 2)
+        name: "Special Item",
         data: { value: "special" },
       };
       mockProvider.addItem(specialItem);
@@ -537,7 +537,7 @@ describe("AIContextRegistry", () => {
       // Current implementation only gets "namespace" as id due to split(":", 2)
       // This is likely a bug - it should split only on first colon
       expect(contextInfo).toHaveLength(1);
-      expect(contextInfo[0].id).toBe("namespace");
+      expect(contextInfo[0].uri).toBe("namespace");
     });
 
     it("should handle providers with same context type", () => {

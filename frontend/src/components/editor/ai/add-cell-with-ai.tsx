@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
-import { getAIContextRegistry } from "@/core/ai/context/context";
+import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -246,16 +246,6 @@ export const PromptInput = ({
   const handleEscape = onClose;
   const store = useStore();
 
-  const contextCompletionSource: CompletionSource = useEvent(
-    (context: CompletionContext) => {
-      const contextRegistry = getAIContextRegistry(store);
-
-      const completions = contextRegistry.getAllCompletions();
-
-      return mentionsCompletionSource([/@([\w.]+)?/], completions)(context);
-    },
-  );
-
   const additionalCompletionsSource: CompletionSource = useEvent(
     (context: CompletionContext) => {
       if (!additionalCompletions) {
@@ -276,9 +266,7 @@ export const PromptInput = ({
     return [
       autocompletion({}),
       markdownLanguage,
-      markdownLanguage.language.data.of({
-        autocomplete: contextCompletionSource,
-      }),
+      resourceExtension(markdownLanguage.language, store),
       markdownLanguage.language.data.of({
         autocomplete: additionalCompletionsSource,
       }),
@@ -352,12 +340,7 @@ export const PromptInput = ({
         },
       ]),
     ];
-  }, [
-    contextCompletionSource,
-    additionalCompletionsSource,
-    handleSubmit,
-    handleEscape,
-  ]);
+  }, [store, additionalCompletionsSource, handleSubmit, handleEscape]);
 
   return (
     <ReactCodeMirror

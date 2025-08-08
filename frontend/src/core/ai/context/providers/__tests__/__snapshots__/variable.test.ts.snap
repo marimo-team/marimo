@@ -24,51 +24,9 @@ Type: unknown
 Preview: "some_value""
 `;
 
-exports[`VariableContextProvider > getCompletions > should pass table names to completion function > variable-completions-with-tables 1`] = `
-[
-  {
-    "apply": "@var1",
-    "boost": 3,
-    "detail": "str",
-    "displayLabel": "var1",
-    "label": "@var1",
-    "section": "Variables",
-    "type": "str",
-  },
-]
-`;
+exports[`VariableContextProvider > getCompletions > should pass table names to completion function > variable-completions-with-tables 1`] = `[]`;
 
-exports[`VariableContextProvider > getCompletions > should return completions for variables > variable-completions 1`] = `
-[
-  {
-    "apply": "@data",
-    "boost": 3,
-    "detail": "pandas.DataFrame",
-    "displayLabel": "data",
-    "label": "@data",
-    "section": "Variables",
-    "type": "pandas.DataFrame",
-  },
-  {
-    "apply": "@config",
-    "boost": 3,
-    "detail": "dict",
-    "displayLabel": "config",
-    "label": "@config",
-    "section": "Variables",
-    "type": "dict",
-  },
-  {
-    "apply": "@results",
-    "boost": 3,
-    "detail": "list",
-    "displayLabel": "results",
-    "label": "@results",
-    "section": "Variables",
-    "type": "list",
-  },
-]
-`;
+exports[`VariableContextProvider > getCompletions > should return completions for variables > variable-completions 1`] = `[]`;
 
 exports[`VariableContextProvider > getCompletions > should return empty completions when no variables > empty-variable-completions 1`] = `[]`;
 
@@ -91,9 +49,9 @@ exports[`VariableContextProvider > getItems > should handle complex data types >
     },
     "dataType": "pandas.DataFrame",
     "description": "pandas.DataFrame",
-    "id": "df",
-    "label": "df",
+    "name": "df",
     "type": "variable",
+    "uri": "variable://df",
   },
   {
     "data": {
@@ -111,9 +69,9 @@ exports[`VariableContextProvider > getItems > should handle complex data types >
     },
     "dataType": "sklearn.linear_model._base.LinearRegression",
     "description": "sklearn.linear_model._base.LinearRegression",
-    "id": "model",
-    "label": "model",
+    "name": "model",
     "type": "variable",
+    "uri": "variable://model",
   },
   {
     "data": {
@@ -131,9 +89,9 @@ exports[`VariableContextProvider > getItems > should handle complex data types >
     },
     "dataType": "numpy.ndarray",
     "description": "numpy.ndarray",
-    "id": "array",
-    "label": "array",
+    "name": "array",
     "type": "variable",
+    "uri": "variable://array",
   },
 ]
 `;
@@ -156,9 +114,9 @@ exports[`VariableContextProvider > getItems > should handle variables with null/
     },
     "dataType": "NoneType",
     "description": "NoneType",
-    "id": "null_var",
-    "label": "null_var",
+    "name": "null_var",
     "type": "variable",
+    "uri": "variable://null_var",
   },
   {
     "data": {
@@ -176,9 +134,9 @@ exports[`VariableContextProvider > getItems > should handle variables with null/
     },
     "dataType": null,
     "description": "",
-    "id": "undefined_var",
-    "label": "undefined_var",
+    "name": "undefined_var",
     "type": "variable",
+    "uri": "variable://undefined_var",
   },
   {
     "data": {
@@ -196,9 +154,9 @@ exports[`VariableContextProvider > getItems > should handle variables with null/
     },
     "dataType": "str",
     "description": "str",
-    "id": "empty_string",
-    "label": "empty_string",
+    "name": "empty_string",
     "type": "variable",
+    "uri": "variable://empty_string",
   },
 ]
 `;
@@ -221,9 +179,9 @@ exports[`VariableContextProvider > getItems > should handle variables with speci
     },
     "dataType": "int",
     "description": "int",
-    "id": "_private_var",
-    "label": "_private_var",
+    "name": "_private_var",
     "type": "variable",
+    "uri": "variable://_private_var",
   },
   {
     "data": {
@@ -241,9 +199,9 @@ exports[`VariableContextProvider > getItems > should handle variables with speci
     },
     "dataType": "str",
     "description": "str",
-    "id": "var_with_numbers123",
-    "label": "var_with_numbers123",
+    "name": "var_with_numbers123",
     "type": "variable",
+    "uri": "variable://var_with_numbers123",
   },
   {
     "data": {
@@ -261,9 +219,9 @@ exports[`VariableContextProvider > getItems > should handle variables with speci
     },
     "dataType": "float",
     "description": "float",
-    "id": "CONSTANT_VAR",
-    "label": "CONSTANT_VAR",
+    "name": "CONSTANT_VAR",
     "type": "variable",
+    "uri": "variable://CONSTANT_VAR",
   },
 ]
 `;
@@ -289,9 +247,9 @@ exports[`VariableContextProvider > getItems > should return variable items for m
     },
     "dataType": "int",
     "description": "int",
-    "id": "user_id",
-    "label": "user_id",
+    "name": "user_id",
     "type": "variable",
+    "uri": "variable://user_id",
   },
   {
     "data": {
@@ -307,9 +265,9 @@ exports[`VariableContextProvider > getItems > should return variable items for m
     },
     "dataType": "bool",
     "description": "bool",
-    "id": "is_active",
-    "label": "is_active",
+    "name": "is_active",
     "type": "variable",
+    "uri": "variable://is_active",
   },
   {
     "data": {
@@ -327,9 +285,9 @@ exports[`VariableContextProvider > getItems > should return variable items for m
     },
     "dataType": "list",
     "description": "list",
-    "id": "scores",
-    "label": "scores",
+    "name": "scores",
     "type": "variable",
+    "uri": "variable://scores",
   },
   {
     "data": {
@@ -348,9 +306,9 @@ exports[`VariableContextProvider > getItems > should return variable items for m
     },
     "dataType": "dict",
     "description": "dict",
-    "id": "config",
-    "label": "config",
+    "name": "config",
     "type": "variable",
+    "uri": "variable://config",
   },
 ]
 `;
@@ -373,35 +331,14 @@ exports[`VariableContextProvider > getItems > should return variable items for s
     },
     "dataType": "str",
     "description": "str",
-    "id": "user_name",
-    "label": "user_name",
+    "name": "user_name",
     "type": "variable",
+    "uri": "variable://user_name",
   },
 ]
 `;
 
-exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-completions 1`] = `
-[
-  {
-    "apply": "@df",
-    "boost": 3,
-    "detail": "pandas.DataFrame",
-    "displayLabel": "df",
-    "label": "@df",
-    "section": "Variables",
-    "type": "pandas.DataFrame",
-  },
-  {
-    "apply": "@connection_string",
-    "boost": 3,
-    "detail": "str",
-    "displayLabel": "connection_string",
-    "label": "@connection_string",
-    "section": "Variables",
-    "type": "str",
-  },
-]
-`;
+exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-completions 1`] = `[]`;
 
 exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-items 1`] = `
 [
@@ -421,9 +358,9 @@ exports[`VariableContextProvider > integration with tables > should work with bo
     },
     "dataType": "pandas.DataFrame",
     "description": "pandas.DataFrame",
-    "id": "df",
-    "label": "df",
+    "name": "df",
     "type": "variable",
+    "uri": "variable://df",
   },
   {
     "data": {
@@ -441,9 +378,9 @@ exports[`VariableContextProvider > integration with tables > should work with bo
     },
     "dataType": "str",
     "description": "str",
-    "id": "connection_string",
-    "label": "connection_string",
+    "name": "connection_string",
     "type": "variable",
+    "uri": "variable://connection_string",
   },
 ]
 `;

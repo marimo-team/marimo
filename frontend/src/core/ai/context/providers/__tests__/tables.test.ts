@@ -124,8 +124,8 @@ describe("TableContextProvider", () => {
       const table = createMockTable("products");
       const item: TableContextItem = {
         type: "table",
-        id: "products",
-        label: "products",
+        uri: "products",
+        name: "products",
         description: "memory",
         data: table,
       };
@@ -144,8 +144,8 @@ describe("TableContextProvider", () => {
       });
       const item: TableContextItem = {
         type: "table",
-        id: "no_shape",
-        label: "no_shape",
+        uri: "no_shape",
+        name: "no_shape",
         description: "memory",
         data: table,
       };
@@ -163,8 +163,8 @@ describe("TableContextProvider", () => {
       });
       const item: TableContextItem = {
         type: "table",
-        id: "no_columns",
-        label: "no_columns",
+        uri: "no_columns",
+        name: "no_columns",
         description: "memory",
         data: table,
       };
@@ -189,8 +189,8 @@ describe("TableContextProvider", () => {
       });
       const item: TableContextItem = {
         type: "table",
-        id: "remote_table",
-        label: "remote_table",
+        uri: "remote_table",
+        name: "remote_table",
         description: "postgresql://localhost:5432/mydb",
         data: table,
       };
@@ -293,11 +293,7 @@ describe("TableContextProvider", () => {
 
       expect(element.tagName).toBe("DIV");
       expect(element.classList.contains("mo-cm-tooltip")).toBe(true);
-      expect(element.textContent).toContain("full_table");
-      expect(element.textContent).toContain("Source: my_database.db");
-      expect(element.textContent).toContain("1000 rows, 5 columns");
-      expect(element.textContent).toContain("id");
-      expect(element.textContent).toContain("integer");
+      expect(element.textContent).toMatchInlineSnapshot();
     });
 
     it("should create info element for table without source", () => {

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
+import type { Resource } from "@marimo-team/codemirror-mcp";
 import type { TypedString } from "@/utils/typed";
 
 /**
@@ -12,16 +13,7 @@ export type ContextLocatorId = TypedString<"ContextLocatorId">;
 /**
  * Base interface for context items that can be mentioned in AI prompts
  */
-export interface AIContextItem {
-  /** The type of the context item */
-  type: string;
-  /** Unique identifier for this item */
-  id: string;
-  /** Display label for autocomplete */
-  label: string;
-  /** Optional description for additional context */
-  description?: string;
-  /** Optional React component for rich display */
+export interface AIContextItem extends Resource<Record<string, unknown>> {
   data: Record<string, unknown>;
 }
 
@@ -49,9 +41,16 @@ export abstract class AIContextProvider<
   /** Generate CodeMirror completions for autocomplete - can be overridden for custom behavior */
   abstract getCompletions(): Completion[];
 
+  /** Format completion */
+  abstract formatCompletion(item: T): Completion;
+
   /** Format a context locator ID for this item */
   formatContextId(item: T): ContextLocatorId {
-    return `${this.contextType}:${item.id}` as ContextLocatorId;
+    return `${this.contextType}:${item.uri}` as ContextLocatorId;
+  }
+
+  asURI(id: string): string {
+    return `${this.contextType}://${id}`;
   }
 
   /** Parse context IDs from input text using the provider's mention prefix */
@@ -66,8 +65,8 @@ export abstract class AIContextProvider<
 
     return mentions
       .map((mention) => mention.slice(this.mentionPrefix.length))
-      .filter((name) => items.some((item) => item.id === name))
-      .map((name) => this.formatContextId({ id: name } as T));
+      .filter((name) => items.some((item) => item.uri === name))
+      .map((name) => this.formatContextId({ uri: name } as T));
   }
 
   /** Create a basic completion object - can be used by subclasses */
@@ -81,12 +80,12 @@ export abstract class AIContextProvider<
     },
   ): Completion {
     return {
-      label: `${this.mentionPrefix}${item.id}`,
-      displayLabel: item.label,
+      label: `${this.mentionPrefix}${item.uri}`,
+      displayLabel: item.name,
       detail: options?.detail || item.description,
       boost: options?.boost || 1,
       type: options?.type || this.contextType,
-      apply: `${this.mentionPrefix}${item.id}`,
+      apply: `${this.mentionPrefix}${item.uri}`,
       section: options?.section || this.title,
     };
   }
@@ -133,6 +132,10 @@ export class AIContextRegistry<T extends AIContextItem> {
     return [...this.providers].flatMap((provider) => provider.getCompletions());
   }
 
+  getAllItems(): T[] {
+    return [...this.providers].flatMap((provider) => provider.getItems());
+  }
+
   /**
    * Parse context IDs from input across all providers
    */
@@ -156,7 +159,7 @@ export class AIContextRegistry<T extends AIContextItem> {
 
       if (provider) {
         const items = provider.getItems();
-        const item = items.find((item) => item.id === id);
+        const item = items.find((item) => item.uri === id);
         if (item) {
           contextInfo.push(item);
         }
@@ -188,7 +191,7 @@ export class AIContextRegistry<T extends AIContextItem> {
       }
       const items = provider.getItems();
       for (const item of items) {
-        if (ids.has(item.id)) {
+        if (ids.has(item.uri)) {
           sections.push(provider.formatContext(item));
         }
       }

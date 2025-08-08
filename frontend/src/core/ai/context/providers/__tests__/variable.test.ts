@@ -17,8 +17,8 @@ vi.mock("@/core/codemirror/completion/variable-completions", () => ({
       prefix: string,
     ) => {
       return Object.entries(variables).map(([name, variable]) => ({
-        label: `${prefix}${name}`,
-        displayLabel: name,
+        name: `${prefix}${name}`,
+        displayname: name,
         detail: variable.dataType || "unknown",
         boost,
         type: variable.dataType || "variable",
@@ -185,8 +185,8 @@ describe("VariableContextProvider", () => {
       });
       const item: VariableContextItem = {
         type: "variable",
-        id: "username",
-        label: "username",
+        uri: "username",
+        name: "username",
         description: "str",
         data: { variable },
       };
@@ -206,8 +206,8 @@ describe("VariableContextProvider", () => {
       });
       const item: VariableContextItem = {
         type: "variable",
-        id: "mystery_var",
-        label: "mystery_var",
+        uri: "mystery_var",
+        name: "mystery_var",
         description: "",
         data: { variable },
       };
@@ -230,8 +230,8 @@ describe("VariableContextProvider", () => {
       });
       const item: VariableContextItem = {
         type: "variable",
-        id: "complex_data",
-        label: "complex_data",
+        uri: "complex_data",
+        name: "complex_data",
         description: "dict",
         data: { variable },
       };
@@ -254,8 +254,8 @@ describe("VariableContextProvider", () => {
       });
       const item: VariableContextItem = {
         type: "variable",
-        id: "sales_df",
-        label: "sales_df",
+        uri: "sales_df",
+        name: "sales_df",
         description: "pandas.DataFrame",
         data: { variable },
       };

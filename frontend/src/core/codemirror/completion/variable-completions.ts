@@ -31,7 +31,7 @@ export function getVariableCompletions(
   });
 }
 
-function createVariableInfoElement(variable: Variable): HTMLElement {
+export function createVariableInfoElement(variable: Variable): HTMLElement {
   const infoContainer = document.createElement("div");
   infoContainer.classList.add(
     "mo-cm-tooltip",

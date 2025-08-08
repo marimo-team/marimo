@@ -35,75 +35,13 @@ Columns:
   - active: boolean"
 `;
 
-exports[`TableContextProvider > getCompletions > should handle tables with special characters in names > special-chars-table-completions 1`] = `
-[
-  {
-    "apply": "@my-table_with.special@chars",
-    "boost": 5,
-    "detail": "in-memory",
-    "displayLabel": "my-table_with.special@chars",
-    "info": [Function],
-    "label": "@my-table_with.special@chars",
-    "section": "Table",
-    "type": "table",
-  },
-]
-`;
+exports[`TableContextProvider > getCompletions > should handle tables with special characters in names > special-chars-table-completions 1`] = `[]`;
 
-exports[`TableContextProvider > getCompletions > should return completions for dataframes vs tables > mixed-table-dataframe-completions 1`] = `
-[
-  {
-    "apply": "@regular_table",
-    "boost": 5,
-    "detail": "in-memory",
-    "displayLabel": "regular_table",
-    "info": [Function],
-    "label": "@regular_table",
-    "section": "Table",
-    "type": "table",
-  },
-  {
-    "apply": "@df",
-    "boost": 5,
-    "detail": "pandas",
-    "displayLabel": "df",
-    "info": [Function],
-    "label": "@df",
-    "section": "Dataframe",
-    "type": "dataframe",
-  },
-]
-`;
+exports[`TableContextProvider > getCompletions > should return completions for dataframes vs tables > mixed-table-dataframe-completions 1`] = `[]`;
 
-exports[`TableContextProvider > getCompletions > should return completions for memory tables > memory-table-completions 1`] = `
-[
-  {
-    "apply": "@users",
-    "boost": 5,
-    "detail": "in-memory",
-    "displayLabel": "users",
-    "info": [Function],
-    "label": "@users",
-    "section": "Table",
-    "type": "table",
-  },
-]
-`;
+exports[`TableContextProvider > getCompletions > should return completions for memory tables > memory-table-completions 1`] = `[]`;
 
-exports[`TableContextProvider > getCompletions > should return completions for remote tables > remote-table-completions 1`] = `
-[
-  {
-    "apply": "@analytics",
-    "boost": 4,
-    "detail": "bigquery://project/dataset",
-    "displayLabel": "analytics",
-    "info": [Function],
-    "label": "@analytics",
-    "section": "Table",
-    "type": "table",
-  },
-]
-`;
+exports[`TableContextProvider > getCompletions > should return completions for remote tables > remote-table-completions 1`] = `[]`;
 
 exports[`TableContextProvider > getCompletions > should return empty completions when no tables > empty-completions 1`] = `[]`;
 
@@ -154,9 +92,9 @@ exports[`TableContextProvider > getItems > should handle dataframe tables with v
       "variable_name": "df_analysis",
     },
     "description": "pandas",
-    "id": "df_analysis",
-    "label": "df_analysis",
+    "name": "df_analysis",
     "type": "table",
+    "uri": "table://df_analysis",
   },
 ]
 `;
@@ -178,9 +116,9 @@ exports[`TableContextProvider > getItems > should handle tables with minimal inf
       "variable_name": null,
     },
     "description": "",
-    "id": "minimal",
-    "label": "minimal",
+    "name": "minimal",
     "type": "table",
+    "uri": "table://minimal",
   },
 ]
 `;
@@ -234,9 +172,9 @@ exports[`TableContextProvider > getItems > should return table items for multipl
       "variable_name": null,
     },
     "description": "in-memory",
-    "id": "users",
-    "label": "users",
+    "name": "users",
     "type": "table",
+    "uri": "table://users",
   },
   {
     "data": {
@@ -301,9 +239,9 @@ exports[`TableContextProvider > getItems > should return table items for multipl
       "variable_name": null,
     },
     "description": "database.db",
-    "id": "orders",
-    "label": "orders",
+    "name": "orders",
     "type": "table",
+    "uri": "table://orders",
   },
 ]
 `;
@@ -355,9 +293,9 @@ exports[`TableContextProvider > getItems > should return table items for single 
       "variable_name": null,
     },
     "description": "in-memory",
-    "id": "users",
-    "label": "users",
+    "name": "users",
     "type": "table",
+    "uri": "table://users",
   },
 ]
 `;
