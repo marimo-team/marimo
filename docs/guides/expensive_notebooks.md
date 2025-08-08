@@ -41,7 +41,7 @@ def __():
 
 ## Configure how marimo runs cells
 
-### Disabling cell autorun
+### Disable cell autorun
 
 If you habitually work with very expensive notebooks, you can
 [disable automatic
@@ -49,7 +49,7 @@ execution](../guides/configuration/runtime_configuration.md#disable-autorun-on-c
 automatic execution is disabled, when you run a cell, marimo
 marks dependent cells as stale instead of running them automatically.
 
-### Disabling autorun on startup
+### Disable autorun on startup
 
 marimo autoruns notebooks on startup, with `marimo edit notebook.py` behaving
 analogously to `python notebook.py`. This can also be disabled through the
@@ -62,7 +62,77 @@ helpful when you want to edit one part of a notebook without triggering
 execution of other parts. See the
 [reactivity guide](../guides/reactivity.md#disabling-cells) for more info.
 
-## Automatic snapshotting as HTML or ipynb
+## Manage memory
+
+Here are a few tips for managing the memory consumption of your notebooks,
+on host or GPU.
+
+### Wrap intermediate computations in functions
+
+By default, global variables live in the kernel memory. Intermediate variables
+that are defined in functions are cleaned up automatically.
+
+For example, if `X` is a temporary:
+
+**Do this:**
+
+```python
+def _():
+    X = torch.randn(1e4, 1e4, device='cuda')
+    Y = f(X)
+    return Y
+```
+
+**Don't do this:**
+
+```python
+X = torch.randn(1e4, 1e4, device='cuda')
+Y = f(X)
+# X still lives in program memory!
+```
+
+### Use `del` to remove variables from kernel memory
+
+
+Use the `del` operator to remove variables from kernel memory.
+
+**In a single cell.** Prefer deleting variables in the cell they were defined
+in. For example,
+if `X` is a temporary that you don't need after computing `Y`:
+
+```python
+X = torch.randn(1e4, 1e4, device='cuda')
+Y = f(X)
+del X
+```
+
+**In another cell.** Sometimes, computations are spread across multiple cells,
+and you only realize later on that you need to free memory that you've already
+allocated. In such cases you can still use the `del` keyword. For example:
+
+```python
+data = load_large_dataset()
+```
+
+```python
+derived_data = f(data)
+```
+
+```python
+del data
+```
+
+marimo inserts control dependences to make sure that variables are not deleted
+before they are used. When `del` is used to delete a variable that was defined
+in a another cell, the cell where `del` was used becomes a child of all other
+cells that reference that variable. In this case, that means marimo knows to
+run the third cell after the second cell, since the second cell references
+`data` and the third cell deletes it. However, once `data` is deleted,
+attempting to manually run the second cell will raise a `NameError`, and you'll
+need to re-run the defining cell in order to get your notebook back to a
+consistent state.
+
+## Automatically snapshot outputs as HTML or IPYNB
 
 To keep a record of your cell outputs while working on your
 notebook, you can configure notebooks to automatically save as HTML or ipynb
@@ -72,7 +142,7 @@ notebook's `.py` file). Snapshots are saved to a folder called
 
 Learn more about exporting notebooks in our [exporting guide](../guides/exporting.md).
 
-## Caching
+## Cache expensive computations
 
 marimo provides two decorators to cache the return values of expensive functions:
 
