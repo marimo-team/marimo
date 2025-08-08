@@ -52,7 +52,9 @@ export function createGanttBaseSpec(
         },
       },
     ],
-    height: { step: 23 },
+    height: {
+      step: chartPosition === "sideBySide" ? 26 : 21,
+    },
     encoding: {
       y: {
         field: cellNumField,
