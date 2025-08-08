@@ -429,7 +429,13 @@ export function renderCellValue<TData, TValue>(
   const dataType = column.columnDef.meta?.dataType;
   const dtype = column.columnDef.meta?.dtype;
 
-  if (dataType === "datetime" && typeof value === "string") {
+  if (
+    dataType === "datetime" &&
+    typeof value === "string" &&
+    // 2000-01-01T00:00:00.000 is considered a datetime. We treat shorter values as strings.
+    // Because users may define format_mapping to alter the value.
+    value.length > 12
+  ) {
     try {
       const date = new Date(value);
       return renderDate(date, dataType, dtype);
