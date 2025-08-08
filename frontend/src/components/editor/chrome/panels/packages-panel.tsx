@@ -21,6 +21,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import { useRequestClient } from "@/core/network/requests";
 import type { DependencyTreeNode } from "@/core/network/types";
 import {
   showRemovePackageToast,
@@ -36,7 +37,6 @@ import { Events } from "@/utils/events";
 import { PACKAGES_INPUT_ID } from "./constants";
 import { PanelEmptyState } from "./empty-state";
 import { packagesToInstallAtom } from "./packages-state";
-import { useRequestClient } from "@/core/network/requests";
 
 type ViewMode = "tree" | "list";
 

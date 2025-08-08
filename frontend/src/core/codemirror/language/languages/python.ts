@@ -25,6 +25,7 @@ import type {
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { getRequestClient } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../../cells/state";
@@ -40,7 +41,6 @@ import {
   smartPlaceholderExtension,
 } from "../../placeholder/extensions";
 import type { LanguageAdapter } from "../types";
-import { getRequestClient } from "@/core/network/requests";
 
 const pylspClient = once((lspConfig: LSPConfig) => {
   const lspClientOpts = {

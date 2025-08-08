@@ -3,8 +3,8 @@
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
-import type { ActionButton } from "./types";
 import { useRequestClient } from "@/core/network/requests";
+import type { ActionButton } from "./types";
 
 export function useConfigActions() {
   const [config, setConfig] = useResolvedMarimoConfig();

@@ -11,13 +11,13 @@ import {
   type LayoutData,
   type LayoutState,
 } from "../layout/layout";
+import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type {
   Capabilities,
   CellMessage,
   OperationMessageData,
 } from "./messages";
-import { getRequestClient } from "../network/requests";
 
 export function handleKernelReady(
   data: OperationMessageData<"kernel-ready">,

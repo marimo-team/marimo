@@ -23,12 +23,12 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { useRequestClient } from "@/core/network/requests";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../../kiosk-mode";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
-import { useRequestClient } from "@/core/network/requests";
 
 const extensions = [EditorView.lineWrapping];
 

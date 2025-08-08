@@ -45,6 +45,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -66,7 +67,6 @@ import {
   PYTHON_CODE_FOR_FILE_TYPE,
 } from "./types";
 import { useFileExplorerUpload } from "./upload";
-import { useRequestClient } from "@/core/network/requests";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 

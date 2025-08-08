@@ -34,6 +34,7 @@ import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
@@ -81,7 +82,6 @@ import { temporarilyShownCodeAtom } from "./navigation/state";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
-import { useRequestClient } from "@/core/network/requests";
 
 /**
  * Hook for handling cell completion logic

@@ -28,10 +28,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Constants } from "@/core/constants";
+import { useRequestClient } from "@/core/network/requests";
 import type { TutorialId } from "@/core/network/types";
 import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
-import { useRequestClient } from "@/core/network/requests";
 
 const TUTORIALS: Record<
   TutorialId,

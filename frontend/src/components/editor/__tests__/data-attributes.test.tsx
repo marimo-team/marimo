@@ -10,8 +10,8 @@ import type { CellId } from "@/core/cells/ids";
 import { createCellRuntimeState } from "@/core/cells/types";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { requestClientAtom } from "@/core/network/requests";
 import type { AppMode } from "@/core/mode";
+import { requestClientAtom } from "@/core/network/requests";
 import { Cell } from "../Cell";
 import { OutputArea } from "../Output";
 

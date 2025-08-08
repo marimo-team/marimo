@@ -19,8 +19,8 @@ import { FILE_TYPE_ICONS, guessFileType } from "../file-tree/types";
 
 import "./filename-input.css";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { ErrorBoundary } from "../boundary/ErrorBoundary";
 import { useRequestClient } from "@/core/network/requests";
+import { ErrorBoundary } from "../boundary/ErrorBoundary";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;

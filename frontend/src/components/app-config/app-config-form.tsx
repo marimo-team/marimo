@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/form";
 import { useAppConfig } from "@/core/config/config";
 import { getAppWidths } from "@/core/config/widths";
+import { useRequestClient } from "@/core/network/requests";
 import { arrayToggle } from "@/utils/arrays";
 import {
   type AppConfig,
@@ -30,7 +31,6 @@ import {
   SettingTitle,
   SQL_OUTPUT_SELECT_OPTIONS,
 } from "./common";
-import { useRequestClient } from "@/core/network/requests";
 
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();

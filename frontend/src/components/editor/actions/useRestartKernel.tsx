@@ -4,9 +4,9 @@ import { useSetAtom } from "jotai";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { connectionAtom } from "@/core/network/connection";
+import { useRequestClient } from "@/core/network/requests";
 import { WebSocketState } from "@/core/websocket/types";
 import { reloadSafe } from "@/utils/reload-safe";
-import { useRequestClient } from "@/core/network/requests";
 
 export function useRestartKernel() {
   const { openConfirm } = useImperativeModal();

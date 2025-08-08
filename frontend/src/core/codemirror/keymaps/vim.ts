@@ -9,6 +9,7 @@ import {
   Vim,
 } from "@replit/codemirror-vim";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
+import { getRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { onIdle } from "@/utils/idle";
 import { invariant } from "@/utils/invariant";
@@ -23,7 +24,6 @@ import {
 } from "../utils";
 import { VimCursorVisibilityPlugin } from "../vim/cursor-visibility";
 import { parseVimrc, type VimCommand } from "./vimrc";
-import { getRequestClient } from "@/core/network/requests";
 
 export function vimKeymapExtension(): Extension[] {
   addCustomVimCommandsOnce();

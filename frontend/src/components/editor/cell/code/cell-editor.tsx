@@ -28,6 +28,7 @@ import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
+import { useRequestClient } from "@/core/network/requests";
 import { isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { WebSocketState } from "@/core/websocket/types";
@@ -41,7 +42,6 @@ import { useCellEditorNavigationProps } from "../../navigation/navigation";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { LanguageToggles } from "./language-toggle";
-import { useRequestClient } from "@/core/network/requests";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,

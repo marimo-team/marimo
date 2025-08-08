@@ -1,8 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { beforeEach } from "vitest";
 import { render } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { Tracebacks } from "@/__mocks__/tracebacks";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";

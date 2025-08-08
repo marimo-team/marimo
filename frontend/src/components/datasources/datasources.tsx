@@ -48,6 +48,7 @@ import type {
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
+import { useRequestClient } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -69,7 +70,6 @@ import {
   RotatingChevron,
 } from "./components";
 import { isSchemaless, sqlCode } from "./utils";
-import { useRequestClient } from "@/core/network/requests";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);

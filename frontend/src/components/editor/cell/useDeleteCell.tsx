@@ -9,8 +9,8 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { store } from "@/core/state/jotai";
 import { useRequestClient } from "@/core/network/requests";
+import { store } from "@/core/state/jotai";
 
 export function useDeleteCellCallback() {
   const { deleteCell, undoDeleteCell } = useCellActions();

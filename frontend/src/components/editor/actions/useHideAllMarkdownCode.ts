@@ -4,9 +4,9 @@ import { useCallback } from "react"; /* Copyright 2024 Marimo. All rights reserv
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";
-import { useRequestClient } from "@/core/network/requests";
 
 /**
  * Hook to hide all markdown code cells

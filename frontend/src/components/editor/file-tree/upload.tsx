@@ -2,11 +2,11 @@
 
 import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { toast } from "@/components/ui/use-toast";
+import { useRequestClient } from "@/core/network/requests";
 import { serializeBlob } from "@/utils/blob";
 import { Logger } from "@/utils/Logger";
 import { type FilePath, PathBuilder } from "@/utils/paths";
 import { refreshRoot } from "./state";
-import { useRequestClient } from "@/core/network/requests";
 
 const MAX_SIZE = 1024 * 1024 * 100; // 100MB
 

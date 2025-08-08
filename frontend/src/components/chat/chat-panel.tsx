@@ -46,6 +46,7 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
+import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
@@ -63,7 +64,6 @@ import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
-import { useRequestClient } from "@/core/network/requests";
 
 interface ChatHeaderProps {
   onNewChat: () => void;

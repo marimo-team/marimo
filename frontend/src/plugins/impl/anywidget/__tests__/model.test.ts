@@ -16,7 +16,6 @@ import {
   Model,
   visibleForTesting,
 } from "../model";
-import { getRequestClient } from "@/core/network/requests";
 
 const { ModelManager } = visibleForTesting;
 

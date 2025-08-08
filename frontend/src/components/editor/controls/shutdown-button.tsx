@@ -1,12 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { XIcon } from "lucide-react";
+import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { useImperativeModal } from "../../modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
 import { Tooltip } from "../../ui/tooltip";
 import { Button } from "../inputs/Inputs";
-import { useRequestClient } from "@/core/network/requests";
 
 interface Props {
   description: string;

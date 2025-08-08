@@ -13,6 +13,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { hotkeysAtom } from "@/core/config/config";
+import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -30,7 +31,6 @@ import {
   PdfViewer,
   VideoViewer,
 } from "./renderers";
-import { useRequestClient } from "@/core/network/requests";
 
 interface Props {
   file: FileInfo;

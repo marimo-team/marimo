@@ -41,6 +41,7 @@ import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { userConfigAtom } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { useEventListener } from "@/hooks/useEventListener";
@@ -48,7 +49,6 @@ import type { ActionButton } from "../actions/types";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellSelectionActions, useCellSelectionState } from "./selection";
-import { useRequestClient } from "@/core/network/requests";
 
 interface MultiCellActionButton extends Omit<ActionButton, "handle"> {
   handle: (selectedCells: CellId[]) => void;

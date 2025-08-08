@@ -14,6 +14,7 @@ import {
   type HotkeyGroup,
 } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
+import { useRequestClient } from "@/core/network/requests";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import {
@@ -24,7 +25,6 @@ import {
   DialogPortal,
   DialogTitle,
 } from "../../ui/dialog";
-import { useRequestClient } from "@/core/network/requests";
 
 export const keyboardShortcutsAtom = atom(false);
 
