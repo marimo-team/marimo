@@ -293,7 +293,9 @@ describe("TableContextProvider", () => {
 
       expect(element.tagName).toBe("DIV");
       expect(element.classList.contains("mo-cm-tooltip")).toBe(true);
-      expect(element.textContent).toMatchInlineSnapshot();
+      expect(element.textContent).toMatchInlineSnapshot(
+        `"full_tableSource: my_database.db1000 rows, 5 columnsColumnTypeMetadataidintegerPKnamestringscorenumber"`,
+      );
     });
 
     it("should create info element for table without source", () => {

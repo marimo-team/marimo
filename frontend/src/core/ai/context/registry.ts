@@ -6,7 +6,7 @@ import type { TypedString } from "@/utils/typed";
 
 /**
  * Unique identifier for a context item in the format "type:id"
- * e.g., "variable:my_var", "table:users", "file:config.py"
+ * e.g., "variable://my_var", "table://users", "file://config.py"
  */
 export type ContextLocatorId = TypedString<"ContextLocatorId">;
 
@@ -44,29 +44,25 @@ export abstract class AIContextProvider<
   /** Format completion */
   abstract formatCompletion(item: T): Completion;
 
-  /** Format a context locator ID for this item */
-  formatContextId(item: T): ContextLocatorId {
-    return `${this.contextType}:${item.uri}` as ContextLocatorId;
-  }
-
-  asURI(id: string): string {
-    return `${this.contextType}://${id}`;
+  asURI(id: string): ContextLocatorId {
+    return `${this.contextType}://${id}` as ContextLocatorId;
   }
 
   /** Parse context IDs from input text using the provider's mention prefix */
   parseContextIds(input: string): ContextLocatorId[] {
-    const escapedPrefix = this.mentionPrefix.replaceAll(
-      /[$()*+.?[\\\]^{|}]/g,
-      "\\$&",
+    // Match @type://id, e.g., @table://users
+    const regex = new RegExp(
+      `${this.mentionPrefix}([\\w-]+):\\/\\/([\\w./-]+)`,
+      "g",
     );
-    const regex = new RegExp(`${escapedPrefix}([\\w.\\-_/]+)`, "g");
-    const mentions = input.match(regex) || [];
-    const items = this.getItems();
+    const matches = [...input.matchAll(regex)];
+    const justURI = (match: string) => match.slice(1);
 
-    return mentions
-      .map((mention) => mention.slice(this.mentionPrefix.length))
-      .filter((name) => items.some((item) => item.uri === name))
-      .map((name) => this.formatContextId({ uri: name } as T));
+    const results = matches
+      .filter(([, type]) => type === this.contextType)
+      .map(([matchString]) => justURI(matchString) as ContextLocatorId);
+
+    return [...new Set(results)];
   }
 
   /** Create a basic completion object - can be used by subclasses */
@@ -80,7 +76,7 @@ export abstract class AIContextProvider<
     },
   ): Completion {
     return {
-      label: `${this.mentionPrefix}${item.uri}`,
+      label: `${this.mentionPrefix}${item.uri.split("://")[1]}`,
       displayLabel: item.name,
       detail: options?.detail || item.description,
       boost: options?.boost || 1,
@@ -150,19 +146,14 @@ export class AIContextRegistry<T extends AIContextItem> {
    */
   getContextInfo(contextIds: ContextLocatorId[]): T[] {
     const contextInfo: T[] = [];
+    const allItems = new Map<ContextLocatorId, T>(
+      this.getAllItems().map((item) => [item.uri as ContextLocatorId, item]),
+    );
 
     for (const contextId of contextIds) {
-      const [type, id] = contextId.split(":", 2);
-      const provider = [...this.providers].find(
-        (provider) => provider.contextType === type,
-      );
-
-      if (provider) {
-        const items = provider.getItems();
-        const item = items.find((item) => item.uri === id);
-        if (item) {
-          contextInfo.push(item);
-        }
+      const item = allItems.get(contextId);
+      if (item) {
+        contextInfo.push(item);
       }
     }
 
@@ -173,30 +164,27 @@ export class AIContextRegistry<T extends AIContextItem> {
    * Format context for AI prompt inclusion
    */
   formatContextForAI(contextIds: ContextLocatorId[]): string {
-    // Map: providerType -> Set<id>
-    const providerIdMap = new Map<string, Set<string>>();
+    const allItems = new Map<ContextLocatorId, T>(
+      this.getAllItems().map((item) => [item.uri as ContextLocatorId, item]),
+    );
+
+    const contextInfo: T[] = [];
     for (const contextId of contextIds) {
-      const [type, id] = contextId.split(":", 2);
-      if (!providerIdMap.has(type)) {
-        providerIdMap.set(type, new Set());
-      }
-      providerIdMap.get(type)?.add(id);
-    }
-
-    const sections: string[] = [];
-    for (const provider of this.providers) {
-      const ids = providerIdMap.get(provider.contextType);
-      if (!ids || ids.size === 0) {
-        continue;
-      }
-      const items = provider.getItems();
-      for (const item of items) {
-        if (ids.has(item.uri)) {
-          sections.push(provider.formatContext(item));
-        }
+      const item = allItems.get(contextId);
+      if (item) {
+        contextInfo.push(item);
       }
     }
 
-    return sections.join("\n\n");
+    if (contextInfo.length === 0) {
+      return "";
+    }
+
+    return contextInfo
+      .map((item) => {
+        const provider = this.getProvider(item.type);
+        return provider?.formatContext(item) || "";
+      })
+      .join("\n\n");
   }
 }

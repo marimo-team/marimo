@@ -20,16 +20,17 @@ export function resourceExtension(
   language: Language,
   store: JotaiStore,
 ): Extension[] {
-  const registry = getAIContextRegistry(store);
-
   return [
     language.data.of({
       autocomplete: resourceCompletion(
         async (): Promise<Resource[]> => {
+          const registry = getAIContextRegistry(store);
           const resources = registry.getAllItems();
+          console.warn("resourceCompletion", resources);
           return resources;
         },
         (resource) => {
+          const registry = getAIContextRegistry(store);
           const provider = registry.getProvider(resource.type);
           return provider?.formatCompletion(resource as AIContextItem) || {};
         },

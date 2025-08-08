@@ -24,21 +24,21 @@ class MockContextProvider extends AIContextProvider<MockContextItem> {
   private items: MockContextItem[] = [
     {
       type: "mock",
-      uri: "item1",
+      uri: this.asURI("item1"),
       name: "Item 1",
       description: "First mock item",
       data: { value: "value1" },
     },
     {
       type: "mock",
-      uri: "item2",
+      uri: this.asURI("item2"),
       name: "Item 2",
       description: "Second mock item",
       data: { value: "value2" },
     },
     {
       type: "mock",
-      uri: "item_with_special-chars",
+      uri: this.asURI("item_with_special-chars"),
       name: "Special Item",
       description: "Item with special characters",
       data: { value: "special" },
@@ -80,20 +80,20 @@ interface FileContextItem extends AIContextItem {
 // Another mock provider with different prefix and type
 class FileContextProvider extends AIContextProvider<FileContextItem> {
   readonly title = "Files";
-  readonly mentionPrefix = "#";
+  readonly mentionPrefix = "@";
   readonly contextType = "file";
 
   private items: FileContextItem[] = [
     {
       type: "file",
-      uri: "config.py",
+      uri: this.asURI("config.py"),
       name: "config.py",
       description: "Configuration file",
       data: { value: "config" },
     },
     {
       type: "file",
-      uri: "utils/helpers.py",
+      uri: this.asURI("utils/helpers.py"),
       name: "utils/helpers.py",
       description: "Helper functions",
       data: { value: "helpers" },
@@ -127,34 +127,34 @@ describe("AIContextProvider", () => {
   describe("formatContextId", () => {
     it("should format context ID correctly", () => {
       const item = provider.getItems()[0];
-      const contextId = provider.formatContextId(item);
-      expect(contextId).toBe("mock:item1");
+      const contextId = item.uri;
+      expect(contextId).toBe("mock://item1");
     });
 
     it("should handle items with special characters", () => {
       const item = provider.getItems()[2];
-      const contextId = provider.formatContextId(item);
-      expect(contextId).toBe("mock:item_with_special-chars");
+      const contextId = item.uri;
+      expect(contextId).toBe("mock://item_with_special-chars");
     });
   });
 
   describe("parseContextIds", () => {
     it("should parse valid mentions from input text", () => {
-      const input = "Hello @item1 and @item2 world";
+      const input = "Hello @mock://item1 and @mock://item2 world";
       const contextIds = provider.parseContextIds(input);
-      expect(contextIds).toEqual(["mock:item1", "mock:item2"]);
+      expect(contextIds).toEqual(["mock://item1", "mock://item2"]);
     });
 
     it("should ignore invalid mentions", () => {
-      const input = "Hello @item1 and @nonexistent world";
+      const input = "Hello @mock://item1 and @nonexistent world";
       const contextIds = provider.parseContextIds(input);
-      expect(contextIds).toEqual(["mock:item1"]);
+      expect(contextIds).toEqual(["mock://item1"]);
     });
 
     it("should handle mentions with special characters", () => {
-      const input = "Use @item_with_special-chars here";
+      const input = "Use @mock://item_with_special-chars here";
       const contextIds = provider.parseContextIds(input);
-      expect(contextIds).toEqual(["mock:item_with_special-chars"]);
+      expect(contextIds).toEqual(["mock://item_with_special-chars"]);
     });
 
     it("should handle input with no mentions", () => {
@@ -170,9 +170,9 @@ describe("AIContextProvider", () => {
     });
 
     it("should handle multiple occurrences of same mention", () => {
-      const input = "@item1 and @item1 again";
+      const input = "@mock://item1 and @mock://item1 again";
       const contextIds = provider.parseContextIds(input);
-      expect(contextIds).toEqual(["mock:item1", "mock:item1"]);
+      expect(contextIds).toEqual(["mock://item1"]);
     });
   });
 
@@ -188,7 +188,7 @@ describe("AIContextProvider", () => {
         detail: "First mock item",
         boost: 1,
         type: "mock",
-        apply: "@item1",
+        apply: "@mock://item1",
         section: "Mock Items",
       });
     });
@@ -209,7 +209,7 @@ describe("AIContextProvider", () => {
         detail: "Custom detail",
         boost: 5,
         type: "custom",
-        apply: "@item1",
+        apply: "@mock://item1",
         section: "Custom Section",
       });
     });
@@ -359,11 +359,11 @@ describe("AIContextRegistry", () => {
     });
 
     it("should parse context IDs from all providers", () => {
-      const input = "Use @item1 and #config.py here";
+      const input = "Use @mock://item1 and @file://config.py here";
       const contextIds = registry.parseAllContextIds(input);
 
-      expect(contextIds).toContain("mock:item1");
-      expect(contextIds).toContain("file:config.py");
+      expect(contextIds).toContain("mock://item1");
+      expect(contextIds).toContain("file://config.py");
       expect(contextIds).toHaveLength(2);
     });
 
@@ -374,9 +374,9 @@ describe("AIContextRegistry", () => {
     });
 
     it("should handle mixed valid and invalid mentions", () => {
-      const input = "Use @item1 and #nonexistent.py and @invalid";
+      const input = "Use @mock://item1 and #nonexistent.py and @invalid";
       const contextIds = registry.parseAllContextIds(input);
-      expect(contextIds).toEqual(["mock:item1"]);
+      expect(contextIds).toEqual(["mock://item1"]);
     });
 
     it("should handle empty input", () => {
@@ -394,26 +394,26 @@ describe("AIContextRegistry", () => {
 
     it("should return context info for valid IDs", () => {
       const contextIds: ContextLocatorId[] = [
-        "mock:item1",
-        "file:config.py",
+        "mock://item1",
+        "file://config.py",
       ] as ContextLocatorId[];
       const contextInfo = registry.getContextInfo(contextIds);
 
       expect(contextInfo).toHaveLength(2);
-      expect(contextInfo[0].uri).toBe("item1");
-      expect(contextInfo[1].uri).toBe("config.py");
+      expect(contextInfo[0].uri).toBe("mock://item1");
+      expect(contextInfo[1].uri).toBe("file://config.py");
     });
 
     it("should ignore invalid context IDs", () => {
       const contextIds: ContextLocatorId[] = [
-        "mock:item1",
-        "mock:nonexistent",
-        "unknown:item",
+        "mock://item1",
+        "mock://nonexistent",
+        "unknown://item",
       ] as ContextLocatorId[];
       const contextInfo = registry.getContextInfo(contextIds);
 
       expect(contextInfo).toHaveLength(1);
-      expect(contextInfo[0].uri).toBe("item1");
+      expect(contextInfo[0].uri).toBe("mock://item1");
     });
 
     it("should return empty array for empty input", () => {
@@ -424,12 +424,12 @@ describe("AIContextRegistry", () => {
     it("should handle malformed context IDs", () => {
       const contextIds: ContextLocatorId[] = [
         "malformed" as ContextLocatorId,
-        "mock:item1",
+        "mock://item1",
       ] as ContextLocatorId[];
       const contextInfo = registry.getContextInfo(contextIds);
 
       expect(contextInfo).toHaveLength(1);
-      expect(contextInfo[0].uri).toBe("item1");
+      expect(contextInfo[0].uri).toBe("mock://item1");
     });
   });
 
@@ -441,27 +441,31 @@ describe("AIContextRegistry", () => {
 
     it("should format context for AI with valid IDs", () => {
       const contextIds: ContextLocatorId[] = [
-        "mock:item1",
-        "file:config.py",
+        "mock://item1",
+        "file://config.py",
       ] as ContextLocatorId[];
       const formatted = registry.formatContextForAI(contextIds);
 
-      expect(formatted).toContain("Mock: Item 1 (value1)");
-      expect(formatted).toContain("File: config.py");
-      expect(formatted).toContain("Description: Configuration file");
-      expect(formatted.split("\n\n")).toHaveLength(2);
+      expect(formatted).toMatchInlineSnapshot(`
+        "Mock: Item 1 (value1)
+
+        File: file://config.py
+        Description: Configuration file"
+      `);
     });
 
     it("should handle multiple items from same provider", () => {
       const contextIds: ContextLocatorId[] = [
-        "mock:item1",
-        "mock:item2",
+        "mock://item1",
+        "mock://item2",
       ] as ContextLocatorId[];
       const formatted = registry.formatContextForAI(contextIds);
 
-      expect(formatted).toContain("Mock: Item 1 (value1)");
-      expect(formatted).toContain("Mock: Item 2 (value2)");
-      expect(formatted.split("\n\n")).toHaveLength(2);
+      expect(formatted).toMatchInlineSnapshot(`
+        "Mock: Item 1 (value1)
+
+        Mock: Item 2 (value2)"
+      `);
     });
 
     it("should return empty string for empty input", () => {
@@ -471,9 +475,9 @@ describe("AIContextRegistry", () => {
 
     it("should ignore invalid context IDs", () => {
       const contextIds: ContextLocatorId[] = [
-        "mock:item1",
-        "unknown:item",
-        "mock:nonexistent",
+        "mock://item1",
+        "unknown://item",
+        "mock://nonexistent",
       ] as ContextLocatorId[];
       const formatted = registry.formatContextForAI(contextIds);
 
@@ -483,17 +487,19 @@ describe("AIContextRegistry", () => {
 
     it("should handle complex file paths", () => {
       const contextIds: ContextLocatorId[] = [
-        "file:utils/helpers.py",
+        "file://utils/helpers.py",
       ] as ContextLocatorId[];
       const formatted = registry.formatContextForAI(contextIds);
 
-      expect(formatted).toContain("File: utils/helpers.py");
-      expect(formatted).toContain("Description: Helper functions");
+      expect(formatted).toMatchInlineSnapshot(`
+        "File: file://utils/helpers.py
+        Description: Helper functions"
+      `);
     });
 
     it("should handle malformed context IDs gracefully", () => {
       const contextIds: ContextLocatorId[] = [
-        "mock:item1",
+        "mock://item1",
       ] as ContextLocatorId[];
       const formatted = registry.formatContextForAI(contextIds);
 
@@ -511,10 +517,10 @@ describe("AIContextRegistry", () => {
       expect(registry.getAllCompletions()).toEqual([]);
       expect(registry.parseAllContextIds("@anything")).toEqual([]);
       expect(
-        registry.getContextInfo(["mock:anything"] as ContextLocatorId[]),
+        registry.getContextInfo(["mock://anything"] as ContextLocatorId[]),
       ).toEqual([]);
       expect(
-        registry.formatContextForAI(["mock:anything"] as ContextLocatorId[]),
+        registry.formatContextForAI(["mock://anything"] as ContextLocatorId[]),
       ).toBe("");
     });
 
@@ -522,7 +528,7 @@ describe("AIContextRegistry", () => {
       // Add an item with colon in the ID
       const specialItem: MockContextItem = {
         type: "mock",
-        uri: "namespace", // Note: current implementation has a bug with split(":", 2)
+        uri: "mock://namespace:item:with:colons", // Note: current implementation has a bug with split(":", 2)
         name: "Special Item",
         data: { value: "special" },
       };
@@ -530,14 +536,14 @@ describe("AIContextRegistry", () => {
       registry.register(mockProvider);
 
       const contextIds: ContextLocatorId[] = [
-        "mock:namespace:item:with:colons",
+        "mock://namespace:item:with:colons",
       ] as ContextLocatorId[];
       const contextInfo = registry.getContextInfo(contextIds);
 
       // Current implementation only gets "namespace" as id due to split(":", 2)
       // This is likely a bug - it should split only on first colon
       expect(contextInfo).toHaveLength(1);
-      expect(contextInfo[0].uri).toBe("namespace");
+      expect(contextInfo[0].uri).toBe("mock://namespace:item:with:colons");
     });
 
     it("should handle providers with same context type", () => {

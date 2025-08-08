@@ -17,7 +17,7 @@ export interface VariableContextItem extends AIContextItem {
 export class VariableContextProvider extends AIContextProvider<VariableContextItem> {
   readonly title = "Variables";
   readonly mentionPrefix = "@";
-  readonly contextType = "variable";
+  readonly contextType = "var";
 
   constructor(
     private variables: Variables,

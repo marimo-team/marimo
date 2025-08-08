@@ -15,7 +15,7 @@ export interface TableContextItem extends AIContextItem {
 export class TableContextProvider extends AIContextProvider<TableContextItem> {
   readonly title = "Tables";
   readonly mentionPrefix = "@";
-  readonly contextType = "table";
+  readonly contextType = "data";
 
   constructor(private tablesMap: DatasetTablesMap) {
     super();
@@ -195,15 +195,16 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
     if (isPrimaryKey || isIndexed) {
       const badge = document.createElement("span");
       badge.textContent = isPrimaryKey ? "PK" : "IDX";
+      const color = isPrimaryKey
+        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+        : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
       badge.classList.add(
         "text-xs",
         "px-1.5",
         "py-0.5",
         "rounded-full",
         "font-medium",
-        isPrimaryKey
-          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-          : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+        ...color.split(" "),
       );
       return badge;
     }
