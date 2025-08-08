@@ -41,7 +41,7 @@ import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { userConfigAtom } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
-import { saveCellConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { useEventListener } from "@/hooks/useEventListener";
@@ -125,6 +125,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
   const runCells = useRunCells();
   const pendingDeleteService = usePendingDeleteService();
   const userConfig = useAtomValue(userConfigAtom);
+  const { saveCellConfig } = useRequestClient();
 
   const selectedCount = cellIds.length;
 

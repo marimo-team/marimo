@@ -6,7 +6,7 @@ import type React from "react";
 import { useState } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
-import { getUsageStats } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { UsageResponse } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { WebSocketState } from "@/core/websocket/types";
@@ -14,9 +14,10 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
 
-export const MachineStats: React.FC = (props) => {
+export const MachineStats: React.FC = () => {
   const [nonce, setNonce] = useState(0);
   const connection = useAtomValue(connectionAtom);
+  const { getUsageStats } = useRequestClient();
   useInterval(
     () => setNonce((nonce) => nonce + 1),
     // Refresh every 10 seconds, or when the document becomes visible

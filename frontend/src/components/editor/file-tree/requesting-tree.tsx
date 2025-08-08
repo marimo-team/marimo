@@ -3,12 +3,10 @@
 import { SimpleTree } from "react-arborist";
 import { toast } from "@/components/ui/use-toast";
 import type {
-  sendCreateFileOrFolder,
-  sendDeleteFileOrFolder,
-  sendListFiles,
-  sendRenameFileOrFolder,
-} from "@/core/network/requests";
-import type { FileInfo, FileUpdateResponse } from "@/core/network/types";
+  EditRequests,
+  FileInfo,
+  FileUpdateResponse,
+} from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { type FilePath, PathBuilder } from "@/utils/paths";
@@ -18,10 +16,10 @@ export class RequestingTree {
 
   constructor(
     private callbacks: {
-      listFiles: typeof sendListFiles;
-      createFileOrFolder: typeof sendCreateFileOrFolder;
-      deleteFileOrFolder: typeof sendDeleteFileOrFolder;
-      renameFileOrFolder: typeof sendRenameFileOrFolder;
+      listFiles: EditRequests["sendListFiles"];
+      createFileOrFolder: EditRequests["sendCreateFileOrFolder"];
+      deleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"];
+      renameFileOrFolder: EditRequests["sendRenameFileOrFolder"];
     },
   ) {}
 

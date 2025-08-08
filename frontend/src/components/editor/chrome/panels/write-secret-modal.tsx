@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { writeSecret } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { ListSecretKeysResponse } from "@/core/network/types";
 
 // dotenv providers should be at the top
@@ -44,6 +44,7 @@ export const WriteSecretModal: React.FC<{
   onClose: () => void;
   onSuccess: (secretName: string) => void;
 }> = ({ providerNames, onClose, onSuccess }) => {
+  const { writeSecret } = useRequestClient();
   const [key, setKey] = React.useState("");
   const [value, setValue] = React.useState("");
   const [location, setLocation] = React.useState<string | undefined>(

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
-import { exportAsHTML } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
@@ -25,6 +25,7 @@ export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   const [slug, setSlug] = useState("");
+  const { exportAsHTML } = useRequestClient();
   // 4 character random string
   const randomHash = useMemo(() => Math.random().toString(36).slice(2, 6), []);
 

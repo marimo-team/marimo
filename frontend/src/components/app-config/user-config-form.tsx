@@ -41,7 +41,7 @@ import {
 } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { marimoVersionAtom } from "@/core/meta/state";
-import { saveUserConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
@@ -118,6 +118,7 @@ export const UserConfigForm: React.FC = () => {
   );
   const capabilities = useAtomValue(capabilitiesAtom);
   const marimoVersion = useAtomValue(marimoVersionAtom);
+  const { saveUserConfig } = useRequestClient();
 
   // Create form
   const form = useForm<UserConfig>({

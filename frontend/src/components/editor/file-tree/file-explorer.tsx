@@ -45,11 +45,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
-import {
-  openFile,
-  sendCreateFileOrFolder,
-  sendFileDetails,
-} from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -85,7 +81,6 @@ export const FileExplorer: React.FC<{
   // Keep external state to remember which folders are open
   // when this component is unmounted
   const [openState, setOpenState] = useAtom(openStateAtom);
-
   const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
 
   const handleRefresh = useEvent(() => {
@@ -357,6 +352,9 @@ const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
 };
 
 const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
+  const { openFile, sendCreateFileOrFolder, sendFileDetails } =
+    useRequestClient();
+
   const fileType: FileType = node.data.isDirectory
     ? "directory"
     : guessFileType(node.data.name);

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/form";
 import { useAppConfig } from "@/core/config/config";
 import { getAppWidths } from "@/core/config/widths";
-import { saveAppConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { arrayToggle } from "@/utils/arrays";
 import {
   type AppConfig,
@@ -34,6 +34,7 @@ import {
 
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
+  const { saveAppConfig } = useRequestClient();
 
   // Create form
   const form = useForm<AppConfig>({

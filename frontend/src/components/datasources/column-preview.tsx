@@ -14,7 +14,7 @@ import type {
   DataTableColumn,
   DataType,
 } from "@/core/kernel/messages";
-import { previewDatasetColumn } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { useOnMount } from "@/hooks/useLifecycle";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { type Theme, useTheme } from "@/theme/useTheme";
@@ -41,6 +41,7 @@ export const DatasetColumnPreview: React.FC<{
   sqlTableContext?: SQLTableContext;
 }> = ({ table, column, preview, onAddColumnChart, sqlTableContext }) => {
   const { theme } = useTheme();
+  const { previewDatasetColumn } = useRequestClient();
 
   const previewColumn = () => {
     previewDatasetColumn({

@@ -3,12 +3,13 @@
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
-import { saveAppConfig, saveUserConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { ActionButton } from "./types";
 
 export function useConfigActions() {
   const [config, setConfig] = useResolvedMarimoConfig();
   const [appConfig, setAppConfig] = useAppConfig();
+  const { saveAppConfig, saveUserConfig } = useRequestClient();
 
   const handleUserConfig = async (values: UserConfig) => {
     await saveUserConfig({ config: values }).then(() => {

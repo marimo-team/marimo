@@ -29,6 +29,8 @@ import {
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
 import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
+import { requestClientAtom } from "./core/network/requests";
+import { resolveRequestClient } from "./core/network/resolve";
 import {
   DEFAULT_RUNTIME_CONFIG,
   runtimeConfigAtom,
@@ -265,6 +267,9 @@ function initStore(options: unknown) {
       `🗄️ Injected ${parsedOptions.data.fileStores.length} file store(s) into notebookFileStore`,
     );
   }
+
+  // Configure networking layer
+  store.set(requestClientAtom, resolveRequestClient());
 
   // Files
   store.set(filenameAtom, parsedOptions.data.filename);

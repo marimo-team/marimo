@@ -48,7 +48,7 @@ import type {
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
-import { previewDataSourceConnection } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -228,6 +228,7 @@ const Engine: React.FC<{
   // The internal duckdb connection is updated automatically, so we do not need to refresh.
   const internalEngine = connection.name === DUCKDB_ENGINE;
   const engineName = internalEngine ? "In-Memory" : connection.name;
+  const { previewDataSourceConnection } = useRequestClient();
 
   const [isSpinning, setIsSpinning] = React.useState(false);
 

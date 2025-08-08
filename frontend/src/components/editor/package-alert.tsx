@@ -28,10 +28,7 @@ import {
 } from "@/core/alerts/state";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import type { PackageInstallationStatus } from "@/core/kernel/messages";
-import {
-  saveUserConfig,
-  sendInstallMissingPackages,
-} from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { usePackageMetadata } from "@/hooks/usePackageMetadata";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -326,6 +323,7 @@ const InstallPackagesButton = ({
   versions: Record<string, string>;
   clearPackageAlert: () => void;
 }) => {
+  const { sendInstallMissingPackages } = useRequestClient();
   return (
     <Button
       variant="outline"
@@ -356,6 +354,7 @@ const InstallPackagesButton = ({
 
 const PackageManagerForm: React.FC = () => {
   const [config, setConfig] = useResolvedMarimoConfig();
+  const { saveUserConfig } = useRequestClient();
 
   // Create form
   const form = useForm<UserConfig>({
