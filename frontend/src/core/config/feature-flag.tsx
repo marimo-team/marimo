@@ -9,6 +9,7 @@ import { getResolvedMarimoConfig } from "./config";
 export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   inline_ai_tooltip: boolean;
+  next_edit_prediction: boolean;
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
   performant_table_charts: boolean;
@@ -20,6 +21,7 @@ const defaultValues: ExperimentalFeatures = {
   markdown: true,
   inline_ai_tooltip: import.meta.env.DEV,
   wasm_layouts: false,
+  next_edit_prediction: false,
   rtc_v2: false,
   performant_table_charts: false,
   mcp_docs: false,
