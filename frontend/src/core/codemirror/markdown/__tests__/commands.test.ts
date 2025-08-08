@@ -9,9 +9,9 @@ import {
   test,
   vi,
 } from "vitest";
-import { sendCreateFileOrFolder } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { MockRequestClient } from "@/__mocks__/requests";
 import {
   insertBlockquote,
   insertBoldMarker,
@@ -165,12 +165,18 @@ describe("insertLink", () => {
   });
 });
 
+const mockRequestClient = MockRequestClient.create();
+
 vi.mock("@/core/network/requests", () => ({
   sendCreateFileOrFolder: vi.fn().mockResolvedValue({
     success: true,
     info: { path: "hello.png" },
   }),
 }));
+
+const { sendCreateFileOrFolder: mockSendCreateFileOrFolder } = vi.mocked(
+  await import("@/core/network/requests"),
+);
 
 describe("insertImage", () => {
   const mockPngFile = () => {
@@ -219,7 +225,7 @@ describe("insertImage", () => {
       selection: { anchor: 7, head: 7 },
     });
 
-    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+    mockSendCreateFileOrFolder.mockResolvedValueOnce({
       success: true,
       info: {
         path: "public/hello.png",
@@ -234,8 +240,8 @@ describe("insertImage", () => {
 
     await insertImage(view, mockPngFile());
 
-    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
-    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+    expect(mockSendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(mockSendCreateFileOrFolder).toHaveBeenCalledWith({
       path: "public",
       type: "file",
       name: "hello.png",
@@ -260,7 +266,7 @@ describe("insertImage", () => {
       }
     });
 
-    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+    mockSendCreateFileOrFolder.mockResolvedValueOnce({
       success: true,
       info: {
         path: "nested/public/hello.png",
@@ -275,8 +281,8 @@ describe("insertImage", () => {
 
     await insertImage(view, mockPngFile());
 
-    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
-    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+    expect(mockSendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(mockSendCreateFileOrFolder).toHaveBeenCalledWith({
       path: "nested/public", // store in public folder of notebook directory
       type: "file",
       name: "hello.png",
@@ -294,7 +300,7 @@ describe("insertImage", () => {
       selection: { anchor: 7, head: 7 },
     });
 
-    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+    mockSendCreateFileOrFolder.mockResolvedValueOnce({
       success: true,
       info: {
         path: "public/hello.jpg",
@@ -313,7 +319,7 @@ describe("insertImage", () => {
 
     await insertImage(view, mockJpgFile());
 
-    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(mockSendCreateFileOrFolder).toHaveBeenCalledTimes(1);
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
       `"Hello, ![](public/hello.jpg)world!"`,
     );
@@ -325,14 +331,14 @@ describe("insertImage", () => {
       selection: { anchor: 7, head: 7 },
     });
 
-    vi.mocked(sendCreateFileOrFolder).mockResolvedValueOnce({
+    mockSendCreateFileOrFolder.mockResolvedValueOnce({
       success: false,
       message: "Failed to create file",
     });
 
     await insertImage(view, mockPngFile());
 
-    expect(sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(mockSendCreateFileOrFolder).toHaveBeenCalledTimes(1);
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
       `"Hello, ![](data:image/png;base64,AQID)world!"`,
     );

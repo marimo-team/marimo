@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { sendRun } from "../network/requests";
 import { store } from "../state/jotai";
 import { variablesAtom } from "../variables/state";
 import { type CellActions, notebookAtom } from "./cells";
 import { CellId } from "./ids";
+import type { EditRequests, RunRequests } from "../network/types";
 
 /**
  * Checks if any Python imports are missing from the current file and adds them if necessary.
@@ -50,10 +50,12 @@ export function maybeAddMarimoImport({
   autoInstantiate,
   createNewCell,
   fromCellId,
+  requests,
 }: {
   autoInstantiate: boolean;
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
+  requests: EditRequests & RunRequests;
 }): boolean {
   return maybeAddMissingImport({
     moduleName: "marimo",
@@ -69,7 +71,10 @@ export function maybeAddMarimoImport({
         autoFocus: false,
       });
       if (autoInstantiate) {
-        void sendRun({ cellIds: [newCellId], codes: [importStatement] });
+        void requests.sendRun({
+          cellIds: [newCellId],
+          codes: [importStatement],
+        });
       }
     },
   });
@@ -79,10 +84,12 @@ export function maybeAddAltairImport({
   autoInstantiate,
   createNewCell,
   fromCellId,
+  requests,
 }: {
   autoInstantiate: boolean;
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
+  requests: EditRequests & RunRequests;
 }): boolean {
   return maybeAddMissingImport({
     moduleName: "altair",
@@ -98,7 +105,10 @@ export function maybeAddAltairImport({
         autoFocus: false,
       });
       if (autoInstantiate) {
-        void sendRun({ cellIds: [newCellId], codes: [importStatement] });
+        void requests.sendRun({
+          cellIds: [newCellId],
+          codes: [importStatement],
+        });
       }
     },
   });

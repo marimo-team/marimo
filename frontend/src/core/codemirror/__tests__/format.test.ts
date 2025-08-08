@@ -10,8 +10,8 @@ import type { CellId } from "@/core/cells/ids";
 import { notebookCellEditorViews } from "@/core/cells/utils";
 import { getResolvedMarimoConfig } from "@/core/config/config";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { sendFormat } from "@/core/network/requests";
 import type { MarimoConfig } from "@/core/network/types";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { type CodemirrorCellActions, cellActionsState } from "../cells/state";
 import { cellIdState } from "../config/extension";
 import { formatAll, formatEditorViews, formatSQL } from "../format";
@@ -20,9 +20,7 @@ import {
   switchLanguage,
 } from "../language/extension";
 
-vi.mock("@/core/network/requests", () => ({
-  sendFormat: vi.fn(),
-}));
+const mockRequestClient = MockRequestClient.create();
 
 vi.mock("@/core/cells/cells", () => ({
   getNotebook: vi.fn(),
@@ -75,6 +73,7 @@ const mockConfig = {
 
 beforeEach(() => {
   updateCellCode.mockClear();
+  vi.clearAllMocks();
 });
 
 describe("format", () => {
@@ -90,7 +89,7 @@ describe("format", () => {
       const formattedCode1 = "import numpy as np";
       const formattedCode2 = "import pandas as pd";
 
-      vi.mocked(sendFormat).mockResolvedValueOnce({
+      mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
           [cellId1]: formattedCode1,
           [cellId2]: formattedCode2,
@@ -99,9 +98,9 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views);
+      await formatEditorViews(views, mockRequestClient);
 
-      expect(sendFormat).toHaveBeenCalledWith({
+      expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
           [cellId1]: "import numpy as    np",
           [cellId2]: "import pandas as    pd",
@@ -130,7 +129,7 @@ describe("format", () => {
         [cellId]: createEditor(originalCode, cellId),
       };
 
-      vi.mocked(sendFormat).mockResolvedValueOnce({
+      mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
           [cellId]: originalCode,
         },
@@ -138,7 +137,7 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views);
+      await formatEditorViews(views, mockRequestClient);
 
       expect(views[cellId].state.doc.toString()).toBe(originalCode);
       expect(updateCellCode).not.toHaveBeenCalled();
@@ -156,7 +155,7 @@ describe("format", () => {
 
       vi.mocked(getNotebook).mockReturnValueOnce({} as NotebookState);
       vi.mocked(notebookCellEditorViews).mockReturnValueOnce(views);
-      vi.mocked(sendFormat).mockResolvedValueOnce({
+      mockRequestClient.sendFormat.mockResolvedValueOnce({
         codes: {
           [cellId1]: "import numpy as np",
           [cellId2]: "import pandas as pd",
@@ -165,9 +164,9 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatAll();
+      await formatAll(mockRequestClient);
 
-      expect(sendFormat).toHaveBeenCalledWith({
+      expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
           [cellId1]: "import numpy as    np",
           [cellId2]: "import pandas as    pd",

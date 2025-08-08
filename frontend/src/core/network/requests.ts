@@ -9,13 +9,25 @@ import { isWasm } from "../wasm/utils";
 import { createNetworkRequests } from "./requests-network";
 import { createStaticRequests } from "./requests-static";
 import { createErrorToastingRequests } from "./requests-toasting";
-import type { EditRequests, RunRequests } from "./types";
+import type {
+  EditRequests,
+  RunRequests,
+  SetCellConfigRequest,
+  SaveUserConfigurationRequest,
+  FileCreateRequest,
+  CodeCompletionRequest,
+} from "./types";
 
-export const RequestClientContext = React.createContext<null | EditRequests & RunRequests>(null);
+export const RequestClientContext = React.createContext<
+  null | (EditRequests & RunRequests)
+>(null);
 
 export function useRequestClient() {
   const context = React.useContext(RequestClientContext);
-  invariant(context, "sueRequestClient() must be used within <RequestClientContext.Provider>.")
+  invariant(
+    context,
+    "sueRequestClient() must be used within <RequestClientContext.Provider>.",
+  );
   return context;
 }
 
@@ -31,4 +43,21 @@ export function resolveRequestClient(): EditRequests & RunRequests {
       ? createStaticRequests()
       : createNetworkRequests();
   return createErrorToastingRequests(base);
+}
+
+// Standalone utility functions for legacy code
+export function saveCellConfig(request: SetCellConfigRequest) {
+  return resolveRequestClient().saveCellConfig(request);
+}
+
+export function saveUserConfig(request: SaveUserConfigurationRequest) {
+  return resolveRequestClient().saveUserConfig(request);
+}
+
+export function sendCreateFileOrFolder(request: FileCreateRequest) {
+  return resolveRequestClient().sendCreateFileOrFolder(request);
+}
+
+export function sendCodeCompletionRequest(request: CodeCompletionRequest) {
+  return resolveRequestClient().sendCodeCompletionRequest(request);
 }

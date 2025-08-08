@@ -79,7 +79,6 @@ export const MarimoApp: React.FC = memo(() => {
 });
 MarimoApp.displayName = "MarimoApp";
 
-
 /**
  * The root with all the providers.
  */

@@ -8,6 +8,7 @@ import React, { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
@@ -47,8 +48,10 @@ vi.mock("../focus-utils", () => ({
   focusCell: vi.fn(),
 }));
 
+const mockRequestClient = MockRequestClient.create();
+
 vi.mock("@/core/network/requests", () => ({
-  saveCellConfig: vi.fn(),
+  saveCellConfig: vi.fn().mockResolvedValue({}),
 }));
 
 // Get mocked functions
@@ -66,8 +69,11 @@ const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
 
+const { saveCellConfig: mockSaveCellConfig } = vi.mocked(
+  await import("@/core/network/requests"),
+);
+
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { saveCellConfig } from "@/core/network/requests";
 import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
@@ -107,7 +113,7 @@ const mockCellActions = MockNotebook.cellActions({
   undoDeleteCell: vi.fn(),
 });
 
-const mockSaveCellConfig = vi.mocked(saveCellConfig);
+// mockSaveCellConfig already defined above in the mock setup
 
 // Helper to setup selection
 const setupSelection = () => {
