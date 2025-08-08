@@ -9,7 +9,7 @@ import { getNotebook } from "../cells/cells";
 import type { CellId } from "../cells/ids";
 import { notebookCellEditorViews } from "../cells/utils";
 import { getResolvedMarimoConfig } from "../config/config";
-import type { EditRequests, RunRequests } from "../network/types";
+import type { EditRequests } from "../network/types";
 import { cellActionsState } from "./cells/state";
 import { cellIdState } from "./config/extension";
 import { languageAdapterState } from "./language/extension";
@@ -26,11 +26,11 @@ export const formattingChangeEffect = StateEffect.define<boolean>();
  */
 export async function formatEditorViews(
   views: Record<CellId, EditorView>,
-  requests: EditRequests & RunRequests,
+  sendFormat: EditRequests["sendFormat"],
 ) {
   const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
 
-  const formatResponse = await requests.sendFormat({
+  const formatResponse = await sendFormat({
     codes,
     lineLength: getResolvedMarimoConfig().formatting.line_length,
   });
@@ -65,9 +65,9 @@ export async function formatEditorViews(
 /**
  * Format all cells in the notebook.
  */
-export function formatAll(requests: EditRequests & RunRequests) {
+export function formatAll(sendFormat: EditRequests["sendFormat"]) {
   const views = notebookCellEditorViews(getNotebook());
-  return formatEditorViews(views, requests);
+  return formatEditorViews(views, sendFormat);
 }
 
 /**

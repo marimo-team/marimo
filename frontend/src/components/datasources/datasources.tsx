@@ -48,7 +48,6 @@ import type {
   DataTable,
   DataTableColumn,
 } from "@/core/kernel/messages";
-import { previewDataSourceConnection } from "@/core/network/requests";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -70,6 +69,7 @@ import {
   RotatingChevron,
 } from "./components";
 import { isSchemaless, sqlCode } from "./utils";
+import { useRequestClient } from "@/core/network/requests";
 
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
@@ -228,6 +228,7 @@ const Engine: React.FC<{
   // The internal duckdb connection is updated automatically, so we do not need to refresh.
   const internalEngine = connection.name === DUCKDB_ENGINE;
   const engineName = internalEngine ? "In-Memory" : connection.name;
+  const { previewDataSourceConnection } = useRequestClient();
 
   const [isSpinning, setIsSpinning] = React.useState(false);
 
@@ -532,12 +533,14 @@ const DatasetTableItem: React.FC<{
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
   const addCodeToNewCell = useAddCodeToNewCell();
+  const { sendRun } = useRequestClient();
 
   const handleAddTable = () => {
     maybeAddMarimoImport({
       autoInstantiate,
       createNewCell,
       fromCellId: lastFocusedCellId,
+      sendRun,
     });
     const getCode = () => {
       if (table.source_type === "catalog") {

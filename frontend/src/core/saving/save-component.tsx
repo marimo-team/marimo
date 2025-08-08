@@ -8,7 +8,6 @@ import { Button as ControlButton } from "@/components/editor/inputs/Inputs";
 import { RecoveryButton } from "@/components/editor/RecoveryButton";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
-import { sendSave } from "@/core/network/requests";
 import { useEventListener } from "@/hooks/useEventListener";
 import { useHotkey } from "@/hooks/useHotkey";
 import { useImperativeModal } from "../../components/modal/ImperativeModal";
@@ -29,6 +28,7 @@ import { useAutoExport } from "../export/hooks";
 import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
+import { useRequestClient } from "../network/requests";
 import { WebSocketState } from "../websocket/types";
 import { filenameAtom } from "./file-state";
 import { useFilename, useUpdateFilename } from "./filename";
@@ -89,6 +89,7 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
 };
 
 export function useSaveNotebook() {
+  const { sendSave, sendFormat } = useRequestClient();
   const { openModal, closeModal, openAlert } = useImperativeModal();
   const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
   const updateFilename = useUpdateFilename();
@@ -133,7 +134,7 @@ export function useSaveNotebook() {
       persist: true,
     }).then(() => {
       if (userInitiated && autoSaveConfig.format_on_save) {
-        formatAll();
+        formatAll(sendFormat);
       }
       setLastSavedNotebook({
         names: cellNames,

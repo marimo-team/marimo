@@ -60,11 +60,6 @@ import { Constants } from "@/core/constants";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
-import {
-  exportAsMarkdown,
-  readCode,
-  saveCellConfig,
-} from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { createShareableLink } from "@/core/wasm/share";
@@ -86,6 +81,7 @@ import type { ActionButton } from "./types";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { useHideAllMarkdownCode } from "./useHideAllMarkdownCode";
 import { useRestartKernel } from "./useRestartKernel";
+import { useRequestClient } from "@/core/network/requests";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -116,6 +112,7 @@ export function useNotebookActions() {
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
+  const { exportAsMarkdown, readCode, saveCellConfig } = useRequestClient();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const hasEnabledCells = useAtomValue(hasEnabledCellsAtom);

@@ -7,7 +7,7 @@ import type { CellId } from "@/core/cells/ids";
 import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
-import { sendRun } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 
 /**
@@ -44,6 +44,7 @@ export function useRunAllCells() {
  */
 export function useRunCells() {
   const { prepareForRun } = useCellActions();
+  const { sendRun } = useRequestClient();
 
   const runCells = useEvent(async (cellIds: CellId[]) => {
     if (cellIds.length === 0) {

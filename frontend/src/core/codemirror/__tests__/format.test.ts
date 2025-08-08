@@ -4,6 +4,7 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockRequestClient } from "@/__mocks__/requests";
 import type { NotebookState } from "@/core/cells/cells";
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
@@ -11,7 +12,6 @@ import { notebookCellEditorViews } from "@/core/cells/utils";
 import { getResolvedMarimoConfig } from "@/core/config/config";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { MarimoConfig } from "@/core/network/types";
-import { MockRequestClient } from "@/__mocks__/requests";
 import { type CodemirrorCellActions, cellActionsState } from "../cells/state";
 import { cellIdState } from "../config/extension";
 import { formatAll, formatEditorViews, formatSQL } from "../format";
@@ -98,7 +98,7 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views, mockRequestClient);
+      await formatEditorViews(views, mockRequestClient.sendFormat);
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {
@@ -137,7 +137,7 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatEditorViews(views, mockRequestClient);
+      await formatEditorViews(views, mockRequestClient.sendFormat);
 
       expect(views[cellId].state.doc.toString()).toBe(originalCode);
       expect(updateCellCode).not.toHaveBeenCalled();
@@ -164,7 +164,7 @@ describe("format", () => {
 
       vi.mocked(getResolvedMarimoConfig).mockReturnValueOnce(mockConfig);
 
-      await formatAll(mockRequestClient);
+      await formatAll(mockRequestClient.sendFormat);
 
       expect(mockRequestClient.sendFormat).toHaveBeenCalledWith({
         codes: {

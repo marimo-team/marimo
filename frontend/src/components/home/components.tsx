@@ -28,10 +28,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Constants } from "@/core/constants";
-import { openTutorial } from "@/core/network/requests";
 import type { TutorialId } from "@/core/network/types";
 import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
+import { useRequestClient } from "@/core/network/requests";
 
 const TUTORIALS: Record<
   TutorialId,
@@ -70,6 +70,7 @@ const TUTORIALS: Record<
 };
 
 export const OpenTutorialDropDown: React.FC = () => {
+  const { openTutorial } = useRequestClient();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild={true}>

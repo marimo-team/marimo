@@ -6,7 +6,6 @@ import { chromeAtom } from "@/components/editor/chrome/state";
 import { Kbd } from "@/components/ui/kbd";
 import { userConfigAtom } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
-import { saveUserConfig } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { toast } from "../../../components/ui/use-toast";
 

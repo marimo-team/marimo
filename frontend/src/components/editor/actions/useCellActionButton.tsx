@@ -51,7 +51,7 @@ import {
   autoInstantiateAtom,
 } from "@/core/config/config";
 import { kioskModeAtom } from "@/core/mode";
-import { saveCellConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
@@ -97,6 +97,7 @@ export function useCellActionButtons({ cell }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const appWidth = useAtomValue(appWidthAtom);
+  const { saveCellConfig, sendRun, sendFormat } = useRequestClient();
 
   if (!cell || kioskMode) {
     return [];
@@ -222,7 +223,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          formatEditorViews({ [cellId]: editorView });
+          formatEditorViews({ [cellId]: editorView }, sendFormat);
         },
       },
       {
@@ -273,7 +274,11 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
+          maybeAddMarimoImport({
+            autoInstantiate,
+            createNewCell: createCell,
+            sendRun,
+          });
           switchLanguage(editorView, {
             language: "markdown",
             keepCodeAsIs: false,
@@ -288,7 +293,11 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
+          maybeAddMarimoImport({
+            autoInstantiate,
+            createNewCell: createCell,
+            sendRun,
+          });
           switchLanguage(editorView, {
             language: "sql",
             keepCodeAsIs: false,
@@ -303,7 +312,11 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
-          maybeAddMarimoImport({ autoInstantiate, createNewCell: createCell });
+          maybeAddMarimoImport({
+            autoInstantiate,
+            createNewCell: createCell,
+            sendRun,
+          });
           toggleToLanguage(editorView, "python", { force: true });
         },
       },

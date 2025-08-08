@@ -21,7 +21,7 @@ import { HTMLCellId } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { sendRunScratchpad } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";
@@ -53,6 +53,7 @@ export const ScratchPad: React.FC = () => {
   const ref = useRef<EditorView | null>(null);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell, updateCellCode } = useCellActions();
+  const { sendRunScratchpad } = useRequestClient();
 
   const cellId = SCRATCH_CELL_ID;
   const cellRuntime = notebookState.cellRuntime[cellId];

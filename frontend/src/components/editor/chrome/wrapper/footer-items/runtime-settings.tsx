@@ -20,10 +20,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useResolvedMarimoConfig, useUserConfig } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
-import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import { FooterItem } from "../footer-item";
+import { useRequestClient } from "@/core/network/requests";
 
 interface RuntimeSettingsProps {
   className?: string;
@@ -32,6 +32,7 @@ interface RuntimeSettingsProps {
 export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
   className,
 }) => {
+  const { saveUserConfig } = useRequestClient();
   const [userConfig, setUserConfig] = useUserConfig();
   const config = useResolvedMarimoConfig()[0];
   const [dropdownOpen, setDropdownOpen] = useState(false);

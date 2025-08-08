@@ -41,7 +41,6 @@ import {
 } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { marimoVersionAtom } from "@/core/meta/state";
-import { saveUserConfig } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
@@ -56,6 +55,7 @@ import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
 import { useIsConfigOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
+import { useRequestClient } from "@/core/network/requests";
 
 const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 const categories = [
@@ -118,6 +118,7 @@ export const UserConfigForm: React.FC = () => {
   );
   const capabilities = useAtomValue(capabilitiesAtom);
   const marimoVersion = useAtomValue(marimoVersionAtom);
+  const { saveUserConfig } = useRequestClient();
 
   // Create form
   const form = useForm<UserConfig>({

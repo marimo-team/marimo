@@ -5,11 +5,13 @@ import { maybeAddAltairImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
+import { useRequestClient } from "@/core/network/requests";
 
 export function useAddCodeToNewCell(): (code: string) => void {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell } = useCellActions();
+  const { sendRun } = useRequestClient();
 
   return (code: string) => {
     if (code.includes("alt")) {
@@ -17,6 +19,7 @@ export function useAddCodeToNewCell(): (code: string) => void {
         autoInstantiate,
         createNewCell,
         fromCellId: lastFocusedCellId,
+        sendRun,
       });
     }
 

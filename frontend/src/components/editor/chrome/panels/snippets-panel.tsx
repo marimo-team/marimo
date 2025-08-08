@@ -9,7 +9,6 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { readSnippets } from "@/core/network/requests";
 import type { Snippet } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -29,10 +28,12 @@ import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../../kiosk-mode";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
+import { useRequestClient } from "@/core/network/requests";
 
 const extensions = [EditorView.lineWrapping];
 
 export const SnippetsPanel: React.FC = () => {
+  const { readSnippets } = useRequestClient();
   const [selectedSnippet, setSelectedSnippet] = React.useState<Snippet>();
   const {
     data: snippets,

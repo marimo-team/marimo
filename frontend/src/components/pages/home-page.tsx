@@ -30,12 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { getSessionId, isSessionId } from "@/core/kernel/session";
-import {
-  getRecentFiles,
-  getRunningNotebooks,
-  getWorkspaceFiles,
-  shutdownSession,
-} from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo, MarimoFile } from "@/core/network/types";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
@@ -77,6 +72,7 @@ function tabTarget(path: string) {
 
 const HomePage: React.FC = () => {
   const [nonce, setNonce] = useState(0);
+  const { getRecentFiles, getRunningNotebooks } = useRequestClient();
 
   const recentsResponse = useAsyncData(() => getRecentFiles(), []);
 
@@ -143,6 +139,7 @@ const HomePage: React.FC = () => {
 };
 
 const WorkspaceNotebooks: React.FC = () => {
+  const { getWorkspaceFiles } = useRequestClient();
   const [includeMarkdown, setIncludeMarkdown] = useAtom(includeMarkdownAtom);
   const [searchText, setSearchText] = useState("");
   const {
@@ -442,6 +439,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
   filePath,
 }) => {
   const { openConfirm, closeModal } = useImperativeModal();
+  const { shutdownSession } = useRequestClient();
   const { runningNotebooks, setRunningNotebooks } = use(
     RunningNotebooksContext,
   );

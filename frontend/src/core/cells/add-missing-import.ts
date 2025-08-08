@@ -3,7 +3,7 @@ import { store } from "../state/jotai";
 import { variablesAtom } from "../variables/state";
 import { type CellActions, notebookAtom } from "./cells";
 import { CellId } from "./ids";
-import type { EditRequests, RunRequests } from "../network/types";
+import type { EditRequests } from "../network/types";
 
 /**
  * Checks if any Python imports are missing from the current file and adds them if necessary.
@@ -50,12 +50,12 @@ export function maybeAddMarimoImport({
   autoInstantiate,
   createNewCell,
   fromCellId,
-  requests,
+  sendRun,
 }: {
   autoInstantiate: boolean;
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
-  requests: EditRequests & RunRequests;
+  sendRun: EditRequests["sendRun"];
 }): boolean {
   return maybeAddMissingImport({
     moduleName: "marimo",
@@ -71,7 +71,7 @@ export function maybeAddMarimoImport({
         autoFocus: false,
       });
       if (autoInstantiate) {
-        void requests.sendRun({
+        void sendRun({
           cellIds: [newCellId],
           codes: [importStatement],
         });
@@ -84,12 +84,12 @@ export function maybeAddAltairImport({
   autoInstantiate,
   createNewCell,
   fromCellId,
-  requests,
+  sendRun,
 }: {
   autoInstantiate: boolean;
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
-  requests: EditRequests & RunRequests;
+  sendRun: EditRequests["sendRun"];
 }): boolean {
   return maybeAddMissingImport({
     moduleName: "altair",
@@ -105,7 +105,7 @@ export function maybeAddAltairImport({
         autoFocus: false,
       });
       if (autoInstantiate) {
-        void requests.sendRun({
+        void sendRun({
           cellIds: [newCellId],
           codes: [importStatement],
         });

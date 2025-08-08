@@ -21,12 +21,6 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import {
-  addPackage,
-  getDependencyTree,
-  getPackageList,
-  removePackage,
-} from "@/core/network/requests";
 import type { DependencyTreeNode } from "@/core/network/types";
 import {
   showRemovePackageToast,
@@ -42,6 +36,7 @@ import { Events } from "@/utils/events";
 import { PACKAGES_INPUT_ID } from "./constants";
 import { PanelEmptyState } from "./empty-state";
 import { packagesToInstallAtom } from "./packages-state";
+import { useRequestClient } from "@/core/network/requests";
 
 type ViewMode = "tree" | "list";
 
@@ -73,6 +68,7 @@ const PackageActionButton: React.FC<{
 export const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
+  const { getDependencyTree, getPackageList } = useRequestClient();
 
   const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
   const {
@@ -353,6 +349,7 @@ const UpgradeButton: React.FC<{
   onSuccess: () => void;
 }> = ({ packageName, onSuccess }) => {
   const [loading, setLoading] = React.useState(false);
+  const { addPackage } = useRequestClient();
 
   // Hide upgrade button in WASM
   if (isWasm()) {
@@ -389,6 +386,7 @@ const RemoveButton: React.FC<{
   onSuccess: () => void;
 }> = ({ packageName, onSuccess }) => {
   const [loading, setLoading] = React.useState(false);
+  const { removePackage } = useRequestClient();
 
   const handleRemovePackage = async () => {
     try {

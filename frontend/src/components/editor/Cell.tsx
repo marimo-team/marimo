@@ -34,7 +34,6 @@ import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
-import { sendStdin } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
@@ -82,6 +81,7 @@ import { temporarilyShownCodeAtom } from "./navigation/state";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
+import { useRequestClient } from "@/core/network/requests";
 
 /**
  * Hook for handling cell completion logic
@@ -386,6 +386,7 @@ const EditableCellComponent = ({
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
+  const { sendStdin } = useRequestClient();
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
@@ -946,6 +947,7 @@ const SetupCellComponent = ({
   const connection = useAtomValue(connectionAtom);
 
   const actions = useCellActions();
+  const requestClient = useRequestClient();
   const deleteCell = useDeleteCellCallback();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
@@ -1159,7 +1161,7 @@ const SetupCellComponent = ({
                 response: text,
                 outputIndex: index,
               });
-              sendStdin({ text });
+              requestClient.sendStdin({ text });
             }}
             cellId={cellId}
             debuggerActive={cellRuntime.debuggerActive}

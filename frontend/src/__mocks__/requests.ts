@@ -1,12 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { vi } from "vitest";
+import { type Mock, vi } from "vitest";
 import type { EditRequests, RunRequests } from "@/core/network/types";
 
+type RequestClient = {
+  [K in keyof (EditRequests & RunRequests)]: Mock<
+    (EditRequests & RunRequests)[K]
+  >;
+};
+
 export const MockRequestClient = {
-  create(
-    overrides?: Partial<EditRequests & RunRequests>,
-  ): EditRequests & RunRequests {
+  create(overrides?: Partial<RequestClient>): RequestClient {
     return {
       // Edit requests
       sendComponentValues: vi.fn().mockResolvedValue({}),

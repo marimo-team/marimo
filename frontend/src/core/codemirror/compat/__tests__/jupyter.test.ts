@@ -3,9 +3,9 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { toast } from "@/components/ui/use-toast";
 import { store } from "@/core/state/jotai";
-import { MockRequestClient } from "@/__mocks__/requests";
 import { jupyterHelpExtension } from "../jupyter";
 
 // Mock dependencies
@@ -21,14 +21,6 @@ vi.mock("@/components/ui/use-toast", () => ({
 }));
 
 const mockRequestClient = MockRequestClient.create();
-
-vi.mock("@/core/network/requests", () => ({
-  saveUserConfig: vi.fn().mockResolvedValue({}),
-}));
-
-const { saveUserConfig: mockSaveUserConfig } = vi.mocked(
-  await import("@/core/network/requests"),
-);
 
 describe("jupyterHelpExtension", () => {
   let view: EditorView;
@@ -95,7 +87,7 @@ describe("jupyterHelpExtension", () => {
       selection: { anchor: "%autoreload 2".length },
     });
 
-    expect(mockSaveUserConfig).toHaveBeenCalledWith({
+    expect(mockRequestClient.saveUserConfig).toHaveBeenCalledWith({
       config: expect.objectContaining({
         runtime: { auto_reload: "autorun" },
       }),
@@ -107,7 +99,7 @@ describe("jupyterHelpExtension", () => {
       selection: { anchor: "%autoreload 1".length },
     });
 
-    expect(mockSaveUserConfig).toHaveBeenCalledWith({
+    expect(mockRequestClient.saveUserConfig).toHaveBeenCalledWith({
       config: expect.objectContaining({
         runtime: { auto_reload: "lazy" },
       }),
@@ -119,7 +111,7 @@ describe("jupyterHelpExtension", () => {
       selection: { anchor: "%autoreload 0".length },
     });
 
-    expect(mockSaveUserConfig).toHaveBeenCalledWith({
+    expect(mockRequestClient.saveUserConfig).toHaveBeenCalledWith({
       config: expect.objectContaining({
         runtime: { auto_reload: "off" },
       }),

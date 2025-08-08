@@ -174,10 +174,6 @@ vi.mock("@/core/network/requests", () => ({
   }),
 }));
 
-const { sendCreateFileOrFolder: mockSendCreateFileOrFolder } = vi.mocked(
-  await import("@/core/network/requests"),
-);
-
 describe("insertImage", () => {
   const mockPngFile = () => {
     const png = new Uint8Array([1, 2, 3]);

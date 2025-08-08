@@ -9,11 +9,12 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import { sendDeleteCell } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
+import { useRequestClient } from "@/core/network/requests";
 
 export function useDeleteCellCallback() {
   const { deleteCell, undoDeleteCell } = useCellActions();
+  const { sendDeleteCell } = useRequestClient();
 
   return useEvent((opts: { cellId: CellId }) => {
     // Can't delete the last cell
@@ -53,6 +54,7 @@ export function useDeleteCellCallback() {
 
 export function useDeleteManyCellsCallback() {
   const { deleteCell, undoDeleteCell } = useCellActions();
+  const { sendDeleteCell } = useRequestClient();
 
   return useEvent(async (opts: { cellIds: CellId[] }) => {
     // Can't delete the last cell

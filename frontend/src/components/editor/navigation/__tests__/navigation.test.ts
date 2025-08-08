@@ -48,8 +48,6 @@ vi.mock("../focus-utils", () => ({
   focusCell: vi.fn(),
 }));
 
-const mockRequestClient = MockRequestClient.create();
-
 vi.mock("@/core/network/requests", () => ({
   saveCellConfig: vi.fn().mockResolvedValue({}),
 }));
@@ -68,10 +66,6 @@ const mockUseRunCells = vi.mocked(
 const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
-
-const { saveCellConfig: mockSaveCellConfig } = vi.mocked(
-  await import("@/core/network/requests"),
-);
 
 import { defaultUserConfig } from "@/core/config/config-schema";
 import { MultiColumn } from "@/utils/id-tree";
@@ -113,7 +107,7 @@ const mockCellActions = MockNotebook.cellActions({
   undoDeleteCell: vi.fn(),
 });
 
-// mockSaveCellConfig already defined above in the mock setup
+const mockSaveCellConfig = MockRequestClient.create().saveCellConfig;
 
 // Helper to setup selection
 const setupSelection = () => {

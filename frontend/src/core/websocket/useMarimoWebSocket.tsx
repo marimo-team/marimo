@@ -48,6 +48,7 @@ import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
+import { useRequestClient } from "../network/requests";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
@@ -82,6 +83,7 @@ export function useMarimoWebSocket(opts: {
   const { addPackageAlert } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
+  const { sendModelValue } = useRequestClient();
   const runtimeManager = useRuntimeManager();
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
@@ -114,7 +116,13 @@ export function useMarimoWebSocket(opts: {
         const buffers = (msg.data.buffers ?? []) as Base64String[];
 
         if (modelId && isMessageWidgetState(message)) {
-          handleWidgetMessage(modelId, message, buffers, MODEL_MANAGER);
+          handleWidgetMessage({
+            modelId,
+            msg: message,
+            buffers,
+            modelManager: MODEL_MANAGER,
+            sendModelValue,
+          });
         }
 
         if (uiElement) {

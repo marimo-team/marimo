@@ -49,6 +49,7 @@ import { NotebookBanner } from "../notebook-banner";
 import { StdinBlockingAlert } from "../stdin-blocking-alert";
 import { useFocusFirstEditor } from "./vertical-layout/useFocusFirstEditor";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
+import { useRequestClient } from "@/core/network/requests";
 
 interface CellArrayProps {
   mode: AppMode;
@@ -81,6 +82,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   const actions = useCellActions();
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
+  const { sendFormat } = useRequestClient();
 
   // Side-effects
   useFocusFirstEditor();
@@ -92,7 +94,7 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   useHotkey("global.foldCode", actions.foldAll);
   useHotkey("global.unfoldCode", actions.unfoldAll);
   useHotkey("global.formatAll", () => {
-    formatAll();
+    formatAll(sendFormat);
   });
   // Catch all to avoid native OS behavior
   // Otherwise a user might try to hide a cell and accidentally hide the OS window
@@ -247,6 +249,7 @@ const AddCellButtons: React.FC<{
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const isConnected = useAtomValue(isConnectedAtom);
+  const { sendRun } = useRequestClient();
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
@@ -281,7 +284,11 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+            maybeAddMarimoImport({
+              autoInstantiate: true,
+              createNewCell,
+              sendRun,
+            });
 
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -300,7 +307,11 @@ const AddCellButtons: React.FC<{
           size="sm"
           disabled={!isConnected}
           onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+            maybeAddMarimoImport({
+              autoInstantiate: true,
+              createNewCell,
+              sendRun,
+            });
 
             createNewCell({
               cellId: { type: "__end__", columnId },

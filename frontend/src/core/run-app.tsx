@@ -11,7 +11,7 @@ import { notebookIsRunningAtom, useCellActions } from "./cells/cells";
 import type { AppConfig } from "./config/config-schema";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
-import { sendComponentValues } from "./network/requests";
+import { useRequestClient } from "./network/requests";
 import { isAppConnecting } from "./websocket/connection-utils";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 
@@ -21,6 +21,7 @@ interface AppProps {
 
 export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
   const { setCells } = useCellActions();
+  const { sendComponentValues } = useRequestClient();
 
   // Initialize RuntimeState event-listeners
   useEffect(() => {

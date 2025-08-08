@@ -8,7 +8,6 @@ import { Controls } from "@/components/editor/controls/Controls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { FilenameForm } from "@/components/editor/header/filename-form";
 import { MultiCellActionToolbar } from "@/components/editor/navigation/multi-cell-action-toolbar";
-import { sendComponentValues, sendInterrupt } from "@/core/network/requests";
 import { cn } from "@/utils/cn";
 import { Paths } from "@/utils/paths";
 import { AppContainer } from "../components/editor/app-container";
@@ -32,6 +31,7 @@ import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
 import { viewStateAtom } from "./mode";
+import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
 import { useJotaiEffect } from "./state/jotai";
@@ -66,6 +66,7 @@ export const EditApp: React.FC<AppProps> = ({
   const hasCells = useAtomValue(hasCellsAtom);
   const filename = useFilename();
   const setLastSavedNotebook = useSetAtom(lastSavedNotebookAtom);
+  const { sendComponentValues, sendInterrupt } = useRequestClient();
 
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";

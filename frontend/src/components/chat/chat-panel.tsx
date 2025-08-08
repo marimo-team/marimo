@@ -46,7 +46,6 @@ import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
-import { invokeAiTool, saveUserConfig } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
@@ -64,6 +63,7 @@ import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
+import { useRequestClient } from "@/core/network/requests";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -248,6 +248,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     const [userConfig, setUserConfig] = useAtom(userConfigAtom);
     const currentMode = ai?.mode || "manual";
     const currentModel = ai?.open_ai?.model || "o4-mini";
+    const { saveUserConfig } = useRequestClient();
 
     const modeOptions = [
       {
@@ -439,6 +440,7 @@ const ChatPanelBody = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   const runtimeManager = useRuntimeManager();
+  const { invokeAiTool } = useRequestClient();
 
   const {
     messages,

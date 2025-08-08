@@ -18,7 +18,6 @@ import {
 } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
-import { saveCellConfig } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
 import type { CollapsibleTree } from "@/utils/id-tree";
@@ -34,6 +33,7 @@ import {
 } from "./selection";
 import { temporarilyShownCodeAtom } from "./state";
 import { handleVimKeybinding } from "./vim-bindings";
+import { useRequestClient } from "@/core/network/requests";
 
 interface HotkeyHandler {
   handle: (cellId: CellId) => boolean;
@@ -127,6 +127,7 @@ export function useCellNavigationProps(
   },
 ) {
   const { saveOrNameNotebook } = useSaveNotebook();
+  const { saveCellConfig } = useRequestClient();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const actions = useCellActions();
   const store = useStore();

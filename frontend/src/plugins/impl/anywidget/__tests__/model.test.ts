@@ -288,7 +288,12 @@ describe("ModelManager", () => {
     message: AnyWidgetMessage;
     buffers: Base64String[];
   }) => {
-    return handleWidgetMessage(modelId, message, buffers, modelManager);
+    return handleWidgetMessage({
+      modelId,
+      msg: message,
+      buffers,
+      modelManager,
+    });
   };
 
   beforeEach(() => {

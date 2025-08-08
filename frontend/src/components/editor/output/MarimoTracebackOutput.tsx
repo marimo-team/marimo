@@ -30,7 +30,6 @@ import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
 import { aiEnabledAtom } from "@/core/config/config";
-import { sendPdb } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { copyToClipboard } from "@/utils/copy";
@@ -41,6 +40,7 @@ import {
 } from "@/utils/traceback";
 import { cn } from "../../../utils/cn";
 import { CellLinkTraceback } from "../links/cell-link";
+import { useRequestClient } from "@/core/network/requests";
 
 interface Props {
   cellId: CellId | undefined;
@@ -56,8 +56,8 @@ const KEY = "item";
 export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
-  cellId,
 }: Props): JSX.Element => {
+  const { sendPdb } = useRequestClient();
   const htmlTraceback = renderHTML({
     html: traceback,
     additionalReplacements: [replaceTracebackFilenames, replaceTracebackPrefix],

@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { SquareIcon } from "lucide-react";
 import type { JSX } from "react";
-import { sendInterrupt } from "@/core/network/requests";
 import type { RuntimeState } from "@/core/network/types";
 import { isAppInteractionDisabled } from "@/core/websocket/connection-utils";
 import type { WebSocketState } from "@/core/websocket/types";
@@ -9,12 +8,14 @@ import { Functions } from "@/utils/functions";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { ToolbarItem } from "./toolbar";
 import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
+import { useRequestClient } from "@/core/network/requests";
 
 export const StopButton = (props: {
   status: RuntimeState;
   connectionState: WebSocketState;
 }): JSX.Element => {
   const { connectionState, status } = props;
+  const { sendInterrupt } = useRequestClient();
 
   const running = status === "running";
 
