@@ -48,7 +48,6 @@ import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
-import { useRequestClient } from "../network/requests";
 import { useRuntimeManager } from "../runtime/config";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
@@ -83,7 +82,6 @@ export function useMarimoWebSocket(opts: {
   const { addPackageAlert } = useAlertActions();
   const setKioskMode = useSetAtom(kioskModeAtom);
   const setCapabilities = useSetAtom(capabilitiesAtom);
-  const { sendModelValue } = useRequestClient();
   const runtimeManager = useRuntimeManager();
 
   const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {

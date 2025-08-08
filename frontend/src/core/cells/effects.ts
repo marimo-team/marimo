@@ -3,43 +3,40 @@
 import { debounce, isEqual } from "lodash-es";
 import type { MultiColumn } from "@/utils/id-tree";
 import { kioskModeAtom } from "../mode";
-import type {
-  EditRequests,
-  RunRequests,
-  UpdateCellIdsRequest,
-} from "../network/types";
+import { getRequestClient } from "../network/requests";
+import type { UpdateCellIdsRequest } from "../network/types";
 import { store } from "../state/jotai";
 import type { CellId } from "./ids";
 
-export function createCellEffects(requests: EditRequests & RunRequests) {
-  const debounceSyncCellIds = debounce(requests.syncCellIds, 400);
+const debounceSyncCellIds = debounce((request: UpdateCellIdsRequest) => {
+  getRequestClient().syncCellIds(request);
+}, 400);
 
-  return {
-    onCellIdsChange: (
-      cellIds: MultiColumn<CellId>,
-      prevCellIds: MultiColumn<CellId>,
-    ) => {
-      const kioskMode = store.get(kioskModeAtom);
-      if (kioskMode) {
-        return;
-      }
-      // If cellIds is empty, return early
-      if (cellIds.isEmpty()) {
-        return;
-      }
-      // If prevCellIds is empty, also return early
-      // this means that the notebook was just created
-      if (prevCellIds.isEmpty()) {
-        return;
-      }
+export const CellEffects = {
+  onCellIdsChange: (
+    cellIds: MultiColumn<CellId>,
+    prevCellIds: MultiColumn<CellId>,
+  ) => {
+    const kioskMode = store.get(kioskModeAtom);
+    if (kioskMode) {
+      return;
+    }
+    // If cellIds is empty, return early
+    if (cellIds.isEmpty()) {
+      return;
+    }
+    // If prevCellIds is empty, also return early
+    // this means that the notebook was just created
+    if (prevCellIds.isEmpty()) {
+      return;
+    }
 
-      // If they are different references, send an update to the server
-      if (!isEqual(cellIds.inOrderIds, prevCellIds.inOrderIds)) {
-        // "name" property is not actually required
-        void debounceSyncCellIds({
-          cell_ids: cellIds.inOrderIds,
-        } as unknown as UpdateCellIdsRequest);
-      }
-    },
-  };
-}
+    // If they are different references, send an update to the server
+    if (!isEqual(cellIds.inOrderIds, prevCellIds.inOrderIds)) {
+      // "name" property is not actually required
+      void debounceSyncCellIds({
+        cell_ids: cellIds.inOrderIds,
+      } as unknown as UpdateCellIdsRequest);
+    }
+  },
+};
