@@ -128,6 +128,26 @@ def test_cycle_and_multiple_def() -> None:
         assert multiple_definition_error.cells == (str((int(cell) + 1) % 2),)
 
 
+def test_del_ref_cycle() -> None:
+    graph = dataflow.DirectedGraph()
+
+    graph.register_cell("0", parse_cell("x = 1"))
+    graph.register_cell("1", parse_cell("del x; y = 1"))
+    graph.register_cell("2", parse_cell("z = x + y"))
+    errors = check_for_errors(graph)
+    # Edge ordering in returned error is not deterministic, so we list both
+    # possible cycles
+    expected_cycle = [
+        CycleError(edges_with_vars=(("2", ["x"], "1"), ("1", ["y"], "2"))),
+        CycleError(edges_with_vars=(("1", ["y"], "2"), ("2", ["x"], "1"))),
+    ]
+
+    assert len(errors["1"]) == 1
+    assert len(errors["2"]) == 1
+    assert errors["1"][0] in expected_cycle
+    assert errors["2"][0] in expected_cycle
+
+
 def test_setup_has_refs() -> None:
     graph = dataflow.DirectedGraph()
     graph.register_cell(SETUP_CELL_NAME, parse_cell("z = y"))

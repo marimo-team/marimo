@@ -77,10 +77,17 @@ def check_for_cycles(graph: DirectedGraph) -> dict[CellId_t, list[CycleError]]:
         cycle_with_vars = tuple(
             (
                 edge[0],
-                sorted(graph.cells[edge[0]].defs & graph.cells[edge[1]].refs)
-                + sorted(
-                    graph.cells[edge[0]].deleted_refs
-                    & graph.cells[edge[1]].deleted_refs
+                sorted(
+                    set(
+                        list(
+                            graph.cells[edge[0]].defs
+                            & graph.cells[edge[1]].refs
+                        )
+                        + list(
+                            graph.cells[edge[0]].refs
+                            & graph.cells[edge[1]].deleted_refs
+                        )
+                    )
                 ),
                 edge[1],
             )

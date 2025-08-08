@@ -714,7 +714,12 @@ class TestExecution:
     async def test_delete_nonlocal_ok(self, any_kernel: Kernel) -> None:
         k = any_kernel
         if k.execution_type == "strict":
-            return
+            # `x` does not get removed from memory in strict mode; strict
+            # execution is experimental and not widely used nor maintained, so
+            # we're okay with this not working.
+            pytest.skip(
+                "Deleting variables does not work in strict execution."
+            )
         await k.run(
             [
                 ExecutionRequest(cell_id="0", code="x=0"),
@@ -737,6 +742,43 @@ class TestExecution:
         assert set(k.errors.keys()) == {"0", "1"}
         _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
         _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["x"], "0")])
+
+    async def test_delete_nonlocal_incremental_ref_raises_name_error(
+        self, k: Kernel
+    ) -> None:
+        await k.run(
+            [
+                er := ExecutionRequest(cell_id="0", code="x=0"),
+                ExecutionRequest(cell_id="1", code="del x; y = 1"),
+            ]
+        )
+        assert "x" not in k.globals
+        assert "y" in k.globals
+        assert not k.errors
+
+        await k.run(
+            [
+                ExecutionRequest(
+                    cell_id="2",
+                    code="""
+try:
+    z = x + 1
+    name_error = False
+except NameError:
+    name_error = True
+""",
+                )
+            ]
+        )
+        assert "z" not in k.globals
+        assert k.globals["name_error"]
+
+        # Run x's defining cell. This time, cell "2" will run before cell "1".
+        await k.run([er])
+        assert "x" not in k.globals
+        assert "y" in k.globals
+        assert k.globals["z"] == 1
+        assert not k.globals["name_error"]
 
     async def test_import_module_as_local_var(
         self, any_kernel: Kernel
