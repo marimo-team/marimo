@@ -102,19 +102,17 @@ class Cache:
 
     def restore(self, scope: dict[str, Any]) -> None:
         """Restores values from cache, into scope."""
+        memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for var, lookup in self.contextual_defs():
             value = self.defs.get(var, None)
-            # If it's a module we must replace with a stub.
-            if isinstance(value, ModuleStub):
-                scope[lookup] = value.load()
-            elif isinstance(value, FunctionStub):
-                scope[lookup] = value.load(scope)
-            elif isinstance(value, UIElementStub):
-                # UIElementStub is a placeholder for UIElement, which cannot be
-                # restored directly.
-                scope[lookup] = value.load()
-            else:
-                scope[lookup] = self.defs[var]
+            scope[lookup] = self._restore_from_stub_if_needed(
+                value, scope, memo
+            )
+
+        for key, value in self.meta.items():
+            self.meta[key] = self._restore_from_stub_if_needed(
+                value, scope, memo
+            )
 
         defs = {**globals(), **scope}
         for ref in self.stateful_refs:
@@ -135,6 +133,52 @@ class Cache:
                     "Unexpected stateful reference type "
                     f"({type(ref)}:{ref})."
                 )
+
+    def _restore_from_stub_if_needed(
+        self,
+        value: Any,
+        scope: dict[str, Any],
+        memo: dict[int, Any] | None = None,
+    ) -> Any:
+        """Restore objects from stubs if needed, recursively handling collections."""
+        if memo is None:
+            memo = {}
+
+        # Check for cycles
+        obj_id = id(value)
+        if obj_id in memo:
+            return memo[obj_id]
+
+        if isinstance(value, ModuleStub):
+            result = value.load()
+        elif isinstance(value, FunctionStub):
+            result = value.load(scope)
+        elif isinstance(value, UIElementStub):
+            result = value.load()
+        elif isinstance(value, list):
+            result = []
+            memo[obj_id] = result
+            result.extend(
+                [
+                    self._restore_from_stub_if_needed(item, scope, memo)
+                    for item in value
+                ]
+            )
+        elif isinstance(value, tuple):
+            result = tuple(
+                self._restore_from_stub_if_needed(item, scope, memo)
+                for item in value
+            )
+        elif isinstance(value, dict):
+            result = {}
+            memo[obj_id] = result
+            for k, v in value.items():
+                result[k] = self._restore_from_stub_if_needed(v, scope, memo)
+        else:
+            result = value
+        memo[obj_id] = result
+
+        return result
 
     def update(
         self,
@@ -179,15 +223,59 @@ class Cache:
                     f"({type(value)}:{ref})."
                 )
 
+        # Convert objects to stubs in both defs and meta
+        memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for key, value in self.defs.items():
-            # If it's a module we must replace with a stub.
-            if inspect.ismodule(value):
-                self.defs[key] = ModuleStub(value)
-            elif inspect.isfunction(value):
-                self.defs[key] = FunctionStub(value)
-            elif isinstance(value, UIElement):
-                # UIElement cannot be restored directly, so we store a stub.
-                self.defs[key] = UIElementStub(value)
+            self.defs[key] = self._convert_to_stub_if_needed(value, memo)
+
+        for key, value in self.meta.items():
+            self.meta[key] = self._convert_to_stub_if_needed(value, memo)
+
+    def _convert_to_stub_if_needed(
+        self, value: Any, memo: dict[int, Any] | None = None
+    ) -> Any:
+        """Convert objects to stubs if needed, recursively handling collections."""
+        if memo is None:
+            memo = {}
+
+        # Check for cycles
+        obj_id = id(value)
+        if obj_id in memo:
+            return memo[obj_id]
+
+        result: Any = None
+
+        if inspect.ismodule(value):
+            result = ModuleStub(value)
+        elif inspect.isfunction(value):
+            result = FunctionStub(value)
+        elif isinstance(value, UIElement):
+            result = UIElementStub(value)
+        elif isinstance(value, list):
+            # Store placeholder to handle cycles
+            result = []
+            memo[obj_id] = result
+
+            result.extend(
+                self._convert_to_stub_if_needed(item, memo) for item in value
+            )
+        elif isinstance(value, tuple):
+            result = tuple(
+                self._convert_to_stub_if_needed(item, memo) for item in value
+            )
+        elif isinstance(value, dict):
+            # Store placeholder to handle cycles
+            memo[obj_id] = value  # Temporary, will be replaced
+            # Recursively convert dictionary values
+            result = {
+                k: self._convert_to_stub_if_needed(v, memo)
+                for k, v in value.items()
+            }
+        else:
+            result = value
+        memo[obj_id] = result
+
+        return result
 
     def contextual_defs(self) -> dict[tuple[Name, Name], Any]:
         """Uses context to resolve private variable names."""
