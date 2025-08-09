@@ -981,7 +981,7 @@ def test_del_del_cycle():
     graph.register_cell("0", parse_cell("del x"))
     graph.register_cell("1", parse_cell("del x"))
     assert len(graph.cycles) == 1
-    assert set(list(graph.cycles)[0]) == set([(("0", "1"), ("1", "0"))])
+    assert set(list(graph.cycles)[0]) == set((("0", "1"), ("1", "0")))
 
 
 def test_del_ref_cycle():
