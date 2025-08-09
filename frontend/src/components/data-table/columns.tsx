@@ -3,10 +3,11 @@
 
 import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
+import { formatDate } from "date-fns";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
-import { exactDateTime } from "@/utils/dates";
+import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { Objects } from "@/utils/objects";
@@ -406,12 +407,18 @@ function renderDate(
   value: Date,
   dataType?: DataType,
   dtype?: string,
+  format?: DateFormat | null,
 ): React.ReactNode {
   const type = dataType === "date" ? "date" : "datetime";
   const timezone = extractTimezone(dtype);
+
+  const exactValue = format
+    ? formatDate(value, format)
+    : exactDateTime(value, timezone);
+
   return (
     <DatePopover date={value} type={type}>
-      {exactDateTime(value, timezone)}
+      {exactValue}
     </DatePopover>
   );
 }
@@ -429,16 +436,11 @@ export function renderCellValue<TData, TValue>(
   const dataType = column.columnDef.meta?.dataType;
   const dtype = column.columnDef.meta?.dtype;
 
-  if (
-    dataType === "datetime" &&
-    typeof value === "string" &&
-    // 2000-01-01T00:00:00.000 is considered a datetime. We treat shorter values as strings.
-    // Because users may define format_mapping to alter the value.
-    value.length > 12
-  ) {
+  if (dataType === "datetime" && typeof value === "string") {
     try {
       const date = new Date(value);
-      return renderDate(date, dataType, dtype);
+      const format = getDateFormat(value);
+      return renderDate(date, dataType, dtype, format);
     } catch (error) {
       Logger.error("Error parsing datetime, fallback to string", error);
     }
