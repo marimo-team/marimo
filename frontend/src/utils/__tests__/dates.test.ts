@@ -1,6 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { exactDateTime, getShortTimeZone, prettyDate, timeAgo } from "../dates";
+import {
+  exactDateTime,
+  getDateFormat,
+  getShortTimeZone,
+  prettyDate,
+  timeAgo,
+} from "../dates";
 
 describe("dates", () => {
   // Save original timezone
@@ -159,6 +165,24 @@ describe("dates", () => {
 
     it("handles errors gracefully", () => {
       expect(getShortTimeZone("MarimoLand")).toBe("MarimoLand");
+    });
+  });
+
+  describe("getDateFormat", () => {
+    it("returns the correct format for date", () => {
+      expect(getDateFormat("2023-05-15")).toBe("yyyy-MM-dd");
+    });
+
+    it("returns the correct format for year only", () => {
+      expect(getDateFormat("2023")).toBe("yyyy");
+    });
+
+    it("returns the correct format for month only", () => {
+      expect(getDateFormat("2023-05")).toBe("yyyy-MM");
+    });
+
+    it("returns null for invalid date", () => {
+      expect(getDateFormat("2023-05-15T12:00:00Z")).toBeNull();
     });
   });
 });

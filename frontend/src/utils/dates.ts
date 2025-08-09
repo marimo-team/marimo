@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { TZDate } from "@date-fns/tz";
-import { formatDate } from "date-fns";
+import { formatDate, isMatch } from "date-fns";
 import { Logger } from "./Logger";
 
 export function prettyDate(
@@ -127,4 +127,19 @@ export function timeAgo(value: string | number | null | undefined): string {
   }
 
   return value.toString();
+}
+
+export const supportedDateFormats = ["yyyy", "yyyy-MM", "yyyy-MM-dd"] as const;
+export type DateFormat = (typeof supportedDateFormats)[number];
+
+/**
+ * If the string matches one of the supported date formats, return the format.
+ */
+export function getDateFormat(value: string): DateFormat | null {
+  for (const format of supportedDateFormats) {
+    if (isMatch(value, format)) {
+      return format;
+    }
+  }
+  return null;
 }
