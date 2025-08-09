@@ -64,8 +64,7 @@ def _(duckdb_con):
     # Query the regular table using Ibis API with deferred API
     sales_table = duckdb_con.table("sales")
     sales_query = (
-        sales_table
-        .mutate(total_value=_.price * _.quantity)
+        sales_table.mutate(total_value=_.price * _.quantity)
         .select(_.product, _.price, _.quantity, _.total_value)
         .order_by(_.total_value.desc())
     )
@@ -110,11 +109,12 @@ def _(duckdb_con):
     inventory_table = duckdb_con.table("inventory", database="catalog_a.main")
 
     cross_catalog_query = (
-        orders_table
-        .join(inventory_table, _.product == inventory_table.product)
+        orders_table.join(inventory_table, _.product == inventory_table.product)
         .select(_.order_id, _.product, _.quantity, inventory_table.stock)
         .order_by(_.order_id)
     )
+
+    cross_catalog_query
     return
 
 
@@ -131,7 +131,11 @@ def _(ibis):
 
     # Create test data using ibis.memtable
     products_data = ibis.memtable(
-        {"product_id": [1, 2, 3], "name": ["Widget A", "Widget B", "Widget C"], "category": ["Electronics", "Tools", "Electronics"]}
+        {
+            "product_id": [1, 2, 3],
+            "name": ["Widget A", "Widget B", "Widget C"],
+            "category": ["Electronics", "Tools", "Electronics"],
+        }
     )
 
     # Create table
@@ -144,12 +148,8 @@ def _(datafusion_con):
     # Query using Ibis API with deferred API
     products_table = datafusion_con.table("products")
     electronics_query = (
-        products_table
-        .filter(_.category == "Electronics")
-        .select(_.product_id, _.name, _.category)
-        .order_by(_.product_id)
+        products_table.filter(_.category == "Electronics").select(_.product_id, _.name, _.category).order_by(_.product_id)
     )
-
 
     datafusion_con.create_table("electronics", electronics_query, overwrite=True)
     return
