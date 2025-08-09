@@ -7,7 +7,6 @@ from collections import defaultdict
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._messaging.errors import (
     CycleError,
-    DeleteNonlocalError,
     Error,
     MultipleDefinitionError,
     SetupRootError,
@@ -32,23 +31,6 @@ def check_for_multiple_definitions(
                     MultipleDefinitionError(
                         name=str(name),
                         cells=tuple(sorted(defining_cells - set([cid]))),
-                    )
-                )
-    return errors
-
-
-def check_for_delete_nonlocal(
-    graph: DirectedGraph,
-) -> dict[CellId_t, list[DeleteNonlocalError]]:
-    """Check whether cells delete their refs."""
-    errors = defaultdict(list)
-    for cid in graph.cells.keys():
-        for name in graph.cells[cid].deleted_refs:
-            if name in graph.definitions:
-                errors[cid].append(
-                    DeleteNonlocalError(
-                        name=str(name),
-                        cells=tuple(graph.definitions[name]),
                     )
                 )
     return errors
@@ -95,7 +77,18 @@ def check_for_cycles(graph: DirectedGraph) -> dict[CellId_t, list[CycleError]]:
         cycle_with_vars = tuple(
             (
                 edge[0],
-                sorted(graph.cells[edge[0]].defs & graph.cells[edge[1]].refs),
+                sorted(
+                    set(
+                        list(
+                            graph.cells[edge[0]].defs
+                            & graph.cells[edge[1]].refs
+                        )
+                        + list(
+                            graph.cells[edge[0]].refs
+                            & graph.cells[edge[1]].deleted_refs
+                        )
+                    )
+                ),
                 edge[1],
             )
             for edge in cycle
@@ -115,7 +108,6 @@ def check_for_errors(
     that is involved in an error.
     """
     multiple_definition_errors = check_for_multiple_definitions(graph)
-    delete_nonlocal_errors = check_for_delete_nonlocal(graph)
     cycle_errors = check_for_cycles(graph)
     invalid_root_errors = check_for_invalid_root(graph)
 
@@ -123,7 +115,6 @@ def check_for_errors(
     for cid in set(
         itertools.chain(
             multiple_definition_errors.keys(),
-            delete_nonlocal_errors.keys(),
             cycle_errors.keys(),
             invalid_root_errors.keys(),
         )
@@ -132,7 +123,6 @@ def check_for_errors(
             itertools.chain(
                 multiple_definition_errors[cid],
                 cycle_errors[cid],
-                delete_nonlocal_errors[cid],
                 invalid_root_errors[cid],
             )
         )

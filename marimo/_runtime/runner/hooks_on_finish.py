@@ -71,12 +71,12 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
                     blamed_cell=exception.blamed_cell,
                 )
             else:
-                exception_type = type(runner.exceptions[raising_cell]).__name__
+                exception_type = type(exception).__name__
                 data = MarimoExceptionRaisedError(
                     msg=(
                         f"An ancestor raised an exception ({exception_type}): "
                     ),
-                    exception_type=exception_type,
+                    exception_type="Ancestor raised",
                     raising_cell=raising_cell,
                 )
             CellOp.broadcast_error(

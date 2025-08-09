@@ -2820,12 +2820,6 @@ export interface components {
     DeleteCellRequest: {
       cellId: string;
     };
-    DeleteNonlocalError: {
-      cells: string[];
-      name: string;
-      /** @enum {string} */
-      type: "delete-nonlocal";
-    };
     DeleteSecretRequest: {
       key: string;
     };
@@ -2845,7 +2839,6 @@ export interface components {
       | components["schemas"]["CycleError"]
       | components["schemas"]["MultipleDefinitionError"]
       | components["schemas"]["ImportStarError"]
-      | components["schemas"]["DeleteNonlocalError"]
       | components["schemas"]["MarimoAncestorStoppedError"]
       | components["schemas"]["MarimoAncestorPreventedError"]
       | components["schemas"]["MarimoExceptionRaisedError"]

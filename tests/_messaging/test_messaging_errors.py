@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from marimo._messaging.errors import (
     CycleError,
-    DeleteNonlocalError,
     ImportStarError,
     MarimoAncestorPreventedError,
     MarimoAncestorStoppedError,
@@ -49,14 +48,6 @@ class TestErrorClasses:
         # Test properties
         assert error.type == "import-star"
         assert error.describe() == "Cannot use import * in this context"
-
-    def test_delete_nonlocal_error(self) -> None:
-        error = DeleteNonlocalError(name="test_var", cells=("cell1", "cell2"))
-
-        # Test properties
-        assert error.type == "delete-nonlocal"
-        assert "test_var" in error.describe()
-        assert "can't be deleted" in error.describe()
 
     def test_marimo_interruption_error(self) -> None:
         error = MarimoInterruptionError()
