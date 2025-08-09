@@ -171,30 +171,42 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
         Note: This operation can be performance intensive when fetching full metadata.
         """
-        if self.default_database is None:
-            return []
+        # Note: Delegation to DuckDBEngine was attempted but get_databases_from_duckdb() 
+        # has a bug where it doesn't properly handle empty databases. Reverting to 
+        # working inline SQL approach.
+        
+        # For other Ibis backends, use original logic
+        databases = []
 
-        database_name = self.default_database
-        if self._resolve_should_auto_discover(include_schemas):
-            schemas = self._get_schemas(
-                database=database_name,
-                include_tables=self._resolve_should_auto_discover(
-                    include_tables
-                ),
-                include_table_details=self._resolve_should_auto_discover(
-                    include_table_details
-                ),
-            )
+        if hasattr(self._connection, "list_catalogs"):
+            database_names = self._connection.list_catalogs()
         else:
-            schemas = []
+            database_names = [self.default_database]
 
-        database: Database = Database(
-            name=database_name,
-            dialect=self.dialect,
-            schemas=schemas,
-            engine=self._engine_name,
-        )
-        return [database]
+        for database_name in database_names: 
+            if self._resolve_should_auto_discover(include_schemas):
+                schemas = self._get_schemas(
+                    database=database_name,
+                    include_tables=self._resolve_should_auto_discover(
+                        include_tables
+                    ),
+                    include_table_details=self._resolve_should_auto_discover(
+                        include_table_details
+                    ),
+                )
+            else:
+                schemas = []
+
+            database: Database = Database(
+                name=database_name,
+                dialect=self.dialect,
+                schemas=schemas,
+                engine=self._engine_name,
+            )
+
+            databases.append(database)
+
+        return databases
 
     def _get_schemas(
         self,
@@ -207,9 +219,23 @@ class IbisEngine(SQLConnection["SQLBackend"]):
         meta_schemas = self._get_meta_schemas()
 
         schemas: list[Schema] = []
-        # TODO handle backends without .list_databases()
-        for schema_name in self._connection.list_databases():
-            if schema_name.lower() in meta_schemas:
+        
+        # Try to get schemas, with fallback for backends that don't support catalog parameter
+        try:
+            schema_names = self._connection.list_databases(catalog=database)
+        except (TypeError, AttributeError) as e:
+            # Backend doesn't support catalog parameter or list_databases method
+            LOGGER.debug(f"Backend doesn't support catalog-based database listing: {e}")
+            try:
+                # Fallback: try without catalog parameter
+                schema_names = self._connection.list_databases()
+            except (TypeError, AttributeError):
+                # Backend doesn't support list_databases at all
+                LOGGER.debug("Backend doesn't support list_databases, using default schema")
+                schema_names = [self.default_schema or "main"]
+        
+        for schema_name in schema_names:
+            if schema_name and schema_name.lower() in meta_schemas:
                 LOGGER.debug(
                     f"Meta schema found `{schema_name}`. Not displaying schema."
                 )
@@ -222,6 +248,7 @@ class IbisEngine(SQLConnection["SQLBackend"]):
                     database=database if database is not None else "",
                     include_table_details=include_table_details,
                 )
+
                 # ignore schemas with 0 tables
                 if len(tables) == 0:
                     LOGGER.debug(
@@ -246,9 +273,20 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             return []
 
         try:
-            table_names = self._connection.list_tables(
-                database=(database, schema)
-            )
+            # Try tuple format first (works for DuckDB and most backends)
+            try:
+                table_names = self._connection.list_tables(
+                    database=(database, schema)
+                )
+            except (TypeError, Exception):
+                # Fallback: try just schema (works for SQLite and other simple backends)
+                LOGGER.debug(f"Tuple database parameter failed, trying schema only for {database}.{schema}")
+                table_names = self._connection.list_tables(database=schema)
+
+            # For DuckDB: filter out temp-only tables when NOT in temp catalog
+            if self._is_duckdb_backend() and database.lower() != "temp":
+                table_names = self._filter_out_temp_only_tables(table_names, schema, database)
+
         except Exception:
             LOGGER.warning(
                 f"Failed to get tables from database {database}", exc_info=True
@@ -283,6 +321,38 @@ class IbisEngine(SQLConnection["SQLBackend"]):
             tables.append(table)
 
         return tables
+    
+    def _is_duckdb_backend(self) -> bool:
+        """Check if we're using DuckDB backend."""
+        return hasattr(self._connection, 'name') and self._connection.name == "duckdb"
+
+    def _filter_out_temp_only_tables(self, table_names: list[str], schema: str, current_database: str) -> list[str]:
+        """Filter out tables that exist ONLY in temp catalog.
+        
+        For DuckDB: When querying a non-temp catalog, DuckDB's list_tables includes temp tables.
+        We need to filter these out by checking which tables actually exist in the target catalog.
+
+        ref: https://github.com/ibis-project/ibis/blob/324b882057ac3cf2bfec098679719c1c1936a084/ibis/backends/duckdb/__init__.py#L866
+        """
+        try:
+            # Query the target catalog directly to get tables that actually exist there
+            target_catalog_sql = f"""
+                SELECT DISTINCT table_name 
+                FROM information_schema.tables 
+                WHERE table_catalog = '{current_database}' 
+                AND table_schema = '{schema}'
+            """
+            result = self._connection.con.execute(target_catalog_sql).fetchall()
+            target_catalog_tables = {row[0] for row in result}
+            
+            # Keep only tables that exist in the target catalog
+            filtered = [table for table in table_names if table in target_catalog_tables]
+            return filtered
+            
+        except Exception as e:
+            LOGGER.debug(f"Failed to filter temp tables: {e}")
+            # If filtering fails, just dedupe and return
+            return list(set(table_names))
 
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
