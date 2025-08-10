@@ -172,12 +172,12 @@ def test_ibis_empty_engine(empty_ibis_backend: SQLBackend) -> None:
     databases = engine.get_databases(
         include_schemas=True, include_tables=True, include_table_details=True
     )
-    
+
     # Find the memory database (ignore system databases)
     memory_databases = [db for db in databases if db.name == "memory"]
     assert len(memory_databases) == 1, "Expected exactly one memory database"
     memory_db = memory_databases[0]
-    
+
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
@@ -519,7 +519,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     memory_databases = [db for db in databases if db.name == "memory"]
     assert len(memory_databases) == 1, "Expected exactly one memory database"
     memory_db = memory_databases[0]
-    
+
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
@@ -541,7 +541,7 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     memory_databases = [db for db in databases if db.name == "memory"]
     assert len(memory_databases) == 1, "Expected exactly one memory database"
     memory_db = memory_databases[0]
-    
+
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
@@ -556,12 +556,12 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     databases = engine.get_databases(
         include_schemas=True, include_tables=False, include_table_details=True
     )
-    
+
     # Find the memory database (ignore system databases)
     memory_databases = [db for db in databases if db.name == "memory"]
     assert len(memory_databases) == 1, "Expected exactly one memory database"
     memory_db = memory_databases[0]
-    
+
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
@@ -576,12 +576,12 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     databases = engine.get_databases(
         include_schemas=False, include_tables=True, include_table_details=True
     )
-    
+
     # Find the memory database (ignore system databases)
     memory_databases = [db for db in databases if db.name == "memory"]
     assert len(memory_databases) == 1, "Expected exactly one memory database"
     memory_db = memory_databases[0]
-    
+
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
@@ -593,12 +593,12 @@ def test_ibis_engine_get_databases(ibis_backend: SQLBackend) -> None:
     databases = engine.get_databases(
         include_schemas=False, include_tables=False, include_table_details=True
     )
-    
+
     # Find the memory database (ignore system databases)
     memory_databases = [db for db in databases if db.name == "memory"]
     assert len(memory_databases) == 1, "Expected exactly one memory database"
     memory_db = memory_databases[0]
-    
+
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
@@ -625,12 +625,12 @@ def test_ibis_engine_get_databases_auto(ibis_backend: SQLBackend) -> None:
     tables_my_schema = get_expected_table("test2", include_table_details=True)
     assert tables_main.columns == tables_my_schema.columns
     assert tables_main.primary_keys == tables_my_schema.primary_keys
-    
+
     # Find the memory database (ignore system databases)
     memory_databases = [db for db in databases if db.name == "memory"]
     assert len(memory_databases) == 1, "Expected exactly one memory database"
     memory_db = memory_databases[0]
-    
+
     assert memory_db == Database(
         name="memory",
         dialect="duckdb",
@@ -654,9 +654,11 @@ def test_ibis_engine_get_databases_auto(ibis_backend: SQLBackend) -> None:
 
         # Find the memory database (ignore system databases)
         memory_databases = [db for db in databases if db.name == "memory"]
-        assert len(memory_databases) == 1, "Expected exactly one memory database"
+        assert len(memory_databases) == 1, (
+            "Expected exactly one memory database"
+        )
         memory_db = memory_databases[0]
-        
+
         assert memory_db == Database(
             name="memory",
             dialect="duckdb",
@@ -739,58 +741,64 @@ def test_ibis_engine_sql_output_formats(ibis_backend: SQLBackend) -> None:
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
-def test_ibis_get_databases_single_catalog(empty_ibis_backend: SQLBackend) -> None:
+def test_ibis_get_databases_single_catalog(
+    empty_ibis_backend: SQLBackend,
+) -> None:
     """Test get_databases with single catalog backend (DuckDB default behavior)."""
     engine = IbisEngine(empty_ibis_backend)
-    
+
     # Test basic catalog discovery
     databases = engine.get_databases(
         include_schemas=False,
         include_tables=False,
-        include_table_details=False
+        include_table_details=False,
     )
-    
+
     # Should discover multiple catalogs
     database_names = {db.name for db in databases}
     assert len(database_names) >= 2
-    assert "memory" in database_names or "main" in database_names  # DuckDB default
+    assert (
+        "memory" in database_names or "main" in database_names
+    )  # DuckDB default
     assert "temp" in database_names
 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-def test_ibis_get_databases_multiple_catalogs(empty_ibis_backend: SQLBackend) -> None:
+def test_ibis_get_databases_multiple_catalogs(
+    empty_ibis_backend: SQLBackend,
+) -> None:
     """Test get_databases with multiple catalogs by attaching additional catalog."""
     import ibis
-    
+
     engine = IbisEngine(empty_ibis_backend)
-    
+
     # Attach an additional in-memory catalog
     empty_ibis_backend.raw_sql("ATTACH ':memory:' AS test_catalog")
-    
+
     # Create a test table in the new catalog
     data = ibis.memtable({"id": [1, 2], "value": ["x", "y"]})
-    empty_ibis_backend.create_table("test_table", obj=data, database="test_catalog.main")
-    
+    empty_ibis_backend.create_table(
+        "test_table", obj=data, database="test_catalog.main"
+    )
+
     # Test catalog discovery
     databases = engine.get_databases(
         include_schemas=False,
         include_tables=False,
-        include_table_details=False
+        include_table_details=False,
     )
-    
+
     # Should discover at least 3 catalogs now: memory/main, temp, and test_catalog
     database_names = {db.name for db in databases}
     assert len(database_names) >= 3
     assert "memory" in database_names or "main" in database_names
     assert "temp" in database_names
     assert "test_catalog" in database_names
-    
+
     # Verify the test table exists in test_catalog using list_tables
     tables_in_test_catalog = engine.get_tables_in_schema(
-        schema="main",
-        database="test_catalog", 
-        include_table_details=False
+        schema="main", database="test_catalog", include_table_details=False
     )
     table_names = {table.name for table in tables_in_test_catalog}
     assert "test_table" in table_names
@@ -798,22 +806,22 @@ def test_ibis_get_databases_multiple_catalogs(empty_ibis_backend: SQLBackend) ->
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-def test_duckdb_temp_table_only_in_temp_catalog(empty_ibis_backend: SQLBackend) -> None:
+def test_duckdb_temp_table_only_in_temp_catalog(
+    empty_ibis_backend: SQLBackend,
+) -> None:
     """E2E: Test that temp tables created with temp=True only show up in temp catalog."""
     import ibis
-    
+
     engine = IbisEngine(empty_ibis_backend)
-    
+
     # Create a temp table and a regular table
     data = ibis.memtable({"id": [1, 2, 3], "value": ["a", "b", "c"]})
     empty_ibis_backend.create_table("temp_only_table", obj=data, temp=True)
     empty_ibis_backend.create_table("regular_table", obj=data, temp=False)
-    
+
     # Check main/memory catalog - should NOT have the temp table
     main_tables = engine.get_tables_in_schema(
-        schema="main",
-        database="memory",
-        include_table_details=False
+        schema="main", database="memory", include_table_details=False
     )
     main_table_names = {table.name for table in main_tables}
     assert "temp_only_table" not in main_table_names
@@ -821,9 +829,7 @@ def test_duckdb_temp_table_only_in_temp_catalog(empty_ibis_backend: SQLBackend) 
 
     # Check temp catalog - should have the temp table
     temp_tables = engine.get_tables_in_schema(
-        schema="main",
-        database="temp",
-        include_table_details=False
+        schema="main", database="temp", include_table_details=False
     )
     temp_table_names = {table.name for table in temp_tables}
     assert "temp_only_table" in temp_table_names
@@ -832,100 +838,113 @@ def test_duckdb_temp_table_only_in_temp_catalog(empty_ibis_backend: SQLBackend) 
 
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
-def test_duckdb_deduplication_same_table_both_catalogs(empty_ibis_backend: SQLBackend) -> None:
+def test_duckdb_deduplication_same_table_both_catalogs(
+    empty_ibis_backend: SQLBackend,
+) -> None:
     """Test deduplication logic when same table name exists in both main and temp catalogs."""
     import ibis
-    
+
     engine = IbisEngine(empty_ibis_backend)
-    
+
     # Create a table with same name in both main and temp catalogs
     shared_data = ibis.memtable({"id": [1, 2], "name": ["main", "data"]})
     temp_data = ibis.memtable({"id": [3, 4], "name": ["temp", "data"]})
     temp_only_data = ibis.memtable({"id": [5, 6], "value": ["temp", "only"]})
-    
+
     # Create table in main catalog
-    empty_ibis_backend.create_table("shared_table", obj=shared_data, temp=False)
-    
+    empty_ibis_backend.create_table(
+        "shared_table", obj=shared_data, temp=False
+    )
+
     # Create table with same name in temp catalog
     empty_ibis_backend.create_table("shared_table", obj=temp_data, temp=True)
-    
+
     # Create temp-only table
-    empty_ibis_backend.create_table("temp_only_table", obj=temp_only_data, temp=True)
-    
-    # List tables in main catalog - should get deduplicated shared_table but NOT temp_only_table  
+    empty_ibis_backend.create_table(
+        "temp_only_table", obj=temp_only_data, temp=True
+    )
+
+    # List tables in main catalog - should get deduplicated shared_table but NOT temp_only_table
     main_tables = engine.get_tables_in_schema(
-        schema="main",
-        database="memory",
-        include_table_details=False
+        schema="main", database="memory", include_table_details=False
     )
     main_table_names = {table.name for table in main_tables}
-    
+
     # Should have shared_table (deduplicated) but not temp_only_table
     assert "shared_table" in main_table_names
     assert "temp_only_table" not in main_table_names
-    
+
     # Verify shared_table appears only once in the list
-    shared_tables = [table for table in main_tables if table.name == "shared_table"]
+    shared_tables = [
+        table for table in main_tables if table.name == "shared_table"
+    ]
     assert len(shared_tables) == 1
-    
+
     # List tables in temp catalog - should have both temp tables
     temp_tables = engine.get_tables_in_schema(
-        schema="main",
-        database="temp",
-        include_table_details=False
+        schema="main", database="temp", include_table_details=False
     )
     temp_table_names = {table.name for table in temp_tables}
-    
+
     # Temp catalog should have both tables
     assert "shared_table" in temp_table_names
     assert "temp_only_table" in temp_table_names
 
-    
+
 @pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
 def test_ibis_sqlite_catalog_discovery() -> None:
     """Test catalog discovery for SQLite backend (non-DuckDB)."""
     try:
-        import ibis
-        import tempfile
         import os
-        
+        import tempfile
+
+        import ibis
+
         # Create temporary SQLite database
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             db_path = f.name
-            
+
         try:
             sqlite_backend = ibis.sqlite.connect(db_path)
-            
+
             # Create a simple table for testing
-            test_data = ibis.memtable({"id": [1, 2], "name": ["test1", "test2"]})
-            sqlite_backend.create_table("test_table", test_data, overwrite=True)
-            
-            engine = IbisEngine(sqlite_backend, engine_name=VariableName("sqlite_test"))
-            
+            test_data = ibis.memtable(
+                {"id": [1, 2], "name": ["test1", "test2"]}
+            )
+            sqlite_backend.create_table(
+                "test_table", test_data, overwrite=True
+            )
+
+            engine = IbisEngine(
+                sqlite_backend, engine_name=VariableName("sqlite_test")
+            )
+
             # Test catalog discovery - should use original Ibis logic, not DuckDB filtering
             databases = engine.get_databases(
                 include_schemas=True,
                 include_tables=True,
-                include_table_details=False
+                include_table_details=False,
             )
-            
+
             database_names = {db.name for db in databases}
             print(f"SQLite databases found: {database_names}")
-            
+
             # SQLite typically has one main database
             assert len(database_names) >= 1
-            
+
             # Verify that we can find tables
             if databases:
                 total_tables = 0
                 for db in databases:
                     for schema in db.schemas:
                         total_tables += len(schema.tables)
-                assert total_tables >= 1, "Should find at least the test_table we created"
-            
+                assert total_tables >= 1, (
+                    "Should find at least the test_table we created"
+                )
+
         finally:
             os.unlink(db_path)
-            
+
     except ImportError:
         pytest.skip("SQLite not available")
     except Exception as e:
