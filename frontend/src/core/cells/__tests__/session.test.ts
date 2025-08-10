@@ -259,7 +259,7 @@ describe("notebookStateFromSession", () => {
       expect(result.cellRuntime[CELL_1].outline).toBe(mockOutline);
     });
 
-    it("sets outline to null when no output exists", () => {
+    it("sets outline-solid to null when no output exists", () => {
       const session = createSession([createSessionCell("cell-1")]);
       const result = notebookStateFromSession(session, null);
 

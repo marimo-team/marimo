@@ -63,25 +63,25 @@ const categories = [
     id: "editor",
     label: "Editor",
     Icon: EditIcon,
-    className: "bg-[var(--blue-4)]",
+    className: "bg-(--blue-4)",
   },
   {
     id: "display",
     label: "Display",
     Icon: MonitorIcon,
-    className: "bg-[var(--grass-4)]",
+    className: "bg-(--grass-4)",
   },
   {
     id: "packageManagement",
     label: "Package Management",
     Icon: PackageIcon,
-    className: "bg-[var(--red-4)]",
+    className: "bg-(--red-4)",
   },
   {
     id: "runtime",
     label: "Runtime",
     Icon: CpuIcon,
-    className: "bg-[var(--amber-4)]",
+    className: "bg-(--amber-4)",
   },
   {
     id: "ai",
@@ -93,13 +93,13 @@ const categories = [
     id: "optionalDeps",
     label: "Optional Dependencies",
     Icon: FolderCog2,
-    className: "bg-[var(--orange-4)]",
+    className: "bg-(--orange-4)",
   },
   {
     id: "labs",
     label: "Labs",
     Icon: FlaskConicalIcon,
-    className: "bg-[var(--slate-4)]",
+    className: "bg-(--slate-4)",
   },
 ] as const;
 
@@ -732,7 +732,7 @@ export const UserConfigForm: React.FC = () => {
                           </div>
                         }
                       >
-                        <AlertTriangleIcon className="w-3 h-3 text-[var(--amber-11)]" />
+                        <AlertTriangleIcon className="w-3 h-3 text-(--amber-11)" />
                       </Tooltip>
                     </FormDescription>
 
@@ -1773,7 +1773,7 @@ export const UserConfigForm: React.FC = () => {
                   <span
                     className={cn(
                       category.className,
-                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground flex-shrink-0",
+                      "w-8 h-8 rounded flex items-center justify-center text-muted-foreground shrink-0",
                     )}
                   >
                     <category.Icon className="w-4 h-4" />
@@ -1854,7 +1854,7 @@ const IsOverridden = ({
         </>
       }
     >
-      <span className="text-[var(--amber-12)] text-xs flex items-center gap-1 border rounded px-2 py-1 bg-[var(--amber-2)] border-[var(--amber-6)] ml-1">
+      <span className="text-(--amber-12) text-xs flex items-center gap-1 border rounded px-2 py-1 bg-(--amber-2) border-(--amber-6) ml-1">
         <FolderCog2 className="w-3 h-3" />
         Overridden by pyproject.toml [{String(overriddenValue)}]
       </span>

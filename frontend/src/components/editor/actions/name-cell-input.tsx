@@ -39,9 +39,9 @@ export const NameCellInput: React.FC<Props> = ({
       return;
     }
 
-    input.addEventListener("blur", onBlur);
+    input.addEventListener("blur-sm", onBlur);
     return () => {
-      input.removeEventListener("blur", onBlur);
+      input.removeEventListener("blur-sm", onBlur);
     };
   });
 
@@ -78,7 +78,7 @@ export const NameCellContentEditable: React.FC<{
     <Tooltip content="Click to rename">
       <span
         className={cn(
-          "outline-none border hover:border-cyan-500/40 focus:border-cyan-500/40",
+          "outline-hidden border hover:border-cyan-500/40 focus:border-cyan-500/40",
           className,
         )}
         contentEditable={true}

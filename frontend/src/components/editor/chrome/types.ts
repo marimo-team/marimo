@@ -23,7 +23,7 @@ export type PanelType =
   | "files"
   | "errors"
   | "variables"
-  | "outline"
+  | "outline-solid"
   | "dependencies"
   | "tracing"
   | "packages"
@@ -75,9 +75,9 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    type: "outline",
+    type: "outline-solid",
     Icon: ScrollTextIcon,
-    tooltip: "View outline",
+    tooltip: "View outline-solid",
     position: "sidebar",
   },
   {

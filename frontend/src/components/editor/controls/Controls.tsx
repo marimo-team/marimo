@@ -204,7 +204,7 @@ const StopControlButton = ({
     <Tooltip content={renderShortcut("global.interrupt")}>
       <Button
         className={cn(
-          !showInterrupt && "inactive-button active:shadow-xsSolid",
+          !showInterrupt && "inactive-button active:shadow-xs-solid",
         )}
         data-testid="interrupt-button"
         size="medium"

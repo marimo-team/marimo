@@ -35,21 +35,21 @@ export function getDataTypeColor(
 ): string {
   switch (dataType) {
     case "boolean":
-      return "bg-[var(--orange-4)]";
+      return "bg-(--orange-4)";
     case "date":
     case "time":
     case "datetime":
     case "temporal":
-      return "bg-[var(--grass-4)] dark:bg-[var(--grass-5)]";
+      return "bg-(--grass-4) dark:bg-(--grass-5)";
     case "number":
     case "integer":
-      return "bg-[var(--purple-4)]";
+      return "bg-(--purple-4)";
     case "string":
-      return "bg-[var(--blue-4)]";
+      return "bg-(--blue-4)";
     case "unknown":
-      return "bg-[var(--slate-4)] dark:bg-[var(--slate-6)]";
+      return "bg-(--slate-4) dark:bg-(--slate-6)";
     default:
       logNever(dataType);
-      return "bg-[var(--slate-4)] dark:bg-[var(--slate-6)]";
+      return "bg-(--slate-4) dark:bg-(--slate-6)";
   }
 }

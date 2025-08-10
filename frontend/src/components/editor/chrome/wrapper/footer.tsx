@@ -46,7 +46,7 @@ export const Footer: React.FC = () => {
         data-testid="footer-errors"
       >
         {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
-        <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
+        <span className="ml-1 font-mono mt-0.5">{errorCount}</span>
       </FooterItem>
 
       <IfCapability capability="terminal">
@@ -77,7 +77,7 @@ export const Footer: React.FC = () => {
         </Tooltip>
       </ShowInKioskMode>
 
-      <div className="flex items-center flex-shrink-0 min-w-0">
+      <div className="flex items-center shrink-0 min-w-0">
         <MachineStats />
         <MinimapStatusIcon />
         <AIStatusIcon />

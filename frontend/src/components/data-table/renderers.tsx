@@ -106,7 +106,7 @@ export const DataTableBody = <TData,>({
           tabIndex={0}
           key={cell.id}
           className={cn(
-            "whitespace-pre truncate max-w-[300px] outline-none",
+            "whitespace-pre truncate max-w-[300px] outline-hidden",
             cell.column.getColumnWrapping &&
               cell.column.getColumnWrapping() === "wrap" &&
               "whitespace-pre-wrap min-w-[200px]",
@@ -154,7 +154,7 @@ export const DataTableBody = <TData,>({
                 "border-t h-6",
                 rowViewerPanelOpen && "cursor-pointer",
                 isRowViewedInPanel &&
-                  "bg-[var(--blue-3)] hover:bg-[var(--blue-3)] data-[state=selected]:bg-[var(--blue-4)]",
+                  "bg-(--blue-3) hover:bg-(--blue-3) data-[state=selected]:bg-(--blue-4)",
               )}
               onClick={() => handleRowClick(row)}
             >

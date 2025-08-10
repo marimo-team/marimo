@@ -6,14 +6,13 @@ export const calloutStyles = cva(
   {
     variants: {
       kind: {
-        neutral: "border-[var(--slate-9)] shadow-[var(--slate-8)]",
+        neutral: "border-(--slate-9) shadow-(--slate-8)",
         // @deprecated, use danger instead
-        alert: "bg-[var(--red-2)] border-[var(--red-9)] shadow-[var(--red-8)]",
-        info: "bg-[var(--sky-1)] border-[var(--sky-8)] shadow-[var(--sky-7)]",
-        danger: "bg-[var(--red-2)] border-[var(--red-9)] shadow-[var(--red-8)]",
-        warn: "bg-[var(--amber-2)] border-[var(--amber-9)] shadow-[var(--amber-8)]",
-        success:
-          "bg-[var(--grass-2)] border-[var(--grass-9)] shadow-[var(--grass-8)]",
+        alert: "bg-(--red-2) border-(--red-9) shadow-(--red-8)",
+        info: "bg-(--sky-1) border-(--sky-8) shadow-(--sky-7)",
+        danger: "bg-(--red-2) border-(--red-9) shadow-(--red-8)",
+        warn: "bg-(--amber-2) border-(--amber-9) shadow-(--amber-8)",
+        success: "bg-(--grass-2) border-(--grass-9) shadow-(--grass-8)",
       },
     },
     defaultVariants: {

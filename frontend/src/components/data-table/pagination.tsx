@@ -136,7 +136,7 @@ export const DataTablePagination = <TData,>({
           value={pageSize.toString()}
           onValueChange={(value) => table.setPageSize(Number(value))}
         >
-          <SelectTrigger className="w-11 h-[18px] !shadow-none !hover:shadow-none !ring-0 border-border text-xs p-1">
+          <SelectTrigger className="w-11 h-[18px] shadow-none! !hover:shadow-none ring-0! border-border text-xs p-1">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -199,7 +199,7 @@ export const DataTablePagination = <TData,>({
               handlePageChange(() => table.setPageIndex(page))
             }
           />
-          <span className="flex-shrink-0">of {prettyNumber(totalPages)}</span>
+          <span className="shrink-0">of {prettyNumber(totalPages)}</span>
         </div>
         <Button
           size="xs"

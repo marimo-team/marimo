@@ -44,9 +44,9 @@ export const CollapseToggle: React.FC<Props> = (props) => {
 
 const Arrow = ({ isCollapsed }: { isCollapsed: boolean }) => {
   return isCollapsed ? (
-    <ChevronRightIcon className="w-5 h-5 flex-shrink-0" />
+    <ChevronRightIcon className="w-5 h-5 shrink-0" />
   ) : (
-    <ChevronDownIcon className="w-5 h-5 flex-shrink-0" />
+    <ChevronDownIcon className="w-5 h-5 shrink-0" />
   );
 };
 
@@ -68,7 +68,7 @@ export const CollapsedCellBanner: React.FC<{
       <Toolbar
         center={
           <>
-            <ChevronsUpDownIcon className="w-4 h-4 flex-shrink-0" />
+            <ChevronsUpDownIcon className="w-4 h-4 shrink-0" />
             <span className="text-sm text-gray-500">
               {count} {count === 1 ? "cell" : "cells"} collapsed
             </span>
@@ -78,17 +78,17 @@ export const CollapsedCellBanner: React.FC<{
           <>
             {states.errored && (
               <Tooltip content="Has errors" delayDuration={100}>
-                <AlertOctagonIcon className="w-4 h-4 flex-shrink-0 text-destructive" />
+                <AlertOctagonIcon className="w-4 h-4 shrink-0 text-destructive" />
               </Tooltip>
             )}
             {states.stale && (
               <Tooltip content="Has stale cells" delayDuration={100}>
-                <RefreshCcw className="w-4 h-4 flex-shrink-0 text-[var(--yellow-11)]" />
+                <RefreshCcw className="w-4 h-4 shrink-0 text-(--yellow-11)" />
               </Tooltip>
             )}
             {states.runningOrQueued && (
               <Tooltip content="Running" delayDuration={100}>
-                <Loader2Icon className="w-4 h-4 flex-shrink-0 animate-spin" />
+                <Loader2Icon className="w-4 h-4 shrink-0 animate-spin" />
               </Tooltip>
             )}
           </>

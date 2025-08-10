@@ -233,7 +233,7 @@ const DatabaseSchemaSelector: React.FC<{
       <button
         type="button"
         key={name}
-        className="py-3 flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 hover:brightness-110 rounded shadow-smSolid hover:shadow-mdSolid"
+        className="py-3 flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 hover:brightness-110 rounded shadow-sm-solid hover:shadow-md-solid"
         style={{ backgroundColor: color }}
         onClick={() => onSelect(schema)}
       >

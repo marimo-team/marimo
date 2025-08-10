@@ -135,7 +135,7 @@ export const PackagesPanel: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <div
-              className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
+              className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
               title={isSandbox ? "sandbox" : "project"}
             >
               {isSandbox ? "sandbox" : "project"}
@@ -518,7 +518,7 @@ const DependencyTreeNode: React.FC<{
       <div
         className={cn(
           "flex items-center group cursor-pointer text-sm whitespace-nowrap",
-          "hover:bg-[var(--slate-2)] focus:bg-[var(--slate-2)] focus:outline-none",
+          "hover:bg-(--slate-2) focus:bg-(--slate-2) focus:outline-hidden",
           hasChildren && "select-none",
           isTopLevel ? "px-2 py-0.5" : "",
         )}
@@ -533,12 +533,12 @@ const DependencyTreeNode: React.FC<{
         {/* Expand/collapse arrow */}
         {hasChildren ? (
           isExpanded ? (
-            <ChevronDownIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+            <ChevronDownIcon className="w-4 h-4 mr-2 shrink-0" />
           ) : (
-            <ChevronRightIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+            <ChevronRightIcon className="w-4 h-4 mr-2 shrink-0" />
           )
         ) : (
-          <div className="w-4 mr-2 flex-shrink-0" />
+          <div className="w-4 mr-2 shrink-0" />
         )}
 
         {/* Package info */}
@@ -558,7 +558,7 @@ const DependencyTreeNode: React.FC<{
               return (
                 <div
                   key={index}
-                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300"
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300"
                   title="cycle"
                 >
                   cycle
@@ -569,7 +569,7 @@ const DependencyTreeNode: React.FC<{
               return (
                 <div
                   key={index}
-                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300"
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300"
                   title={tag.value}
                 >
                   {tag.value}
@@ -580,7 +580,7 @@ const DependencyTreeNode: React.FC<{
               return (
                 <div
                   key={index}
-                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-green-300 dark:border-green-700 text-green-700 dark:text-green-300"
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium border-green-300 dark:border-green-700 text-green-700 dark:text-green-300"
                   title={tag.value}
                 >
                   {tag.value}

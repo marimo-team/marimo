@@ -68,7 +68,7 @@ class MetaUnderlineVariablePlugin {
 
     window.addEventListener("keydown", this.keydown);
     window.addEventListener("keyup", this.keyup);
-    window.addEventListener("blur", this.windowBlur);
+    window.addEventListener("blur-sm", this.windowBlur);
     window.addEventListener("mouseleave", this.windowBlur);
   }
 
@@ -81,7 +81,7 @@ class MetaUnderlineVariablePlugin {
   destroy() {
     window.removeEventListener("keydown", this.keydown);
     window.removeEventListener("keyup", this.keyup);
-    window.removeEventListener("blur", this.windowBlur);
+    window.removeEventListener("blur-sm", this.windowBlur);
     window.removeEventListener("mouseleave", this.windowBlur);
     this.view.dom.removeEventListener("mousemove", this.mousemove);
     this.view.dom.removeEventListener("click", this.click);

@@ -162,7 +162,7 @@ export const TransformPanel: React.FC<Props> = ({
               />
             )}
             {(selectedTransform === undefined || !selectedTransformSchema) && (
-              <div className="flex flex-col items-center justify-center flex-grow gap-3">
+              <div className="flex flex-col items-center justify-center grow gap-3">
                 <MousePointerSquareDashedIcon className="w-8 h-8  text-muted-foreground" />
                 <AddTransformDropdown onAdd={handleAddTransform}>
                   <Button
@@ -199,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <div className="flex flex-col overflow-y-hidden w-[180px] shadow-xs h-full">
-      <div className="flex flex-col overflow-y-auto flex-grow">
+      <div className="flex flex-col overflow-y-auto grow">
         {items.map((item, idx) => {
           return (
             <div
@@ -215,7 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 },
               )}
             >
-              <div className="flex-grow text-ellipsis">
+              <div className="grow text-ellipsis">
                 {Strings.startCase(item.type)}
               </div>
               <Trash2Icon
@@ -229,7 +229,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </div>
-      <div className="flex flex-row flex-shrink-0">
+      <div className="flex flex-row shrink-0">
         <AddTransformDropdown onAdd={onAdd}>
           <Button
             data-testid="marimo-plugin-data-frames-add-transform"

@@ -200,7 +200,7 @@ const WorkspaceNotebooks: React.FC = () => {
           />
           {isFetching && <Spinner size="small" />}
         </Header>
-        <div className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden max-h-[48rem] overflow-y-auto shadow-sm bg-background">
+        <div className="flex flex-col divide-y divide-(--slate-3) border rounded overflow-hidden max-h-192 overflow-y-auto shadow-sm bg-background">
           <NotebookFileTree searchText={searchText} files={workspace.files} />
         </div>
       </div>
@@ -288,7 +288,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     : guessFileType(node.data.name);
 
   const Icon = FILE_TYPE_ICONS[fileType];
-  const iconEl = <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />;
+  const iconEl = <Icon className="w-5 h-5 shrink-0" strokeWidth={1.5} />;
   const root = use(WorkspaceRootContext);
 
   const renderItem = () => {
@@ -352,13 +352,13 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
 const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
   if (!node.data.isDirectory) {
-    return <span className="w-5 h-5 flex-shrink-0" />;
+    return <span className="w-5 h-5 shrink-0" />;
   }
 
   return node.isOpen ? (
-    <ChevronDownIcon className="w-5 h-5 flex-shrink-0" />
+    <ChevronDownIcon className="w-5 h-5 shrink-0" />
   ) : (
-    <ChevronRightIcon className="w-5 h-5 flex-shrink-0" />
+    <ChevronRightIcon className="w-5 h-5 shrink-0" />
   );
 };
 
@@ -373,7 +373,7 @@ const NotebookList: React.FC<{
   return (
     <div className="flex flex-col gap-2">
       {header}
-      <div className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden max-h-[48rem] overflow-y-auto shadow-sm bg-background">
+      <div className="flex flex-col divide-y divide-(--slate-3) border rounded overflow-hidden max-h-192 overflow-y-auto shadow-sm bg-background">
         {files.map((file) => {
           return <MarimoFileComponent key={file.path} file={file} />;
         })}
@@ -394,7 +394,7 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
 
   return (
     <a
-      className="py-1.5 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative flex gap-4 items-center"
+      className="py-1.5 px-4 hover:bg-(--blue-2) hover:text-primary transition-all duration-300 cursor-pointer group relative flex gap-4 items-center"
       key={file.path}
       href={href.toString()}
       target={tabTarget(file.initializationId || file.path)}
@@ -410,7 +410,7 @@ const MarimoFileComponent = ({ file }: { file: MarimoFile }) => {
         </span>
         <p
           title={file.path}
-          className="text-sm text-muted-foreground overflow-hidden whitespace-nowrap overflow-ellipsis"
+          className="text-sm text-muted-foreground overflow-hidden whitespace-nowrap text-ellipsis"
         >
           {file.path}
         </p>
@@ -451,7 +451,7 @@ const SessionShutdownButton: React.FC<{ filePath: string }> = ({
       <Button
         size={"icon"}
         variant="outline"
-        className="opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
+        className="opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-(--red-1)"
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
@@ -496,7 +496,7 @@ const CreateNewNotebook: React.FC = () => {
   return (
     <a
       className="relative rounded-lg p-6 group
-      text-primary hover:bg-[var(--blue-2)] shadow-mdSolid shadow-accent border bg-[var(--blue-1)]
+      text-primary hover:bg-(--blue-2) shadow-md-solid shadow-accent border bg-(--blue-1)
       transition-all duration-300 cursor-pointer
       "
       href={url}

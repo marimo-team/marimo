@@ -17,7 +17,7 @@ export const DatasourceLabel: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   return (
-    <div className="flex gap-1.5 items-center font-bold px-2 py-1.5 text-muted-foreground bg-[var(--slate-2)] text-sm">
+    <div className="flex gap-1.5 items-center font-bold px-2 py-1.5 text-muted-foreground bg-(--slate-2) text-sm">
       {children}
     </div>
   );
@@ -58,7 +58,7 @@ export const LoadingState: React.FC<{
   return (
     <div
       className={cn(
-        "text-sm bg-blue-50 dark:bg-[var(--accent)] text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8",
+        "text-sm bg-blue-50 dark:bg-(--accent) text-blue-500 dark:text-blue-50 flex items-center gap-2 p-2 h-8",
         className,
       )}
     >

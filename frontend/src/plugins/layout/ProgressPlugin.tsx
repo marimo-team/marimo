@@ -74,7 +74,7 @@ export const ProgressComponent = ({
       return (
         <div className="flex gap-3 text-sm text-muted-foreground items-baseline">
           <Progress value={clampProgress((progress / total) * 100)} />
-          <span className="flex-shrink-0">
+          <span className="shrink-0">
             {progress} / {total}
           </span>
         </div>

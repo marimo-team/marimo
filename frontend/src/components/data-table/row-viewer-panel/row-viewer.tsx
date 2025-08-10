@@ -244,7 +244,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 
   return (
     <div
-      className="flex flex-col gap-3 mt-4 focus:outline-none"
+      className="flex flex-col gap-3 mt-4 focus:outline-hidden"
       ref={panelRef}
       tabIndex={-1}
     >

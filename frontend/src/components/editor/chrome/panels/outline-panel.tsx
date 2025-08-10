@@ -22,7 +22,7 @@ export const OutlinePanel: React.FC = () => {
   if (items.length === 0) {
     return (
       <PanelEmptyState
-        title="No outline"
+        title="No outline-solid"
         description="Add markdown headings to your notebook to create an outline."
         icon={<ScrollTextIcon />}
       />

@@ -94,7 +94,7 @@ describe("cell focus reducer", () => {
       });
     });
 
-    it("should blur a cell when it is already focused", () => {
+    it("should blur-sm a cell when it is already focused", () => {
       // First focus a cell
       actions.focusCell({ cellId: CellIds.a });
       expect(state.focusedCellId).toBe(CellIds.a);
@@ -160,7 +160,7 @@ describe("cell focus reducer", () => {
   });
 
   describe("blurCell", () => {
-    it("should blur focused cell", () => {
+    it("should blur-sm focused cell", () => {
       // First focus a cell
       actions.focusCell({ cellId: CellIds.a });
       expect(state.focusedCellId).toBe(CellIds.a);
@@ -198,7 +198,7 @@ describe("cell focus reducer", () => {
       });
     });
 
-    it("should handle multiple blur calls", () => {
+    it("should handle multiple blur-sm calls", () => {
       // Focus and blur
       actions.focusCell({ cellId: CellIds.a });
       actions.blurCell();

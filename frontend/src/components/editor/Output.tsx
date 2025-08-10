@@ -195,7 +195,7 @@ export const OutputRenderer: React.FC<{
             href="https://github.com/manzt/anywidget"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-[var(--amber-12)]"
+            className="underline hover:text-(--amber-12)"
           >
             anywidget
           </a>
@@ -253,7 +253,7 @@ const MimeBundleOutputRenderer: React.FC<{
   return (
     <Tabs defaultValue={first} orientation="vertical">
       <div className="flex">
-        <TabsList className="self-start max-h-none flex flex-col gap-2 mr-4 flex-shrink-0">
+        <TabsList className="self-start max-h-none flex flex-col gap-2 mr-4 shrink-0">
           {mimeEntries.map(([mime]) => (
             <TabsTrigger
               key={mime}
@@ -397,7 +397,7 @@ const ExpandableOutput = React.memo(
       <>
         <div>
           <div className="relative print:hidden">
-            <div className="absolute -right-9 top-1 z-[1] flex flex-col gap-1">
+            <div className="absolute -right-9 top-1 z-1 flex flex-col gap-1">
               <Tooltip content="Fullscreen" side="left">
                 <Button
                   data-testid="fullscreen-output-button"
@@ -442,7 +442,7 @@ const ExpandableOutput = React.memo(
             data-cell-role="output"
             className={cn(
               "relative fullscreen:bg-background fullscreen:flex fullscreen:items-center fullscreen:justify-center",
-              "fullscreen:[align-items:safe_center]",
+              "fullscreen:items-center-safe",
               props.className,
             )}
             ref={containerRef}

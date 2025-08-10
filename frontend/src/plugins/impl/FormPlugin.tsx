@@ -144,9 +144,8 @@ export const FormWrapper = <T,>({
     >
       <div
         className={cn("flex flex-col gap-4 rounded-lg py-4 px-8", {
-          "bg-[var(--gray-1)] shadow-md border border-input": bordered,
-          "bg-[var(--amber-1)] border-[var(--amber-7)]":
-            !synchronized && bordered,
+          "bg-(--gray-1) shadow-md border border-input": bordered,
+          "bg-(--amber-1) border-(--amber-7)": !synchronized && bordered,
         })}
         onKeyDown={(evt) => {
           // Handle enter + ctrl/meta key

@@ -65,7 +65,7 @@ const SortableColumnInternal = React.forwardRef(
 
     const { deleteColumn, moveColumn, addColumn } = useCellActions();
 
-    const buttonClasses = "hover:bg-[var(--gray-3)] aspect-square p-0 w-7 h-7";
+    const buttonClasses = "hover:bg-(--gray-3) aspect-square p-0 w-7 h-7";
 
     const handleScrollAppRight = () => {
       const app = document.getElementById("App");
@@ -106,7 +106,7 @@ const SortableColumnInternal = React.forwardRef(
           </Button>
         </Tooltip>
         <div
-          className="flex gap-2 h-full flex-grow cursor-grab active:cursor-grabbing items-center justify-center"
+          className="flex gap-2 h-full grow cursor-grab active:cursor-grabbing items-center justify-center"
           data-testid="column-drag-spacer"
           {...attributes}
           {...listeners}
@@ -161,7 +161,7 @@ const SortableColumnInternal = React.forwardRef(
           isOver && "bg-accent/20", // Add a background color when dragging over
         )}
       >
-        <div className="bg-[var(--slate-1)] rounded-lg">
+        <div className="bg-(--slate-1) rounded-lg">
           {dragHandle}
           {props.children}
         </div>

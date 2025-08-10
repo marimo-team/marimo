@@ -37,7 +37,7 @@ export const CopyClipboardIcon: React.FC<Props> = ({
   const button = (
     <button type="button" onClick={handleCopy} aria-label="Copy to clipboard">
       {isCopied ? (
-        <CheckIcon className={cn(className, "text-[var(--grass-11)]")} />
+        <CheckIcon className={cn(className, "text-(--grass-11)")} />
       ) : (
         <Copy className={className} />
       )}

@@ -112,19 +112,19 @@ const COLORED_SHADOWS = [
 ];
 
 const SOLID_SHADOWS = [
-  "shadow-xsSolid",
-  "shadow-smSolid",
-  "shadow-mdSolid",
-  "shadow-lgSolid",
-  "shadow-xlSolid",
-  "shadow-2xlSolid",
+  "shadow-xs-solid",
+  "shadow-sm-solid",
+  "shadow-md-solid",
+  "shadow-lg-solid",
+  "shadow-xl-solid",
+  "shadow-2xl-solid",
 ];
 
 const MISC = [
-  "shadow-smSolid shadow-accent",
-  "shadow-mdSolid shadow-accent",
-  "shadow-smSolid shadow-error",
-  "shadow-mdSolid shadow-error",
+  "shadow-sm-solid shadow-accent",
+  "shadow-md-solid shadow-accent",
+  "shadow-sm-solid shadow-error",
+  "shadow-md-solid shadow-error",
 ];
 
 export const Shadows: StoryObj = {

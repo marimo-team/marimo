@@ -117,7 +117,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
 
   return (
     <Labeled label={data.label}>
-      <span className="inline-flex items-center text-secondary-foreground rounded shadow-smSolid">
+      <span className="inline-flex items-center text-secondary-foreground rounded shadow-sm-solid">
         <Button
           data-testid="marimo-plugin-refresh-button"
           variant="secondary"

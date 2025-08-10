@@ -50,11 +50,11 @@ export const DisableIfOverridden = ({
         <div className="flex flex-col gap-2">
           <p>
             This setting is overridden by the{" "}
-            <Kbd className="inline mx-[1px]">pyproject.toml</Kbd> config.
+            <Kbd className="inline mx-px">pyproject.toml</Kbd> config.
           </p>
           <p>
             To change it, edit the project config{" "}
-            <Kbd className="inline mx-[1px]">pyproject.toml</Kbd>
+            <Kbd className="inline mx-px">pyproject.toml</Kbd>
             directly.
           </p>
         </div>

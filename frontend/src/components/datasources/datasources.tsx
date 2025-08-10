@@ -143,7 +143,7 @@ export const DataSources: React.FC = () => {
 
   return (
     <Command
-      className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-none"
+      className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-hidden"
       shouldFilter={false}
     >
       <div className="flex items-center w-full">
@@ -761,7 +761,7 @@ const DatasetColumnItem: React.FC<{
         </span>
       </CommandItem>
       {isExpanded && (
-        <div className="pl-10 pr-2 py-2 bg-[var(--slate-1)] shadow-inner border-b">
+        <div className="pl-10 pr-2 py-2 bg-(--slate-1) shadow-inner border-b">
           <ErrorBoundary>
             <DatasetColumnPreview
               table={table}

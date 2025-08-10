@@ -66,7 +66,7 @@ export function parseOutline(output: OutputMessage | null): Outline | null {
     invariant(typeof output.data === "string", "expected string");
     return getOutline(output.data);
   } catch {
-    Logger.error("Failed to parse outline");
+    Logger.error("Failed to parse outline-solid");
     return null;
   }
 }
@@ -103,7 +103,7 @@ export function findCollapseRange(
   // Get the start max heading
   const startOutline = outlines[startIndex];
   if (startOutline == null || startOutline.items.length === 0) {
-    Logger.warn("Failed to find a starting outline");
+    Logger.warn("Failed to find a starting outline-solid");
     return null;
   }
   // Higher header has the lowest value

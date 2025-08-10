@@ -52,7 +52,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
       <span className="text-muted-foreground font-semibold">
         {fields.length > 0 ? fields.length : "No"} fields
       </span>
-      <div className="hidden lg:grid grid-cols-2 xl:grid-cols-3 gap-2 p-2 bg-[var(--slate-1)] border rounded lg:items-center items-start w-fit grid-flow-dense max-h-[300px] overflow-auto">
+      <div className="hidden lg:grid grid-cols-2 xl:grid-cols-3 gap-2 p-2 bg-(--slate-1) border rounded lg:items-center items-start w-fit grid-flow-dense max-h-[300px] overflow-auto">
         {fieldsToShow.map((field) => {
           const cardinality = schema.cardinality({
             channel: "x",
@@ -62,7 +62,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
             <span
               key={field}
               className={cn(
-                "hover:bg-muted self-start px-2 py-2 rounded flex flex-row gap-1 items-center cursor-pointer lg:justify-center text-sm truncate flex-shrink-0 overflow-hidden",
+                "hover:bg-muted self-start px-2 py-2 rounded flex flex-row gap-1 items-center cursor-pointer lg:justify-center text-sm truncate shrink-0 overflow-hidden",
                 selectedField === field && "bg-muted",
               )}
               onClick={() => {

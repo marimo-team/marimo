@@ -139,7 +139,7 @@ export const AppConfigForm: React.FC = () => {
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                    <FormLabel className="flex-shrink-0">Custom CSS</FormLabel>
+                    <FormLabel className="shrink-0">Custom CSS</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -170,7 +170,7 @@ export const AppConfigForm: React.FC = () => {
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                    <FormLabel className="flex-shrink-0">HTML Head</FormLabel>
+                    <FormLabel className="shrink-0">HTML Head</FormLabel>
                     <FormControl>
                       <Input
                         {...field}

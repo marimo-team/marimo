@@ -6,12 +6,12 @@ import * as React from "react";
 import { cn } from "@/utils/cn";
 
 const switchVariants = cva(
-  "peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+  "peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
   {
     variants: {
       size: {
-        default: "h-[1.5rem] w-[2.75rem] mb-1",
-        sm: "h-[1.125rem] w-[2.125rem]",
+        default: "h-6 w-11 mb-1",
+        sm: "h-4.5 w-8.5",
       },
     },
     defaultVariants: {
