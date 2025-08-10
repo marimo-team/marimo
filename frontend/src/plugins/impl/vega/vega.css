@@ -1,3 +1,5 @@
+@reference "../../../css/globals.css";
+
 .vega-embed {
   width: 100%;
   flex: 1;

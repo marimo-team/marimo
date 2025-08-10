@@ -1,3 +1,5 @@
+@reference "../../css/globals.css";
+
 /*
  * Cell can have many states:
  * - interactive (can hover, focus, click), while in edit mode

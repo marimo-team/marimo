@@ -1,3 +1,5 @@
+@reference "../../../css/globals.css";
+
 .missing-filename {
   text-align: center;
   @apply shadow-mdSolid shadow-stale;

@@ -1,3 +1,5 @@
+@reference "../globals.css";
+
 .light .cm-selectionBackground {
   /* This is the background for selected text when focused,
   but we want to use it when not in focus either because we

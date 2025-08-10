@@ -1,3 +1,5 @@
+@reference "../globals.css";
+
 /* Hide on print
 To hide an element on print, add the class `no-print` to it.
 When printing, the class `printing` is added to the body element to enable this rule. */
