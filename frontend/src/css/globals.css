@@ -137,28 +137,40 @@
   /* Migrated from tailwind.config.cjs - theme.extend.boxShadow */
   --shadow-none: none;
   --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-xs: 1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px
     hsl(0deg 0% 25% / var(--base-shadow-opacity));
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-sm: 2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px
     hsl(0deg 0% 25% / var(--base-shadow-opacity));
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-md: 4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px
     hsl(0deg 0% 60% / var(--base-shadow-opacity));
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-lg: 5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px
     hsl(0deg 0% 75% / var(--base-shadow-opacity));
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-xl: 8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px
     hsl(0deg 0% 85% / var(--base-shadow-opacity));
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-2xl: 10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px
     hsl(0deg 0% 90% / var(--base-shadow-opacity));
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-xs-solid: 1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
     hsl(0deg 0% 50% / 20%);
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-sm-solid: 2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
     hsl(0deg 0% 50% / 20%);
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-md-solid: 4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px
     hsl(0deg 0% 60% / 50%);
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-lg-solid: 5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
     hsl(0deg 0% 75% / 50%);
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-xl-solid: 7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
     hsl(0deg 0% 85% / 50%);
+  /* biome-ignore format: biome and stylelint have conflicting rules */
   --shadow-2xl-solid: 10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px
     hsl(0deg 0% 90% / 50%);
 }
