@@ -167,22 +167,16 @@
     hsl(0deg 0% 85% / var(--base-shadow-opacity));
   --shadow-2xl: 10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px
     hsl(0deg 0% 90% / var(--base-shadow-opacity));
-  /* stylelint-disable-next-line custom-property-pattern */
-  --shadow-xsSolid: 1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
+  --shadow-xs-solid: 1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
     hsl(0deg 0% 50% / 20%);
-  /* stylelint-disable-next-line custom-property-pattern */
-  --shadow-smSolid: 2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
+  --shadow-sm-solid: 2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
     hsl(0deg 0% 50% / 20%);
-  /* stylelint-disable-next-line custom-property-pattern */
-  --shadow-mdSolid: 4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px
+  --shadow-md-solid: 4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px
     hsl(0deg 0% 60% / 50%);
-  /* stylelint-disable-next-line custom-property-pattern */
-  --shadow-lgSolid: 5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
+  --shadow-lg-solid: 5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
     hsl(0deg 0% 75% / 50%);
-  /* stylelint-disable-next-line custom-property-pattern */
-  --shadow-xlSolid: 7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
+  --shadow-xl-solid: 7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
     hsl(0deg 0% 85% / 50%);
-  /* stylelint-disable-next-line custom-property-pattern */
-  --shadow-2xlSolid: 10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px
+  --shadow-2xl-solid: 10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px
     hsl(0deg 0% 90% / 50%);
 }

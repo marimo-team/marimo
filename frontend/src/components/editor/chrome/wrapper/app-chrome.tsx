@@ -145,7 +145,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "variables" && <VariablePanel />}
             {selectedPanel === "dependencies" && <DependencyGraphPanel />}
             {selectedPanel === "packages" && <PackagesPanel />}
-            {selectedPanel === "outline-solid" && <OutlinePanel />}
+            {selectedPanel === "outline" && <OutlinePanel />}
             {selectedPanel === "datasources" && <DataSourcesPanel />}
             {selectedPanel === "documentation" && <DocumentationPanel />}
             {selectedPanel === "snippets" && <SnippetsPanel />}

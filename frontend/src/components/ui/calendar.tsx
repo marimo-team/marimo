@@ -38,7 +38,7 @@ const CalendarHeading = (props: React.HTMLAttributes<HTMLElement>) => {
       <AriaButton
         slot="previous"
         className={cn(
-          buttonVariants({ variant: "outline-solid" }),
+          buttonVariants({ variant: "outline" }),
           "size-7 bg-transparent p-0 opacity-50",
           /* Hover */
           "data-hovered:opacity-100",
@@ -54,7 +54,7 @@ const CalendarHeading = (props: React.HTMLAttributes<HTMLElement>) => {
       <AriaButton
         slot="next"
         className={cn(
-          buttonVariants({ variant: "outline-solid" }),
+          buttonVariants({ variant: "outline" }),
           "size-7 bg-transparent p-0 opacity-50",
           /* Hover */
           "data-hovered:opacity-100",

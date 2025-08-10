@@ -90,7 +90,7 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
     }),
   );
   // Set pressed to false if the window loses focus
-  useEventListener(window, "blur-sm", () => setPressed(false));
+  useEventListener(window, "blur", () => setPressed(false));
   useEventListener(window, "mouseleave", () => setPressed(false));
 
   if (!runtime?.output) {

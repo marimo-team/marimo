@@ -140,7 +140,7 @@ export const ChartTypeSelect: React.FC<{
       <div className="flex flex-row gap-2 items-center">
         <SelectPrimitive.Trigger
           className={buttonVariants({
-            variant: "outline-solid",
+            variant: "outline",
             className: "user-select-none w-full justify-between px-3",
           })}
         >

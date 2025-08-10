@@ -19,7 +19,7 @@ export const VariableName: React.FC<Props> = ({
     <div className="max-w-[130px]" {...rest}>
       <Badge
         title={name}
-        variant={declaredBy.length > 1 ? "destructive" : "outline-solid"}
+        variant={declaredBy.length > 1 ? "destructive" : "outline"}
         className="rounded-sm text-ellipsis block overflow-hidden max-w-fit cursor-pointer font-medium"
         onClick={async (evt) => {
           if (onClick) {
