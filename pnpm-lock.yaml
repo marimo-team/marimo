@@ -465,7 +465,7 @@ importers:
         specifier: ^7.27.1
         version: 7.28.0(@babel/core@7.28.0)
       '@babel/preset-typescript':
-        specifier: ^7.25.9
+        specifier: ^7.27.1
         version: 7.27.1(@babel/core@7.28.0)
       '@biomejs/biome':
         specifier: 2.0.6
