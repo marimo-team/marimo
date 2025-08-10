@@ -16,21 +16,6 @@ module.exports = {
       },
     },
     extend: {
-      width: {
-        contentWidth: "var(--content-width)",
-        contentWidthMedium: "var(--content-width-medium)",
-      },
-      minWidth: {
-        contentWidth: "var(--content-width)",
-        contentWidthMedium: "var(--content-width-medium)",
-      },
-      maxWidth: {
-        contentWidth: "var(--content-width)",
-        contentWidthMedium: "var(--content-width-medium)",
-      },
-      padding: {
-        18: "4.5rem",
-      },
       colors: {
         border:
           "color-mix(in srgb, var(--border), transparent calc((1 - <alpha-value>) * 100%))",
