@@ -9,7 +9,7 @@ import {
 } from "../outline";
 
 describe("parseOutline", () => {
-  it("can parse html outline-solid", () => {
+  it("can parse html outline", () => {
     const html = `
     <span class="markdown">
       <h1 id="welcome-to-marimo">Welcome to marimo! 🌊🍃</h1>
@@ -54,7 +54,7 @@ describe("parseOutline", () => {
     `);
   });
 
-  it("can parse html outline-solid with duplicate nested headings", () => {
+  it("can parse html outline with duplicate nested headings", () => {
     const html = `
     <span class="markdown">
       <h1 id="experiment-1">Experiment 1</h1>
@@ -137,7 +137,7 @@ describe("parseOutline", () => {
     `);
   });
 
-  it("can handle non-html outline-solid", () => {
+  it("can handle non-html outline", () => {
     const html = "foo";
     const outline = parseOutline({
       mimetype: "text/plain",
@@ -148,7 +148,7 @@ describe("parseOutline", () => {
     expect(outline).toEqual(null);
   });
 
-  it("can handle empty/null outline-solid", () => {
+  it("can handle empty/null outline", () => {
     expect(parseOutline(null)).toEqual(null);
     expect(parseOutline(undefined!)).toEqual(null);
 
@@ -163,7 +163,7 @@ describe("parseOutline", () => {
     ).toEqual({ items: [] });
   });
 
-  it("can handle invalid outline-solid", () => {
+  it("can handle invalid outline", () => {
     const html = "<h1>foo</h1><h2>bar</h2><h3>baz</h3>";
     const outline = parseOutline({
       mimetype: "text/html",
