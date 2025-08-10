@@ -121,7 +121,7 @@ export const FileExplorer: React.FC<{
   if (openFile) {
     return (
       <>
-        <div className="flex items-center pl-1 pr-3 flex-shrink-0 border-b justify-between">
+        <div className="flex items-center pl-1 pr-3 shrink-0 border-b justify-between">
           <Button
             onClick={() => setOpenFile(null)}
             data-testid="file-explorer-back-button"
@@ -233,7 +233,7 @@ const Toolbar = ({
   });
 
   return (
-    <div className="flex items-center justify-end px-2 flex-shrink-0 border-b">
+    <div className="flex items-center justify-end px-2 shrink-0 border-b">
       <Tooltip content="Add file">
         <Button
           data-testid="file-explorer-add-file-button"
@@ -314,7 +314,7 @@ const Show = ({
       {node.data.name}
       {node.data.isMarimoFile && !isWasm() && (
         <span
-          className="flex-shrink-0 ml-2 text-sm hidden group-hover:inline hover:underline"
+          className="shrink-0 ml-2 text-sm hidden group-hover:inline hover:underline"
           onClick={onOpenMarimoFile}
         >
           open <ExternalLinkIcon className="inline ml-1" size={12} />
@@ -619,11 +619,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         {node.data.isMarimoFile ? (
           <img
             src={marimoIcon}
-            className="w-5 h-5 flex-shrink-0 mr-2 filter grayscale"
+            className="w-5 h-5 shrink-0 mr-2 filter grayscale"
             alt="Marimo"
           />
         ) : (
-          <Icon className="w-5 h-5 flex-shrink-0 mr-2" strokeWidth={1.5} />
+          <Icon className="w-5 h-5 shrink-0 mr-2" strokeWidth={1.5} />
         )}
         {node.isEditing ? (
           <Edit node={node} />
@@ -659,13 +659,13 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
 
 const FolderArrow = ({ node }: { node: NodeApi<FileInfo> }) => {
   if (!node.data.isDirectory) {
-    return <span className="w-5 h-5 flex-shrink-0" />;
+    return <span className="w-5 h-5 shrink-0" />;
   }
 
   return node.isOpen ? (
-    <ChevronDownIcon className="w-5 h-5 flex-shrink-0" />
+    <ChevronDownIcon className="w-5 h-5 shrink-0" />
   ) : (
-    <ChevronRightIcon className="w-5 h-5 flex-shrink-0" />
+    <ChevronRightIcon className="w-5 h-5 shrink-0" />
   );
 };
 

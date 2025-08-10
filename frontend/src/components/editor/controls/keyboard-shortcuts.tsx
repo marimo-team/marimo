@@ -217,7 +217,7 @@ export const KeyboardShortcuts: React.FC = () => {
     return (
       <div
         key={action}
-        className="grid grid-cols-[auto,2fr,3fr] gap-2 items-center"
+        className="grid grid-cols-[auto_2fr_3fr] gap-2 items-center"
       >
         {hotkeys.isEditable(action) ? (
           <EditIcon

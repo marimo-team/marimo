@@ -565,7 +565,7 @@ const EditableCellComponent = ({
             className={cn(
               className,
               navigationProps.className,
-              "focus:ring-1 focus:ring-[var(--blue-7)] focus:ring-offset-0",
+              "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
             )}
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
@@ -1008,7 +1008,7 @@ const SetupCellComponent = ({
   const className = clsx(
     "marimo-cell",
     "hover-actions-parent z-10 border shadow-sm",
-    "!border-[var(--blue-5)] !rounded-sm",
+    "border-(--blue-5)! rounded-sm!",
     {
       "needs-run": needsRun,
       "has-error": cellRuntime.errored,

@@ -86,7 +86,7 @@ export const LanguagePanelComponent: React.FC<{
                 sanitizeAndTriggerUpdate(e);
               }
             }}
-            className="min-w-14 w-auto border border-border rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="min-w-14 w-auto border border-border rounded px-1 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
           />
           <span {...spanProps} />
         </label>

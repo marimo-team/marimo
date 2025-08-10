@@ -413,7 +413,7 @@ export const FileBrowser = ({
 
     if (multiple) {
       return (
-        <div className="grid grid-cols-2 items-center border-1">
+        <div className="grid grid-cols-2 items-center border">
           <div className="justify-self-start mb-1">{labelText}</div>
           <div className="justify-self-end">
             <Button

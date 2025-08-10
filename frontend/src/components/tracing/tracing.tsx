@@ -359,23 +359,23 @@ const TraceRow: React.FC<TraceRowProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-row gap-2 py-1 px-1 opacity-70 hover:bg-[var(--gray-3)] hover:opacity-100",
-        hovered && "bg-[var(--gray-3)] opacity-100",
+        "flex flex-row gap-2 py-1 px-1 opacity-70 hover:bg-(--gray-3) hover:opacity-100",
+        hovered && "bg-(--gray-3) opacity-100",
       )}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <span className="text-[var(--gray-10)] dark:text-[var(--gray-11)]">
+      <span className="text-(--gray-10) dark:text-(--gray-11)">
         [{formatLogTimestamp(cellRun.startTime)}]
       </span>
-      <span className="text-[var(--gray-10)] w-16">
+      <span className="text-(--gray-10) w-16">
         (<CellLink cellId={cellRun.cellId} />)
       </span>
       <span className="w-40 truncate -ml-1">{cellRun.code}</span>
 
       <div className="flex flex-row gap-1 w-16 justify-end -ml-2">
         <Tooltip content={elapsedTimeTooltip}>
-          <span className="text-[var(--gray-10)] dark:text-[var(--gray-11)]">
+          <span className="text-(--gray-10) dark:text-(--gray-11)">
             {elapsedTimeStr}
           </span>
         </Tooltip>

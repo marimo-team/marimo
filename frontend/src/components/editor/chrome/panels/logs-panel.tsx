@@ -47,13 +47,12 @@ export const LogsPanel: React.FC = () => {
 };
 
 export const LogViewer: React.FC<Props> = ({ logs, className }) => {
-  const hover =
-    "opacity-70 group-hover:bg-[var(--gray-3)] group-hover:opacity-100";
+  const hover = "opacity-70 group-hover:bg-(--gray-3) group-hover:opacity-100";
   return (
     <div className={cn("flex flex-col", className)}>
       <pre className="grid text-xs font-mono gap-1 whitespace-break-spaces font-semibold align-left">
         <div
-          className="grid grid-cols-[30px,1fr]"
+          className="grid grid-cols-[30px_1fr]"
           style={{ whiteSpace: "pre-wrap" }}
         >
           {logs.map((log, index) => (
@@ -80,11 +79,11 @@ function formatLog(log: CellLog) {
 
   return (
     <>
-      <span className="flex-shrink-0 text-[var(--gray-10)] dark:text-[var(--gray-11)]">
+      <span className="shrink-0 text-(--gray-10) dark:text-(--gray-11)">
         [{timestamp}]
       </span>
-      <span className={cn("flex-shrink-0", color)}>{level}</span>
-      <span className="flex-shrink-0 text-[var(--gray-10)]">
+      <span className={cn("shrink-0", color)}>{level}</span>
+      <span className="shrink-0 text-(--gray-10)">
         (<CellLink cellId={log.cellId} />)
       </span>
       {log.message}
@@ -93,6 +92,6 @@ function formatLog(log: CellLog) {
 }
 
 const levelColor: Record<CellLog["level"], string> = {
-  stdout: "text-[var(--grass-9)]",
-  stderr: "text-[var(--red-9)]",
+  stdout: "text-(--grass-9)",
+  stderr: "text-(--red-9)",
 };

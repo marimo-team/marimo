@@ -62,11 +62,11 @@ const QueuedOrRunningStack = () => {
       side="right"
       delayDuration={200}
     >
-      <div className="flex flex-col-reverse gap-[1px] overflow-hidden">
+      <div className="flex flex-col-reverse gap-px overflow-hidden">
         {Array.from({ length: count }).map((_, index) => (
           <div
             key={index.toString()}
-            className="flex-shrink-0 h-1 w-2 bg-[var(--grass-6)] border border-[var(--grass-7)]"
+            className="shrink-0 h-1 w-2 bg-(--grass-6) border border-(--grass-7)"
           />
         ))}
       </div>
@@ -86,9 +86,9 @@ const SidebarItem: React.FC<
     <Tooltip content={tooltip} side="right" delayDuration={200}>
       <button
         className={cn(
-          "flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
-          !selected && "hover:bg-[var(--sage-3)]",
-          selected && "bg-[var(--sage-4)]",
+          "flex items-center p-2 text-sm mx-px shadow-inset font-mono cursor-pointer rounded",
+          !selected && "hover:bg-(--sage-3)",
+          selected && "bg-(--sage-4)",
           className,
         )}
         {...rest}

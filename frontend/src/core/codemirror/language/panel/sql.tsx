@@ -88,7 +88,7 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
   return (
     <div className="flex flex-row gap-1 items-center">
       <Select value={selectedEngine} onValueChange={handleSelectEngine}>
-        <SelectTrigger className="text-xs border-border !shadow-none !ring-0 h-4.5 px-1.5">
+        <SelectTrigger className="text-xs border-border shadow-none! ring-0! h-4.5 px-1.5">
           <SelectValue placeholder="Select an engine" />
         </SelectTrigger>
         <SelectContent>

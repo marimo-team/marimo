@@ -206,7 +206,7 @@ export const DataFrameComponent = memo(
                   SQL Code
                 </TabsTrigger>
               )}
-              <div className="flex-grow" />
+              <div className="grow" />
             </TabsList>
             {isPending && <Spinner size="small" />}
           </div>

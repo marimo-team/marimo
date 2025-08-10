@@ -71,7 +71,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
         "h-[21px] pl-[51px] font-inherit",
         isSelected
           ? "text-primary-foreground"
-          : "text-[var(--gray-8)] hover:text-[var(--gray-9)]",
+          : "text-(--gray-8) hover:text-(--gray-9)",
       )}
       onClick={handleClick}
       // Prevent the default mousedown behavior to avoid blur events on the currently
@@ -81,7 +81,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
     >
       <div
         className={cn(
-          "group-hover:bg-[var(--gray-2)] flex h-full w-full px-0.5 items-center rounded",
+          "group-hover:bg-(--gray-2) flex h-full w-full px-0.5 items-center rounded",
           isSelected && "bg-primary group-hover:bg-primary",
         )}
       >
@@ -100,7 +100,7 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       </div>
       <svg
         className={cn(
-          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)_+_17px)] pointer-events-none",
+          "absolute overflow-visible top-[10.5px] left-[calc(var(--spacing-extra-small,8px)+17px)] pointer-events-none",
           isSelected ? "z-30" : "z-20",
           getTextColor({ cell, selectedCell }),
         )}
@@ -144,7 +144,7 @@ const MinimapInternal: React.FC<{
   return (
     <div
       className={cn(
-        "fixed top-14 right-5 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[58vh]",
+        "fixed top-14 right-5 z-50 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[58vh]",
         "motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-in-out",
         open ? "translate-x-0" : "translate-x-[calc(100%+20px)]",
       )}
@@ -169,7 +169,7 @@ const MinimapInternal: React.FC<{
                 {/* Subtle visual divider between nodes */}
                 {isColumnBoundary && (
                   <div
-                    className="absolute left-5 w-[36px] h-px bg-[var(--gray-4)] pointer-events-none"
+                    className="absolute left-5 w-[36px] h-px bg-(--gray-4) pointer-events-none"
                     aria-hidden="true"
                   />
                 )}
@@ -428,7 +428,7 @@ function getTextColor({
     return "text-primary";
   }
 
-  return "text-[var(--gray-8)]";
+  return "text-(--gray-8)";
 }
 
 /**

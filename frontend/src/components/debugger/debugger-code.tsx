@@ -48,7 +48,7 @@ const DebuggerOutput: React.FC<{
       ref={ref}
       theme="dark"
       value={props.code}
-      className={"[&>*]:outline-none [&>.cm-editor]:pr-0 overflow-hidden dark"}
+      className={"*:outline-hidden [&>.cm-editor]:pr-0 overflow-hidden dark"}
       readOnly={true}
       editable={false}
       basicSetup={{
@@ -91,7 +91,7 @@ const DebuggerInput: React.FC<{
         minHeight="18px"
         theme="dark"
         className={
-          "debugger-input [&>*]:outline-none cm-focused [&>.cm-editor]:pr-0 overflow-hidden dark border-t-4"
+          "debugger-input *:outline-hidden cm-focused [&>.cm-editor]:pr-0 overflow-hidden dark border-t-4"
         }
         value={value}
         autoFocus={true}
@@ -146,7 +146,7 @@ export const DebuggerControls: React.FC<{
   onClear?: () => void;
 }> = ({ onSubmit, onClear }) => {
   const buttonClasses = cn(
-    "m-0 w-9 h-8 bg-[var(--slate-2)] text-[var(--slate-11)] hover:text-[var(--blue-11)] rounded-none hover:bg-[var(--sky-3)] hover:border-[var(--blue-8)]",
+    "m-0 w-9 h-8 bg-(--slate-2) text-(--slate-11) hover:text-(--blue-11) rounded-none hover:bg-(--sky-3) hover:border-(--blue-8)",
     "first:rounded-l-lg first:border-l border-t border-b hover:border",
     "last:rounded-r-lg last:border-r",
   );
@@ -173,7 +173,7 @@ export const DebuggerControls: React.FC<{
           onClick={() => onSubmit("c")}
           className={cn(
             buttonClasses,
-            "text-[var(--grass-11)] hover:text-[var(--grass-11)] hover:bg-[var(--grass-3)] hover:border-[var(--grass-8)]",
+            "text-(--grass-11) hover:text-(--grass-11) hover:bg-(--grass-3) hover:border-(--grass-8)",
           )}
         >
           <PlayIcon fontSize={36} className={iconClasses} />
@@ -209,7 +209,7 @@ export const DebuggerControls: React.FC<{
             data-testid="debugger-clear-button"
             className={cn(
               buttonClasses,
-              "text-[var(--red-11)] hover:text-[var(--red-11)] hover:bg-[var(--red-2)] hover:border-[var(--red-8)]",
+              "text-(--red-11) hover:text-(--red-11) hover:bg-(--red-2) hover:border-(--red-8)",
             )}
             onClick={onClear}
           >

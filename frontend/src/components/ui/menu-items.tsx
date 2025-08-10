@@ -5,7 +5,7 @@ import React from "react";
 import { cn } from "@/utils/cn";
 
 export const menuContentCommon = cva(
-  "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+  "z-50 min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
   {
     variants: {
       subcontent: {
@@ -16,7 +16,7 @@ export const menuContentCommon = cva(
 );
 
 export const menuSubTriggerVariants = cva(
-  "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
+  "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
   {
     variants: {
       inset: {
@@ -27,11 +27,11 @@ export const menuSubTriggerVariants = cva(
 );
 
 export const MENU_ITEM_DISABLED =
-  "data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+  "data-disabled:pointer-events-none data-disabled:opacity-50";
 
 export const menuControlVariants = cva(
   cn(
-    "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground",
+    "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-hidden transition-colors focus:bg-accent focus:text-accent-foreground",
     MENU_ITEM_DISABLED,
   ),
   { variants: {} },
@@ -54,7 +54,7 @@ export const menuLabelVariants = cva("px-2 py-1.5 text-sm font-semibold", {
 
 export const menuItemVariants = cva(
   cn(
-    "menu-item relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+    "menu-item relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden",
     MENU_ITEM_DISABLED,
   ),
   {
@@ -66,11 +66,11 @@ export const menuItemVariants = cva(
         default:
           "focus:bg-accent focus:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground",
         danger:
-          "focus:bg-[var(--red-5)] focus:text-[var(--red-12)] aria-selected:bg-[var(--red-5)] aria-selected:text-[var(--red-12)]",
+          "focus:bg-(--red-5) focus:text-(--red-12) aria-selected:bg-(--red-5) aria-selected:text-(--red-12)",
         muted:
           "focus:bg-muted/70 focus:text-muted-foreground aria-selected:bg-muted/70 aria-selected:text-muted-foreground",
         success:
-          "focus:bg-[var(--grass-3)] focus:text-[var(--grass-11)] aria-selected:bg-[var(--grass-3)] aria-selected:text-[var(--grass-11)]",
+          "focus:bg-(--grass-3) focus:text-(--grass-11) aria-selected:bg-(--grass-3) aria-selected:text-(--grass-11)",
         disabled: "text-muted-foreground",
       },
     },

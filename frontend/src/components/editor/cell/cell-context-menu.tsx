@@ -203,7 +203,7 @@ export const CellActionsContextMenu = ({
                     </div>
                   )}
                   <div className="flex-1">{action.label}</div>
-                  <div className="flex-shrink-0 text-sm">
+                  <div className="shrink-0 text-sm">
                     {action.hotkey && renderMinimalShortcut(action.hotkey)}
                     {action.rightElement}
                   </div>
@@ -221,7 +221,7 @@ export const CellActionsContextMenu = ({
               return (
                 <ContextMenuItem
                   key={action.label}
-                  className={action.disabled ? "!opacity-50" : ""}
+                  className={action.disabled ? "opacity-50!" : ""}
                   onSelect={(evt) => {
                     if (action.disableClick || action.disabled) {
                       return;

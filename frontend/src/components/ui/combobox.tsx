@@ -170,17 +170,17 @@ export const Combobox = <TValue,>({
         <PopoverTrigger asChild={true}>
           <div
             className={cn(
-              "flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50",
+              "flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50",
               className,
             )}
             aria-expanded={open}
           >
             <span className="truncate flex-1 min-w-0">{renderValue()}</span>
-            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50 flex-shrink-0" />
+            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50 shrink-0" />
           </div>
         </PopoverTrigger>
         <PopoverContent
-          className="w-full min-w-[var(--radix-popover-trigger-width)] p-0"
+          className="w-full min-w-(--radix-popover-trigger-width) p-0"
           align="start"
         >
           <Command filter={filterFn} shouldFilter={shouldFilter}>

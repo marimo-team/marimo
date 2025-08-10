@@ -78,10 +78,10 @@ export const BackendConnection: React.FC = () => {
 
     if (connection === WebSocketState.OPEN) {
       if (data?.isHealthy) {
-        return <CheckCircle2Icon className="w-4 h-4 text-[var(--green-9)]" />;
+        return <CheckCircle2Icon className="w-4 h-4 text-(--green-9)" />;
       }
       if (data?.lastChecked) {
-        return <AlertCircleIcon className="w-4 h-4 text-[var(--yellow-9)]" />;
+        return <AlertCircleIcon className="w-4 h-4 text-(--yellow-9)" />;
       }
       return <CheckCircle2Icon className="w-4 h-4" />;
     }

@@ -81,7 +81,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const { handleClick } = useOpenSettingsToTab();
 
   return (
-    <div className="flex border-b px-2 py-1 justify-between flex-shrink-0 items-center">
+    <div className="flex border-b px-2 py-1 justify-between shrink-0 items-center">
       <Tooltip content="New chat">
         <Button variant="text" size="icon" onClick={onNewChat}>
           <PlusIcon className="h-4 w-4" />
@@ -299,7 +299,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         <div className="flex items-center gap-2">
           <FeatureFlagged feature="mcp_docs">
             <Select value={currentMode} onValueChange={handleModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
+              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
                 <SelectValue placeholder="manual" />
               </SelectTrigger>
               <SelectContent>
@@ -321,7 +321,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             </Select>
           </FeatureFlagged>
           <Select value={currentModel} onValueChange={handleModelChange}>
-            <SelectTrigger className="h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
+            <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
               <SelectValue placeholder="Model" />
             </SelectTrigger>
             <SelectContent>
@@ -384,7 +384,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     };
 
     return (
-      <div className="border-t relative flex-shrink-0 min-h-[80px] flex flex-col">
+      <div className="border-t relative shrink-0 min-h-[80px] flex flex-col">
         <div className="px-2 py-3 flex-1">
           <PromptInput
             value={input}
@@ -687,7 +687,7 @@ const ChatPanelBody = () => {
       </TooltipProvider>
 
       <div
-        className="flex-1 px-3 bg-[var(--slate-1)] gap-4 py-3 flex flex-col overflow-y-auto"
+        className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
         ref={scrollContainerRef}
       >
         {(!messages || messages.length === 0) && (

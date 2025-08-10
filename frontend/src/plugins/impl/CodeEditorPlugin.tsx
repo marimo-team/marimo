@@ -101,7 +101,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
     <TooltipProvider>
       <Labeled label={props.label} align="top" fullWidth={true}>
         <LazyAnyLanguageCodeMirror
-          className={`cm [&>*]:outline-none border rounded overflow-hidden ${finalTheme}`}
+          className={`cm *:outline-hidden border rounded overflow-hidden ${finalTheme}`}
           theme={finalTheme === "dark" ? "dark" : "light"}
           minHeight={minHeight}
           maxHeight={maxHeight}

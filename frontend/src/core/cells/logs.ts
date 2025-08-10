@@ -70,7 +70,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
         title: "An internal error occurred",
         description: "See console for details.",
         className:
-          "text-xs text-background bg-[var(--red-10)] py-2 pl-3 [&>*]:flex [&>*]:gap-3",
+          "text-xs text-background bg-(--red-10) py-2 pl-3 *:flex *:gap-3",
       });
     }
   }

@@ -306,7 +306,7 @@ const PopoutColumn = ({
     <EmotionCacheProvider container={null}>
       <Popover>
         <PopoverTrigger
-          className={cn(cellStyles, "w-fit outline-none")}
+          className={cn(cellStyles, "w-fit outline-hidden")}
           onClick={selectCell}
           onMouseDown={(e) => {
             // Prevent cell underneath from being selected
@@ -380,7 +380,7 @@ function getCellStyleClass(
   return cn(
     canSelectCell && "cursor-pointer",
     isSelected &&
-      "relative before:absolute before:inset-0 before:bg-[var(--blue-3)] before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
+      "relative before:absolute before:inset-0 before:bg-(--blue-3) before:rounded before:-z-10 before:mx-[-4px] before:my-[-2px]",
     "w-full",
     "text-left",
     "truncate",

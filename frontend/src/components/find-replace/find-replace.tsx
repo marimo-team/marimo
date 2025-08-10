@@ -114,7 +114,7 @@ export const FindReplace: React.FC = () => {
           e.preventDefault();
         }}
         onBlur={() => setIsFocused(false)}
-        className="fixed top-0 right-0 w-[500px] flex flex-col bg-[var(--sage-1)] p-4 z-50 mt-2 mr-3 rounded-md shadow-lg border gap-2 print:hidden"
+        className="fixed top-0 right-0 w-[500px] flex flex-col bg-(--sage-1) p-4 z-50 mt-2 mr-3 rounded-md shadow-lg border gap-2 print:hidden"
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             dispatch({ type: "setIsOpen", isOpen: false });

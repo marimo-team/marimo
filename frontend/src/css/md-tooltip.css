@@ -1,3 +1,5 @@
+@reference "../css/globals.css";
+
 /*
   This allows you to create a basic tooltip using the data-tooltip attribute
   e.g. <span data-tooltip="Hello, World!">Hover me</span>
