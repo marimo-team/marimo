@@ -128,7 +128,6 @@ const pylspClient = once((lspConfig: LSPConfig) => {
   return new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      autoClose: false,
     }),
     settings,
   );
@@ -146,7 +145,6 @@ const tyLspClient = once((_: LSPConfig) => {
   return new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      autoClose: false,
       getWorkspaceConfiguration: (_) => [{ disableLanguageServices: true }],
     }),
     {},
@@ -165,7 +163,6 @@ const pyrightClient = once((_: LSPConfig) => {
   return new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
-      autoClose: false,
     }),
     {},
   );
@@ -242,6 +239,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             client: client as unknown as LanguageServerClient,
             languageId: "python",
             allowHTMLContent: true,
+            useSnippetOnCompletion: false,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
             // Default to false
