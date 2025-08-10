@@ -123,7 +123,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           {sortedColumns.map(([columnIndex, columnCells]) => (
             <div
               key={columnIndex}
-              className="flex-1 flex flex-col gap-2 w-content-width"
+              className="flex-1 flex flex-col gap-2 w-(--content-width)"
             >
               {columnCells.map(renderCell)}
             </div>

@@ -14,7 +14,7 @@
   width: 100%;
   border: 1px solid var(--gray-4);
 
-  @apply divide-y divide-[var(--gray-5)] shadow-smSolid shadow-shade;
+  @apply divide-y divide-[var(--gray-5)] shadow-sm-solid shadow-shade;
 
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
@@ -61,14 +61,14 @@
     }
 
     &:hover {
-      @apply shadow-mdSolid shadow-shade;
+      @apply shadow-md-solid shadow-shade;
     }
 
     &:focus-within {
       border: 1px solid var(--gray-5);
 
       /* a sharp box shadow with a slight blur to outline the element */
-      @apply shadow-lgSolid shadow-shade;
+      @apply shadow-lg-solid shadow-shade;
 
       /* a little bit of motion
       *
@@ -112,10 +112,10 @@
   &.disabled.has-error,
   &.disabled:hover,
   &.disabled.has-error:hover {
-    @apply shadow-smSolid shadow-shade;
+    @apply shadow-sm-solid shadow-shade;
 
     &:focus-within {
-      @apply shadow-lgSolid shadow-shade;
+      @apply shadow-lg-solid shadow-shade;
     }
 
     .output-area,
@@ -130,16 +130,16 @@
   &.has-error,
   &.error-outline {
     outline: 1px solid var(--red-4);
-    @apply shadow-mdSolid shadow-[var(--red-8)];
+    @apply shadow-md-solid shadow-[var(--red-8)];
   }
 
   &.has-error:hover {
-    @apply shadow-lgSolid shadow-[var(--red-8)];
+    @apply shadow-lg-solid shadow-[var(--red-8)];
   }
 
   &.has-error:focus-within,
   &.has-error:focus-within:hover {
-    @apply shadow-xlSolid shadow-[var(--red-8)];
+    @apply shadow-xl-solid shadow-[var(--red-8)];
   }
 
   &.error-outline,
@@ -152,15 +152,15 @@
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
     outline: none;
-    @apply divide-stale shadow-mdSolid shadow-stale;
+    @apply divide-stale shadow-md-solid shadow-stale;
 
     &:hover {
-      @apply shadow-lgSolid shadow-stale;
+      @apply shadow-lg-solid shadow-stale;
     }
 
     &:focus-within:hover,
     &:focus-within {
-      @apply shadow-xlSolid shadow-stale;
+      @apply shadow-xl-solid shadow-stale;
     }
 
     &:focus-within .cm-editor {
@@ -218,7 +218,7 @@
     /* Apply the original styles */
     &:hover {
       border: 1px solid var(--gray-4);
-      @apply shadow-smSolid shadow-shade;
+      @apply shadow-sm-solid shadow-shade;
     }
   }
 
@@ -253,7 +253,7 @@
     /* Apply the original styles */
     &:hover {
       border: 1px solid var(--gray-4);
-      @apply shadow-smSolid shadow-shade;
+      @apply shadow-sm-solid shadow-shade;
     }
   }
 }
