@@ -39,9 +39,9 @@ export const NameCellInput: React.FC<Props> = ({
       return;
     }
 
-    input.addEventListener("blur-sm", onBlur);
+    input.addEventListener("blur", onBlur);
     return () => {
-      input.removeEventListener("blur-sm", onBlur);
+      input.removeEventListener("blur", onBlur);
     };
   });
 
