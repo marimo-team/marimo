@@ -219,7 +219,7 @@ const StopControlButton = ({
 };
 
 const topRightControls =
-  "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30 print:hidden";
+  "absolute top-3 right-5 m-0 flex items-center gap-2 min-h-[28px] no-print pointer-events-auto z-30 print:hidden";
 
 const bottomRightControls =
   "absolute bottom-5 right-5 flex flex-col gap-2 items-center no-print pointer-events-auto z-30 print:hidden";
