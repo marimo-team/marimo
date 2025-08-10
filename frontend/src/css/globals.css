@@ -155,40 +155,28 @@
   /* Migrated from tailwind.config.cjs - theme.extend.boxShadow */
   --shadow-none: none;
   --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
-  --shadow-xs:
-    1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px
+  --shadow-xs: 1px 1px 2px 0px var(--base-shadow), 0px 0px 2px 0px
     hsl(0deg 0% 25% / var(--base-shadow-opacity));
-  --shadow-sm:
-    2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px
+  --shadow-sm: 2px 2px 2px 0px var(--base-shadow), 0px 0px 2px 0px
     hsl(0deg 0% 25% / var(--base-shadow-opacity));
-  --shadow-md:
-    4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px
+  --shadow-md: 4px 4px 4px 0px var(--base-shadow), 0 0px 4px 0px
     hsl(0deg 0% 60% / var(--base-shadow-opacity));
-  --shadow-lg:
-    5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px
+  --shadow-lg: 5px 6px 4px 0px var(--base-shadow), 0 0px 4px 0px
     hsl(0deg 0% 75% / var(--base-shadow-opacity));
-  --shadow-xl:
-    8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px
+  --shadow-xl: 8px 9px 4px 0px var(--base-shadow), 0 0px 6px 0px
     hsl(0deg 0% 85% / var(--base-shadow-opacity));
-  --shadow-2xl:
-    10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px
+  --shadow-2xl: 10px 12px 10px 0px var(--base-shadow), 0 0px 8px 0px
     hsl(0deg 0% 90% / var(--base-shadow-opacity));
-  --shadow-xsSolid:
-    1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
+  --shadow-xsSolid: 1px 1px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
     hsl(0deg 0% 50% / 20%);
-  --shadow-smSolid:
-    2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
+  --shadow-smSolid: 2px 2px 0px 0px var(--base-shadow-darker), 0px 0px 2px 0px
     hsl(0deg 0% 50% / 20%);
-  --shadow-mdSolid:
-    4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px
+  --shadow-mdSolid: 4px 4px 0px 0px var(--base-shadow-darker), 0 0px 2px 0px
     hsl(0deg 0% 60% / 50%);
-  --shadow-lgSolid:
-    5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
+  --shadow-lgSolid: 5px 6px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
     hsl(0deg 0% 75% / 50%);
-  --shadow-xlSolid:
-    7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
+  --shadow-xlSolid: 7px 8px 0px 0px var(--base-shadow-darker), 0 0px 4px 0px
     hsl(0deg 0% 85% / 50%);
-  --shadow-2xlSolid:
-    10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px
+  --shadow-2xlSolid: 10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px
     hsl(0deg 0% 90% / 50%);
 }
