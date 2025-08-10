@@ -28,7 +28,8 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
         className={cn(
           // Large mobile bottom padding due to mobile browser navigation bar
           "m-auto pb-24 sm:pb-12",
-          appConfig.width === "compact" && "max-w-(--content-width) min-w-[400px]",
+          appConfig.width === "compact" &&
+            "max-w-(--content-width) min-w-[400px]",
           appConfig.width === "medium" &&
             "max-w-(--content-width-medium) min-w-[400px]",
           appConfig.width === "columns" && "w-fit",
