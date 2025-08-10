@@ -28,7 +28,7 @@
 @import url("@radix-ui/colors/slate.css") layer(base);
 @import url("@radix-ui/colors/yellow-dark.css") layer(base);
 @import url("@radix-ui/colors/yellow.css") layer(base);
-
+/* stylelint-disable-next-line import-notation */
 @import "tailwindcss";
 
 @config '../../tailwind.config.cjs';
