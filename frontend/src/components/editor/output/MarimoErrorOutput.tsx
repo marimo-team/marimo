@@ -96,10 +96,6 @@ export const MarimoErrorOutput = ({
     (e): e is Extract<MarimoError, { type: "import-star" }> =>
       e.type === "import-star",
   );
-  const deleteNonlocalErrors = errors.filter(
-    (e): e is Extract<MarimoError, { type: "delete-nonlocal" }> =>
-      e.type === "delete-nonlocal",
-  );
   const interruptionErrors = errors.filter(
     (e): e is Extract<MarimoError, { type: "interruption" }> =>
       e.type === "interruption",
@@ -358,30 +354,6 @@ export const MarimoErrorOutput = ({
               </ExternalLink>
               .
             </p>
-          </Tip>
-        </div>,
-      );
-    }
-
-    if (deleteNonlocalErrors.length > 0) {
-      messages.push(
-        <div key="delete-nonlocal">
-          {deleteNonlocalErrors.map((error, idx) => (
-            <div key={`delete-nonlocal-${idx}`}>
-              {`The variable '${error.name}' can't be deleted because it was defined by another cell (`}
-              <CellLinkError cellId={error.cells[0] as CellId} />
-              {")"}
-            </div>
-          ))}
-          {cellId && (
-            <AutoFixButton errors={deleteNonlocalErrors} cellId={cellId} />
-          )}
-          <Tip title="Why can't I delete other cells' variables?">
-            marimo determines how to run your notebook based on variables
-            definitions and references only. When a cell deletes a variable it
-            didn't define, marimo cannot determine an unambiguous execution
-            order. Try refactoring so that you can delete variables in the cells
-            that create them.
           </Tip>
         </div>,
       );
