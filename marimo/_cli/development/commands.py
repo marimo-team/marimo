@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 def _generate_server_api_schema() -> dict[str, Any]:
     from starlette.schemas import SchemaGenerator
 
+    import marimo._config.config as config
     import marimo._data.models as data
     import marimo._messaging.errors as errors
     import marimo._messaging.ops as ops
@@ -38,7 +39,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._server.models.secrets as secrets
     import marimo._snippets.snippets as snippets
     from marimo._ast.cell import CellConfig, RuntimeStateType
-    from marimo._config.config import MarimoConfig
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
     from marimo._output.mime import MIME
@@ -61,7 +61,12 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.NonNestedLiteral,
         data.DataType,
         CellConfig,
-        MarimoConfig,
+        config.AiConfig,
+        config.OpenAiConfig,
+        config.AnthropicConfig,
+        config.GoogleAiConfig,
+        config.BedrockConfig,
+        config.MarimoConfig,
         # Errors
         errors.SetupRootError,
         errors.MultipleDefinitionError,

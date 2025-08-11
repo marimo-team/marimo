@@ -251,10 +251,15 @@ class AiConfig(TypedDict, total=False):
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
+
+    # providers
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
     google: GoogleAiConfig
     bedrock: BedrockConfig
+    azure: OpenAiConfig
+    ollama: OpenAiConfig
+    open_ai_compatible: OpenAiConfig
 
 
 @dataclass
