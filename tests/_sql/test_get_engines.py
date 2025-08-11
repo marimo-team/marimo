@@ -368,7 +368,17 @@ def test_get_engines_ibis_databases() -> None:
             name="memory",
             dialect="duckdb",
             schemas=[Schema(name="main", tables=[])],
-        )
+        ),
+        Database(
+            name="system",
+            dialect="duckdb",
+            schemas=[Schema(name="main", tables=[])],
+        ),
+        Database(
+            name="temp",
+            dialect="duckdb",
+            schemas=[Schema(name="main", tables=[])],
+        ),
     ]
 
 
