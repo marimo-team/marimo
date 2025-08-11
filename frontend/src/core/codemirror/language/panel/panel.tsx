@@ -13,7 +13,7 @@ import { MarkdownLanguageAdapter } from "../languages/markdown";
 import {
   SQLLanguageAdapter,
   updateSQLDialectFromConnection,
-} from "../languages/sql";
+} from "../languages/sql/sql";
 import {
   type LanguageMetadata,
   languageMetadataField,

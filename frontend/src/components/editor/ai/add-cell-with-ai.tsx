@@ -37,7 +37,7 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";

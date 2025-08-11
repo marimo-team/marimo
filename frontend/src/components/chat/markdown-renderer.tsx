@@ -12,7 +12,7 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
 import { autoInstantiateAtom } from "@/core/config/config";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { useTheme } from "@/theme/useTheme";

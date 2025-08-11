@@ -17,11 +17,11 @@ import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
+import { SQLCompletionStore } from "../languages/sql/completion-store";
 import {
-  SQLCompletionStore,
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
-} from "../languages/sql";
+} from "../languages/sql/sql";
 import { languageMetadataField } from "../metadata";
 
 const adapter = new SQLLanguageAdapter();

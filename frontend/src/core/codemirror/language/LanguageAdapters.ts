@@ -2,7 +2,7 @@
 
 import { MarkdownLanguageAdapter } from "./languages/markdown";
 import { PythonLanguageAdapter } from "./languages/python";
-import { SQLLanguageAdapter } from "./languages/sql";
+import { SQLLanguageAdapter } from "./languages/sql/sql";
 import type { LanguageAdapter, LanguageAdapterType } from "./types";
 
 export const LanguageAdapters: Record<LanguageAdapterType, LanguageAdapter> = {

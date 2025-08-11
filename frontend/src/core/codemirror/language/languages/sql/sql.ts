@@ -1,35 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  acceptCompletion,
-  autocompletion,
-  type Completion,
-  type CompletionSource,
-} from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
 import { insertTab } from "@codemirror/commands";
-import {
-  Cassandra,
-  keywordCompletionSource,
-  MariaSQL,
-  MSSQL,
-  MySQL,
-  PLSQL,
-  PostgreSQL,
-  type SQLConfig,
-  type SQLDialect,
-  SQLite,
-  type SQLNamespace,
-  StandardSQL,
-  schemaCompletionSource,
-  sql,
-} from "@codemirror/lang-sql";
+import { type SQLDialect, type SQLNamespace, sql } from "@codemirror/lang-sql";
 import type { EditorState, Extension } from "@codemirror/state";
 import { Compartment } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parser } from "@lezer/python";
 import {
-  DefaultSqlTooltipRenders,
   defaultSqlHoverTheme,
   NodeSqlParser,
   type SupportedDialects as ParserDialects,
@@ -37,27 +16,27 @@ import {
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import dedent from "string-dedent";
-import { isSchemaless } from "@/components/datasources/utils";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import {
-  dataConnectionsMapAtom,
   dataSourceConnectionsAtom,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
-import { datasetTablesAtom } from "@/core/datasets/state";
-import type { DataSourceConnection } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
-import { LRUCache } from "@/utils/lru";
-import { variableCompletionSource } from "../embedded/embedded-python";
-import { languageMetadataField } from "../metadata";
-import type { LanguageAdapter } from "../types";
-import { parseArgsKwargs } from "../utils/ast";
-import { indentOneTab } from "../utils/indentOneTab";
-import type { QuotePrefixKind } from "../utils/quotes";
-import { MarkdownLanguageAdapter } from "./markdown";
+import { variableCompletionSource } from "../../embedded/embedded-python";
+import { languageMetadataField } from "../../metadata";
+import type { LanguageAdapter } from "../../types";
+import { parseArgsKwargs } from "../../utils/ast";
+import { indentOneTab } from "../../utils/indentOneTab";
+import type { QuotePrefixKind } from "../../utils/quotes";
+import { MarkdownLanguageAdapter } from "../markdown";
+import {
+  customKeywordCompletionSource,
+  tablesCompletionSource,
+} from "./completion-sources";
+import { SCHEMA_CACHE } from "./completion-store";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -309,232 +288,8 @@ export function initializeSQLDialect(view: EditorView) {
   updateSQLDialect(view, dialect);
 }
 
-type TableToCols = Record<string, string[]>;
-type Schemas = Record<string, TableToCols>;
-type CachedSchema = Pick<SQLConfig, "schema" | "defaultSchema"> & {
-  shouldAddLocalTables: boolean;
-};
-
-export class SQLCompletionStore {
-  private cache: LRUCache<DataSourceConnection, CachedSchema>;
-
-  constructor() {
-    this.cache = new LRUCache(10, {
-      create: (connection) => this.getConnectionSchema(connection),
-    });
-  }
-
-  private getConnection(
-    connectionName: ConnectionName,
-  ): DataSourceConnection | undefined {
-    const dataConnectionsMap = store.get(dataConnectionsMapAtom);
-    return dataConnectionsMap.get(connectionName);
-  }
-
-  private getConnectionSchema(connection: DataSourceConnection): CachedSchema {
-    const schemaMap: Record<string, TableToCols> = {};
-    const databaseMap: Record<string, Schemas> = {};
-
-    // When there is only one database, it is the default
-    const defaultDb = connection.databases.find(
-      (db) =>
-        db.name === connection.default_database ||
-        connection.databases.length === 1,
-    );
-
-    const dbToVerify = defaultDb ?? connection.databases[0];
-    const isSchemalessDb =
-      dbToVerify?.schemas.some((schema) => isSchemaless(schema.name)) ?? false;
-
-    // For schemaless databases, treat databases as schemas
-    if (isSchemalessDb) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dbToTablesMap: Record<string, any> = {};
-
-      for (const db of connection.databases) {
-        const isDefaultDb = db.name === defaultDb?.name;
-
-        for (const schema of db.schemas) {
-          for (const table of schema.tables) {
-            const columns = table.columns.map((col) => col.name);
-
-            if (isDefaultDb) {
-              // For default database, add tables directly to top level
-              dbToTablesMap[table.name] = columns;
-            } else {
-              // Otherwise nest under database name
-              dbToTablesMap[db.name] = dbToTablesMap[db.name] || {};
-              dbToTablesMap[db.name][table.name] = columns;
-            }
-          }
-        }
-      }
-
-      return {
-        shouldAddLocalTables: false,
-        schema: dbToTablesMap,
-        defaultSchema: defaultDb?.name,
-      };
-    }
-
-    // For default db, we can use the schema name directly
-    for (const schema of defaultDb?.schemas ?? []) {
-      schemaMap[schema.name] = {};
-      for (const table of schema.tables) {
-        const columns = table.columns.map((col) => col.name);
-        schemaMap[schema.name][table.name] = columns;
-      }
-    }
-
-    // Otherwise, we need to use the fully qualified name
-    for (const database of connection.databases) {
-      if (database.name === defaultDb?.name) {
-        continue;
-      }
-      databaseMap[database.name] = {};
-
-      for (const schema of database.schemas) {
-        databaseMap[database.name][schema.name] = {};
-
-        for (const table of schema.tables) {
-          const columns = table.columns.map((col) => col.name);
-          databaseMap[database.name][schema.name][table.name] = columns;
-        }
-      }
-    }
-
-    return {
-      shouldAddLocalTables: true,
-      schema: { ...databaseMap, ...schemaMap },
-      defaultSchema: connection.default_schema ?? undefined,
-    };
-  }
-
-  /**
-   * Returns the raw dialect of the connection passed from the backend,
-   * or null if the connection is not found
-   */
-  getInternalDialect(connectionName: ConnectionName): string | null {
-    const connection = this.getConnection(connectionName);
-    if (!connection) {
-      return null;
-    }
-    return connection.dialect;
-  }
-
-  /**
-   * Get the inferred SQL dialect for a connection
-   * If the connection is not found, return the standard SQL dialect.
-   */
-  getDialect(connectionName: ConnectionName): SQLDialect {
-    const connection = this.getConnection(connectionName);
-    if (!connection) {
-      return StandardSQL;
-    }
-    return guessDialect(connection) ?? StandardSQL;
-  }
-
-  getCompletionSource(connectionName: ConnectionName): SQLConfig | null {
-    const connection = this.getConnection(connectionName);
-    if (!connection) {
-      return null;
-    }
-
-    const getTablesMap = () => {
-      const localTables = store.get(datasetTablesAtom);
-      // If there is a conflict with connection tables,
-      // the engine will prioritize the connection tables without special handling
-      const tablesMap: TableToCols = {};
-      for (const table of localTables) {
-        const tableColumns = table.columns.map((col) => col.name);
-        tablesMap[table.name] = tableColumns;
-      }
-      return tablesMap;
-    };
-
-    const schema = this.cache.getOrCreate(connection);
-
-    return {
-      dialect: guessDialect(connection),
-      schema: schema.shouldAddLocalTables
-        ? { ...schema.schema, ...getTablesMap() }
-        : schema.schema,
-      defaultSchema: schema.defaultSchema,
-      defaultTable: getSingleTable(connection),
-    };
-  }
-}
-
-const SCHEMA_CACHE = new SQLCompletionStore();
-
 function getSQLMetadata(state: EditorState): SQLLanguageAdapterMetadata {
   return state.field(languageMetadataField) as SQLLanguageAdapterMetadata;
-}
-
-// e.g. lazily load keyword docs
-const getKeywordDocs = async (): Promise<Record<string, unknown>> => {
-  const keywords = await import(
-    "@marimo-team/codemirror-sql/data/common-keywords.json"
-  );
-  // Include DuckDB for now, but we can remove this once we have a better way to handle dialect-specific keywords
-  const duckdbKeywords = await import(
-    "@marimo-team/codemirror-sql/data/duckdb-keywords.json"
-  );
-  return {
-    ...keywords.default.keywords,
-    ...duckdbKeywords.default.keywords,
-  };
-};
-
-/**
- * Custom keyword completion source that dynamically gets the Dialect.
- * This also ignores keyword completions on table columns.
- */
-function customKeywordCompletionSource(): CompletionSource {
-  return (ctx) => {
-    const metadata = getSQLMetadata(ctx.state);
-    const connectionName = metadata.engine;
-    const dialect = SCHEMA_CACHE.getDialect(connectionName);
-
-    // We want to ignore keyword completions on something like
-    // `WHERE my_table.col`
-    //                    ^cursor
-    const textBefore = ctx.matchBefore(/\.\w*/);
-    if (textBefore) {
-      // If there is a match, we are typing after a dot,
-      // so we don't want to trigger SQL keyword completion
-      return null;
-    }
-
-    const keywordRenderer = (label: string, type: string): Completion => {
-      return {
-        label,
-        type,
-        info: async () => {
-          const keywordDocs = await getKeywordDocs();
-          const keywordInfo = keywordDocs[label.toLocaleLowerCase()];
-          if (!keywordInfo) {
-            return null;
-          }
-
-          const dom = document.createElement("div");
-          dom.innerHTML = DefaultSqlTooltipRenders.keyword({
-            keyword: label,
-            info: keywordInfo,
-          });
-          return dom;
-        },
-      };
-    };
-
-    const uppercaseKeywords = true;
-    const result = keywordCompletionSource(
-      dialect,
-      uppercaseKeywords,
-      keywordRenderer,
-    )(ctx);
-    return result;
-  };
 }
 
 function getSchema(view: EditorView): SQLNamespace {
@@ -589,66 +344,6 @@ function guessParserDialect(state: EditorState): ParserDialects | null {
       return "Noql";
     default:
       return null;
-  }
-}
-
-/**
- * Custom schema completion source that dynamically gets the Dialect and SQL tables.
- */
-function tablesCompletionSource(): CompletionSource {
-  return (ctx) => {
-    const metadata = getSQLMetadata(ctx.state);
-    const connectionName = metadata.engine;
-    const config = SCHEMA_CACHE.getCompletionSource(connectionName);
-
-    if (!config) {
-      return null;
-    }
-
-    return schemaCompletionSource(config)(ctx);
-  };
-}
-
-function getSingleTable(connection: DataSourceConnection): string | undefined {
-  if (connection.databases.length !== 1) {
-    return undefined;
-  }
-  const database = connection.databases[0];
-  if (database.schemas.length !== 1) {
-    return undefined;
-  }
-  const schema = database.schemas[0];
-  if (schema.tables.length !== 1) {
-    return undefined;
-  }
-  return schema.tables[0].name;
-}
-
-function guessDialect(
-  connection: DataSourceConnection,
-): SQLDialect | undefined {
-  switch (connection.dialect) {
-    case "postgresql":
-    case "postgres":
-      return PostgreSQL;
-    case "mysql":
-      return MySQL;
-    case "sqlite":
-      return SQLite;
-    case "mssql":
-    case "sqlserver":
-      return MSSQL;
-    case "duckdb":
-      return DuckDBDialect;
-    case "mariadb":
-      return MariaSQL;
-    case "cassandra":
-      return Cassandra;
-    case "oracledb":
-    case "oracle":
-      return PLSQL;
-    default:
-      return undefined;
   }
 }
 
