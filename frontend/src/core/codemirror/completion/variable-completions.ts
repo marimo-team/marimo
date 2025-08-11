@@ -31,17 +31,17 @@ export function getVariableCompletions(
   });
 }
 
-function createVariableInfoElement(variable: Variable): HTMLElement {
+export function createVariableInfoElement(variable: Variable): HTMLElement {
   const infoContainer = document.createElement("div");
   infoContainer.classList.add(
     "mo-cm-tooltip",
     "docs-documentation",
     "min-w-[200px]",
+    "flex",
+    "flex-col",
+    "gap-1",
+    "p-2",
   );
-  infoContainer.style.display = "flex";
-  infoContainer.style.flexDirection = "column";
-  infoContainer.style.gap = ".8rem";
-  infoContainer.style.padding = "0.5rem";
 
   // Variable header
   const header = document.createElement("div");
