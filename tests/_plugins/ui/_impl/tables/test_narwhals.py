@@ -1400,11 +1400,11 @@ def test_get_column_names_with_timestamp_columns() -> None:
         }
     )
 
-    manager = NarwhalsTableManager.from_dataframe(df)
+    manager = get_table_manager(df)
     column_names = manager.get_column_names()
 
     # All column names should be strings
-    assert all(isinstance(name, str) for name in column_names)
+    assert all(isinstance(name, str) for name in column_names), column_names
     assert set(column_names) == {
         "2021-01-01 00:00:00",
         "2021-01-02 00:00:00",

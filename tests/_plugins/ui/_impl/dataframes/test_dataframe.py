@@ -105,18 +105,18 @@ class TestDataframes:
 
         assert subject.value is df
         assert subject._component_args["columns"] == [
-            [1, "integer", "int64"],
-            [2, "string", "object"],
+            ["1", "integer", "int64"],
+            ["2", "string", "object"],
         ]
 
         assert subject._get_column_values(
-            GetColumnValuesArgs(column=1)
+            GetColumnValuesArgs(column="1")
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)
 
         with pytest.raises(ColumnNotFound):
             subject._get_column_values(GetColumnValuesArgs(column="idk"))
         with pytest.raises(ColumnNotFound):
-            subject._get_column_values(GetColumnValuesArgs(column="1"))
+            subject._get_column_values(GetColumnValuesArgs(column=1))
 
     @staticmethod
     @pytest.mark.skipif(
@@ -238,10 +238,10 @@ class TestDataframes:
 
         # Test that we can get column values for non-string column names
         assert subject._get_column_values(
-            GetColumnValuesArgs(column=0)
+            GetColumnValuesArgs(column="0")
         ) == GetColumnValuesResponse(values=[1, 2, 3], too_many_values=False)
         assert subject._get_column_values(
-            GetColumnValuesArgs(column=1.5)
+            GetColumnValuesArgs(column="1.5")
         ) == GetColumnValuesResponse(
             values=["a", "b", "c"], too_many_values=False
         )
