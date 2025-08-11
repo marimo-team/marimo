@@ -11,6 +11,7 @@ from marimo._runtime.packages.pypi_package_manager import (
     PipPackageManager,
     UvPackageManager,
 )
+from marimo._utils.uv import find_uv_bin
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -257,7 +258,15 @@ async def test_uv_install_in_project(mock_run: MagicMock):
     result = await mgr._install("package1 package2", upgrade=False)
 
     mock_run.assert_called_once_with(
-        ["uv", "add", "--compile", "package1", "package2", "-p", PY_EXE],
+        [
+            find_uv_bin(),
+            "add",
+            "--compile",
+            "package1",
+            "package2",
+            "-p",
+            PY_EXE,
+        ],
     )
     assert result is True
 
@@ -272,7 +281,15 @@ async def test_uv_uninstall_not_in_project(mock_run: MagicMock):
     result = await mgr.uninstall("package1 package2")
 
     mock_run.assert_called_once_with(
-        ["uv", "pip", "uninstall", "package1", "package2", "-p", PY_EXE],
+        [
+            find_uv_bin(),
+            "pip",
+            "uninstall",
+            "package1",
+            "package2",
+            "-p",
+            PY_EXE,
+        ],
     )
     assert result is True
 
@@ -287,7 +304,7 @@ async def test_uv_uninstall_in_project(mock_run: MagicMock):
     result = await mgr.uninstall("package1 package2")
 
     mock_run.assert_called_once_with(
-        ["uv", "remove", "package1", "package2", "-p", PY_EXE],
+        [find_uv_bin(), "remove", "package1", "package2", "-p", PY_EXE],
     )
     assert result is True
 
@@ -307,7 +324,7 @@ def test_uv_list_packages(mock_run: MagicMock):
     packages = mgr.list_packages()
 
     mock_run.assert_called_once_with(
-        ["uv", "pip", "list", "--format=json", "-p", PY_EXE],
+        [find_uv_bin(), "pip", "list", "--format=json", "-p", PY_EXE],
         capture_output=True,
         text=True,
     )
