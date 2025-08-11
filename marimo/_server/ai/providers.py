@@ -38,6 +38,7 @@ from marimo._config.config import (
     MarimoConfig,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.ids import AiModelId
 from marimo._server.api.status import HTTPStatus
 
 if TYPE_CHECKING:
@@ -200,11 +201,12 @@ class AnyProviderConfig:
 
     @staticmethod
     def for_model(model: str, config: AiConfig) -> AnyProviderConfig:
-        if _model_is_anthropic(model):
+        model_id = AiModelId.from_model(model)
+        if model_id.provider == "anthropic":
             return AnyProviderConfig.for_anthropic(config)
-        elif _model_is_google(model):
+        elif model_id.provider == "google":
             return AnyProviderConfig.for_google(config)
-        elif _model_is_bedrock(model):
+        elif model_id.provider == "bedrock":
             return AnyProviderConfig.for_bedrock(config)
         else:
             # OpenAI has a default API that ollama also uses, that is
@@ -1031,29 +1033,19 @@ class BedrockProvider(
         return None
 
 
-def _model_is_google(model: str) -> bool:
-    return model.startswith("google") or model.startswith("gemini")
-
-
-def _model_is_anthropic(model: str) -> bool:
-    return model.startswith("claude")
-
-
-def _model_is_bedrock(model: str) -> bool:
-    return model.startswith("bedrock/")
-
-
 def get_completion_provider(
     config: AnyProviderConfig, model: str
 ) -> CompletionProvider[Any, Any]:
-    if _model_is_anthropic(model):
-        return AnthropicProvider(model, config)
-    elif _model_is_google(model):
-        return GoogleProvider(model, config)
-    elif _model_is_bedrock(model):
-        return BedrockProvider(model, config)
+    model_id = AiModelId.from_model(model)
+
+    if model_id.provider == "anthropic":
+        return AnthropicProvider(model_id.model, config)
+    elif model_id.provider == "google":
+        return GoogleProvider(model_id.model, config)
+    elif model_id.provider == "bedrock":
+        return BedrockProvider(model_id.model, config)
     else:
-        return OpenAIProvider(model, config)
+        return OpenAIProvider(model_id.model, config)
 
 
 def get_model(config: AiConfig) -> str:

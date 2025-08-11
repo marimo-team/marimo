@@ -54,6 +54,7 @@ import { Textarea } from "../ui/textarea";
 import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle, SQL_OUTPUT_SELECT_OPTIONS } from "./common";
 import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
+import { IncorrectModelId } from "./incorrect-model-id";
 import { useIsConfigOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
 
@@ -192,20 +193,23 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="completion.model"
             render={({ field }) => (
-              <FormItem className={formItemClasses}>
-                <FormLabel>Model</FormLabel>
-                <FormControl>
-                  <Input
-                    data-testid="custom-model-input"
-                    className="m-0 inline-flex"
-                    placeholder="Qwen2.5-Coder-7B"
-                    {...field}
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormMessage />
-                <IsOverridden userConfig={config} name="completion.model" />
-              </FormItem>
+              <>
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Model</FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="custom-model-input"
+                      className="m-0 inline-flex"
+                      placeholder="Qwen2.5-Coder-7B"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <IsOverridden userConfig={config} name="completion.model" />
+                </FormItem>
+                <IncorrectModelId value={field.value} />
+              </>
             )}
           />
           <FormField
@@ -1605,14 +1609,15 @@ export const UserConfigForm: React.FC = () => {
                         </option>
                       ))}
                     </datalist>
+                    <IncorrectModelId value={field.value} />
                     <FormDescription>
-                      If the model starts with "claude-", we will use your
-                      Anthropic API key. If the model starts with "gemini-", we
-                      will use your Google AI API key. If the model starts with
-                      a "bedrock/" prefix followed by a model id (e.g.,
-                      "bedrock/anthropic.claude-3-sonnet-20240229"), we will use
-                      your AWS Bedrock configuration. Otherwise, we will use
-                      your OpenAI API key.
+                      Models should include the provider name and model name
+                      separated by a slash. For example,
+                      "anthropic/claude-3-7-sonnet-latest" or
+                      "google/gemini-2.5-flash-preview-05-20".
+                      <br />
+                      Depending on the provider, we will use the respective API
+                      key and additional configuration.
                     </FormDescription>
                   </div>
                 )}

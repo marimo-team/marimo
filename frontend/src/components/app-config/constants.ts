@@ -1,39 +1,37 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 export const KNOWN_AI_MODELS = [
   // Anthropic
-  "claude-opus-4-20250514",
-  "claude-sonnet-4-20250514",
-  "claude-3-7-sonnet-latest",
-  "claude-3-5-sonnet-latest",
-  "claude-3-5-haiku-latest",
+  "anthropic/claude-opus-4-1-20250805",
+  "anthropic/claude-opus-4-20250514",
+  "anthropic/claude-sonnet-4-20250514",
+  "anthropic/claude-3-7-sonnet-latest",
+  "anthropic/claude-3-5-sonnet-latest",
+  "anthropic/claude-3-5-haiku-latest",
 
   // DeepSeek
-  "deepseek-v3",
-  "deepseek-r1",
+  "deepseek/deepseek-v3",
+  "deepseek/deepseek-r1",
 
   // Google
-  "gemini-2.5-flash-preview-05-20",
-  "gemini-2.5-pro-preview-06-05",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
+  "google/gemini-2.5-flash-preview-05-20",
+  "google/gemini-2.5-pro-preview-06-05",
+  "google/gemini-2.0-flash",
+  "google/gemini-2.0-flash-lite",
 
   // OpenAI
-  "o3",
-  "o4-mini",
-  "gpt-4.5-preview",
-  "gpt-4.1",
-  "gpt-4o",
-  "gpt-3.5-turbo",
+  "openai/o3",
+  "openai/o4-mini",
+  "openai/gpt-4.5-preview",
+  "openai/gpt-4.1",
+  "openai/gpt-4o",
+  "openai/gpt-3.5-turbo",
 
   // AWS Bedrock Models
-  "bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-  "bedrock/anthropic.claude-3-sonnet-20240229",
-  "bedrock/anthropic.claude-3-haiku-20240307",
-  "bedrock/meta.llama3-8b-instruct-v1:0",
-  "bedrock/amazon.titan-text-express-v1",
-  "bedrock/us.amazon.nova-pro-v1:0",
+  "bedrock/anthropic.claude-3-5-haiku-20241022-v1:0",
+  "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
+  "bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0",
+  "bedrock/meta.llama3-3-70b-instruct-v1:0",
   "bedrock/cohere.command-r-plus-v1",
-  "bedrock/ai21.j2-ultra-v1",
 ] as const;
 
 /**
