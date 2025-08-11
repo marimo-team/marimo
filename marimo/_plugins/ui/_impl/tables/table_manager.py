@@ -121,9 +121,6 @@ class TableManager(abc.ABC, Generic[T]):
     def select_columns(self, columns: list[str]) -> TableManager[Any]:
         pass
 
-    def clamp_columns(self, num_columns: int) -> TableManager[Any]:
-        return self.select_columns(self.get_column_names()[:num_columns])
-
     @abc.abstractmethod
     def select_cells(self, cells: list[TableCoordinate]) -> list[TableCell]:
         pass
