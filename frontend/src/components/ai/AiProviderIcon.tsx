@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import AnthropicIcon from "@marimo-team/llm-info/icons/anthropic.svg";
-import GoogleIcon from "@marimo-team/llm-info/icons/google.svg";
-import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg";
-import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg";
+import AnthropicIcon from "@marimo-team/llm-info/icons/anthropic.svg?inline";
+import GoogleIcon from "@marimo-team/llm-info/icons/google.svg?inline";
+import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
+import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
 import * as React from "react";
 import { cn } from "@/utils/cn";
 
