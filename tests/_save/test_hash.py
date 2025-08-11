@@ -507,9 +507,10 @@ class TestHash:
     def test_builtins(app) -> None:
         @app.cell
         def _():
-            import marimo as mo
-            from time import sleep
             import time
+            from time import sleep
+
+            import marimo as mo
 
             return mo, sleep, time
 
@@ -532,7 +533,7 @@ class TestHash:
             return
 
         @app.cell
-        def _():
+        def _(direct, module):
             assert direct() == module(), "direct() != module()"
 
 
