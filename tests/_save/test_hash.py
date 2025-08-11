@@ -503,6 +503,38 @@ class TestHash:
             assert cache2._cache.hash != cache._cache.hash
             return (cache2,)
 
+    @staticmethod
+    def test_builtins(app) -> None:
+        @app.cell
+        def _():
+            import marimo as mo
+            from time import sleep
+            import time
+
+            return mo, sleep, time
+
+        @app.cell
+        def _(mo, sleep):
+            @mo.cache
+            def direct():
+                _ = sleep
+                return 42
+
+            return
+
+        @app.cell
+        def _(mo, time):
+            @mo.cache
+            def module():
+                _ = time.sleep
+                return 42
+
+            return
+
+        @app.cell
+        def _():
+            assert direct() == module(), "direct() != module()"
+
 
 class TestDataHash:
     @staticmethod
