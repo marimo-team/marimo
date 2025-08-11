@@ -1,8 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
+from marimo import _loggers
+from marimo._config.config import SqlOutputType
 from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context.types import (
@@ -12,8 +14,11 @@ from marimo._runtime.context.types import (
 
 if TYPE_CHECKING:
     import duckdb
+    import pandas as pd
     import polars as pl
     from polars._typing import ConnectionOrCursor
+
+LOGGER = _loggers.marimo_logger()
 
 
 def wrapped_sql(
@@ -68,6 +73,72 @@ def try_convert_to_polars(
         pl.exceptions.ComputeError,
     ) as e:
         return None, e
+
+
+def convert_to_output(
+    *,
+    sql_output_format: SqlOutputType,
+    to_polars: Callable[[], Union[pl.DataFrame, pl.Series]],
+    to_pandas: Callable[[], pd.DataFrame],
+    to_native: Optional[Callable[[], Any]] = None,
+    to_lazy_polars: Optional[Callable[[], pl.LazyFrame]] = None,
+) -> Any:
+    """Convert a result to the specified output format.
+
+    Args:
+        result (Any): The result to convert.
+        sql_output_format (SqlOutputType): The output format to convert to.
+        to_polars (Callable[[], Any]): A function to convert the result to polars.
+        to_pandas (Callable[[], Any]): A function to convert the result to pandas.
+        to_native (Callable[[], Any]): A function to convert the result to native.
+        to_lazy_polars (Optional[Callable[[], Any]]): A function to convert the result to lazy polars.
+            If not present, will use to_polars().lazy()
+
+    Returns:
+        Any: The converted result.
+    """
+    if sql_output_format == "native":
+        if to_native is None:
+            raise ValueError("to_native is required for native output format")
+        return to_native()
+
+    if sql_output_format == "polars":
+        return to_polars()
+
+    if sql_output_format == "lazy-polars":
+        import polars as pl
+
+        if to_lazy_polars is not None:
+            return to_lazy_polars()
+        result = to_polars()
+        if isinstance(result, pl.Series):
+            return result.to_frame().lazy()
+        return result.lazy()
+
+    if sql_output_format == "pandas":
+        return to_pandas()
+
+    # Auto
+    if DependencyManager.polars.has():
+        import polars as pl
+
+        try:
+            return to_polars()
+        except (
+            pl.exceptions.PanicException,
+            pl.exceptions.ComputeError,
+        ):
+            LOGGER.info("Failed to convert to polars, falling back to pandas")
+            DependencyManager.pandas.require("to convert this data")
+
+    if DependencyManager.pandas.has():
+        try:
+            return to_pandas()
+        except Exception as e:
+            LOGGER.warning("Failed to convert dataframe", exc_info=e)
+            return None
+
+    raise_df_import_error("polars[pyarrow]")
 
 
 def raise_df_import_error(pkg: str) -> None:
