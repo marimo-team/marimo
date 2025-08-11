@@ -2126,3 +2126,21 @@ def test_table_uses_default_max_columns():
 
     # Should use the default max_columns (50)
     assert table._max_columns == DEFAULT_MAX_COLUMNS
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(),
+    reason="Pandas not installed",
+)
+def test_table_with_timestamp_column_name():
+    # Create data with timestamps as columns
+    import pandas as pd
+
+    now = pd.Timestamp.now()
+    data = {now + pd.Timedelta(minutes=i): [i, i + 1, i + 2] for i in range(5)}
+
+    # Create table without specifying max_columns
+    table = ui.table(pd.DataFrame(data))
+
+    # Should use the default max_columns (50)
+    assert table._max_columns == DEFAULT_MAX_COLUMNS

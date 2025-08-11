@@ -199,9 +199,17 @@ def sanitize_json_bigint(
     MAX_SAFE_INTEGER = 9007199254740991
     MIN_SAFE_INTEGER = -9007199254740991
 
+    def convert_key(key: Any) -> Any:
+        # Keys must be str, int, float, bool, or None
+        if key is None:
+            return key
+        if isinstance(key, (str, int, float, bool)):
+            return key
+        return str(key)
+
     def convert_bigint(obj: Any) -> Any:
         if isinstance(obj, dict):
-            return {k: convert_bigint(v) for k, v in obj.items()}  # type: ignore
+            return {convert_key(k): convert_bigint(v) for k, v in obj.items()}  # type: ignore
         elif isinstance(obj, list):
             return [convert_bigint(item) for item in obj]  # type: ignore
         elif isinstance(obj, int) and (

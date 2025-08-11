@@ -350,5 +350,5 @@ def _sanitize_dtypes(
                 nw.col(column_name).cast(nw.UInt64)
             )
     except Exception as e:
-        LOGGER.warning(f"Failed to sanitize dtypes: {str(e)}")
+        LOGGER.warning(f"Failed to sanitize dtypes: {e}")
     return column_data
