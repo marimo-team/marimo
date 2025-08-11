@@ -203,65 +203,6 @@ describe("TableContextProvider", () => {
     });
   });
 
-  describe("getCompletions", () => {
-    it("should return empty completions when no tables", () => {
-      const tablesMap: DatasetTablesMap = new Map();
-      const provider = new TableContextProvider(tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("empty-completions");
-    });
-
-    it("should return completions for memory tables", () => {
-      const table = createMockTable("users");
-      const tablesMap: DatasetTablesMap = new Map([["users", table]]);
-      const provider = new TableContextProvider(tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("memory-table-completions");
-    });
-
-    it("should return completions for remote tables", () => {
-      const remoteTable = createMockTable("analytics", {
-        source: "bigquery://project/dataset",
-        source_type: "connection",
-      });
-      const tablesMap: DatasetTablesMap = new Map([["analytics", remoteTable]]);
-      const provider = new TableContextProvider(tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("remote-table-completions");
-    });
-
-    it("should return completions for dataframes vs tables", () => {
-      const regularTable = createMockTable("regular_table");
-      const dataframeTable = createMockTable("df", {
-        variable_name: "df",
-        source: "pandas",
-      });
-
-      const tablesMap: DatasetTablesMap = new Map([
-        ["regular_table", regularTable],
-        ["df", dataframeTable],
-      ]);
-      const provider = new TableContextProvider(tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("mixed-table-dataframe-completions");
-    });
-
-    it("should handle tables with special characters in names", () => {
-      const specialTable = createMockTable("my-table_with.special@chars");
-      const tablesMap: DatasetTablesMap = new Map([
-        ["my-table_with.special@chars", specialTable],
-      ]);
-      const provider = new TableContextProvider(tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("special-chars-table-completions");
-    });
-  });
-
   describe("provider properties", () => {
     it("should have correct provider properties", () => {
       const tablesMap: DatasetTablesMap = new Map();

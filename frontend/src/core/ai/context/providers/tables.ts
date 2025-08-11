@@ -53,10 +53,6 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
     return context;
   }
 
-  getCompletions(): Completion[] {
-    return [];
-  }
-
   formatCompletion(item: TableContextItem): Completion {
     const tableName = item.data.name;
     const table = item.data;
