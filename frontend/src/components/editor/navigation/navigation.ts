@@ -17,7 +17,7 @@ import {
   userConfigAtom,
 } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
-import { parseShortcut, isPlatformWindows } from "@/core/hotkeys/shortcuts";
+import { isPlatformWindows, parseShortcut } from "@/core/hotkeys/shortcuts";
 import { useRequestClient } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
