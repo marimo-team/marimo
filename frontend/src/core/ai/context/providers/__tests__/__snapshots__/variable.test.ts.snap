@@ -24,12 +24,6 @@ Type: unknown
 Preview: "some_value""
 `;
 
-exports[`VariableContextProvider > getCompletions > should pass table names to completion function > variable-completions-with-tables 1`] = `[]`;
-
-exports[`VariableContextProvider > getCompletions > should return completions for variables > variable-completions 1`] = `[]`;
-
-exports[`VariableContextProvider > getCompletions > should return empty completions when no variables > empty-variable-completions 1`] = `[]`;
-
 exports[`VariableContextProvider > getItems > should handle complex data types > complex-data-types 1`] = `
 [
   {
@@ -337,8 +331,6 @@ exports[`VariableContextProvider > getItems > should return variable items for s
   },
 ]
 `;
-
-exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-completions 1`] = `[]`;
 
 exports[`VariableContextProvider > integration with tables > should work with both variables and tables > variables-with-tables-items 1`] = `
 [
