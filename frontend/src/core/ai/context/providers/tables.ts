@@ -84,11 +84,11 @@ export class TableContextProvider extends AIContextProvider<TableContextItem> {
       "mo-cm-tooltip",
       "docs-documentation",
       "min-w-[200px]",
+      "flex",
+      "flex-col",
+      "gap-1",
+      "p-2",
     );
-    infoContainer.style.display = "flex";
-    infoContainer.style.flexDirection = "column";
-    infoContainer.style.gap = ".8rem";
-    infoContainer.style.padding = "0.5rem";
 
     // Table header with name and source
     const headerDiv = document.createElement("div");
