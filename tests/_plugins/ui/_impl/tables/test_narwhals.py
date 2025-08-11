@@ -1387,6 +1387,32 @@ def test_get_sample_values_with_metadata_only_frame(df: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_column_names_with_timestamp_columns() -> None:
+    """Test that get_column_names converts timestamp column names to strings."""
+    import pandas as pd
+
+    # Create a DataFrame with timestamp column names
+    df = pd.DataFrame(
+        {
+            pd.Timestamp("2021-01-01"): [1, 2, 3],
+            pd.Timestamp("2021-01-02"): [4, 5, 6],
+            "regular_column": [7, 8, 9],
+        }
+    )
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+    column_names = manager.get_column_names()
+
+    # All column names should be strings
+    assert all(isinstance(name, str) for name in column_names)
+    assert set(column_names) == {
+        "2021-01-01 00:00:00",
+        "2021-01-02 00:00:00",
+        "regular_column",
+    }
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_sample_values_returns_primitives() -> None:
     """Test that get_sample_values always returns primitive types."""
     import polars as pl

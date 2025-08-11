@@ -62,7 +62,9 @@ class PandasTableManagerFactory(TableManagerFactory):
 
             def __init__(self, data: pd.DataFrame) -> None:
                 data = _maybe_convert_geopandas_to_pandas(data)
-                self._original_data = self._handle_multi_col_indexes(data)
+                data = self._handle_multi_col_indexes(data)
+                data = self._handle_non_string_column_names(data)
+                self._original_data = data
                 super().__init__(nw.from_native(self._original_data))
 
             @cached_property
@@ -195,8 +197,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                         )
                 return PandasTableManager(_data)
 
+            @classmethod
             def _handle_multi_col_indexes(
-                self, data: pd.DataFrame
+                cls, data: pd.DataFrame
             ) -> pd.DataFrame:
                 is_multi_col_index = isinstance(data.columns, pd.MultiIndex)
                 # When in a table with selection, narwhals will convert the columns to a tuple
@@ -227,6 +230,21 @@ class PandasTableManagerFactory(TableManagerFactory):
                         )
                     return data_copy
 
+                return data
+
+            @classmethod
+            def _handle_non_string_column_names(
+                cls, data: pd.DataFrame
+            ) -> pd.DataFrame:
+                if not isinstance(data.columns, pd.Index):
+                    return data
+
+                if len(data.columns) > 0 and not isinstance(
+                    data.columns[0], str
+                ):
+                    data.columns = pd.Index(
+                        [str(name) for name in data.columns]
+                    )
                 return data
 
             # We override the default implementation to use pandas

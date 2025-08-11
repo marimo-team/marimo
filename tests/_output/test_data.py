@@ -71,3 +71,14 @@ def test_sanitize_json_bigint() -> None:
         mo_data.sanitize_json_bigint(data_dict)
         == '{"bigint":"9007199254740992","nested":{"bigint":"9007199254740993","regular":42}}'  # noqa: E501
     )
+
+
+def test_sanitize_json_bigint_keys() -> None:
+    import datetime
+
+    data_dict = {
+        datetime.date(2021, 1, 1): "date key",
+    }
+    assert (
+        mo_data.sanitize_json_bigint(data_dict) == '{"2021-01-01":"date key"}'
+    )
