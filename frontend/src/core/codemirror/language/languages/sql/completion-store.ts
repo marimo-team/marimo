@@ -20,7 +20,7 @@ type CachedSchema = Pick<SQLConfig, "schema" | "defaultSchema"> & {
   shouldAddLocalTables: boolean;
 };
 
-export class SQLCompletionStore {
+class SQLCompletionStore {
   private cache: LRUCache<DataSourceConnection, CachedSchema>;
 
   constructor() {
@@ -186,3 +186,6 @@ function getSingleTable(connection: DataSourceConnection): string | undefined {
 }
 
 export const SCHEMA_CACHE = new SQLCompletionStore();
+
+// For testing
+export { SQLCompletionStore as TestSQLCompletionStore };

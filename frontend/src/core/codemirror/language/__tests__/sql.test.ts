@@ -17,7 +17,7 @@ import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import { store } from "@/core/state/jotai";
-import { SQLCompletionStore } from "../languages/sql/completion-store";
+import { TestSQLCompletionStore } from "../languages/sql/completion-store";
 import {
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
@@ -618,7 +618,7 @@ _df = mo.sql(
 
 describe("tablesCompletionSource", () => {
   const mockStore = store;
-  const completionStore = new SQLCompletionStore();
+  const completionStore = new TestSQLCompletionStore();
 
   beforeEach(() => {
     // Reset the adapter engine
@@ -1184,7 +1184,7 @@ describe("tablesCompletionSource", () => {
     ];
 
     describe("SQL Completions", () => {
-      const completionStore = new SQLCompletionStore();
+      const completionStore = new TestSQLCompletionStore();
 
       beforeEach(() => {
         // Reset state

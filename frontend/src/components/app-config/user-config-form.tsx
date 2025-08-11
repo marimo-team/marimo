@@ -1267,8 +1267,7 @@ export const UserConfigForm: React.FC = () => {
                     name="experimental.sql_linter"
                   />
                   <FormDescription>
-                    Enable experimental SQL linting and autocompletion using
-                    CodeMirror.
+                    Enable experimental SQL linting and autocompletion.
                   </FormDescription>
                 </div>
               )}
