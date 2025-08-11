@@ -12,6 +12,9 @@
   "files": [
     "dist"
   ],
+  "exports": {
+    "./unstable_internal/*": "./src/*"
+  },
   "dependencies": {
     "@ai-sdk/react": "^1.2.12",
     "@anywidget/types": "^0.2.0",
