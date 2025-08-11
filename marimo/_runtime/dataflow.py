@@ -400,6 +400,7 @@ class DirectedGraph:
         return imports
 
     def get_multiply_defined(self) -> list[Name]:
+        """Return a list of names that are defined in multiple cells"""
         names: list[Name] = []
         for name, definers in self.definitions.items():
             if len(definers) > 1:
