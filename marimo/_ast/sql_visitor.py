@@ -5,7 +5,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any
+from typing import Any, Optional
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -35,7 +35,7 @@ class SQLVisitor(ast.NodeVisitor):
             # string or f-string
             if node.args:
                 first_arg = node.args[0]
-                sql = None
+                sql: Optional[str] = None
                 if isinstance(first_arg, ast.Constant):
                     sql = first_arg.value
                 elif isinstance(first_arg, ast.JoinedStr):
