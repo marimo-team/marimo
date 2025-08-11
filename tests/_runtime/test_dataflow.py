@@ -564,6 +564,26 @@ class TestSQL:
             "3": set(),
         }
 
+    @pytest.mark.xfail(reason="TODO: A bug in finding multiply defined names")
+    def test_redefine_sql_table_diff_schema(self):
+        graph = dataflow.DirectedGraph()
+        code = "t1 = 123"
+        first_cell = parse_cell(code)
+        graph.register_cell("0", first_cell)
+
+        code = 'df = mo.sql("CREATE TABLE schema1.t1 (i INTEGER, j INTEGER)")'
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert graph.cells == {
+            "0": first_cell,
+            "1": second_cell,
+        }
+
+        # Because t1 is qualified with schema1, it is not considered multiply defined
+        multiply_defined = graph.get_multiply_defined()
+        assert multiply_defined == []
+
     def test_no_sql_table_to_python_ref(self):
         graph = dataflow.DirectedGraph()
         code = 'df = mo.sql("CREATE TABLE t1 (i INTEGER, j INTEGER)")'
