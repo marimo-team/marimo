@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 import textwrap
 import warnings
+from unittest.mock import patch
 
 import pytest
 
@@ -13,8 +14,8 @@ from marimo._ast.app import App
 from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
-from marimo._save.cache import Cache, UIElementStub
-from tests.conftest import ExecReqProvider
+from marimo._save.cache import Cache, ModuleStub, UIElementStub
+from tests.conftest import ExecReqProvider, TestableModuleStub
 
 
 class TestCache:
@@ -72,10 +73,13 @@ class TestCache:
             meta={},
         )
 
+        # Force update to trigger stubbing.
+        cache.update(scope, {"return": None})
         assert "_list" in cache.defs
         assert "_dict" in cache.defs
 
     @staticmethod
+    @patch("marimo._save._cache_module.ModuleStub", TestableModuleStub)
     def test_cache_iterable() -> None:
         scope = {
             "_tuple": (1, 2, 3, marimo),
@@ -90,10 +94,43 @@ class TestCache:
             meta={},
         )
 
+        # Force update to trigger stubbing.
+        cache.update(scope, {"return": None})
         assert "_tuple" in cache.defs
         assert "_set" in cache.defs
-        assert marimo in cache.defs["_tuple"]
+        assert isinstance(cache.defs["_tuple"][-1], ModuleStub)
+        assert TestableModuleStub(marimo) in cache.defs["_set"]
+
+        cache.restore(scope)
+        assert marimo == cache.defs["_tuple"][-1]
         assert marimo in cache.defs["_set"]
+
+    @staticmethod
+    def test_cache_preserves_ref() -> None:
+        _set = {1, 2, 3, marimo}
+        _list = [1, 2, 3, _set]
+        _dict = {"_set": _set, "_list": _list}
+        scope = {
+            "_list": _list,
+            "_set": _set,
+            "_dict": _dict,
+        }
+        cache = Cache(
+            defs=scope,
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+        cache.update(scope, {"return": None})
+        assert "_list" in cache.defs
+        assert "_dict" in cache.defs
+        assert "_set" in cache.defs
+        assert id(cache.defs["_set"]) == id(_set)
+        assert id(cache.defs["_list"]) == id(_list)
+        assert id(cache.defs["_dict"]) == id(_dict)
 
     @staticmethod
     def test_cache_ui_element_update() -> None:

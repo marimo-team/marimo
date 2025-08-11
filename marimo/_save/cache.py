@@ -161,10 +161,15 @@ class Cache:
                 for item in value
             )
         elif isinstance(value, set):
+            # Sets cannot be recursive (require hashable items), but keep the
+            # reference.
             result = set(
                 self._restore_from_stub_if_needed(item, scope, memo)
                 for item in value
             )
+            value.clear()
+            value.update(result)
+            result = value
         elif isinstance(value, list):
             memo[obj_id] = value
             result = [
@@ -261,13 +266,20 @@ class Cache:
         elif isinstance(value, UIElement):
             result = UIElementStub(value)
         elif isinstance(value, tuple):
+            # tuples are immutable and cannot be recursive, but we still want to
+            # iteratively convert the internal items.
             result = tuple(
                 self._convert_to_stub_if_needed(item, memo) for item in value
             )
         elif isinstance(value, set):
+            # sets cannot be recursive (require hasable items), but we still
+            # maintain the original set reference.
             result = set(
                 self._convert_to_stub_if_needed(item, memo) for item in value
             )
+            value.clear()
+            value.update(result)
+            result = value
         elif isinstance(value, list):
             # Store placeholder to handle cycles
             memo[obj_id] = value
@@ -300,7 +312,7 @@ class Cache:
             assert context is not None, "Context could not be resolved"
             private_prefix = f"_cell_{context.cell_id}_"
         except (ContextNotInitializedError, AssertionError):
-            private_prefix = r"^_cell_\w+_"
+            private_prefix = r"_"
 
         return {
             (var, re.sub(r"^_", private_prefix, var)): value
