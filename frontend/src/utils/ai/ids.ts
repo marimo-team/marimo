@@ -33,7 +33,7 @@ export class AiModelId {
     return `${this.providerId}/${this.shortModelId}`;
   }
 
-  static parse(id: QualifiedModelId) {
+  static parse(id: string): AiModelId {
     if (!id.includes("/")) {
       const providerId = guessProviderId(id);
       return new AiModelId(providerId, id as ShortModelId);
