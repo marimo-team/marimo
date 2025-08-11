@@ -35,16 +35,6 @@ Columns:
   - active: boolean"
 `;
 
-exports[`TableContextProvider > getCompletions > should handle tables with special characters in names > special-chars-table-completions 1`] = `[]`;
-
-exports[`TableContextProvider > getCompletions > should return completions for dataframes vs tables > mixed-table-dataframe-completions 1`] = `[]`;
-
-exports[`TableContextProvider > getCompletions > should return completions for memory tables > memory-table-completions 1`] = `[]`;
-
-exports[`TableContextProvider > getCompletions > should return completions for remote tables > remote-table-completions 1`] = `[]`;
-
-exports[`TableContextProvider > getCompletions > should return empty completions when no tables > empty-completions 1`] = `[]`;
-
 exports[`TableContextProvider > getItems > should handle dataframe tables with variable names > dataframe-table 1`] = `
 [
   {
