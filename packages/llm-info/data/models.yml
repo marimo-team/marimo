@@ -1,0 +1,41 @@
+- name: Claude 3.5 Haiku
+  model: claude-3-5-haiku-latest
+  description: Fast and efficient model with excellent performance for everyday tasks
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.5 Sonnet
+  model: claude-3-5-sonnet-latest
+  description: Balanced model with strong performance across reasoning, math, and coding
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 3.7 Sonnet
+  model: claude-3-7-sonnet-latest
+  description: Enhanced Sonnet model with improved capabilities
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: false
+
+- name: Claude 4 Sonnet
+  model: claude-sonnet-4-20250514
+  description: Next-generation Sonnet model with advanced reasoning and multimodal capabilities
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 4 Opus
+  model: claude-opus-4-20250514
+  description: Most capable model with superior performance on complex tasks and reasoning
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+
+- name: Claude 4.1 Opus
+  model: claude-opus-4-1-20250805
+  description: Latest Opus model with enhanced capabilities and performance improvements
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true

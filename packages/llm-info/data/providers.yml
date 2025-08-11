@@ -1,0 +1,29 @@
+- name: OpenAI
+  id: openai
+  description: OpenAI's API for GPT models, including GPT-3.5 and GPT-4.
+  url: https://platform.openai.com/
+
+- name: Amazon Bedrock
+  id: bedrock
+  description: Amazon Bedrock provides access to foundation models from Amazon and leading AI startups via a unified API.
+  url: https://aws.amazon.com/bedrock/
+
+- name: Azure
+  id: azure
+  description: Azure provides access to models via the Azure cloud.
+  url: https://azure.microsoft.com/en-us/products/ai-services/
+
+- name: Anthropic
+  id: anthropic
+  description: Anthropic's Claude models for conversational and completion tasks.
+  url: https://www.anthropic.com/
+
+- name: Google AI
+  id: google
+  description: Google's Vertex AI and PaLM APIs for generative and conversational models.
+  url: https://cloud.google.com/vertex-ai/docs/generative-ai/learn/overview
+
+- name: Ollama
+  id: ollama
+  description: Ollama is a lightweight, open-source model server for running and sharing LLMs.
+  url: https://ollama.ai/
