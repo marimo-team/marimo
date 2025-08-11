@@ -929,10 +929,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             assert result.get_num_rows() == 5
             assert result.data["A"].to_list() == [10, 11, 12, 13, 14]
 
-        # Warning is about lazy-polars when collecting column names
-        assert len(recorded_warnings) == 1, [
-            str(w.message) for w in recorded_warnings
-        ]
+        assert len(recorded_warnings) == 0
 
     def test_to_json_bigint(self) -> None:
         import polars as pl
