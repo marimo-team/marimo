@@ -100,7 +100,11 @@ def hash_wrapped_functions(
     # there is a chance for a circular reference
     # likely manually created, but easy to guard against.
     def process_function(fn: Callable[..., Any]) -> bytes:
-        fn_hash = hash_module(fn.__code__, hash_type)
+        if not inspect.isbuiltin(fn):
+            fn_hash = hash_module(fn.__code__, hash_type)
+        else:
+            # Builtin functions are not hashable, so we use their name.
+            fn_hash = type_sign(bytes(fn.__name__, "utf-8"), "builtin")
         if fn_hash not in seen and hasattr(fn, "__wrapped__"):
             child_hash = hash_wrapped_functions(fn.__wrapped__, hash_type)
             return child_hash + fn_hash
