@@ -11,7 +11,7 @@ export const LLMInfoSchema = z.object({
   model: z.string(),
   description: z.string(),
   providers: z.array(z.string()),
-  roles: z.array(z.enum(["chat", "edit"])),
+  roles: z.array(z.enum(["chat", "edit", "embed", "rerank"])),
   thinking: z.boolean().default(false),
 });
 
