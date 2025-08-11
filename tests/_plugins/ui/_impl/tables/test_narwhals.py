@@ -934,9 +934,7 @@ def test_get_summary_all_types() -> None:
             "string": ["a", "b", "b", "c", "d", "d", "e"],
             "boolean": [True, False, False, True, False, False, True],
         },
-        # TODO: add back for polars and lazy-polars, they are currently breaking with
-        # a change to their hist() api ('break-point' has been renamed to 'breakpoint')
-        exclude=["ibis", "duckdb", "polars", "lazy-polars"],
+        exclude=["ibis", "duckdb"],
         strict=False,
     ),
 )
@@ -1027,9 +1025,7 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
                 datetime.date(2021, 1, 1),
             ],
         },
-        # TODO: add back for polars and lazy-polars, they are currently breaking with
-        # a change to their hist() api ('break-point' has been renamed to 'breakpoint')
-        exclude=["ibis", "duckdb", "polars", "lazy-polars"],
+        exclude=["ibis", "duckdb"],
     ),
 )
 class TestGetBinValuesTemporal:
