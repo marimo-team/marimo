@@ -8,7 +8,6 @@ from marimo._ast import compiler
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._messaging.errors import (
     CycleError,
-    DeleteNonlocalError,
     MultipleDefinitionError,
     SetupRootError,
 )
@@ -70,15 +69,6 @@ def test_underscore_variables_are_private() -> None:
     assert not errors
 
 
-def test_delete_nonlocal_error() -> None:
-    graph = dataflow.DirectedGraph()
-    graph.register_cell("0", parse_cell("x = 0"))
-    graph.register_cell("1", parse_cell("del x"))
-    errors = check_for_errors(graph)
-    assert set(errors.keys()) == set(["1"])
-    assert errors["1"] == (DeleteNonlocalError(name="x", cells=("0",)),)
-
-
 def test_two_node_cycle() -> None:
     graph = dataflow.DirectedGraph()
     graph.register_cell("0", parse_cell("x = y"))
@@ -136,6 +126,26 @@ def test_cycle_and_multiple_def() -> None:
         )
         assert multiple_definition_error.name == "z"
         assert multiple_definition_error.cells == (str((int(cell) + 1) % 2),)
+
+
+def test_del_ref_cycle() -> None:
+    graph = dataflow.DirectedGraph()
+
+    graph.register_cell("0", parse_cell("x = 1"))
+    graph.register_cell("1", parse_cell("del x; y = 1"))
+    graph.register_cell("2", parse_cell("z = x + y"))
+    errors = check_for_errors(graph)
+    # Edge ordering in returned error is not deterministic, so we list both
+    # possible cycles
+    expected_cycle = [
+        CycleError(edges_with_vars=(("2", ["x"], "1"), ("1", ["y"], "2"))),
+        CycleError(edges_with_vars=(("1", ["y"], "2"), ("2", ["x"], "1"))),
+    ]
+
+    assert len(errors["1"]) == 1
+    assert len(errors["2"]) == 1
+    assert errors["1"][0] in expected_cycle
+    assert errors["2"][0] in expected_cycle
 
 
 def test_setup_has_refs() -> None:

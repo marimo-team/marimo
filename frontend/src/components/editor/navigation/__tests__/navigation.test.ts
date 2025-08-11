@@ -8,10 +8,12 @@ import React, { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { MockNotebook } from "@/__mocks__/notebook";
+import { MockRequestClient } from "@/__mocks__/requests";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
 import { configOverridesAtom, userConfigAtom } from "@/core/config/config";
+import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import type { CellActionsDropdownHandle } from "../../cell/cell-actions";
 import {
@@ -47,10 +49,6 @@ vi.mock("../focus-utils", () => ({
   focusCell: vi.fn(),
 }));
 
-vi.mock("@/core/network/requests", () => ({
-  saveCellConfig: vi.fn(),
-}));
-
 // Get mocked functions
 const mockUseCellActions = vi.mocked(
   await import("@/core/cells/cells"),
@@ -67,7 +65,6 @@ const mockUseCellClipboard = vi.mocked(
 ).useCellClipboard;
 
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { saveCellConfig } from "@/core/network/requests";
 import { MultiColumn } from "@/utils/id-tree";
 import { focusCell, focusCellEditor } from "../focus-utils";
 import {
@@ -107,7 +104,7 @@ const mockCellActions = MockNotebook.cellActions({
   undoDeleteCell: vi.fn(),
 });
 
-const mockSaveCellConfig = vi.mocked(saveCellConfig);
+const mockRequestClient = MockRequestClient.create();
 
 // Helper to setup selection
 const setupSelection = () => {
@@ -127,6 +124,9 @@ const mockCellId = cellId1;
 describe("useCellNavigationProps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Set the request client in the store
+    store.set(requestClientAtom, mockRequestClient);
 
     // Setup mocks
     mockUseSaveNotebook.mockReturnValue({
@@ -1040,7 +1040,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId1]: { hide_code: true },
         },
@@ -1063,7 +1063,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId3]: { hide_code: false },
         },
@@ -1093,7 +1093,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(mockSaveCellConfig).toHaveBeenCalledWith({
+      expect(mockRequestClient.saveCellConfig).toHaveBeenCalledWith({
         configs: {
           [cellId1]: { hide_code: true },
           [cellId2]: { hide_code: true },

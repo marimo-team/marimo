@@ -2,7 +2,7 @@
 
 import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { toast } from "@/components/ui/use-toast";
-import { sendCreateFileOrFolder } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { serializeBlob } from "@/utils/blob";
 import { Logger } from "@/utils/Logger";
 import { type FilePath, PathBuilder } from "@/utils/paths";
@@ -11,6 +11,7 @@ import { refreshRoot } from "./state";
 const MAX_SIZE = 1024 * 1024 * 100; // 100MB
 
 export function useFileExplorerUpload(options: DropzoneOptions = {}) {
+  const { sendCreateFileOrFolder } = useRequestClient();
   return useDropzone({
     multiple: true,
     maxSize: MAX_SIZE,

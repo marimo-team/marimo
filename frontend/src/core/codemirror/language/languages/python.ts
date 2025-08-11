@@ -25,7 +25,7 @@ import type {
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { openFile } from "@/core/network/requests";
+import { getRequestClient } from "@/core/network/requests";
 import { Logger } from "@/utils/Logger";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../../cells/state";
@@ -263,8 +263,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
                 // Local definition
                 return;
               }
-
-              openFile({
+              getRequestClient().openFile({
                 path: result.uri.replace("file://", ""),
               });
             },

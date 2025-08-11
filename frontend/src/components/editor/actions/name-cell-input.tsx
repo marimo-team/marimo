@@ -78,7 +78,7 @@ export const NameCellContentEditable: React.FC<{
     <Tooltip content="Click to rename">
       <span
         className={cn(
-          "outline-none border hover:border-cyan-500/40 focus:border-cyan-500/40",
+          "outline-hidden border hover:border-cyan-500/40 focus:border-cyan-500/40",
           className,
         )}
         contentEditable={true}

@@ -231,7 +231,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
 
   return (
     <section>
-      <div className="flex flex-col items-start justify-start flex-grow gap-3">
+      <div className="flex flex-col items-start justify-start grow gap-3">
         <div
           className={cn(
             "hover:text-primary",
@@ -240,21 +240,21 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
             "border rounded-sm",
             "text-sm text-muted-foreground",
             "hover:cursor-pointer",
-            "active:shadow-xsSolid",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent",
+            "active:shadow-xs-solid",
+            "focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent",
             !isFocused && "border-input/60 border-dashed",
             isFocused && "border-solid",
           )}
           {...getRootProps()}
         >
           <input {...getInputProps()} />
-          <div className="flex flex-col items-center justify-center flex-grow gap-3">
+          <div className="flex flex-col items-center justify-center grow gap-3">
             {uploaded ? (
               <span>To re-upload: {renderHTML({ html: label })}</span>
             ) : (
               <span className="mt-0">{renderHTML({ html: label })}</span>
             )}
-            <div className="flex flex-row items-center justify-center flex-grow gap-3">
+            <div className="flex flex-row items-center justify-center grow gap-3">
               <Upload
                 strokeWidth={1.4}
                 className={cn(

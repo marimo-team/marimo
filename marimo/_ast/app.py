@@ -45,7 +45,6 @@ from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
     CycleError,
-    DeleteNonlocalError,
     MultipleDefinitionError,
     SetupRootError,
     UnparsableError,
@@ -567,13 +566,6 @@ class App:
                 raise MultipleDefinitionError(
                     "This app can't be run because it has multiple "
                     f"definitions of the name {multiply_defined_names[0]}"
-                )
-            deleted_nonlocal_refs = self._graph.get_deleted_nonlocal_ref()
-            if deleted_nonlocal_refs:
-                raise DeleteNonlocalError(
-                    "This app can't be run because at least one cell "
-                    "deletes one of its refs (the ref's name is "
-                    f"{deleted_nonlocal_refs[0]})"
                 )
             self._execution_order = dataflow.topological_sort(
                 self._graph, list(self._cell_manager.valid_cell_ids())

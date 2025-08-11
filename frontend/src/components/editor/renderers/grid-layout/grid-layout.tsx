@@ -146,7 +146,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
       className={cn(
         "w-full mx-auto bg-background flex-1 min-h-full",
         // Show grid border and background when editing
-        enableInteractions && "bg-[var(--slate-2)] border-r",
+        enableInteractions && "bg-(--slate-2) border-r",
         // Disable animations and add padding when reading
         isReading && "disable-animation",
         !layout.maxWidth && "min-w-[800px]",
@@ -287,15 +287,11 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         setIsLocked={setIsLocked}
       />
       <div className={cn("relative flex z-10 flex-1 overflow-hidden")}>
-        <div
-          className={cn(
-            "flex-grow overflow-auto transparent-when-disconnected",
-          )}
-        >
+        <div className={cn("grow overflow-auto transparent-when-disconnected")}>
           {grid}
         </div>
-        <div className="flex-none flex flex-col w-[300px] p-2 pb-20 gap-2 overflow-auto bg-[var(--slate-2)] border-t border-x rounded-t shadow-sm transparent-when-disconnected mx-2 mt-4">
-          <div className="text font-bold text-[var(--slate-20)] flex-shrink-0">
+        <div className="flex-none flex flex-col w-[300px] p-2 pb-20 gap-2 overflow-auto bg-(--slate-2) border-t border-x rounded-t shadow-sm transparent-when-disconnected mx-2 mt-4">
+          <div className="text font-bold text-(--slate-20) shrink-0">
             Outputs
           </div>
           {notInGrid.map((cell) => (
@@ -320,7 +316,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               }}
               className={cn(
                 DRAG_HANDLE,
-                "droppable-element bg-background border-border border overflow-hidden p-2 rounded flex-shrink-0",
+                "droppable-element bg-background border-border border overflow-hidden p-2 rounded shrink-0",
               )}
             >
               <GridCell
@@ -530,10 +526,10 @@ const EditableGridCell = React.forwardRef(
         className={cn(
           className,
           "relative z-10 hover:z-20",
-          "bg-background border-transparent hover:border-[var(--sky-8)] border",
-          popoverOpened && "border-[var(--sky-8)] z-20",
+          "bg-background border-transparent hover:border-(--sky-8) border",
+          popoverOpened && "border-(--sky-8) z-20",
           !popoverOpened && "hover-actions-parent",
-          isDragging && "bg-[var(--slate-2)] border-border z-20",
+          isDragging && "bg-(--slate-2) border-border z-20",
         )}
       >
         {children}
@@ -589,7 +585,7 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
   return (
     <div
       className={cn(
-        "absolute right-0 p-1 bg-[var(--sky-8)] text-white h-6 z-10 flex gap-2",
+        "absolute right-0 p-1 bg-(--sky-8) text-white h-6 z-10 flex gap-2",
         !popoverOpened && "hover-action",
         display === "top" && "-top-6 rounded-t",
         display === "bottom" && "-bottom-6 rounded-b",

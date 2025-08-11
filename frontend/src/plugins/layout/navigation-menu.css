@@ -1,3 +1,5 @@
+@reference "../../css/globals.css";
+
 /* This will hide text and only show icons when the sidebar is collapsed */
 .auto-collapse-nav[data-orientation="vertical"] {
   container-type: inline-size;

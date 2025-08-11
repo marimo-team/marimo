@@ -23,8 +23,7 @@ jobs:
           filters: |
             frontend:
               - 'frontend/**'
-              - 'lsp/**'
-              - 'openapi/**'
+              - 'packages/**'
 
   test_frontend:
     needs: changes

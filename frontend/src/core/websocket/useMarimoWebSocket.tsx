@@ -114,7 +114,12 @@ export function useMarimoWebSocket(opts: {
         const buffers = (msg.data.buffers ?? []) as Base64String[];
 
         if (modelId && isMessageWidgetState(message)) {
-          handleWidgetMessage(modelId, message, buffers, MODEL_MANAGER);
+          handleWidgetMessage({
+            modelId,
+            msg: message,
+            buffers,
+            modelManager: MODEL_MANAGER,
+          });
         }
 
         if (uiElement) {

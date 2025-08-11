@@ -19,8 +19,8 @@ export const FooterItem: React.FC<FooterItemProps> = forwardRef<
       ref={ref}
       className={cn(
         "h-full flex items-center p-2 text-sm shadow-inset font-mono cursor-pointer rounded",
-        !selected && "hover:bg-[var(--sage-3)]",
-        selected && "bg-[var(--sage-4)]",
+        !selected && "hover:bg-(--sage-3)",
+        selected && "bg-(--sage-4)",
         className,
       )}
       {...rest}

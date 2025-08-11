@@ -1,4 +1,5 @@
 /* -- Autocomplete Styling -- */
+@reference "../../css/globals.css";
 
 #root {
   /* Base styling for autocomplete container */

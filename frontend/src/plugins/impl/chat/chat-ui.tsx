@@ -247,10 +247,10 @@ export const Chatbot: React.FC<Props> = (props) => {
 
   return (
     <div
-      className="flex flex-col h-full bg-[var(--slate-1)] rounded-lg shadow border border-[var(--slate-6)] overflow-hidden relative"
+      className="flex flex-col h-full bg-(--slate-1) rounded-lg shadow border border-(--slate-6) overflow-hidden relative"
       style={{ maxHeight: props.maxHeight }}
     >
-      <div className="absolute top-0 right-0 flex justify-end z-10 border border-[var(--slate-6)] bg-inherit rounded-bl-lg">
+      <div className="absolute top-0 right-0 flex justify-end z-10 border border-(--slate-6) bg-inherit rounded-bl-lg">
         <Button
           variant="text"
           size="icon"
@@ -264,7 +264,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         </Button>
       </div>
       <div
-        className="flex-grow overflow-y-auto gap-4 pt-8 pb-4 px-2 flex flex-col"
+        className="grow overflow-y-auto gap-4 pt-8 pb-4 px-2 flex flex-col"
         ref={scrollContainerRef}
       >
         {messages.length === 0 && (
@@ -287,8 +287,8 @@ export const Chatbot: React.FC<Props> = (props) => {
             <div
               className={`max-w-[80%] p-3 rounded-lg ${
                 message.role === "user"
-                  ? "bg-[var(--sky-11)] text-[var(--slate-1)]"
-                  : "bg-[var(--slate-4)] text-[var(--slate-12)]"
+                  ? "bg-(--sky-11) text-(--slate-1)"
+                  : "bg-(--slate-4) text-(--slate-12)"
               }`}
             >
               <p
@@ -306,16 +306,16 @@ export const Chatbot: React.FC<Props> = (props) => {
                     title: "Copied to clipboard",
                   });
                 }}
-                className="text-xs text-[var(--slate-9)] hover:text-[var(--slate-11)]"
+                className="text-xs text-(--slate-9) hover:text-(--slate-11)"
               >
                 <ClipboardIcon className="h-3 w-3" />
               </button>
               <button
                 type="button"
                 onClick={() => handleDelete(message.id)}
-                className="text-xs text-[var(--slate-9)] hover:text-[var(--slate-11)]"
+                className="text-xs text-(--slate-9) hover:text-(--slate-11)"
               >
-                <Trash2Icon className="h-3 w-3 text-[var(--red-9)]" />
+                <Trash2Icon className="h-3 w-3 text-(--red-9)" />
               </button>
             </div>
           </div>
@@ -328,7 +328,7 @@ export const Chatbot: React.FC<Props> = (props) => {
               variant="link"
               size="sm"
               onClick={() => stop()}
-              className="text-[var(--red-9)] hover:text-[var(--red-11)]"
+              className="text-(--red-9) hover:text-(--red-11)"
             >
               Stop
             </Button>
@@ -352,7 +352,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           });
         }}
         ref={formRef}
-        className="flex w-full border-t border-[var(--slate-6)] px-2 py-1 items-center"
+        className="flex w-full border-t border-(--slate-6) px-2 py-1 items-center"
       >
         {props.showConfigurationControls && (
           <ConfigPopup config={config} onChange={setConfig} />
@@ -391,7 +391,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         {files && files.length === 1 && (
           <span
             title={files[0].name}
-            className="text-sm text-[var(--slate-11)] truncate flex-shrink-0 w-24"
+            className="text-sm text-(--slate-11) truncate shrink-0 w-24"
           >
             {files[0].name}
           </span>
@@ -399,7 +399,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         {files && files.length > 1 && (
           <span
             title={[...files].map((f) => f.name).join("\n")}
-            className="text-sm text-[var(--slate-11)] truncate flex-shrink-0"
+            className="text-sm text-(--slate-11) truncate shrink-0"
           >
             {files.length} files
           </span>
@@ -453,7 +453,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           disabled={isLoading || !input}
           variant="outline"
           size="sm"
-          className="text-[var(--slate-11)]"
+          className="text-(--slate-11)"
         >
           <SendIcon className="h-5 w-5" />
         </Button>

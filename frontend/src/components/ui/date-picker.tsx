@@ -43,7 +43,7 @@ const DatePickerContent = ({
   >
     <AriaDialog
       className={cn(
-        "flex w-full flex-col space-y-4 outline-none sm:flex-row sm:space-x-4 sm:space-y-0",
+        "flex w-full flex-col space-y-4 outline-hidden sm:flex-row sm:space-x-4 sm:space-y-0",
         className,
       )}
       {...props}
@@ -86,7 +86,7 @@ const DatePicker = <T extends AriaDateValue>({
           }}
           className={cn(
             buttonVariants({ variant: "text", size: "icon" }),
-            "ml-1 size-6 data-[focus-visible]:ring-offset-0",
+            "ml-1 size-6 data-focus-visible:ring-offset-0",
           )}
         >
           <CalendarIcon aria-hidden={true} className="size-4" />
@@ -155,7 +155,7 @@ const DateRangePicker = <T extends AriaDateValue>({
           }}
           className={cn(
             buttonVariants({ variant: "text", size: "icon" }),
-            "ml-1 size-6 data-[focus-visible]:ring-offset-0",
+            "ml-1 size-6 data-focus-visible:ring-offset-0",
           )}
         >
           <CalendarIcon aria-hidden={true} className="size-4" />

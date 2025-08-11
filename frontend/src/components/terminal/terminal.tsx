@@ -101,7 +101,7 @@ const TerminalComponent: React.FC<{
   }, []);
 
   return (
-    <div className="relative w-full h-[calc(100%-4px)] dark bg-[var(--slate-1)]">
+    <div className="relative w-full h-[calc(100%-4px)] dark bg-(--slate-1)">
       <div className="w-full h-full" ref={terminalRef} />
     </div>
   );

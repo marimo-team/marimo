@@ -19,7 +19,7 @@ export const ConnectingAlert: React.FC = () => {
     (isConnecting && (
       <>
         <DelayMount milliseconds={SHORT_DELAY_MS}>
-          <div className="absolute top-4 m-0 flex items-center min-h-[28px] left-1/2 transform -translate-x-1/2 z-[200] ">
+          <div className="absolute top-4 m-0 flex items-center min-h-[28px] left-1/2 transform -translate-x-1/2 z-200 ">
             <Tooltip content="Connecting to a marimo runtime">
               <div className="flex items-center">
                 <LoadingEllipsis size={5} className="text-yellow-500" />

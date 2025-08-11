@@ -3,7 +3,7 @@
 import { downloadBlob } from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
-import { exportAsHTML } from "../network/requests";
+import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "./virtual-file-tracker";
 
 /**
@@ -13,8 +13,9 @@ export async function downloadAsHTML(opts: {
   filename: string;
   includeCode: boolean;
 }) {
+  const client = getRequestClient();
   const { filename, includeCode } = opts;
-  const html = await exportAsHTML({
+  const html = await client.exportAsHTML({
     download: true,
     includeCode: includeCode,
     files: VirtualFileTracker.INSTANCE.filenames(),

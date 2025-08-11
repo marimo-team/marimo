@@ -6,7 +6,7 @@ import type {
   DataColumnPreview,
   OperationMessageData,
 } from "../kernel/messages";
-import { previewDatasetColumn } from "../network/requests";
+import { getRequestClient } from "../network/requests";
 import type { VariableName } from "../variables/types";
 import type { DatasetsState } from "./types";
 
@@ -26,6 +26,7 @@ const {
   useActions,
 } = createReducerAndAtoms(initialState, {
   addDatasets: (state, datasets: OperationMessageData<"datasets">) => {
+    const { previewDatasetColumn } = getRequestClient();
     // Quietly in the background make requests to get the previews for
     // opened columns, in the new tables
     for (const table of datasets.tables) {

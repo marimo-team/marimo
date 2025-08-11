@@ -13,7 +13,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { hotkeysAtom } from "@/core/config/config";
-import { sendFileDetails, sendUpdateFile } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -43,6 +43,7 @@ const unsavedContentsForFile = new Map<string, string>();
 
 export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   const { theme } = useTheme();
+  const { sendFileDetails, sendUpdateFile } = useRequestClient();
   const hotkeys = useAtomValue(hotkeysAtom);
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");

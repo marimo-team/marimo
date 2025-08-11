@@ -4,7 +4,7 @@ import { useCallback } from "react"; /* Copyright 2024 Marimo. All rights reserv
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { saveCellConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { Objects } from "@/utils/objects";
 
@@ -13,6 +13,7 @@ import { Objects } from "@/utils/objects";
  */
 export const useHideAllMarkdownCode = () => {
   const { updateCellConfig } = useCellActions();
+  const { saveCellConfig } = useRequestClient();
 
   return useCallback(async () => {
     const markdownAdapter = new MarkdownLanguageAdapter();

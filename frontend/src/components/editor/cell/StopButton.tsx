@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { SquareIcon } from "lucide-react";
 import type { JSX } from "react";
-import { sendInterrupt } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { RuntimeState } from "@/core/network/types";
 import { isAppInteractionDisabled } from "@/core/websocket/connection-utils";
 import type { WebSocketState } from "@/core/websocket/types";
@@ -15,6 +15,7 @@ export const StopButton = (props: {
   connectionState: WebSocketState;
 }): JSX.Element => {
   const { connectionState, status } = props;
+  const { sendInterrupt } = useRequestClient();
 
   const running = status === "running";
 

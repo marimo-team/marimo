@@ -974,6 +974,44 @@ def test_cycles() -> None:
     assert not graph.cycles
 
 
+def test_del_del_cycle():
+    """Two variables that delete the same variable form a cycle."""
+    graph = dataflow.DirectedGraph()
+
+    graph.register_cell("0", parse_cell("del x"))
+    graph.register_cell("1", parse_cell("del x"))
+    assert len(graph.cycles) == 1
+    assert set(list(graph.cycles)[0]) == set((("0", "1"), ("1", "0")))
+
+
+def test_del_ref_cycle():
+    """One cell deletes a variable and defines another, the other refs both."""
+    graph = dataflow.DirectedGraph()
+
+    graph.register_cell("0", parse_cell("x = 1"))
+    graph.register_cell("1", parse_cell("del x; y = 1"))
+    graph.register_cell("2", parse_cell("z = x + y"))
+    assert len(graph.cycles) == 1
+    assert set(list(graph.cycles)[0]) == set([("1", "2"), ("2", "1")])
+
+
+def test_del_child_of_ref():
+    """Cells that delete a variable become a child of cells that reference it."""
+    graph = dataflow.DirectedGraph()
+
+    graph.register_cell("0", parse_cell("del x"))
+    graph.register_cell("1", parse_cell("x"))
+    graph.register_cell("2", parse_cell("x = 1"))
+    assert graph.parents["0"] == set(["1", "2"])
+    assert graph.children["0"] == set()
+
+    assert graph.parents["1"] == set(["2"])
+    assert graph.children["1"] == set(["0"])
+
+    assert graph.parents["2"] == set([])
+    assert graph.children["2"] == set(["0", "1"])
+
+
 def test_get_path() -> None:
     """Test the get_path method."""
     graph = dataflow.DirectedGraph()

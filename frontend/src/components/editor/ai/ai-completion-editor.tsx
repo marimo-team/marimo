@@ -146,10 +146,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
       >
         {enabled && (
           <>
-            <SparklesIcon
-              className="text-[var(--blue-10)] flex-shrink-0"
-              size={16}
-            />
+            <SparklesIcon className="text-(--blue-10) shrink-0" size={16} />
             <PromptInput
               inputRef={inputRef}
               theme={theme}
@@ -192,9 +189,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   setCompletion("");
                 }}
               >
-                <span className="text-[var(--grass-11)] opacity-100">
-                  Accept
-                </span>
+                <span className="text-(--grass-11) opacity-100">Accept</span>
               </Button>
             )}
             <div className="h-full w-px bg-border mx-2" />
@@ -227,7 +222,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 setCompletion("");
               }}
             >
-              <XIcon className="text-[var(--red-10)]" size={16} />
+              <XIcon className="text-(--red-10)" size={16} />
             </Button>
           </>
         )}

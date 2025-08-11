@@ -28,7 +28,7 @@ import { autoInstantiateAtom, isAiEnabled } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
-import { saveCellConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { WebSocketState } from "@/core/websocket/types";
@@ -93,6 +93,7 @@ const CellEditorInternal = ({
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
+  const { saveCellConfig } = useRequestClient();
 
   const loading = status === "running" || status === "queued";
   const cellActions = useCellActions();

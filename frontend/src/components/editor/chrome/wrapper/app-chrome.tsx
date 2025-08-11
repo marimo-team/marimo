@@ -125,7 +125,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     <ErrorBoundary>
       <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
         <div className="p-3 border-b flex justify-between items-center">
-          <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
+          <div className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
             {selectedPanel}
           </div>
           <Button
@@ -168,8 +168,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-[var(--slate-1)] no-print print:hidden hide-on-fullscreen",
-        isSidebarOpen && "border-r border-l border-[var(--slate-7)]",
+        "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
+        isSidebarOpen && "border-r border-l border-(--slate-7)",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -198,8 +198,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-[var(--slate-1)] no-print print:hidden hide-on-fullscreen",
-        isTerminalOpen && "border-[var(--slate-7)]",
+        "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
+        isTerminalOpen && "border-(--slate-7)",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open

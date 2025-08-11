@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { sendRun } from "../network/requests";
+
+import { getRequestClient } from "../network/requests";
 import { store } from "../state/jotai";
 import { variablesAtom } from "../variables/state";
 import { type CellActions, notebookAtom } from "./cells";
@@ -55,6 +56,7 @@ export function maybeAddMarimoImport({
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
 }): boolean {
+  const client = getRequestClient();
   return maybeAddMissingImport({
     moduleName: "marimo",
     variableName: "mo",
@@ -69,7 +71,10 @@ export function maybeAddMarimoImport({
         autoFocus: false,
       });
       if (autoInstantiate) {
-        void sendRun({ cellIds: [newCellId], codes: [importStatement] });
+        void client.sendRun({
+          cellIds: [newCellId],
+          codes: [importStatement],
+        });
       }
     },
   });
@@ -84,6 +89,7 @@ export function maybeAddAltairImport({
   createNewCell: CellActions["createNewCell"];
   fromCellId?: CellId | null;
 }): boolean {
+  const client = getRequestClient();
   return maybeAddMissingImport({
     moduleName: "altair",
     variableName: "alt",
@@ -98,7 +104,10 @@ export function maybeAddAltairImport({
         autoFocus: false,
       });
       if (autoInstantiate) {
-        void sendRun({ cellIds: [newCellId], codes: [importStatement] });
+        void client.sendRun({
+          cellIds: [newCellId],
+          codes: [importStatement],
+        });
       }
     },
   });

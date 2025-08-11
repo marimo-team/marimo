@@ -185,6 +185,13 @@ _()
 
 Here, the variables `plt`, `fig`, and `ax` aren't added to the globals.
 
+### Managing memory
+
+Because variable names must be unique, you cannot reassign variables as a means
+of freeing memory. Instead, manage memory by encapsulating code in functions or
+using the `del` operator. See our guide on [expensive
+notebooks](expensive_notebooks.md#manage-memory) to learn more.
+
 ## Configuring how marimo runs cells
 
 Through the notebook settings menu, you can configure how and when marimo runs

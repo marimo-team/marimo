@@ -105,7 +105,7 @@ export const TableActions = <TData,>({
   };
 
   return (
-    <div className="flex items-center flex-shrink-0 pt-1">
+    <div className="flex items-center shrink-0 pt-1">
       {onSearchQueryChange && enableSearch && (
         <Tooltip content="Search">
           <Button

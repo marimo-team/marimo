@@ -1,3 +1,5 @@
+@reference "../css/globals.css";
+
 .markdown p:first-child,
 .markdown .paragraph:first-child {
   /* This is needed when markdown is used inside buttons or labels  */

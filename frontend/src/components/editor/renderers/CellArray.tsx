@@ -272,7 +272,7 @@ const AddCellButtons: React.FC<{
             })
           }
         >
-          <SquareCodeIcon className="mr-2 size-4 flex-shrink-0" />
+          <SquareCodeIcon className="mr-2 size-4 shrink-0" />
           Python
         </Button>
         <Button
@@ -291,7 +291,7 @@ const AddCellButtons: React.FC<{
             });
           }}
         >
-          <SquareMIcon className="mr-2 size-4 flex-shrink-0" />
+          <SquareMIcon className="mr-2 size-4 shrink-0" />
           Markdown
         </Button>
         <Button
@@ -309,7 +309,7 @@ const AddCellButtons: React.FC<{
             });
           }}
         >
-          <DatabaseIcon className="mr-2 size-4 flex-shrink-0" />
+          <DatabaseIcon className="mr-2 size-4 shrink-0" />
           SQL
         </Button>
         <Tooltip
@@ -326,7 +326,7 @@ const AddCellButtons: React.FC<{
             disabled={!aiEnabled || !isConnected}
             onClick={isAiButtonOpenActions.toggle}
           >
-            <SparklesIcon className="mr-2 size-4 flex-shrink-0" />
+            <SparklesIcon className="mr-2 size-4 shrink-0" />
             Generate with AI
           </Button>
         </Tooltip>
@@ -341,7 +341,7 @@ const AddCellButtons: React.FC<{
           "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "w-fit",
           isAiButtonOpen &&
-            "opacity-100 w-full max-w-4xl shadow-lg shadow-[var(--blue-3)]",
+            "opacity-100 w-full max-w-4xl shadow-lg shadow-(--blue-3)",
           className,
         )}
       >

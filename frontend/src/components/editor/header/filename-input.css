@@ -1,11 +1,13 @@
+@reference "../../../css/globals.css";
+
 .missing-filename {
   text-align: center;
-  @apply shadow-mdSolid shadow-stale;
+  @apply shadow-md-solid shadow-stale;
 }
 
 .missing-filename:hover,
 .missing-filename:focus {
-  @apply shadow-lgSolid shadow-stale;
+  @apply shadow-lg-solid shadow-stale;
 }
 
 .filename {
@@ -15,5 +17,5 @@
 
 .filename:hover,
 .filename:focus {
-  @apply border shadow-lgSolid;
+  @apply border shadow-lg-solid;
 }

@@ -99,7 +99,7 @@ export const AddCellWithAI: React.FC<{
 
   const inputComponent = (
     <div className="flex items-center px-3">
-      <SparklesIcon className="size-4 text-[var(--blue-11)]" />
+      <SparklesIcon className="size-4 text-(--blue-11)" />
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild={true}>
           <Button
@@ -170,7 +170,7 @@ export const AddCellWithAI: React.FC<{
             onClose();
           }}
         >
-          <span className="text-[var(--grass-11)] opacity-100">Accept</span>
+          <span className="text-(--grass-11) opacity-100">Accept</span>
         </Button>
       )}
       <Button variant="text" size="sm" className="mb-0" onClick={onClose}>
@@ -185,9 +185,8 @@ export const AddCellWithAI: React.FC<{
       {!completion && (
         <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1">
           <span>
-            You can mention{" "}
-            <span className="text-[var(--cyan-11)]">@dataframe</span> or{" "}
-            <span className="text-[var(--cyan-11)]">@sql_table</span> to pull
+            You can mention <span className="text-(--cyan-11)">@dataframe</span>{" "}
+            or <span className="text-(--cyan-11)">@sql_table</span> to pull
             additional context such as column names.
           </span>
           <span>Code from other cells is automatically included.</span>

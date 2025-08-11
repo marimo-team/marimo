@@ -41,7 +41,7 @@ import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { userConfigAtom } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
-import { saveCellConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
 import { useEventListener } from "@/hooks/useEventListener";
@@ -125,6 +125,7 @@ export function useMultiCellActionButtons(cellIds: CellId[]) {
   const runCells = useRunCells();
   const pendingDeleteService = usePendingDeleteService();
   const userConfig = useAtomValue(userConfigAtom);
+  const { saveCellConfig } = useRequestClient();
 
   const selectedCount = cellIds.length;
 
@@ -370,15 +371,15 @@ const MultiCellPendingDeleteBar: React.FC<{ cellIds: CellId[] }> = ({
       data-keep-cell-selection={true}
     >
       <div className="mx-20">
-        <div className="bg-[var(--amber-2)] border border-[var(--amber-6)] rounded-lg shadow-lg mt-14 px-4 py-3 animate-in slide-in-from-top-2 duration-200">
+        <div className="bg-(--amber-2) border border-(--amber-6) rounded-lg shadow-lg mt-14 px-4 py-3 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-start gap-3">
-            <AlertTriangleIcon className="w-4 h-4 text-[var(--amber-11)] mt-0.5 flex-shrink-0" />
+            <AlertTriangleIcon className="w-4 h-4 text-(--amber-11) mt-0.5 shrink-0" />
             <div className="flex-1">
               <div className="font-code text-sm text-[0.84375rem]">
-                <p className="text-[var(--amber-11)] font-medium">
+                <p className="text-(--amber-11) font-medium">
                   Some cells in selection may contain expensive operations.
                 </p>
-                <p className="text-[var(--amber-11)] mt-1">
+                <p className="text-(--amber-11) mt-1">
                   Are you sure you want to delete?
                 </p>
               </div>
@@ -394,7 +395,7 @@ const MultiCellPendingDeleteBar: React.FC<{ cellIds: CellId[] }> = ({
                     size="xs"
                     variant="ghost"
                     onClick={() => pendingDeleteService.clear()}
-                    className="text-[var(--amber-11)] hover:bg-[var(--amber-4)] hover:text-[var(--amber-11)]"
+                    className="text-(--amber-11) hover:bg-(--amber-4) hover:text-(--amber-11)"
                   >
                     Cancel
                   </Button>
@@ -406,7 +407,7 @@ const MultiCellPendingDeleteBar: React.FC<{ cellIds: CellId[] }> = ({
                       pendingDeleteService.clear();
                       selectionActions.clear();
                     }}
-                    className="bg-[var(--amber-11)] hover:bg-[var(--amber-12)] text-white border-[var(--amber-11)]"
+                    className="bg-(--amber-11) hover:bg-(--amber-12) text-white border-(--amber-11)"
                   >
                     Delete
                   </Button>
@@ -453,17 +454,14 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
       className="absolute top-12 justify-center flex w-full left-0 right-0 z-50"
       data-keep-cell-selection={true}
     >
-      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-[var(--slate-7)] rounded-lg shadow-lg p-2 overflow-x-auto overflow-y-hidden mx-20 scrollbar-thin">
+      <div className="bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60 border border-(--slate-7) rounded-lg shadow-lg p-2 overflow-x-auto overflow-y-hidden mx-20 scrollbar-thin">
         <div className="flex items-center gap-1">
-          <span className="text-sm font-medium text-muted-foreground px-2 flex-shrink-0">
+          <span className="text-sm font-medium text-muted-foreground px-2 shrink-0">
             {selectedCount} cells selected
           </span>
           <Separator />
           {actions.map((group, groupIndex) => (
-            <div
-              key={groupIndex}
-              className="flex items-center gap-2 flex-shrink-0"
-            >
+            <div key={groupIndex} className="flex items-center gap-2 shrink-0">
               {group.map((action) => (
                 <Button
                   key={action.label}
@@ -472,7 +470,7 @@ const MultiCellActionToolbarInternal = ({ cellIds }: { cellIds: CellId[] }) => {
                   }
                   size="sm"
                   onClick={() => action.handle(cellIds)}
-                  className="h-8 px-2 gap-1 flex-shrink-0 flex items-center"
+                  className="h-8 px-2 gap-1 shrink-0 flex items-center"
                   title={action.label}
                   disabled={isPendingDelete && action.label !== "Delete cells"}
                 >

@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { toast } from "@/components/ui/use-toast";
-import { sendCopy } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import { openNotebook } from "@/utils/links";
 import { PathBuilder, Paths } from "@/utils/paths";
 
 export function useCopyNotebook(source: string | null) {
   const { openPrompt, closeModal } = useImperativeModal();
+  const { sendCopy } = useRequestClient();
 
   return () => {
     if (!source) {

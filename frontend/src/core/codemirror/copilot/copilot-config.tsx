@@ -149,7 +149,7 @@ export const CopilotConfig = memo(() => {
         return (
           <div className="flex items-center gap-5">
             <Label className="font-normal flex items-center">
-              <div className="inline-flex items-center justify-center bg-[var(--grass-7)] rounded-full p-1 mr-2">
+              <div className="inline-flex items-center justify-center bg-(--grass-7) rounded-full p-1 mr-2">
                 <CheckIcon className="h-3 w-3 text-white" />
               </div>
               Connected

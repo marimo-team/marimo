@@ -69,7 +69,7 @@ export const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({
       <AccordionItem value="tool-call" className="border-0">
         <AccordionTrigger
           className={cn(
-            "h-6 text-xs border-border !shadow-none !ring-0 bg-muted hover:bg-muted/30 py-0 px-2 gap-1 rounded-sm [&[data-state=open]>svg]:rotate-180",
+            "h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 rounded-sm [&[data-state=open]>svg]:rotate-180",
             status === "error" && "text-destructive/80",
             status === "success" && "text-green-600/80",
           )}

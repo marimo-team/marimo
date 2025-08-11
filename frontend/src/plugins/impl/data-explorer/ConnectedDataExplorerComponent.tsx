@@ -244,8 +244,8 @@ const HorizontalCarouselItem = ({
   children: React.ReactNode;
 }): React.ReactNode => {
   return (
-    <div className="flex-shrink-0 bg-card shadow-md border overflow-hidden rounded snap-start">
-      <div className="flex flex-row justify-between items-center bg-[var(--slate-3)] py-0.5 px-2">
+    <div className="shrink-0 bg-card shadow-md border overflow-hidden rounded snap-start">
+      <div className="flex flex-row justify-between items-center bg-(--slate-3) py-0.5 px-2">
         <div className="text-sm font-medium">{title}</div>
         {actions}
       </div>

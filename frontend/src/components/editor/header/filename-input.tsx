@@ -3,7 +3,6 @@
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { FilePenIcon } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
-import { sendListFiles } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Paths } from "@/utils/paths";
@@ -20,6 +19,7 @@ import { FILE_TYPE_ICONS, guessFileType } from "../file-tree/types";
 
 import "./filename-input.css";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import { useRequestClient } from "@/core/network/requests";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
 
 interface FilenameInputProps {
@@ -39,6 +39,7 @@ export const FilenameInput = ({
   onNameChange,
   className,
 }: FilenameInputProps): JSX.Element => {
+  const { sendListFiles } = useRequestClient();
   const [searchValue, setSearchValue] = useState(initialValue);
   const [suggestions, setSuggestions] = useState<FileInfo[]>([]);
   const [focused, setFocused] = useState<boolean>(false);

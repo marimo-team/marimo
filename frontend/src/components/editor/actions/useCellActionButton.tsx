@@ -51,7 +51,7 @@ import {
   autoInstantiateAtom,
 } from "@/core/config/config";
 import { kioskModeAtom } from "@/core/mode";
-import { saveCellConfig } from "@/core/network/requests";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
@@ -97,6 +97,7 @@ export function useCellActionButtons({ cell }: Props) {
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
   const appWidth = useAtomValue(appWidthAtom);
+  const { saveCellConfig } = useRequestClient();
 
   if (!cell || kioskMode) {
     return [];

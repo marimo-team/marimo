@@ -50,7 +50,7 @@ export const SearchBar = ({
       <input
         type="text"
         ref={ref}
-        className="w-full h-full border-none bg-transparent focus:outline-none text-sm"
+        className="w-full h-full border-none bg-transparent focus:outline-hidden text-sm"
         value={internalValue}
         onKeyDown={(e) => {
           if (e.key === "Escape") {

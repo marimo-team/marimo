@@ -3,12 +3,14 @@
 import { debounce, isEqual } from "lodash-es";
 import type { MultiColumn } from "@/utils/id-tree";
 import { kioskModeAtom } from "../mode";
-import { syncCellIds } from "../network/requests";
+import { getRequestClient } from "../network/requests";
 import type { UpdateCellIdsRequest } from "../network/types";
 import { store } from "../state/jotai";
 import type { CellId } from "./ids";
 
-const debounceSyncCellIds = debounce(syncCellIds, 400);
+const debounceSyncCellIds = debounce((request: UpdateCellIdsRequest) => {
+  getRequestClient().syncCellIds(request);
+}, 400);
 
 export const CellEffects = {
   onCellIdsChange: (
