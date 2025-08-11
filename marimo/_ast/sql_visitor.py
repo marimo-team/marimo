@@ -5,7 +5,7 @@ import ast
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
-from typing import Any, Optional
+from typing import Any
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -35,7 +35,7 @@ class SQLVisitor(ast.NodeVisitor):
             # string or f-string
             if node.args:
                 first_arg = node.args[0]
-                sql: Optional[str] = None
+                sql = None
                 if isinstance(first_arg, ast.Constant):
                     sql = first_arg.value
                 elif isinstance(first_arg, ast.JoinedStr):
@@ -321,7 +321,7 @@ def find_sql_refs(
         sql_statement: The SQL statement to parse.
 
     Returns:
-        A list of table and schema names referenced in the statement.
+        A list of fully qualified table and schema names referenced in the statement.
     """
 
     # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
@@ -343,11 +343,21 @@ def find_sql_refs(
             # Because it may be called "public" or "main" across all catalogs
             # and they aren't referenced in the code
             if table.catalog:
-                refs.append(table.catalog)
+                catalog = table.catalog
+                if table.name:
+                    refs.append(f"{catalog}.{table.name}")
+                else:
+                    LOGGER.warning(
+                        "Expression found with catalog but no table name: %s",
+                        table,
+                    )
+                    refs.append(catalog)
+            elif table.db and table.name:
+                schema = table.db
+                refs.append(f"{schema}.{table.name}")
             elif table.db:
-                refs.append(table.db)  # schema
-
-            if table.name:
+                refs.append(table.db)
+            elif table.name:
                 refs.append(table.name)
 
     try:

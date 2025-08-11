@@ -505,13 +505,13 @@ class TestFindSQLRefs:
     @staticmethod
     def test_find_sql_refs_with_schema() -> None:
         sql = "SELECT * FROM my_schema.my_table;"
-        assert find_sql_refs(sql) == ["my_schema", "my_table"]
+        assert find_sql_refs(sql) == ["my_schema.my_table"]
 
     @staticmethod
     def test_find_sql_refs_with_catalog() -> None:
         # Skip the schema if it's coming from a catalog
         sql = "SELECT * FROM my_catalog.my_schema.my_table;"
-        assert find_sql_refs(sql) == ["my_catalog", "my_table"]
+        assert find_sql_refs(sql) == ["my_catalog.my_table"]
 
     @staticmethod
     def test_find_sql_refs_skip_memory_main() -> None:
@@ -598,7 +598,7 @@ class TestFindSQLRefs:
         SELECT * FROM schema1.table1
         JOIN schema2.table2 ON schema1.table1.id = schema2.table2.id;
         """
-        assert find_sql_refs(sql) == ["schema1", "table1", "schema2", "table2"]
+        assert find_sql_refs(sql) == ["schema1.table1", "schema2.table2"]
 
     @staticmethod
     def test_find_sql_refs_with_complex_subqueries() -> None:
@@ -610,7 +610,7 @@ class TestFindSQLRefs:
             JOIN another_table
         ) t2;
         """
-        assert find_sql_refs(sql) == ["deeply", "table", "another_table"]
+        assert find_sql_refs(sql) == ["deeply.table", "another_table"]
 
     @staticmethod
     def test_find_sql_refs_nested_intersect() -> None:
@@ -660,17 +660,17 @@ class TestFindSQLRefs:
     @staticmethod
     def test_find_sql_refs_update() -> None:
         sql = "UPDATE my_schema.table1 SET id = 1"
-        assert find_sql_refs(sql) == ["my_schema", "table1"]
+        assert find_sql_refs(sql) == ["my_schema.table1"]
 
     @staticmethod
     def test_find_sql_refs_insert() -> None:
         sql = "INSERT INTO my_schema.table1 (id INT) VALUES (1,2);"
-        assert find_sql_refs(sql) == ["my_schema", "table1"]
+        assert find_sql_refs(sql) == ["my_schema.table1"]
 
     @staticmethod
     def test_find_sql_refs_delete() -> None:
         sql = "DELETE FROM my_schema.table1 WHERE true;"
-        assert find_sql_refs(sql) == ["my_schema", "table1"]
+        assert find_sql_refs(sql) == ["my_schema.table1"]
 
     @staticmethod
     def test_find_sql_refs_multi_dml() -> None:
@@ -699,11 +699,10 @@ class TestFindSQLRefs:
         );
         """
         assert find_sql_refs(sql) == [
-            "schema1",
-            "table1",
-            "schema2",
-            "table2",
+            "schema1.table1",
+            "schema2.table2",
             "table3",
+            "table2",  # Table2 comes from main schema
             "table4",
         ]
 
@@ -771,7 +770,4 @@ class TestFindSQLRefs:
         FROM pdb.database
         LIMIT 10;
         """
-        assert find_sql_refs(sql) == [
-            "pdb",
-            "database",
-        ]
+        assert find_sql_refs(sql) == ["pdb.database"]

@@ -677,6 +677,26 @@ class TestSQL:
             == set()
         )
 
+    def test_referring_cells_sql_and_python(self) -> None:
+        graph = dataflow.DirectedGraph()
+        code = 'df = mo.sql("select * from my_schema.my_table")'
+        first_cell = parse_cell(code)
+
+        # should not have my_table or my_schema as refs
+        assert first_cell.refs == {"mo"}
+
+        graph.register_cell("0", first_cell)
+
+        # my_table should not be passed in as a reference to sql cell
+        code = "df; my_table = ..."
+        second_cell = parse_cell(code)
+        graph.register_cell("1", second_cell)
+
+        assert (
+            graph.get_referring_cells("my_table", language="python") == set()
+        )
+        assert not graph.cycles
+
     def test_attached_db(self):
         graph = dataflow.DirectedGraph()
         code = "mo.sql(\"ATTACH 'my_db.db'\")"
