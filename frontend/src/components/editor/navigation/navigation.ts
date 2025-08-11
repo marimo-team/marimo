@@ -17,7 +17,7 @@ import {
   userConfigAtom,
 } from "@/core/config/config";
 import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
-import { parseShortcut } from "@/core/hotkeys/shortcuts";
+import { parseShortcut, isPlatformWindows } from "@/core/hotkeys/shortcuts";
 import { useRequestClient } from "@/core/network/requests";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Events } from "@/utils/events";
@@ -649,10 +649,18 @@ export function useCellEditorNavigationProps(
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
-      // For vim mode, require Ctrl+Escape (or Cmd+Escape on Mac) to exit to command mode
+      // For vim mode, use different shortcuts based on platform
       if (keymapPreset === "vim") {
-        if (evt.key === "Escape" && (evt.ctrlKey || evt.metaKey)) {
-          handleEscape();
+        if (isPlatformWindows()) {
+          // On Windows, use Shift+Escape since Ctrl+Escape opens Start menu
+          if (evt.key === "Escape" && evt.shiftKey) {
+            handleEscape();
+          }
+        } else {
+          // On Mac/Linux, use Ctrl+Escape (or Cmd+Escape on Mac)
+          if (evt.key === "Escape" && (evt.ctrlKey || evt.metaKey)) {
+            handleEscape();
+          }
         }
       } else {
         // For non-vim mode, regular Escape exits to command mode
