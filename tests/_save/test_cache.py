@@ -54,6 +54,48 @@ class TestCache:
         assert stored[0] is stored  # Self-reference maintained
 
     @staticmethod
+    def test_cache_scope_recursive() -> None:
+        _list = []
+        _list.append(_list)
+        d = {}
+        d["self"] = d
+        scope = {
+            "_list": _list,
+            "_dict": d,
+        }
+        cache = Cache(
+            defs=scope,
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+        assert "_list" in cache.defs
+        assert "_dict" in cache.defs
+
+    @staticmethod
+    def test_cache_iterable() -> None:
+        scope = {
+            "_tuple": (1, 2, 3, marimo),
+            "_set": {1, 2, 3, marimo},
+        }
+        cache = Cache(
+            defs=scope,
+            hash="123",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=True,
+            meta={},
+        )
+
+        assert "_tuple" in cache.defs
+        assert "_set" in cache.defs
+        assert marimo in cache.defs["_tuple"]
+        assert marimo in cache.defs["_set"]
+
+    @staticmethod
     def test_cache_ui_element_update() -> None:
         cache = Cache(
             defs={},

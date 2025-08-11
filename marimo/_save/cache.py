@@ -155,29 +155,38 @@ class Cache:
             result = value.load(scope)
         elif isinstance(value, UIElementStub):
             result = value.load()
-        elif isinstance(value, list):
-            result = []
-            memo[obj_id] = result
-            result.extend(
-                [
-                    self._restore_from_stub_if_needed(item, scope, memo)
-                    for item in value
-                ]
-            )
         elif isinstance(value, tuple):
             result = tuple(
                 self._restore_from_stub_if_needed(item, scope, memo)
                 for item in value
             )
+        elif isinstance(value, set):
+            result = set(
+                self._restore_from_stub_if_needed(item, scope, memo)
+                for item in value
+            )
+        elif isinstance(value, list):
+            memo[obj_id] = value
+            result = [
+                self._restore_from_stub_if_needed(item, scope, memo)
+                for item in value
+            ]
+            # Keep the original list reference
+            value.clear()
+            value.extend(result)
+            result = value
         elif isinstance(value, dict):
+            memo[obj_id] = value
             result = {}
-            memo[obj_id] = result
             for k, v in value.items():
                 result[k] = self._restore_from_stub_if_needed(v, scope, memo)
+            value.clear()
+            value.update(result)
+            result = value
         else:
             result = value
-        memo[obj_id] = result
 
+        memo[obj_id] = result
         return result
 
     def update(
@@ -251,26 +260,33 @@ class Cache:
             result = FunctionStub(value)
         elif isinstance(value, UIElement):
             result = UIElementStub(value)
-        elif isinstance(value, list):
-            # Store placeholder to handle cycles
-            result = []
-            memo[obj_id] = result
-
-            result.extend(
-                self._convert_to_stub_if_needed(item, memo) for item in value
-            )
         elif isinstance(value, tuple):
             result = tuple(
                 self._convert_to_stub_if_needed(item, memo) for item in value
             )
-        elif isinstance(value, dict):
+        elif isinstance(value, set):
+            result = set(
+                self._convert_to_stub_if_needed(item, memo) for item in value
+            )
+        elif isinstance(value, list):
             # Store placeholder to handle cycles
-            memo[obj_id] = value  # Temporary, will be replaced
+            memo[obj_id] = value
+            result = [
+                self._convert_to_stub_if_needed(item, memo) for item in value
+            ]
+            value.clear()
+            value.extend(result)
+            result = value
+        elif isinstance(value, dict):
             # Recursively convert dictionary values
+            memo[obj_id] = value
             result = {
                 k: self._convert_to_stub_if_needed(v, memo)
                 for k, v in value.items()
             }
+            value.clear()
+            value.update(result)
+            result = value
         else:
             result = value
         memo[obj_id] = result
