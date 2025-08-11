@@ -27,7 +27,7 @@ export abstract class AIContextProvider<
   abstract readonly title: string;
 
   /** Prefix used for mentions (e.g., "@" for variables, "#" for files) */
-  abstract readonly mentionPrefix: string;
+  abstract readonly mentionPrefix: "@" | "#";
 
   /** Context type identifier used in ContextLocatorId */
   abstract readonly contextType: string;
