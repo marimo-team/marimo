@@ -38,9 +38,6 @@ export abstract class AIContextProvider<
   /** Format the context for inclusion in AI prompt */
   abstract formatContext(item: T): string;
 
-  /** Generate CodeMirror completions for autocomplete - can be overridden for custom behavior */
-  abstract getCompletions(): Completion[];
-
   /** Format completion */
   abstract formatCompletion(item: T): Completion;
 
@@ -119,13 +116,6 @@ export class AIContextRegistry<T extends AIContextItem> {
     return [...this.providers].find(
       (provider) => provider.contextType === type,
     );
-  }
-
-  /**
-   * Get all completions from all providers
-   */
-  getAllCompletions(): Completion[] {
-    return [...this.providers].flatMap((provider) => provider.getCompletions());
   }
 
   getAllItems(): T[] {

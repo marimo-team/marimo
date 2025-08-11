@@ -57,10 +57,6 @@ class MockContextProvider extends AIContextProvider<MockContextItem> {
     return this.createBasicCompletion(item);
   }
 
-  getCompletions(): Completion[] {
-    return [];
-  }
-
   // Method to add items for testing
   addItem(item: MockContextItem): void {
     this.items.push(item);
@@ -110,10 +106,6 @@ class FileContextProvider extends AIContextProvider<FileContextItem> {
 
   formatContext(item: FileContextItem): string {
     return `File: ${item.uri}\nDescription: ${item.description}`;
-  }
-
-  getCompletions(): Completion[] {
-    return [];
   }
 }
 
@@ -228,19 +220,6 @@ describe("AIContextProvider", () => {
     });
   });
 
-  describe("getCompletions", () => {
-    it("should return empty array (refactored to use formatCompletion)", () => {
-      const completions = provider.getCompletions();
-      expect(completions).toEqual([]);
-    });
-
-    it("should return empty array when no items", () => {
-      provider.clearItems();
-      const completions = provider.getCompletions();
-      expect(completions).toEqual([]);
-    });
-  });
-
   describe("formatCompletion", () => {
     it("should format completions correctly", () => {
       const items = provider.getItems();
@@ -328,27 +307,6 @@ describe("AIContextRegistry", () => {
 
       expect(mockProviderResult).toBe(mockProvider);
       expect(fileProviderResult).toBe(fileProvider);
-    });
-  });
-
-  describe("getAllCompletions", () => {
-    it("should return empty array when no providers", () => {
-      const completions = registry.getAllCompletions();
-      expect(completions).toEqual([]);
-    });
-
-    it("should return empty array from providers (refactored to use formatCompletion)", () => {
-      registry.register(mockProvider);
-      const completions = registry.getAllCompletions();
-      expect(completions).toEqual([]);
-    });
-
-    it("should return empty arrays from multiple providers", () => {
-      registry.register(mockProvider);
-      registry.register(fileProvider);
-
-      const completions = registry.getAllCompletions();
-      expect(completions).toEqual([]);
     });
   });
 
@@ -514,7 +472,6 @@ describe("AIContextRegistry", () => {
       emptyProvider.clearItems();
       registry.register(emptyProvider);
 
-      expect(registry.getAllCompletions()).toEqual([]);
       expect(registry.parseAllContextIds("@anything")).toEqual([]);
       expect(
         registry.getContextInfo(["mock://anything"] as ContextLocatorId[]),

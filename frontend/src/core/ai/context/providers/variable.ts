@@ -69,8 +69,4 @@ export class VariableContextProvider extends AIContextProvider<VariableContextIt
     const { variable } = data;
     return `Variable: ${id}\nType: ${variable.dataType || "unknown"}\nPreview: ${JSON.stringify(variable.value)}`;
   }
-
-  getCompletions(): Completion[] {
-    return [];
-  }
 }

@@ -269,50 +269,6 @@ describe("VariableContextProvider", () => {
     });
   });
 
-  describe("getCompletions", () => {
-    it("should return empty completions when no variables", () => {
-      const variables: Variables = {};
-      const tablesMap: DatasetTablesMap = new Map();
-      const provider = new VariableContextProvider(variables, tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("empty-variable-completions");
-    });
-
-    it("should return completions for variables", () => {
-      const variables: Variables = {
-        ["data" as VariableName]: createMockVariable("data", {
-          dataType: "pandas.DataFrame",
-        }),
-        ["config" as VariableName]: createMockVariable("config", {
-          dataType: "dict",
-        }),
-        ["results" as VariableName]: createMockVariable("results", {
-          dataType: "list",
-        }),
-      };
-      const tablesMap: DatasetTablesMap = new Map();
-      const provider = new VariableContextProvider(variables, tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("variable-completions");
-    });
-
-    it("should pass table names to completion function", () => {
-      const variables: Variables = {
-        ["var1" as VariableName]: createMockVariable("var1"),
-      };
-      const tablesMap: DatasetTablesMap = new Map([
-        ["users", {} as any],
-        ["orders", {} as any],
-      ]);
-      const provider = new VariableContextProvider(variables, tablesMap);
-
-      const completions = provider.getCompletions();
-      expect(completions).toMatchSnapshot("variable-completions-with-tables");
-    });
-  });
-
   describe("provider properties", () => {
     it("should have correct provider properties", () => {
       const variables: Variables = {};
@@ -349,10 +305,8 @@ describe("VariableContextProvider", () => {
       const provider = new VariableContextProvider(variables, tablesMap);
 
       const items = provider.getItems();
-      const completions = provider.getCompletions();
 
       expect(items).toMatchSnapshot("variables-with-tables-items");
-      expect(completions).toMatchSnapshot("variables-with-tables-completions");
     });
   });
 });
