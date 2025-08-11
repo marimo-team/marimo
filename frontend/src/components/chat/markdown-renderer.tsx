@@ -6,6 +6,7 @@ import { BetweenHorizontalStartIcon } from "lucide-react";
 import { marked } from "marked";
 import { memo, Suspense, useEffect, useMemo, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
@@ -187,6 +188,7 @@ const MemoizedMarkdownBlock = memo(
     return (
       <Markdown
         components={COMPONENTS}
+        remarkPlugins={[remarkGfm]}
         className="prose dark:prose-invert max-w-none prose-pre:pl-0"
       >
         {content}
