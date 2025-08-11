@@ -6,6 +6,7 @@ import type {
 } from "@codemirror/autocomplete";
 import { PostgreSQL } from "@codemirror/lang-sql";
 import { EditorState, type Extension } from "@codemirror/state";
+import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DataSourceConnection } from "@/core/datasets/data-source-connections";
 import {
@@ -21,7 +22,6 @@ import {
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
 } from "../languages/sql";
-import { DuckDBDialect } from "../languages/sql-dialects/duckdb";
 import { languageMetadataField } from "../metadata";
 
 const adapter = new SQLLanguageAdapter();

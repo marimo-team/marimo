@@ -3,6 +3,7 @@
 import {
   acceptCompletion,
   autocompletion,
+  type Completion,
   type CompletionSource,
 } from "@codemirror/autocomplete";
 import { insertTab } from "@codemirror/commands";
@@ -27,7 +28,14 @@ import { Compartment } from "@codemirror/state";
 import { type EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode, TreeCursor } from "@lezer/common";
 import { parser } from "@lezer/python";
-import { sqlExtension } from "@marimo-team/codemirror-sql";
+import {
+  DefaultSqlTooltipRenders,
+  defaultSqlHoverTheme,
+  NodeSqlParser,
+  type SupportedDialects as ParserDialects,
+  sqlExtension,
+} from "@marimo-team/codemirror-sql";
+import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import dedent from "string-dedent";
 import { isSchemaless } from "@/components/datasources/utils";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -40,6 +48,7 @@ import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import type { DataSourceConnection } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
+import { resolvedThemeAtom } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { variableCompletionSource } from "../embedded/embedded-python";
@@ -49,9 +58,9 @@ import { parseArgsKwargs } from "../utils/ast";
 import { indentOneTab } from "../utils/indentOneTab";
 import type { QuotePrefixKind } from "../utils/quotes";
 import { MarkdownLanguageAdapter } from "./markdown";
-import { DuckDBDialect } from "./sql-dialects/duckdb";
 
 const DEFAULT_DIALECT = DuckDBDialect;
+const DEFAULT_PARSER_DIALECT = "DuckDB";
 
 // A compartment for the SQL config, so we can update the config of codemirror
 const sqlConfigCompartment = new Compartment();
@@ -232,23 +241,37 @@ export class SQLLanguageAdapter
 
     const experimentalLinter = getFeatureFlag("sql_linter");
     if (experimentalLinter) {
+      const theme = store.get(resolvedThemeAtom);
+      const parser = new NodeSqlParser({
+        getParserOptions: (state: EditorState) => {
+          return {
+            database: guessParserDialect(state) ?? DEFAULT_PARSER_DIALECT,
+          };
+        },
+      });
+
       extensions.push(
         sqlExtension({
+          enableLinting: true,
           linterConfig: {
             delay: 250, // Delay before running validation
+            parser: parser,
           },
+          enableGutterMarkers: true,
           gutterConfig: {
             backgroundColor: "#3b82f6", // Blue for current statement
             errorBackgroundColor: "#ef4444", // Red for invalid statements
             hideWhenNotFocused: true, // Hide gutter when editor loses focus
+            parser: parser,
           },
-          enableHover: true, // Enable hover tooltips
           hoverConfig: {
             schema: getSchema, // Use the same schema as autocomplete
             hoverTime: 300, // 300ms hover delay
             enableKeywords: true, // Show keyword information
             enableTables: true, // Show table information
             enableColumns: true, // Show column information
+            parser: parser,
+            theme: defaultSqlHoverTheme(theme),
           },
         }),
       );
@@ -388,7 +411,19 @@ export class SQLCompletionStore {
   }
 
   /**
-   * Get the dialect for a connection.
+   * Returns the raw dialect of the connection passed from the backend,
+   * or null if the connection is not found
+   */
+  getInternalDialect(connectionName: ConnectionName): string | null {
+    const connection = this.getConnection(connectionName);
+    if (!connection) {
+      return null;
+    }
+    return connection.dialect;
+  }
+
+  /**
+   * Get the inferred SQL dialect for a connection
    * If the connection is not found, return the standard SQL dialect.
    */
   getDialect(connectionName: ConnectionName): SQLDialect {
@@ -436,6 +471,21 @@ function getSQLMetadata(state: EditorState): SQLLanguageAdapterMetadata {
   return state.field(languageMetadataField) as SQLLanguageAdapterMetadata;
 }
 
+// e.g. lazily load keyword docs
+const getKeywordDocs = async (): Promise<Record<string, unknown>> => {
+  const keywords = await import(
+    "@marimo-team/codemirror-sql/data/common-keywords.json"
+  );
+  // Include DuckDB for now, but we can remove this once we have a better way to handle dialect-specific keywords
+  const duckdbKeywords = await import(
+    "@marimo-team/codemirror-sql/data/duckdb-keywords.json"
+  );
+  return {
+    ...keywords.default.keywords,
+    ...duckdbKeywords.default.keywords,
+  };
+};
+
 /**
  * Custom keyword completion source that dynamically gets the Dialect.
  * This also ignores keyword completions on table columns.
@@ -456,8 +506,33 @@ function customKeywordCompletionSource(): CompletionSource {
       return null;
     }
 
+    const keywordRenderer = (label: string, type: string): Completion => {
+      return {
+        label,
+        type,
+        info: async () => {
+          const keywordDocs = await getKeywordDocs();
+          const keywordInfo = keywordDocs[label.toLocaleLowerCase()];
+          if (!keywordInfo) {
+            return null;
+          }
+
+          const dom = document.createElement("div");
+          dom.innerHTML = DefaultSqlTooltipRenders.keyword({
+            keyword: label,
+            info: keywordInfo,
+          });
+          return dom;
+        },
+      };
+    };
+
     const uppercaseKeywords = true;
-    const result = keywordCompletionSource(dialect, uppercaseKeywords)(ctx);
+    const result = keywordCompletionSource(
+      dialect,
+      uppercaseKeywords,
+      keywordRenderer,
+    )(ctx);
     return result;
   };
 }
@@ -471,6 +546,50 @@ function getSchema(view: EditorView): SQLNamespace {
   }
 
   return config.schema;
+}
+
+function guessParserDialect(state: EditorState): ParserDialects | null {
+  const metadata = getSQLMetadata(state);
+  const connectionName = metadata.engine;
+  const dialect =
+    SCHEMA_CACHE.getInternalDialect(connectionName)?.toLowerCase();
+
+  switch (dialect) {
+    case "postgresql":
+    case "postgres":
+      return "PostgreSQL";
+    case "db2":
+      return "DB2";
+    case "mysql":
+      return "MySQL";
+    case "sqlite":
+      return "Sqlite";
+    case "mssql":
+    case "sqlserver":
+      return "TransactSQL";
+    case "duckdb":
+      return "DuckDB";
+    case "mariadb":
+      return "MariaDB";
+    case "cassandra":
+      return "Noql";
+    case "athena":
+      return "Athena";
+    case "bigquery":
+      return "BigQuery";
+    case "hive":
+      return "Hive";
+    case "redshift":
+      return "Redshift";
+    case "snowflake":
+      return "Snowflake";
+    case "flink":
+      return "FlinkSQL";
+    case "mongodb":
+      return "Noql";
+    default:
+      return null;
+  }
 }
 
 /**
@@ -505,7 +624,7 @@ function getSingleTable(connection: DataSourceConnection): string | undefined {
   return schema.tables[0].name;
 }
 
-export function guessDialect(
+function guessDialect(
   connection: DataSourceConnection,
 ): SQLDialect | undefined {
   switch (connection.dialect) {

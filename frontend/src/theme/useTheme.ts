@@ -73,7 +73,7 @@ function setupThemeListener(): void {
 }
 setupThemeListener();
 
-const resolvedThemeAtom = atom((get) => {
+export const resolvedThemeAtom = atom((get) => {
   const theme = get(themeAtom);
   const prefersDarkMode = get(prefersDarkModeAtom);
   return theme === "system" ? (prefersDarkMode ? "dark" : "light") : theme;

@@ -7259,8 +7259,8 @@ packages:
   node-releases@2.0.19:
     resolution: {integrity: sha512-xxOWJsBKtzAq7DY0J+DTzuz58K8e7sJbdgwkbMWQe8UYB6ekmsQ45q0M/tJDsGaZmbC+l7n57UV8Hl5tHxO9uw==}
 
-  node-sql-parser@5.3.10:
-    resolution: {integrity: sha512-cf+iXXJ9Foz4hBIu+eNNeg207ac6XruA9I9DXEs+jCxeS9t/k9T0GZK8NZngPwkv+P26i3zNFj9jxJU2v3pJnw==}
+  node-sql-parser@5.3.11:
+    resolution: {integrity: sha512-1ZcXu2qEFZlMkkaYPpMoTkypTunYTvtnInzVjWDhjc1+FS5h/WqT1rbgP2pP42/nXBWfPVN66mEfidWSpYVs1Q==}
     engines: {node: '>=8'}
 
   normalize-package-data@2.5.0:
@@ -17975,7 +17975,7 @@ snapshots:
 
   node-releases@2.0.19: {}
 
-  node-sql-parser@5.3.10:
+  node-sql-parser@5.3.11:
     dependencies:
       '@types/pegjs': 0.10.6
       big-integer: 1.6.52
