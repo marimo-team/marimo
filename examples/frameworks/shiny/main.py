@@ -29,11 +29,21 @@ for filename in sorted(os.listdir(ui_dir)):
         marimo_app = marimo_app.with_app(path=f"/{app_name}", root=app_path)
         app_names.append(app_name)
 
-shiny_ui = ui.page_fluid(ui.output_ui("_html"))
+shiny_ui = ui.page_fluid(
+    ui.head_content(
+        ui.tags.script(src="https://cdn.tailwindcss.com"),
+        ui.tags.link(
+            href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css",
+            rel="stylesheet",
+        ),
+    ),
+    ui.output_ui("_html"),
+    title="Marimo apps in Shiny",
+)
 
 
 def shiny_server(input, output, session):
-    @render.text
+    @render.ui
     def _html():
         subdiv = []
         for name in app_names:
@@ -50,15 +60,7 @@ def shiny_server(input, output, session):
                 </div>
                 """
             )
-        head = """
-<head>
-    <script src="https://cdn.tailwindcss.com" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css"
-    <title>Marimo apps in Shiny</title>
-</head>
-        """
         body = f"""
-<body>
 <div class="min-h-screen bg-gradient-to-br from-base-200 to-base-300 p-8">
     <div class="container mx-auto px-4 py-16 bg-base-100 rounded-box shadow-xl">
         <h1 class="text-4xl font-bold mb-8 text-center">Marimo dashboard in Shiny</h1>
@@ -66,9 +68,9 @@ def shiny_server(input, output, session):
             {''.join(subdiv)}
         </div>
     </div>
-</body>
+</div>
         """
-        return HTML(head + body)
+        return HTML(body)
 
 
 app = App(shiny_ui, shiny_server)
