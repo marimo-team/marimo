@@ -47,6 +47,7 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
+import { AiProviderIcon } from "../ai/AiProviderIcon";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
@@ -1348,7 +1349,10 @@ export const UserConfigForm: React.FC = () => {
                 render={({ field }) => (
                   <div className="flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel>OpenAI API Key</FormLabel>
+                      <FormLabel className="flex">
+                        <AiProviderIcon provider="openai" className="mr-2" />
+                        OpenAI API Key
+                      </FormLabel>
                       <FormControl>
                         <Input
                           data-testid="ai-openai-api-key-input"
@@ -1387,7 +1391,10 @@ export const UserConfigForm: React.FC = () => {
                 render={({ field }) => (
                   <div className="flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel>Anthropic API Key</FormLabel>
+                      <FormLabel className="flex">
+                        <AiProviderIcon provider="anthropic" className="mr-2" />
+                        Anthropic API Key
+                      </FormLabel>
                       <FormControl>
                         <Input
                           data-testid="ai-anthropic-api-key-input"
@@ -1426,7 +1433,10 @@ export const UserConfigForm: React.FC = () => {
                 render={({ field }) => (
                   <div className="flex flex-col space-y-1">
                     <FormItem className={formItemClasses}>
-                      <FormLabel>Google AI API Key</FormLabel>
+                      <FormLabel className="flex">
+                        <AiProviderIcon provider="google" className="mr-2" />
+                        Google AI API Key
+                      </FormLabel>
                       <FormControl>
                         <Input
                           data-testid="ai-google-api-key-input"
