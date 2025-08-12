@@ -216,6 +216,32 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "test-key"
 
+    def test_for_model_unknown_provider_defaults_to_openai_compatible(
+        self,
+    ) -> None:
+        """Test for_model with unknown provider defaults to OpenAI compatible."""
+        config: AiConfig = {
+            "open_ai_compatible": {"api_key": "test-key"},
+            "open_ai": {"api_key": "other-key"},
+        }
+
+        provider_config = AnyProviderConfig.for_model(
+            "provider/unknown-model", config
+        )
+
+        assert provider_config.api_key == "test-key"
+
+        # Fallback to OpenAI if OpenAI compatible is not configured
+        config: AiConfig = {
+            "open_ai": {"api_key": "other-key"},
+        }
+
+        provider_config = AnyProviderConfig.for_model(
+            "provider/unknown-model", config
+        )
+
+        assert provider_config.api_key == "other-key"
+
     @patch("marimo._server.ai.config._get_tools")
     def test_tools_included_when_available(self, mock_get_tools: Any) -> None:
         """Test that tools are included when available."""

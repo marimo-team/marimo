@@ -134,9 +134,11 @@ class AnyProviderConfig:
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:
-            # OpenAI has a default API that ollama also uses, that is
-            # why it is a catch all at the end here.
-            return cls.for_openai(config)
+            # Catch-all: try OpenAI compatible first, then OpenAI.
+            try:
+                return cls.for_openai_compatible(config)
+            except HTTPException:
+                return cls.for_openai(config)
 
 
 def _get_tools(mode: CopilotMode) -> list[Tool]:
