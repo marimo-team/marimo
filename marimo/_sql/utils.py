@@ -102,6 +102,10 @@ def convert_to_output(
             raise ValueError("to_native is required for native output format")
         return to_native()
 
+    if sql_output_format in ("polars", "lazy-polars"):
+        if not DependencyManager.polars.has():
+            raise_df_import_error("polars[pyarrow]")
+
     if sql_output_format == "polars":
         return to_polars()
 
@@ -110,12 +114,16 @@ def convert_to_output(
 
         if to_lazy_polars is not None:
             return to_lazy_polars()
+
+        # Default handling, we convert to polars and then to lazy polars
         result = to_polars()
         if isinstance(result, pl.Series):
             return result.to_frame().lazy()
         return result.lazy()
 
     if sql_output_format == "pandas":
+        if not DependencyManager.pandas.has():
+            raise_df_import_error("pandas")
         return to_pandas()
 
     # Auto
