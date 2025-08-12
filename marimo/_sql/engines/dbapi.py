@@ -4,14 +4,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 from marimo import _loggers
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import QueryEngine
-from marimo._sql.utils import raise_df_import_error
+from marimo._sql.utils import convert_to_output
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    import pandas as pd
+    import polars as pl
 
 
 class DBAPIConnection(Protocol):
@@ -65,7 +67,7 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
             else:
                 columns = []
 
-            def convert_to_polars(rows: list[tuple[Any, ...]]) -> pl.DataFrame:
+            def convert_to_polars() -> pl.DataFrame:
                 import polars as pl
 
                 data: dict[str, list[Any]] = {col: [] for col in columns}
@@ -74,41 +76,16 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
                         data[col].append(row[i])
                 return pl.DataFrame(data)
 
-            if sql_output_format == "polars":
-                return convert_to_polars(rows)
-
-            if sql_output_format == "lazy-polars":
-                return convert_to_polars(rows).lazy()
-
-            if sql_output_format == "pandas":
+            def convert_to_pandas() -> pd.DataFrame:
                 import pandas as pd
 
                 return pd.DataFrame(rows, columns=columns)
 
-            # Auto
-            if DependencyManager.polars.has():
-                import polars as pl
-
-                try:
-                    return convert_to_polars(rows)
-                except (
-                    pl.exceptions.PanicException,
-                    pl.exceptions.ComputeError,
-                ):
-                    LOGGER.info(
-                        "Failed to convert to polars, falling back to pandas"
-                    )
-
-            if DependencyManager.pandas.has():
-                import pandas as pd
-
-                try:
-                    return pd.DataFrame(rows, columns=columns)
-                except Exception as e:
-                    LOGGER.warning("Failed to convert dataframe", exc_info=e)
-                    return None
-
-            raise_df_import_error("polars[pyarrow]")
+            return convert_to_output(
+                sql_output_format=sql_output_format,
+                to_polars=convert_to_polars,
+                to_pandas=convert_to_pandas,
+            )
         finally:
             if should_close:
                 cursor.close()

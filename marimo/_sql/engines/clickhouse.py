@@ -19,7 +19,7 @@ from marimo._sql.engines.types import (
     InferenceConfig,
     SQLConnection,
 )
-from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
+from marimo._sql.utils import convert_to_output, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -27,6 +27,9 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     from chdb.state.sqlitelike import Connection as ChdbConnection  # type: ignore # noqa: I001
     from clickhouse_connect.driver.client import Client as ClickhouseClient  # type: ignore
+
+    import pandas as pd
+    import polars as pl
 
 
 WHY_PANDAS_REQUIRED = (
@@ -77,43 +80,29 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
                 sql_output_format, rows, col_names
             )
 
+        def convert_to_polars() -> pl.DataFrame:
+            import polars as pl
+
+            arrow_result = chdb.query(query, output_format="Arrow")
+            return pl.read_ipc(arrow_result.bytes())  # type: ignore
+
+        def convert_to_lazy_polars() -> pl.LazyFrame:
+            import polars as pl
+
+            arrow_result = chdb.query(query, output_format="Arrow")
+            return pl.scan_ipc(arrow_result.bytes())  # type: ignore
+
         # Handle connectionless execution
         # Although this connection method isn't exposed to the user, it's still good to handle
         # Maybe we want to move all queries to connectionless execution, but the API is still evolving
         try:
-            if sql_output_format == "native":
-                return chdb.query(query, output_format="Native")
-            elif sql_output_format == "polars":
-                import polars as pl
-
-                arrow_result = chdb.query(query, output_format="Arrow")
-                return pl.read_ipc(arrow_result.bytes())
-            elif sql_output_format == "lazy-polars":
-                import polars as pl
-
-                arrow_result = chdb.query(query, output_format="Arrow")
-                return pl.scan_ipc(arrow_result.bytes())  # type: ignore
-            elif sql_output_format == "pandas":
-                return chdb.query(query, output_format="Dataframe")
-            else:  # Auto
-                if DependencyManager.polars.has():
-                    import polars as pl
-
-                    try:
-                        arrow_result = chdb.query(query, output_format="Arrow")
-                        return pl.read_ipc(arrow_result.bytes())
-                    except (
-                        pl.exceptions.PanicException,
-                        pl.exceptions.ComputeError,
-                    ):
-                        LOGGER.exception(
-                            "Failed to convert to polars, fallback to pandas"
-                        )
-
-                if DependencyManager.pandas.has():
-                    return chdb.query(query, output_format="Dataframe")
-
-                raise_df_import_error("pandas")
+            return convert_to_output(
+                sql_output_format=sql_output_format,
+                to_polars=convert_to_polars,
+                to_pandas=chdb.query(query, output_format="Dataframe"),
+                to_lazy_polars=convert_to_lazy_polars,
+                to_native=lambda: chdb.query(query, output_format="Native"),
+            )
 
         except Exception:
             LOGGER.exception("Failed to execute query")
@@ -126,40 +115,27 @@ class ClickhouseEmbedded(SQLConnection[Optional["ChdbConnection"]]):
         col_names: list[str],
     ) -> Any:
         # For polars, orient the rows since each tuple represents a column
-        if output_format == "polars":
+        def convert_to_polars() -> pl.DataFrame:
             import polars as pl
 
             return pl.DataFrame(rows, schema=col_names, orient="row")
-        elif output_format == "lazy-polars":
+
+        def convert_to_lazy_polars() -> pl.LazyFrame:
             import polars as pl
 
             return pl.LazyFrame(rows, schema=col_names, orient="row")
-        elif output_format == "pandas":
+
+        def convert_to_pandas() -> pd.DataFrame:
             import pandas as pd
 
             return pd.DataFrame(rows, columns=col_names)
-        elif output_format == "auto":
-            # Try polars first if available
-            if DependencyManager.polars.has():
-                import polars as pl
 
-                try:
-                    return pl.DataFrame(rows, schema=col_names, orient="row")
-                except (
-                    pl.exceptions.PanicException,
-                    pl.exceptions.ComputeError,
-                ):
-                    LOGGER.exception(
-                        "Failed to convert to polars, falling back to pandas"
-                    )
-
-            # Fall back to pandas
-            if DependencyManager.pandas.has():
-                import pandas as pd
-
-                return pd.DataFrame(rows, columns=col_names)
-
-            raise_df_import_error("pandas")
+        return convert_to_output(
+            sql_output_format=output_format,
+            to_polars=convert_to_polars,
+            to_lazy_polars=convert_to_lazy_polars,
+            to_pandas=convert_to_pandas,
+        )
 
     # TODO: Implement the following functionalities
     def get_databases(
@@ -239,47 +215,31 @@ class ClickhouseServer(SQLConnection[Optional["ClickhouseClient"]]):
         sql_type = classify_sql_statement(query)
         if sql_type == "DDL" or sql_type == "DML":
             # TODO: Return the result of the command instead of an empty list
-            result = self._connection.command(query)
+            self._connection.command(query)
             return []
 
         sql_output_format = self.sql_output_format()
-        if sql_output_format == "native":
-            return self._connection.query(query)
-        elif sql_output_format == "polars":
+
+        def convert_to_polars() -> Union[pl.DataFrame, pl.Series]:
+            if self._connection is None:
+                raise ValueError("Connection is not set")
+
             import polars as pl
 
             arrow_result = self._connection.query_arrow(query)
             return pl.from_arrow(arrow_result)
-        elif sql_output_format == "lazy-polars":
-            import polars as pl
 
-            arrow_result = self._connection.query_arrow(query)
-            return pl.from_arrow(arrow_result).lazy()  # type: ignore
-        elif sql_output_format == "pandas":
-            return self._connection.query_df(query)
+        def convert_to_pandas() -> pd.DataFrame:
+            if self._connection is None:
+                raise ValueError("Connection is not set")
 
-        # Auto
-        if DependencyManager.polars.has():
-            import polars as pl
+            return self._connection.query_df(query)  # type: ignore
 
-            try:
-                arrow_result = self._connection.query_arrow(query)
-                return pl.from_arrow(arrow_result)
-            except (pl.exceptions.PanicException, pl.exceptions.ComputeError):
-                LOGGER.info(
-                    "Failed to convert to polars, falling back to pandas"
-                )
-
-        if DependencyManager.pandas.has():
-            import pandas as pd
-
-            # If wrapped with try/catch, an error may not be caught
-            result = self._connection.query_df(query)
-            if isinstance(result, pd.DataFrame):
-                return result
-            return None
-
-        raise_df_import_error("polars[pyarrow]")
+        return convert_to_output(
+            sql_output_format=sql_output_format,
+            to_polars=convert_to_polars,
+            to_pandas=convert_to_pandas,
+        )
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

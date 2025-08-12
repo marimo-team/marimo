@@ -13,7 +13,7 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import raise_df_import_error
+from marimo._sql.utils import convert_to_output
 from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
@@ -60,42 +60,12 @@ class IbisEngine(SQLConnection["SQLBackend"]):
 
         sql_output_format = self.sql_output_format()
 
-        if sql_output_format == "native":
-            return query_expr  # ibis.expr.types.Table; lazy
-
-        if sql_output_format == "polars":
-            return query_expr.to_polars()
-
-        if sql_output_format == "lazy-polars":
-            import polars as pl
-
-            return pl.DataFrame(query_expr.to_polars()).lazy()  # type: ignore
-
-        if sql_output_format == "pandas":
-            return query_expr.to_pandas()
-
-        # Auto
-        if DependencyManager.polars.has():
-            import polars as pl
-
-            try:
-                return query_expr.to_polars()
-            except (
-                pl.exceptions.PanicException,
-                pl.exceptions.ComputeError,
-            ):
-                LOGGER.info(
-                    "Failed to convert to polars, falling back to pandas"
-                )
-
-        if DependencyManager.pandas.has():
-            try:
-                return query_expr.to_pandas()
-            except Exception as e:
-                LOGGER.warning("Failed to convert dataframe", exc_info=e)
-                return None
-
-        raise_df_import_error("polars[pyarrow]")
+        return convert_to_output(
+            sql_output_format=sql_output_format,
+            to_polars=lambda: query_expr.to_polars(),
+            to_pandas=lambda: query_expr.to_pandas(),
+            to_native=lambda: query_expr,
+        )
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

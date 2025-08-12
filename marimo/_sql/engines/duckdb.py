@@ -8,7 +8,7 @@ from marimo._data.get_datasets import get_databases_from_duckdb
 from marimo._data.models import Database, DataTable
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import raise_df_import_error, wrapped_sql
+from marimo._sql.utils import convert_to_output, wrapped_sql
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
@@ -46,36 +46,13 @@ class DuckDBEngine(SQLConnection[Optional["duckdb.DuckDBPyConnection"]]):
             return None
 
         sql_output_format = self.sql_output_format()
-        if sql_output_format == "polars":
-            return relation.pl()
-        if sql_output_format == "lazy-polars":
-            return relation.pl().lazy()
-        if sql_output_format == "native":
-            return relation
-        if sql_output_format == "pandas":
-            return relation.df()
 
-        # Auto
-        if DependencyManager.polars.has():
-            import polars as pl
-
-            try:
-                return relation.pl()
-            except (
-                pl.exceptions.PanicException,
-                pl.exceptions.ComputeError,
-            ) as e:
-                LOGGER.warning("Failed to convert to polars. Reason: %s.", e)
-                DependencyManager.pandas.require("to convert this data")
-
-        if DependencyManager.pandas.has():
-            try:
-                return relation.df()
-            except Exception as e:
-                LOGGER.warning("Failed to convert dataframe", exc_info=e)
-                return None
-
-        raise_df_import_error("polars[pyarrow]")
+        return convert_to_output(
+            sql_output_format=sql_output_format,
+            to_polars=lambda: relation.pl(),
+            to_pandas=lambda: relation.df(),
+            to_native=lambda: relation,
+        )
 
     @staticmethod
     def is_compatible(var: Any) -> bool:

@@ -14,12 +14,14 @@ from marimo._data.models import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.types import InferenceConfig, SQLConnection
-from marimo._sql.utils import raise_df_import_error, sql_type_to_data_type
+from marimo._sql.utils import convert_to_output, sql_type_to_data_type
 from marimo._types.ids import VariableName
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    import pandas as pd
+    import polars as pl
     from sqlalchemy import Engine, Inspector
     from sqlalchemy.engine.cursor import CursorResult
     from sqlalchemy.sql.type_api import TypeEngine
@@ -74,43 +76,21 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             if rows is None:
                 return None
 
-            if sql_output_format == "polars":
+            def convert_to_polars() -> pl.DataFrame:
                 import polars as pl
 
-                return pl.DataFrame(rows)  # type: ignore
-            if sql_output_format == "lazy-polars":
-                import polars as pl
+                return pl.DataFrame(rows)
 
-                return pl.DataFrame(rows).lazy()  # type: ignore
-            if sql_output_format == "pandas":
+            def convert_to_pandas() -> pd.DataFrame:
                 import pandas as pd
 
                 return pd.DataFrame(rows)
 
-            # Auto
-
-            if DependencyManager.polars.has():
-                import polars as pl
-
-                try:
-                    return pl.DataFrame(rows)  # type: ignore
-                except (
-                    pl.exceptions.PanicException,
-                    pl.exceptions.ComputeError,
-                ) as e:
-                    LOGGER.warning(f"Failed to convert to polars. Reason: {e}")
-                    DependencyManager.pandas.require("to convert this data")
-
-            if DependencyManager.pandas.has():
-                import pandas as pd
-
-                try:
-                    return pd.DataFrame(rows)
-                except Exception as e:
-                    LOGGER.warning("Failed to convert dataframe", exc_info=e)
-                    return None
-
-            raise_df_import_error("polars[pyarrow]")
+            return convert_to_output(
+                sql_output_format=sql_output_format,
+                to_polars=convert_to_polars,
+                to_pandas=convert_to_pandas,
+            )
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
