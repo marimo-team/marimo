@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React from "react";
+import React, { useId } from "react";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
 import {
   FormControl,
@@ -192,6 +192,8 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   description,
   disabled = false,
 }) => {
+  const modelInputId = useId();
+
   return (
     <FormField
       control={form.control}
@@ -203,7 +205,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             <FormLabel>Model</FormLabel>
             <FormControl>
               <Input
-                list="ai-model-datalist"
+                list={modelInputId}
                 data-testid={testId}
                 className="m-0 inline-flex"
                 placeholder={placeholder}
@@ -214,7 +216,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             <FormMessage />
             <IsOverridden userConfig={config} name={name} />
           </FormItem>
-          <datalist data-testid="ai-model-datalist">
+          <datalist id={modelInputId}>
             {KNOWN_AI_MODELS.map((model) => (
               <option value={model} key={model}>
                 {model}
