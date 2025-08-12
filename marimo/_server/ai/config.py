@@ -37,11 +37,17 @@ class AnyProviderConfig:
 
     @classmethod
     def for_openai(cls, config: AiConfig) -> AnyProviderConfig:
-        return cls._for_openai_like(config, "open_ai", "OpenAI")
+        fallback_key = cls.os_key("OPENAI_API_KEY")
+        return cls._for_openai_like(
+            config, "open_ai", "OpenAI", fallback_key=fallback_key
+        )
 
     @classmethod
     def for_azure(cls, config: AiConfig) -> AnyProviderConfig:
-        return cls._for_openai_like(config, "azure", "Azure OpenAI")
+        fallback_key = cls.os_key("AZURE_API_KEY")
+        return cls._for_openai_like(
+            config, "azure", "Azure OpenAI", fallback_key=fallback_key
+        )
 
     @classmethod
     def for_openai_compatible(cls, config: AiConfig) -> AnyProviderConfig:
@@ -87,7 +93,11 @@ class AnyProviderConfig:
     @classmethod
     def for_anthropic(cls, config: AiConfig) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, "anthropic", "Anthropic")
-        key = _get_key(ai_config, "Anthropic")
+        key = _get_key(
+            ai_config,
+            "Anthropic",
+            fallback_key=cls.os_key("ANTHROPIC_API_KEY"),
+        )
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
@@ -96,8 +106,15 @@ class AnyProviderConfig:
 
     @classmethod
     def for_google(cls, config: AiConfig) -> AnyProviderConfig:
+        fallback_key = cls.os_key("GEMINI_API_KEY") or cls.os_key(
+            "GOOGLE_API_KEY"
+        )
         ai_config = _get_ai_config(config, "google", "Google AI")
-        key = _get_key(ai_config, "Google AI")
+        key = _get_key(
+            ai_config,
+            "Google AI",
+            fallback_key=fallback_key,
+        )
         return cls(
             base_url=_get_base_url(ai_config),
             api_key=key,
@@ -146,6 +163,12 @@ class AnyProviderConfig:
                 return cls.for_openai_compatible(config)
             except HTTPException:
                 return cls.for_openai(config)
+
+    @classmethod
+    def os_key(cls, key: str) -> Optional[str]:
+        import os
+
+        return os.environ.get(key)
 
 
 def _get_tools(mode: CopilotMode) -> list[Tool]:
