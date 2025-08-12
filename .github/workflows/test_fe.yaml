@@ -1,4 +1,6 @@
 name: Test FE
+permissions:
+  contents: read
 
 on:
   push:
