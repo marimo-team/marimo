@@ -51,14 +51,21 @@ class AnyProviderConfig:
 
     @classmethod
     def for_ollama(cls, config: AiConfig) -> AnyProviderConfig:
-        return cls._for_openai_like(config, "ollama", "Ollama")
+        return cls._for_openai_like(
+            config, "ollama", "Ollama", fallback_key="ollama-placeholder"
+        )
 
     @classmethod
     def _for_openai_like(
-        cls, config: AiConfig, key: str, name: str
+        cls,
+        config: AiConfig,
+        key: str,
+        name: str,
+        *,
+        fallback_key: Optional[str] = None,
     ) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, key, name)
-        key = _get_key(ai_config, name)
+        key = _get_key(ai_config, name, fallback_key=fallback_key)
 
         kwargs: dict[str, Any] = {
             "base_url": _get_base_url(ai_config),
@@ -167,7 +174,12 @@ def get_max_tokens(config: MarimoConfig) -> int:
     return config["ai"]["max_tokens"]
 
 
-def _get_key(config: Any, name: str) -> str:
+def _get_key(
+    config: Any,
+    name: str,
+    *,
+    fallback_key: Optional[str] = None,
+) -> str:
     """Get the API key for a given provider."""
     if not isinstance(config, dict):
         raise HTTPException(
@@ -185,14 +197,20 @@ def _get_key(config: Any, name: str) -> str:
             return f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}"
         else:
             return ""
+
     if "api_key" in config:
         key = config["api_key"]
         if key:
             return cast(str, key)
+
     if "http://127.0.0.1:11434/" in config.get("base_url", ""):
         # Ollama can be configured and in that case the api key is not needed.
         # We send a placeholder value to prevent the user from being confused.
         return "ollama-placeholder"
+
+    if fallback_key:
+        return fallback_key
+
     raise HTTPException(
         status_code=HTTPStatus.BAD_REQUEST,
         detail=f"{name} API key not configured",
