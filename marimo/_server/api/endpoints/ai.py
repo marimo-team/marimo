@@ -15,6 +15,12 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
+from marimo._server.ai.config import (
+    DEFAULT_MODEL,
+    AnyProviderConfig,
+    get_max_tokens,
+    get_model,
+)
 from marimo._server.ai.prompts import (
     FILL_ME_TAG,
     get_chat_system_prompt,
@@ -22,12 +28,8 @@ from marimo._server.ai.prompts import (
     get_refactor_or_insert_notebook_cell_system_prompt,
 )
 from marimo._server.ai.providers import (
-    DEFAULT_MODEL,
-    AnyProviderConfig,
     StreamOptions,
     get_completion_provider,
-    get_max_tokens,
-    get_model,
     without_wrapping_backticks,
 )
 from marimo._server.ai.tools import get_tool_manager
