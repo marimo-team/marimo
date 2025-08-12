@@ -217,6 +217,7 @@ class DependencyManager:
     geopandas = Dependency("geopandas")
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
+    ollama = Dependency("ollama")
     google_ai = Dependency("google.genai")
     groq = Dependency("groq")
     panel = Dependency("panel")
@@ -242,6 +243,10 @@ class DependencyManager:
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
     new_superfences = Dependency("pymdownx", min_version="10.11.0")
+
+    @staticmethod
+    def of(name: str) -> Dependency:
+        return Dependency(name)
 
     @staticmethod
     def has(pkg: str) -> bool:

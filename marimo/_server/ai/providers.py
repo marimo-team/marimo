@@ -184,14 +184,39 @@ class AnyLLMProvider:
                 detail=f"Invalid tool call arguments: malformed JSON: {tool_call_args}",
             ) from e
 
+    def _validate_provider_dependencies(self) -> None:
+        """Validate provider dependencies."""
+        DependencyManager.any_llm.require("for AI completions.")
+
+        if self.model.startswith("google/"):
+            DependencyManager.google_ai.require(
+                "to use Google for AI completions."
+            )
+        elif self.model.startswith("openai/") or self.model.startswith(
+            "openai_compatible/"
+        ):
+            DependencyManager.openai.require(
+                "to use OpenAI for AI completions."
+            )
+        elif self.model.startswith("anthropic/"):
+            DependencyManager.anthropic.require(
+                "to use Anthropic for AI completions."
+            )
+        elif self.model.startswith("ollama/"):
+            DependencyManager.ollama.require(
+                "to use Ollama for AI completions."
+            )
+        elif self.model.startswith("bedrock/"):
+            DependencyManager.boto3.require(
+                "to use Bedrock for AI completions."
+            )
+
     def as_stream_response(
         self,
         response: Iterator[ChatCompletionChunk],
         options: Optional[StreamOptions] = None,
     ) -> Generator[str, None, None]:
         """Convert a stream to a generator of strings."""
-        # original_content = ""
-        # buffer = ""
         options = options or StreamOptions()
 
         draft_tool_calls: list[DraftToolCall] = []
@@ -341,11 +366,9 @@ class AnyLLMProvider:
         system_prompt: str,
         max_tokens: int,
     ) -> Iterator[ChatCompletionChunk]:
-        DependencyManager.any_llm.require("for AI completions.")
+        self._validate_provider_dependencies()
 
         import any_llm
-
-        # TODO: checks based on the provider
 
         # Prepare parameters
         formatted_messages = self._prepare_messages(messages, system_prompt)
