@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import unittest
-from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.prompts import FILL_ME_TAG
 from marimo._server.ai.providers import (
@@ -78,7 +76,11 @@ class TestOpenAiEndpoints:
         del openai_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_no_openai_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -108,7 +110,11 @@ class TestOpenAiEndpoints:
             )
         ]
 
-        with openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -145,7 +151,11 @@ class TestOpenAiEndpoints:
             )
         ]
 
-        with openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -179,7 +189,11 @@ class TestOpenAiEndpoints:
             )
         ]
 
-        with openai_config_custom_model(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config_custom_model(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -211,7 +225,11 @@ class TestOpenAiEndpoints:
             )
         ]
 
-        with openai_config_custom_base_url(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config_custom_base_url(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -244,7 +262,9 @@ class TestOpenAiEndpoints:
             )
         ]
 
-        with openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -278,7 +298,9 @@ class TestOpenAiEndpoints:
         del openai_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_no_openai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -308,7 +330,9 @@ class TestOpenAiEndpoints:
             FakeChoices(choices=[Choice(delta=Delta(content="SELECT 1;"))])
         ]
 
-        with openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -342,7 +366,11 @@ class TestAnthropicAiEndpoints:
         del anthropic_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_anthropic_config(user_config_manager):
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_no_anthropic_config(),
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -372,7 +400,9 @@ class TestAnthropicAiEndpoints:
             RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
         ]
 
-        with anthropic_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_anthropic_config()
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -407,7 +437,9 @@ class TestAnthropicAiEndpoints:
             RawContentBlockDeltaEvent(TextDelta("df = pd.DataFrame()"))
         ]
 
-        with anthropic_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_anthropic_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -450,7 +482,20 @@ class TestGoogleAiEndpoints:
             )
         ]
 
-        with google_ai_config(user_config_manager):
+        config = {
+            "ai": {
+                "open_ai": {"model": "gemini-1.5-pro"},
+                "google": {"api_key": "fake-key"},
+            },
+            "completion": {
+                "model": "gemini-1.5-pro-for-inline-completion",
+                "api_key": "fake-key",
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -480,7 +525,16 @@ class TestGoogleAiEndpoints:
         del google_ai_mock
         user_config_manager = get_session_config_manager(client)
 
-        with no_google_ai_config(user_config_manager):
+        config = {
+            "ai": {
+                "open_ai": {"model": "gemini-1.5-pro"},
+                "google": {"api_key": ""},
+            },
+        }
+
+        with patch.object(
+            user_config_manager, "get_config", return_value=config
+        ):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -513,7 +567,9 @@ class TestGoogleAiEndpoints:
             )
         ]
 
-        with google_ai_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_google_ai_config()
+        ):
             response = client.post(
                 "/api/ai/inline_completion",
                 headers=HEADERS,
@@ -536,173 +592,100 @@ class TestGoogleAiEndpoints:
             )
 
 
-@contextmanager
-def openai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {
-                        "api_key": "fake-api",
-                        "model": "some-openai-model",
-                    }
-                },
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "fake-api",
-                },
+def _openai_config():
+    return {
+        "ai": {
+            "open_ai": {
+                "api_key": "fake-api",
+                "model": "openai/some-openai-model",
             }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+        },
+        "completion": {
+            "model": "gpt-marimo-for-inline-completion",
+            "api_key": "fake-api",
+        },
+    }
 
 
-@contextmanager
-def openai_config_custom_model(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {
-                        "api_key": "fake-api",
-                        "model": "gpt-marimo",
-                    }
-                },
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "fake-api",
-                },
+def _openai_config_custom_model():
+    return {
+        "ai": {
+            "open_ai": {
+                "api_key": "fake-api",
+                "model": "gpt-marimo",
             }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+        },
+        "completion": {
+            "model": "gpt-marimo-for-inline-completion",
+            "api_key": "fake-api",
+        },
+    }
 
 
-@contextmanager
-def openai_config_custom_base_url(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {
-                        "api_key": "fake-api",
-                        "base_url": "https://my-openai-instance.com",
-                        "model": "some-openai-model-with-base-url",
-                    }
-                },
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "fake-api",
-                    "base_url": "https://my-openai-instance.com",
-                },
+def _openai_config_custom_base_url():
+    return {
+        "ai": {
+            "open_ai": {
+                "api_key": "fake-api",
+                "base_url": "https://my-openai-instance.com",
+                "model": "openai/some-openai-model-with-base-url",
             }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+        },
+        "completion": {
+            "model": "gpt-marimo-for-inline-completion",
+            "api_key": "fake-api",
+            "base_url": "https://my-openai-instance.com",
+        },
+    }
 
 
-@contextmanager
-def no_openai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {"open_ai": {"api_key": "", "model": ""}},
-                "completion": {
-                    "model": "gpt-marimo-for-inline-completion",
-                    "api_key": "",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _no_openai_config():
+    return {
+        "ai": {"open_ai": {"api_key": "", "model": ""}},
+        "completion": {
+            "model": "gpt-marimo-for-inline-completion",
+            "api_key": "",
+        },
+    }
 
 
-@contextmanager
-def no_anthropic_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "claude-3.5"},
-                    "anthropic": {"api_key": ""},
-                },
-                "completion": {
-                    "model": "claude-3.5-for-inline-completion",
-                    "api_key": "",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _no_anthropic_config():
+    return {
+        "ai": {
+            "open_ai": {"model": "claude-3.5"},
+            "anthropic": {"api_key": ""},
+        },
+        "completion": {
+            "model": "claude-3.5-for-inline-completion",
+            "api_key": "",
+        },
+    }
 
 
-@contextmanager
-def anthropic_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "claude-3.5"},
-                    "anthropic": {"api_key": "fake-key"},
-                },
-                "completion": {
-                    "model": "claude-3.5-for-inline-completion",
-                    "api_key": "fake-key",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _anthropic_config():
+    return {
+        "ai": {
+            "open_ai": {"model": "claude-3.5"},
+            "anthropic": {"api_key": "fake-key"},
+        },
+        "completion": {
+            "model": "claude-3.5-for-inline-completion",
+            "api_key": "fake-key",
+        },
+    }
 
 
-@contextmanager
-def google_ai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "gemini-1.5-pro"},
-                    "google": {"api_key": "fake-key"},
-                },
-                "completion": {
-                    "model": "gemini-1.5-pro-for-inline-completion",
-                    "api_key": "fake-key",
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
-
-
-@contextmanager
-def no_google_ai_config(config: UserConfigManager):
-    prev_config = config.get_config()
-    try:
-        config.save_config(
-            {
-                "ai": {
-                    "open_ai": {"model": "gemini-1.5-pro"},
-                    "google": {"api_key": ""},
-                },
-            }
-        )
-        yield
-    finally:
-        config.save_config(prev_config)
+def _google_ai_config():
+    return {
+        "ai": {
+            "open_ai": {"model": "gemini-1.5-pro"},
+            "google": {"api_key": "fake-key"},
+        },
+        "completion": {
+            "model": "gemini-1.5-pro-for-inline-completion",
+            "api_key": "fake-key",
+        },
+    }
 
 
 @with_session(SESSION_ID)
@@ -721,7 +704,9 @@ def test_chat_without_code(client: TestClient) -> None:
             )
         ]
 
-        with openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/chat",
                 headers=HEADERS,
@@ -756,7 +741,9 @@ def test_chat_with_code(client: TestClient) -> None:
             )
         ]
 
-        with openai_config(user_config_manager):
+        with patch.object(
+            user_config_manager, "get_config", return_value=_openai_config()
+        ):
             response = client.post(
                 "/api/ai/chat",
                 headers=HEADERS,
