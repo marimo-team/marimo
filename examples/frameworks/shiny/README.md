@@ -5,4 +5,4 @@ This is a simple example of how to use PyShiny with marimo. This example program
 ## Running the app
  
 1. [Install `uv`](https://github.com/astral-sh/uv/?tab=readme-ov-file#installation)
-2. Run the app with `uv run --no-project main.py`
+2. Run the app with `shiny run main.py --port 8007`
