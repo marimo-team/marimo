@@ -292,6 +292,25 @@ Ollama allows you to run open-source LLMs on your local machine. To integrate Ol
    marimo edit notebook.py
    ```
 
+!!! warning "Important: Use the `/v1` endpoint"
+
+    marimo requires Ollama's OpenAI-compatible API endpoint. Always ensure your `base_url` includes the `/v1` path:
+    
+    ```toml
+    [ai.open_ai]
+    base_url = "http://127.0.0.1:11434/v1"  # ✅ Correct - includes /v1
+    ```
+    
+    **Common mistake:**
+    ```toml
+    base_url = "http://127.0.0.1:11434"     # ❌ Will cause 404 errors
+    ```
+    
+    If you encounter 404 errors, verify your model is installed with `ollama ls` and test the endpoint:
+    ```bash
+    curl http://127.0.0.1:11434/v1/models
+    ```
+
 7. Add the following to your `marimo.toml` (or configure in the UI settings in the editor):
 
 ```toml title="marimo.toml"
