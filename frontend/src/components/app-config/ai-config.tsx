@@ -654,7 +654,8 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
       <p className="text-sm text-muted-secondary">
-        Chat with your codebase or make edits.
+        Use the Chat panel to talk to your codebase, or make edits using the{" "}
+        <Kbd className="inline">Generate with AI</Kbd> button.
       </p>
 
       <ModelSelector
