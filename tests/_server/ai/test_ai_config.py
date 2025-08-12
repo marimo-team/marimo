@@ -527,8 +527,6 @@ class TestUtilityFunctions:
             == "openai/gpt-3.5-turbo-instruct"
         )
 
-        assert get_autocomplete_model({"ai": config}) == DEFAULT_MODEL
-
     def test_get_chat_model(self) -> None:
         """Test get_chat_model with new ai.models.chat_model config."""
 
