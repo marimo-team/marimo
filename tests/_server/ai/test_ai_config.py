@@ -439,7 +439,7 @@ class TestUtilityFunctions:
             "models": {
                 "chat_model": "gpt-4",
                 "edit_model": "gpt-5",
-                "enabled_models": [],
+                "displayed_models": [],
                 "custom_models": [],
             },
             "open_ai": {"api_key": "test-key"},
@@ -455,7 +455,7 @@ class TestUtilityFunctions:
         """Test getting default model when not specified."""
         config: AiConfig = {
             "models": {
-                "enabled_models": [],
+                "displayed_models": [],
                 "custom_models": [],
             },
             "open_ai": {"api_key": "test-key"},
@@ -517,7 +517,7 @@ class TestUtilityFunctions:
                 "chat_model": "openai/gpt-4o",
                 "edit_model": "openai/gpt-4o-mini",
                 "autocomplete_model": "openai/gpt-3.5-turbo-instruct",
-                "enabled_models": [],
+                "displayed_models": [],
                 "custom_models": [],
             }
         }
@@ -535,7 +535,7 @@ class TestUtilityFunctions:
             "models": {
                 "chat_model": "anthropic/claude-3-5-sonnet-20241022",
                 "edit_model": "openai/gpt-4o-mini",
-                "enabled_models": [],
+                "displayed_models": [],
                 "custom_models": [],
             }
         }
@@ -549,7 +549,7 @@ class TestUtilityFunctions:
             "models": {
                 "chat_model": "openai/gpt-4o",
                 "edit_model": "anthropic/claude-3-5-haiku-20241022",
-                "enabled_models": [],
+                "displayed_models": [],
                 "custom_models": [],
             }
         }
@@ -562,7 +562,7 @@ class TestUtilityFunctions:
         config: AiConfig = {
             "models": {
                 "chat_model": "openai/gpt-4o",
-                "enabled_models": [],
+                "displayed_models": [],
                 "custom_models": [],
                 # Note: no edit_model
             }
@@ -590,7 +590,7 @@ class TestUtilityFunctions:
             "open_ai": {"api_key": "test-key"},
             "models": {
                 "autocomplete_model": "openai/gpt-3.5-turbo-instruct",
-                "enabled_models": [],
+                "displayed_models": [],
                 "custom_models": [],
             },
         }

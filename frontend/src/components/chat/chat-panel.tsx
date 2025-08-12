@@ -283,7 +283,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           ...userConfig.ai,
           models: {
             custom_models: [],
-            enabled_models: [],
+            displayed_models: [],
             ...userConfig.ai?.models,
             chat_model: newModel,
           },

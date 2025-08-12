@@ -2577,7 +2577,7 @@ export interface components {
         chat_model?: string;
         custom_models: string[];
         edit_model?: string;
-        enabled_models: string[];
+        displayed_models: string[];
       };
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];

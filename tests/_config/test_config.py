@@ -183,7 +183,7 @@ def test_merge_config_existing_chat_edit_models_no_fallback() -> None:
                 "models": {
                     "chat_model": "claude-3-sonnet",
                     "edit_model": "gpt-3.5-turbo",
-                    "enabled_models": [],
+                    "displayed_models": [],
                     "custom_models": [],
                 },
             }
@@ -237,7 +237,7 @@ def test_merge_config_partial_model_config() -> None:
                 },
                 "models": {
                     "chat_model": "claude-3-sonnet",
-                    "enabled_models": [],
+                    "displayed_models": [],
                     "custom_models": [],
                 },
             }
@@ -262,7 +262,7 @@ def test_merge_config_partial_model_config() -> None:
                 },
                 "models": {
                     "edit_model": "gpt-3.5-turbo",
-                    "enabled_models": [],
+                    "displayed_models": [],
                     "custom_models": [],
                 },
             }
@@ -292,7 +292,7 @@ def test_merge_config_empty_models_with_openai_model() -> None:
                 "models": {
                     "chat_model": "",
                     "edit_model": "",
-                    "enabled_models": [],
+                    "displayed_models": [],
                     "custom_models": [],
                 },
             }
@@ -349,7 +349,7 @@ def test_merge_config_completion_model_no_migration_when_autocomplete_exists() -
             ai={
                 "models": {
                     "autocomplete_model": "new-model",
-                    "enabled_models": [],
+                    "displayed_models": [],
                     "custom_models": [],
                 }
             },
@@ -388,7 +388,8 @@ def test_merge_config_completion_model_migration_creates_ai_config() -> None:
         == "custom-model"
     )
     assert (
-        new_config.get("ai", {}).get("models", {}).get("enabled_models") == []
+        new_config.get("ai", {}).get("models", {}).get("displayed_models")
+        == []
     )
     assert (
         new_config.get("ai", {}).get("models", {}).get("custom_models") == []

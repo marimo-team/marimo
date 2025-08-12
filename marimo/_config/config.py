@@ -243,7 +243,7 @@ class AiModelConfig(TypedDict):
     - `chat_model`: the model to use for chat completions
     - `edit_model`: the model to use for edit completions
     - `autocomplete_model`: the model to use for code completion/autocomplete
-    - `enabled_models`: a list of models to enable that are shown in the UI
+    - `displayed_models`: a list of models to display in the UI
     - `custom_models`: a list of custom models to use that are not from the default list
     """
 
@@ -251,7 +251,7 @@ class AiModelConfig(TypedDict):
     edit_model: NotRequired[str]
     autocomplete_model: NotRequired[str]
 
-    enabled_models: list[str]
+    displayed_models: list[str]
     custom_models: list[str]
 
 
@@ -608,7 +608,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "ai": {
         "models": {
-            "enabled_models": [],
+            "displayed_models": [],
             "custom_models": [],
         }
     },
