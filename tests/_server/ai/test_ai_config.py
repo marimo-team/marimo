@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import Any, cast
 from unittest.mock import patch
 
@@ -279,6 +280,157 @@ class TestAnyProviderConfig:
         assert provider_config.tools == []
 
 
+class TestOsKey:
+    """Tests for os_key method."""
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-api-key"})
+    def test_os_key_exists(self) -> None:
+        """Test os_key returns value when environment variable exists."""
+        result = AnyProviderConfig.os_key("OPENAI_API_KEY")
+        assert result == "test-api-key"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_os_key_not_exists(self) -> None:
+        """Test os_key returns None when environment variable doesn't exist."""
+        result = AnyProviderConfig.os_key("NONEXISTENT_KEY")
+        assert result is None
+
+    @patch.dict(os.environ, {"EMPTY_KEY": ""})
+    def test_os_key_empty_string(self) -> None:
+        """Test os_key returns empty string when environment variable is empty."""
+        result = AnyProviderConfig.os_key("EMPTY_KEY")
+        assert result == ""
+
+
+class TestProviderConfigWithFallback:
+    """Tests for provider config methods with OS environment fallback."""
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
+    def test_for_openai_with_fallback_key(self) -> None:
+        """Test OpenAI config uses fallback key when config is missing api_key."""
+        config: AiConfig = {"open_ai": {}}
+
+        provider_config = AnyProviderConfig.for_openai(config)
+
+        assert provider_config.api_key == "env-openai-key"
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
+    def test_for_openai_config_key_takes_precedence(self) -> None:
+        """Test OpenAI config key takes precedence over environment variable."""
+        config: AiConfig = {"open_ai": {"api_key": "config-openai-key"}}
+
+        provider_config = AnyProviderConfig.for_openai(config)
+
+        assert provider_config.api_key == "config-openai-key"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_openai_no_fallback_available(self) -> None:
+        """Test OpenAI config fails when no config key and no env var."""
+        config: AiConfig = {"open_ai": {}}
+
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_openai(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "OpenAI API key not configured" in str(exc_info.value.detail)
+
+    @patch.dict(os.environ, {"AZURE_API_KEY": "env-azure-key"})
+    def test_for_azure_with_fallback_key(self) -> None:
+        """Test Azure config uses fallback key when config is missing api_key."""
+        config: AiConfig = {
+            "azure": {"base_url": "https://test.openai.azure.com"}
+        }
+
+        provider_config = AnyProviderConfig.for_azure(config)
+
+        assert provider_config.api_key == "env-azure-key"
+
+    @patch.dict(os.environ, {"AZURE_API_KEY": "env-azure-key"})
+    def test_for_azure_config_key_takes_precedence(self) -> None:
+        """Test Azure config key takes precedence over environment variable."""
+        config: AiConfig = {
+            "azure": {
+                "api_key": "config-azure-key",
+                "base_url": "https://test.openai.azure.com",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_azure(config)
+
+        assert provider_config.api_key == "config-azure-key"
+
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "env-anthropic-key"})
+    def test_for_anthropic_with_fallback_key(self) -> None:
+        """Test Anthropic config uses fallback key when config is missing api_key."""
+        config: AiConfig = {"anthropic": {}}
+
+        provider_config = AnyProviderConfig.for_anthropic(config)
+
+        assert provider_config.api_key == "env-anthropic-key"
+
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "env-anthropic-key"})
+    def test_for_anthropic_config_key_takes_precedence(self) -> None:
+        """Test Anthropic config key takes precedence over environment variable."""
+        config: AiConfig = {"anthropic": {"api_key": "config-anthropic-key"}}
+
+        provider_config = AnyProviderConfig.for_anthropic(config)
+
+        assert provider_config.api_key == "config-anthropic-key"
+
+    @patch.dict(os.environ, {"GEMINI_API_KEY": "env-gemini-key"})
+    def test_for_google_with_gemini_fallback_key(self) -> None:
+        """Test Google config uses GEMINI_API_KEY fallback when config is missing api_key."""
+        config: AiConfig = {"google": {}}
+
+        provider_config = AnyProviderConfig.for_google(config)
+
+        assert provider_config.api_key == "env-gemini-key"
+
+    @patch.dict(os.environ, {"GOOGLE_API_KEY": "env-google-key"}, clear=True)
+    def test_for_google_with_google_fallback_key(self) -> None:
+        """Test Google config uses GOOGLE_API_KEY fallback when GEMINI_API_KEY is not available."""
+        config: AiConfig = {"google": {}}
+
+        provider_config = AnyProviderConfig.for_google(config)
+
+        assert provider_config.api_key == "env-google-key"
+
+    @patch.dict(
+        os.environ,
+        {
+            "GEMINI_API_KEY": "env-gemini-key",
+            "GOOGLE_API_KEY": "env-google-key",
+        },
+    )
+    def test_for_google_gemini_takes_precedence_over_google(self) -> None:
+        """Test Google config prefers GEMINI_API_KEY over GOOGLE_API_KEY."""
+        config: AiConfig = {"google": {}}
+
+        provider_config = AnyProviderConfig.for_google(config)
+
+        assert provider_config.api_key == "env-gemini-key"
+
+    @patch.dict(os.environ, {"GEMINI_API_KEY": "env-gemini-key"})
+    def test_for_google_config_key_takes_precedence(self) -> None:
+        """Test Google config key takes precedence over environment variables."""
+        config: AiConfig = {"google": {"api_key": "config-google-key"}}
+
+        provider_config = AnyProviderConfig.for_google(config)
+
+        assert provider_config.api_key == "config-google-key"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_google_no_fallback_available(self) -> None:
+        """Test Google config fails when no config key and no env vars."""
+        config: AiConfig = {"google": {}}
+
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_google(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "Google AI API key not configured" in str(exc_info.value.detail)
+
+
 class TestGetKey:
     """Tests for _get_key function."""
 
@@ -368,6 +520,89 @@ class TestGetKey:
         assert "Test Service API key not configured" in str(
             exc_info.value.detail
         )
+
+    def test_get_key_with_fallback_key(self):
+        """Test using fallback key when api_key is missing."""
+        config = {}
+
+        result = _get_key(config, "Test Service", fallback_key="fallback-key")
+
+        assert result == "fallback-key"
+
+    def test_get_key_with_fallback_key_empty_api_key(self):
+        """Test using fallback key when api_key is empty."""
+        config = {"api_key": ""}
+
+        result = _get_key(config, "Test Service", fallback_key="fallback-key")
+
+        assert result == "fallback-key"
+
+    def test_get_key_with_fallback_key_none_api_key(self):
+        """Test using fallback key when api_key is None."""
+        config = {"api_key": None}
+
+        result = _get_key(config, "Test Service", fallback_key="fallback-key")
+
+        assert result == "fallback-key"
+
+    def test_get_key_config_takes_precedence_over_fallback(self):
+        """Test that config api_key takes precedence over fallback_key."""
+        config = {"api_key": "config-key"}
+
+        result = _get_key(config, "Test Service", fallback_key="fallback-key")
+
+        assert result == "config-key"
+
+    def test_get_key_no_fallback_key_provided(self):
+        """Test error when no fallback key provided and api_key missing."""
+        config = {}
+
+        with pytest.raises(HTTPException) as exc_info:
+            _get_key(config, "Test Service", fallback_key=None)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "Test Service API key not configured" in str(
+            exc_info.value.detail
+        )
+
+    def test_get_key_empty_fallback_key(self):
+        """Test error when fallback key is empty string."""
+        config = {}
+
+        with pytest.raises(HTTPException) as exc_info:
+            _get_key(config, "Test Service", fallback_key="")
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "Test Service API key not configured" in str(
+            exc_info.value.detail
+        )
+
+    def test_get_key_bedrock_profile_ignores_fallback(self):
+        """Test that Bedrock profile handling ignores fallback key."""
+        config = {"profile_name": "aws-profile"}
+
+        result = _get_key(config, "Bedrock", fallback_key="fallback-key")
+
+        assert result == "profile:aws-profile"
+
+    def test_get_key_bedrock_credentials_ignores_fallback(self):
+        """Test that Bedrock credentials handling ignores fallback key."""
+        config = {
+            "aws_access_key_id": "access-key",
+            "aws_secret_access_key": "secret-key",
+        }
+
+        result = _get_key(config, "Bedrock", fallback_key="fallback-key")
+
+        assert result == "access-key:secret-key"
+
+    def test_get_key_ollama_placeholder_ignores_fallback(self):
+        """Test that Ollama placeholder handling ignores fallback key."""
+        config = {"base_url": "http://127.0.0.1:11434/"}
+
+        result = _get_key(config, "Ollama", fallback_key="fallback-key")
+
+        assert result == "ollama-placeholder"
 
 
 class TestGetBaseUrl:
