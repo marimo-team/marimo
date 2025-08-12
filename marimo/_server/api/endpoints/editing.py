@@ -129,7 +129,7 @@ async def format_cell(request: Request) -> FormatResponse:
     body = await parse_request(request, cls=FormatRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
 
-    return FormatResponse(codes=formatter.format(body.codes))
+    return FormatResponse(codes=await formatter.format(body.codes))
 
 
 @router.post("/set_cell_config")

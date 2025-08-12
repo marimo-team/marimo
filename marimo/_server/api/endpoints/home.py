@@ -37,7 +37,7 @@ router = APIRouter()
 
 @router.post("/recent_files")
 @requires("edit")
-async def read_code(
+def read_code(
     *,
     request: Request,
 ) -> RecentFilesResponse:
@@ -115,7 +115,7 @@ def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
 
 @router.post("/running_notebooks")
 @requires("edit")
-async def running_notebooks(
+def running_notebooks(
     *,
     request: Request,
 ) -> RunningNotebooksResponse:

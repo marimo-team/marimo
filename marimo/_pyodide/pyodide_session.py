@@ -8,7 +8,7 @@ import json
 import re
 import signal
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, TypeVar
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -197,6 +197,9 @@ class PyodideSession:
             return []
 
 
+T = TypeVar("T")
+
+
 class PyodideBridge:
     def __init__(
         self,
@@ -217,35 +220,35 @@ class PyodideBridge:
         self.session.put_input(text)
 
     def code_complete(self, request: str) -> None:
-        parsed = parse_raw(json.loads(request), requests.CodeCompletionRequest)
+        parsed = self._parse(request, requests.CodeCompletionRequest)
         self.session.put_completion_request(parsed)
 
     def read_code(self) -> str:
         contents: str = self.session.app_manager.read_file()
         response = ReadCodeResponse(contents=contents)
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return self._dump(response)
 
     async def read_snippets(self) -> str:
         snippets = await read_snippets()
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(snippets)))
+        return self._dump(snippets)
 
-    def format(self, request: str) -> str:
-        parsed = parse_raw(json.loads(request), FormatRequest)
+    async def format(self, request: str) -> str:
+        parsed = self._parse(request, FormatRequest)
         formatter = DefaultFormatter(line_length=parsed.line_length)
 
-        response = FormatResponse(codes=formatter.format(parsed.codes))
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        response = FormatResponse(codes=await formatter.format(parsed.codes))
+        return self._dump(response)
 
     def save(self, request: str) -> None:
-        parsed = parse_raw(json.loads(request), SaveNotebookRequest)
+        parsed = self._parse(request, SaveNotebookRequest)
         self.session.app_manager.save(parsed)
 
     def save_app_config(self, request: str) -> None:
-        parsed = parse_raw(json.loads(request), SaveAppConfigurationRequest)
+        parsed = self._parse(request, SaveAppConfigurationRequest)
         self.session.app_manager.save_app_config(parsed.config)
 
     def save_user_config(self, request: str) -> None:
-        parsed = parse_raw(json.loads(request), requests.SetUserConfigRequest)
+        parsed = self._parse(request, requests.SetUserConfigRequest)
         config = merge_default_config(parsed.config)
         self.session.put_control_request(SetUserConfigRequest(config=config))
 
@@ -260,7 +263,7 @@ class PyodideBridge:
         root = body.path or self.file_system.get_root()
         files = self.file_system.list_files(root)
         response = FileListResponse(files=files, root=root)
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return self._dump(response)
 
     def file_details(
         self,
@@ -268,7 +271,7 @@ class PyodideBridge:
     ) -> str:
         body = parse_raw(json.loads(request), FileDetailsRequest)
         response = self.file_system.get_details(body.path)
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return self._dump(response)
 
     def create_file_or_directory(
         self,
@@ -290,7 +293,7 @@ class PyodideBridge:
             response = FileCreateResponse(success=True, info=info)
         except Exception as e:
             response = FileCreateResponse(success=False, message=str(e))
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return self._dump(response)
 
     def delete_file_or_directory(
         self,
@@ -299,7 +302,7 @@ class PyodideBridge:
         body = parse_raw(json.loads(request), FileDeleteRequest)
         success = self.file_system.delete_file_or_directory(body.path)
         response = FileDeleteResponse(success=success)
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return self._dump(response)
 
     def move_file_or_directory(
         self,
@@ -313,7 +316,7 @@ class PyodideBridge:
             response = FileMoveResponse(success=True, info=info)
         except Exception as e:
             response = FileMoveResponse(success=False, message=str(e))
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return self._dump(response)
 
     def update_file(
         self,
@@ -325,7 +328,7 @@ class PyodideBridge:
             response = FileUpdateResponse(success=True)
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))
-        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+        return self._dump(response)
 
     def export_html(self, request: str) -> str:
         parsed = parse_raw(json.loads(request), ExportAsHTMLRequest)
@@ -345,6 +348,12 @@ class PyodideBridge:
             filename=self.session.app_manager.filename,
         )
         return json.dumps(md)
+
+    def _parse(self, request: str, cls: type[T]) -> T:
+        return parse_raw(json.loads(request), cls)
+
+    def _dump(self, response: Any) -> str:
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
 
 def _launch_pyodide_kernel(
