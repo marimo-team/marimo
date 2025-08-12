@@ -69,6 +69,24 @@ components:
           - ask
           - manual
           type: string
+        models:
+          properties:
+            chat_model:
+              type: string
+            custom_models:
+              items:
+                type: string
+              type: array
+            edit_model:
+              type: string
+            enabled_models:
+              items:
+                type: string
+              type: array
+          required:
+          - enabled_models
+          - custom_models
+          type: object
         ollama:
           $ref: '#/components/schemas/OpenAiConfig'
         open_ai:

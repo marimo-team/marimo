@@ -44,7 +44,7 @@ import {
 } from "@/core/ai/state";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { aiAtom, aiEnabledAtom, userConfigAtom } from "@/core/config/config";
-import type { UserConfig } from "@/core/config/config-schema";
+import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -242,7 +242,6 @@ interface ChatInputFooterProps {
   onStop: () => void;
 }
 
-const DEFAULT_MODEL = "openai/gpt-4o";
 const DEFAULT_MODE = "manual";
 
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
@@ -250,7 +249,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     const ai = useAtomValue(aiAtom);
     const [userConfig, setUserConfig] = useAtom(userConfigAtom);
     const currentMode = ai?.mode || DEFAULT_MODE;
-    const currentModel = ai?.models?.chat_model || DEFAULT_MODEL;
+    const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
     const { saveUserConfig } = useRequestClient();
 
     const modeOptions = [
@@ -282,9 +281,11 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         ...userConfig,
         ai: {
           ...userConfig.ai,
-          open_ai: {
-            ...userConfig.ai?.open_ai,
-            model: newModel,
+          models: {
+            custom_models: [],
+            enabled_models: [],
+            ...userConfig.ai?.models,
+            chat_model: newModel,
           },
         },
       };
