@@ -40,9 +40,6 @@ class CompletionConfig(TypedDict):
     until the completion hotkey is entered
     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
     - `codeium_api_key`: the Codeium API key
-    - `api_key`: the API key for the LLM provider, when `copilot` is `"custom"` (deprecated: use AI provider config)
-    - `model`: the model to use, when `copilot` is `"custom"` (deprecated: use `ai.models.autocomplete_model`)
-    - `base_url`: the base URL for the API, when `copilot` is `"custom"` (deprecated: use AI provider config)
     """
 
     activate_on_typing: bool
@@ -51,7 +48,7 @@ class CompletionConfig(TypedDict):
     # Codeium
     codeium_api_key: NotRequired[Optional[str]]
 
-    # Custom (deprecated)
+    # @deprecated: use `ai.models.autocomplete_model` instead
     api_key: NotRequired[Optional[str]]
     model: NotRequired[Optional[str]]
     base_url: NotRequired[Optional[str]]
@@ -264,10 +261,14 @@ class AiConfig(TypedDict, total=False):
     - `rules`: custom rules to include in all AI completion prompts
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
+    - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
     - `bedrock`: the Bedrock config
+    - `azure`: the Azure config
+    - `ollama`: the Ollama config
+    - `open_ai_compatible`: the OpenAI-compatible config
     """
 
     rules: NotRequired[str]
@@ -296,7 +297,6 @@ class OpenAiConfig(TypedDict, total=False):
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
     - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
     - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
-    - `model`: the model to use. @deprecated: use `models` instead
     """
 
     api_key: str
