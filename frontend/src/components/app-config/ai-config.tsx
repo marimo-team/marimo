@@ -21,7 +21,14 @@ import {
   AiProviderIcon,
   type AiProviderIconProps,
 } from "../ai/ai-provider-icon";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../ui/accordion";
 import { ExternalLink } from "../ui/links";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { SettingSubtitle } from "./common";
 import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
@@ -207,7 +214,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             <FormMessage />
             <IsOverridden userConfig={config} name={name} />
           </FormItem>
-          <datalist id="ai-model-datalist">
+          <datalist data-testid="ai-model-datalist">
             {KNOWN_AI_MODELS.map((model) => (
               <option value={model} key={model}>
                 {model}
@@ -351,19 +358,8 @@ const renderCopilotProvider = (
   }
 };
 
-const SettingGroup = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => {
-  return (
-    <div className="flex flex-col gap-4 pb-4">
-      <SettingSubtitle>{title}</SettingSubtitle>
-      {children}
-    </div>
-  );
+const SettingGroup = ({ children }: { children: React.ReactNode }) => {
+  return <div className="flex flex-col gap-4 pb-4">{children}</div>;
 };
 
 export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
@@ -371,10 +367,11 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
   config,
 }) => {
   return (
-    <SettingGroup title="AI Code Completion">
+    <SettingGroup>
+      <SettingSubtitle>Code Completion</SettingSubtitle>
       <p className="text-sm text-muted-secondary">
-        You may use GitHub Copilot, Codeium, or a custom provider (e.g. Ollama)
-        for AI code completion.
+        Choose GitHub Copilot, Codeium, or a custom provider (such as Ollama) to
+        enable AI-powered code completion.
       </p>
 
       <ProviderSelect
@@ -390,209 +387,262 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
   );
 };
 
-export const AiKeysConfig: React.FC<AiConfigProps> = ({ form, config }) => {
+const AccordionFormItem = ({
+  title,
+  triggerClassName,
+  provider,
+  children,
+}: {
+  title: string;
+  triggerClassName?: string;
+  provider: AiProviderIconProps["provider"];
+  children: React.ReactNode;
+}) => {
+  return (
+    <AccordionItem value={provider}>
+      <AccordionTrigger className={triggerClassName}>
+        <AiProviderTitle provider={provider}>{title}</AiProviderTitle>
+      </AccordionTrigger>
+      <AccordionContent wrapperClassName="flex flex-col gap-4">
+        {children}
+      </AccordionContent>
+    </AccordionItem>
+  );
+};
+
+export const AiProvidersConfig: React.FC<AiConfigProps> = ({
+  form,
+  config,
+}) => {
   const isWasmRuntime = isWasm();
 
   return (
-    <SettingGroup title="AI Providers">
-      <AiProviderTitle provider="openai">OpenAI</AiProviderTitle>
-      <ApiKey
-        form={form}
-        config={config}
-        name="ai.open_ai.api_key"
-        placeholder="sk-proj..."
-        testId="ai-openai-api-key-input"
-        description={
-          <>
-            Your OpenAI API key from{" "}
-            <ExternalLink href="https://platform.openai.com/account/api-keys">
-              platform.openai.com
-            </ExternalLink>
-            .
-          </>
-        }
-      />
-      <BaseUrl
-        form={form}
-        config={config}
-        name="ai.open_ai.base_url"
-        placeholder="https://api.openai.com/v1"
-        testId="ai-base-url-input"
-        disabled={isWasmRuntime}
-      />
-
-      <AiProviderTitle provider="anthropic">Anthropic</AiProviderTitle>
-      <ApiKey
-        form={form}
-        config={config}
-        name="ai.anthropic.api_key"
-        placeholder="sk-ant..."
-        testId="ai-anthropic-api-key-input"
-        description={
-          <>
-            Your Anthropic API key from{" "}
-            <ExternalLink href="https://console.anthropic.com/settings/keys">
-              console.anthropic.com
-            </ExternalLink>
-            .
-          </>
-        }
-      />
-
-      <AiProviderTitle provider="google">Google</AiProviderTitle>
-      <ApiKey
-        form={form}
-        config={config}
-        name="ai.google.api_key"
-        placeholder="AI..."
-        testId="ai-google-api-key-input"
-        description={
-          <>
-            Your Google AI API key from{" "}
-            <ExternalLink href="https://aistudio.google.com/app/apikey">
-              aistudio.google.com
-            </ExternalLink>
-            .
-          </>
-        }
-      />
-
-      <AiProviderTitle provider="ollama">Ollama</AiProviderTitle>
-      <BaseUrl
-        form={form}
-        config={config}
-        name="ai.ollama.base_url"
-        placeholder="http://localhost:11434/v1"
-        defaultValue="http://localhost:11434/v1"
-        testId="ollama-base-url-input"
-      />
-
-      <AiProviderTitle>Azure</AiProviderTitle>
-      <ApiKey
-        form={form}
-        config={config}
-        name="ai.azure.api_key"
-        placeholder="sk-proj..."
-        testId="ai-azure-api-key-input"
-        description={
-          <>
-            Your Azure API key from{" "}
-            <ExternalLink href="https://portal.azure.com/">
-              portal.azure.com
-            </ExternalLink>
-            .
-          </>
-        }
-      />
-
-      <BaseUrl
-        form={form}
-        config={config}
-        name="ai.azure.base_url"
-        placeholder="https://<your-resource-name>.openai.azure.com"
-        testId="ai-azure-base-url-input"
-      />
-
-      <AiProviderTitle>AWS Bedrock</AiProviderTitle>
-
-      <p className="text-sm text-muted-secondary mb-2">
-        To use AWS Bedrock, you need to configure AWS credentials and region.
-        See the{" "}
-        <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#aws-bedrock">
-          documentation
+    <SettingGroup>
+      <p className="text-sm text-muted-secondary">
+        Add your API keys below or to <Kbd className="inline">marimo.toml</Kbd>{" "}
+        to set up a provider for the Code Completion and Assistant features; see{" "}
+        <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion/#connecting-to-an-llm">
+          docs
         </ExternalLink>{" "}
-        for more details.
+        for more info.
       </p>
+      <Accordion type="multiple">
+        <AccordionFormItem
+          title="OpenAI"
+          provider="openai"
+          triggerClassName="pt-0"
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.open_ai.api_key"
+            placeholder="sk-proj..."
+            testId="ai-openai-api-key-input"
+            description={
+              <>
+                Your OpenAI API key from{" "}
+                <ExternalLink href="https://platform.openai.com/account/api-keys">
+                  platform.openai.com
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.open_ai.base_url"
+            placeholder="https://api.openai.com/v1"
+            testId="ai-base-url-input"
+            disabled={isWasmRuntime}
+          />
+        </AccordionFormItem>
 
-      <FormField
-        control={form.control}
-        disabled={isWasmRuntime}
-        name="ai.bedrock.region_name"
-        render={({ field }) => (
-          <div className="flex flex-col space-y-1">
-            <FormItem className={formItemClasses}>
-              <FormLabel>AWS Region</FormLabel>
-              <FormControl>
-                <NativeSelect
-                  data-testid="bedrock-region-select"
-                  onChange={(e) => field.onChange(e.target.value)}
-                  value={
-                    typeof field.value === "string" ? field.value : "us-east-1"
-                  }
-                  disabled={field.disabled}
-                  className="inline-flex mr-2"
-                >
-                  {AWS_REGIONS.map((option) => (
-                    <option value={option} key={option}>
-                      {option}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </FormControl>
-              <FormMessage />
-              <IsOverridden userConfig={config} name="ai.bedrock.region_name" />
-            </FormItem>
-            <FormDescription>
-              The AWS region where Bedrock service is available.
-            </FormDescription>
-          </div>
-        )}
-      />
+        <AccordionFormItem title="Anthropic" provider="anthropic">
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.anthropic.api_key"
+            placeholder="sk-ant..."
+            testId="ai-anthropic-api-key-input"
+            description={
+              <>
+                Your Anthropic API key from{" "}
+                <ExternalLink href="https://console.anthropic.com/settings/keys">
+                  console.anthropic.com
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+        </AccordionFormItem>
 
-      <FormField
-        control={form.control}
-        disabled={isWasmRuntime}
-        name="ai.bedrock.profile_name"
-        render={({ field }) => (
-          <div className="flex flex-col space-y-1">
-            <FormItem className={formItemClasses}>
-              <FormLabel>AWS Profile Name (Optional)</FormLabel>
-              <FormControl>
-                <Input
-                  data-testid="bedrock-profile-input"
-                  rootClassName="flex-1"
-                  className="m-0 inline-flex h-7"
-                  placeholder="default"
-                  {...field}
-                  value={field.value || ""}
-                />
-              </FormControl>
-              <FormMessage />
-              <IsOverridden
-                userConfig={config}
-                name="ai.bedrock.profile_name"
-              />
-            </FormItem>
-            <FormDescription>
-              The AWS profile name from your ~/.aws/credentials file. Leave
-              blank to use your default AWS credentials.
-            </FormDescription>
-          </div>
-        )}
-      />
+        <AccordionFormItem title="Google" provider="google">
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.google.api_key"
+            placeholder="AI..."
+            testId="ai-google-api-key-input"
+            description={
+              <>
+                Your Google AI API key from{" "}
+                <ExternalLink href="https://aistudio.google.com/app/apikey">
+                  aistudio.google.com
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+        </AccordionFormItem>
 
-      <AiProviderTitle>OpenAI-Compatible</AiProviderTitle>
-      <ApiKey
-        form={form}
-        config={config}
-        name="ai.open_ai_compatible.api_key"
-        placeholder="sk-..."
-        testId="ai-openai-compatible-api-key-input"
-        description={
-          <>
-            API key for any OpenAI-compatible provider (e.g., Together, Groq,
-            Mistral, Perplexity, etc).
-          </>
-        }
-      />
-      <BaseUrl
-        form={form}
-        config={config}
-        name="ai.open_ai_compatible.base_url"
-        placeholder="https://api.together.xyz/v1"
-        testId="ai-openai-compatible-base-url-input"
-        description={<>Base URL for your OpenAI-compatible provider.</>}
-      />
+        <AccordionFormItem title="Ollama" provider="ollama">
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.ollama.base_url"
+            placeholder="http://localhost:11434/v1"
+            defaultValue="http://localhost:11434/v1"
+            testId="ollama-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem title="Azure" provider="azure">
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.azure.api_key"
+            placeholder="sk-proj..."
+            testId="ai-azure-api-key-input"
+            description={
+              <>
+                Your Azure API key from{" "}
+                <ExternalLink href="https://portal.azure.com/">
+                  portal.azure.com
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.azure.base_url"
+            placeholder="https://<your-resource-name>.openai.azure.com"
+            testId="ai-azure-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem title="AWS Bedrock" provider="bedrock">
+          <p className="text-sm text-muted-secondary mb-2">
+            To use AWS Bedrock, you need to configure AWS credentials and
+            region. See the{" "}
+            <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion.html#aws-bedrock">
+              documentation
+            </ExternalLink>{" "}
+            for more details.
+          </p>
+
+          <FormField
+            control={form.control}
+            disabled={isWasmRuntime}
+            name="ai.bedrock.region_name"
+            render={({ field }) => (
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>AWS Region</FormLabel>
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="bedrock-region-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={
+                        typeof field.value === "string"
+                          ? field.value
+                          : "us-east-1"
+                      }
+                      disabled={field.disabled}
+                      className="inline-flex mr-2"
+                    >
+                      {AWS_REGIONS.map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormMessage />
+                  <IsOverridden
+                    userConfig={config}
+                    name="ai.bedrock.region_name"
+                  />
+                </FormItem>
+                <FormDescription>
+                  The AWS region where Bedrock service is available.
+                </FormDescription>
+              </div>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            disabled={isWasmRuntime}
+            name="ai.bedrock.profile_name"
+            render={({ field }) => (
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>AWS Profile Name (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="bedrock-profile-input"
+                      rootClassName="flex-1"
+                      className="m-0 inline-flex h-7"
+                      placeholder="default"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <IsOverridden
+                    userConfig={config}
+                    name="ai.bedrock.profile_name"
+                  />
+                </FormItem>
+                <FormDescription>
+                  The AWS profile name from your ~/.aws/credentials file. Leave
+                  blank to use your default AWS credentials.
+                </FormDescription>
+              </div>
+            )}
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
+          title="OpenAI-Compatible"
+          provider="openai-compatible"
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.open_ai_compatible.api_key"
+            placeholder="sk-..."
+            testId="ai-openai-compatible-api-key-input"
+            description={
+              <>
+                API key for any OpenAI-compatible provider (e.g., Together,
+                Groq, Mistral, Perplexity, etc).
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.open_ai_compatible.base_url"
+            placeholder="https://api.together.xyz/v1"
+            testId="ai-openai-compatible-base-url-input"
+            description={<>Base URL for your OpenAI-compatible provider.</>}
+          />
+        </AccordionFormItem>
+      </Accordion>
     </SettingGroup>
   );
 };
@@ -601,14 +651,10 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
   const isWasmRuntime = isWasm();
 
   return (
-    <SettingGroup title="AI Assist">
+    <SettingGroup>
+      <SettingSubtitle>AI Assistant</SettingSubtitle>
       <p className="text-sm text-muted-secondary">
-        Add an API key below or to <Kbd className="inline">marimo.toml</Kbd> to
-        activate marimo's AI assistant for chat or edits; see{" "}
-        <ExternalLink href="https://docs.marimo.io/guides/editor_features/ai_completion/">
-          docs
-        </ExternalLink>{" "}
-        for more info.
+        Chat with your codebase or make edits.
       </p>
 
       <ModelSelector
@@ -668,10 +714,26 @@ export const AiConfig: React.FC<AiConfigProps> = ({
   onSubmit,
 }) => {
   return (
-    <>
-      <AiCodeCompletionConfig form={form} config={config} onSubmit={onSubmit} />
-      <AiAssistConfig form={form} config={config} onSubmit={onSubmit} />
-      <AiKeysConfig form={form} config={config} onSubmit={onSubmit} />
-    </>
+    <Tabs defaultValue="code-completion">
+      <TabsList className="mb-2">
+        <TabsTrigger value="code-completion">Features</TabsTrigger>
+        <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="code-completion">
+        <AiCodeCompletionConfig
+          form={form}
+          config={config}
+          onSubmit={onSubmit}
+        />
+        <AiAssistConfig form={form} config={config} onSubmit={onSubmit} />
+      </TabsContent>
+      <TabsContent value="ai-assist">
+        <AiAssistConfig form={form} config={config} onSubmit={onSubmit} />
+      </TabsContent>
+      <TabsContent value="ai-providers">
+        <AiProvidersConfig form={form} config={config} onSubmit={onSubmit} />
+      </TabsContent>
+    </Tabs>
   );
 };
