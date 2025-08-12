@@ -61,11 +61,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.NonNestedLiteral,
         data.DataType,
         CellConfig,
-        config.AiConfig,
         config.OpenAiConfig,
         config.AnthropicConfig,
         config.GoogleAiConfig,
         config.BedrockConfig,
+        config.AiConfig,
         config.MarimoConfig,
         # Errors
         errors.SetupRootError,
