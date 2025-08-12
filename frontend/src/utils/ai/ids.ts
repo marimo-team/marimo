@@ -39,10 +39,10 @@ export class AiModelId {
       return new AiModelId(providerId, id as ShortModelId);
     }
 
-    const [providerId, shortModelId] = id.split("/");
+    const [providerId, ...shortModelId] = id.split("/");
     return new AiModelId(
       providerId as ProviderId,
-      shortModelId as ShortModelId,
+      shortModelId.join("/") as ShortModelId,
     );
   }
 }

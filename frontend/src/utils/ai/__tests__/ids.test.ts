@@ -66,10 +66,10 @@ describe("AiModelId", () => {
         expect(modelId.shortModelId).toBe("titan-text");
       });
 
-      it("should handle multiple slashes by taking first two parts", () => {
+      it("should handle multiple slashes", () => {
         const modelId = AiModelId.parse("openai/gpt-4/turbo");
         expect(modelId.providerId).toBe("openai");
-        expect(modelId.shortModelId).toBe("gpt-4");
+        expect(modelId.shortModelId).toBe("gpt-4/turbo");
       });
     });
 
