@@ -3,7 +3,7 @@
 
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -15,6 +15,21 @@ import {
   switchLanguage,
 } from "../extension";
 import { languageMetadataField } from "../metadata";
+
+let view: EditorView | null = null;
+
+// Clean up created EditorView instances
+afterEach(() => {
+  if (view) {
+    view.destroy();
+    view = null;
+  }
+});
+
+function createEditorView(state: EditorState): EditorView {
+  view = new EditorView({ state });
+  return view;
+}
 
 function createState(content: string, selection?: { anchor: number }) {
   const state = EditorState.create({
@@ -74,7 +89,7 @@ describe("switchLanguage", () => {
     const state = createState("print('Hello')\nprint('Goodbye')", {
       anchor: 2,
     });
-    const mockEditor = new EditorView({ state });
+    const mockEditor = createEditorView(state);
     switchLanguage(mockEditor, { language: "python", keepCodeAsIs: true });
     expect(mockEditor.state.field(languageAdapterState).type).toBe("python");
     expect(mockEditor.state.doc.toString()).toEqual(
@@ -129,7 +144,7 @@ describe("switchLanguage", () => {
     const state = createState("print('Hello')\nprint('Goodbye')", {
       anchor: 2,
     });
-    const mockEditor = new EditorView({ state });
+    const mockEditor = createEditorView(state);
     switchLanguage(mockEditor, { language: "python", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toEqual(
       "print('Hello')\nprint('Goodbye')",
@@ -176,7 +191,7 @@ describe("switchLanguage", () => {
 
   it("sets default metadata when switching from Python to SQL with keepCodeAsIs false", () => {
     const state = createState("SELECT * FROM df");
-    const mockEditor = new EditorView({ state });
+    const mockEditor = createEditorView(state);
 
     expect(mockEditor.state.field(languageMetadataField)).toEqual({});
 
@@ -204,7 +219,7 @@ describe("switchLanguage", () => {
 
   it("handle when switching from Python to Markdown with keepCodeAsIs true", () => {
     const state = createState("# hello");
-    const mockEditor = new EditorView({ state });
+    const mockEditor = createEditorView(state);
     expect(mockEditor.state.field(languageMetadataField)).toEqual({});
 
     switchLanguage(mockEditor, { language: "markdown", keepCodeAsIs: true });
@@ -216,7 +231,7 @@ describe("switchLanguage", () => {
 
   it("handles when switching from Python to Markdown to SQL with keepCodeAsIs true", () => {
     const state = createState("SELECT * FROM df");
-    const mockEditor = new EditorView({ state });
+    const mockEditor = createEditorView(state);
     expect(mockEditor.state.field(languageMetadataField)).toEqual({});
 
     switchLanguage(mockEditor, { language: "markdown", keepCodeAsIs: true });
