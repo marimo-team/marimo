@@ -16,10 +16,11 @@ from marimo import _loggers
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.config import (
-    DEFAULT_MODEL,
     AnyProviderConfig,
+    get_autocomplete_model,
+    get_chat_model,
+    get_edit_model,
     get_max_tokens,
-    get_model,
 )
 from marimo._server.ai.prompts import (
     FILL_ME_TAG,
@@ -112,7 +113,7 @@ async def ai_completion(
     )
     prompt = body.prompt
 
-    model = get_model(ai_config)
+    model = get_edit_model(ai_config)
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
@@ -168,7 +169,7 @@ async def ai_chat(
 
     max_tokens = get_max_tokens(config)
 
-    model = body.model or get_model(ai_config)
+    model = body.model or get_chat_model(ai_config)
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
@@ -223,15 +224,15 @@ async def ai_inline_completion(
     # of 4096, since it is smaller/faster for inline completions
     INLINE_COMPLETION_MAX_TOKENS = 1024
 
-    try:
-        model = config["completion"]["model"] or DEFAULT_MODEL
-    except Exception:
-        model = DEFAULT_MODEL
+    ai_config = get_ai_config(config)
 
-    provider = get_completion_provider(
-        AnyProviderConfig.for_completion(config["completion"]),
-        model=model,
-    )
+    model = get_autocomplete_model(config)
+    provider_config = AnyProviderConfig.for_model(model, ai_config)
+    # Inline completion never uses tools
+    if provider_config.tools:
+        provider_config.tools.clear()
+
+    provider = get_completion_provider(provider_config, model=model)
     response = provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,

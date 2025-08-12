@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     Optional,
+    Union,
     cast,
 )
 
@@ -12,16 +13,14 @@ from starlette.exceptions import HTTPException
 
 from marimo._config.config import (
     AiConfig,
-    CompletionConfig,
     CopilotMode,
     MarimoConfig,
+    PartialMarimoConfig,
 )
+from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools import Tool, get_tool_manager
 from marimo._server.api.status import HTTPStatus
-
-DEFAULT_MAX_TOKENS = 4096
-DEFAULT_MODEL = "gpt-4o-mini"
 
 
 @dataclass
@@ -132,15 +131,6 @@ class AnyProviderConfig:
         )
 
     @classmethod
-    def for_completion(cls, config: CompletionConfig) -> AnyProviderConfig:
-        key = _get_key(config, "AI completion")
-        return cls(
-            base_url=_get_base_url(config),
-            api_key=key,
-            tools=[],  # Inline completion never uses tools
-        )
-
-    @classmethod
     def for_model(cls, model: str, config: AiConfig) -> AnyProviderConfig:
         model_id = AiModelId.from_model(model)
         if model_id.provider == "anthropic":
@@ -185,8 +175,33 @@ def _get_ai_config(config: AiConfig, key: str, name: str) -> dict[str, Any]:
     return cast(dict[str, Any], config.get(key, {}))
 
 
-def get_model(config: AiConfig) -> str:
-    return config.get("open_ai", {}).get("model") or DEFAULT_MODEL
+def get_chat_model(config: AiConfig) -> str:
+    """Get the chat model from the config."""
+    return (
+        # Current config
+        config.get("models", {}).get("chat_model")
+        # Legacy config
+        or config.get("open_ai", {}).get("model")
+        or DEFAULT_MODEL
+    )
+
+
+def get_edit_model(config: AiConfig) -> str:
+    """Get the edit model from the config."""
+    return config.get("models", {}).get("edit_model") or get_chat_model(config)
+
+
+def get_autocomplete_model(
+    config: Union[MarimoConfig, PartialMarimoConfig],
+) -> str:
+    """Get the autocomplete model from the config."""
+    return (
+        # Current config
+        config.get("ai", {}).get("models", {}).get("autocomplete_model")
+        # Legacy config
+        or config.get("completion", {}).get("model")
+        or DEFAULT_MODEL
+    )
 
 
 def get_max_tokens(config: MarimoConfig) -> int:
@@ -209,6 +224,8 @@ def _get_key(
             status_code=HTTPStatus.BAD_REQUEST,
             detail="Invalid config",
         )
+
+    config = cast(dict[str, Any], config)
 
     if name == "Bedrock":
         if "profile_name" in config:

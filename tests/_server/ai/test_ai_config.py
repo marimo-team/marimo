@@ -10,7 +10,6 @@ from starlette.exceptions import HTTPException
 
 from marimo._config.config import (
     AiConfig,
-    CompletionConfig,
     MarimoConfig,
 )
 from marimo._server.ai.config import (
@@ -20,8 +19,10 @@ from marimo._server.ai.config import (
     _get_ai_config,
     _get_base_url,
     _get_key,
+    get_autocomplete_model,
+    get_chat_model,
+    get_edit_model,
     get_max_tokens,
-    get_model,
 )
 from marimo._server.ai.tools import Tool
 from marimo._server.api.status import HTTPStatus
@@ -177,21 +178,6 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-access-key:test-secret-key"
         # Note: base_url is None because _get_base_url doesn't get "Bedrock" name parameter
         assert provider_config.base_url is None
-
-    def test_for_completion(self):
-        """Test completion configuration."""
-        config: CompletionConfig = {
-            "activate_on_typing": True,
-            "copilot": "custom",
-            "api_key": "test-completion-key",
-            "base_url": "https://completion.service.com",
-        }
-
-        provider_config = AnyProviderConfig.for_completion(config)
-
-        assert provider_config.api_key == "test-completion-key"
-        assert provider_config.base_url == "https://completion.service.com"
-        assert provider_config.tools == []  # Completion never uses tools
 
     def test_for_model_openai(self) -> None:
         """Test for_model with OpenAI model."""
@@ -685,27 +671,38 @@ class TestUtilityFunctions:
     def test_get_model_with_openai_config(self):
         """Test getting model from OpenAI config."""
         config: AiConfig = {
-            "open_ai": {"model": "gpt-4", "api_key": "test-key"}
+            "models": {
+                "chat_model": "gpt-4",
+                "edit_model": "gpt-5",
+                "displayed_models": [],
+                "custom_models": [],
+            },
+            "open_ai": {"api_key": "test-key"},
         }
 
-        result = get_model(config)
-
+        result = get_chat_model(config)
         assert result == "gpt-4"
+
+        result = get_edit_model(config)
+        assert result == "gpt-5"
 
     def test_get_model_default(self):
         """Test getting default model when not specified."""
-        config: AiConfig = {"open_ai": {"api_key": "test-key"}}
+        config: AiConfig = {
+            "models": {
+                "displayed_models": [],
+                "custom_models": [],
+            },
+            "open_ai": {"api_key": "test-key"},
+        }
 
-        result = get_model(config)
-
+        result = get_chat_model(config)
         assert result == DEFAULT_MODEL
 
-    def test_get_model_no_openai_config(self):
-        """Test getting default model when no OpenAI config."""
-        config: AiConfig = {}
+        result = get_edit_model(config)
+        assert result == DEFAULT_MODEL
 
-        result = get_model(config)
-
+        result = get_autocomplete_model({"ai": config})
         assert result == DEFAULT_MODEL
 
     def test_get_max_tokens_from_config(self):
@@ -746,6 +743,98 @@ class TestUtilityFunctions:
         result = get_max_tokens(config)
 
         assert result == DEFAULT_MAX_TOKENS
+
+    def test_get_autocomplete_model(self) -> None:
+        """Test get_autocomplete_model with new ai.models.autocomplete_model config."""
+
+        config: AiConfig = {
+            "models": {
+                "chat_model": "openai/gpt-4o",
+                "edit_model": "openai/gpt-4o-mini",
+                "autocomplete_model": "openai/gpt-3.5-turbo-instruct",
+                "displayed_models": [],
+                "custom_models": [],
+            }
+        }
+
+        assert (
+            get_autocomplete_model({"ai": config})
+            == "openai/gpt-3.5-turbo-instruct"
+        )
+
+    def test_get_chat_model(self) -> None:
+        """Test get_chat_model with new ai.models.chat_model config."""
+
+        config: AiConfig = {
+            "models": {
+                "chat_model": "anthropic/claude-3-5-sonnet-20241022",
+                "edit_model": "openai/gpt-4o-mini",
+                "displayed_models": [],
+                "custom_models": [],
+            }
+        }
+
+        assert get_chat_model(config) == "anthropic/claude-3-5-sonnet-20241022"
+
+    def test_get_edit_model(self) -> None:
+        """Test get_edit_model with new ai.models.edit_model config."""
+
+        config: AiConfig = {
+            "models": {
+                "chat_model": "openai/gpt-4o",
+                "edit_model": "anthropic/claude-3-5-haiku-20241022",
+                "displayed_models": [],
+                "custom_models": [],
+            }
+        }
+
+        assert get_edit_model(config) == "anthropic/claude-3-5-haiku-20241022"
+
+    def test_get_edit_model_fallback_to_chat_model(self) -> None:
+        """Test get_edit_model falls back to chat_model when edit_model is not set."""
+
+        config: AiConfig = {
+            "models": {
+                "chat_model": "openai/gpt-4o",
+                "displayed_models": [],
+                "custom_models": [],
+                # Note: no edit_model
+            }
+        }
+
+        assert get_edit_model(config) == "openai/gpt-4o"
+
+    def test_get_models_with_legacy_openai_config(self) -> None:
+        """Test that the new get_*_model functions work with legacy open_ai.model config."""
+        config: AiConfig = {
+            "open_ai": {
+                "api_key": "test-key",
+                "model": "gpt-4-legacy",
+            }
+        }
+
+        # Should fall back to open_ai.model for both chat and edit
+        assert get_chat_model(config) == "gpt-4-legacy"
+        assert get_edit_model(config) == "gpt-4-legacy"
+        assert get_autocomplete_model({"ai": config}) == DEFAULT_MODEL
+
+    def test_for_model_with_autocomplete_model(self) -> None:
+        """Test AnyProviderConfig.for_model works with autocomplete models from new config."""
+        config: AiConfig = {
+            "open_ai": {"api_key": "test-key"},
+            "models": {
+                "autocomplete_model": "openai/gpt-3.5-turbo-instruct",
+                "displayed_models": [],
+                "custom_models": [],
+            },
+        }
+
+        provider_config = AnyProviderConfig.for_model(
+            "openai/gpt-3.5-turbo-instruct", config
+        )
+
+        assert provider_config.api_key == "test-key"
+        assert provider_config.tools == []  # Autocomplete should have no tools
 
 
 class TestEdgeCases:

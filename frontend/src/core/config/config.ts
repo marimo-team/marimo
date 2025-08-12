@@ -79,6 +79,9 @@ export function isAiEnabled(config: UserConfig) {
     Boolean(config.ai?.open_ai?.api_key) ||
     Boolean(config.ai?.anthropic?.api_key) ||
     Boolean(config.ai?.google?.api_key) ||
+    Boolean(config.ai?.azure?.api_key) ||
+    Boolean(config.ai?.ollama?.api_key) ||
+    Boolean(config.ai?.open_ai_compatible?.api_key) ||
     Boolean(config.ai?.bedrock?.profile_name)
   );
 }

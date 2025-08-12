@@ -15,7 +15,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
-import type { UserConfig } from "@/core/config/config-schema";
+import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
 import {
   AiProviderIcon,
@@ -181,6 +181,7 @@ interface ModelSelectorProps {
   testId: string;
   description?: React.ReactNode;
   disabled?: boolean;
+  label: string;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -191,6 +192,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   testId,
   description,
   disabled = false,
+  label,
 }) => {
   const modelInputId = useId();
 
@@ -202,7 +204,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
-            <FormLabel>Model</FormLabel>
+            <FormLabel>{label}</FormLabel>
             <FormControl>
               <Input
                 list={modelInputId}
@@ -335,25 +337,19 @@ const renderCopilotProvider = (
           settings.
         </p>
         <ModelSelector
+          label="Autocomplete Model"
           form={form}
           config={config}
-          name="completion.model"
-          placeholder="Qwen2.5-Coder-7B"
+          name="ai.models.autocomplete_model"
+          placeholder="ollama/qwen2.5-coder:1.5b"
           testId="custom-model-input"
-        />
-        <BaseUrl
-          form={form}
-          config={config}
-          name="completion.base_url"
-          placeholder="http://localhost:11434/v1"
-          testId="custom-base-url-input"
-        />
-        <ApiKey
-          form={form}
-          config={config}
-          name="completion.api_key"
-          placeholder="key"
-          testId="custom-api-key-input"
+          description={
+            <>
+              Model to use for code completion when using a custom provider.
+              Models should include the provider name and model name separated
+              by a slash.
+            </>
+          }
         />
       </>
     );
@@ -661,22 +657,47 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
       </p>
 
       <ModelSelector
+        label="Chat Model"
         form={form}
         config={config}
-        name="ai.open_ai.model"
-        placeholder="gpt-4-turbo"
-        testId="ai-model-input"
+        name="ai.models.chat_model"
+        placeholder={DEFAULT_AI_MODEL}
+        testId="ai-chat-model-input"
         disabled={isWasmRuntime}
         description={
           <>
             <p>
-              Models should include the provider name and model name separated
-              by a slash. For example, "anthropic/claude-3-7-sonnet-latest" or
-              "google/gemini-2.5-flash-preview-05-20".
+              Model to use for chat conversations in the Chat panel. Models
+              should include the provider name and model name separated by a
+              slash. For example, "anthropic/claude-3-5-sonnet-latest" or
+              "google/gemini-2.0-flash-exp".
             </p>
             <p className="pt-1">
               Depending on the provider, we will use the respective API key and
               additional configuration.
+            </p>
+          </>
+        }
+      />
+
+      <ModelSelector
+        label="Edit Model"
+        form={form}
+        config={config}
+        name="ai.models.edit_model"
+        placeholder={DEFAULT_AI_MODEL}
+        testId="ai-edit-model-input"
+        disabled={isWasmRuntime}
+        description={
+          <>
+            <p>
+              Model to use for code editing with the{" "}
+              <Kbd className="inline">Generate with AI</Kbd> button. Models
+              should include the provider name and model name separated by a
+              slash.
+            </p>
+            <p className="pt-1">
+              You can use a faster, cheaper model for edits if desired.
             </p>
           </>
         }

@@ -2572,6 +2572,13 @@ export interface components {
       max_tokens?: number;
       /** @enum {string} */
       mode?: "ask" | "manual";
+      models?: {
+        autocomplete_model?: string;
+        chat_model?: string;
+        custom_models: string[];
+        edit_model?: string;
+        displayed_models: string[];
+      };
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
       open_ai_compatible?: components["schemas"]["OpenAiConfig"];

@@ -37,6 +37,8 @@ const VALID_SQL_OUTPUT_FORMATS = [
 ] as const;
 export type SqlOutputType = (typeof VALID_SQL_OUTPUT_FORMATS)[number];
 
+export const DEFAULT_AI_MODEL = "openai/gpt-4o";
+
 /**
  * Export types for auto download
  */
@@ -142,13 +144,7 @@ export const UserConfigSchema = z
       .object({
         rules: z.string().default(""),
         mode: z.enum(["manual", "ask"]).default("manual"),
-        // TODO: the model currently exists on the open_ai object, but we should
-        // move it to the top level.
-        open_ai: AiConfigSchema.extend({
-          model: z.string().optional(),
-        })
-          .passthrough()
-          .optional(),
+        open_ai: AiConfigSchema.optional(),
         anthropic: AiConfigSchema.optional(),
         google: AiConfigSchema.optional(),
         ollama: AiConfigSchema.optional(),
@@ -162,6 +158,18 @@ export const UserConfigSchema = z
             aws_secret_access_key: z.string().optional(),
           })
           .optional(),
+        models: z
+          .object({
+            chat_model: z.string().nullish(),
+            edit_model: z.string().nullish(),
+            autocomplete_model: z.string().nullish(),
+            displayed_models: z.array(z.string()).default([]),
+            custom_models: z.array(z.string()).default([]),
+          })
+          .default({
+            displayed_models: [],
+            custom_models: [],
+          }),
       })
       .passthrough()
       .default({}),
@@ -198,6 +206,7 @@ export const UserConfigSchema = z
       rules: "",
       mode: "manual",
       open_ai: {},
+      models: {},
     },
   });
 export type UserConfig = MarimoConfig;
