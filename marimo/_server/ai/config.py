@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     Optional,
+    Union,
     cast,
 )
 
@@ -14,6 +15,7 @@ from marimo._config.config import (
     AiConfig,
     CopilotMode,
     MarimoConfig,
+    PartialMarimoConfig,
 )
 from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
@@ -166,11 +168,13 @@ def get_edit_model(config: AiConfig) -> str:
     return config.get("models", {}).get("edit_model") or get_chat_model(config)
 
 
-def get_autocomplete_model(config: AiConfig) -> str:
+def get_autocomplete_model(
+    config: Union[MarimoConfig, PartialMarimoConfig],
+) -> str:
     """Get the autocomplete model from the config."""
     return (
         # Current config
-        config.get("models", {}).get("autocomplete_model")
+        config.get("ai", {}).get("models", {}).get("autocomplete_model")
         # Legacy config
         or config.get("completion", {}).get("model")
         or DEFAULT_MODEL
@@ -197,6 +201,8 @@ def _get_key(
             status_code=HTTPStatus.BAD_REQUEST,
             detail="Invalid config",
         )
+
+    config = cast(dict[str, Any], config)
 
     if name == "Bedrock":
         if "profile_name" in config:

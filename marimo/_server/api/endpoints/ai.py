@@ -226,7 +226,7 @@ async def ai_inline_completion(
 
     ai_config = get_ai_config(config)
 
-    model = get_autocomplete_model(ai_config)
+    model = get_autocomplete_model(config)
     provider_config = AnyProviderConfig.for_model(model, ai_config)
     # Inline completion never uses tools
     if provider_config.tools:

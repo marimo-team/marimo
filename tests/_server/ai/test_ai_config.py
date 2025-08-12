@@ -467,7 +467,7 @@ class TestUtilityFunctions:
         result = get_edit_model(config)
         assert result == DEFAULT_MODEL
 
-        result = get_autocomplete_model(config)
+        result = get_autocomplete_model({"ai": config})
         assert result == DEFAULT_MODEL
 
     def test_get_max_tokens_from_config(self):
@@ -523,10 +523,11 @@ class TestUtilityFunctions:
         }
 
         assert (
-            get_autocomplete_model(config) == "openai/gpt-3.5-turbo-instruct"
+            get_autocomplete_model({"ai": config})
+            == "openai/gpt-3.5-turbo-instruct"
         )
 
-        assert get_autocomplete_model(config) == DEFAULT_MODEL
+        assert get_autocomplete_model({"ai": config}) == DEFAULT_MODEL
 
     def test_get_chat_model(self) -> None:
         """Test get_chat_model with new ai.models.chat_model config."""
@@ -582,7 +583,7 @@ class TestUtilityFunctions:
         # Should fall back to open_ai.model for both chat and edit
         assert get_chat_model(config) == "gpt-4-legacy"
         assert get_edit_model(config) == "gpt-4-legacy"
-        assert get_autocomplete_model(config) == "gpt-4-legacy"
+        assert get_autocomplete_model({"ai": config}) == "gpt-4-legacy"
 
     def test_for_model_with_autocomplete_model(self) -> None:
         """Test AnyProviderConfig.for_model works with autocomplete models from new config."""
