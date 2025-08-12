@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
-from marimo._server.ai.constants import DEFAULT_MODEL
 
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
@@ -607,8 +606,6 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "ai": {
         "models": {
-            "chat_model": DEFAULT_MODEL,
-            "edit_model": DEFAULT_MODEL,
             "enabled_models": [],
             "custom_models": [],
         }
@@ -668,5 +665,21 @@ def merge_config(
             merged["runtime"].get("auto_reload") == "detect"  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "lazy"
+
+    # If missing ai.models.chat_model or ai.models.edit_model, use ai.open_ai.model
+    openai_model = merged.get("ai", {}).get("open_ai", {}).get("model")
+    chat_model = merged.get("ai", {}).get("models", {}).get("chat_model")
+    edit_model = merged.get("ai", {}).get("models", {}).get("edit_model")
+    if not chat_model and not edit_model and openai_model:
+        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
+        models_config = {
+            "models": {
+                "chat_model": chat_model or openai_model,
+                "edit_model": edit_model or openai_model,
+            }
+        }
+        merged["ai"] = cast(
+            AiConfig, deep_merge(merged_ai_config, models_config)
+        )
 
     return merged

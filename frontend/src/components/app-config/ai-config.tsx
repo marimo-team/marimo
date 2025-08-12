@@ -663,20 +663,43 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
       <ModelSelector
         form={form}
         config={config}
-        name="ai.open_ai.model"
-        placeholder="gpt-4-turbo"
-        testId="ai-model-input"
+        name="ai.models.chat_model"
+        placeholder="openai/gpt-4o"
+        testId="ai-chat-model-input"
         disabled={isWasmRuntime}
         description={
           <>
             <p>
-              Models should include the provider name and model name separated
-              by a slash. For example, "anthropic/claude-3-7-sonnet-latest" or
-              "google/gemini-2.5-flash-preview-05-20".
+              Model to use for chat conversations in the Chat panel. Models
+              should include the provider name and model name separated by a
+              slash. For example, "anthropic/claude-3-5-sonnet-latest" or
+              "google/gemini-2.0-flash-exp".
             </p>
             <p className="pt-1">
               Depending on the provider, we will use the respective API key and
               additional configuration.
+            </p>
+          </>
+        }
+      />
+
+      <ModelSelector
+        form={form}
+        config={config}
+        name="ai.models.edit_model"
+        placeholder="openai/gpt-4o"
+        testId="ai-edit-model-input"
+        disabled={isWasmRuntime}
+        description={
+          <>
+            <p>
+              Model to use for code editing with the{" "}
+              <Kbd className="inline">Generate with AI</Kbd> button. Models
+              should include the provider name and model name separated by a
+              slash.
+            </p>
+            <p className="pt-1">
+              You can use a faster, cheaper model for edits if desired.
             </p>
           </>
         }
