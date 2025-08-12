@@ -162,6 +162,7 @@ export const UserConfigSchema = z
           .object({
             chat_model: z.string().default(DEFAULT_AI_MODEL),
             edit_model: z.string().default(DEFAULT_AI_MODEL),
+            autocomplete_model: z.string().optional(),
             enabled_models: z.array(z.string()).default([]),
             custom_models: z.array(z.string()).default([]),
           })

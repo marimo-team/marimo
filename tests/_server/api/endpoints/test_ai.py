@@ -311,9 +311,7 @@ class TestOpenAiEndpoints:
                 },
             )
         assert response.status_code == 400, response.text
-        assert response.json() == {
-            "detail": "AI completion API key not configured"
-        }
+        assert response.json() == {"detail": "OpenAI API key not configured"}
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -486,10 +484,9 @@ class TestGoogleAiEndpoints:
             "ai": {
                 "open_ai": {"model": "gemini-1.5-pro"},
                 "google": {"api_key": "fake-key"},
-            },
-            "completion": {
-                "model": "gemini-1.5-pro-for-inline-completion",
-                "api_key": "fake-key",
+                "models": {
+                    "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+                },
             },
         }
 
@@ -598,11 +595,10 @@ def _openai_config():
             "open_ai": {
                 "api_key": "fake-api",
                 "model": "openai/some-openai-model",
-            }
-        },
-        "completion": {
-            "model": "gpt-marimo-for-inline-completion",
-            "api_key": "fake-api",
+            },
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
         },
     }
 
@@ -613,11 +609,10 @@ def _openai_config_custom_model():
             "open_ai": {
                 "api_key": "fake-api",
                 "model": "gpt-marimo",
-            }
-        },
-        "completion": {
-            "model": "gpt-marimo-for-inline-completion",
-            "api_key": "fake-api",
+            },
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
         },
     }
 
@@ -629,22 +624,21 @@ def _openai_config_custom_base_url():
                 "api_key": "fake-api",
                 "base_url": "https://my-openai-instance.com",
                 "model": "openai/some-openai-model-with-base-url",
-            }
-        },
-        "completion": {
-            "model": "gpt-marimo-for-inline-completion",
-            "api_key": "fake-api",
-            "base_url": "https://my-openai-instance.com",
+            },
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
         },
     }
 
 
 def _no_openai_config():
     return {
-        "ai": {"open_ai": {"api_key": "", "model": ""}},
-        "completion": {
-            "model": "gpt-marimo-for-inline-completion",
-            "api_key": "",
+        "ai": {
+            "open_ai": {"api_key": "", "model": ""},
+            "models": {
+                "autocomplete_model": "gpt-marimo-for-inline-completion",
+            },
         },
     }
 
@@ -654,10 +648,9 @@ def _no_anthropic_config():
         "ai": {
             "open_ai": {"model": "claude-3.5"},
             "anthropic": {"api_key": ""},
-        },
-        "completion": {
-            "model": "claude-3.5-for-inline-completion",
-            "api_key": "",
+            "models": {
+                "autocomplete_model": "claude-3.5-for-inline-completion",
+            },
         },
     }
 
@@ -667,10 +660,9 @@ def _anthropic_config():
         "ai": {
             "open_ai": {"model": "claude-3.5"},
             "anthropic": {"api_key": "fake-key"},
-        },
-        "completion": {
-            "model": "claude-3.5-for-inline-completion",
-            "api_key": "fake-key",
+            "models": {
+                "autocomplete_model": "anthropic/claude-3.5-for-inline-completion",
+            },
         },
     }
 
@@ -680,10 +672,9 @@ def _google_ai_config():
         "ai": {
             "open_ai": {"model": "gemini-1.5-pro"},
             "google": {"api_key": "fake-key"},
-        },
-        "completion": {
-            "model": "gemini-1.5-pro-for-inline-completion",
-            "api_key": "fake-key",
+            "models": {
+                "autocomplete_model": "google/gemini-1.5-pro-for-inline-completion",
+            },
         },
     }
 

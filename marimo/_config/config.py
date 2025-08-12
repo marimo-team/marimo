@@ -40,9 +40,9 @@ class CompletionConfig(TypedDict):
     until the completion hotkey is entered
     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
     - `codeium_api_key`: the Codeium API key
-    - `api_key`: the API key for the LLM provider, when `copilot` is `"custom"`
-    - `model`: the model to use, when `copilot` is `"custom"`
-    - `base_url`: the base URL for the API, when `copilot` is `"custom"`
+    - `api_key`: the API key for the LLM provider, when `copilot` is `"custom"` (deprecated: use AI provider config)
+    - `model`: the model to use, when `copilot` is `"custom"` (deprecated: use `ai.models.autocomplete_model`)
+    - `base_url`: the base URL for the API, when `copilot` is `"custom"` (deprecated: use AI provider config)
     """
 
     activate_on_typing: bool
@@ -51,7 +51,7 @@ class CompletionConfig(TypedDict):
     # Codeium
     codeium_api_key: NotRequired[Optional[str]]
 
-    # Custom
+    # Custom (deprecated)
     api_key: NotRequired[Optional[str]]
     model: NotRequired[Optional[str]]
     base_url: NotRequired[Optional[str]]
@@ -242,12 +242,14 @@ class AiModelConfig(TypedDict):
 
     - `chat_model`: the model to use for chat completions
     - `edit_model`: the model to use for edit completions
+    - `autocomplete_model`: the model to use for code completion/autocomplete
     - `enabled_models`: a list of models to enable that are shown in the UI
     - `custom_models`: a list of custom models to use that are not from the default list
     """
 
     chat_model: NotRequired[str]
     edit_model: NotRequired[str]
+    autocomplete_model: NotRequired[str]
 
     enabled_models: list[str]
     custom_models: list[str]
@@ -676,6 +678,22 @@ def merge_config(
             "models": {
                 "chat_model": chat_model or openai_model,
                 "edit_model": edit_model or openai_model,
+            }
+        }
+        merged["ai"] = cast(
+            AiConfig, deep_merge(merged_ai_config, models_config)
+        )
+
+    # Migrate completion.model to ai.models.autocomplete_model
+    completion_model = merged.get("completion", {}).get("model")
+    autocomplete_model = (
+        merged.get("ai", {}).get("models", {}).get("autocomplete_model")
+    )
+    if completion_model and not autocomplete_model:
+        merged_ai_config = cast(dict[Any, Any], merged.get("ai", {}))
+        models_config = {
+            "models": {
+                "autocomplete_model": completion_model,
             }
         }
         merged["ai"] = cast(

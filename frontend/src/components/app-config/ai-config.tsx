@@ -15,7 +15,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
-import type { UserConfig } from "@/core/config/config-schema";
+import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
 import {
   AiProviderIcon,
@@ -337,23 +337,15 @@ const renderCopilotProvider = (
         <ModelSelector
           form={form}
           config={config}
-          name="completion.model"
-          placeholder="Qwen2.5-Coder-7B"
+          name="ai.models.autocomplete_model"
+          placeholder="ollama/qwen2.5-coder:1.5b"
           testId="custom-model-input"
-        />
-        <BaseUrl
-          form={form}
-          config={config}
-          name="completion.base_url"
-          placeholder="http://localhost:11434/v1"
-          testId="custom-base-url-input"
-        />
-        <ApiKey
-          form={form}
-          config={config}
-          name="completion.api_key"
-          placeholder="key"
-          testId="custom-api-key-input"
+          description={
+            <>
+              Models should include the provider name and model name separated
+              by a slash.
+            </>
+          }
         />
       </>
     );
@@ -664,7 +656,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
         form={form}
         config={config}
         name="ai.models.chat_model"
-        placeholder="openai/gpt-4o"
+        placeholder={DEFAULT_AI_MODEL}
         testId="ai-chat-model-input"
         disabled={isWasmRuntime}
         description={
@@ -687,7 +679,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
         form={form}
         config={config}
         name="ai.models.edit_model"
-        placeholder="openai/gpt-4o"
+        placeholder={DEFAULT_AI_MODEL}
         testId="ai-edit-model-input"
         disabled={isWasmRuntime}
         description={
@@ -700,6 +692,27 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
             </p>
             <p className="pt-1">
               You can use a faster, cheaper model for edits if desired.
+            </p>
+          </>
+        }
+      />
+
+      <ModelSelector
+        form={form}
+        config={config}
+        name="ai.models.autocomplete_model"
+        placeholder="ollama/qwen2.5-coder:1.5b"
+        testId="ai-autocomplete-model-input"
+        disabled={isWasmRuntime}
+        description={
+          <>
+            <p>
+              Model to use for code completion when using a custom provider.
+              Models should include the provider name and model name separated
+              by a slash.
+            </p>
+            <p className="pt-1">
+              This will be used when completion.copilot is set to "custom".
             </p>
           </>
         }

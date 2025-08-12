@@ -2573,6 +2573,7 @@ export interface components {
       /** @enum {string} */
       mode?: "ask" | "manual";
       models?: {
+        autocomplete_model?: string;
         chat_model?: string;
         custom_models: string[];
         edit_model?: string;

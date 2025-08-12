@@ -5,12 +5,13 @@ import { SparklesIcon } from "lucide-react";
 import React from "react";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
+import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { FooterItem } from "../footer-item";
 
 export const AIStatusIcon: React.FC = () => {
   const ai = useAtomValue(aiAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const chatModel = ai?.models?.chat_model;
+  const chatModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
   const editModel = ai?.models?.edit_model || chatModel;
   const { handleClick } = useOpenSettingsToTab();
 

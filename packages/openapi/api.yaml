@@ -71,6 +71,8 @@ components:
           type: string
         models:
           properties:
+            autocomplete_model:
+              type: string
             chat_model:
               type: string
             custom_models:
