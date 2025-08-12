@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
+from marimo._server.ai.constants import DEFAULT_MODEL
 
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
@@ -233,6 +234,26 @@ class PackageManagementConfig(TypedDict):
 CopilotMode = Literal["ask", "manual"]
 
 
+@mddoc
+@dataclass
+class AiModelConfig(TypedDict):
+    """Configuration options for an AI model.
+
+    **Keys.**
+
+    - `chat_model`: the model to use for chat completions
+    - `edit_model`: the model to use for edit completions
+    - `enabled_models`: a list of models to enable that are shown in the UI
+    - `custom_models`: a list of custom models to use that are not from the default list
+    """
+
+    chat_model: NotRequired[str]
+    edit_model: NotRequired[str]
+
+    enabled_models: list[str]
+    custom_models: list[str]
+
+
 @dataclass
 class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
@@ -251,6 +272,7 @@ class AiConfig(TypedDict, total=False):
     rules: NotRequired[str]
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
+    models: AiModelConfig
 
     # providers
     open_ai: OpenAiConfig
@@ -269,20 +291,21 @@ class OpenAiConfig(TypedDict, total=False):
     **Keys.**
 
     - `api_key`: the OpenAI API key
-    - `model`: the model to use.
-        if model starts with `claude-` we use the AnthropicConfig
     - `base_url`: the base URL for the API
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
     - `ca_bundle_path`: custom ca bundle to be used for verifying SSL certificates. Used to create custom SSL context for httpx client
     - `client_pem` : custom path of a client .pem cert used for verifying identity of client server
+    - `model`: the model to use. @deprecated: use `models` instead
     """
 
     api_key: str
-    model: NotRequired[str]
     base_url: NotRequired[str]
     ssl_verify: NotRequired[bool]
     ca_bundle_path: NotRequired[str]
     client_pem: NotRequired[str]
+
+    # @deprecated: use `ai.models.chat_model` instead
+    model: NotRequired[str]
 
 
 @dataclass
@@ -580,6 +603,14 @@ DEFAULT_CONFIG: MarimoConfig = {
             "enable_pydocstyle": False,
             "enable_pylint": False,
             "enable_pyflakes": False,
+        }
+    },
+    "ai": {
+        "models": {
+            "chat_model": DEFAULT_MODEL,
+            "edit_model": DEFAULT_MODEL,
+            "enabled_models": [],
+            "custom_models": [],
         }
     },
     "snippets": {

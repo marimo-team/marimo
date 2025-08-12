@@ -18,8 +18,9 @@ from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.config import (
     DEFAULT_MODEL,
     AnyProviderConfig,
+    get_chat_model,
+    get_edit_model,
     get_max_tokens,
-    get_model,
 )
 from marimo._server.ai.prompts import (
     FILL_ME_TAG,
@@ -112,7 +113,7 @@ async def ai_completion(
     )
     prompt = body.prompt
 
-    model = get_model(ai_config)
+    model = get_edit_model(ai_config)
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
@@ -168,7 +169,7 @@ async def ai_chat(
 
     max_tokens = get_max_tokens(config)
 
-    model = body.model or get_model(ai_config)
+    model = body.model or get_chat_model(ai_config)
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,

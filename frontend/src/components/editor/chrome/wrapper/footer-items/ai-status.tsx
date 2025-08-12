@@ -10,7 +10,8 @@ import { FooterItem } from "../footer-item";
 export const AIStatusIcon: React.FC = () => {
   const ai = useAtomValue(aiAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const model = ai?.open_ai?.model || "gpt-4-turbo";
+  const chatModel = ai?.models?.chat_model;
+  const editModel = ai?.models?.edit_model || chatModel;
   const { handleClick } = useOpenSettingsToTab();
 
   if (!aiEnabled) {
@@ -30,7 +31,9 @@ export const AIStatusIcon: React.FC = () => {
     <FooterItem
       tooltip={
         <>
-          <b>Assist model:</b> {model}
+          <b>Chat model:</b> {chatModel}
+          <br />
+          <b>Edit model:</b> {editModel}
         </>
       }
       onClick={() => handleClick("ai")}

@@ -242,12 +242,15 @@ interface ChatInputFooterProps {
   onStop: () => void;
 }
 
+const DEFAULT_MODEL = "openai/gpt-4o";
+const DEFAULT_MODE = "manual";
+
 const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
   ({ input, onSendClick, isLoading, onStop }) => {
     const ai = useAtomValue(aiAtom);
     const [userConfig, setUserConfig] = useAtom(userConfigAtom);
-    const currentMode = ai?.mode || "manual";
-    const currentModel = ai?.open_ai?.model || "o4-mini";
+    const currentMode = ai?.mode || DEFAULT_MODE;
+    const currentModel = ai?.models?.chat_model || DEFAULT_MODEL;
     const { saveUserConfig } = useRequestClient();
 
     const modeOptions = [

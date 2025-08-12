@@ -16,12 +16,10 @@ from marimo._config.config import (
     CopilotMode,
     MarimoConfig,
 )
+from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools import Tool, get_tool_manager
 from marimo._server.api.status import HTTPStatus
-
-DEFAULT_MAX_TOKENS = 4096
-DEFAULT_MODEL = "gpt-4o-mini"
 
 
 @dataclass
@@ -162,8 +160,18 @@ def _get_ai_config(config: AiConfig, key: str, name: str) -> dict[str, Any]:
     return cast(dict[str, Any], config.get(key, {}))
 
 
-def get_model(config: AiConfig) -> str:
-    return config.get("open_ai", {}).get("model") or DEFAULT_MODEL
+def get_chat_model(config: AiConfig) -> str:
+    """Get the chat model from the config."""
+    return (
+        config.get("models", {}).get("chat_model")
+        or config.get("open_ai", {}).get("model")
+        or DEFAULT_MODEL
+    )
+
+
+def get_edit_model(config: AiConfig) -> str:
+    """Get the edit model from the config."""
+    return config.get("models", {}).get("edit_model") or get_chat_model(config)
 
 
 def get_max_tokens(config: MarimoConfig) -> int:

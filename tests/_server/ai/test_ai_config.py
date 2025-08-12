@@ -19,8 +19,9 @@ from marimo._server.ai.config import (
     _get_ai_config,
     _get_base_url,
     _get_key,
+    get_chat_model,
+    get_edit_model,
     get_max_tokens,
-    get_model,
 )
 from marimo._server.ai.tools import Tool
 from marimo._server.api.status import HTTPStatus
@@ -450,27 +451,35 @@ class TestUtilityFunctions:
     def test_get_model_with_openai_config(self):
         """Test getting model from OpenAI config."""
         config: AiConfig = {
-            "open_ai": {"model": "gpt-4", "api_key": "test-key"}
+            "models": {
+                "chat_model": "gpt-4",
+                "edit_model": "gpt-5",
+                "enabled_models": [],
+                "custom_models": [],
+            },
+            "open_ai": {"api_key": "test-key"},
         }
 
-        result = get_model(config)
-
+        result = get_chat_model(config)
         assert result == "gpt-4"
+
+        result = get_edit_model(config)
+        assert result == "gpt-5"
 
     def test_get_model_default(self):
         """Test getting default model when not specified."""
-        config: AiConfig = {"open_ai": {"api_key": "test-key"}}
+        config: AiConfig = {
+            "models": {
+                "enabled_models": [],
+                "custom_models": [],
+            },
+            "open_ai": {"api_key": "test-key"},
+        }
 
-        result = get_model(config)
-
+        result = get_chat_model(config)
         assert result == DEFAULT_MODEL
 
-    def test_get_model_no_openai_config(self):
-        """Test getting default model when no OpenAI config."""
-        config: AiConfig = {}
-
-        result = get_model(config)
-
+        result = get_edit_model(config)
         assert result == DEFAULT_MODEL
 
     def test_get_max_tokens_from_config(self):

@@ -1,0 +1,2 @@
+DEFAULT_MAX_TOKENS = 4096
+DEFAULT_MODEL = "openai/gpt-4o"
