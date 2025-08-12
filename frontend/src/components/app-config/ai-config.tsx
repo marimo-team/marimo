@@ -717,21 +717,18 @@ export const AiConfig: React.FC<AiConfigProps> = ({
   onSubmit,
 }) => {
   return (
-    <Tabs defaultValue="code-completion">
+    <Tabs defaultValue="ai-features">
       <TabsList className="mb-2">
-        <TabsTrigger value="code-completion">Features</TabsTrigger>
+        <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="code-completion">
+      <TabsContent value="ai-features">
         <AiCodeCompletionConfig
           form={form}
           config={config}
           onSubmit={onSubmit}
         />
-        <AiAssistConfig form={form} config={config} onSubmit={onSubmit} />
-      </TabsContent>
-      <TabsContent value="ai-assist">
         <AiAssistConfig form={form} config={config} onSubmit={onSubmit} />
       </TabsContent>
       <TabsContent value="ai-providers">
