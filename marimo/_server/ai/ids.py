@@ -48,6 +48,7 @@ def _guess_provider(model: str) -> AiProviderId:
     def is_openai(model: str) -> bool:
         return (
             model.startswith("gpt")
+            or model.startswith("o4")
             or model.startswith("o3")
             or model.startswith("o1")
         )

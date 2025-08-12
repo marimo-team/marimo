@@ -2564,6 +2564,19 @@ export interface components {
       prompt: string;
       selectedText?: string | null;
     };
+    AiConfig: {
+      anthropic?: components["schemas"]["AnthropicConfig"];
+      azure?: components["schemas"]["OpenAiConfig"];
+      bedrock?: components["schemas"]["BedrockConfig"];
+      google?: components["schemas"]["GoogleAiConfig"];
+      max_tokens?: number;
+      /** @enum {string} */
+      mode?: "ask" | "manual";
+      ollama?: components["schemas"]["OpenAiConfig"];
+      open_ai?: components["schemas"]["OpenAiConfig"];
+      open_ai_compatible?: components["schemas"]["OpenAiConfig"];
+      rules?: string;
+    };
     AiInlineCompletionRequest: {
       /** @enum {string} */
       language: "python" | "markdown" | "sql";
@@ -2578,6 +2591,9 @@ export interface components {
       /** @enum {string|null} */
       variant?: "danger" | null;
     };
+    AnthropicConfig: {
+      api_key?: string;
+    };
     Banner: {
       /** @enum {string|null} */
       action?: "restart" | null;
@@ -2590,6 +2606,12 @@ export interface components {
     };
     BaseResponse: {
       success: boolean;
+    };
+    BedrockConfig: {
+      aws_access_key_id?: string;
+      aws_secret_access_key?: string;
+      profile_name?: string;
+      region_name?: string;
     };
     /** @enum {string} */
     CellChannel:
@@ -2990,6 +3012,9 @@ export interface components {
         | null;
       status: components["schemas"]["HumanReadableStatus"];
     };
+    GoogleAiConfig: {
+      api_key?: string;
+    };
     HTTPRequest: null;
     HumanReadableStatus: {
       /** @enum {string} */
@@ -3152,32 +3177,7 @@ export interface components {
       type: "ancestor-stopped";
     };
     MarimoConfig: {
-      ai?: {
-        anthropic?: {
-          api_key?: string;
-        };
-        bedrock?: {
-          aws_access_key_id?: string;
-          aws_secret_access_key?: string;
-          profile_name?: string;
-          region_name?: string;
-        };
-        google?: {
-          api_key?: string;
-        };
-        max_tokens?: number;
-        /** @enum {string} */
-        mode?: "ask" | "manual";
-        open_ai?: {
-          api_key?: string;
-          base_url?: string;
-          ca_bundle_path?: string;
-          client_pem?: string;
-          model?: string;
-          ssl_verify?: boolean;
-        };
-        rules?: string;
-      };
+      ai?: components["schemas"]["AiConfig"];
       completion: {
         activate_on_typing: boolean;
         api_key?: string | null;
@@ -3388,6 +3388,14 @@ export interface components {
       type: "multiple-defs";
     };
     NonNestedLiteral: number | string | boolean;
+    OpenAiConfig: {
+      api_key?: string;
+      base_url?: string;
+      ca_bundle_path?: string;
+      client_pem?: string;
+      model?: string;
+      ssl_verify?: boolean;
+    };
     OpenTutorialRequest: {
       tutorialId:
         | (

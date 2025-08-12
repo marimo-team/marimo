@@ -6,7 +6,7 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -31,13 +31,8 @@ from marimo._ai._convert import (
     convert_to_openai_tools,
 )
 from marimo._ai._types import ChatMessage
-from marimo._config.config import (
-    AiConfig,
-    CompletionConfig,
-    CopilotMode,
-    MarimoConfig,
-)
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.api.status import HTTPStatus
 
@@ -72,7 +67,6 @@ if TYPE_CHECKING:
         ChatCompletionChunk,
     )
 
-from marimo._server.ai.tools import Tool, get_tool_manager
 
 ResponseT = TypeVar("ResponseT")
 StreamT = TypeVar("StreamT")
@@ -103,156 +97,11 @@ StreamContent = Union[StreamTextContent, StreamDictContent, FinishContent]
 
 LOGGER = _loggers.marimo_logger()
 
-DEFAULT_MAX_TOKENS = 4096
-DEFAULT_MODEL = "gpt-4o-mini"
-
 
 @dataclass
 class StreamOptions:
     text_only: bool = False
     format_stream: bool = False
-
-
-@dataclass
-class AnyProviderConfig:
-    base_url: Optional[str]
-    api_key: str
-    ssl_verify: Optional[bool] = None
-    ca_bundle_path: Optional[str] = None
-    client_pem: Optional[str] = None
-    tools: list[Tool] = field(default_factory=list)
-
-    @staticmethod
-    def for_openai(config: AiConfig) -> AnyProviderConfig:
-        if "open_ai" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="OpenAI config not found",
-            )
-        key = _get_key(config["open_ai"], "OpenAI")
-
-        kwargs: dict[str, Any] = {
-            "base_url": _get_base_url(config["open_ai"]),
-            "api_key": key,
-            "ssl_verify": config["open_ai"].get("ssl_verify", True),
-            "ca_bundle_path": config["open_ai"].get("ca_bundle_path", None),
-            "client_pem": config["open_ai"].get("client_pem", None),
-        }
-
-        # Only include tools if they are available
-        # Empty tools list causes an error with deepseek
-        # https://discord.com/channels/1059888774789730424/1387766267792068821
-        tools = _get_tools(config.get("mode", "manual"))
-        if len(tools) > 0:
-            kwargs["tools"] = tools
-
-        return AnyProviderConfig(**kwargs)
-
-    @staticmethod
-    def for_anthropic(config: AiConfig) -> AnyProviderConfig:
-        if "anthropic" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Anthropic config not found",
-            )
-        key = _get_key(config["anthropic"], "Anthropic")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["anthropic"]),
-            api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
-        )
-
-    @staticmethod
-    def for_google(config: AiConfig) -> AnyProviderConfig:
-        if "google" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Google config not found",
-            )
-        key = _get_key(config["google"], "Google AI")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["google"]),
-            api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
-        )
-
-    @staticmethod
-    def for_bedrock(config: AiConfig) -> AnyProviderConfig:
-        if "bedrock" not in config:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Bedrock config not found",
-            )
-        key = _get_key(config["bedrock"], "Bedrock")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config["bedrock"], "Bedrock"),
-            api_key=key,
-            tools=_get_tools(config.get("mode", "manual")),
-        )
-
-    @staticmethod
-    def for_completion(config: CompletionConfig) -> AnyProviderConfig:
-        key = _get_key(config, "AI completion")
-        return AnyProviderConfig(
-            base_url=_get_base_url(config),
-            api_key=key,
-            tools=[],  # Inline completion never uses tools
-        )
-
-    @staticmethod
-    def for_model(model: str, config: AiConfig) -> AnyProviderConfig:
-        model_id = AiModelId.from_model(model)
-        if model_id.provider == "anthropic":
-            return AnyProviderConfig.for_anthropic(config)
-        elif model_id.provider == "google":
-            return AnyProviderConfig.for_google(config)
-        elif model_id.provider == "bedrock":
-            return AnyProviderConfig.for_bedrock(config)
-        else:
-            # OpenAI has a default API that ollama also uses, that is
-            # why it is a catch all at the end here.
-            return AnyProviderConfig.for_openai(config)
-
-
-def _get_key(config: Any, name: str) -> str:
-    if name == "Bedrock":
-        if "profile_name" in config:
-            profile_name = config.get("profile_name", "")
-            return f"profile:{profile_name}"
-        elif (
-            "aws_access_key_id" in config and "aws_secret_access_key" in config
-        ):
-            return f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}"
-        else:
-            return ""
-    if "api_key" in config:
-        key = config["api_key"]
-        if key:
-            return cast(str, key)
-    if "http://127.0.0.1:11434/" in config.get("base_url", ""):
-        # Ollama can be configured and in that case the api key is not needed.
-        # We send a placeholder value to prevent the user from being confused.
-        return "ollama-placeholder"
-    raise HTTPException(
-        status_code=HTTPStatus.BAD_REQUEST,
-        detail=f"{name} API key not configured",
-    )
-
-
-def _get_base_url(config: Any, name: str = "") -> Optional[str]:
-    if name == "Bedrock":
-        if "region_name" in config:
-            return cast(str, config["region_name"])
-        else:
-            return None
-    elif "base_url" in config:
-        return cast(str, config["base_url"])
-    return None
-
-
-def _get_tools(mode: CopilotMode) -> list[Tool]:
-    tool_manager = get_tool_manager()
-    return tool_manager.get_tools_for_mode(mode)
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
@@ -473,7 +322,7 @@ class OpenAIProvider(
     # https://openai.com/index/openai-o3-mini/
     DEFAULT_REASONING_EFFORT = "medium"
 
-    def is_reasoning_model(self, model: str) -> bool:
+    def _is_reasoning_model(self, model: str) -> bool:
         # only o-series models support reasoning
         return model.startswith("o")
 
@@ -481,20 +330,18 @@ class OpenAIProvider(
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
 
         import ssl
-
-        # library to check if paths exists
         from pathlib import Path
-        from urllib.parse import parse_qs, urlparse
 
-        # ssl related libs, httpx is a dependency of openai
         import httpx
-        from openai import AzureOpenAI, OpenAI
+        from openai import OpenAI
 
         base_url = config.base_url or None
         key = config.api_key
 
         # Add SSL parameters/values
-        ssl_verify: bool = config.ssl_verify or True
+        ssl_verify: bool = (
+            config.ssl_verify if config.ssl_verify is not None else True
+        )
         ca_bundle_path: Optional[str] = config.ca_bundle_path
         client_pem: Optional[str] = config.client_pem
 
@@ -514,59 +361,44 @@ class OpenAIProvider(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Client PEM is not a valid path or does not exist",
                 )
-        # Azure OpenAI clients are instantiated slightly differently
-        parsed_url = urlparse(base_url)
-        if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
-            ".openai.azure.com"
-        ):
-            deployment_model = cast(str, parsed_url.path).split("/")[3]
-            api_version = parse_qs(cast(str, parsed_url.query))["api-version"][
-                0
-            ]
-            return AzureOpenAI(
-                api_key=key,
-                api_version=api_version,
-                azure_deployment=deployment_model,
-                azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
-            )
-        else:
-            # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
-            if ssl_verify:
-                ctx = None  # Initialize ctx to avoid UnboundLocalError
-                client = None  # Initialize client to avoid UnboundLocalError
-                if ca_bundle_path:
-                    ctx = ssl.create_default_context(cafile=ca_bundle_path)
-                if client_pem:
-                    # if ctx already exists from caBundlePath argument
-                    if ctx:
-                        ctx.load_cert_chain(certfile=client_pem)
-                    else:
-                        ctx = ssl.create_default_context()
-                        ctx.load_cert_chain(certfile=client_pem)
 
-                # if ssl context was created by the above statements
+        # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
+        if ssl_verify:
+            ctx = None  # Initialize ctx to avoid UnboundLocalError
+            client = None  # Initialize client to avoid UnboundLocalError
+            if ca_bundle_path:
+                ctx = ssl.create_default_context(cafile=ca_bundle_path)
+            if client_pem:
+                # if ctx already exists from caBundlePath argument
                 if ctx:
-                    client = httpx.Client(verify=ctx)
+                    ctx.load_cert_chain(certfile=client_pem)
                 else:
-                    pass
-            else:
-                client = httpx.Client(verify=False)
+                    ctx = ssl.create_default_context()
+                    ctx.load_cert_chain(certfile=client_pem)
 
-            # if client is created, either with a custom context or with verify=False, use it as the http_client object in `OpenAI`
-            if client:
-                return OpenAI(
-                    default_headers={"api-key": key},
-                    api_key=key,
-                    base_url=base_url,
-                    http_client=client,
-                )
-            # if not, return bog standard OpenAI object
+            # if ssl context was created by the above statements
+            if ctx:
+                client = httpx.Client(verify=ctx)
             else:
-                return OpenAI(
-                    default_headers={"api-key": key},
-                    api_key=key,
-                    base_url=base_url,
-                )
+                pass
+        else:
+            client = httpx.Client(verify=False)
+
+        # if client is created, either with a custom context or with verify=False, use it as the http_client object in `OpenAI`
+        if client:
+            return OpenAI(
+                default_headers={"api-key": key},
+                api_key=key,
+                base_url=base_url,
+                http_client=client,
+            )
+
+        # if not, return bog standard OpenAI object
+        return OpenAI(
+            default_headers={"api-key": key},
+            api_key=key,
+            base_url=base_url,
+        )
 
     def stream_completion(
         self,
@@ -591,7 +423,7 @@ class OpenAIProvider(
             "timeout": 15,
             "tools": convert_to_openai_tools(self.config.tools),
         }
-        if self.is_reasoning_model(self.model):
+        if self._is_reasoning_model(self.model):
             create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
         return cast(
             "OpenAiStream[ChatCompletionChunk]",
@@ -601,8 +433,9 @@ class OpenAIProvider(
     def extract_content(
         self,
         response: ChatCompletionChunk,
-        _tool_call_id: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
     ) -> Optional[ExtractedContent]:
+        del tool_call_id
         if (
             hasattr(response, "choices")
             and response.choices
@@ -668,6 +501,28 @@ class OpenAIProvider(
             return [update_role(message) for message in messages]
 
         return messages
+
+
+class AzureOpenAIProvider(OpenAIProvider):
+    def get_client(self, config: AnyProviderConfig) -> OpenAI:
+        from urllib.parse import parse_qs, urlparse
+
+        from openai import AzureOpenAI
+
+        base_url = config.base_url or None
+        key = config.api_key
+
+        # Azure OpenAI clients are instantiated slightly differently
+        parsed_url = urlparse(base_url)
+        deployment_model = cast(str, parsed_url.path).split("/")[3]
+        api_version = parse_qs(cast(str, parsed_url.query))["api-version"][0]
+
+        return AzureOpenAI(
+            api_key=key,
+            api_version=api_version,
+            azure_deployment=deployment_model,
+            azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
+        )
 
 
 class AnthropicProvider(
@@ -745,8 +600,9 @@ class AnthropicProvider(
     def extract_content(
         self,
         response: RawMessageStreamEvent,
-        _tool_call_id: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
     ) -> Optional[ExtractedContent]:
+        del tool_call_id
         from anthropic.types import (
             InputJSONDelta,
             RawContentBlockDeltaEvent,
@@ -978,8 +834,9 @@ class BedrockProvider(
     def extract_content(
         self,
         response: LitellmStreamResponse,
-        _tool_call_id: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
     ) -> Optional[ExtractedContent]:
+        del tool_call_id
         if (
             hasattr(response, "choices")
             and response.choices
@@ -1044,23 +901,10 @@ def get_completion_provider(
         return GoogleProvider(model_id.model, config)
     elif model_id.provider == "bedrock":
         return BedrockProvider(model_id.model, config)
+    elif model_id.provider == "azure":
+        return AzureOpenAIProvider(model_id.model, config)
     else:
         return OpenAIProvider(model_id.model, config)
-
-
-def get_model(config: AiConfig) -> str:
-    model: str = config.get("open_ai", {}).get("model", DEFAULT_MODEL)
-    if not model:
-        model = DEFAULT_MODEL
-    return model
-
-
-def get_max_tokens(config: MarimoConfig) -> int:
-    if "ai" not in config:
-        return DEFAULT_MAX_TOKENS
-    if "max_tokens" not in config["ai"]:
-        return DEFAULT_MAX_TOKENS
-    return config["ai"]["max_tokens"]
 
 
 def merge_backticks(chunks: Iterator[str]) -> Generator[str, None, None]:

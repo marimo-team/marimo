@@ -2,6 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { get } from "lodash-es";
+import { FolderCog2 } from "lucide-react";
 import type { FieldPath } from "react-hook-form";
 import { Tooltip } from "@/components/ui/tooltip";
 import { configOverridesAtom, useUserConfig } from "@/core/config/config";
@@ -12,7 +13,7 @@ import { Kbd } from "../ui/kbd";
  * Hook to determine if a user config value is overridden by project config.
  * Returns { isOverridden, currentValue, overriddenValue }
  */
-export function useIsConfigOverridden(
+function useIsConfigOverridden(
   userConfig: UserConfig,
   name: FieldPath<UserConfig>,
 ): {
@@ -66,5 +67,53 @@ export const DisableIfOverridden = ({
     </Tooltip>
   ) : (
     children
+  );
+};
+
+export const IsOverridden = ({
+  userConfig,
+  name,
+}: {
+  userConfig: UserConfig;
+  name: FieldPath<UserConfig>;
+}) => {
+  const { isOverridden, currentValue, overriddenValue } = useIsConfigOverridden(
+    userConfig,
+    name,
+  );
+
+  if (!isOverridden) {
+    return null;
+  }
+
+  return (
+    <Tooltip
+      content={
+        <>
+          <span>
+            This setting is overridden by{" "}
+            <Kbd className="inline">pyproject.toml</Kbd>.
+          </span>
+          <br />
+          <span>
+            Edit the <Kbd className="inline">pyproject.toml</Kbd> file directly
+            to change this setting.
+          </span>
+          <br />
+          <span>
+            User value: <strong>{String(currentValue)}</strong>
+          </span>
+          <br />
+          <span>
+            Project value: <strong>{String(overriddenValue)}</strong>
+          </span>
+        </>
+      }
+    >
+      <span className="text-(--amber-12) text-xs flex items-center gap-1 border rounded px-2 py-1 bg-(--amber-2) border-(--amber-6) ml-1">
+        <FolderCog2 className="w-3 h-3" />
+        Overridden by pyproject.toml [{String(overriddenValue)}]
+      </span>
+    </Tooltip>
   );
 };

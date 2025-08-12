@@ -30,6 +30,9 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
 
     secrets = [
         ["ai", "open_ai", "api_key"],
+        ["ai", "open_ai_compatible", "api_key"],
+        ["ai", "azure", "api_key"],
+        ["ai", "ollama", "api_key"],
         ["ai", "anthropic", "api_key"],
         ["ai", "google", "api_key"],
         ["ai", "bedrock", "aws_access_key_id"],

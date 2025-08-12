@@ -42,6 +42,13 @@ export type SqlOutputType = (typeof VALID_SQL_OUTPUT_FORMATS)[number];
  */
 const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
 
+const AiConfigSchema = z
+  .object({
+    api_key: z.string().optional(),
+    base_url: z.string().optional(),
+  })
+  .passthrough();
+
 export const UserConfigSchema = z
   .object({
     completion: z
@@ -135,23 +142,18 @@ export const UserConfigSchema = z
       .object({
         rules: z.string().default(""),
         mode: z.enum(["manual", "ask"]).default("manual"),
-        open_ai: z
-          .object({
-            api_key: z.string().optional(),
-            base_url: z.string().optional(),
-            model: z.string().optional(),
-          })
+        // TODO: the model currently exists on the open_ai object, but we should
+        // move it to the top level.
+        open_ai: AiConfigSchema.extend({
+          model: z.string().optional(),
+        })
+          .passthrough()
           .optional(),
-        anthropic: z
-          .object({
-            api_key: z.string().optional(),
-          })
-          .optional(),
-        google: z
-          .object({
-            api_key: z.string().optional(),
-          })
-          .optional(),
+        anthropic: AiConfigSchema.optional(),
+        google: AiConfigSchema.optional(),
+        ollama: AiConfigSchema.optional(),
+        open_ai_compatible: AiConfigSchema.optional(),
+        azure: AiConfigSchema.optional(),
         bedrock: z
           .object({
             region_name: z.string().optional(),
