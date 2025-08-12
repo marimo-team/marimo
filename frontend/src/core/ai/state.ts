@@ -11,7 +11,12 @@ export const aiCompletionCellAtom = atom<{
   cellId: CellId;
   initialPrompt?: string;
 } | null>(null);
-export const includeOtherCellsAtom = atom<boolean>(false);
+
+const INCLUDE_OTHER_CELLS_KEY = "marimo:ai:includeOtherCells";
+export const includeOtherCellsAtom = atomWithStorage<boolean>(
+  INCLUDE_OTHER_CELLS_KEY,
+  true,
+);
 
 export interface Message {
   id: string;
