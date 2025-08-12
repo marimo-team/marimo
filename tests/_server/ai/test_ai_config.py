@@ -581,7 +581,7 @@ class TestUtilityFunctions:
         # Should fall back to open_ai.model for both chat and edit
         assert get_chat_model(config) == "gpt-4-legacy"
         assert get_edit_model(config) == "gpt-4-legacy"
-        assert get_autocomplete_model({"ai": config}) == "gpt-4-legacy"
+        assert get_autocomplete_model({"ai": config}) == DEFAULT_MODEL
 
     def test_for_model_with_autocomplete_model(self) -> None:
         """Test AnyProviderConfig.for_model works with autocomplete models from new config."""
