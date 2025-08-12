@@ -3,7 +3,7 @@
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
 import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
@@ -68,6 +68,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
   );
+  const includeOtherCellsCheckboxId = useId();
 
   const runtimeManager = useRuntimeManager();
 
@@ -197,14 +198,14 @@ export const AiCompletionEditor: React.FC<Props> = ({
               <div className="flex flex-row items-start gap-1 overflow-hidden">
                 <Checkbox
                   data-testid="include-other-cells-checkbox"
-                  id="include-other-cells"
+                  id={includeOtherCellsCheckboxId}
                   checked={includeOtherCells}
                   onCheckedChange={(checked) =>
                     setIncludeOtherCells(Boolean(checked))
                   }
                 />
                 <Label
-                  htmlFor="include-other-cells"
+                  htmlFor={includeOtherCellsCheckboxId}
                   className="text-muted-foreground text-xs whitespace-nowrap ellipsis"
                 >
                   Include all code
