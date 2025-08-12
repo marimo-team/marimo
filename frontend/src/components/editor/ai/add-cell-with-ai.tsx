@@ -18,7 +18,13 @@ import ReactCodeMirror, {
 import { useCompletion } from "ai/react";
 import { useAtom, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { ChevronsUpDown, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import {
+  ChevronsUpDown,
+  Loader2Icon,
+  SendHorizontal,
+  SparklesIcon,
+  XIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
@@ -97,6 +103,12 @@ export const AddCellWithAI: React.FC<{
     },
   });
 
+  const submit = () => {
+    if (!isLoading) {
+      handleSubmit();
+    }
+  };
+
   const inputComponent = (
     <div className="flex items-center px-3">
       <SparklesIcon className="size-4 text-(--blue-11)" />
@@ -132,11 +144,7 @@ export const AddCellWithAI: React.FC<{
           setInput(newValue);
           setCompletionBody(getAICompletionBody({ input: newValue }));
         }}
-        onSubmit={() => {
-          if (!isLoading) {
-            handleSubmit();
-          }
-        }}
+        onSubmit={submit}
       />
       {isLoading && (
         <Button
@@ -173,6 +181,9 @@ export const AddCellWithAI: React.FC<{
           <span className="text-(--grass-11) opacity-100">Accept</span>
         </Button>
       )}
+      <Button variant="text" size="sm" onClick={submit} title="Submit">
+        <SendHorizontal className="size-4" />
+      </Button>
       <Button variant="text" size="sm" className="mb-0" onClick={onClose}>
         <XIcon className="size-4" />
       </Button>
