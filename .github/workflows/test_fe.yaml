@@ -50,27 +50,6 @@ jobs:
       - name: 🧹 Lint
         run: pnpm turbo lint
 
-  typecheck_frontend:
-    needs: changes
-    if: ${{ needs.changes.outputs.frontend == 'true' }}
-    name: 🔎 Typecheck frontend
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: ./frontend
-        shell: bash
-
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
-      - name: 📥 Install repo
-        uses: ./.github/actions/install
-
-      - name: 🔎 Type check
-        run: pnpm turbo typecheck
-
   test_frontend:
     needs: changes
     if: ${{ needs.changes.outputs.frontend == 'true' }}
@@ -88,6 +67,9 @@ jobs:
 
       - name: 📥 Install repo
         uses: ./.github/actions/install
+
+      - name: 🔎 Type check
+        run: pnpm turbo typecheck
 
       - name: 🧪 Test
         run: pnpm test
