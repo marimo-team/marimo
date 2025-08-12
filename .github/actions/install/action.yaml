@@ -1,0 +1,25 @@
+name: Install Repo
+description: Checkout repo and install the ts toolchain and dependencies
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: ⬇️ Checkout repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: ⎔ Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: ⎔ Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+        cache-dependency-path: '**/pnpm-lock.yaml'
+
+    - name: 📥 Install dependencies
+      shell: bash
+      run: pnpm install --ignore-scripts --frozen-lockfile
