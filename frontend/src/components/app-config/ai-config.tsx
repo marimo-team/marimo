@@ -181,6 +181,7 @@ interface ModelSelectorProps {
   testId: string;
   description?: React.ReactNode;
   disabled?: boolean;
+  label: string;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -191,6 +192,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   testId,
   description,
   disabled = false,
+  label,
 }) => {
   const modelInputId = useId();
 
@@ -202,7 +204,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
-            <FormLabel>Model</FormLabel>
+            <FormLabel>{label}</FormLabel>
             <FormControl>
               <Input
                 list={modelInputId}
@@ -335,6 +337,7 @@ const renderCopilotProvider = (
           settings.
         </p>
         <ModelSelector
+          label="Autocomplete Model"
           form={form}
           config={config}
           name="ai.models.autocomplete_model"
@@ -342,6 +345,7 @@ const renderCopilotProvider = (
           testId="custom-model-input"
           description={
             <>
+              Model to use for code completion when using a custom provider.
               Models should include the provider name and model name separated
               by a slash.
             </>
@@ -653,6 +657,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
       </p>
 
       <ModelSelector
+        label="Chat Model"
         form={form}
         config={config}
         name="ai.models.chat_model"
@@ -676,6 +681,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
       />
 
       <ModelSelector
+        label="Edit Model"
         form={form}
         config={config}
         name="ai.models.edit_model"
@@ -692,27 +698,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
             </p>
             <p className="pt-1">
               You can use a faster, cheaper model for edits if desired.
-            </p>
-          </>
-        }
-      />
-
-      <ModelSelector
-        form={form}
-        config={config}
-        name="ai.models.autocomplete_model"
-        placeholder="ollama/qwen2.5-coder:1.5b"
-        testId="ai-autocomplete-model-input"
-        disabled={isWasmRuntime}
-        description={
-          <>
-            <p>
-              Model to use for code completion when using a custom provider.
-              Models should include the provider name and model name separated
-              by a slash.
-            </p>
-            <p className="pt-1">
-              This will be used when completion.copilot is set to "custom".
             </p>
           </>
         }
