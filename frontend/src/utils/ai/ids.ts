@@ -5,12 +5,15 @@ import type { TypedString } from "../typed";
 /**
  * Supported providers by the marimo server.
  */
-export type ProviderId =
-  | "openai"
-  | "anthropic"
-  | "google"
-  | "ollama"
-  | "bedrock";
+const KNOWN_AI_PROVIDERS = [
+  "openai",
+  "anthropic",
+  "google",
+  "ollama",
+  "bedrock",
+  "deepseek",
+] as const;
+export type ProviderId = (typeof KNOWN_AI_PROVIDERS)[number];
 
 export type ShortModelId = TypedString<"ShortModelId">;
 
@@ -57,5 +60,12 @@ function guessProviderId(id: string): ProviderId {
   if (id.startsWith("gemini") || id.startsWith("google")) {
     return "google";
   }
+  if (id.startsWith("deepseek")) {
+    return "deepseek";
+  }
   return "ollama";
+}
+
+export function isKnownProviderId(providerId: ProviderId): boolean {
+  return KNOWN_AI_PROVIDERS.includes(providerId);
 }

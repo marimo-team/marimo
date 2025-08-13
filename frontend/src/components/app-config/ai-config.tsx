@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React, { useId } from "react";
+import { ChevronDownIcon, InfoIcon } from "lucide-react";
+import React from "react";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
 import {
   FormControl,
@@ -17,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
+import { AiModelId, isKnownProviderId } from "@/utils/ai/ids";
+import { Events } from "@/utils/events";
 import {
   AiProviderIcon,
   type AiProviderIconProps,
@@ -27,8 +30,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { ExternalLink } from "../ui/links";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle } from "./common";
 import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
@@ -194,41 +209,237 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   disabled = false,
   label,
 }) => {
-  const modelInputId = useId();
-
   return (
     <FormField
       control={form.control}
       name={name}
       disabled={disabled}
-      render={({ field }) => (
-        <div className="flex flex-col space-y-1">
+      render={({ field }) => {
+        const value = asStringOrUndefined(field.value);
+        const modelId = AiModelId.parse(value || "");
+        const provider = modelId.providerId;
+        const model = modelId.shortModelId;
+
+        const knownModelIds = KNOWN_AI_MODELS.map((model) =>
+          AiModelId.parse(model),
+        );
+
+        // TODO: Not updating
+        const selectModel = (modelId: string) => {
+          field.onChange(modelId);
+        };
+
+        const renderFormItem = () => (
           <FormItem className={formItemClasses}>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input
-                list={modelInputId}
-                data-testid={testId}
-                className="m-0 inline-flex"
-                placeholder={placeholder}
-                {...field}
-                value={asStringOrUndefined(field.value)}
-              />
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center justify-between px-2 py-0.5 text-sm border rounded-md hover:bg-accent hover:text-accent-foreground">
+                  <div className="flex items-center gap-2">
+                    {value ? (
+                      <>
+                        <AiProviderIcon
+                          provider={provider}
+                          className="h-4 w-4"
+                        />
+                        <span>
+                          {isKnownProviderId(provider)
+                            ? model
+                            : `${provider}/${model}`}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {placeholder}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDownIcon className="h-4 w-4 ml-0.5" />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <p className="flex items-center gap-2">
+                        <AiProviderIcon provider="openai" className="h-3 w-3" />
+                        OpenAI
+                      </p>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {knownModelIds
+                          .filter((model) => model.providerId === "openai")
+                          .map((model) => (
+                            <DropdownMenuItem
+                              key={model.id}
+                              className="flex items-center gap-2"
+                              onSelect={() => selectModel(model.id)}
+                            >
+                              <AiProviderIcon
+                                provider="openai"
+                                className="h-3 w-3"
+                              />
+                              <span>{model.shortModelId}</span>
+                            </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <p className="flex items-center gap-2">
+                        <AiProviderIcon
+                          provider="anthropic"
+                          className="h-3 w-3"
+                        />
+                        Anthropic
+                      </p>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {knownModelIds
+                          .filter((model) => model.providerId === "anthropic")
+                          .map((model) => (
+                            <DropdownMenuItem
+                              key={model.id}
+                              className="flex items-center gap-2"
+                              onSelect={() => selectModel(model.id)}
+                            >
+                              <AiProviderIcon
+                                provider="anthropic"
+                                className="h-3 w-3"
+                              />
+                              <span>{model.shortModelId}</span>
+                            </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <p className="flex items-center gap-2">
+                        <AiProviderIcon provider="google" className="h-3 w-3" />
+                        Google
+                      </p>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {knownModelIds
+                          .filter((model) => model.providerId === "google")
+                          .map((model) => (
+                            <DropdownMenuItem
+                              key={model.id}
+                              className="flex items-center gap-2"
+                              onSelect={() => selectModel(model.id)}
+                            >
+                              <AiProviderIcon
+                                provider="gemini"
+                                className="h-3 w-3"
+                              />
+                              <span>{model.shortModelId}</span>
+                            </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <p className="flex items-center gap-2">
+                        <AiProviderIcon
+                          provider="deepseek"
+                          className="h-3 w-3"
+                        />
+                        DeepSeek
+                      </p>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {knownModelIds
+                          .filter((model) => model.providerId === "deepseek")
+                          .map((model) => (
+                            <DropdownMenuItem
+                              key={model.id}
+                              className="flex items-center gap-2"
+                              onSelect={() => selectModel(model.id)}
+                            >
+                              <AiProviderIcon
+                                provider="deepseek"
+                                className="h-3 w-3"
+                              />
+                              <span>{model.shortModelId}</span>
+                            </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <p className="flex items-center gap-2">
+                        <AiProviderIcon
+                          provider="bedrock"
+                          className="h-3 w-3"
+                        />
+                        Bedrock
+                      </p>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {knownModelIds
+                          .filter((model) => model.providerId === "bedrock")
+                          .map((model) => (
+                            <DropdownMenuItem
+                              key={model.id}
+                              className="flex items-center gap-2"
+                              onSelect={() => selectModel(model.id)}
+                            >
+                              <AiProviderIcon
+                                provider="bedrock"
+                                className="h-3 w-3"
+                              />
+                              <span>{model.shortModelId}</span>
+                            </DropdownMenuItem>
+                          ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
+                  <DropdownMenuSeparator />
+                  <p className="px-2 py-1.5 text-sm text-muted-secondary flex items-center gap-1">
+                    Custom model
+                    <Tooltip content="Models should include the provider prefix, e.g. 'openai/gpt-4o'">
+                      <InfoIcon className="h-3 w-3" />
+                    </Tooltip>
+                  </p>
+                  <div className="px-2 py-1">
+                    <Input
+                      data-testid={testId}
+                      className="w-full"
+                      placeholder={placeholder}
+                      {...field}
+                      value={asStringOrUndefined(field.value)}
+                      onKeyDown={Events.stopPropagation()}
+                    />
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </FormControl>
             <FormMessage />
             <IsOverridden userConfig={config} name={name} />
           </FormItem>
-          <datalist id={modelInputId}>
-            {KNOWN_AI_MODELS.map((model) => (
-              <option value={model} key={model}>
-                {model}
-              </option>
-            ))}
-          </datalist>
-          <IncorrectModelId value={asStringOrUndefined(field.value)} />
-          {description && <FormDescription>{description}</FormDescription>}
-        </div>
-      )}
+        );
+
+        return (
+          <div className="flex flex-col space-y-1">
+            {renderFormItem()}
+            <IncorrectModelId value={value} />
+            {description && <FormDescription>{description}</FormDescription>}
+          </div>
+        );
+      }}
     />
   );
 };
@@ -343,13 +554,7 @@ const renderCopilotProvider = (
           name="ai.models.autocomplete_model"
           placeholder="ollama/qwen2.5-coder:1.5b"
           testId="custom-model-input"
-          description={
-            <>
-              Model to use for code completion when using a custom provider.
-              Models should include the provider name and model name separated
-              by a slash.
-            </>
-          }
+          description="Model to use for code completion when using a custom provider."
         />
       </>
     );
@@ -651,11 +856,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
-      <p className="text-sm text-muted-secondary">
-        Use the Chat panel to talk to your codebase, or make edits using the{" "}
-        <Kbd className="inline">Generate with AI</Kbd> button.
-      </p>
-
       <ModelSelector
         label="Chat Model"
         form={form}
@@ -665,21 +865,9 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
         testId="ai-chat-model-input"
         disabled={isWasmRuntime}
         description={
-          <>
-            <p>
-              Model to use for chat conversations in the Chat panel. Models
-              should include the provider name and model name separated by a
-              slash. For example, "anthropic/claude-3-5-sonnet-latest" or
-              "google/gemini-2.0-flash-exp".
-            </p>
-            <p className="pt-1">
-              Depending on the provider, we will use the respective API key and
-              additional configuration.
-            </p>
-          </>
+          <span>Model to use for chat conversations in the Chat panel.</span>
         }
       />
-
       <ModelSelector
         label="Edit Model"
         form={form}
@@ -689,19 +877,24 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
         testId="ai-edit-model-input"
         disabled={isWasmRuntime}
         description={
-          <>
-            <p>
-              Model to use for code editing with the{" "}
-              <Kbd className="inline">Generate with AI</Kbd> button. Models
-              should include the provider name and model name separated by a
-              slash.
-            </p>
-            <p className="pt-1">
-              You can use a faster, cheaper model for edits if desired.
-            </p>
-          </>
+          <span>
+            Model to use for code editing with the{" "}
+            <Kbd className="inline">Generate with AI</Kbd> button.
+          </span>
         }
       />
+
+      <ul className="bg-muted p-2 rounded-md list-disc space-y-1 pl-6">
+        <li className="text-xs text-muted-secondary">
+          Models should include the provider name and model name separated by a
+          slash. For example, "anthropic/claude-3-5-sonnet-latest" or
+          "google/gemini-2.0-flash-exp"
+        </li>
+        <li className="text-xs text-muted-secondary">
+          Depending on the provider, we will use the respective API key and
+          additional configuration.
+        </li>
+      </ul>
 
       <FormField
         control={form.control}
