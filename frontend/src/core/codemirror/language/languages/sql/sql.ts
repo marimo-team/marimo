@@ -63,6 +63,16 @@ export class SQLLanguageAdapter
   implements LanguageAdapter<SQLLanguageAdapterMetadata>
 {
   readonly type = "sql";
+  sqlLinterEnabled: boolean;
+
+  constructor() {
+    try {
+      this.sqlLinterEnabled = getFeatureFlag("sql_linter");
+    } catch {
+      this.sqlLinterEnabled = false;
+    }
+  }
+
   get defaultMetadata(): SQLLanguageAdapterMetadata {
     return {
       dataframeName: "_df",
@@ -218,8 +228,7 @@ export class SQLLanguageAdapter
       }),
     ];
 
-    const experimentalLinter = getFeatureFlag("sql_linter");
-    if (experimentalLinter) {
+    if (this.sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);
       const parser = new NodeSqlParser({
         getParserOptions: (state: EditorState) => {
