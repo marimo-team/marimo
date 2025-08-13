@@ -100,9 +100,74 @@ class StreamOptions:
 class AnyLLMProvider:
     """Unified provider using any-llm library for all LLM providers."""
 
+    # OpenAI reasoning effort configuration
+    # Medium effort provides a balance between speed and accuracy
+    # https://openai.com/index/openai-o3-mini/
+    DEFAULT_REASONING_EFFORT = "medium"
+
+    # Anthropic temperature configurations
+    # Temperature of 0.2 was recommended for coding and data science in these links:
+    # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
+    # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
+    DEFAULT_TEMPERATURE = 0.2
+
+    # Extended thinking defaults based on:
+    # Extended thinking requires temperature of 1
+    DEFAULT_EXTENDED_THINKING_TEMPERATURE = 1
+    # 1024 tokens is the minimum budget for extended thinking
+    DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS = 1024
+
+    # Thinking models configuration (provider-specific)
+    # Anthropic extended thinking models that support temperature=1 and thinking budget
+    # https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
+    ANTHROPIC_EXTENDED_THINKING_MODEL_PREFIXES = [
+        "anthropic/claude-opus-4-1",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-sonnet-4",
+        "anthropic/claude-3-7-sonnet",
+    ]
+
+    # Google thinking models that support thinking_config
+    # Based on the docs: https://cloud.google.com/vertex-ai/generative-ai/docs/thinking
+    GOOGLE_THINKING_MODEL_PREFIXES = [
+        "google/gemini-2.5-pro",
+        "google/gemini-2.5-flash",
+        "google/gemini-2.5-flash-lite",
+    ]
+
     def __init__(self, model: str, config: AnyProviderConfig):
         self.model = model
         self.config = config
+
+    @classmethod
+    def _is_openai_thinking_model(cls, model: str) -> bool:
+        """Check if this is an OpenAI thinking model (o-series)."""
+        return model.startswith("openai/o")
+
+    @classmethod
+    def _is_anthropic_thinking_model(cls, model: str) -> bool:
+        """Check if this is an Anthropic extended thinking model."""
+        return any(
+            model.startswith(prefix)
+            for prefix in cls.ANTHROPIC_EXTENDED_THINKING_MODEL_PREFIXES
+        )
+
+    @classmethod
+    def _is_google_thinking_model(cls, model: str) -> bool:
+        """Check if this is a Google thinking model."""
+        return any(
+            model.startswith(prefix)
+            for prefix in cls.GOOGLE_THINKING_MODEL_PREFIXES
+        )
+
+    @classmethod
+    def _get_temperature(cls, model: str) -> float:
+        """Get the appropriate temperature for the model."""
+        return (
+            cls.DEFAULT_EXTENDED_THINKING_TEMPERATURE
+            if cls._is_anthropic_thinking_model(model)
+            else cls.DEFAULT_TEMPERATURE
+        )
 
     def _format_stream(self, content: StreamContent) -> str:
         """Format a response into stream protocol string."""
@@ -125,64 +190,6 @@ class AnyLLMProvider:
         return "".join(
             self.as_stream_response(response, StreamOptions(text_only=True))
         )
-
-    def _content_to_string(
-        self, content_data: Union[str, dict[str, Any]]
-    ) -> str:
-        """Convert content data to string for buffer operations."""
-        return (
-            json.dumps(content_data)
-            if isinstance(content_data, dict)
-            else str(content_data)
-        )
-
-    def _create_stream_content(
-        self, content_data: Union[str, dict[str, Any]], content_type: str
-    ) -> StreamContent:
-        """Create type-safe StreamContent tuple for format_stream method."""
-        # String content types
-        if isinstance(content_data, str):
-            if content_type == "text":
-                return (content_data, "text")
-            elif content_type == "reasoning":
-                return (content_data, "reasoning")
-
-        # Dict content types
-        if isinstance(content_data, dict):
-            if content_type == "tool_call_start":
-                return (content_data, "tool_call_start")
-            elif content_type == "tool_call_end":
-                return (content_data, "tool_call_end")
-            elif content_type == "tool_call_delta":
-                return (content_data, "tool_call_delta")
-            elif content_type == "reasoning_signature":
-                return (content_data, "reasoning_signature")
-
-        # Fallback - convert to string content
-        content_str = self._content_to_string(content_data)
-        return (content_str, "text")
-
-    def _validate_tool_call_args(
-        self, tool_call_args: str
-    ) -> Optional[dict[str, Any]]:
-        """Validate tool call arguments."""
-        if not tool_call_args:
-            return None
-        try:
-            result = (
-                json.loads(tool_call_args)
-                if isinstance(tool_call_args, str)
-                else tool_call_args
-            )
-            return result if isinstance(result, dict) else None
-        except Exception as e:
-            LOGGER.error(
-                f"Failed to parse tool call arguments: {tool_call_args} (error: {e})"
-            )
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"Invalid tool call arguments: malformed JSON: {tool_call_args}",
-            ) from e
 
     def _validate_provider_dependencies(self) -> None:
         """Validate provider dependencies."""
@@ -378,6 +385,8 @@ class AnyLLMProvider:
         additional_params: dict[str, Any] = {
             "api_timeout": 15,
             "max_tokens": max_tokens,
+            # Default, will be overridden by provider-specific config
+            "temperature": self.DEFAULT_TEMPERATURE,
         }
 
         # Add tools if available
@@ -392,14 +401,10 @@ class AnyLLMProvider:
         if self.config.base_url:
             additional_params["api_base"] = self.config.base_url
 
-        # Gemini does not like max_tokens or api_timeout
-        if self.model.startswith("google/"):
-            additional_params.pop("max_tokens")
-            additional_params.pop("api_timeout")
-
-        # Thinking models do not like max_tokens
-        if self.model.startswith("openai/o"):
-            additional_params.pop("max_tokens")
+        # Apply model-specific configurations
+        self._configure_openai_params(additional_params)
+        self._configure_anthropic_params(additional_params)
+        self._configure_google_params(additional_params)
 
         try:
             response = any_llm.completion(
@@ -416,12 +421,114 @@ class AnyLLMProvider:
                 detail=f"AI request failed: {str(e)}",
             ) from e
 
-    def _get_finish_reason(
-        self, response: ChatCompletionChunk
-    ) -> Optional[FinishReason]:
-        if not response.choices:
-            return None
-        return response.choices[0].finish_reason
+    def _create_ssl_http_client(self) -> Optional[Any]:
+        """Create custom HTTP client for SSL/PEM configuration (OpenAI-compatible providers)."""
+        import ssl
+        from pathlib import Path
+
+        import httpx
+
+        # SSL parameters
+        ssl_verify: bool = (
+            self.config.ssl_verify
+            if self.config.ssl_verify is not None
+            else True
+        )
+        ca_bundle_path: Optional[str] = self.config.ca_bundle_path
+        client_pem: Optional[str] = self.config.client_pem
+
+        # Validate SSL file paths
+        if ca_bundle_path:
+            ca_path = Path(ca_bundle_path)
+            if not ca_path.exists():
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="CA Bundle is not a valid path or does not exist",
+                )
+
+        if client_pem:
+            client_pem_path = Path(client_pem)
+            if not client_pem_path.exists():
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail="Client PEM is not a valid path or does not exist",
+                )
+
+        # Create SSL context and client if needed
+        if ssl_verify:
+            ctx = None
+            if ca_bundle_path:
+                ctx = ssl.create_default_context(cafile=ca_bundle_path)
+            if client_pem:
+                if ctx:
+                    ctx.load_cert_chain(certfile=client_pem)
+                else:
+                    ctx = ssl.create_default_context()
+                    ctx.load_cert_chain(certfile=client_pem)
+
+            # Return custom client if SSL context was created
+            if ctx:
+                return httpx.Client(verify=ctx)
+        else:
+            # Return client with SSL verification disabled
+            return httpx.Client(verify=False)
+
+        return None
+
+    def _configure_openai_params(self, params: dict[str, Any]) -> None:
+        """Configure OpenAI-specific parameters."""
+        if not (
+            self.model.startswith("openai/")
+            or self.model.startswith("openai_compatible/")
+        ):
+            return
+
+        # Add custom HTTP client for SSL/PEM configuration
+        # This applies to both openai/ and openai_compatible/ providers
+        http_client = self._create_ssl_http_client()
+        if http_client:
+            params["http_client"] = http_client
+
+        # OpenAI-specific features (only for openai/ models)
+        if self.model.startswith("openai/") and self._is_openai_thinking_model(
+            self.model
+        ):
+            params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
+            params.pop("temperature", None)
+            # OpenAI thinking models don't accept max_tokens
+            params.pop("max_tokens", None)
+
+    def _configure_anthropic_params(self, params: dict[str, Any]) -> None:
+        """Configure Anthropic-specific parameters."""
+        if not self.model.startswith("anthropic/"):
+            return
+
+        # Override temperature for Anthropic models
+        params["temperature"] = self._get_temperature(self.model)
+
+        # Add extended thinking configuration for supported models
+        if self._is_anthropic_thinking_model(self.model):
+            params["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
+            }
+
+    def _configure_google_params(self, params: dict[str, Any]) -> None:
+        """Configure Google-specific parameters."""
+        if not self.model.startswith("google/"):
+            return
+
+        # Google models use fixed temperature
+        params["temperature"] = 0
+        # Google models don't accept max_tokens or api_timeout
+        params.pop("max_tokens", None)
+        params.pop("api_timeout", None)
+
+        # Add thinking config for supported models
+        if self._is_google_thinking_model(self.model):
+            params["thinking_config"] = {
+                "include_thoughts": True,
+            }
 
 
 def get_completion_provider(

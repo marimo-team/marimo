@@ -141,5 +141,70 @@ def _(AnyLLMProvider, basic_query, get_config, print_stream):
     return
 
 
+@app.cell(column=3)
+def _(AnyLLMProvider, basic_query, get_config, mo):
+    MODELS = [
+        # Anthropic
+        "anthropic/claude-opus-4-1-20250805",
+        "anthropic/claude-opus-4-20250514",
+        "anthropic/claude-sonnet-4-20250514",
+        "anthropic/claude-3-7-sonnet-latest",
+        "anthropic/claude-3-5-sonnet-latest",
+        "anthropic/claude-3-5-haiku-latest",
+        # DeepSeek
+        # "deepseek/deepseek-v3",
+        # "deepseek/deepseek-r1",
+        # Google
+        "google/gemini-2.5-flash",
+        # "google/gemini-2.5-pro", # broken response
+        "google/gemini-2.0-flash",
+        "google/gemini-2.0-flash-lite",
+        # OpenAI
+        # "openai/o3",
+        "openai/o4-mini",
+        # "openai/gpt-4.5", # not working
+        "openai/gpt-4.1",
+        "openai/gpt-4o",
+        # "openai/gpt-3.5-turbo", # not working
+        # AWS Bedrock Models
+        # "bedrock/anthropic.claude-3-5-haiku-20241022-v1:0",
+        # "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
+        # "bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0",
+        # "bedrock/meta.llama3-3-70b-instruct-v1:0",
+        # "bedrock/cohere.command-r-plus-v1",
+    ]
+
+    results = {}
+
+
+    @mo.cache()
+    def query(model):
+        provider = model.split("/")[0].replace("openai", "open_ai")
+
+        provider = AnyLLMProvider(
+            model,
+            get_config(provider),
+        )
+        return list(basic_query(provider))
+
+
+    for model in MODELS:
+        print("querying model", model)
+        results[model] = query(model)
+    return (results,)
+
+
+@app.cell
+def _(results):
+    results
+    return
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
 if __name__ == "__main__":
     app.run()
