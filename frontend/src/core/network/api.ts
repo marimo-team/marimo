@@ -25,6 +25,7 @@ export const API = {
     opts: {
       headers?: Record<string, string>;
       baseUrl?: string;
+      signal?: AbortSignal;
     } = {},
   ): Promise<RESP> {
     const baseUrl = Strings.withTrailingSlash(
@@ -39,6 +40,7 @@ export const API = {
         ...opts.headers,
       },
       body: JSON.stringify(body),
+      signal: opts.signal,
     })
       .then(async (response) => {
         const isJson = response.headers

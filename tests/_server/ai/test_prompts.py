@@ -5,7 +5,6 @@ from typing import cast
 
 from marimo._ast.visitor import Language
 from marimo._server.ai.prompts import (
-    FILL_ME_TAG,
     _format_variables,
     get_chat_system_prompt,
     get_inline_system_prompt,
@@ -173,9 +172,7 @@ def test_empty_rules():
 def test_edit_inline_prompts():
     result = get_inline_system_prompt(language="python")
     snapshot("edit_inline_prompts.txt", result)
-    # <FILL_ME> is sent from the client, this cannot change without
-    # coordination
-    assert FILL_ME_TAG in result
+    assert "<|fim_suffix|>" in result
 
 
 def test_chat_system_prompts():
