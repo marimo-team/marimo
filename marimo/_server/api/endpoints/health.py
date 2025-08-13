@@ -40,7 +40,7 @@ router.add_route("/healthz", health_check, methods=["GET"])
 
 @router.get("/api/status")
 @requires("edit")
-def status(request: Request) -> JSONResponse:
+async def status(request: Request) -> JSONResponse:
     """
     responses:
         200:
@@ -92,7 +92,7 @@ def status(request: Request) -> JSONResponse:
 
 
 @router.get("/api/version")
-def version(request: Request) -> PlainTextResponse:
+async def version(request: Request) -> PlainTextResponse:
     """
     responses:
         200:
@@ -108,7 +108,7 @@ def version(request: Request) -> PlainTextResponse:
 
 @router.get("/api/usage")
 @requires("edit")
-def usage(request: Request) -> JSONResponse:
+async def usage(request: Request) -> JSONResponse:
     """
     responses:
         200:
@@ -292,7 +292,7 @@ def usage(request: Request) -> JSONResponse:
 
 
 @router.get("/api/status/connections")
-def connections(request: Request) -> JSONResponse:
+async def connections(request: Request) -> JSONResponse:
     """
     responses:
         200:

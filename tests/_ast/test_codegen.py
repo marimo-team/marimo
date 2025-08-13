@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import json
-import os
 from functools import partial
 from inspect import cleandoc
+from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 import codegen_data.test_main as mod
 import pytest
@@ -19,17 +19,13 @@ from marimo._ast.cell import CellConfig
 from marimo._ast.names import is_internal_cell_name
 from marimo._schemas.notebook import NotebookV1
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+DIR_PATH = Path(__file__).parent
 
 
 def get_expected_filecontents(name: str) -> str:
-    with open(os.path.join(DIR_PATH, f"codegen_data/{name}.py")) as f:
-        contents = f.read()
+    contents = get_filepath(name).read_text()
     lines = contents.split("\n")
     break_index = None
     for i, line in enumerate(lines):
@@ -44,8 +40,8 @@ def get_expected_filecontents(name: str) -> str:
     )
 
 
-def get_filepath(name: str) -> str:
-    return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
+def get_filepath(name: str) -> Path:
+    return Path(DIR_PATH) / f"codegen_data/{name}.py"
 
 
 def sanitized_version(output: str) -> str:
@@ -73,11 +69,11 @@ def wrap_generate_filecontents(
     return filecontents
 
 
-def get_idempotent_marimo_source(name: str) -> str:
+async def get_idempotent_marimo_source(name: str) -> str:
     from marimo._utils.formatter import Formatter
 
     path = get_filepath(name)
-    app = load.load_app(path)
+    app = load.load_app(str(path))
     header_comments = codegen.get_header_comments(path)
     generated_contents = codegen.generate_filecontents(
         codes=list(app._cell_manager.codes()),
@@ -88,10 +84,9 @@ def get_idempotent_marimo_source(name: str) -> str:
     )
     generated_contents = sanitized_version(generated_contents)
 
-    with open(path) as f:
-        python_source = sanitized_version(f.read())
+    python_source = sanitized_version(path.read_text())
 
-    formatted = Formatter(codegen.MAX_LINE_LENGTH).format(
+    formatted = await Formatter(codegen.MAX_LINE_LENGTH).format(
         {"source": python_source, "generated": generated_contents}
     )
 
@@ -418,8 +413,8 @@ class TestGeneration:
         assert "def __" not in contents
 
     @staticmethod
-    def test_generate_filecontents_toplevel() -> None:
-        source = get_idempotent_marimo_source(
+    async def test_generate_filecontents_toplevel() -> None:
+        source = await get_idempotent_marimo_source(
             "test_generate_filecontents_toplevel"
         )
         assert "import marimo" in source
@@ -428,15 +423,15 @@ class TestGeneration:
         assert len(split) == 3
 
     @staticmethod
-    def test_generate_filecontents_toplevel_pytest() -> None:
-        source = get_idempotent_marimo_source(
+    async def test_generate_filecontents_toplevel_pytest() -> None:
+        source = await get_idempotent_marimo_source(
             "test_generate_filecontents_toplevel_pytest"
         )
         assert "import marimo" in source
 
     @staticmethod
-    def test_generate_filecontents_with_annotation_typing() -> None:
-        source = get_idempotent_marimo_source(
+    async def test_generate_filecontents_with_annotation_typing() -> None:
+        source = await get_idempotent_marimo_source(
             "test_app_with_annotation_typing"
         )
         assert "import marimo" in source
