@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { AiModelId } from "@/utils/ai/ids";
+import { AiModelId, type ProviderId } from "@/utils/ai/ids";
 
 /* Copyright 2024 Marimo. All rights reserved. */
 export const KNOWN_AI_MODELS = [
@@ -37,9 +37,32 @@ export const KNOWN_AI_MODELS = [
   "bedrock/cohere.command-r-plus-v1",
 ] as const;
 
-export const KNOWN_AI_MODEL_IDS = KNOWN_AI_MODELS.map((model) =>
-  AiModelId.parse(model),
-);
+export function getAIModelsByProvider(displayedModels?: string[]) {
+  // If there are specific models to display, filter out the rest
+  // If not provided, use all models
+  let models = [...KNOWN_AI_MODELS];
+  if (displayedModels && displayedModels.length > 0) {
+    models = models.filter((model) => displayedModels.includes(model));
+  }
+
+  const acc: Record<ProviderId, AiModelId[]> = {
+    openai: [],
+    anthropic: [],
+    google: [],
+    ollama: [],
+    bedrock: [],
+    deepseek: [],
+  };
+
+  for (const model of models) {
+    const parsed = AiModelId.parse(model);
+    if (!acc[parsed.providerId]) {
+      acc[parsed.providerId] = [];
+    }
+    acc[parsed.providerId].push(parsed);
+  }
+  return acc;
+}
 
 /**
  * AWS regions where the Bedrock service is available

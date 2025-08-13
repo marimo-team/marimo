@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
+import type { QualifiedModelId } from "@/utils/ai/ids";
 import { Events } from "@/utils/events";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import {
@@ -208,7 +209,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         const value = asStringOrUndefined(field.value);
 
         // TODO: Not updating
-        const selectModel = (modelId: string) => {
+        const selectModel = (modelId: QualifiedModelId) => {
           field.onChange(modelId);
         };
 

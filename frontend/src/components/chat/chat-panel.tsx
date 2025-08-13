@@ -50,6 +50,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
+import type { QualifiedModelId } from "@/utils/ai/ids";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
@@ -276,7 +277,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       saveConfig(newConfig);
     };
 
-    const handleModelChange = async (newModel: string) => {
+    const handleModelChange = async (newModel: QualifiedModelId) => {
       const newConfig: UserConfig = {
         ...userConfig,
         ai: {
@@ -330,6 +331,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             onSelect={handleModelChange}
             triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
             iconSize="small"
+            showAddCustomModelDocs={true}
           />
         </div>
         <Button
