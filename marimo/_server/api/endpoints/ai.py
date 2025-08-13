@@ -23,7 +23,9 @@ from marimo._server.ai.config import (
     get_max_tokens,
 )
 from marimo._server.ai.prompts import (
-    FILL_ME_TAG,
+    FIM_MIDDLE_TAG,
+    FIM_PREFIX_TAG,
+    FIM_SUFFIX_TAG,
     get_chat_system_prompt,
     get_inline_system_prompt,
     get_refactor_or_insert_notebook_cell_system_prompt,
@@ -216,7 +218,8 @@ async def ai_inline_completion(
     body = await parse_request(
         request, cls=AiInlineCompletionRequest, allow_unknown_keys=True
     )
-    prompt = f"{body.prefix}{FILL_ME_TAG}{body.suffix}"
+    # Use FIM (Fill-In-Middle) format for inline completion
+    prompt = f"{FIM_PREFIX_TAG}{body.prefix}{FIM_SUFFIX_TAG}{body.suffix}{FIM_MIDDLE_TAG}"
     messages = [ChatMessage(role="user", content=prompt)]
     system_prompt = get_inline_system_prompt(language=body.language)
 

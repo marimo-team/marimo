@@ -11,7 +11,9 @@ from marimo._server.models.completion import (
     VariableContext,
 )
 
-FILL_ME_TAG = "<FILL_ME>"
+FIM_PREFIX_TAG = "<|fim_prefix|>"
+FIM_SUFFIX_TAG = "<|fim_suffix|>"
+FIM_MIDDLE_TAG = "<|fim_middle|>"
 
 language_rules = {
     "python": [
@@ -163,8 +165,9 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
 
 def get_inline_system_prompt(*, language: Language) -> str:
     return (
-        f"You are a {language} programmer that replaces {FILL_ME_TAG} part with the right code. "
-        f"Only output the code that replaces {FILL_ME_TAG} part. Do not add any explanation or markdown."
+        f"You are a {language} code completion assistant. "
+        f"Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality."
+        f"Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
     )
 
 

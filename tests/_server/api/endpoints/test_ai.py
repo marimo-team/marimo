@@ -9,7 +9,11 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.ai.prompts import FILL_ME_TAG
+from marimo._server.ai.prompts import (
+    FIM_MIDDLE_TAG,
+    FIM_PREFIX_TAG,
+    FIM_SUFFIX_TAG,
+)
 from marimo._server.ai.providers import (
     AnyProviderConfig,
     OpenAIProvider,
@@ -279,12 +283,18 @@ class TestOpenAiEndpoints:
             prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][1]["content"]
-            assert prompt == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
-            # Assert the system prompt includes language-specific instructions
+            assert (
+                prompt
+                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
+            )
+            # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert "python" in system_prompt
+            assert (
+                system_prompt
+                == f"You are a python code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
+            )
             # Assert the model it was called with
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
             assert model == "gpt-marimo-for-inline-completion"
@@ -341,11 +351,14 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the system prompt includes language-specific instructions
+            # Assert the system prompt for FIM models
             system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert "sql" in system_prompt
+            assert (
+                system_prompt
+                == f"You are a sql code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
+            )
             # Assert model
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
             assert model == "gpt-marimo-for-inline-completion"
@@ -452,7 +465,10 @@ class TestAnthropicAiEndpoints:
             prompt: str = anthropic_client.messages.create.call_args.kwargs[
                 "messages"
             ][0]["content"]
-            assert prompt == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
+            assert (
+                prompt
+                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
+            )
             # Assert the model it was called with
             model = anthropic_client.messages.create.call_args.kwargs["model"]
             assert model == "claude-3.5-for-inline-completion"
@@ -585,7 +601,7 @@ class TestGoogleAiEndpoints:
             )
             assert (
                 prompt[0]["parts"][0]["text"]
-                == f"import pandas as pd\n{FILL_ME_TAG}\ndf.head()"
+                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
             )
 
 
