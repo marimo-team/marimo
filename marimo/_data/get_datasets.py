@@ -295,7 +295,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     if db_type in ["datetime", "interval"] or db_type.startswith("timestamp"):
         return "datetime"
     # Nested types
-    if "[]" in db_type:
+    if "[" and "]" in db_type:
         return "unknown"
     if (
         db_type.startswith("union")

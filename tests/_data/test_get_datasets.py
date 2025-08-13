@@ -61,6 +61,7 @@ CREATE TABLE all_types (
     col_timestamptz TIMESTAMPTZ,
     col_datetime DATETIME,
     col_array INTEGER[],
+    col_array_with_size INTEGER[10],
     col_struct STRUCT(id INTEGER, name VARCHAR),
     col_map MAP(INTEGER, VARCHAR),
     col_union UNION(int INTEGER, varchar VARCHAR),
@@ -81,7 +82,7 @@ all_types_tables = [
         source_type="duckdb",
         source="memory",
         num_rows=None,
-        num_columns=39,
+        num_columns=40,
         variable_name=None,
         columns=[
             DataTableColumn(
@@ -286,6 +287,12 @@ all_types_tables = [
                 name="col_array",
                 type="unknown",
                 external_type="INTEGER[]",
+                sample_values=[],
+            ),
+            DataTableColumn(
+                name="col_array_with_size",
+                type="unknown",
+                external_type="INTEGER[10]",
                 sample_values=[],
             ),
             DataTableColumn(
