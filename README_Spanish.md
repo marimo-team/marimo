@@ -38,7 +38,7 @@
 - ⚡️ **reactive**: ejecuta una celda y marimo reactivamente [ejecuta las celdas dependientes](https://docs.marimo.io/guides/reactivity.html) o <a href="#expensive-notebooks">las marca como desactualizadas</a>
 - 🖐️ **interaction:** [vincula deslizadores, tablas, gráficas y más](https://docs.marimo.io/guides/interactivity.html) a Python — sin "callbacks" requeridos
 - 🔬 **reproducible:** [sin estado oculto](https://docs.marimo.io/guides/reactivity.html#no-hidden-state), ejecución determinística, [gestión de paquetes integrada](https://docs.marimo.io/guides/editor_features/package_management.html)
-- 🏃 **ejecutable:** [se ejecuta como script de Python](https://docs.marimo.io/guides/scripts.html), parametrizable mediante argumentos de la línea de comandos (CLI)
+- 🏃 **ejecutable:** [se ejecuta como script de Python](https://docs.marimo.io/guides/scripts.html), parametrizable mediante arguments de la línea de commandos (CLI)
 - 🛜 **compartible**: [se despliega como una aplicación web interactiva](https://docs.marimo.io/guides/apps.html) o [diapositivas](https://docs.marimo.io/guides/apps.html#slides-layout), [ejecutar en navegador via WASM](https://docs.marimo.io/guides/wasm.html)
 - 🛢️ **diseñado para datos**: consulta marcos de datos y bases de datos [con SQL](https://docs.marimo.io/guides/working_with_data/sql.html), filtrar y buscar [marcos de datos](https://docs.marimo.io/guides/working_with_data/dataframes.html)
 - 🐍 **compatible con git:** cuadernos (notebooks) son almacenados como archivos `.py`
@@ -54,10 +54,10 @@ _[Inicia rápido](#quickstart) para una introducción sobre nuestro CLI._
 
 ## Un entorno de programación reactivo
 
-marimo garantiza que el código de tu notebook, los resultados y el estado del programa sean consistentes. Esto [resuelve muchos problemas](https://docs.marimo.io/faq.html#faq-problems) asociados con notebooks tradicionales como Jupyter.
+marimo garantiza que el código de tu notebook, los resultados y el estado del program sean consistentes. Esto [resuelve muchos problems](https://docs.marimo.io/faq.html#faq-problems) asociados con notebooks tradicionales como Jupyter.
 
 **Un entorno de programación reactivo.**
-Ejecuta una celda y marimo reacciona ejecutando automáticamente las celdas que referencian sus variables, eliminando la tarea propensa a errores de volver a ejecutar celdas manualmente. Elimina una celda y marimo borra sus variables de la memoria del programa, eliminando el estado oculto.
+Ejecuta una celda y marimo reacciona ejecutando automáticamente las celdas que referencian sus variables, eliminando la tarea propensa a errores de volver a ejecutar celdas manualmente. Elimina una celda y marimo borra sus variables de la memoria del program, eliminando el estado oculto.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
 
@@ -66,7 +66,7 @@ Ejecuta una celda y marimo reacciona ejecutando automáticamente las celdas que 
 **Compatible con cuadernos (notebooks) pesados.** marimo te permite [configurar el runtime
 para que sea
 lazy](https://docs.marimo.io/guides/configuration/runtime_configuration.html),
-marcando las celdas afectadas como obsoletas en lugar de ejecutarlas automáticamente. Esto te da garantías sobre el estado del programa mientras previene la ejecución accidental de celdas costosas.
+marcando las celdas afectadas como obsoletas en lugar de ejecutarlas automáticamente. Esto te da garantías sobre el estado del program mientras previene la ejecución accidental de celdas costosas.
 
 **Elementos UI sincronizados.** Interactúa con [
 elementos UI](https://docs.marimo.io/guides/interactivity.html) como [sliders](https://docs.marimo.io/api/inputs/slider.html#slider),
@@ -81,7 +81,7 @@ millones de filas increíblemente rápido, sin necesidad de codigo.
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-df.gif" width="700px" />
 
-**Tiempo de ejecución eficiente.** marimo ejecuta solo las celdas que necesitan ser ejecutadas analizando estáticamente tu código.
+**Tiempo de ejecución eficiente.** marimo ejecuta solo las celdas que necesitan set ejecutadas analizando estáticamente tu código.
 
 **Markdown dinámico y SQL.** Usa markdown para contar historias dinámicas que dependen de
 datos de Python. O construye consultas [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 
@@ -94,12 +94,12 @@ Tus notebooks siguen siendo Python puro, incluso si usan markdown o SQL.
 **Orden de ejecución determinístico.** Los notebooks se ejecutan en un orden determinístico, basado en referencias de variables en lugar de las posiciones de las celdas en la página.
 Organiza tus notebooks para que se ajusten mejor a las historias que quieres contar.
 
-**Gestión de paquetes integrada.** marimo tiene soporte integrado para todos los gestores de paquetes principales, permitiéndote [instalar paquetes al importarlos](https://docs.marimo.io/guides/editor_features/package_management.html). marimo puede incluso 
+**Gestión de paquetes integrada.** marimo tiene soporte integrado para todos los gestores de paquetes principles, permitiéndote [instalar paquetes al importarlos](https://docs.marimo.io/guides/editor_features/package_management.html). marimo puede incluso 
 [serializar los requisitos de paquetes](https://docs.marimo.io/guides/package_management/inlining_dependencies/)
 en archivos de notebook, e instalarlos automáticamente en sandboxes venv aislados.
 
 **Baterías incluidas.** marimo viene con GitHub Copilot, asistentes de IA, formateo de código con Ruff, exportación HTML, autocompletado rápido, una [extensión de VS Code](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
-un visor interactivo de dataframes, y [muchas más](https://docs.marimo.io/guides/editor_features/index.html)
+un visor interaction de dataframes, y [muchas más](https://docs.marimo.io/guides/editor_features/index.html)
 características de calidad de vida.
 
 ## Inicio rápido
@@ -111,7 +111,7 @@ pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
 ```
 
-Para instalar con dependencias adicionales que desbloquean celdas SQL, completado con IA y más, ejecuta
+Para instalar con dependencies adicionales que desbloquean celdas SQL, completado con IA y más, ejecuta
 
 ```bash
 pip install marimo[recommended]
@@ -133,7 +133,7 @@ marimo run your_notebook.py
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
-**Ejecutar como scripts.** Ejecuta un notebook como un script en la línea de comandos:
+**Ejecutar como scripts.** Ejecuta un notebook como un script en la línea de commandos:
 
 ```bash
 python your_notebook.py
@@ -147,8 +147,8 @@ marimo convert your_notebook.ipynb > your_notebook.py
 
 o usa nuestra [interfaz web](https://marimo.io/convert).
 
-**Tutoriales.**
-Lista de todos los tutoriales:
+**Tutorials.**
+Lista de todos los tutorials:
 
 ```bash
 marimo tutorial --help
@@ -156,7 +156,7 @@ marimo tutorial --help
 
 ## ¿Preguntas?
 
-Consulta las [FAQ](https://docs.marimo.io/faq.html) en nuestra documentacion.
+Consulta las [FAQ](https://docs.marimo.io/faq.html) en nuestra documentation.
 
 ## Aprende más
 
@@ -165,7 +165,7 @@ marimo es fácil para empezar, con mucho espacio para usuarios avanzados. Por ej
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
-Revisa nuestra [documentacion](https://docs.marimo.io),
+Revisa nuestra [documentation](https://docs.marimo.io),
 la carpeta [`examples/`](examples/), y nuestra [galeria](https://marimo.io/gallery) para aprender mas.
 
 <table border="0">
@@ -231,7 +231,7 @@ la carpeta [`examples/`](examples/), y nuestra [galeria](https://marimo.io/galle
 
 ## Contribuir
 
-¡Apreciamos todas las contribuciones! No necesitas ser un experto para ayudar. Por favor consulta [CONTRIBUTING.md](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md) para más detalles sobre cómo empezar.
+¡Apreciamos todas las contribuciones! No necesitas set un experto para ayudar. Por favor consulta [CONTRIBUTING.md](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md) para más detalles sobre cómo empezar.
 
 > Dudas? Acércate a nosotros [en Discord](https://marimo.io/discord?ref=readme).
 
@@ -251,9 +251,9 @@ Estamos construyendo una comunidad. ¡Ven a pasar el rato con nosotros!
 
 ## Inspiración ✨
 
-marimo es una **reinvención** de Python como un programa Python reproducible, interactivo y compartible, en lugar de un bloc de notas JSON propenso a errores.
+marimo es una **reinvención** de Python como un program Python reproducible, interaction y compartible, en lugar de un bloc de notas JSON propenso a errores.
 
-Creemos que las herramientas que usamos dan forma a nuestra manera de pensar — mejores herramientas, para mentes mejores. Con marimo, esperamos proporcionar a la comunidad de Python un mejor entorno de programación para hacer investigación y comunicarla; para experimentar con código y compartirlo; para aprender ciencia computacional y enseñarla.
+Creemos que las herramientas que usamos dan forma a nuestra manera de pensar — mejores herramientas, para mentes mejores. Con marimo, esperamos proporcionar a la comunidad de Python un mejor entorno de programación para hacer investigación y comunicarla; para experimentar con código y compartirlo; para aprender ciencia computational y enseñarla.
 
 Nuestra inspiración viene de muchos lugares y proyectos, especialmente
 [Pluto.jl](https://github.com/fonsp/Pluto.jl),
@@ -264,7 +264,7 @@ un movimiento mayor hacia la programación reactiva de flujo de datos. Desde
 [TensorFlow](https://github.com/tensorflow/tensorflow),
 [PyTorch](https://github.com/pytorch/pytorch/tree/main),
 [JAX](https://github.com/google/jax), y
-[React](https://github.com/facebook/react), las ideas de programación funcional, declarativa y reactiva están transformando una amplia gama de herramientas para mejor.
+[React](https://github.com/facebook/react), las ideas de programación functional, declarativa y reactiva están transformando una amplia gama de herramientas para mejor.
 
 <p align="right">
   <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" height="200px">
