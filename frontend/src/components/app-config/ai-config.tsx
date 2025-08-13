@@ -234,7 +234,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                     <div className="px-2 py-1">
                       <Input
                         data-testid={testId}
-                        className="w-full"
+                        className="w-full border-border shadow-none focus-visible:shadow-xs"
                         placeholder={placeholder}
                         {...field}
                         value={asStringOrUndefined(field.value)}
