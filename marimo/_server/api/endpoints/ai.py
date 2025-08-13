@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
@@ -67,6 +67,45 @@ def get_ai_config(config: MarimoConfig) -> AiConfig:
             detail="AI is not configured. Configure them in the settings dialog.",
         )
     return ai_config
+
+
+def parse_model_format(model: str) -> tuple[str, str]:
+    """Parse model format <format>/<model> and return (format, model_name).
+
+    Args:
+        model: Model string in format 'format/model' (e.g., 'openai/gpt-4', 'anthropic/claude-3')
+
+    Returns:
+        Tuple of (format, model_name)
+
+    Raises:
+        HTTPException: If model format is invalid or format is not supported
+    """
+
+    def raise_error() -> NoReturn:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Invalid model format '{model}'. Expected format: '<provider>/<model>' (e.g., 'openai/gpt-4', 'anthropic/claude-3', 'google/gemini-pro')",
+        )
+
+    if "/" not in model:
+        raise_error()
+
+    parts = model.split("/", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise_error()
+
+    format_name, model_name = parts
+
+    # Validate supported formats
+    supported_formats = {"openai", "anthropic", "google", "bedrock"}
+    if format_name not in supported_formats:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Unsupported provider '{format_name}'. Supported providers: {', '.join(sorted(supported_formats))}",
+        )
+
+    return format_name, model_name
 
 
 @router.post("/completion")
@@ -286,3 +325,88 @@ async def invoke_tool(
     )
 
     return JSONResponse(content=asdict(response))
+
+
+@router.post("/compat/chat/completions")
+@requires("edit")
+async def compat_chat_completions(
+    *,
+    request: Request,
+) -> Any:
+    """
+    OpenAI-compatible chat completions endpoint.
+
+    requestBody:
+        description: The request body for chat completions
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ChatCompletionRequest"
+    responses:
+        200:
+            description: Chat completion response
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            choices:
+                                type: array
+                                items:
+                                    type: object
+                        additionalProperties: true
+    """
+    app_state = AppState(request)
+    app_state.require_current_session()
+    config = app_state.app_config_manager.get_config(hide_secrets=False)
+    body = await request.json()
+    ai_config = get_ai_config(config)
+
+    full_model = body.pop("model", None)
+    if full_model is None:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Model is required",
+        )
+    # Parse and validate model format
+    format_name, model_name = parse_model_format(full_model)
+
+    # Config for
+    scope = request.headers.get("x-marimo-ai-scope", None)
+    if scope == "next-edit-prediction":
+        provider_config = AnyProviderConfig.for_completion(
+            config["completion"],
+        )
+    else:
+        provider_config = AnyProviderConfig.for_model(model_name, ai_config)
+
+    supported_providers = {"openai"}
+
+    if format_name not in supported_providers:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Unsupported provider '{format_name}'. Supported providers: {', '.join(sorted(supported_providers))}",
+        )
+
+    # Create provider
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(
+        api_key=provider_config.api_key,
+        base_url=provider_config.base_url,
+    )
+
+    stream = body.pop("stream", False)
+    if stream:
+        return client.chat.completions.create(
+            **stream,
+            model=model_name,
+            stream=True,
+        )
+    response = await client.chat.completions.create(
+        **body,
+        model=model_name,
+        stream=False,
+    )
+    return JSONResponse(content=response.to_dict())
