@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 import sys
 
 from marimo import _loggers
@@ -14,28 +15,64 @@ LOGGER = _loggers.marimo_logger()
 CellCodes = dict[CellId_t, str]
 
 
+async def _run_subprocess_safe(
+    *args: str, input_data: bytes | None = None
+) -> tuple[bytes, bytes, int]:
+    """Run subprocess safely on all platforms, including Windows."""
+    try:
+        # Try asyncio first (works on most platforms)
+        if input_data is not None:
+            process = await asyncio.create_subprocess_exec(
+                *args,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await process.communicate(input_data)
+        else:
+            process = await asyncio.create_subprocess_exec(
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await process.communicate()
+
+        return stdout, stderr, process.returncode or 0
+    except NotImplementedError:
+        # Windows may throw NotImplementedError if using _WindowsSelectorEventLoop
+        def run_sync() -> tuple[bytes, bytes, int]:
+            if input_data is not None:
+                result = subprocess.run(
+                    args,
+                    input=input_data,
+                    capture_output=True,
+                    timeout=30,  # Add reasonable timeout
+                )
+            else:
+                result = subprocess.run(
+                    args,
+                    capture_output=True,
+                    timeout=30,
+                )
+            return result.stdout, result.stderr, result.returncode
+
+        return await asyncio.to_thread(run_sync)
+
+
 async def ruff(codes: CellCodes, *cmd: str) -> CellCodes:
     # Try with sys.executable first
     ruff_cmd = [sys.executable, "-m", "ruff"]
-    process = await asyncio.create_subprocess_exec(
-        *ruff_cmd,
-        "--help",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+    stdout, _stderr, returncode = await _run_subprocess_safe(
+        *ruff_cmd, "--help"
     )
-    await process.wait()
 
     # If that fails, try global ruff
-    if process.returncode != 0:
+    if returncode != 0:
         ruff_cmd = ["ruff"]
-        process = await asyncio.create_subprocess_exec(
-            *ruff_cmd,
-            "--help",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        stdout, _stderr, returncode = await _run_subprocess_safe(
+            *ruff_cmd, "--help"
         )
-        await process.wait()
-        if process.returncode != 0:
+        if returncode != 0:
             raise ModuleNotFoundError(
                 "To enable code formatting, please install ruff", name="ruff"
             )
@@ -43,17 +80,11 @@ async def ruff(codes: CellCodes, *cmd: str) -> CellCodes:
     formatted_codes: CellCodes = {}
     for key, code in codes.items():
         try:
-            process = await asyncio.create_subprocess_exec(
-                *ruff_cmd,
-                *cmd,
-                "-",
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            stdout, _stderr, returncode = await _run_subprocess_safe(
+                *ruff_cmd, *cmd, "-", input_data=code.encode()
             )
-            stdout, _stderr = await process.communicate(code.encode())
 
-            if process.returncode != 0:
+            if returncode != 0:
                 raise FormatError("Failed to format code with ruff")
 
             formatted = stdout.decode()

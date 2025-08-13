@@ -238,25 +238,16 @@ class TestBlackFormatter:
 class TestRuffFunction:
     """Test the ruff async function."""
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_with_module_ruff_available(
-        self, mock_subprocess: MagicMock
+        self, mock_subprocess_safe: MagicMock
     ):
         """Test ruff function when ruff is available as a module."""
-        # Mock help command success
-        help_process = AsyncMock()
-        help_process.returncode = 0
-        help_process.wait.return_value = None
-
-        # Mock format command success
-        format_process = AsyncMock()
-        format_process.returncode = 0
-        format_process.communicate.return_value = (
-            b"formatted_code\n",
-            b"",
-        )
-
-        mock_subprocess.side_effect = [help_process, format_process]
+        # Mock help command success, then format command success
+        mock_subprocess_safe.side_effect = [
+            (b"", b"", 0),  # help command success
+            (b"formatted_code\n", b"", 0),  # format command success
+        ]
 
         codes: CellCodes = {"cell1": "x=1"}
         result = await ruff(codes, "format", "--line-length", "88")
@@ -264,11 +255,11 @@ class TestRuffFunction:
         assert result == {"cell1": "formatted_code"}
 
         # Check that help command was called first
-        help_call = mock_subprocess.call_args_list[0]
+        help_call = mock_subprocess_safe.call_args_list[0]
         assert help_call[0] == (sys.executable, "-m", "ruff", "--help")
 
         # Check that format command was called
-        format_call = mock_subprocess.call_args_list[1]
+        format_call = mock_subprocess_safe.call_args_list[1]
         assert format_call[0] == (
             sys.executable,
             "-m",
@@ -278,34 +269,18 @@ class TestRuffFunction:
             "88",
             "-",
         )
+        assert format_call[1]["input_data"] == b"x=1"
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_falls_back_to_global_ruff(
-        self, mock_subprocess: MagicMock
+        self, mock_subprocess_safe: MagicMock
     ):
         """Test ruff function falls back to global ruff when module unavailable."""
-        # Mock module ruff failing
-        module_help_process = AsyncMock()
-        module_help_process.returncode = 1
-        module_help_process.wait.return_value = None
-
-        # Mock global ruff succeeding for help
-        global_help_process = AsyncMock()
-        global_help_process.returncode = 0
-        global_help_process.wait.return_value = None
-
-        # Mock format command success
-        format_process = AsyncMock()
-        format_process.returncode = 0
-        format_process.communicate.return_value = (
-            b"formatted_code\n",
-            b"",
-        )
-
-        mock_subprocess.side_effect = [
-            module_help_process,
-            global_help_process,
-            format_process,
+        # Mock module ruff failing, global ruff succeeding for help, then format success
+        mock_subprocess_safe.side_effect = [
+            (b"", b"", 1),  # module help fails
+            (b"", b"", 0),  # global help succeeds
+            (b"formatted_code\n", b"", 0),  # format succeeds
         ]
 
         codes: CellCodes = {"cell1": "x=1"}
@@ -314,20 +289,17 @@ class TestRuffFunction:
         assert result == {"cell1": "formatted_code"}
 
         # Check that global ruff was used for format command
-        format_call = mock_subprocess.call_args_list[2]
+        format_call = mock_subprocess_safe.call_args_list[2]
         assert format_call[0] == ("ruff", "format", "-")
+        assert format_call[1]["input_data"] == b"x=1"
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_raises_module_not_found_when_unavailable(
-        self, mock_subprocess: MagicMock
+        self, mock_subprocess_safe: MagicMock
     ):
         """Test ruff function raises ModuleNotFoundError when ruff is unavailable."""
         # Mock both module and global ruff failing
-        help_process = AsyncMock()
-        help_process.returncode = 1
-        help_process.wait.return_value = None
-
-        mock_subprocess.return_value = help_process
+        mock_subprocess_safe.return_value = (b"", b"", 1)
 
         codes: CellCodes = {"cell1": "x=1"}
 
@@ -337,32 +309,16 @@ class TestRuffFunction:
         assert "ruff" in str(exc_info.value)
         assert exc_info.value.name == "ruff"
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_handles_format_failures_gracefully(
-        self, mock_subprocess: MagicMock
+        self, mock_subprocess_safe: MagicMock
     ):
         """Test ruff function handles individual cell formatting failures gracefully."""
-        # Mock help command success
-        help_process = AsyncMock()
-        help_process.returncode = 0
-        help_process.wait.return_value = None
-
-        # Mock format commands - one success, one failure
-        success_process = AsyncMock()
-        success_process.returncode = 0
-        success_process.communicate.return_value = (
-            b"formatted_code\n",
-            b"",
-        )
-
-        failure_process = AsyncMock()
-        failure_process.returncode = 1
-        failure_process.communicate.return_value = (b"", b"syntax error")
-
-        mock_subprocess.side_effect = [
-            help_process,
-            success_process,
-            failure_process,
+        # Mock help command success, then format commands - one success, one failure
+        mock_subprocess_safe.side_effect = [
+            (b"", b"", 0),  # help succeeds
+            (b"formatted_code\n", b"", 0),  # first format succeeds
+            (b"", b"syntax error", 1),  # second format fails
         ]
 
         codes: CellCodes = {"cell1": "x=1", "cell2": "invalid syntax"}
@@ -372,24 +328,17 @@ class TestRuffFunction:
         assert result == {"cell1": "formatted_code"}
 
     @patch("marimo._utils.formatter.LOGGER")
-    @patch("asyncio.create_subprocess_exec")
+    @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_handles_communication_exceptions(
-        self, mock_subprocess: MagicMock, mock_logger: MagicMock
+        self, mock_subprocess_safe: MagicMock, mock_logger: MagicMock
     ):
         """Test ruff function handles communication exceptions gracefully."""
         del mock_logger
-        # Mock help command success
-        help_process = AsyncMock()
-        help_process.returncode = 0
-        help_process.wait.return_value = None
-
-        # Mock format command that raises exception
-        format_process = AsyncMock()
-        format_process.communicate.side_effect = Exception(
-            "Communication failed"
-        )
-
-        mock_subprocess.side_effect = [help_process, format_process]
+        # Mock help command success, then format command that raises exception
+        mock_subprocess_safe.side_effect = [
+            (b"", b"", 0),  # help succeeds
+            Exception("Communication failed"),  # format fails with exception
+        ]
 
         codes: CellCodes = {"cell1": "x=1"}
         result = await ruff(codes, "format")
@@ -397,25 +346,16 @@ class TestRuffFunction:
         # Should return empty dict when all cells fail
         assert result == {}
 
-    @patch("asyncio.create_subprocess_exec")
+    @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_strips_whitespace_from_output(
-        self, mock_subprocess: MagicMock
+        self, mock_subprocess_safe: MagicMock
     ):
         """Test ruff function strips whitespace from formatted output."""
-        # Mock help command success
-        help_process = AsyncMock()
-        help_process.returncode = 0
-        help_process.wait.return_value = None
-
-        # Mock format command with whitespace in output
-        format_process = AsyncMock()
-        format_process.returncode = 0
-        format_process.communicate.return_value = (
-            b"  formatted_code  \n\n",
-            b"",
-        )
-
-        mock_subprocess.side_effect = [help_process, format_process]
+        # Mock help command success, then format with whitespace in output
+        mock_subprocess_safe.side_effect = [
+            (b"", b"", 0),  # help succeeds
+            (b"  formatted_code  \n\n", b"", 0),  # format with whitespace
+        ]
 
         codes: CellCodes = {"cell1": "x=1"}
         result = await ruff(codes, "format")
@@ -423,29 +363,42 @@ class TestRuffFunction:
         assert result == {"cell1": "formatted_code"}
 
     @patch("marimo._utils.formatter.LOGGER")
-    @patch("asyncio.create_subprocess_exec")
+    @patch("marimo._utils.formatter._run_subprocess_safe")
     async def test_ruff_function_raises_format_error_on_non_zero_exit(
-        self, mock_subprocess: MagicMock, mock_logger: MagicMock
+        self, mock_subprocess_safe: MagicMock, mock_logger: MagicMock
     ):
         """Test ruff function raises FormatError when format command fails."""
         del mock_logger
-        # Mock help command success
-        help_process = AsyncMock()
-        help_process.returncode = 0
-        help_process.wait.return_value = None
-
-        # Mock format command that fails
-        format_process = AsyncMock()
-        format_process.returncode = 1
-        format_process.communicate.return_value = (b"", b"format error")
-
-        mock_subprocess.side_effect = [help_process, format_process]
+        # Mock help command success, then format command that fails
+        mock_subprocess_safe.side_effect = [
+            (b"", b"", 0),  # help succeeds
+            (b"", b"format error", 1),  # format fails
+        ]
 
         codes: CellCodes = {"cell1": "x=1"}
         result = await ruff(codes, "format")
 
         # Should skip failed cells
         assert result == {}
+
+    @patch("asyncio.to_thread")
+    @patch("asyncio.create_subprocess_exec")
+    async def test_run_subprocess_safe_falls_back_on_windows(
+        self, mock_subprocess_exec: MagicMock, mock_to_thread: MagicMock
+    ):
+        """Test _run_subprocess_safe falls back to subprocess.run on Windows."""
+        from marimo._utils.formatter import _run_subprocess_safe
+
+        # Mock asyncio.create_subprocess_exec to raise NotImplementedError (Windows behavior)
+        mock_subprocess_exec.side_effect = NotImplementedError()
+
+        # Mock asyncio.to_thread to return subprocess result
+        mock_to_thread.return_value = (b"output", b"error", 0)
+
+        result = await _run_subprocess_safe("python", "--version")
+
+        assert result == (b"output", b"error", 0)
+        mock_to_thread.assert_called_once()
 
 
 class TestFormatError:
