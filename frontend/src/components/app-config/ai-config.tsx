@@ -226,7 +226,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   <>
                     <DropdownMenuSeparator />
                     <p className="px-2 py-1.5 text-sm text-muted-secondary flex items-center gap-1">
-                      Custom model
+                      Enter a custom model
                       <Tooltip content="Models should include the provider prefix, e.g. 'openai/gpt-4o'">
                         <InfoIcon className="h-3 w-3" />
                       </Tooltip>
