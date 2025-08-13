@@ -5,7 +5,7 @@ import json
 import time
 import unittest
 from math import isnan
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import narwhals.stable.v1 as nw
 import pytest
@@ -31,6 +31,9 @@ from tests._data.mocks import (
 )
 from tests.mocks import snapshotter
 
+if TYPE_CHECKING:
+    from narwhals.stable.v1.typing import DataFrameT
+
 HAS_DEPS = DependencyManager.polars.has()
 
 snapshot = snapshotter(__file__)
@@ -45,8 +48,8 @@ SUPPORTED_LIBS: list[DFType] = [
 ]
 
 
-def assert_frame_equal(a: Any, b: Any) -> None:
-    return a.to_dict() == b.to_dict()
+def assert_frame_equal(a: DataFrameT, b: DataFrameT) -> None:
+    return a.to_dict(as_series=False) == b.to_dict(as_series=False)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
