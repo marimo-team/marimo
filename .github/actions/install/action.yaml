@@ -2,14 +2,9 @@ name: Install Repo
 description: Checkout repo and install the ts toolchain and dependencies
 
 runs:
-  using: "composite"
+  using: 'composite'
 
   steps:
-    - name: ⬇️ Checkout repo
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
     - name: ⎔ Setup pnpm
       uses: pnpm/action-setup@v4
 
