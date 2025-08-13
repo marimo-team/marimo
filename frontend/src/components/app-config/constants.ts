@@ -1,4 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { AiModelId } from "@/utils/ai/ids";
+
+/* Copyright 2024 Marimo. All rights reserved. */
 export const KNOWN_AI_MODELS = [
   // Anthropic
   "anthropic/claude-opus-4-1-20250805",
@@ -33,6 +36,10 @@ export const KNOWN_AI_MODELS = [
   "bedrock/meta.llama3-3-70b-instruct-v1:0",
   "bedrock/cohere.command-r-plus-v1",
 ] as const;
+
+export const KNOWN_AI_MODEL_IDS = KNOWN_AI_MODELS.map((model) =>
+  AiModelId.parse(model),
+);
 
 /**
  * AWS regions where the Bedrock service is available

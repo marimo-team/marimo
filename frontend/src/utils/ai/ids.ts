@@ -66,6 +66,6 @@ function guessProviderId(id: string): ProviderId {
   return "ollama";
 }
 
-export function isKnownProviderId(providerId: ProviderId): boolean {
+export function isKnownAIProvider(providerId: ProviderId): boolean {
   return KNOWN_AI_PROVIDERS.includes(providerId);
 }

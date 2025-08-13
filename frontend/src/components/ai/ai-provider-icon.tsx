@@ -4,7 +4,6 @@ import AnthropicIcon from "@marimo-team/llm-info/icons/anthropic.svg?inline";
 import BedrockIcon from "@marimo-team/llm-info/icons/aws.svg?inline";
 import AzureIcon from "@marimo-team/llm-info/icons/azure.svg?inline";
 import DeepseekIcon from "@marimo-team/llm-info/icons/deepseek.svg?inline";
-import GoogleIcon from "@marimo-team/llm-info/icons/google.svg?inline";
 import GeminiIcon from "@marimo-team/llm-info/icons/googlegemini.svg?inline";
 import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
@@ -15,8 +14,7 @@ import { cn } from "@/utils/cn";
 const icons = {
   openai: OpenAIIcon,
   anthropic: AnthropicIcon,
-  google: GoogleIcon,
-  gemini: GeminiIcon,
+  google: GeminiIcon,
   ollama: OllamaIcon,
   azure: AzureIcon,
   bedrock: BedrockIcon,
