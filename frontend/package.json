@@ -10,7 +10,8 @@
     "*.css.ts"
   ],
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "exports": {
     "./unstable_internal/*": "./src/*"
