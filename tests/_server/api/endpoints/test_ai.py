@@ -293,7 +293,7 @@ class TestOpenAiEndpoints:
             ][0]["content"]
             assert (
                 system_prompt
-                == "You are a python code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the <|fim_suffix|> part. Do not add any explanation or markdown."
+                == f"You are a python code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
             )
             # Assert the model it was called with
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
@@ -357,7 +357,7 @@ class TestOpenAiEndpoints:
             ][0]["content"]
             assert (
                 system_prompt
-                == "You are a sql code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the <|fim_suffix|> part. Do not add any explanation or markdown."
+                == f"You are a sql code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
             )
             # Assert model
             model = oaiclient.chat.completions.create.call_args.kwargs["model"]
