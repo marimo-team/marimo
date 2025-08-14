@@ -534,6 +534,29 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
 
+        <AccordionFormItem title="GitHub" provider="github">
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.github.api_key"
+            placeholder="ghp_..."
+            testId="ai-github-api-key-input"
+            description={
+              <>
+                Your GitHub API token from{" "}
+                <Kbd className="inline">gh auth token</Kbd>.
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.github.base_url"
+            placeholder="https://api.githubcopilot.com/"
+            testId="ai-github-base-url-input"
+          />
+        </AccordionFormItem>
+
         <AccordionFormItem title="Azure" provider="azure">
           <ApiKey
             form={form}

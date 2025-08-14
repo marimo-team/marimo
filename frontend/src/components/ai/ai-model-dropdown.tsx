@@ -47,10 +47,6 @@ export const AIModelDropdown = ({
 }: AIModelDropdownProps) => {
   const currentValue = value ? AiModelId.parse(value) : undefined;
 
-  const selectModel = (modelId: QualifiedModelId) => {
-    onSelect(modelId);
-  };
-
   const [marimoConfig] = useResolvedMarimoConfig();
   const configModels = marimoConfig.ai?.models;
 
@@ -148,7 +144,7 @@ export const AIModelDropdown = ({
           <ProviderDropdownContent
             key={provider}
             provider={provider}
-            onSelect={selectModel}
+            onSelect={onSelect}
             models={models}
             iconSizeClass={iconSizeClass}
           />
@@ -243,10 +239,6 @@ const ProviderDropdownContent = ({
                 key={qualifiedModelId}
                 className="flex items-center gap-2"
                 onSelect={(e) => {
-                  onSelect(qualifiedModelId);
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
                   onSelect(qualifiedModelId);
                 }}
               >
