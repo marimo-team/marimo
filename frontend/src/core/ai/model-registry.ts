@@ -69,7 +69,7 @@ export class AiModelRegistry {
       ]);
     }
 
-    for (const model of models.default) {
+    for (const model of models.models) {
       const modelId = model.model as ShortModelId;
       const modelInfo: AiModel = model as AiModel;
 
