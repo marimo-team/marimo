@@ -18,6 +18,7 @@ export class MultiMap<K, V> {
     if (!this.map.has(key)) {
       this.map.set(key, [value]);
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.map.get(key)!.push(value);
     }
   }
