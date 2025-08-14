@@ -1,10 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import React, { useId } from "react";
+import { InfoIcon } from "lucide-react";
+import React from "react";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
+  FormErrorsBanner,
   FormField,
   FormItem,
   FormLabel,
@@ -14,9 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
+import { Events } from "@/utils/events";
+import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import {
   AiProviderIcon,
   type AiProviderIconProps,
@@ -27,10 +32,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../ui/accordion";
+import { DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { ExternalLink } from "../ui/links";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Tooltip } from "../ui/tooltip";
 import { SettingSubtitle } from "./common";
-import { AWS_REGIONS, KNOWN_AI_MODELS } from "./constants";
+import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 
@@ -182,6 +189,7 @@ interface ModelSelectorProps {
   description?: React.ReactNode;
   disabled?: boolean;
   label: string;
+  onSubmit: (values: UserConfig) => Promise<void>;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -193,42 +201,72 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   description,
   disabled = false,
   label,
+  onSubmit,
 }) => {
-  const modelInputId = useId();
-
   return (
     <FormField
       control={form.control}
       name={name}
       disabled={disabled}
-      render={({ field }) => (
-        <div className="flex flex-col space-y-1">
+      render={({ field }) => {
+        const value = asStringOrUndefined(field.value);
+
+        const selectModel = (modelId: QualifiedModelId) => {
+          field.onChange(modelId);
+          onSubmit(form.getValues());
+        };
+
+        const renderFormItem = () => (
           <FormItem className={formItemClasses}>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input
-                list={modelInputId}
-                data-testid={testId}
-                className="m-0 inline-flex"
+              <AIModelDropdown
+                value={value}
                 placeholder={placeholder}
-                {...field}
-                value={asStringOrUndefined(field.value)}
+                onSelect={selectModel}
+                triggerClassName="text-sm"
+                customDropdownContent={
+                  <>
+                    <DropdownMenuSeparator />
+                    <p className="px-2 py-1.5 text-sm text-muted-secondary flex items-center gap-1">
+                      Enter a custom model
+                      <Tooltip content="Models should include the provider prefix, e.g. 'openai/gpt-4o'">
+                        <InfoIcon className="h-3 w-3" />
+                      </Tooltip>
+                    </p>
+                    <div className="px-2 py-1">
+                      <Input
+                        data-testid={testId}
+                        className="w-full border-border shadow-none focus-visible:shadow-xs"
+                        placeholder={placeholder}
+                        {...field}
+                        value={asStringOrUndefined(field.value)}
+                        onKeyDown={Events.stopPropagation()}
+                      />
+                      {value && (
+                        <IncorrectModelId
+                          value={value}
+                          includeSuggestion={false}
+                        />
+                      )}
+                    </div>
+                  </>
+                }
               />
             </FormControl>
             <FormMessage />
-            <IsOverridden userConfig={config} name={name} />
           </FormItem>
-          <datalist id={modelInputId}>
-            {KNOWN_AI_MODELS.map((model) => (
-              <option value={model} key={model}>
-                {model}
-              </option>
-            ))}
-          </datalist>
-          <IncorrectModelId value={asStringOrUndefined(field.value)} />
-          {description && <FormDescription>{description}</FormDescription>}
-        </div>
-      )}
+        );
+
+        return (
+          <div className="flex flex-col space-y-1">
+            {renderFormItem()}
+            <IsOverridden userConfig={config} name={name} />
+            <IncorrectModelId value={value} />
+            {description && <FormDescription>{description}</FormDescription>}
+          </div>
+        );
+      }}
     />
   );
 };
@@ -297,6 +335,7 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
 
 const renderCopilotProvider = (
   form: UseFormReturn<UserConfig>,
+  onSubmit: (values: UserConfig) => Promise<void>,
   config: UserConfig,
 ) => {
   const copilot = form.getValues("completion.copilot");
@@ -331,27 +370,16 @@ const renderCopilotProvider = (
 
   if (copilot === "custom") {
     return (
-      <>
-        <p className="text-sm text-muted-secondary">
-          Configure your custom AI completion provider with the following
-          settings.
-        </p>
-        <ModelSelector
-          label="Autocomplete Model"
-          form={form}
-          config={config}
-          name="ai.models.autocomplete_model"
-          placeholder="ollama/qwen2.5-coder:1.5b"
-          testId="custom-model-input"
-          description={
-            <>
-              Model to use for code completion when using a custom provider.
-              Models should include the provider name and model name separated
-              by a slash.
-            </>
-          }
-        />
-      </>
+      <ModelSelector
+        label="Autocomplete Model"
+        form={form}
+        config={config}
+        name="ai.models.autocomplete_model"
+        placeholder="ollama/qwen2.5-coder:1.5b"
+        testId="custom-model-input"
+        description="Model to use for code completion when using a custom provider."
+        onSubmit={onSubmit}
+      />
     );
   }
 };
@@ -363,6 +391,7 @@ const SettingGroup = ({ children }: { children: React.ReactNode }) => {
 export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
   form,
   config,
+  onSubmit,
 }) => {
   return (
     <SettingGroup>
@@ -380,7 +409,7 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
         testId="copilot-select"
       />
 
-      {renderCopilotProvider(form, config)}
+      {renderCopilotProvider(form, onSubmit, config)}
     </SettingGroup>
   );
 };
@@ -645,17 +674,17 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
   );
 };
 
-export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
+export const AiAssistConfig: React.FC<AiConfigProps> = ({
+  form,
+  config,
+  onSubmit,
+}) => {
   const isWasmRuntime = isWasm();
 
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
-      <p className="text-sm text-muted-secondary">
-        Use the Chat panel to talk to your codebase, or make edits using the{" "}
-        <Kbd className="inline">Generate with AI</Kbd> button.
-      </p>
-
+      <FormErrorsBanner />
       <ModelSelector
         label="Chat Model"
         form={form}
@@ -665,21 +694,10 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
         testId="ai-chat-model-input"
         disabled={isWasmRuntime}
         description={
-          <>
-            <p>
-              Model to use for chat conversations in the Chat panel. Models
-              should include the provider name and model name separated by a
-              slash. For example, "anthropic/claude-3-5-sonnet-latest" or
-              "google/gemini-2.0-flash-exp".
-            </p>
-            <p className="pt-1">
-              Depending on the provider, we will use the respective API key and
-              additional configuration.
-            </p>
-          </>
+          <span>Model to use for chat conversations in the Chat panel.</span>
         }
+        onSubmit={onSubmit}
       />
-
       <ModelSelector
         label="Edit Model"
         form={form}
@@ -689,19 +707,25 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
         testId="ai-edit-model-input"
         disabled={isWasmRuntime}
         description={
-          <>
-            <p>
-              Model to use for code editing with the{" "}
-              <Kbd className="inline">Generate with AI</Kbd> button. Models
-              should include the provider name and model name separated by a
-              slash.
-            </p>
-            <p className="pt-1">
-              You can use a faster, cheaper model for edits if desired.
-            </p>
-          </>
+          <span>
+            Model to use for code editing with the{" "}
+            <Kbd className="inline">Generate with AI</Kbd> button.
+          </span>
         }
+        onSubmit={onSubmit}
       />
+
+      <ul className="bg-muted p-2 rounded-md list-disc space-y-1 pl-6">
+        <li className="text-xs text-muted-secondary">
+          Models should include the provider name and model name separated by a
+          slash. For example, "anthropic/claude-3-5-sonnet-latest" or
+          "google/gemini-2.0-flash-exp"
+        </li>
+        <li className="text-xs text-muted-secondary">
+          Depending on the provider, we will use the respective API key and
+          additional configuration.
+        </li>
+      </ul>
 
       <FormField
         control={form.control}

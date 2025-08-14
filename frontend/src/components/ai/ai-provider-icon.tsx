@@ -3,20 +3,23 @@
 import AnthropicIcon from "@marimo-team/llm-info/icons/anthropic.svg?inline";
 import BedrockIcon from "@marimo-team/llm-info/icons/aws.svg?inline";
 import AzureIcon from "@marimo-team/llm-info/icons/azure.svg?inline";
-import GoogleIcon from "@marimo-team/llm-info/icons/google.svg?inline";
+import DeepseekIcon from "@marimo-team/llm-info/icons/deepseek.svg?inline";
+import GeminiIcon from "@marimo-team/llm-info/icons/googlegemini.svg?inline";
 import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
 import { BotIcon } from "lucide-react";
 import * as React from "react";
+import type { ProviderId } from "@/core/ai/ids/ids";
 import { cn } from "@/utils/cn";
 
-const icons = {
+const icons: Record<ProviderId, string> = {
   openai: OpenAIIcon,
   anthropic: AnthropicIcon,
-  google: GoogleIcon,
+  google: GeminiIcon,
   ollama: OllamaIcon,
   azure: AzureIcon,
   bedrock: BedrockIcon,
+  deepseek: DeepseekIcon,
 };
 
 export interface AiProviderIconProps
@@ -30,7 +33,7 @@ export const AiProviderIcon: React.FC<AiProviderIconProps> = ({
   className = "",
   ...props
 }) => {
-  if (provider === "openai-compatible") {
+  if (provider === "openai-compatible" || !(provider in icons)) {
     return <BotIcon className={cn("h-4 w-4", className)} />;
   }
 

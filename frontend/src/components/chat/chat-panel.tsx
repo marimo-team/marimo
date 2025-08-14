@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { addMessageToChat } from "@/core/ai/chat-utils";
+import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import {
   activeChatAtom,
   type Chat,
@@ -54,7 +55,7 @@ import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
-import { KNOWN_AI_MODELS } from "../app-config/constants";
+import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import { useOpenSettingsToTab } from "../app-config/state";
 import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import { getAICompletionBody } from "../editor/ai/completion-utils";
@@ -276,7 +277,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       saveConfig(newConfig);
     };
 
-    const handleModelChange = async (newModel: string) => {
+    const handleModelChange = async (newModel: QualifiedModelId) => {
       const newConfig: UserConfig = {
         ...userConfig,
         ai: {
@@ -324,30 +325,15 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
               </SelectContent>
             </Select>
           </FeatureFlagged>
-          <Select value={currentModel} onValueChange={handleModelChange}>
-            <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1">
-              <SelectValue placeholder="Model" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* Show current model if it's not in the known models list */}
-              {!(KNOWN_AI_MODELS as readonly string[]).includes(
-                currentModel,
-              ) && (
-                <SelectItem
-                  key={currentModel}
-                  value={currentModel}
-                  className="text-sm"
-                >
-                  {currentModel}
-                </SelectItem>
-              )}
-              {KNOWN_AI_MODELS.map((model) => (
-                <SelectItem key={model} value={model} className="text-sm">
-                  {model}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AIModelDropdown
+            value={currentModel}
+            placeholder="Model"
+            onSelect={handleModelChange}
+            triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
+            iconSize="small"
+            showAddCustomModelDocs={true}
+            forRole="chat"
+          />
         </div>
         <Button
           variant="ghost"

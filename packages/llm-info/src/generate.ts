@@ -6,12 +6,14 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
 
+const ROLES = ["chat", "edit", "rerank", "embed"] as const;
+
 export const LLMInfoSchema = z.object({
   name: z.string(),
   model: z.string(),
   description: z.string(),
   providers: z.array(z.string()),
-  roles: z.array(z.enum(["chat", "edit", "embed", "rerank"])),
+  roles: z.array(z.enum(ROLES)),
   thinking: z.boolean().default(false),
 });
 
@@ -29,8 +31,12 @@ function ensureDirectoryExists(filePath: string): void {
   const dir = dirname(filePath);
   try {
     mkdirSync(dir, { recursive: true });
-  } catch (error) {
-    // Directory might already exist, that's okay
+  } catch (error: any) {
+    // Ignore error if directory already exists, otherwise rethrow
+    if (error?.code !== "EEXIST") {
+      console.error("Failed to create directory:", error);
+      throw error;
+    }
   }
 }
 
@@ -95,13 +101,17 @@ async function main(): Promise<void> {
     const modelsJsonPath = join(generatedDir, "models.json");
     const providersJsonPath = join(generatedDir, "providers.json");
 
+    // For compatibility with Vite and other bundlers, `import` returns a JS module and not a JSON object.
+    // So we need to nest the models and providers data under a json key to access them,
+    // otherwise a keyword can conflict with a JS reserved keyword (e.g. `default` or `with`).
+
     // Load and validate models
     const models = loadAndValidateModels(modelsYamlPath);
-    writeJsonFile(modelsJsonPath, models);
+    writeJsonFile(modelsJsonPath, { models: models });
 
     // Load and validate providers
     const providers = loadAndValidateProviders(providersYamlPath);
-    writeJsonFile(providersJsonPath, providers);
+    writeJsonFile(providersJsonPath, { providers: providers });
 
     console.log(
       `Generated ${models.length} models and ${providers.length} providers`,

@@ -1,9 +1,18 @@
+export const ROLES = [
+  "chat",
+  "edit",
+  "rerank",
+  "embed",
+  "autocomplete",
+] as const;
+export type Role = (typeof ROLES)[number];
+
 export interface AiModel {
   name: string;
   model: string;
   description: string;
   providers: string[];
-  roles: string[];
+  roles: Role[];
   thinking: boolean;
 }
 

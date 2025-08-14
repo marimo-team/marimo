@@ -9,7 +9,7 @@ import { store } from "../state/jotai";
 import type { CellId } from "./ids";
 
 const debounceSyncCellIds = debounce((request: UpdateCellIdsRequest) => {
-  getRequestClient().syncCellIds(request);
+  return getRequestClient().syncCellIds(request);
 }, 400);
 
 export const CellEffects = {
