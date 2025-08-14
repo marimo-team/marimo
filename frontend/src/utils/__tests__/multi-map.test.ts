@@ -123,7 +123,7 @@ describe("MultiMap", () => {
 
   describe("keys", () => {
     it("should return empty iterator for empty MultiMap", () => {
-      const keys = Array.from(multiMap.keys());
+      const keys = [...multiMap.keys()];
       expect(keys).toEqual([]);
     });
 
@@ -131,14 +131,14 @@ describe("MultiMap", () => {
       multiMap.add("key1", 1);
       multiMap.add("key2", 2);
       multiMap.add("key3", 3);
-      const keys = Array.from(multiMap.keys());
+      const keys = [...multiMap.keys()];
       expect(keys.sort()).toEqual(["key1", "key2", "key3"]);
     });
   });
 
   describe("values", () => {
     it("should return empty iterator for empty MultiMap", () => {
-      const values = Array.from(multiMap.values());
+      const values = [...multiMap.values()];
       expect(values).toEqual([]);
     });
 
@@ -146,7 +146,7 @@ describe("MultiMap", () => {
       multiMap.add("key1", 1);
       multiMap.add("key1", 2);
       multiMap.add("key2", 3);
-      const values = Array.from(multiMap.values());
+      const values = [...multiMap.values()];
       expect(values).toHaveLength(2);
       expect(values).toContainEqual([1, 2]);
       expect(values).toContainEqual([3]);
@@ -155,7 +155,7 @@ describe("MultiMap", () => {
 
   describe("entries", () => {
     it("should return empty iterator for empty MultiMap", () => {
-      const entries = Array.from(multiMap.entries());
+      const entries = [...multiMap.entries()];
       expect(entries).toEqual([]);
     });
 
@@ -163,7 +163,7 @@ describe("MultiMap", () => {
       multiMap.add("key1", 1);
       multiMap.add("key1", 2);
       multiMap.add("key2", 3);
-      const entries = Array.from(multiMap.entries());
+      const entries = [...multiMap.entries()];
       expect(entries).toHaveLength(2);
       expect(entries).toContainEqual(["key1", [1, 2]]);
       expect(entries).toContainEqual(["key2", [3]]);

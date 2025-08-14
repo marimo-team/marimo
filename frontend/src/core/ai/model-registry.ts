@@ -94,7 +94,10 @@ export class AiModelRegistry {
     if (hasDisplayedModels) {
       for (const model of displayedModels) {
         if (knownModelMap.has(model)) {
-          modelsMap.set(model, knownModelMap.get(model)!);
+          const knownModel = knownModelMap.get(model);
+          if (knownModel) {
+            modelsMap.set(model, knownModel);
+          }
         }
       }
     } else {

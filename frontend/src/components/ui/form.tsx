@@ -21,7 +21,6 @@ const Form = FormProvider;
 export const FormErrorsBanner = () => {
   const ctx = useFormContext();
   const errors = ctx.formState.errors;
-  console.warn("errors", errors);
   if (Object.keys(errors).length === 0) {
     return null;
   }

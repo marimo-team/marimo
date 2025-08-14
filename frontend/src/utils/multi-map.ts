@@ -4,7 +4,7 @@
  * MultiMap: a Map<K, V[]> with convenient helpers.
  */
 export class MultiMap<K, V> {
-  private map: Map<K, V[]> = new Map();
+  private map = new Map<K, V[]>();
 
   get(key: K): V[] {
     return this.map.get(key) ?? [];
@@ -15,11 +15,11 @@ export class MultiMap<K, V> {
   }
 
   add(key: K, value: V): void {
-    if (!this.map.has(key)) {
-      this.map.set(key, [value]);
-    } else {
+    if (this.map.has(key)) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.map.get(key)!.push(value);
+    } else {
+      this.map.set(key, [value]);
     }
   }
 

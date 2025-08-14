@@ -124,7 +124,6 @@ export const UserConfigForm: React.FC = () => {
   });
 
   const onSubmit = async (values: UserConfig) => {
-    console.warn("onSubmit", values);
     await saveUserConfig({ config: values }).then(() => {
       setConfig(values);
     });
