@@ -31,7 +31,10 @@
 
     /* Perf */
     "incremental": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+
+    /* JSON */
+    "resolveJsonModule": true
   },
   "include": ["src", "playwright.config.ts", "e2e-tests"]
 }
