@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { addMessageToChat } from "@/core/ai/chat-utils";
+import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import {
   activeChatAtom,
   type Chat,
@@ -50,7 +51,6 @@ import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
-import type { QualifiedModelId } from "@/utils/ai/ids";
 import { cn } from "@/utils/cn";
 import { timeAgo } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";

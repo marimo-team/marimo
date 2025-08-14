@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
+import { AiModelId, type QualifiedModelId } from "@/core/ai/ids/ids";
 import { Banner } from "@/plugins/impl/common/error-banner";
-import { AiModelId, type QualifiedModelId } from "@/utils/ai/ids";
 
 interface IncorrectModelIdProps {
   value: string | null | undefined;

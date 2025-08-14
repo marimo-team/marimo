@@ -1,14 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { ChevronDownIcon, CircleHelpIcon } from "lucide-react";
-import { useResolvedMarimoConfig } from "@/core/config/config";
+import { capitalize } from "lodash-es";
+import { ChevronDownIcon, CircleHelpIcon, Key } from "lucide-react";
 import {
   AiModelId,
   isKnownAIProvider,
   type ProviderId,
   type QualifiedModelId,
-} from "@/utils/ai/ids";
-import { getAIModelsByProvider } from "../app-config/constants";
+} from "@/core/ai/ids/ids";
+import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
+import { useResolvedMarimoConfig } from "@/core/config/config";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +22,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Tooltip } from "../ui/tooltip";
 import { AiProviderIcon } from "./ai-provider-icon";
 
 type ModelTag = "chat" | "autocomplete" | "edit";
@@ -49,9 +52,19 @@ export const AIModelDropdown = ({
 
   const [marimoConfig] = useResolvedMarimoConfig();
   const displayedModels = marimoConfig.ai?.models?.displayed_models;
-  const modelsByProvider = getAIModelsByProvider(displayedModels);
   const customModels = marimoConfig.ai?.models?.custom_models;
-  const customModelIds = customModels?.map((model) => AiModelId.parse(model));
+
+  const { data: aiModelRegistry } = useAsyncData(async () => {
+    return await AiModelRegistry.create(
+      [
+        "openrouter/deepseek-v1",
+        "openrouter/gpt-4o",
+        "anthropic/claude-3-5-sonnet",
+      ],
+      displayedModels,
+    );
+  }, [customModels, displayedModels]);
+  const modelsByProvider = aiModelRegistry?.getGroupedModelsByProvider();
 
   // Only include autocompleteModel if copilot is set to "custom"
   const autocompleteModel =
@@ -59,7 +72,7 @@ export const AIModelDropdown = ({
       ? marimoConfig.ai?.models?.autocomplete_model
       : undefined;
 
-  // Collect all models and their tags
+  // Collect currently used models by their roles
   const modelTagMap = groupModelsIntoTags([
     { model: marimoConfig.ai?.models?.chat_model, tag: "chat" },
     { model: autocompleteModel, tag: "autocomplete" },
@@ -68,14 +81,25 @@ export const AIModelDropdown = ({
 
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
 
+  const customModelIcon = (
+    <Tooltip content="Custom model">
+      <Key className="h-3 w-3" />
+    </Tooltip>
+  );
+
   const renderModelsUsedElsewhere = (model: string, tags: ModelTag[]) => {
     const modelId = AiModelId.parse(model);
+    const isCustomModel = aiModelRegistry?.getCustomModels().has(modelId.id);
 
     return (
       <DropdownMenuItem onSelect={() => selectModel(modelId.id)}>
-        <p className="flex items-center gap-2 w-full">
-          <AiProviderIcon provider={modelId.providerId} className="h-3 w-3" />
+        <div className="flex items-center gap-2 w-full">
+          <AiProviderIcon
+            provider={modelId.providerId}
+            className={iconSizeClass}
+          />
           <span>{modelId.shortModelId}</span>
+          {isCustomModel && customModelIcon}
           <div className="ml-auto flex gap-1">
             {tags.map((tag) => {
               const tagColour =
@@ -96,7 +120,7 @@ export const AIModelDropdown = ({
               );
             })}
           </div>
-        </p>
+        </div>
       </DropdownMenuItem>
     );
   };
@@ -136,48 +160,16 @@ export const AIModelDropdown = ({
 
         <DropdownMenuSeparator />
 
-        {/* Custom models at the top since they are specified by the user */}
-        <ProviderDropdownContent
-          provider="custom-models"
-          providerLabel="Custom models"
-          onSelect={selectModel}
-          models={customModelIds ?? []}
-        />
-
-        <ProviderDropdownContent
-          provider="openai"
-          providerLabel="OpenAI"
-          onSelect={selectModel}
-          models={modelsByProvider.openai}
-        />
-
-        <ProviderDropdownContent
-          provider="anthropic"
-          providerLabel="Anthropic"
-          onSelect={selectModel}
-          models={modelsByProvider.anthropic}
-        />
-
-        <ProviderDropdownContent
-          provider="google"
-          providerLabel="Google"
-          onSelect={selectModel}
-          models={modelsByProvider.google}
-        />
-
-        <ProviderDropdownContent
-          provider="deepseek"
-          providerLabel="DeepSeek"
-          onSelect={selectModel}
-          models={modelsByProvider.deepseek}
-        />
-
-        <ProviderDropdownContent
-          provider="bedrock"
-          providerLabel="Bedrock"
-          onSelect={selectModel}
-          models={modelsByProvider.bedrock}
-        />
+        {[...(modelsByProvider?.entries() ?? [])].map(([provider, models]) => (
+          <ProviderDropdownContent
+            key={provider}
+            provider={provider}
+            onSelect={selectModel}
+            models={models}
+            customModelIcon={customModelIcon}
+            iconSizeClass={iconSizeClass}
+          />
+        ))}
 
         {customDropdownContent}
 
@@ -204,17 +196,20 @@ export const AIModelDropdown = ({
 
 export const ProviderDropdownContent = ({
   provider,
-  providerLabel,
   onSelect,
   models,
+  customModelIcon,
+  iconSizeClass,
 }: {
-  provider: ProviderId | "custom-models";
-  providerLabel: string;
+  provider: ProviderId;
   onSelect: (modelId: QualifiedModelId) => void;
-  models: AiModelId[];
+  models: AiModel[];
+  customModelIcon: React.ReactNode;
+  iconSizeClass: string;
 }) => {
-  const iconProvider =
-    provider === "custom-models" ? "openai-compatible" : provider;
+  const iconProvider = isKnownAIProvider(provider)
+    ? provider
+    : "openai-compatible";
 
   if (models.length === 0) {
     return null;
@@ -224,22 +219,32 @@ export const ProviderDropdownContent = ({
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>
         <p className="flex items-center gap-2">
-          <AiProviderIcon provider={iconProvider} className="h-3 w-3" />
-          {providerLabel}
+          <AiProviderIcon provider={iconProvider} className={iconSizeClass} />
+          {getProviderLabel(provider)}
         </p>
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent>
-          {models.map((model) => (
-            <DropdownMenuItem
-              key={model.id}
-              className="flex items-center gap-2"
-              onSelect={() => onSelect(model.id)}
-            >
-              <AiProviderIcon provider={iconProvider} className="h-3 w-3" />
-              <span>{model.shortModelId}</span>
-            </DropdownMenuItem>
-          ))}
+          {models.map((model) => {
+            const qualifiedModelId =
+              `${provider}/${model.model}` as QualifiedModelId;
+            return (
+              <DropdownMenuItem
+                key={qualifiedModelId}
+                className="flex items-center gap-2"
+                onSelect={() => {
+                  onSelect(qualifiedModelId);
+                }}
+              >
+                <AiProviderIcon
+                  provider={iconProvider}
+                  className={iconSizeClass}
+                />
+                <span>{model.model}</span>
+                {model.custom && customModelIcon}
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
     </DropdownMenuSub>
@@ -264,4 +269,25 @@ function groupModelsIntoTags(
   }
 
   return modelTagMap;
+}
+
+function getProviderLabel(provider: ProviderId): string {
+  switch (provider) {
+    case "openai":
+      return "OpenAI";
+    case "anthropic":
+      return "Anthropic";
+    case "google":
+      return "Google";
+    case "deepseek":
+      return "DeepSeek";
+    case "bedrock":
+      return "Bedrock";
+    case "azure":
+      return "Azure";
+    case "ollama":
+      return "Ollama";
+    default:
+      return capitalize(provider);
+  }
 }

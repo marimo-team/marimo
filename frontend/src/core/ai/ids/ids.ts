@@ -1,19 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { TypedString } from "../typed";
+import type { TypedString } from "@/utils/typed";
 
-/**
- * Supported providers by the marimo server.
- */
-const KNOWN_AI_PROVIDERS = [
+export const PROVIDERS = [
   "openai",
   "anthropic",
   "google",
   "ollama",
   "bedrock",
   "deepseek",
+  "azure",
 ] as const;
-export type ProviderId = (typeof KNOWN_AI_PROVIDERS)[number];
+export type ProviderId = (typeof PROVIDERS)[number];
 
 export type ShortModelId = TypedString<"ShortModelId">;
 
@@ -67,5 +65,5 @@ function guessProviderId(id: string): ProviderId {
 }
 
 export function isKnownAIProvider(providerId: ProviderId): boolean {
-  return KNOWN_AI_PROVIDERS.includes(providerId);
+  return PROVIDERS.includes(providerId);
 }

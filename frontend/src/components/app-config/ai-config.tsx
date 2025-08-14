@@ -15,10 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
-import type { QualifiedModelId } from "@/utils/ai/ids";
 import { Events } from "@/utils/events";
 import { AIModelDropdown } from "../ai/ai-model-dropdown";
 import {

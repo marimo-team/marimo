@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import { AiModelId, type ProviderId, type ShortModelId } from "../ids";
+import type { ProviderId } from "../ids";
+import { AiModelId, type ShortModelId } from "../ids";
 
 describe("AiModelId", () => {
   describe("constructor", () => {
