@@ -9,9 +9,10 @@ import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
 import { BotIcon } from "lucide-react";
 import * as React from "react";
+import type { ProviderId } from "@/core/ai/ids/ids";
 import { cn } from "@/utils/cn";
 
-const icons = {
+const icons: Record<ProviderId, string> = {
   openai: OpenAIIcon,
   anthropic: AnthropicIcon,
   google: GeminiIcon,

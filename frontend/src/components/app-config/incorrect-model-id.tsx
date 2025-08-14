@@ -5,10 +5,12 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 
 interface IncorrectModelIdProps {
   value: string | null | undefined;
+  includeSuggestion?: boolean;
 }
 
 export const IncorrectModelId: React.FC<IncorrectModelIdProps> = ({
   value,
+  includeSuggestion = true,
 }) => {
   if (!value) {
     return null;
@@ -31,7 +33,7 @@ export const IncorrectModelId: React.FC<IncorrectModelIdProps> = ({
         provider.
       </span>
       <br />
-      {suggestion && (
+      {includeSuggestion && suggestion && (
         <span>
           Did you mean <code className="font-bold">{suggestion}</code>?
         </span>

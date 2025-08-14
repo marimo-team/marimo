@@ -1,4 +1,10 @@
-export const ROLES = ["chat", "edit", "rerank", "embed"] as const;
+export const ROLES = [
+  "chat",
+  "edit",
+  "rerank",
+  "embed",
+  "autocomplete",
+] as const;
 export type Role = (typeof ROLES)[number];
 
 export interface AiModel {

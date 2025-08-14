@@ -332,6 +332,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
             iconSize="small"
             showAddCustomModelDocs={true}
+            forRole="chat"
           />
         </div>
         <Button

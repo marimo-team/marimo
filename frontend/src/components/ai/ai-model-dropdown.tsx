@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { Role } from "@marimo-team/llm-info";
 import { capitalize } from "lodash-es";
-import { ChevronDownIcon, CircleHelpIcon, Key } from "lucide-react";
+import { ChevronDownIcon, CircleHelpIcon } from "lucide-react";
 import {
   AiModelId,
   isKnownAIProvider,
@@ -10,7 +11,6 @@ import {
 } from "@/core/ai/ids/ids";
 import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,10 +22,18 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Tooltip } from "../ui/tooltip";
 import { AiProviderIcon } from "./ai-provider-icon";
 
-type ModelTag = "chat" | "autocomplete" | "edit";
+interface AIModelDropdownProps {
+  value?: string;
+  placeholder?: string;
+  onSelect: (modelId: QualifiedModelId) => void;
+  triggerClassName?: string;
+  customDropdownContent?: React.ReactNode;
+  iconSize?: "medium" | "small";
+  showAddCustomModelDocs?: boolean;
+  forRole?: Role;
+}
 
 export const AIModelDropdown = ({
   value,
@@ -35,15 +43,8 @@ export const AIModelDropdown = ({
   customDropdownContent,
   iconSize = "medium",
   showAddCustomModelDocs = false,
-}: {
-  value?: string;
-  placeholder?: string;
-  onSelect: (modelId: QualifiedModelId) => void;
-  triggerClassName?: string;
-  customDropdownContent?: React.ReactNode;
-  iconSize?: "medium" | "small";
-  showAddCustomModelDocs?: boolean;
-}) => {
+  forRole,
+}: AIModelDropdownProps) => {
   const currentValue = value ? AiModelId.parse(value) : undefined;
 
   const selectModel = (modelId: QualifiedModelId) => {
@@ -51,84 +52,68 @@ export const AIModelDropdown = ({
   };
 
   const [marimoConfig] = useResolvedMarimoConfig();
-  const displayedModels = marimoConfig.ai?.models?.displayed_models;
-  const customModels = marimoConfig.ai?.models?.custom_models;
-
-  const { data: aiModelRegistry } = useAsyncData(async () => {
-    return await AiModelRegistry.create(
-      [
-        "openrouter/deepseek-v1",
-        "openrouter/gpt-4o",
-        "anthropic/claude-3-5-sonnet",
-      ],
-      displayedModels,
-    );
-  }, [customModels, displayedModels]);
-  const modelsByProvider = aiModelRegistry?.getGroupedModelsByProvider();
+  const configModels = marimoConfig.ai?.models;
 
   // Only include autocompleteModel if copilot is set to "custom"
   const autocompleteModel =
     marimoConfig.completion.copilot === "custom"
-      ? marimoConfig.ai?.models?.autocomplete_model
+      ? configModels?.autocomplete_model
       : undefined;
 
-  // Collect currently used models by their roles
-  const modelTagMap = groupModelsIntoTags([
-    { model: marimoConfig.ai?.models?.chat_model, tag: "chat" },
-    { model: autocompleteModel, tag: "autocomplete" },
-    { model: marimoConfig.ai?.models?.edit_model, tag: "edit" },
-  ]);
+  const aiModelRegistry = AiModelRegistry.create({
+    // We add all the custom models and the models used in the editor.
+    // If they among the known models, they won't overwrite them.
+    customModels: [
+      ...(configModels?.custom_models ?? []),
+      configModels?.chat_model,
+      autocompleteModel,
+      configModels?.edit_model,
+    ].filter(Boolean),
+    displayedModels: configModels?.displayed_models,
+  });
+  const modelsByProvider = aiModelRegistry.getGroupedModelsByProvider();
+
+  const activeModel =
+    forRole === "autocomplete"
+      ? configModels?.autocomplete_model
+      : forRole === "chat"
+        ? configModels?.chat_model
+        : forRole === "edit"
+          ? configModels?.edit_model
+          : undefined;
 
   const iconSizeClass = iconSize === "medium" ? "h-4 w-4" : "h-3 w-3";
 
-  const customModelIcon = (
-    <Tooltip content="Custom model">
-      <Key className="h-3 w-3" />
-    </Tooltip>
-  );
-
-  const renderModelsUsedElsewhere = (model: string, tags: ModelTag[]) => {
-    const modelId = AiModelId.parse(model);
-    const isCustomModel = aiModelRegistry?.getCustomModels().has(modelId.id);
+  const renderModelWithRole = (modelId: AiModelId, role: Role) => {
+    const maybeModelMatch = aiModelRegistry.getModel(modelId.id);
 
     return (
-      <DropdownMenuItem onSelect={() => selectModel(modelId.id)}>
-        <div className="flex items-center gap-2 w-full">
-          <AiProviderIcon
-            provider={modelId.providerId}
-            className={iconSizeClass}
-          />
-          <span>{modelId.shortModelId}</span>
-          {isCustomModel && customModelIcon}
-          <div className="ml-auto flex gap-1">
-            {tags.map((tag) => {
-              const tagColour =
-                tag === "chat"
-                  ? "bg-purple-100 text-purple-800"
-                  : tag === "autocomplete"
-                    ? "bg-green-100 text-green-800"
-                    : tag === "edit"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-muted text-muted-foreground";
-              return (
-                <span
-                  key={tag}
-                  className={`text-xs px-1.5 py-0.5 rounded font-medium ${tagColour}`}
-                >
-                  {tag}
-                </span>
-              );
-            })}
-          </div>
+      <div className="flex items-center gap-2 w-full px-2 py-1">
+        <AiProviderIcon
+          provider={modelId.providerId}
+          className={iconSizeClass}
+        />
+        <div className="flex flex-col">
+          <span>{maybeModelMatch?.name || modelId.shortModelId}</span>
+          <span className="text-xs text-muted-foreground">{modelId.id}</span>
         </div>
-      </DropdownMenuItem>
+
+        <div className="ml-auto flex gap-1">
+          <span
+            key={role}
+            className={`text-xs px-1.5 py-0.5 rounded font-medium ${getTagColour(role)}`}
+          >
+            {role}
+          </span>
+        </div>
+      </div>
     );
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={`flex items-center justify-between px-2 py-0.5 border rounded-md 
+        className={`flex items-center justify-between px-2 py-0.5 border rounded-md
             hover:bg-accent hover:text-accent-foreground ${triggerClassName}`}
       >
         <div className="flex items-center gap-2">
@@ -153,20 +138,18 @@ export const AIModelDropdown = ({
         <ChevronDownIcon className={`${iconSizeClass} ml-1`} />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent>
-        {Object.entries(modelTagMap).map(([modelId, tags]) =>
-          renderModelsUsedElsewhere(modelId, tags),
-        )}
+      <DropdownMenuContent className="w-[300px]">
+        {activeModel &&
+          forRole &&
+          renderModelWithRole(AiModelId.parse(activeModel), forRole)}
+        {activeModel && forRole && <DropdownMenuSeparator />}
 
-        <DropdownMenuSeparator />
-
-        {[...(modelsByProvider?.entries() ?? [])].map(([provider, models]) => (
+        {[...modelsByProvider.entries()].map(([provider, models]) => (
           <ProviderDropdownContent
             key={provider}
             provider={provider}
             onSelect={selectModel}
             models={models}
-            customModelIcon={customModelIcon}
             iconSizeClass={iconSizeClass}
           />
         ))}
@@ -194,7 +177,7 @@ export const AIModelDropdown = ({
   );
 };
 
-export const ProviderDropdownContent = ({
+const ProviderDropdownContent = ({
   provider,
   onSelect,
   models,
@@ -204,12 +187,14 @@ export const ProviderDropdownContent = ({
   provider: ProviderId;
   onSelect: (modelId: QualifiedModelId) => void;
   models: AiModel[];
-  customModelIcon: React.ReactNode;
+  customModelIcon?: React.ReactNode;
   iconSizeClass: string;
 }) => {
   const iconProvider = isKnownAIProvider(provider)
     ? provider
     : "openai-compatible";
+
+  const maybeProviderInfo = AiModelRegistry.getProviderInfo(provider);
 
   if (models.length === 0) {
     return null;
@@ -224,7 +209,32 @@ export const ProviderDropdownContent = ({
         </p>
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
-        <DropdownMenuSubContent>
+        <DropdownMenuSubContent
+          className="max-h-[40vh] overflow-y-auto"
+          alignOffset={-90}
+        >
+          {maybeProviderInfo && (
+            <>
+              <p className="text-sm text-muted-foreground p-2 max-w-[300px]">
+                {maybeProviderInfo.description}
+                <br />
+              </p>
+
+              <p className="text-sm text-muted-foreground p-2 pt-0">
+                You can find more information about this provider{" "}
+                <a
+                  href={maybeProviderInfo.url}
+                  target="_blank"
+                  className="underline"
+                  rel="noreferrer"
+                >
+                  here
+                </a>
+                .
+              </p>
+              <DropdownMenuSeparator />
+            </>
+          )}
           {models.map((model) => {
             const qualifiedModelId =
               `${provider}/${model.model}` as QualifiedModelId;
@@ -232,15 +242,21 @@ export const ProviderDropdownContent = ({
               <DropdownMenuItem
                 key={qualifiedModelId}
                 className="flex items-center gap-2"
-                onSelect={() => {
+                onSelect={(e) => {
+                  onSelect(qualifiedModelId);
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
                   onSelect(qualifiedModelId);
                 }}
               >
-                <AiProviderIcon
-                  provider={iconProvider}
-                  className={iconSizeClass}
-                />
-                <span>{model.model}</span>
+                <AiProviderIcon provider={iconProvider} className="h-4 w-4" />
+                <div className="pl-1 flex flex-col">
+                  <span>{model.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {model.model}
+                  </span>
+                </div>
                 {model.custom && customModelIcon}
               </DropdownMenuItem>
             );
@@ -251,43 +267,22 @@ export const ProviderDropdownContent = ({
   );
 };
 
-function groupModelsIntoTags(
-  models: Array<{ model?: string; tag: ModelTag }>,
-): Record<QualifiedModelId, ModelTag[]> {
-  const modelTagMap: Record<QualifiedModelId, ModelTag[]> = {};
-
-  for (const model of models) {
-    if (!model.model) {
-      continue;
-    }
-
-    const modelId = AiModelId.parse(model.model);
-    if (!modelTagMap[modelId.id]) {
-      modelTagMap[modelId.id] = [];
-    }
-    modelTagMap[modelId.id].push(model.tag);
+function getProviderLabel(provider: ProviderId): string {
+  const providerInfo = AiModelRegistry.getProviderInfo(provider);
+  if (providerInfo) {
+    return providerInfo.name;
   }
-
-  return modelTagMap;
+  return capitalize(provider);
 }
 
-function getProviderLabel(provider: ProviderId): string {
-  switch (provider) {
-    case "openai":
-      return "OpenAI";
-    case "anthropic":
-      return "Anthropic";
-    case "google":
-      return "Google";
-    case "deepseek":
-      return "DeepSeek";
-    case "bedrock":
-      return "Bedrock";
-    case "azure":
-      return "Azure";
-    case "ollama":
-      return "Ollama";
-    default:
-      return capitalize(provider);
+function getTagColour(role: Role): string {
+  switch (role) {
+    case "chat":
+      return "bg-[var(--purple-3)] text-[var(--purple-11)]";
+    case "autocomplete":
+      return "bg-[var(--green-3)] text-[var(--green-11)]";
+    case "edit":
+      return "bg-[var(--blue-3)] text-[var(--blue-11)]";
   }
+  return "bg-[var(--mauve-3)] text-[var(--mauve-11)]";
 }

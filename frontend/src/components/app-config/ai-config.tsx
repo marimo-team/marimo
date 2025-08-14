@@ -6,6 +6,7 @@ import type { FieldPath, UseFormReturn } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
+  FormErrorsBanner,
   FormField,
   FormItem,
   FormLabel,
@@ -188,6 +189,7 @@ interface ModelSelectorProps {
   description?: React.ReactNode;
   disabled?: boolean;
   label: string;
+  onSubmit: (values: UserConfig) => Promise<void>;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -199,6 +201,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   description,
   disabled = false,
   label,
+  onSubmit,
 }) => {
   return (
     <FormField
@@ -208,9 +211,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       render={({ field }) => {
         const value = asStringOrUndefined(field.value);
 
-        // TODO: Not updating
         const selectModel = (modelId: QualifiedModelId) => {
           field.onChange(modelId);
+          onSubmit(form.getValues());
         };
 
         const renderFormItem = () => (
@@ -240,6 +243,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                         value={asStringOrUndefined(field.value)}
                         onKeyDown={Events.stopPropagation()}
                       />
+                      {value && (
+                        <IncorrectModelId
+                          value={value}
+                          includeSuggestion={false}
+                        />
+                      )}
                     </div>
                   </>
                 }
@@ -326,6 +335,7 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
 
 const renderCopilotProvider = (
   form: UseFormReturn<UserConfig>,
+  onSubmit: (values: UserConfig) => Promise<void>,
   config: UserConfig,
 ) => {
   const copilot = form.getValues("completion.copilot");
@@ -368,6 +378,7 @@ const renderCopilotProvider = (
         placeholder="ollama/qwen2.5-coder:1.5b"
         testId="custom-model-input"
         description="Model to use for code completion when using a custom provider."
+        onSubmit={onSubmit}
       />
     );
   }
@@ -380,6 +391,7 @@ const SettingGroup = ({ children }: { children: React.ReactNode }) => {
 export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
   form,
   config,
+  onSubmit,
 }) => {
   return (
     <SettingGroup>
@@ -397,7 +409,7 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
         testId="copilot-select"
       />
 
-      {renderCopilotProvider(form, config)}
+      {renderCopilotProvider(form, onSubmit, config)}
     </SettingGroup>
   );
 };
@@ -662,12 +674,17 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
   );
 };
 
-export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
+export const AiAssistConfig: React.FC<AiConfigProps> = ({
+  form,
+  config,
+  onSubmit,
+}) => {
   const isWasmRuntime = isWasm();
 
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
+      <FormErrorsBanner />
       <ModelSelector
         label="Chat Model"
         form={form}
@@ -679,6 +696,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
         description={
           <span>Model to use for chat conversations in the Chat panel.</span>
         }
+        onSubmit={onSubmit}
       />
       <ModelSelector
         label="Edit Model"
@@ -694,6 +712,7 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({ form, config }) => {
             <Kbd className="inline">Generate with AI</Kbd> button.
           </span>
         }
+        onSubmit={onSubmit}
       />
 
       <ul className="bg-muted p-2 rounded-md list-disc space-y-1 pl-6">

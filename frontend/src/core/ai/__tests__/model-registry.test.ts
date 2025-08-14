@@ -1,8 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-
-import type { AiModel } from "@marimo-team/llm-info";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AiModelRegistry } from "../model-registry";
 
 // Mock the models.json import
 vi.mock("@marimo-team/llm-info/models.json", () => {
@@ -46,43 +43,46 @@ vi.mock("@marimo-team/llm-info/models.json", () => {
   };
 });
 
+import type { AiModel } from "@marimo-team/llm-info";
+import { AiModelRegistry } from "../model-registry";
+
 describe("AiModelRegistry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("create", () => {
-    it("should create registry with no custom or displayed models", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should create registry with no custom or displayed models", () => {
+      const registry = AiModelRegistry.create({});
 
       expect(registry).toBeInstanceOf(AiModelRegistry);
       expect(registry.getCustomModels()).toEqual(new Set());
       expect(registry.getDisplayedModels()).toEqual(new Set());
     });
 
-    it("should create registry with custom models", async () => {
+    it("should create registry with custom models", () => {
       const customModels = ["openai/custom-gpt", "anthropic/custom-claude"];
-      const registry = await AiModelRegistry.create(customModels);
+      const registry = AiModelRegistry.create({ customModels });
 
       expect(registry.getCustomModels()).toEqual(new Set(customModels));
       expect(registry.getDisplayedModels()).toEqual(new Set());
     });
 
-    it("should create registry with displayed models", async () => {
+    it("should create registry with displayed models", () => {
       const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
-      const registry = await AiModelRegistry.create(undefined, displayedModels);
+      const registry = AiModelRegistry.create({ displayedModels });
 
       expect(registry.getCustomModels()).toEqual(new Set());
       expect(registry.getDisplayedModels()).toEqual(new Set(displayedModels));
     });
 
-    it("should create registry with both custom and displayed models", async () => {
+    it("should create registry with both custom and displayed models", () => {
       const customModels = ["openai/custom-gpt"];
       const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
-      const registry = await AiModelRegistry.create(
+      const registry = AiModelRegistry.create({
         customModels,
         displayedModels,
-      );
+      });
 
       expect(registry.getCustomModels()).toEqual(new Set(customModels));
       expect(registry.getDisplayedModels()).toEqual(new Set(displayedModels));
@@ -90,8 +90,8 @@ describe("AiModelRegistry", () => {
   });
 
   describe("getModelsByProvider", () => {
-    it("should return models for a specific provider", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should return models for a specific provider", () => {
+      const registry = AiModelRegistry.create({});
       const openaiModels = registry.getModelsByProvider("openai");
 
       expect(openaiModels).toHaveLength(2); // gpt-4 and multi-model
@@ -100,44 +100,44 @@ describe("AiModelRegistry", () => {
       ).toBe(true);
     });
 
-    it("should return empty array for provider with no models", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should return empty array for provider with no models", () => {
+      const registry = AiModelRegistry.create({});
       const azureModels = registry.getModelsByProvider("azure");
 
       expect(azureModels).toEqual([]);
     });
 
-    it("should include custom models for the provider", async () => {
+    it("should include custom models for the provider", () => {
       const customModels = ["openai/custom-gpt"];
-      const registry = await AiModelRegistry.create(customModels);
+      const registry = AiModelRegistry.create({ customModels });
       const openaiModels = registry.getModelsByProvider("openai");
 
       const customModel = openaiModels.find((model) => model.custom);
       expect(customModel).toBeDefined();
-      expect(customModel?.name).toBe("custom-gpt");
+      expect(customModel?.name).toBe("openai/custom-gpt");
       expect(customModel?.model).toBe("custom-gpt");
       expect(customModel?.description).toBe("Custom model");
       expect(customModel?.providers).toEqual(["openai"]);
-      expect(customModel?.roles).toEqual(["chat", "edit"]);
+      expect(customModel?.roles).toEqual([]);
       expect(customModel?.thinking).toBe(false);
     });
 
-    it("should filter models based on displayed models", async () => {
+    it("should filter models based on displayed models", () => {
       const displayedModels = ["openai/gpt-4"];
-      const registry = await AiModelRegistry.create(undefined, displayedModels);
+      const registry = AiModelRegistry.create({ displayedModels });
       const openaiModels = registry.getModelsByProvider("openai");
 
       expect(openaiModels).toHaveLength(1);
       expect(openaiModels[0].model).toBe("gpt-4");
     });
 
-    it("should filter custom models based on displayed models", async () => {
+    it("should filter custom models based on displayed models", () => {
       const customModels = ["openai/custom-gpt", "anthropic/custom-claude"];
       const displayedModels = ["openai/custom-gpt"];
-      const registry = await AiModelRegistry.create(
+      const registry = AiModelRegistry.create({
         customModels,
         displayedModels,
-      );
+      });
 
       const openaiModels = registry.getModelsByProvider("openai");
       const anthropicModels = registry.getModelsByProvider("anthropic");
@@ -156,8 +156,8 @@ describe("AiModelRegistry", () => {
   });
 
   describe("getGroupedModelsByProvider", () => {
-    it("should return all models grouped by provider", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should return all models grouped by provider", () => {
+      const registry = AiModelRegistry.create({});
       const groupedModels = registry.getGroupedModelsByProvider();
 
       expect(groupedModels.has("openai")).toBe(true);
@@ -173,9 +173,9 @@ describe("AiModelRegistry", () => {
       expect(googleModels.length).toEqual(1);
     });
 
-    it("should include custom models in the grouped results", async () => {
+    it("should include custom models in the grouped results", () => {
       const customModels = ["openai/custom-gpt", "anthropic/custom-claude"];
-      const registry = await AiModelRegistry.create(customModels);
+      const registry = AiModelRegistry.create({ customModels });
       const groupedModels = registry.getGroupedModelsByProvider();
 
       const openaiModels = groupedModels.get("openai") || [];
@@ -193,9 +193,9 @@ describe("AiModelRegistry", () => {
       ).toBe(true);
     });
 
-    it("should respect displayed models filter", async () => {
+    it("should respect displayed models filter", () => {
       const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
-      const registry = await AiModelRegistry.create(undefined, displayedModels);
+      const registry = AiModelRegistry.create({ displayedModels });
       const groupedModels = registry.getGroupedModelsByProvider();
 
       const openaiModels = groupedModels.get("openai") || [];
@@ -211,34 +211,37 @@ describe("AiModelRegistry", () => {
   });
 
   describe("getCustomModels", () => {
-    it("should return empty set when no custom models", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should return empty set when no custom models", () => {
+      const registry = AiModelRegistry.create({});
       expect(registry.getCustomModels()).toEqual(new Set());
     });
 
-    it("should return set of custom model IDs", async () => {
+    it("should return set of custom model IDs", () => {
       const customModels = ["openai/custom-gpt", "anthropic/custom-claude"];
-      const registry = await AiModelRegistry.create(customModels);
+      const registry = AiModelRegistry.create({ customModels });
       expect(registry.getCustomModels()).toEqual(new Set(customModels));
     });
   });
 
   describe("getDisplayedModels", () => {
-    it("should return empty set when no displayed models specified", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should return empty set when no displayed models specified", () => {
+      const registry = AiModelRegistry.create({});
       expect(registry.getDisplayedModels()).toEqual(new Set());
     });
 
-    it("should return set of displayed model IDs", async () => {
+    it("should return set of displayed model IDs", () => {
       const displayedModels = ["openai/gpt-4", "anthropic/claude-3-sonnet"];
-      const registry = await AiModelRegistry.create(undefined, displayedModels);
+      const registry = AiModelRegistry.create({ displayedModels });
       expect(registry.getDisplayedModels()).toEqual(new Set(displayedModels));
     });
   });
 
   describe("edge cases", () => {
-    it("should handle empty arrays for custom and displayed models", async () => {
-      const registry = await AiModelRegistry.create([], []);
+    it("should handle empty arrays for custom and displayed models", () => {
+      const registry = AiModelRegistry.create({
+        customModels: [],
+        displayedModels: [],
+      });
 
       expect(registry.getCustomModels()).toEqual(new Set());
       expect(registry.getDisplayedModels()).toEqual(new Set());
@@ -248,8 +251,8 @@ describe("AiModelRegistry", () => {
       expect(openaiModels.length).toBeGreaterThan(0);
     });
 
-    it("should handle models with multiple providers", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should handle models with multiple providers", () => {
+      const registry = AiModelRegistry.create({});
 
       const openaiModels = registry.getModelsByProvider("openai");
       const anthropicModels = registry.getModelsByProvider("anthropic");
@@ -267,12 +270,12 @@ describe("AiModelRegistry", () => {
       expect(multiModelInOpenai).toEqual(multiModelInAnthropic);
     });
 
-    it("should handle displayed models filter with non-existent models", async () => {
+    it("should handle displayed models filter with non-existent models", () => {
       const displayedModels = [
         "openai/non-existent-model",
         "anthropic/claude-3-sonnet",
       ];
-      const registry = await AiModelRegistry.create(undefined, displayedModels);
+      const registry = AiModelRegistry.create({ displayedModels });
 
       const openaiModels = registry.getModelsByProvider("openai");
       const anthropicModels = registry.getModelsByProvider("anthropic");
@@ -285,11 +288,11 @@ describe("AiModelRegistry", () => {
   });
 
   describe("model properties", () => {
-    it("should ensure all models have required properties", async () => {
-      const registry = await AiModelRegistry.create();
+    it("should ensure all models have required properties", () => {
+      const registry = AiModelRegistry.create({});
       const groupedModels = registry.getGroupedModelsByProvider();
 
-      for (const [provider, models] of groupedModels) {
+      for (const [provider, models] of groupedModels.entries()) {
         for (const model of models) {
           expect(model).toHaveProperty("name");
           expect(model).toHaveProperty("model");
@@ -312,16 +315,43 @@ describe("AiModelRegistry", () => {
       }
     });
 
-    it("should ensure custom models have correct custom property", async () => {
+    it("should ensure custom models have correct custom property", () => {
       const customModels = ["openai/custom-gpt"];
-      const registry = await AiModelRegistry.create(customModels);
+      const registry = AiModelRegistry.create({ customModels });
       const openaiModels = registry.getModelsByProvider("openai");
 
       const customModel = openaiModels.find((model) => model.custom);
       const defaultModel = openaiModels.find((model) => !model.custom);
 
-      expect(customModel?.custom).toBe(true);
-      expect(defaultModel?.custom).toBe(false);
+      expect(customModel).toMatchInlineSnapshot(`
+        {
+          "custom": true,
+          "description": "Custom model",
+          "model": "custom-gpt",
+          "name": "openai/custom-gpt",
+          "providers": [
+            "openai",
+          ],
+          "roles": [],
+          "thinking": false,
+        }
+      `);
+      expect(defaultModel).toMatchInlineSnapshot(`
+        {
+          "custom": false,
+          "description": "OpenAI GPT-4 model",
+          "model": "gpt-4",
+          "name": "GPT-4",
+          "providers": [
+            "openai",
+          ],
+          "roles": [
+            "chat",
+            "edit",
+          ],
+          "thinking": false,
+        }
+      `);
     });
   });
 });
