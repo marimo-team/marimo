@@ -42,7 +42,9 @@ export class AiModelRegistry {
    * Custom models are added first as they are specified by the user, so we want to surface them first.
    */
   private async buildMaps() {
-    const models = await import("@marimo-team/llm-info/models.json");
+    const modelsData = (await import("@marimo-team/llm-info/models.json")) as {
+      models: AiModelType[];
+    };
 
     const displayedModels = this.displayedModels;
     const hasDisplayedModels = displayedModels.size > 0;
@@ -69,7 +71,7 @@ export class AiModelRegistry {
       ]);
     }
 
-    for (const model of models.default) {
+    for (const model of modelsData.models) {
       const modelId = model.model as ShortModelId;
       const modelInfo: AiModel = {
         ...model,

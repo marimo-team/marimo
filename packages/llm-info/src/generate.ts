@@ -101,13 +101,17 @@ async function main(): Promise<void> {
     const modelsJsonPath = join(generatedDir, "models.json");
     const providersJsonPath = join(generatedDir, "providers.json");
 
+    // For compatibility with Vite and other bundlers, `import` returns a JS module and not a JSON object.
+    // So we need to nest the models and providers data under a json key to access them,
+    // otherwise a keyword can conflict with a JS reserved keyword (e.g. `default` or `with`).
+
     // Load and validate models
     const models = loadAndValidateModels(modelsYamlPath);
-    writeJsonFile(modelsJsonPath, models);
+    writeJsonFile(modelsJsonPath, { models: models });
 
     // Load and validate providers
     const providers = loadAndValidateProviders(providersYamlPath);
-    writeJsonFile(providersJsonPath, providers);
+    writeJsonFile(providersJsonPath, { providers: providers });
 
     console.log(
       `Generated ${models.length} models and ${providers.length} providers`,
