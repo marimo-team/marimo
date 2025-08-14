@@ -71,7 +71,10 @@ export class AiModelRegistry {
 
     for (const model of models.models) {
       const modelId = model.model as ShortModelId;
-      const modelInfo: AiModel = model as AiModel;
+      const modelInfo: AiModel = {
+        ...model,
+        custom: false,
+      } as AiModel;
 
       for (const provider of model.providers) {
         const qualifiedModelId = `${provider}/${modelId}` as QualifiedModelId;
