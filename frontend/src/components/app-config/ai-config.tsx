@@ -333,11 +333,15 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
   );
 };
 
-const renderCopilotProvider = (
-  form: UseFormReturn<UserConfig>,
-  onSubmit: (values: UserConfig) => Promise<void>,
-  config: UserConfig,
-) => {
+const renderCopilotProvider = ({
+  form,
+  config,
+  onSubmit,
+}: {
+  form: UseFormReturn<UserConfig>;
+  config: UserConfig;
+  onSubmit: (values: UserConfig) => Promise<void>;
+}) => {
   const copilot = form.getValues("completion.copilot");
   if (copilot === false) {
     return null;
@@ -409,7 +413,7 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
         testId="copilot-select"
       />
 
-      {renderCopilotProvider(form, onSubmit, config)}
+      {renderCopilotProvider({ form, config, onSubmit })}
     </SettingGroup>
   );
 };
@@ -419,16 +423,25 @@ const AccordionFormItem = ({
   triggerClassName,
   provider,
   children,
+  isConfigured,
 }: {
   title: string;
   triggerClassName?: string;
   provider: AiProviderIconProps["provider"];
   children: React.ReactNode;
+  isConfigured: boolean;
 }) => {
   return (
     <AccordionItem value={provider}>
       <AccordionTrigger className={triggerClassName}>
-        <AiProviderTitle provider={provider}>{title}</AiProviderTitle>
+        <AiProviderTitle provider={provider}>
+          {title}
+          {isConfigured && (
+            <span className="ml-2 px-1 rounded bg-muted text-xs font-medium border">
+              Configured
+            </span>
+          )}
+        </AiProviderTitle>
       </AccordionTrigger>
       <AccordionContent wrapperClassName="flex flex-col gap-4">
         {children}
@@ -442,6 +455,10 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
   config,
 }) => {
   const isWasmRuntime = isWasm();
+
+  const hasValue = (name: FieldPath<UserConfig>) => {
+    return !!form.getValues(name);
+  };
 
   return (
     <SettingGroup>
@@ -458,6 +475,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           title="OpenAI"
           provider="openai"
           triggerClassName="pt-0"
+          isConfigured={hasValue("ai.open_ai.api_key")}
         >
           <ApiKey
             form={form}
@@ -485,7 +503,11 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
 
-        <AccordionFormItem title="Anthropic" provider="anthropic">
+        <AccordionFormItem
+          title="Anthropic"
+          provider="anthropic"
+          isConfigured={hasValue("ai.anthropic.api_key")}
+        >
           <ApiKey
             form={form}
             config={config}
@@ -504,7 +526,11 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
 
-        <AccordionFormItem title="Google" provider="google">
+        <AccordionFormItem
+          title="Google"
+          provider="google"
+          isConfigured={hasValue("ai.google.api_key")}
+        >
           <ApiKey
             form={form}
             config={config}
@@ -523,7 +549,11 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
 
-        <AccordionFormItem title="Ollama" provider="ollama">
+        <AccordionFormItem
+          title="Ollama"
+          provider="ollama"
+          isConfigured={hasValue("ai.ollama.base_url")}
+        >
           <BaseUrl
             form={form}
             config={config}
@@ -534,7 +564,40 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
 
-        <AccordionFormItem title="Azure" provider="azure">
+        <AccordionFormItem
+          title="GitHub"
+          provider="github"
+          isConfigured={hasValue("ai.github.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.github.api_key"
+            placeholder="ghp_..."
+            testId="ai-github-api-key-input"
+            description={
+              <>
+                Your GitHub API token from{" "}
+                <Kbd className="inline">gh auth token</Kbd>.
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.github.base_url"
+            placeholder="https://api.githubcopilot.com/"
+            testId="ai-github-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
+          title="Azure"
+          provider="azure"
+          isConfigured={
+            hasValue("ai.azure.api_key") && hasValue("ai.azure.base_url")
+          }
+        >
           <ApiKey
             form={form}
             config={config}
@@ -560,7 +623,11 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
 
-        <AccordionFormItem title="AWS Bedrock" provider="bedrock">
+        <AccordionFormItem
+          title="AWS Bedrock"
+          provider="bedrock"
+          isConfigured={hasValue("ai.bedrock.region_name")}
+        >
           <p className="text-sm text-muted-secondary mb-2">
             To use AWS Bedrock, you need to configure AWS credentials and
             region. See the{" "}
@@ -646,6 +713,10 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         <AccordionFormItem
           title="OpenAI-Compatible"
           provider="openai-compatible"
+          isConfigured={
+            hasValue("ai.open_ai_compatible.api_key") &&
+            hasValue("ai.open_ai_compatible.base_url")
+          }
         >
           <ApiKey
             form={form}

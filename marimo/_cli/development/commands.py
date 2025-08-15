@@ -63,6 +63,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         CellConfig,
         config.OpenAiConfig,
         config.AnthropicConfig,
+        config.GitHubConfig,
         config.GoogleAiConfig,
         config.BedrockConfig,
         config.AiConfig,

@@ -57,7 +57,24 @@ class AnyProviderConfig:
     @classmethod
     def for_ollama(cls, config: AiConfig) -> AnyProviderConfig:
         return cls._for_openai_like(
-            config, "ollama", "Ollama", fallback_key="ollama-placeholder"
+            config,
+            "ollama",
+            "Ollama",
+            fallback_key="ollama-placeholder",
+            # Default base URL for Ollama
+            fallback_base_url="http://127.0.0.1:11434/v1",
+        )
+
+    @classmethod
+    def for_github(cls, config: AiConfig) -> AnyProviderConfig:
+        fallback_key = cls.os_key("GITHUB_TOKEN")
+        return cls._for_openai_like(
+            config,
+            "github",
+            "GitHub",
+            fallback_key=fallback_key,
+            # Default base URL for GitHub Copilot
+            fallback_base_url="https://api.githubcopilot.com/",
         )
 
     @classmethod
@@ -68,12 +85,13 @@ class AnyProviderConfig:
         name: str,
         *,
         fallback_key: Optional[str] = None,
+        fallback_base_url: Optional[str] = None,
     ) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, key, name)
         key = _get_key(ai_config, name, fallback_key=fallback_key)
 
         kwargs: dict[str, Any] = {
-            "base_url": _get_base_url(ai_config),
+            "base_url": _get_base_url(ai_config) or fallback_base_url,
             "api_key": key,
             "ssl_verify": ai_config.get("ssl_verify", True),
             "ca_bundle_path": ai_config.get("ca_bundle_path", None),
@@ -145,6 +163,8 @@ class AnyProviderConfig:
             return cls.for_openai(config)
         elif model_id.provider == "azure":
             return cls.for_azure(config)
+        elif model_id.provider == "github":
+            return cls.for_github(config)
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:

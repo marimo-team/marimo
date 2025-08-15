@@ -268,6 +268,7 @@ class AiConfig(TypedDict, total=False):
     - `bedrock`: the Bedrock config
     - `azure`: the Azure config
     - `ollama`: the Ollama config
+    - `github`: the GitHub config
     - `open_ai_compatible`: the OpenAI-compatible config
     """
 
@@ -283,6 +284,7 @@ class AiConfig(TypedDict, total=False):
     bedrock: BedrockConfig
     azure: OpenAiConfig
     ollama: OpenAiConfig
+    github: GitHubConfig
     open_ai_compatible: OpenAiConfig
 
 
@@ -349,6 +351,20 @@ class BedrockConfig(TypedDict, total=False):
     region_name: NotRequired[str]
     aws_access_key_id: NotRequired[str]
     aws_secret_access_key: NotRequired[str]
+
+
+@dataclass
+class GitHubConfig(TypedDict, total=False):
+    """Configuration options for GitHub.
+
+    **Keys.**
+
+    - `api_key`: the GitHub API token
+    - `base_url`: the base URL for the API
+    """
+
+    api_key: str
+    base_url: NotRequired[str]
 
 
 @dataclass
