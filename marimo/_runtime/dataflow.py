@@ -96,16 +96,23 @@ class DirectedGraph:
         """
         if language == "sql":
             # For SQL, only return SQL cells that reference the name
-            return {
-                cid
-                for cid, cell in self.cells.items()
-                if name in cell.refs and cell.language == "sql"
-            }
+            cells = set()
+            for cid, cell in self.cells.items():
+                if cell.language == "sql":
+                    for ref in cell.refs:
+                        if name == ref or ("." in ref and name in ref):
+                            cells.add(cid)
+            return cells
         else:
             # For Python, return all cells that reference the name
             return {
                 cid for cid, cell in self.cells.items() if name in cell.refs
             }
+
+    def is_a_dependency(
+        self, reference: CellId_t, definition: CellId_t
+    ) -> bool:
+        pass
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
@@ -196,11 +203,33 @@ class DirectedGraph:
                     if name in self.definitions
                     else set()
                 ) - set((cell_id,))
+
+                # We want to fuzzy find the other cells that define the
+                # same name for SQL cells. Because the name may embed schema,
+                # catalog and table names
+                # Eg. def_name = "my_db" and name = "my_db.my_table"
+                # Keep a copy of the names so we can use them in the check
+                name_map = dict()
+                language = self.cells[cell_id].language
+                if language == "sql" and "." in name:
+                    # TODO: Do some better checking
+                    for def_name in self.definitions:
+                        if def_name in name:
+                            # TODO: Should this also tie to cell_id?
+                            name_map[name] = def_name
+                            other_ids_defining_name.update(
+                                self.definitions[def_name]
+                            )
+                            break
+
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
+                    name_to_use = name_map.get(name, name)
                     language = (
-                        self.cells[other_id].variable_data[name][-1].language
+                        self.cells[other_id]
+                        .variable_data[name_to_use][-1]
+                        .language
                     )
                     if language == "sql" and cell.language == "python":
                         # SQL table/db def -> Python ref is not an edge

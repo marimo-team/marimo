@@ -14,6 +14,7 @@ from marimo import _loggers
 from marimo._ast.errors import ImportStarError
 from marimo._ast.sql_visitor import (
     SQLDefs,
+    SQLRef,
     find_sql_defs,
     find_sql_refs,
     normalize_sql_f_string,
@@ -590,7 +591,7 @@ class ScopedVisitor(ast.NodeVisitor):
             first_arg = node.args[0]
             sql: Optional[str] = None
             if isinstance(first_arg, ast.Constant):
-                sql = first_arg.s
+                sql = first_arg.value
             elif isinstance(first_arg, ast.JoinedStr):
                 sql = normalize_sql_f_string(first_arg)
 
@@ -602,6 +603,8 @@ class ScopedVisitor(ast.NodeVisitor):
                 and sql
             ):
                 import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+                # TODO: Handle other SQL languages
+                # TODO: Get the engine so we can differentiate tables in diff engines
 
                 # Add all tables in the query to the ref scope
                 try:
@@ -628,10 +631,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
-                    from_targets: list[str] = []
+                    sql_refs: list[SQLRef] = []
                     # Parse the refs and defs of each statement
                     try:
-                        from_targets = find_sql_refs(statement.query)
+                        sql_refs = find_sql_refs(statement.query)
                     except (duckdb.ProgrammingError, duckdb.IOException):
                         LOGGER.debug(
                             "Error parsing SQL statement: %s", statement.query
@@ -639,11 +642,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     except BaseException as e:
                         LOGGER.warning("Unexpected duckdb error %s", e)
 
-                    for name in from_targets:
-                        # Name (table, db) may be a URL or something else that
-                        # isn't a Python variable
-                        if name.isidentifier():
-                            self._add_ref(None, name, deleted=False)
+                    for ref in sql_refs:
+                        # TODO: We should check if the name is a URL / invalid name
+                        name = ref.convert_to_name()
+                        self._add_ref(None, name, deleted=False)
 
                     # Add all tables/dbs created in the query to the defs
                     try:

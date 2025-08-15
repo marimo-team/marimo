@@ -311,9 +311,27 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-def find_sql_refs(
-    sql_statement: str,
-) -> list[str]:
+@dataclass
+class SQLRef:
+    # Tables are synonymous with views,
+    # since we can't know the difference in queries
+    table: str
+    schema: Optional[str] = None
+    catalog: Optional[str] = None
+
+    def convert_to_name(self) -> str:
+        """Convert a SQLRef to a name to be used as a reference in the visitor"""
+        name = ""
+        if self.catalog is not None:
+            name += self.catalog + "."
+        if self.schema is not None:
+            name += self.schema + "."
+        if self.table is not None:
+            name += self.table
+        return name
+
+
+def find_sql_refs(sql_statement: str) -> list[SQLRef]:
     """
     Find table and schema references in a SQL statement.
 
@@ -321,7 +339,9 @@ def find_sql_refs(
         sql_statement: The SQL statement to parse.
 
     Returns:
-        A list of fully qualified table and schema names referenced in the statement.
+        A list of SQLRefs, one for each expression in the statement.
+        Eg. SELECT * FROM schema1.test_table INNER JOIN schema2.test_table2
+        would return two SQLRefs, one for the first table and one for the second.
     """
 
     # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
@@ -332,33 +352,19 @@ def find_sql_refs(
     from sqlglot.errors import ParseError
     from sqlglot.optimizer.scope import build_scope
 
-    refs: list[str] = []
+    def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
+        # The variables might be empty strings, if they are, we set them to None
+        table_name = table.name or None
+        schema_name = table.db or None
+        catalog_name = table.catalog or None
 
-    def append_refs_from_table(table: exp.Table) -> None:
-        if table.catalog == "memory":
-            # Default in-memory catalog, only include table name
-            refs.append(table.name)
-        else:
-            # We skip schema if there is a catalog
-            # Because it may be called "public" or "main" across all catalogs
-            # and they aren't referenced in the code
-            if table.catalog:
-                catalog = table.catalog
-                if table.name:
-                    refs.append(f"{catalog}.{table.name}")
-                else:
-                    LOGGER.warning(
-                        "Expression found with catalog but no table name: %s",
-                        table,
-                    )
-                    refs.append(catalog)
-            elif table.db and table.name:
-                schema = table.db
-                refs.append(f"{schema}.{table.name}")
-            elif table.db:
-                refs.append(table.db)
-            elif table.name:
-                refs.append(table.name)
+        if table_name is None:
+            LOGGER.warning("Table name cannot be found in the SQL statement")
+            return None
+
+        return SQLRef(
+            table=table_name, schema=schema_name, catalog=catalog_name
+        )
 
     try:
         with _loggers.suppress_warnings_logs("sqlglot"):
@@ -367,20 +373,27 @@ def find_sql_refs(
         LOGGER.error(f"Unable to parse SQL. Error: {e}")
         return []
 
+    refs: list[SQLRef] = []
+
+    def is_duplicate(ref: SQLRef) -> bool:
+        return any(ref == existing for existing in refs)
+
     for expression in expression_list:
         if expression is None:
             continue
 
         if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
-                append_refs_from_table(table)
+                if ref := get_ref_from_table(table):
+                    if not is_duplicate(ref):
+                        refs.append(ref)
 
-        # build_scope only works for select statements
         if root := build_scope(expression):
             for scope in root.traverse():  # type: ignore
                 for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):
-                        append_refs_from_table(source)
+                        if ref := get_ref_from_table(source):
+                            if not is_duplicate(ref):
+                                refs.append(ref)
 
-    # remove duplicates while preserving order
-    return list(dict.fromkeys(refs))
+    return refs
