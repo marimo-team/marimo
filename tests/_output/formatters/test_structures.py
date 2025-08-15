@@ -257,3 +257,105 @@ def test_format_structure_defaultdict() -> None:
         "application/json",
         '{"a": [1], "b": [2], "c": []}',
     )
+
+
+def test_function_like_objects_are_pretty_inspected() -> None:
+    from marimo._output.formatters.structures import StructuresFormatter
+
+    StructuresFormatter().register()
+
+    # Regular function
+    def foo(x: int, y: str = "a") -> str:  # noqa: ARG001
+        return "ok"
+
+    fmt = get_formatter(foo)
+    assert fmt is not None
+    mime, data = fmt(foo)
+    assert mime == "text/html"
+    assert "function" in data or "def foo(" in data
+
+    # Lambda
+    lam = lambda z: z  # noqa: E731
+    fmt = get_formatter(lam)
+    assert fmt is not None
+    mime, data = fmt(lam)
+    assert mime == "text/html"
+    assert "function" in data or "lambda" in data or "def" in data
+
+    # Builtin function
+    fmt = get_formatter(len)
+    assert fmt is not None
+    mime, data = fmt(len)
+    assert mime == "text/html"
+    # Builtins are labeled as instances of builtin_function_or_method
+    assert "builtin_function_or_method" in data or "instance" in data
+
+    # Method
+    class C:
+        def m(self, a: int) -> int:  # noqa: D401, ARG002
+            return a
+
+    fmt = get_formatter(C.m)
+    assert fmt is not None
+    mime, data = fmt(C.m)
+    assert mime == "text/html"
+    assert "def m(" in data or "method" in data
+
+
+def test_function_like_objects_use_repr_formatter_if_present() -> None:
+    # Register a temporary repr formatter on a simple callable class
+    class D:
+        def __call__(self) -> None:  # pragma: no cover - just shape
+            return None
+
+        def _repr_html_(self) -> str:
+            return "<b>HELLO</b>"
+
+    # Ensure base structure formatter is registered
+    from marimo._output.formatters.structures import StructuresFormatter
+
+    StructuresFormatter().register()
+
+    # The repr formatter should be honored and returned directly
+    obj = D()
+    fmt = get_formatter(obj)
+    assert fmt is not None
+    mime, data = fmt(obj)
+    assert mime == "text/html"
+    assert data == "<b>HELLO</b>"
+
+
+def test_function_like_objects_fallback_on_exception() -> None:
+    # Build a callable that raises when inspected/signatured to force fallback
+    class Boom:
+        def __call__(self, *args: object, **kwargs: object) -> None:  # noqa: ARG002
+            return None
+
+    b = Boom()
+
+    # Monkey-patch to raise from inspect.signature
+    import inspect as _inspect
+
+    orig_signature = _inspect.signature
+    try:
+
+        def bad_signature(obj: object):  # type: ignore[no-untyped-def]
+            if obj is b:
+                raise ValueError("boom")
+            return orig_signature(obj)
+
+        _inspect.signature = bad_signature  # type: ignore[assignment]
+
+        from marimo._output.formatters.structures import StructuresFormatter
+
+        StructuresFormatter().register()
+        fmt = get_formatter(b)
+        assert fmt is not None
+        mime, data = fmt(b)
+        assert mime == "text/html" or mime == "text/plain"
+        # Fallback path returns plain text repr wrapped via plain_text
+        # which ultimately produces HTML; accept either to be robust.
+        assert isinstance(data, str)
+        assert len(data) > 0
+    finally:
+        _inspect.signature = orig_signature  # type: ignore[assignment]

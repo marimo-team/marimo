@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from marimo._plugins.stateless.inspect import inspect
 
 
@@ -206,3 +208,23 @@ def test_inspect_sort_attributes() -> None:
 
     assert "<table" in sorted_html
     assert "<table" in unsorted_html
+
+
+def test_inspect_repr_md() -> None:
+    @dataclass
+    class Value:
+        value: str
+
+    result = inspect(Value(value="one"))
+    md = result._repr_md_()
+    assert md == repr(Value(value="one"))
+
+
+def test_inspect_repr_md_error() -> None:
+    class ReprError:
+        def __repr__(self):
+            raise Exception("repr error")  # noqa: TRY002
+
+    result = inspect(ReprError())
+    md = result._repr_md_()
+    assert "<div" in md
