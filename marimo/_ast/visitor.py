@@ -54,6 +54,14 @@ class AnnotationData:
     refs: set[Name] = field(default_factory=set)
 
 
+# TODO: Rename?
+@dataclass
+class RefsData:
+    language: Language
+    # Only applicable for SQL cell refs
+    sql_ref: Optional[SQLRef] = None
+
+
 @dataclass
 class VariableData:
     # "table", "view", "schema", and "catalog" are SQL variables, not Python.
@@ -140,6 +148,8 @@ class RefData:
     block: Block
     # Ancestors of the block in which this ref was used
     parent_blocks: list[Block]
+    # Only applicable for SQL cells
+    sql_ref: Optional[SQLRef] = None
 
 
 NamedNode = Union[
@@ -209,6 +219,18 @@ class ScopedVisitor(ast.NodeVisitor):
     def refs(self) -> set[Name]:
         """Names referenced but not defined."""
         return set(self._refs.keys())
+
+    @property
+    def refs_data(self) -> dict[Name, RefsData]:
+        """Data accompanying referenced names."""
+        refs = {}
+        for name, ref_data in self._refs.items():
+            refs[name] = RefsData(
+                language=self.language,
+                # Take the last ref data because it's the most recent ref?
+                sql_ref=ref_data[-1].sql_ref,
+            )
+        return refs
 
     @property
     def deleted_refs(self) -> set[Name]:
@@ -284,7 +306,12 @@ class ScopedVisitor(ast.NodeVisitor):
         return any(block.is_defined(identifier) for block in self.block_stack)
 
     def _add_ref(
-        self, node: NamedNode | None, name: Name, deleted: bool
+        self,
+        node: NamedNode | None,
+        name: Name,
+        *,
+        deleted: bool,
+        sql_ref: Optional[SQLRef] = None,
     ) -> None:
         """Register a referenced name."""
         if name not in self._refs:
@@ -311,6 +338,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     deleted=deleted,
                     parent_blocks=parents,
                     block=current_block,
+                    sql_ref=sql_ref,
                 )
             )
 
@@ -645,11 +673,15 @@ class ScopedVisitor(ast.NodeVisitor):
                     for ref in sql_refs:
                         name = ref.convert_to_name()
                         if ref.only_table():
-                            # Check if the table is a valid python value (eg. not a URL)
+                            # Check if the table is a valid python value (eg. a URL)
                             if name.isidentifier():
-                                self._add_ref(None, name, deleted=False)
+                                self._add_ref(
+                                    None, name, deleted=False, sql_ref=ref
+                                )
                         else:
-                            self._add_ref(None, name, deleted=False)
+                            self._add_ref(
+                                None, name, deleted=False, sql_ref=ref
+                            )
 
                     # Add all tables/dbs created in the query to the defs
                     try:

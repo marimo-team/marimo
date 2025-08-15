@@ -205,17 +205,28 @@ class DirectedGraph:
                 # Eg. def_name = "my_db" and name = "my_db.my_table"
                 # Keep a copy of the names so we can use them in the check
                 name_map = dict()
-                language = self.cells[cell_id].language
-                if language == "sql" and "." in name:
-                    # TODO: Do some better checking
+                ref_data = cell.refs_data[name]
+                language = ref_data.language
+                if (
+                    language == "sql"
+                    and "." in name
+                    and len(other_ids_defining_name) == 0
+                ):
+                    sql_ref = ref_data.sql_ref
+                    # name can be "schema.table" or "catalog.schema.table"
+                    # We want to find the other cells that define the same name
+
+                    # def_name can be "schema" for "schema.table",
+                    # or "catalog" or "catalog.schema" for "catalog.schema.table"
+                    parts = name.split(".")
+                    has_catalog = len(parts) > 2
+
                     for def_name in self.definitions:
                         if def_name in name:
-                            # TODO: Should this also tie to cell_id?
                             name_map[name] = def_name
                             other_ids_defining_name.update(
                                 self.definitions[def_name]
                             )
-                            break
 
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
