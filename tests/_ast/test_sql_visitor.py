@@ -828,3 +828,15 @@ class TestFindSQLRefs:
         LIMIT 10;
         """
         assert find_sql_refs(sql) == [SQLRef(table="database", schema="pdb")]
+
+    def test_read_file_and_urls(self) -> None:
+        sql = "SELECT * FROM 'file.csv'"
+        assert find_sql_refs(sql) == [SQLRef(table="file.csv")]
+
+        sql = "SELECT * FROM 'https://example.com/file.csv'"
+        assert find_sql_refs(sql) == [
+            SQLRef(table="https://example.com/file.csv")
+        ]
+
+        sql = "SELECT * FROM read_csv('/dev/stdin')"
+        assert find_sql_refs(sql) == []

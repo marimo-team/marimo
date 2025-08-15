@@ -330,6 +330,9 @@ class SQLRef:
             name += self.table
         return name
 
+    def only_table(self) -> bool:
+        return self.schema is None and self.catalog is None
+
 
 def find_sql_refs(sql_statement: str) -> list[SQLRef]:
     """
