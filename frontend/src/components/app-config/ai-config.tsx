@@ -456,7 +456,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
 }) => {
   const isWasmRuntime = isWasm();
 
-  const isConfigured = (name: FieldPath<UserConfig>) => {
+  const hasValue = (name: FieldPath<UserConfig>) => {
     return !!form.getValues(name);
   };
 
@@ -475,7 +475,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           title="OpenAI"
           provider="openai"
           triggerClassName="pt-0"
-          isConfigured={isConfigured("ai.open_ai.api_key")}
+          isConfigured={hasValue("ai.open_ai.api_key")}
         >
           <ApiKey
             form={form}
@@ -506,7 +506,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         <AccordionFormItem
           title="Anthropic"
           provider="anthropic"
-          isConfigured={isConfigured("ai.anthropic.api_key")}
+          isConfigured={hasValue("ai.anthropic.api_key")}
         >
           <ApiKey
             form={form}
@@ -529,7 +529,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         <AccordionFormItem
           title="Google"
           provider="google"
-          isConfigured={isConfigured("ai.google.api_key")}
+          isConfigured={hasValue("ai.google.api_key")}
         >
           <ApiKey
             form={form}
@@ -552,7 +552,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         <AccordionFormItem
           title="Ollama"
           provider="ollama"
-          isConfigured={isConfigured("ai.ollama.base_url")}
+          isConfigured={hasValue("ai.ollama.base_url")}
         >
           <BaseUrl
             form={form}
@@ -567,7 +567,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         <AccordionFormItem
           title="GitHub"
           provider="github"
-          isConfigured={isConfigured("ai.github.api_key")}
+          isConfigured={hasValue("ai.github.api_key")}
         >
           <ApiKey
             form={form}
@@ -595,8 +595,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           title="Azure"
           provider="azure"
           isConfigured={
-            isConfigured("ai.azure.api_key") &&
-            isConfigured("ai.azure.base_url")
+            hasValue("ai.azure.api_key") && hasValue("ai.azure.base_url")
           }
         >
           <ApiKey
@@ -627,7 +626,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         <AccordionFormItem
           title="AWS Bedrock"
           provider="bedrock"
-          isConfigured={isConfigured("ai.bedrock.region_name")}
+          isConfigured={hasValue("ai.bedrock.region_name")}
         >
           <p className="text-sm text-muted-secondary mb-2">
             To use AWS Bedrock, you need to configure AWS credentials and
@@ -715,8 +714,8 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           title="OpenAI-Compatible"
           provider="openai-compatible"
           isConfigured={
-            isConfigured("ai.open_ai_compatible.api_key") &&
-            isConfigured("ai.open_ai_compatible.base_url")
+            hasValue("ai.open_ai_compatible.api_key") &&
+            hasValue("ai.open_ai_compatible.base_url")
           }
         >
           <ApiKey
