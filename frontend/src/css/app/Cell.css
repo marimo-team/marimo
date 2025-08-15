@@ -214,7 +214,7 @@
   &.borderless {
     border-color: transparent;
     box-shadow: none;
-    
+
     & > * {
       border-bottom: none;
     }
@@ -253,7 +253,7 @@
   &.borderless {
     border-color: transparent;
     box-shadow: none;
-    
+
     & > * {
       border-bottom: none;
     }
