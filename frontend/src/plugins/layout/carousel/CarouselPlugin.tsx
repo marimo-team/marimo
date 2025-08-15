@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import React, { type JSX } from "react";
-import swiperCssKeyboard from "swiper/css/keyboard?inline";
 import swiperCssNavigation from "swiper/css/navigation?inline";
 import swiperCssPagination from "swiper/css/pagination?inline";
 import swiperCssScrollbar from "swiper/css/scrollbar?inline";
@@ -30,7 +29,6 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
   cssStyles = [
     swiperCss,
     swiperCssVirtual,
-    swiperCssKeyboard,
     swiperCssNavigation,
     swiperCssPagination,
     swiperCssScrollbar,
