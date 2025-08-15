@@ -333,11 +333,15 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
   );
 };
 
-const renderCopilotProvider = (
-  form: UseFormReturn<UserConfig>,
-  onSubmit: (values: UserConfig) => Promise<void>,
-  config: UserConfig,
-) => {
+const renderCopilotProvider = ({
+  form,
+  config,
+  onSubmit,
+}: {
+  form: UseFormReturn<UserConfig>;
+  config: UserConfig;
+  onSubmit: (values: UserConfig) => Promise<void>;
+}) => {
   const copilot = form.getValues("completion.copilot");
   if (copilot === false) {
     return null;
@@ -409,7 +413,7 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
         testId="copilot-select"
       />
 
-      {renderCopilotProvider(form, onSubmit, config)}
+      {renderCopilotProvider({ form, config, onSubmit })}
     </SettingGroup>
   );
 };

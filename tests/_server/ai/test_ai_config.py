@@ -122,6 +122,15 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "ollama-placeholder"
 
+    def test_for_ollama_fallback_url(self):
+        """Test Ollama configuration with fallback base URL."""
+        config: AiConfig = {"ollama": {}}
+
+        provider_config = AnyProviderConfig.for_ollama(config)
+
+        assert provider_config.api_key == "ollama-placeholder"
+        assert provider_config.base_url == "http://127.0.0.1:11434/v1"
+
     def test_for_github(self):
         """Test GitHub configuration."""
         config: AiConfig = {
