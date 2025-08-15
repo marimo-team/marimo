@@ -109,11 +109,6 @@ class DirectedGraph:
                 cid for cid, cell in self.cells.items() if name in cell.refs
             }
 
-    def is_a_dependency(
-        self, reference: CellId_t, definition: CellId_t
-    ) -> bool:
-        pass
-
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
         if source == dst:

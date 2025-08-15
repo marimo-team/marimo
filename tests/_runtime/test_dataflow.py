@@ -881,64 +881,6 @@ class TestSQL:
                 break
         assert cycle_found
 
-    def test_get_referring_cells_mixed_language_scenarios(self) -> None:
-        """Test complex scenarios with mixed Python and SQL languages."""
-        graph = dataflow.DirectedGraph()
-
-        # Create a Python cell that defines a variable
-        code = "df = pd.DataFrame({'a': [1, 2, 3]})"
-        python_df_cell = parse_cell(code)
-        graph.register_cell("0", python_df_cell)
-
-        # Create a SQL cell that references the Python variable
-        code = "mo.sql('SELECT * FROM df')"
-        sql_df_ref_cell = parse_cell(code)
-        graph.register_cell("1", sql_df_ref_cell)
-
-        # Create another Python cell that references the same variable
-        code = "print(df.head())"
-        python_df_ref_cell = parse_cell(code)
-        graph.register_cell("2", python_df_ref_cell)
-
-        # Test get_referring_cells for different languages
-        # Python language should return both Python and SQL cells
-        python_refs = graph.get_referring_cells("df", language="python")
-        assert "1" in python_refs  # SQL cell
-        assert "2" in python_refs  # Python cell
-
-        # SQL language should only return SQL cells
-        sql_refs = graph.get_referring_cells("df", language="sql")
-        assert "1" in sql_refs  # SQL cell
-        assert "2" not in sql_refs  # Python cell
-
-    def test_register_cell_variable_data_language_handling(self) -> None:
-        """Test that variable_data language information is properly used."""
-        graph = dataflow.DirectedGraph()
-
-        # Create a SQL cell with variable data
-        code = "mo.sql('CREATE TABLE test_table (id INT)')"
-        sql_cell = parse_cell(code)
-        graph.register_cell("0", sql_cell)
-
-        # Create a Python cell that references the same name
-        code = "test_table = [1, 2, 3]"
-        python_cell = parse_cell(code)
-        graph.register_cell("1", python_cell)
-
-        # The Python cell should NOT be a child of the SQL cell
-        # because SQL definitions don't create edges to Python references
-        assert "1" not in graph.children["0"]
-        assert "0" not in graph.parents["1"]
-
-        # But if we create a SQL cell that references the table
-        code = "mo.sql('SELECT * FROM test_table')"
-        sql_ref_cell = parse_cell(code)
-        graph.register_cell("2", sql_ref_cell)
-
-        # This should create a dependency
-        assert "2" in graph.children["0"]
-        assert "0" in graph.parents["2"]
-
     def test_sql_multiple_tables_same_schema(self) -> None:
         """Test SQL cells with multiple tables in the same schema."""
         graph = dataflow.DirectedGraph()

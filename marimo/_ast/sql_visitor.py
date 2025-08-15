@@ -375,8 +375,10 @@ def find_sql_refs(sql_statement: str) -> list[SQLRef]:
 
     refs: list[SQLRef] = []
 
-    def is_duplicate(ref: SQLRef) -> bool:
-        return any(ref == existing for existing in refs)
+    def append_ref_if_not_duplicate(ref: SQLRef) -> None:
+        is_duplicate = any(ref == existing for existing in refs)
+        if not is_duplicate:
+            refs.append(ref)
 
     for expression in expression_list:
         if expression is None:
@@ -385,15 +387,14 @@ def find_sql_refs(sql_statement: str) -> list[SQLRef]:
         if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
                 if ref := get_ref_from_table(table):
-                    if not is_duplicate(ref):
-                        refs.append(ref)
+                    append_ref_if_not_duplicate(ref)
 
+        # build_scope only works for select statements
         if root := build_scope(expression):
             for scope in root.traverse():  # type: ignore
                 for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):
                         if ref := get_ref_from_table(source):
-                            if not is_duplicate(ref):
-                                refs.append(ref)
+                            append_ref_if_not_duplicate(ref)
 
     return refs
