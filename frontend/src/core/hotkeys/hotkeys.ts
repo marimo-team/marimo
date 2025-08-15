@@ -388,6 +388,14 @@ const DEFAULT_HOT_KEY = {
   },
 
   // Command mode (edit a cell, not the editor)
+  "command.vimEnterCommandMode": {
+    name: "Enter command mode (vim)",
+    group: "Command",
+    key: {
+      main: "Mod-Escape",
+      windows: "Shift-Escape",
+    },
+  },
   "command.createCellBefore": {
     name: "Create a cell before current cell",
     group: "Command",
