@@ -646,11 +646,11 @@ class Kernel:
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
         if self.stdout is not None:
-            self.stdout.stop()
+            self.stdout._stop()
         if self.stderr is not None:
-            self.stderr.stop()
+            self.stderr._stop()
         if self.stdin is not None:
-            self.stdin.stop()
+            self.stdin._stop()
         self.stream.stop()
 
         if self.module_watcher is not None:
