@@ -196,11 +196,49 @@ class DirectedGraph:
                     if name in self.definitions
                     else set()
                 ) - set((cell_id,))
+
+                # We want to fuzzy find the other cells that define the
+                # same name for SQL cells. Because the name may embed schema,
+                # catalog and table names
+                # Eg. def_name = "my_db" and name = "my_db.my_table"
+                # Keep a copy of the names so we can use them in the check
+                name_map = dict()
+                ref_data = cell.refs_data[name]
+                language = ref_data.language
+                if (
+                    language == "sql"
+                    and "." in name
+                    and len(other_ids_defining_name) == 0
+                ):
+                    # name can be "schema.table" or "catalog.schema.table"
+                    # definitions will contain schema, table or catalog
+                    parts = name.split(".")
+                    table = parts[-1]
+
+                    for def_name in self.definitions:
+                        # Get the first cell that defines def_name
+                        cell_ids = self.definitions[def_name]
+                        if not cell_ids:
+                            continue
+                        # Use any cell_id that defines def_name
+                        cell_id_for_def = next(iter(cell_ids))
+                        kind = (
+                            self.cells[cell_id_for_def]
+                            .variable_data[def_name][-1]
+                            .kind
+                        )
+                        if kind == "table" and def_name == table:
+                            name_map[name] = def_name
+                            other_ids_defining_name.update(cell_ids)
+
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).
                 for other_id in other_ids_defining_name:
+                    name_to_use = name_map.get(name, name)
                     language = (
-                        self.cells[other_id].variable_data[name][-1].language
+                        self.cells[other_id]
+                        .variable_data[name_to_use][-1]
+                        .language
                     )
                     if language == "sql" and cell.language == "python":
                         # SQL table/db def -> Python ref is not an edge
@@ -400,6 +438,7 @@ class DirectedGraph:
         return imports
 
     def get_multiply_defined(self) -> list[Name]:
+        """Return a list of names that are defined in multiple cells"""
         names: list[Name] = []
         for name, definers in self.definitions.items():
             if len(definers) > 1:
