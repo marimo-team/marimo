@@ -2,12 +2,10 @@
 
 import {
   acceptCompletion,
-  closeCompletion,
   completionKeymap as defaultCompletionKeymap,
   moveCompletionSelection,
 } from "@codemirror/autocomplete";
 import { type Extension, Prec } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
 import { keymap } from "@codemirror/view";
 import { isInVimMode } from "../utils";
 
@@ -29,15 +27,6 @@ export function completionKeymap(): Extension {
     (binding) => !KEYS_TO_REMOVE.has(binding.key),
   );
 
-  const closeCompletionAndPropagate = (view: EditorView): boolean => {
-    const status = closeCompletion(view);
-    // When in vim mode, we need to propagate Escape to exit insert mode.
-    if (isInVimMode(view)) {
-      return false;
-    }
-    return status;
-  };
-
   return Prec.highest(
     keymap.of([
       ...withoutKeysToRemove,
@@ -48,10 +37,6 @@ export function completionKeymap(): Extension {
       // of the Escape key, so downstream hotkeys (like leaving insert mode) will work.
       //
       // This happens when using Vim.
-      {
-        key: "Escape",
-        run: closeCompletionAndPropagate,
-      },
       // Vim-specific completion keybindings
       {
         key: "Ctrl-y",
