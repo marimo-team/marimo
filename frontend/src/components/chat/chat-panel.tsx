@@ -169,6 +169,7 @@ const ChatMessage: React.FC<ChatMessageProps> = memo(
             key={message.id}
             value={message.content}
             theme={theme}
+            minHeight="2.5rem"
             placeholder="Type your message..."
             onChange={() => {
               // noop
@@ -382,6 +383,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
             onSubmit={onSubmit}
             onClose={() => inputRef.current?.editor?.blur()}
             theme={theme}
+            minHeight="2.5rem"
             placeholder="Type your message..."
           />
         </div>
@@ -688,6 +690,7 @@ const ChatPanelBody = () => {
                 value={newThreadInput}
                 placeholder="Ask anything, @ to include context about tables or dataframes"
                 theme={theme}
+                minHeight="2.5rem"
                 onClose={handleOnCloseThread}
                 onChange={setNewThreadInput}
                 onSubmit={handleNewThreadSubmit}
