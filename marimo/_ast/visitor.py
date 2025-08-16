@@ -672,12 +672,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     for ref in sql_refs:
                         name = ref.convert_to_name()
-                        # Check if the table is a valid python value (eg. a URL)
-                        # TODO: Table names can have hyphens, dots and even url-like structures, as long as quoted
-                        if name.isidentifier():
-                            self._add_ref(
-                                None, name, deleted=False, sql_ref=ref
-                            )
+                        self._add_ref(None, name, deleted=False, sql_ref=ref)
 
                     # Add all tables/dbs created in the query to the defs
                     try:
