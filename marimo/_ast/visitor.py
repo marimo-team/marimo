@@ -674,11 +674,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         name = ref.convert_to_name()
                         # Check if the table is a valid python value (eg. a URL)
                         # TODO: Table names can have hyphens, dots and even url-like structures, as long as quoted
-                        if ref.has_only_table_name() and name.isidentifier():
-                            self._add_ref(
-                                None, name, deleted=False, sql_ref=ref
-                            )
-                        else:
+                        if name.isidentifier():
                             self._add_ref(
                                 None, name, deleted=False, sql_ref=ref
                             )
