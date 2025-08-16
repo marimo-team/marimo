@@ -659,7 +659,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     return node
 
                 for statement in statements:
-                    sql_refs: list[SQLRef] = []
+                    sql_refs: set[SQLRef] = set()
                     # Parse the refs and defs of each statement
                     try:
                         sql_refs = find_sql_refs(statement.query)
@@ -672,12 +672,12 @@ class ScopedVisitor(ast.NodeVisitor):
 
                     for ref in sql_refs:
                         name = ref.convert_to_name()
-                        if ref.only_table():
-                            # Check if the table is a valid python value (eg. a URL)
-                            if name.isidentifier():
-                                self._add_ref(
-                                    None, name, deleted=False, sql_ref=ref
-                                )
+                        # Check if the table is a valid python value (eg. a URL)
+                        # TODO: Table names can have hyphens, dots and even url-like structures, as long as quoted
+                        if ref.has_only_table_name() and name.isidentifier():
+                            self._add_ref(
+                                None, name, deleted=False, sql_ref=ref
+                            )
                         else:
                             self._add_ref(
                                 None, name, deleted=False, sql_ref=ref

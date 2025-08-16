@@ -499,17 +499,17 @@ class TestSQLRefsConvertName:
 class TestFindSQLRefs:
     def test_simple(self) -> None:
         sql = "SELECT * FROM test_table;"
-        assert find_sql_refs(sql) == [SQLRef(table="test_table")]
+        assert find_sql_refs(sql) == {SQLRef(table="test_table")}
 
     def test_multiple(self) -> None:
         sql = """
         SELECT * FROM table1;
         SELECT * FROM table2;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
     def test_without_duplicates(self) -> None:
         sql = """
@@ -517,54 +517,54 @@ class TestFindSQLRefs:
         SELECT * FROM table2;
         SELECT * FROM table1;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
     def test_with_function(self) -> None:
         sql = """
         SELECT *, embedding(text) as text_embedding
         FROM prompts;
         """
-        assert find_sql_refs(sql) == [SQLRef(table="prompts")]
+        assert find_sql_refs(sql) == {SQLRef(table="prompts")}
 
     def test_with_schema(self) -> None:
         sql = "SELECT * FROM schema1.table1;"
-        assert find_sql_refs(sql) == [SQLRef(table="table1", schema="schema1")]
+        assert find_sql_refs(sql) == {SQLRef(table="table1", schema="schema1")}
 
     def test_with_catalog(self) -> None:
         sql = "SELECT * FROM catalog1.schema1.table1;"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="schema1", catalog="catalog1")
-        ]
+        }
 
     def test_memory_catalog(self) -> None:
         sql = "SELECT * FROM memory.main.table1;"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="main", catalog="memory")
-        ]
+        }
 
     def test_with_multiple_tables(self) -> None:
         sql = "SELECT * FROM table1 JOIN table2 ON table1.id = table2.id;"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
     def test_with_join_schema(self) -> None:
         sql = "SELECT * FROM schema1.table1 JOIN schema2.table2 ON table1.id = table2.id;"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="schema1"),
             SQLRef(table="table2", schema="schema2"),
-        ]
+        }
 
     def test_with_subquery(self) -> None:
         sql = "SELECT * FROM table1 WHERE id IN (SELECT id FROM table2);"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table2"),
             SQLRef(table="table1"),
-        ]
+        }
 
     def test_with_subquery_2(self) -> None:
         sql = """
@@ -572,7 +572,7 @@ class TestFindSQLRefs:
             SELECT * FROM inner_table
         ) t;
         """
-        assert find_sql_refs(sql) == [SQLRef(table="inner_table")]
+        assert find_sql_refs(sql) == {SQLRef(table="inner_table")}
 
     def test_with_cte(self) -> None:
         sql = """
@@ -581,7 +581,7 @@ class TestFindSQLRefs:
         )
         SELECT * FROM cte;
         """
-        assert find_sql_refs(sql) == [SQLRef(table="source_table")]
+        assert find_sql_refs(sql) == {SQLRef(table="source_table")}
 
     def test_with_union(self) -> None:
         sql = """
@@ -589,20 +589,20 @@ class TestFindSQLRefs:
         UNION
         SELECT * FROM table2;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
     def test_with_quoted_names(self) -> None:
         sql = """
         SELECT * FROM "My Table"
         JOIN "Weird.Name" ON "My Table".id = "Weird.Name".id;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="My Table"),
             SQLRef(table="Weird.Name"),
-        ]
+        }
 
     def test_with_multiple_ctes(self) -> None:
         sql = """
@@ -612,10 +612,10 @@ class TestFindSQLRefs:
             cte3 AS (SELECT * FROM cte1 JOIN cte2)
         SELECT * FROM cte3;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
     def test_with_nested_joins(self) -> None:
         sql = """
@@ -623,31 +623,31 @@ class TestFindSQLRefs:
         JOIN (t2 JOIN t3 ON t2.id = t3.id)
         ON t1.id = t2.id;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="t1"),
             SQLRef(table="t2"),
             SQLRef(table="t3"),
-        ]
+        }
 
     def test_with_lateral_join(self) -> None:
         sql = """
         SELECT * FROM employees,
         LATERAL (SELECT * FROM departments WHERE departments.id = employees.dept_id) dept;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="departments"),
             SQLRef(table="employees"),
-        ]
+        }
 
     def test_with_schema_switching(self) -> None:
         sql = """
         SELECT * FROM schema1.table1
         JOIN schema2.table2 ON schema1.table1.id = schema2.table2.id;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="schema1"),
             SQLRef(table="table2", schema="schema2"),
-        ]
+        }
 
     def test_with_complex_subqueries(self) -> None:
         sql = """
@@ -658,10 +658,10 @@ class TestFindSQLRefs:
             JOIN another_table
         ) t2;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table", schema="nested", catalog="deeply"),
             SQLRef(table="another_table"),
-        ]
+        }
 
     def test_nested_intersect(self) -> None:
         sql = """
@@ -674,16 +674,16 @@ class TestFindSQLRefs:
             SELECT id FROM table4
         );
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table2"),
             SQLRef(table="table3"),
             SQLRef(table="table4"),
             SQLRef(table="table1"),
-        ]
+        }
 
     def test_with_alias(self) -> None:
         sql = "SELECT * FROM employees AS e;"
-        assert find_sql_refs(sql) == [SQLRef(table="employees")]
+        assert find_sql_refs(sql) == {SQLRef(table="employees")}
 
     def test_comment(self) -> None:
         sql = """
@@ -691,12 +691,12 @@ class TestFindSQLRefs:
         SELECT * FROM table1;
         -- comment
         """
-        assert find_sql_refs(sql) == [SQLRef(table="table1")]
+        assert find_sql_refs(sql) == {SQLRef(table="table1")}
 
     def test_ddl(self) -> None:
         # we are not referencing any table hence no refs
         sql = "CREATE TABLE t1 (id int);"
-        assert find_sql_refs(sql) == []
+        assert find_sql_refs(sql) == set()
 
     def test_ddl_with_reference(self) -> None:
         sql = """
@@ -706,25 +706,25 @@ class TestFindSQLRefs:
         )
         SELECT * FROM x;
         """
-        assert find_sql_refs(sql) == [SQLRef(table="table1")]
+        assert find_sql_refs(sql) == {SQLRef(table="table1")}
 
     def test_update(self) -> None:
         sql = "UPDATE my_schema.table1 SET id = 1"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="my_schema")
-        ]
+        }
 
     def test_insert(self) -> None:
         sql = "INSERT INTO my_schema.table1 (id INT) VALUES (1,2);"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="my_schema")
-        ]
+        }
 
     def test_delete(self) -> None:
         sql = "DELETE FROM my_schema.table1 WHERE true;"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="my_schema")
-        ]
+        }
 
     def test_multi_dml(self) -> None:
         sql = """
@@ -732,11 +732,11 @@ class TestFindSQLRefs:
         DELETE FROM table2 WHERE true;
         UPDATE table3 SET id = 1;
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
             SQLRef(table="table3"),
-        ]
+        }
 
     def test_multiple_selects_in_update(self) -> None:
         sql = """
@@ -754,13 +754,13 @@ class TestFindSQLRefs:
             SELECT table4.column4 FROM table4
         );
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1", schema="schema1"),
             SQLRef(table="table2", schema="schema2"),
             SQLRef(table="table3"),
             SQLRef(table="table2"),  # Table2 comes from main schema
             SQLRef(table="table4"),
-        ]
+        }
 
     def test_select_in_insert(self) -> None:
         sql = """
@@ -768,10 +768,10 @@ class TestFindSQLRefs:
         SELECT column1, column2 FROM table2
         WHERE column3 = 'value';
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
     def test_select_in_delete(self) -> None:
         sql = """
@@ -781,44 +781,44 @@ class TestFindSQLRefs:
             WHERE column2 = 'value'
         );
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
     def test_invalid_sql(self) -> None:
         sql = "SELECT * FROM"
-        assert find_sql_refs(sql) == []
+        assert find_sql_refs(sql) == set()
 
     def test_dml_with_subquery(self) -> None:
         # first
         sql = """
         insert into table1 (column1) select distinct column1 from table2 order by random();
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
-        ]
+        }
 
         # second
         sql = """
         update table3 set column1=(select column2 from table1 t where t.column1=table3.column1);
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table3"),
             SQLRef(table="table1"),
-        ]
+        }
 
         # combined
         sql = """
         insert into table1 (column1) select distinct column1 from table2 order by random();
         update table3 set column1=(select column2 from table1 t where t.column1=table3.column1);
         """
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="table1"),
             SQLRef(table="table2"),
             SQLRef(table="table3"),
-        ]
+        }
 
     def test_with_regex(self) -> None:
         # regex and replacement
@@ -827,16 +827,16 @@ class TestFindSQLRefs:
         FROM pdb.database
         LIMIT 10;
         """
-        assert find_sql_refs(sql) == [SQLRef(table="database", schema="pdb")]
+        assert find_sql_refs(sql) == {SQLRef(table="database", schema="pdb")}
 
     def test_read_file_and_urls(self) -> None:
         sql = "SELECT * FROM 'file.csv'"
-        assert find_sql_refs(sql) == [SQLRef(table="file.csv")]
+        assert find_sql_refs(sql) == {SQLRef(table="file.csv")}
 
         sql = "SELECT * FROM 'https://example.com/file.csv'"
-        assert find_sql_refs(sql) == [
+        assert find_sql_refs(sql) == {
             SQLRef(table="https://example.com/file.csv")
-        ]
+        }
 
         sql = "SELECT * FROM read_csv('/dev/stdin')"
-        assert find_sql_refs(sql) == []
+        assert find_sql_refs(sql) == set()
