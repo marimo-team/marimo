@@ -1635,7 +1635,7 @@ describe("useCellEditorNavigationProps", () => {
       const mockEditorView = {
         current: {
           state: {
-            selection: { main: { from: 5, to: 5 } },
+            selection: { main: { from: 5, to: 5, empty: true } },
             field: vi.fn().mockReturnValue({ active: [{ state: 1 }] }), // Mock active completion
           },
           dispatch: vi.fn(),
