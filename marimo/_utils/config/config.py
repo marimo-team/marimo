@@ -9,10 +9,7 @@ from typing import Any, Optional, TypeVar
 from marimo._utils.parse_dataclass import parse_raw
 from marimo._utils.toml import is_toml_error, read_toml
 
-if (_root_dir := os.environ.get("MARIMO_ROOT_DIR")) is None:
-    ROOT_DIR = ".marimo"
-else:
-    ROOT_DIR = _root_dir
+ROOT_DIR = os.environ.get("MARIMO_ROOT_DIR", ".marimo")
 
 T = TypeVar("T")
 
