@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
 import { aiEnabledAtom } from "@/core/config/config";
 import { isConnectedAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";

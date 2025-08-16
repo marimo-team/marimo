@@ -10,7 +10,7 @@ import {
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,

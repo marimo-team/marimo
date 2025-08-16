@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { switchLanguage } from "@/core/codemirror/language/extension";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
-import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql";
+import { SQLLanguageAdapter } from "@/core/codemirror/language/languages/sql/sql";
 import type { LanguageAdapter } from "@/core/codemirror/language/types";
 import { Functions } from "@/utils/functions";
 import { MarkdownIcon, PythonIcon } from "./icons";
