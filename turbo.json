@@ -5,7 +5,9 @@
       "dependsOn": ["^build", "codegen"],
       "outputs": ["dist/**"]
     },
-    "typecheck": {},
+    "typecheck": {
+      "dependsOn": ["codegen", "^codegen"]
+    },
     "test": {
       "dependsOn": ["build"]
     },

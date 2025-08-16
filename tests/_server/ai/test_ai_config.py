@@ -122,6 +122,42 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "ollama-placeholder"
 
+    def test_for_ollama_fallback_url(self):
+        """Test Ollama configuration with fallback base URL."""
+        config: AiConfig = {"ollama": {}}
+
+        provider_config = AnyProviderConfig.for_ollama(config)
+
+        assert provider_config.api_key == "ollama-placeholder"
+        assert provider_config.base_url == "http://127.0.0.1:11434/v1"
+
+    def test_for_github(self):
+        """Test GitHub configuration."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+                "base_url": "https://api.githubcopilot.com/",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.api_key == "test-github-key"
+        assert provider_config.base_url == "https://api.githubcopilot.com/"
+
+    def test_for_github_with_fallback_base_url(self):
+        """Test GitHub configuration uses fallback base URL when not specified."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.api_key == "test-github-key"
+        assert provider_config.base_url == "https://api.githubcopilot.com/"
+
     def test_for_anthropic(self):
         """Test Anthropic configuration."""
         config: AiConfig = {
@@ -194,6 +230,14 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_model("claude-3-opus", config)
 
         assert provider_config.api_key == "test-anthropic-key"
+
+    def test_for_model_github(self) -> None:
+        """Test for_model with GitHub model."""
+        config: AiConfig = {"github": {"api_key": "test-github-key"}}
+
+        provider_config = AnyProviderConfig.for_model("github/gpt-4o", config)
+
+        assert provider_config.api_key == "test-github-key"
 
     def test_for_model_unknown_defaults_to_ollama(self) -> None:
         """Test for_model with unknown provider defaults to Ollama."""
@@ -415,6 +459,35 @@ class TestProviderConfigWithFallback:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "Google AI API key not configured" in str(exc_info.value.detail)
+
+    @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
+    def test_for_github_with_fallback_key(self) -> None:
+        """Test GitHub config uses fallback key when config is missing api_key."""
+        config: AiConfig = {"github": {}}
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.api_key == "env-github-token"
+
+    @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
+    def test_for_github_config_key_takes_precedence(self) -> None:
+        """Test GitHub config key takes precedence over environment variable."""
+        config: AiConfig = {"github": {"api_key": "config-github-token"}}
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.api_key == "config-github-token"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_github_no_fallback_available(self) -> None:
+        """Test GitHub config fails when no config key and no env var."""
+        config: AiConfig = {"github": {}}
+
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_github(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "GitHub API key not configured" in str(exc_info.value.detail)
 
 
 class TestGetKey:
@@ -911,3 +984,13 @@ class TestEdgeCases:
         assert "OpenAI Compatible config not found" in str(
             exc_info.value.detail
         )
+
+    def test_github_config_missing(self):
+        """Test error when GitHub config is missing."""
+        config: AiConfig = {}
+
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_github(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "GitHub config not found" in str(exc_info.value.detail)

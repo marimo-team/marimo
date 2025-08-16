@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "sideEffects": false,
+  "files": [
+    "data/generated/*.json"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./icons/*": "./icons/*",

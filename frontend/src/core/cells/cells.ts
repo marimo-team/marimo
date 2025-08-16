@@ -1658,7 +1658,7 @@ export const useCellHandle = (cellId: CellId) =>
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
   return cellIds.inOrderIds
-    .map((cellId) => cellHandles[cellId]?.current?.editorView)
+    .map((cellId) => cellHandles[cellId]?.current?.editorViewOrNull)
     .filter(Boolean);
 };
 

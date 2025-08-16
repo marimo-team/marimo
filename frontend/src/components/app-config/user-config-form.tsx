@@ -12,7 +12,7 @@ import {
   MonitorIcon,
   PackageIcon,
 } from "lucide-react";
-import React, { useRef } from "react";
+import React, { useId, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -130,6 +130,8 @@ export const UserConfigForm: React.FC = () => {
   };
 
   const isWasmRuntime = isWasm();
+  const htmlCheckboxId = useId();
+  const ipynbCheckboxId = useId();
 
   const renderBody = () => {
     switch (activeCategory) {
@@ -168,6 +170,7 @@ export const UserConfigForm: React.FC = () => {
                     <FormLabel>Autosave delay (seconds)</FormLabel>
                     <FormControl>
                       <NumberField
+                        aria-label="Autosave delay"
                         data-testid="autosave-delay-input"
                         className="m-0 w-24"
                         isDisabled={
@@ -205,7 +208,7 @@ export const UserConfigForm: React.FC = () => {
                         <div className="flex gap-4">
                           <div className="flex items-center space-x-2">
                             <Checkbox
-                              id="html-checkbox"
+                              id={htmlCheckboxId}
                               checked={
                                 Array.isArray(field.value) &&
                                 field.value.includes("html")
@@ -219,11 +222,11 @@ export const UserConfigForm: React.FC = () => {
                                 );
                               }}
                             />
-                            <FormLabel htmlFor="html-checkbox">HTML</FormLabel>
+                            <FormLabel htmlFor={htmlCheckboxId}>HTML</FormLabel>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Checkbox
-                              id="ipynb-checkbox"
+                              id={ipynbCheckboxId}
                               checked={
                                 Array.isArray(field.value) &&
                                 field.value.includes("ipynb")
@@ -237,7 +240,7 @@ export const UserConfigForm: React.FC = () => {
                                 );
                               }}
                             />
-                            <FormLabel htmlFor="ipynb-checkbox">
+                            <FormLabel htmlFor={ipynbCheckboxId}>
                               IPYNB
                             </FormLabel>
                           </div>
@@ -295,6 +298,7 @@ export const UserConfigForm: React.FC = () => {
                       <FormLabel>Line length</FormLabel>
                       <FormControl>
                         <NumberField
+                          aria-label="Line length"
                           data-testid="line-length-input"
                           className="m-0 w-24"
                           {...field}
@@ -716,6 +720,7 @@ export const UserConfigForm: React.FC = () => {
                     <FormControl>
                       <span className="inline-flex mr-2">
                         <NumberField
+                          aria-label="Code editor font size"
                           data-testid="code-editor-font-size-input"
                           className="m-0 w-24"
                           {...field}
@@ -848,6 +853,7 @@ export const UserConfigForm: React.FC = () => {
                       <FormLabel>Default table page size</FormLabel>
                       <FormControl>
                         <NumberField
+                          aria-label="Default table page size"
                           data-testid="default-table-page-size-input"
                           className="m-0 w-24"
                           {...field}
@@ -884,6 +890,7 @@ export const UserConfigForm: React.FC = () => {
                       <FormLabel>Default table max columns</FormLabel>
                       <FormControl>
                         <NumberField
+                          aria-label="Default table max columns"
                           data-testid="default-table-max-columns-input"
                           className="m-0 w-24"
                           {...field}

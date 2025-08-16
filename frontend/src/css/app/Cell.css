@@ -215,6 +215,10 @@
     border-color: transparent;
     box-shadow: none;
 
+    & > * {
+      border-bottom: none;
+    }
+
     /* Apply the original styles */
     &:hover {
       border: 1px solid var(--gray-4);
@@ -249,6 +253,10 @@
   &.borderless {
     border-color: transparent;
     box-shadow: none;
+
+    & > * {
+      border-bottom: none;
+    }
 
     /* Apply the original styles */
     &:hover {

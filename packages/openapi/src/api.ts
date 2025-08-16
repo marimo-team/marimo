@@ -2568,6 +2568,7 @@ export interface components {
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
+      github?: components["schemas"]["GitHubConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       max_tokens?: number;
       /** @enum {string} */
@@ -2576,8 +2577,8 @@ export interface components {
         autocomplete_model?: string;
         chat_model?: string;
         custom_models: string[];
-        edit_model?: string;
         displayed_models: string[];
+        edit_model?: string;
       };
       ollama?: components["schemas"]["OpenAiConfig"];
       open_ai?: components["schemas"]["OpenAiConfig"];
@@ -3018,6 +3019,10 @@ export interface components {
           )
         | null;
       status: components["schemas"]["HumanReadableStatus"];
+    };
+    GitHubConfig: {
+      api_key?: string;
+      base_url?: string;
     };
     GoogleAiConfig: {
       api_key?: string;
