@@ -96,13 +96,11 @@ class DirectedGraph:
         """
         if language == "sql":
             # For SQL, only return SQL cells that reference the name
-            cells = set()
-            for cid, cell in self.cells.items():
-                if cell.language == "sql":
-                    for ref in cell.refs:
-                        if name == ref or ("." in ref and name in ref):
-                            cells.add(cid)
-            return cells
+            return {
+                cid
+                for cid, cell in self.cells.items()
+                if name in cell.refs and cell.language == "sql"
+            }
         else:
             # For Python, return all cells that reference the name
             return {
@@ -212,21 +210,26 @@ class DirectedGraph:
                     and "." in name
                     and len(other_ids_defining_name) == 0
                 ):
-                    sql_ref = ref_data.sql_ref
                     # name can be "schema.table" or "catalog.schema.table"
-                    # We want to find the other cells that define the same name
-
-                    # def_name can be "schema" for "schema.table",
-                    # or "catalog" or "catalog.schema" for "catalog.schema.table"
+                    # definitions will contain schema, table or catalog
                     parts = name.split(".")
-                    has_catalog = len(parts) > 2
+                    table = parts[-1]
 
                     for def_name in self.definitions:
-                        if def_name in name:
+                        # Get the first cell that defines def_name
+                        cell_ids = self.definitions[def_name]
+                        if not cell_ids:
+                            continue
+                        # Use any cell_id that defines def_name
+                        cell_id_for_def = next(iter(cell_ids))
+                        kind = (
+                            self.cells[cell_id_for_def]
+                            .variable_data[def_name][-1]
+                            .kind
+                        )
+                        if kind == "table" and def_name == table:
                             name_map[name] = def_name
-                            other_ids_defining_name.update(
-                                self.definitions[def_name]
-                            )
+                            other_ids_defining_name.update(cell_ids)
 
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).

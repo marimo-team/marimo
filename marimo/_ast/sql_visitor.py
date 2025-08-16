@@ -365,8 +365,8 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             LOGGER.warning("Table name cannot be found in the SQL statement")
             return None
 
-        # TODO: Check if table name is quoted, if yes, then anything is valid.
-        # If no, we can check if valid python identifier
+        # TODO: We can do simple checks on whether a table name is a URL / has file extension
+        # While these can be valid table names, they are not common
 
         return SQLRef(
             table=table_name, schema=schema_name, catalog=catalog_name
