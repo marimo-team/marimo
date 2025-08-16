@@ -3,14 +3,7 @@
 import pytest
 
 from marimo._config.config import AiConfig
-from marimo._server.ai.providers import (
-    AnthropicProvider,
-    AnyProviderConfig,
-    BedrockProvider,
-    GoogleProvider,
-    OpenAIProvider,
-    get_completion_provider,
-)
+from marimo._server.ai.providers import AnyProviderConfig
 
 
 @pytest.mark.parametrize(
@@ -50,25 +43,3 @@ def test_anyprovider_for_model(model_name, provider_name):
     else:
         # bedrock overloads the api_key for profile name
         assert config.api_key == "profile:aws-profile"
-
-
-@pytest.mark.parametrize(
-    ("model_name", "provider_type"),
-    [
-        pytest.param("gpt-4", OpenAIProvider, id="openai"),
-        pytest.param(
-            "claude-3-opus-20240229", AnthropicProvider, id="anthropic"
-        ),
-        pytest.param("gemini-1.5-flash", GoogleProvider, id="google"),
-        pytest.param(
-            "bedrock/anthropic.claude-3-sonnet-20240229",
-            BedrockProvider,
-            id="bedrock",
-        ),
-    ],
-)
-def test_get_completion_provider(model_name, provider_type):
-    """Test that the correct provider is returned for a given model."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, model_name)
-    assert isinstance(provider, provider_type)

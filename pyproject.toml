@@ -267,6 +267,8 @@ extra-dependencies = [
     "google-genai>=0.2.0",
     "boto3>=1.38.46",
     "litellm>=1.70.0",
+    # any-llm for unified AI provider interface
+    "any-llm-sdk>=0.2.0",
     # exporting as ipynb
     "nbformat>=5.10.4",
     "sympy>=1.13.3",

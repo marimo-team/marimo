@@ -16,7 +16,6 @@ from marimo._server.ai.prompts import (
 )
 from marimo._server.ai.providers import (
     AnyProviderConfig,
-    OpenAIProvider,
     without_wrapping_backticks,
 )
 from tests._server.conftest import get_session_config_manager

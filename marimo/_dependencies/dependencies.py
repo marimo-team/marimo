@@ -217,6 +217,7 @@ class DependencyManager:
     geopandas = Dependency("geopandas")
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
+    ollama = Dependency("ollama")
     google_ai = Dependency("google.genai")
     groq = Dependency("groq")
     panel = Dependency("panel")
@@ -237,10 +238,15 @@ class DependencyManager:
     litellm = Dependency("litellm")
     redshift_connector = Dependency("redshift_connector")
     mcp = Dependency("mcp")
+    any_llm = Dependency("any_llm")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
     new_superfences = Dependency("pymdownx", min_version="10.11.0")
+
+    @staticmethod
+    def of(name: str) -> Dependency:
+        return Dependency(name)
 
     @staticmethod
     def has(pkg: str) -> bool:
