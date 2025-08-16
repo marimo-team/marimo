@@ -311,7 +311,7 @@ def find_sql_defs(sql_statement: str) -> SQLDefs:
     )
 
 
-@dataclass
+@dataclass(frozen=True, init=True)
 class SQLRef:
     # Tables are synonymous with views,
     # since we can't know the difference in queries
@@ -330,11 +330,11 @@ class SQLRef:
             name += self.table
         return name
 
-    def only_table(self) -> bool:
+    def has_only_table_name(self) -> bool:
         return self.schema is None and self.catalog is None
 
 
-def find_sql_refs(sql_statement: str) -> list[SQLRef]:
+def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     """
     Find table and schema references in a SQL statement.
 
@@ -342,7 +342,7 @@ def find_sql_refs(sql_statement: str) -> list[SQLRef]:
         sql_statement: The SQL statement to parse.
 
     Returns:
-        A list of SQLRefs, one for each expression in the statement.
+        A set of unique SQLRefs, one for each table reference in the statement.
         Eg. SELECT * FROM schema1.test_table INNER JOIN schema2.test_table2
         would return two SQLRefs, one for the first table and one for the second.
     """
@@ -374,14 +374,9 @@ def find_sql_refs(sql_statement: str) -> list[SQLRef]:
             expression_list = parse(sql_statement, dialect="duckdb")
     except ParseError as e:
         LOGGER.error(f"Unable to parse SQL. Error: {e}")
-        return []
+        return set()
 
-    refs: list[SQLRef] = []
-
-    def append_ref_if_not_duplicate(ref: SQLRef) -> None:
-        is_duplicate = any(ref == existing for existing in refs)
-        if not is_duplicate:
-            refs.append(ref)
+    refs: set[SQLRef] = set()
 
     for expression in expression_list:
         if expression is None:
@@ -390,7 +385,7 @@ def find_sql_refs(sql_statement: str) -> list[SQLRef]:
         if bool(expression.find(exp.Update, exp.Insert, exp.Delete)):
             for table in expression.find_all(exp.Table):
                 if ref := get_ref_from_table(table):
-                    append_ref_if_not_duplicate(ref)
+                    refs.add(ref)
 
         # build_scope only works for select statements
         if root := build_scope(expression):
@@ -398,6 +393,6 @@ def find_sql_refs(sql_statement: str) -> list[SQLRef]:
                 for _node, source in scope.selected_sources.values():
                     if isinstance(source, exp.Table):
                         if ref := get_ref_from_table(source):
-                            append_ref_if_not_duplicate(ref)
+                            refs.add(ref)
 
     return refs
