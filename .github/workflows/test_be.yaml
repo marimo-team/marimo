@@ -116,7 +116,7 @@ jobs:
       - name: Test with minimal dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          hatch run +py=${{ matrix.python-version }} test:test -v tests/ -k "not test_cli" --durations=10
+          hatch test -py ${{ matrix.python-version }} --exclude feature=optional -v tests/ -k "not test_cli" --durations=10
 
       # Test with optional dependencies
       - name: Test with optional dependencies
