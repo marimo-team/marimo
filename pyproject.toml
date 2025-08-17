@@ -141,7 +141,8 @@ optional = [
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.7.0",
+    # "scikit-bio>=0.7.0",  # build issues; should be able
+    # to uncomment when biom-format 2.1.17 is released
     "mcp>=1.0.0; python_version >= '3.10'",
 ]
 

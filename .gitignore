@@ -92,7 +92,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-uv.lock
 
 # WIP files
 .wip/
@@ -127,3 +126,6 @@ __marimo__
 # pixi environments
 .pixi
 *.egg-info
+
+.direnv
+.envrc
