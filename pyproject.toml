@@ -146,21 +146,6 @@ optional = [
 ]
 
 [dependency-groups]
-dev = [
-    "click>=8.0,<9",
-    "black~=23.12.1",
-    # For tracing debugging
-    "opentelemetry-api~=1.26.0",
-    "opentelemetry-sdk~=1.26.0",
-    # For SQL
-    "duckdb>=1.0.0",
-    "sqlglot>=23.4",
-    # For linting
-    "ruff~=0.9.1",
-    # For AI
-    "openai>=1.55.3",
-]
-
 docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.5.49",
@@ -188,13 +173,25 @@ installer = "uv"
 dependencies = ["uv>=0.4.17"]
 
 [tool.hatch.envs.default]
-features = ["dev"]
 python = "3.12"
 installer = "uv"
 dependencies = [
     "uv>=0.4.17", # so we can bump the version used by hatch
     # Typo checking
     "typos~=1.23.6",
+
+    "click>=8.0,<9",
+    "black~=23.12.1",
+    # For tracing debugging
+    "opentelemetry-api~=1.26.0",
+    "opentelemetry-sdk~=1.26.0",
+    # For SQL
+    "duckdb>=1.0.0",
+    "sqlglot>=23.4",
+    # For linting
+    "ruff~=0.9.1",
+    # For AI
+    "openai>=1.55.3",
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -263,63 +260,6 @@ test-narwhals = """
         tests/_plugins/ui/_impl/ \
         tests/_utils/test_narwhals_utils.py
 """
-
-[tool.hatch.envs.test-optional]
-template = "test"
-extra-dependencies = [
-    "hypothesis~=6.102.1",
-    "httpx~=0.27.0",
-    "matplotlib~=3.9.2",
-    "pytest~=8.3.4",
-    "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.6.1",
-    "pytest-rerunfailures~=15.1",
-    "pytest-asyncio~=0.26.0",
-    "python-lsp-server>=1.10.0",
-    # For testing mo.ui.chart, table, ...
-    "vl-convert-python",
-    "vegafusion",
-    "pyarrow>=19.0.1",
-    "pyarrow_hotfix",
-    "altair>=5.4.0",
-    "plotly>=5.14.0",
-    "polars>=1.32.2",
-    "sqlglot>=23.4",
-    "sqlalchemy>=2.0.40",
-    "pyiceberg>=0.9.0",
-    # For testing clickhouse
-    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
-    "clickhouse-connect>=0.8.18",
-    "redshift-connector[full]>=2.1.7",
-    "pandas>=1.5.3",
-    "hvplot~=0.11.3",
-    # Causes issues installing `shapely` (v2.0.7)
-    # "geopandas~=1.0.1; python_version > '3.9'",
-    # FOr testing sql
-    "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
-    # For testing mo.image
-    "pillow~=10.4.0",
-    "anywidget~=0.9.18",
-    "ipython~=8.12.3",
-    # testing gen ai
-    "openai>=1.55.3",
-    "anthropic==0.52.2; python_version > '3.9'",
-    "google-genai>=0.2.0",
-    "boto3>=1.38.46",
-    "litellm>=1.70.0",
-    # exporting as ipynb
-    "nbformat>=5.10.4",
-    "sympy>=1.13.3",
-    "jupytext>=1.17.2",
-    # For standard scientific computing/ ML
-    "jax>=0.4.0; python_version == '3.12'",
-    "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0; python_version >= '3.10'",
-]
-
-[[tool.hatch.envs.test-optional.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 features = ["docs"]
