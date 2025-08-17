@@ -80,24 +80,72 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 
 [project.optional-dependencies]
 sql = [
-    "duckdb>=1.0.0",
-    "polars[pyarrow]>=1.9.0",
-    "sqlglot>=23.4"
+    "duckdb>=1.0.0",            # SQL cells
+    "polars[pyarrow]>=1.9.0",   # SQL output back in Python
+    "sqlglot>=23.4",            # SQL cells parsing
 ]
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
 # This includes the `sql` deps
 recommended = [
-    "duckdb>=1.0.0",            # SQL cells
+    "marimo[sql]",
     "altair>=5.4.0",            # Plotting in datasource viewer
-    "polars[pyarrow]>=1.9.0",   # SQL output back in Python
-    "sqlglot>=23.4",            # SQL cells parsing
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
 ]
 
+
+lsp = [
+    "python-lsp-server>=1.13.0",
+    "python-lsp-ruff>=2.0.0",
+]
+
+optional = [
+    "marimo[recommended,lsp]",
+    # For testing mo.ui.chart, table, ...
+    "vl-convert-python",
+    "vegafusion",
+    "pyarrow>=19.0.1",
+    "pyarrow_hotfix",
+    "altair>=5.4.0",
+    "polars>=1.30.0",
+    "sqlglot>=23.4",
+    "sqlalchemy>=2.0.40",
+    "pyiceberg>=0.9.0",
+    # For testing clickhouse
+    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
+    "clickhouse-connect>=0.8.18",
+    "redshift-connector[full]>=2.1.7",
+    "pandas>=1.5.3",
+    "hvplot~=0.11.3",
+    # Causes issues installing `shapely` (v2.0.7)
+    # "geopandas~=1.0.1; python_version > '3.9'",
+    # FOr testing sql
+    "ibis-framework[duckdb]>=10.3.0; python_version > '3.9'",
+    # For testing mo.image
+    "pillow~=10.4.0",
+    "anywidget~=0.9.18",
+    "ipython~=8.12.3",
+    # testing gen ai
+    "openai>=1.55.3",
+    "anthropic==0.52.2; python_version > '3.9'",
+    "google-genai>=0.2.0",
+    "boto3>=1.38.46",
+    "litellm>=1.70.0",
+    # exporting as ipynb
+    "nbformat>=5.10.4",
+    "sympy>=1.13.3",
+    "jupytext>=1.17.2",
+    # For standard scientific computing/ ML
+    "jax>=0.4.0; python_version == '3.12'",
+    "torch>=2.4.0; python_version == '3.12'",
+    "scikit-bio>=0.6.3; python_version == '3.12'",
+    "mcp>=1.0.0; python_version >= '3.10'",
+]
+
+[dependency-groups]
 dev = [
     "click>=8.0,<9",
     "black~=23.12.1",
@@ -111,11 +159,6 @@ dev = [
     "ruff~=0.9.1",
     # For AI
     "openai>=1.55.3",
-]
-
-lsp = [
-    "python-lsp-server>=1.13.0",
-    "python-lsp-ruff>=2.0.0",
 ]
 
 docs = [
@@ -195,25 +238,22 @@ dependencies = [
 check = "mypy marimo --exclude=marimo/_tutorials/"
 tutorials = "mypy marimo/_tutorials"
 
-[tool.hatch.envs.test]
+[tool.hatch.envs.hatch-test]
+features = ["optional"]
 extra-dependencies = [
     "hypothesis~=6.102.1",
     # For server testing
     "httpx~=0.27.0",
     "matplotlib~=3.9.2",
-    "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
     "pytest-codecov~=0.6.1",
-    "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
 ]
 
-[[tool.hatch.envs.test.matrix]]
+[[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
-[tool.hatch.envs.test.scripts]
-test = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
-default = "pytest{env:HATCH_TEST_ARGS:} {args:tests}"
+[tool.hatch.envs.hatch-test.extra-scripts]
 # This is used externally from the narwhals repo to run our tests from their repo.
 # This should include any tests that may use narwhals.
 # It is ok if we test more than narwhals here, but we should not test less.
