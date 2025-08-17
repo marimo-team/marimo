@@ -141,11 +141,56 @@ optional = [
     # For standard scientific computing/ ML
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.3; python_version == '3.12'",
+    "scikit-bio>=0.7.0",
     "mcp>=1.0.0; python_version >= '3.10'",
 ]
 
 [dependency-groups]
+dev = [
+    "uv>=0.4.17", # so we can bump the version used by hatch
+    # Typo checking
+    "typos~=1.23.6",
+
+    "click>=8.0,<9",
+    "black~=23.12.1",
+    # For tracing debugging
+    "opentelemetry-api~=1.26.0",
+    "opentelemetry-sdk~=1.26.0",
+    # For SQL
+    "duckdb>=1.0.0",
+    "sqlglot>=23.4",
+    # For linting
+    "ruff~=0.9.1",
+    # For AI
+    "openai>=1.55.3",
+]
+
+typecheck = [
+    "mypy~=1.15.0",
+    # Types for mypy
+    "altair>=5.4.0",
+    "leafmap~=0.39.2",
+    "panel>=1.5.3; python_version >= '3.10'",
+    "polars>=1.9.0",
+    "narwhals>=1.12.0",
+    "matplotlib>=3.8.0",
+    "sqlglot>=23.4",
+    "sqlalchemy>=2.0.40",
+    "loro>=1.5.0",
+    "pandas-stubs>=1.5.3.230321",
+    "pyiceberg>=0.9.0",
+    "litellm>=1.70.0",
+    "python-dotenv>=1.0.1",
+    "jupytext>=1.17.2",
+    "types-Pillow~=10.2.0.20240520",
+    "types-Pygments~=2.18.0.20240506",
+    "types-psutil~=5.9.5.20240516",
+    "types-redis~=4.6.0.20241004",
+    "types-Markdown~=3.6.0.20240316",
+    "types-PyYAML~=6.0.12.20240808",
+    "mcp>=1.0.0; python_version >= '3.10'",
+]
+
 docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.5.49",
@@ -165,34 +210,18 @@ docs = [
     "pymdown-extensions>=10.7",
 ]
 
-[tool.hatch]
-installer = "uv"
+[tool.hatch.env]
+requires = ["hatch-uvenv"]
+
 
 # Override the default uv version to use the latest version
 [tool.hatch.envs.hatch-uv]
 dependencies = ["uv>=0.4.17"]
 
 [tool.hatch.envs.default]
-python = "3.12"
 installer = "uv"
-dependencies = [
-    "uv>=0.4.17", # so we can bump the version used by hatch
-    # Typo checking
-    "typos~=1.23.6",
-
-    "click>=8.0,<9",
-    "black~=23.12.1",
-    # For tracing debugging
-    "opentelemetry-api~=1.26.0",
-    "opentelemetry-sdk~=1.26.0",
-    # For SQL
-    "duckdb>=1.0.0",
-    "sqlglot>=23.4",
-    # For linting
-    "ruff~=0.9.1",
-    # For AI
-    "openai>=1.55.3",
-]
+groups = [ "dev" ]
+type = "uvenv"
 
 [tool.hatch.envs.default.scripts]
 lint = "ruff check --fix"
@@ -202,31 +231,8 @@ format = "ruff format"
 [tool.hatch.envs.typecheck]
 python = "3.12"
 installer = "uv"
-dependencies = [
-    "mypy~=1.15.0",
-    # Types for mypy
-    "altair>=5.4.0",
-    "leafmap~=0.39.2",
-    "panel~=1.5.3",
-    "polars~=1.9.0",
-    "narwhals>=1.12.0",
-    "matplotlib>=3.8.0",
-    "sqlglot>=23.4",
-    "sqlalchemy>=2.0.40",
-    "loro>=1.5.0",
-    "pandas-stubs>=1.5.3.230321",
-    "pyiceberg>=0.9.0",
-    "litellm>=1.70.0",
-    "python-dotenv>=1.0.1",
-    "jupytext>=1.17.2",
-    "types-Pillow~=10.2.0.20240520",
-    "types-Pygments~=2.18.0.20240506",
-    "types-psutil~=5.9.5.20240516",
-    "types-redis~=4.6.0.20241004",
-    "types-Markdown~=3.6.0.20240316",
-    "types-PyYAML~=6.0.12.20240808",
-    "mcp>=1.0.0; python_version >= '3.10'",
-]
+groups = [ "typecheck" ]
+type = "uvenv"
 
 [tool.hatch.envs.typecheck.scripts]
 # tutorials shouldn't be type-checked (should be excluded), but they get
@@ -534,3 +540,4 @@ pre_commit = ">=4.2.0,<5"
 uv = ">=0.6.12,<0.7"
 python = "3.12.*"
 pip = ">=25.0.1,<26"
+mypy = ">=1.17.1,<2"
