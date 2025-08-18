@@ -628,8 +628,7 @@ export function useCellEditorNavigationProps(
     const view = editorView.current;
     const state = view.state;
 
-    const hasTextSelection =
-      state.selection.main.from !== state.selection.main.to;
+    const hasTextSelection = !state.selection.main.empty;
 
     if (hasTextSelection) {
       view.dispatch({
