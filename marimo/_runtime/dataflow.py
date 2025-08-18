@@ -11,6 +11,7 @@ from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
+from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.variables import is_mangled_local
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._runtime.executor import (
@@ -96,16 +97,103 @@ class DirectedGraph:
         """
         if language == "sql":
             # For SQL, only return SQL cells that reference the name
-            return {
-                cid
-                for cid, cell in self.cells.items()
-                if name in cell.refs and cell.language == "sql"
-            }
+            cells = set()
+            for cid, cell in self.cells.items():
+                if cell.language != "sql":
+                    continue
+
+                for ref in cell.refs:
+                    # Direct reference match
+                    if ref == name:
+                        cells.add(cid)
+                        break
+
+                    ref_data = cell.refs_data[ref]
+
+                    # Hierarchical reference match
+                    if (
+                        name in ref
+                        and "." in ref
+                        and ref_data.language == "sql"
+                        and ref_data.sql_ref is not None
+                    ):
+                        if self._matches_hierarchical_ref(
+                            name, ref, ref_data.sql_ref
+                        ):
+                            cells.add(cid)
+                            break
+
+            return cells
         else:
             # For Python, return all cells that reference the name
             return {
                 cid for cid, cell in self.cells.items() if name in cell.refs
             }
+
+    def _matches_hierarchical_ref(
+        self, name: Name, ref: Name, sql_ref: SQLRef
+    ) -> bool:
+        """Check if a hierarchical reference matches the given name."""
+        parts = ref.split(".")
+
+        if len(parts) == 2:
+            # Format: schema.table or catalog.table
+            catalog_or_schema = parts[0]
+            # Check if it matches either catalog or schema
+            # Because SQLRef doesn't know whether it references a catalog or schema
+            return (
+                sql_ref.catalog is None
+                and catalog_or_schema == sql_ref.schema == name
+            ) or (
+                sql_ref.catalog is not None
+                and catalog_or_schema == sql_ref.catalog == name
+            )
+        elif len(parts) == 3:
+            # Format: catalog.schema.table
+            catalog, schema = parts[0], parts[1]
+            return (
+                catalog == sql_ref.catalog == name
+                or schema == sql_ref.schema == name
+            )
+
+        return False
+
+    def _find_sql_hierarchical_matches(
+        self, name: Name
+    ) -> tuple[set[CellId_t], dict[Name, Name]]:
+        """Find SQL hierarchical reference matches and return cell IDs and name mapping.
+
+        For SQL references like "schema.table" or "catalog.schema.table", find cells
+        that define the table, schema, or catalog components.
+        """
+        name_map = {}
+        matching_cell_ids = set()
+        parts = name.split(".")
+        table = parts[-1]
+
+        for def_name in self.definitions:
+            cell_ids = self.definitions[def_name]
+            if not cell_ids:
+                continue
+
+            # Get the variable kind from the first cell that defines it
+            # TODO: This doesn't capture views/tables in other schemas in the same catalog
+            cell_id_for_def = next(iter(cell_ids))
+            kind = self.cells[cell_id_for_def].variable_data[def_name][-1].kind
+
+            # Match table/view definitions
+            if kind in ("table", "view") and def_name == table:
+                name_map[name] = def_name
+                matching_cell_ids.update(cell_ids)
+
+            # Match catalog definitions
+            elif kind == "catalog" and len(parts) >= 2:
+                catalog_or_schema = parts[0]
+                if def_name == catalog_or_schema:
+                    name_map[name] = def_name
+                    matching_cell_ids.update(cell_ids)
+
+        return matching_cell_ids, name_map
 
     def get_path(self, source: CellId_t, dst: CellId_t) -> list[Edge]:
         """Get a path from `source` to `dst`, if any."""
@@ -197,39 +285,17 @@ class DirectedGraph:
                     else set()
                 ) - set((cell_id,))
 
-                # We want to fuzzy find the other cells that define the
-                # same name for SQL cells. Because the name may embed schema,
-                # catalog and table names
-                # Eg. def_name = "my_db" and name = "my_db.my_table"
-                # Keep a copy of the names so we can use them in the check
-                name_map = dict()
+                # Handle SQL fuzzy matching for hierarchical references
+                name_map = {}
                 ref_data = cell.refs_data[name]
-                language = ref_data.language
                 if (
-                    language == "sql"
+                    ref_data.language == "sql"
                     and "." in name
                     and len(other_ids_defining_name) == 0
                 ):
-                    # name can be "schema.table" or "catalog.schema.table"
-                    # definitions will contain schema, table or catalog
-                    parts = name.split(".")
-                    table = parts[-1]
-
-                    for def_name in self.definitions:
-                        # Get the first cell that defines def_name
-                        cell_ids = self.definitions[def_name]
-                        if not cell_ids:
-                            continue
-                        # Use any cell_id that defines def_name
-                        cell_id_for_def = next(iter(cell_ids))
-                        kind = (
-                            self.cells[cell_id_for_def]
-                            .variable_data[def_name][-1]
-                            .kind
-                        )
-                        if kind == "table" and def_name == table:
-                            name_map[name] = def_name
-                            other_ids_defining_name.update(cell_ids)
+                    other_ids_defining_name, name_map = (
+                        self._find_sql_hierarchical_matches(name)
+                    )
 
                 # If other_ids_defining_name is empty, the user will get a
                 # NameError at runtime (unless the symbol is a builtin).

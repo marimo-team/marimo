@@ -345,6 +345,15 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
         A set of unique SQLRefs, one for each table reference in the statement.
         Eg. SELECT * FROM schema1.test_table INNER JOIN schema2.test_table2
         would return two SQLRefs, one for the first table and one for the second.
+
+    Note:
+        When providing only a single qualification,
+        DuckDB will interpret as either a catalog or a schema, as long as there are no conflicts.
+
+        Eg. SELECT * FROM my_db.my_table, my_db can be a catalog or schema. If a catalog exists,
+        then it would resolve to my_db.main.my_table.
+
+        At the moment, we don't know this, so my_db is treated as a schema.
     """
 
     # Use sqlglot to parse ast (https://github.com/tobymao/sqlglot/blob/main/posts/ast_primer.md)
@@ -365,8 +374,16 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
             LOGGER.warning("Table name cannot be found in the SQL statement")
             return None
 
-        # TODO: We can do simple checks on whether a table name is a URL / has file extension
-        # While these can be valid table names, they are not common
+        # Check if the table name looks like a URL or has a file extension.
+        # These are often not actual table references, so we skip them.
+        if re.match(r"^(http|https|ftp)://", table_name):
+            return None
+        if re.search(
+            r"\.(csv|parquet|json|txt|db|tsv|xlsx?)$",
+            table_name,
+            re.IGNORECASE,
+        ):
+            return None
 
         return SQLRef(
             table=table_name, schema=schema_name, catalog=catalog_name

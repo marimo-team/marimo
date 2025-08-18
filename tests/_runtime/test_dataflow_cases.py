@@ -301,12 +301,85 @@ SQL_CASES = [
             "2": ["mo", "schema_one.my_table"],
         },
         # What should the defs be?
-        expected_defs={
-            "0": ["schema_one.my_table"],
-            "1": ["schema_two.my_table"],
-            "2": [],
-        },
+        expected_defs={"0": ["my_table"], "1": ["my_table"], "2": []},
         xfail=True,
+    ),
+    GraphTestCase(
+        name="sql catalog and schema with same name",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE my_db.my_db.my_table (name STRING)')",
+            "1": "_ = mo.sql(f'FROM my_db.my_db.my_table SELECT *')",
+        },
+        expected_parents={"0": [], "1": ["0"]},
+        expected_children={"0": ["1"], "1": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "my_db.my_db.my_table"],
+        },
+        expected_defs={"0": ["my_table"], "1": []},
+    ),
+    GraphTestCase(
+        name="sql view creation with schema reference",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE my_schema.base_table (id INT)')",
+            "1": "_ = mo.sql(f'CREATE VIEW my_schema.my_view AS SELECT * FROM my_schema.base_table')",
+            "2": "_ = mo.sql(f'FROM my_schema.my_view SELECT *')",
+        },
+        expected_parents={"0": [], "1": ["0"], "2": ["1"]},
+        expected_children={"0": ["1"], "1": ["2"], "2": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "my_schema.base_table"],
+            "2": ["mo", "my_schema.my_view"],
+        },
+        expected_defs={"0": ["base_table"], "1": ["my_view"], "2": []},
+    ),
+    GraphTestCase(
+        name="sql case insensitive schema matching",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "_ = mo.sql(f'CREATE TABLE MY_SCHEMA.my_table (name STRING)')",
+            "1": "_ = mo.sql(f'FROM my_schema.my_table SELECT *')",
+        },
+        expected_parents={"0": [], "1": ["0"]},
+        expected_children={"0": ["1"], "1": []},
+        expected_refs={
+            "0": ["mo"],
+            "1": ["mo", "my_schema.my_table"],
+        },
+        expected_defs={"0": ["my_table"], "1": []},
+    ),
+    GraphTestCase(
+        name="sql no reference to python variable when using catalog",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "my_catalog_var = 'test_catalog'",
+            "1": "_ = mo.sql(f'FROM my_catalog_var.schema.table SELECT *')",
+        },
+        expected_parents={"0": [], "1": []},
+        expected_children={"0": [], "1": []},
+        expected_refs={
+            "0": [],
+            "1": ["mo", "my_catalog_var.schema.table"],
+        },
+        expected_defs={"0": ["my_catalog_var"], "1": []},
+    ),
+    GraphTestCase(
+        name="sql no reference to python variable when using schema",
+        enabled=HAS_DUCKDB,
+        code={
+            "0": "my_schema_var = 'test_schema'",
+            "1": "_ = mo.sql(f'FROM my_schema_var.table SELECT *')",
+        },
+        expected_parents={"0": [], "1": []},
+        expected_children={"0": [], "1": []},
+        expected_refs={
+            "0": [],
+            "1": ["mo", "my_schema_var.table"],
+        },
+        expected_defs={"0": ["my_schema_var"], "1": []},
     ),
 ]
 
